@@ -81,6 +81,8 @@
   <div id="main">
     <div id="toolbar">
       <button onclick="centerOnCity()" title="Center view on city">🏙️ Center</button>
+      <button onclick="document.getElementById('fileInput').click()" title="Load saved map">📂 Load Map</button>
+      <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="loadMapFile(event)">
       <button onclick="saveMapJSON()" class="secondary">💾 Save JSON</button>
       <button onclick="saveMapCSV()" class="secondary">📄 Save CSV</button>
       <button onclick="clearMap()" class="secondary">🗑️ Clear Map</button>
@@ -682,6 +684,69 @@
       a.href = url;
       a.download = `map_${MAP_WIDTH}x${MAP_HEIGHT}.csv`;
       a.click();
+    }
+
+    function loadMapFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const json = JSON.parse(e.target.result);
+
+          // Validate map data
+          if (!json.width || !json.height || !json.data) {
+            throw new Error('Invalid map file format');
+          }
+
+          if (json.width !== MAP_WIDTH || json.height !== MAP_HEIGHT) {
+            if (!confirm(`Map size is ${json.width}×${json.height} but editor expects ${MAP_WIDTH}×${MAP_HEIGHT}. Load anyway? (May cause issues)`)) {
+              return;
+            }
+          }
+
+          // Load terrain data
+          mapData = json.data;
+
+          // Load settlements (preserve city if not in file, or use file's settlements)
+          if (json.settlements && json.settlements.length > 0) {
+            settlements = json.settlements;
+
+            // Ensure city exists and has correct type
+            const cityExists = settlements.some(s => s.x === cityPosition.x && s.y === cityPosition.y);
+            if (cityExists) {
+              // Update city entry to ensure it has type 'city'
+              const cityIndex = settlements.findIndex(s => s.x === cityPosition.x && s.y === cityPosition.y);
+              if (cityIndex >= 0) {
+                settlements[cityIndex].type = 'city';
+              }
+            } else {
+              // Add city if not present
+              settlements.push({ x: cityPosition.x, y: cityPosition.y, type: 'city' });
+            }
+          } else {
+            // No settlements in file - keep just the city
+            settlements = [{ x: cityPosition.x, y: cityPosition.y, type: 'city' }];
+          }
+
+          // Render loaded map
+          renderMap();
+          centerOnCity();
+
+          console.log(`[LOAD] ✓ Loaded map: ${json.width}×${json.height}, ${settlements.length} settlements`);
+          alert(`Map loaded successfully!\n${json.width}×${json.height} tiles\n${settlements.length} settlements`);
+
+        } catch (error) {
+          console.error('[LOAD] Failed to load map:', error);
+          alert(`Failed to load map: ${error.message}`);
+        }
+      };
+
+      reader.readAsText(file);
+
+      // Reset file input so same file can be loaded again
+      event.target.value = '';
     }
 
     // TERRAIN DATA PLACEHOLDER - Will be injected
