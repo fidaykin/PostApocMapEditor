@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PostApoc Map Editor - 29 Terrain Types</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a1a; color: white; display: flex; height: 100vh; overflow: hidden; }
+
+    #sidebar { width: 350px; min-width: 350px; background: #252525; padding: 20px 20px 0; overflow-y: auto; border-right: 2px solid #333; flex-shrink: 0; display: flex; flex-direction: column; }
+    #sidebar h2 { color: #4CAF50; margin-bottom: 15px; font-size: 18px; }
+    #sidebar h3 { color: #888; margin: 20px 0 10px; font-size: 14px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+
+    .terrain-option { background: #2a2a2a; border: 2px solid #444; margin-bottom: 8px; padding: 8px; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+    .terrain-option:hover { border-color: #666; }
+    .terrain-option.selected { border-color: #4CAF50; background: #1a4a1a; }
+    .terrain-option img { width: 48px; height: 48px; display: block; margin: 0 auto 5px; image-rendering: pixelated; }
+    .terrain-option .name { color: white; font-size: 11px; text-align: center; }
+    .terrain-option .value { color: #888; font-size: 10px; text-align: center; }
+
+    .section-header { font-weight: bold; color: #FFA500; font-size: 12px; margin-top: 15px; margin-bottom: 8px; padding: 8px; background: #1a1a1a; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s; }
+    .section-header:hover { background: #2a2a2a; }
+    .section-header::before { content: '▼ '; font-size: 10px; display: inline-block; transition: transform 0.2s; }
+    .section-header.collapsed::before { transform: rotate(-90deg); }
+    .category-items { display: block; }
+    .category-items.collapsed { display: none; }
+
+    #main { flex: 1; display: flex; flex-direction: column; }
+    #toolbar { background: #2a2a2a; padding: 15px; border-bottom: 2px solid #333; display: flex; gap: 10px; align-items: center; }
+    #toolbar button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background 0.2s; }
+    #toolbar button:hover { background: #45a049; }
+    #toolbar button.secondary { background: #666; }
+    #toolbar button.secondary:hover { background: #777; }
+    #toolbar .info { margin-left: auto; color: #888; font-size: 13px; }
+
+    #canvas-container { flex: 1; overflow: hidden; background: #1a1a1a; position: relative; }
+    #mapCanvas { display: block; image-rendering: auto; cursor: crosshair; width: 100%; height: 100%; }
+
+    .zoom-controls { display: flex; align-items: center; gap: 8px; margin-left: 15px; padding-left: 15px; border-left: 2px solid #333; }
+    .zoom-controls button { padding: 5px 12px; min-width: 35px; }
+    .zoom-controls input[type="range"] { width: 120px; }
+    .zoom-controls .zoom-label { color: #888; font-size: 12px; min-width: 50px; }
+
+    #terrainPalette { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+
+    .tools-section { position: sticky; bottom: 0; background: #252525; padding: 15px 0; margin: 0 -20px; padding-left: 20px; padding-right: 20px; border-top: 2px solid #333; }
+    .tools { margin-top: 0; }
+    .tool-btn { width: 100%; background: #333; color: white; border: none; padding: 10px; margin-bottom: 5px; cursor: pointer; border-radius: 4px; }
+    .tool-btn.active { background: #4CAF50; }
+    .tool-btn:hover { background: #444; }
+    .tool-btn.active:hover { background: #45a049; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h2>🎨 Terrain Palette</h2>
+    <div id="terrainPalette"></div>
+
+    <div class="tools-section">
+      <div class="tools">
+        <h3>🛠️ Tools</h3>
+        <button class="tool-btn active" onclick="setTool('paint')">🖌️ Paint</button>
+        <button class="tool-btn" onclick="setTool('pan')">✋ Pan</button>
+        <button class="tool-btn" onclick="setTool('settlement')">🏚️ Place Settlement</button>
+        <button class="tool-btn" onclick="setTool('erase')">🧹 Erase Settlement</button>
+      </div>
+
+      <div style="margin-top: 15px; padding: 10px; background: #1a1a1a; border-radius: 4px; font-size: 11px; color: #888;">
+        <strong style="color: #4CAF50;">Controls:</strong><br>
+        🖱️ Left Click: Paint/Place<br>
+        🖱️ Right Click: Sample terrain<br>
+        🖱️ Right Drag: Pan view<br>
+        ✋ Pan: Tool / Shift+Drag / Middle-Click<br>
+        🖱️ Mouse Wheel: Zoom<br>
+        🤏 Pinch: Touch Zoom (trackpad/mobile)<br>
+        📏 Slider: Zoom 25%-100%
+      </div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="toolbar">
+      <button onclick="centerOnCity()" title="Center view on city">🏙️ Center</button>
+      <button onclick="saveMapJSON()" class="secondary">💾 Save JSON</button>
+      <button onclick="saveMapCSV()" class="secondary">📄 Save CSV</button>
+      <button onclick="clearMap()" class="secondary">🗑️ Clear Map</button>
+      <button onclick="fillMap()" class="secondary">🎨 Fill All</button>
+      <div class="zoom-controls">
+        <button onclick="zoomOut()" class="secondary" title="Zoom Out">−</button>
+        <input type="range" id="zoomSlider" min="25" max="100" value="100" step="5" oninput="setZoom(this.value)">
+        <button onclick="zoomIn()" class="secondary" title="Zoom In">+</button>
+        <span class="zoom-label" id="zoomLabel">100%</span>
+      </div>
+      <div class="info">
+        <span id="coordInfo">Hover over map</span> |
+        <span id="settlementCount">Settlements: 0</span>
+      </div>
+    </div>
+    <div id="canvas-container">
+      <canvas id="mapCanvas"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // Map configuration
+    const MAP_WIDTH = 450;
+    const MAP_HEIGHT = 450;
+    const TILE_SIZE = 512; // Original sprite size for perfect quality
+    const BASE_SCALE = 0.25; // Base scale: makes 100% zoom show tiles at 128px instead of 512px
+
+    // Map data
+    let mapData = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(12)); // Plain_1 as default
+    let settlements = [];
+    let cityPosition = { x: Math.floor(MAP_WIDTH / 2), y: Math.floor(MAP_HEIGHT / 2) }; // Center of map
+    let selectedTerrain = 12; // Plain_1 (ID 12) as default paint terrain
+    let currentTool = 'paint';
+    let isDrawing = false;
+    let currentZoom = 100; // Default 100% zoom
+
+    // Viewport / Camera
+    let cameraX = 0; // Camera position in world pixels
+    let cameraY = 0;
+    let isPanning = false;
+    let lastPanX = 0;
+    let lastPanY = 0;
+    let panStartX = 0;
+    let panStartY = 0;
+    let isRightClickPan = false;
+
+    // Touch/Pinch support
+    let touchStartDist = 0;
+    let touchStartZoom = 100;
+    let touches = [];
+
+    // Canvas - sized to container, not full map
+    const canvas = document.getElementById('mapCanvas');
+    const ctx = canvas.getContext('2d');
+    const container = document.getElementById('canvas-container');
+
+    // Resize canvas to fit container
+    function resizeCanvas() {
+      canvas.width = container.clientWidth;
+      canvas.height = container.clientHeight;
+      console.log(`[CANVAS] Resized to ${canvas.width}×${canvas.height}`);
+    }
+
+    // Terrain sprites (will be populated)
+    const terrainSprites = {};
+    let citySprite = null;
+
+    // Initialize
+    async function init() {
+      try {
+        console.log('[INIT] Starting initialization...');
+        console.log('[INIT] TERRAIN_DATA count:', TERRAIN_DATA ? TERRAIN_DATA.length : 'UNDEFINED');
+        console.log('[INIT] Canvas element:', canvas);
+        console.log('[INIT] Canvas context:', ctx);
+
+        if (!TERRAIN_DATA || TERRAIN_DATA.length === 0) {
+          throw new Error('TERRAIN_DATA is empty or undefined');
+        }
+
+        await loadTerrainSprites();
+        console.log('[INIT] Sprites loaded');
+
+        buildTerrainPalette();
+        console.log('[INIT] Palette built');
+
+        // Resize canvas to fit container
+        resizeCanvas();
+
+        // Place city at center
+        settlements.push({ x: cityPosition.x, y: cityPosition.y, type: 'city' });
+        console.log(`[INIT] Placed city at (${cityPosition.x}, ${cityPosition.y})`);
+
+        setupEventListeners();
+
+        // Center viewport on city at default zoom
+        centerOnCity();
+
+        console.log('[INIT] ✓ Initialization complete');
+      } catch (error) {
+        console.error('[INIT] ✗ Initialization failed:', error);
+        document.body.innerHTML = '<div style="color:white;padding:20px;font-family:monospace;">ERROR: ' + error.message + '<br><br>Check browser console (F12) for details.</div>';
+      }
+    }
+
+    async function loadTerrainSprites() {
+      console.log('[LOAD] Loading terrain sprites...');
+      console.log('[LOAD] Total terrain types:', TERRAIN_DATA.length);
+
+      // Load city sprite
+      const cityPromise = new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          citySprite = img;
+          console.log('[LOAD] ✓ City sprite loaded');
+          resolve(true);
+        };
+        img.onerror = () => {
+          console.error('[LOAD] ✗ City sprite failed to load');
+          resolve(false);
+        };
+        img.src = 'sprites/City.png';
+      });
+
+      // Create promises for all terrain sprite loads
+      const loadPromises = TERRAIN_DATA.map((terrain, idx) => {
+        return new Promise((resolve) => {
+          const img = new Image();
+          img.onload = () => {
+            terrainSprites[idx] = img;
+            console.log(`[LOAD] ✓ ${idx}: ${terrain.name}`);
+            resolve(true);
+          };
+          img.onerror = (e) => {
+            console.error(`[LOAD] ✗ ${idx}: ${terrain.name} - FAILED (${terrain.file})`);
+            // Don't reject - just resolve with false so other sprites can load
+            resolve(false);
+          };
+          img.src = terrain.file;
+        });
+      });
+
+      // Wait for all sprites to load (or fail)
+      const results = await Promise.all([cityPromise, ...loadPromises]);
+      const successCount = results.filter(r => r).length;
+      console.log(`[LOAD] ✓ Loaded ${successCount}/${TERRAIN_DATA.length + 1} sprites (including city)`);
+
+      if (successCount === 0) {
+        throw new Error('Failed to load any sprites');
+      }
+    }
+
+    function buildTerrainPalette() {
+      const palette = document.getElementById('terrainPalette');
+      let currentHeaderText = '';
+      let currentContainer = null;
+
+      TERRAIN_DATA.forEach((terrain, idx) => {
+        // Add category header with collapsible container
+        if (terrain.header && terrain.header !== currentHeaderText) {
+          currentHeaderText = terrain.header;
+
+          const headerElement = document.createElement('div');
+          headerElement.className = 'section-header';
+          headerElement.textContent = terrain.header;
+
+          // Create container for category items
+          currentContainer = document.createElement('div');
+          currentContainer.className = 'category-items';
+
+          // Toggle collapse on header click - use closure to capture references
+          headerElement.onclick = function() {
+            this.classList.toggle('collapsed');
+            this.nextElementSibling.classList.toggle('collapsed');
+          };
+
+          palette.appendChild(headerElement);
+          palette.appendChild(currentContainer);
+        }
+
+        // Add terrain option to current category container
+        const option = document.createElement('div');
+        option.className = 'terrain-option' + (idx === 12 ? ' selected' : ''); // Plain_1 selected by default
+        option.onclick = () => selectTerrain(idx);
+        option.dataset.terrain = idx;
+
+        const img = document.createElement('img');
+        if (terrainSprites[idx]) {
+          img.src = terrainSprites[idx].src;
+        } else {
+          console.error(`Missing sprite for terrain ${idx}: ${terrain.name}`);
+        }
+
+        const name = document.createElement('div');
+        name.className = 'name';
+        name.textContent = terrain.name;
+
+        const value = document.createElement('div');
+        value.className = 'value';
+        value.textContent = `ID: ${idx}`;
+
+        option.appendChild(img);
+        option.appendChild(name);
+        option.appendChild(value);
+
+        // Append to category container or directly to palette if no category
+        if (currentContainer) {
+          currentContainer.appendChild(option);
+        } else {
+          palette.appendChild(option);
+        }
+      });
+    }
+
+    function selectTerrain(id) {
+      selectedTerrain = id;
+      document.querySelectorAll('.terrain-option').forEach(opt => {
+        opt.classList.toggle('selected', parseInt(opt.dataset.terrain) === id);
+      });
+      if (currentTool !== 'paint') setTool('paint');
+    }
+
+    function setTool(tool) {
+      currentTool = tool;
+      document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+      event.target.classList.add('active');
+
+      // Update cursor based on tool
+      canvas.style.cursor = tool === 'pan' ? 'grab' : 'crosshair';
+    }
+
+    function renderMap() {
+      // Clear canvas
+      ctx.fillStyle = '#000';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const scale = (currentZoom / 100) * BASE_SCALE;
+      const scaledTileSize = TILE_SIZE * scale;
+
+      // Calculate visible tile range
+      const startTileX = Math.floor(cameraX / scaledTileSize);
+      const startTileY = Math.floor(cameraY / scaledTileSize);
+      const endTileX = Math.min(MAP_WIDTH, Math.ceil((cameraX + canvas.width) / scaledTileSize) + 1);
+      const endTileY = Math.min(MAP_HEIGHT, Math.ceil((cameraY + canvas.height) / scaledTileSize) + 1);
+
+      // Only render visible tiles
+      let tilesDrawn = 0;
+      for (let tileY = Math.max(0, startTileY); tileY < endTileY; tileY++) {
+        for (let tileX = Math.max(0, startTileX); tileX < endTileX; tileX++) {
+          const terrainId = mapData[tileY][tileX];
+          const sprite = terrainSprites[terrainId];
+
+          if (sprite && sprite.complete) {
+            const screenX = (tileX * scaledTileSize) - cameraX;
+            const screenY = (tileY * scaledTileSize) - cameraY;
+            ctx.drawImage(sprite, screenX, screenY, scaledTileSize, scaledTileSize);
+            tilesDrawn++;
+          }
+        }
+      }
+
+      // Render settlements/city in visible area
+      settlements.forEach(s => {
+        const screenX = (s.x * scaledTileSize) - cameraX;
+        const screenY = (s.y * scaledTileSize) - cameraY;
+
+        // Only draw if visible
+        if (screenX + scaledTileSize >= 0 && screenX < canvas.width &&
+            screenY + scaledTileSize >= 0 && screenY < canvas.height) {
+
+          if (s.type === 'city' && citySprite && citySprite.complete) {
+            // Render city sprite
+            ctx.drawImage(citySprite, screenX, screenY, scaledTileSize, scaledTileSize);
+          } else {
+            // Render settlement as orange square
+            ctx.fillStyle = 'rgba(255, 165, 0, 0.7)';
+            ctx.strokeStyle = '#FF8C00';
+            ctx.lineWidth = 4 * scale;
+            const markerSize = scaledTileSize / 2;
+            const markerX = screenX + scaledTileSize / 4;
+            const markerY = screenY + scaledTileSize / 4;
+            ctx.fillRect(markerX, markerY, markerSize, markerSize);
+            ctx.strokeRect(markerX, markerY, markerSize, markerSize);
+          }
+        }
+      });
+
+      updateSettlementCount();
+    }
+
+    function centerOnCity() {
+      const scale = (currentZoom / 100) * BASE_SCALE;
+      const scaledTileSize = TILE_SIZE * scale;
+
+      // Center camera on city
+      cameraX = (cityPosition.x * scaledTileSize) - (canvas.width / 2);
+      cameraY = (cityPosition.y * scaledTileSize) - (canvas.height / 2);
+
+      // Clamp camera to map bounds
+      clampCamera();
+      renderMap();
+
+      console.log(`[CENTER] Centered on city at (${cityPosition.x}, ${cityPosition.y}) with ${currentZoom}% zoom`);
+    }
+
+    function clampCamera() {
+      const scale = (currentZoom / 100) * BASE_SCALE;
+      const scaledTileSize = TILE_SIZE * scale;
+      const maxX = (MAP_WIDTH * scaledTileSize) - canvas.width;
+      const maxY = (MAP_HEIGHT * scaledTileSize) - canvas.height;
+
+      cameraX = Math.max(0, Math.min(maxX, cameraX));
+      cameraY = Math.max(0, Math.min(maxY, cameraY));
+    }
+
+    function setZoom(zoomPercent) {
+      // Calculate center point in world coordinates before zoom
+      const oldScale = (currentZoom / 100) * BASE_SCALE;
+      const oldScaledTileSize = TILE_SIZE * oldScale;
+      const centerWorldX = cameraX + (canvas.width / 2);
+      const centerWorldY = cameraY + (canvas.height / 2);
+      const centerTileX = centerWorldX / oldScaledTileSize;
+      const centerTileY = centerWorldY / oldScaledTileSize;
+
+      // Apply new zoom
+      currentZoom = parseInt(zoomPercent);
+      const newScale = (currentZoom / 100) * BASE_SCALE;
+      const newScaledTileSize = TILE_SIZE * newScale;
+
+      // Recalculate camera to keep same tile centered
+      cameraX = (centerTileX * newScaledTileSize) - (canvas.width / 2);
+      cameraY = (centerTileY * newScaledTileSize) - (canvas.height / 2);
+
+      // Update UI
+      document.getElementById('zoomSlider').value = currentZoom;
+      document.getElementById('zoomLabel').textContent = currentZoom + '%';
+
+      clampCamera();
+      renderMap();
+
+      console.log(`[ZOOM] Set to ${currentZoom}%`);
+    }
+
+    function zoomIn() {
+      const newZoom = Math.min(100, currentZoom + 10);
+      setZoom(newZoom);
+    }
+
+    function zoomOut() {
+      const newZoom = Math.max(25, currentZoom - 10);
+      setZoom(newZoom);
+    }
+
+    function setupEventListeners() {
+      // Mouse events
+      canvas.addEventListener('mousedown', handleMouseDown);
+      canvas.addEventListener('mousemove', handleMouseMove);
+      canvas.addEventListener('mouseup', handleMouseUp);
+      canvas.addEventListener('mouseleave', handleMouseUp);
+      canvas.addEventListener('contextmenu', e => e.preventDefault());
+      canvas.addEventListener('wheel', handleWheel, { passive: false });
+
+      // Touch events for mobile/trackpad
+      canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+      canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+      canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+
+      // Resize
+      window.addEventListener('resize', () => {
+        resizeCanvas();
+        renderMap();
+      });
+    }
+
+    function screenToTile(screenX, screenY) {
+      const scale = (currentZoom / 100) * BASE_SCALE;
+      const scaledTileSize = TILE_SIZE * scale;
+      const worldX = screenX + cameraX;
+      const worldY = screenY + cameraY;
+      const tileX = Math.floor(worldX / scaledTileSize);
+      const tileY = Math.floor(worldY / scaledTileSize);
+      return { tileX, tileY };
+    }
+
+    function handleMouseDown(e) {
+      const rect = canvas.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+
+      if (e.button === 1 || e.button === 2 || e.button === 0 && (e.shiftKey || currentTool === 'pan')) {
+        // Middle mouse, Right mouse, Shift+Left, or Pan tool: pan
+        isPanning = true;
+        isRightClickPan = (e.button === 2);
+        lastPanX = e.clientX;
+        lastPanY = e.clientY;
+        panStartX = e.clientX;
+        panStartY = e.clientY;
+        canvas.style.cursor = 'grabbing';
+      } else {
+        isDrawing = true;
+        paintTile(e);
+      }
+    }
+
+    function handleMouseMove(e) {
+      const rect = canvas.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const { tileX, tileY } = screenToTile(screenX, screenY);
+
+      // Update coordinate display
+      if (tileX >= 0 && tileX < MAP_WIDTH && tileY >= 0 && tileY < MAP_HEIGHT) {
+        document.getElementById('coordInfo').textContent = `X: ${tileX}, Y: ${tileY} | Terrain: ${mapData[tileY][tileX]}`;
+      }
+
+      if (isPanning) {
+        // Pan camera
+        const deltaX = e.clientX - lastPanX;
+        const deltaY = e.clientY - lastPanY;
+        cameraX -= deltaX;
+        cameraY -= deltaY;
+        lastPanX = e.clientX;
+        lastPanY = e.clientY;
+        clampCamera();
+        renderMap();
+      } else if (isDrawing) {
+        paintTile(e);
+      }
+    }
+
+    function handleMouseUp(e) {
+      // Check if right-click was just a click (not drag) - if so, sample terrain
+      if (isRightClickPan && e.button === 2) {
+        const deltaX = Math.abs(e.clientX - panStartX);
+        const deltaY = Math.abs(e.clientY - panStartY);
+        const distanceMoved = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+
+        // If mouse barely moved (< 5 pixels), treat as click and sample
+        if (distanceMoved < 5) {
+          const rect = canvas.getBoundingClientRect();
+          const screenX = e.clientX - rect.left;
+          const screenY = e.clientY - rect.top;
+          const { tileX, tileY } = screenToTile(screenX, screenY);
+
+          if (tileX >= 0 && tileX < MAP_WIDTH && tileY >= 0 && tileY < MAP_HEIGHT) {
+            selectedTerrain = mapData[tileY][tileX];
+            selectTerrain(selectedTerrain);
+          }
+        }
+      }
+
+      isDrawing = false;
+      isPanning = false;
+      isRightClickPan = false;
+      canvas.style.cursor = currentTool === 'pan' ? 'grab' : 'crosshair';
+    }
+
+    function handleWheel(e) {
+      e.preventDefault();
+      const delta = -Math.sign(e.deltaY) * 5;
+      const newZoom = Math.max(25, Math.min(100, currentZoom + delta));
+      setZoom(newZoom);
+    }
+
+    function getTouchDistance(touches) {
+      const dx = touches[0].clientX - touches[1].clientX;
+      const dy = touches[0].clientY - touches[1].clientY;
+      return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function handleTouchStart(e) {
+      e.preventDefault();
+      touches = Array.from(e.touches);
+
+      if (touches.length === 2) {
+        // Two-finger pinch: start zoom
+        touchStartDist = getTouchDistance(touches);
+        touchStartZoom = currentZoom;
+        isPanning = false;
+      } else if (touches.length === 1) {
+        // Single finger: pan
+        isPanning = true;
+        lastPanX = touches[0].clientX;
+        lastPanY = touches[0].clientY;
+      }
+    }
+
+    function handleTouchMove(e) {
+      e.preventDefault();
+      touches = Array.from(e.touches);
+
+      if (touches.length === 2) {
+        // Pinch zoom
+        const currentDist = getTouchDistance(touches);
+        const scale = currentDist / touchStartDist;
+        const newZoom = Math.max(25, Math.min(100, touchStartZoom * scale));
+        setZoom(newZoom);
+      } else if (touches.length === 1 && isPanning) {
+        // Pan with single finger
+        const deltaX = touches[0].clientX - lastPanX;
+        const deltaY = touches[0].clientY - lastPanY;
+        cameraX -= deltaX;
+        cameraY -= deltaY;
+        lastPanX = touches[0].clientX;
+        lastPanY = touches[0].clientY;
+        clampCamera();
+        renderMap();
+      }
+    }
+
+    function handleTouchEnd(e) {
+      e.preventDefault();
+      touches = Array.from(e.touches);
+
+      if (touches.length < 2) {
+        touchStartDist = 0;
+      }
+      if (touches.length === 0) {
+        isPanning = false;
+      }
+    }
+
+    function paintTile(e) {
+      const rect = canvas.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const { tileX, tileY } = screenToTile(screenX, screenY);
+
+      if (tileX < 0 || tileX >= MAP_WIDTH || tileY < 0 || tileY >= MAP_HEIGHT) return;
+
+      // Right-click sampling is now handled in handleMouseUp (to distinguish click vs drag)
+
+      if (currentTool === 'paint') {
+        mapData[tileY][tileX] = selectedTerrain;
+        renderMap();
+      } else if (currentTool === 'settlement') {
+        if (!settlements.some(s => s.x === tileX && s.y === tileY)) {
+          settlements.push({x: tileX, y: tileY, type: 'settlement'});
+          renderMap();
+        }
+      } else if (currentTool === 'erase') {
+        // Cannot erase city - only regular settlements
+        const targetSettlement = settlements.find(s => s.x === tileX && s.y === tileY);
+        if (targetSettlement && targetSettlement.type !== 'city') {
+          settlements = settlements.filter(s => !(s.x === tileX && s.y === tileY));
+          renderMap();
+        } else if (targetSettlement && targetSettlement.type === 'city') {
+          console.log('[ERASE] Cannot erase city - it is protected');
+        }
+      }
+    }
+
+    function clearMap() {
+      if (confirm('Clear entire map? (City will be preserved)')) {
+        mapData = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(12)); // Reset to Plain_1
+        // Keep only the city, remove all settlements
+        settlements = settlements.filter(s => s.type === 'city');
+        renderMap();
+      }
+    }
+
+    function fillMap() {
+      if (confirm(`Fill entire map with ${TERRAIN_DATA[selectedTerrain].name}?`)) {
+        mapData = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(selectedTerrain));
+        renderMap();
+      }
+    }
+
+    function updateSettlementCount() {
+      document.getElementById('settlementCount').textContent = `Settlements: ${settlements.length}`;
+    }
+
+    function saveMapJSON() {
+      const json = {
+        width: MAP_WIDTH,
+        height: MAP_HEIGHT,
+        data: mapData,
+        settlements: settlements
+      };
+
+      const blob = new Blob([JSON.stringify(json, null, 2)], {type: 'application/json'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `map_${MAP_WIDTH}x${MAP_HEIGHT}.json`;
+      a.click();
+    }
+
+    function saveMapCSV() {
+      let csv = `PostApoc Map Export - ${MAP_WIDTH}x${MAP_HEIGHT}\n`;
+      csv += `Terrain IDs (0-${TERRAIN_DATA.length-1})\n\n\n`;
+
+      for (let y = 0; y < MAP_HEIGHT; y++) {
+        csv += mapData[y].join(',') + '\n';
+      }
+
+      const blob = new Blob([csv], {type: 'text/csv'});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `map_${MAP_WIDTH}x${MAP_HEIGHT}.csv`;
+      a.click();
+    }
+
+    // TERRAIN DATA PLACEHOLDER - Will be injected
+    const TERRAIN_DATA = [
+      {
+            "id": 0,
+            "name": "DirtyWater",
+            "header": "\ud83d\udca7 WATER TYPES",
+            "file": "sprites/terrain/DirtyWater.png"
+      },
+      {
+            "id": 1,
+            "name": "DirtyWater_1",
+            "header": "",
+            "file": "sprites/terrain/DirtyWater_1.png"
+      },
+      {
+            "id": 2,
+            "name": "DirtyWater_2",
+            "header": "",
+            "file": "sprites/terrain/DirtyWater_2.png"
+      },
+      {
+            "id": 3,
+            "name": "River_1",
+            "header": "",
+            "file": "sprites/terrain/River_1.png"
+      },
+      {
+            "id": 4,
+            "name": "River_2",
+            "header": "",
+            "file": "sprites/terrain/River_2.png"
+      },
+      {
+            "id": 5,
+            "name": "River_3",
+            "header": "",
+            "file": "sprites/terrain/River_3.png"
+      },
+      {
+            "id": 6,
+            "name": "River_4",
+            "header": "",
+            "file": "sprites/terrain/River_4.png"
+      },
+      {
+            "id": 7,
+            "name": "River_5",
+            "header": "",
+            "file": "sprites/terrain/River_5.png"
+      },
+      {
+            "id": 8,
+            "name": "River_6",
+            "header": "",
+            "file": "sprites/terrain/River_6.png"
+      },
+      {
+            "id": 9,
+            "name": "Rubble_1",
+            "header": "\ud83c\udfda\ufe0f RUBBLE/WASTELAND",
+            "file": "sprites/terrain/Rubble_1.png"
+      },
+      {
+            "id": 10,
+            "name": "Rubble_2",
+            "header": "",
+            "file": "sprites/terrain/Rubble_2.png"
+      },
+      {
+            "id": 11,
+            "name": "Rubble_3",
+            "header": "",
+            "file": "sprites/terrain/Rubble_3.png"
+      },
+      {
+            "id": 12,
+            "name": "Plain_1",
+            "header": "\ud83c\udf3e PLAINS TYPES",
+            "file": "sprites/terrain/Plain_1.png"
+      },
+      {
+            "id": 13,
+            "name": "Plain_2",
+            "header": "",
+            "file": "sprites/terrain/Plain_2.png"
+      },
+      {
+            "id": 14,
+            "name": "BrokenPlain",
+            "header": "",
+            "file": "sprites/terrain/BrokenPlain.png"
+      },
+      {
+            "id": 15,
+            "name": "Forest_1",
+            "header": "\ud83c\udf32 FOREST TYPES",
+            "file": "sprites/terrain/Forest_1.png"
+      },
+      {
+            "id": 16,
+            "name": "Forest_2",
+            "header": "",
+            "file": "sprites/terrain/Forest_2.png"
+      },
+      {
+            "id": 17,
+            "name": "Forest_3",
+            "header": "",
+            "file": "sprites/terrain/Forest_3.png"
+      },
+      {
+            "id": 18,
+            "name": "Hills",
+            "header": "\u26f0\ufe0f ROCKY/MOUNTAIN",
+            "file": "sprites/terrain/Hills.png"
+      },
+      {
+            "id": 19,
+            "name": "Mountain",
+            "header": "",
+            "file": "sprites/terrain/Mountain.png"
+      },
+      {
+            "id": 20,
+            "name": "GoldVein",
+            "header": "\ud83d\udc8e RESOURCE TYPES",
+            "file": "sprites/terrain/GoldVein.png"
+      },
+      {
+            "id": 21,
+            "name": "Oil",
+            "header": "",
+            "file": "sprites/terrain/Oil.png"
+      },
+      {
+            "id": 22,
+            "name": "Barren",
+            "header": "\ud83c\udfdc\ufe0f BARREN/DESERT",
+            "file": "sprites/terrain/Barren.png"
+      },
+      {
+            "id": 23,
+            "name": "Desert",
+            "header": "",
+            "file": "sprites/terrain/Desert.png"
+      },
+      {
+            "id": 24,
+            "name": "Swamp",
+            "header": "\ud83d\udc0a SWAMP TYPES",
+            "file": "sprites/terrain/Swamp.png"
+      },
+      {
+            "id": 25,
+            "name": "RockySwamp",
+            "header": "",
+            "file": "sprites/terrain/RockySwamp.png"
+      },
+      {
+            "id": 26,
+            "name": "LavaPlain",
+            "header": "\ud83c\udf0b VOLCANIC/RIFT",
+            "file": "sprites/terrain/LavaPlain.png"
+      },
+      {
+            "id": 27,
+            "name": "LavaRift",
+            "header": "",
+            "file": "sprites/terrain/LavaRift.png"
+      },
+      {
+            "id": 28,
+            "name": "Rift",
+            "header": "",
+            "file": "sprites/terrain/Rift.png"
+      }
+];
+
+    // Initialize when page loads
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
