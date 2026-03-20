@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>PostApoc Hex Map Editor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a1a1a; color: white; display: flex; height: 100vh; overflow: hidden; }
+
+    #sidebar { width: 350px; min-width: 350px; background: #252525; padding: 20px 20px 0; overflow-y: auto; border-right: 2px solid #333; flex-shrink: 0; display: flex; flex-direction: column; }
+    #sidebar h2 { color: #4CAF50; margin-bottom: 15px; font-size: 18px; }
+    #sidebar h3 { color: #888; margin: 20px 0 10px; font-size: 14px; border-bottom: 1px solid #333; padding-bottom: 5px; }
+
+    .terrain-option { background: #2a2a2a; border: 2px solid #444; margin-bottom: 8px; padding: 8px; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
+    .terrain-option:hover { border-color: #666; }
+    .terrain-option.selected { border-color: #4CAF50; background: #1a4a1a; }
+    .terrain-option img { width: 48px; height: 48px; display: block; margin: 0 auto 5px; image-rendering: pixelated; }
+    .terrain-option .name { color: white; font-size: 11px; text-align: center; }
+    .terrain-option .value { color: #888; font-size: 10px; text-align: center; }
+
+    .section-header { font-weight: bold; color: #FFA500; font-size: 12px; margin-top: 15px; margin-bottom: 8px; padding: 8px; background: #1a1a1a; cursor: pointer; user-select: none; border-radius: 4px; transition: background 0.2s; }
+    .section-header:hover { background: #2a2a2a; }
+    .section-header::before { content: '▼ '; font-size: 10px; display: inline-block; transition: transform 0.2s; }
+    .section-header.collapsed::before { transform: rotate(-90deg); }
+    .category-items { display: block; }
+    .category-items.collapsed { display: none; }
+
+    #main { flex: 1; display: flex; flex-direction: column; }
+    #toolbar { background: #2a2a2a; padding: 15px; border-bottom: 2px solid #333; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    #toolbar button { background: #4CAF50; color: white; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-size: 14px; transition: background 0.2s; }
+    #toolbar button:hover { background: #45a049; }
+    #toolbar button.secondary { background: #666; }
+    #toolbar button.secondary:hover { background: #777; }
+    #toolbar .info { margin-left: auto; color: #888; font-size: 13px; }
+
+    #canvas-container { flex: 1; overflow: hidden; background: #0a0a0a; position: relative; }
+    #mapCanvas { display: block; cursor: crosshair; width: 100%; height: 100%; }
+
+    .zoom-controls { display: flex; align-items: center; gap: 8px; margin-left: 15px; padding-left: 15px; border-left: 2px solid #333; }
+    .zoom-controls button { padding: 5px 12px; min-width: 35px; }
+    .zoom-controls input[type="range"] { width: 120px; }
+    .zoom-controls .zoom-label { color: #888; font-size: 12px; min-width: 50px; }
+
+    #terrainPalette { flex: 1; overflow-y: auto; margin-bottom: 10px; }
+
+    .tools-section { position: sticky; bottom: 0; background: #252525; padding: 15px 0; margin: 0 -20px; padding-left: 20px; padding-right: 20px; border-top: 2px solid #333; }
+    .tools { margin-top: 0; }
+    .tool-btn { width: 100%; background: #333; color: white; border: none; padding: 10px; margin-bottom: 5px; cursor: pointer; border-radius: 4px; }
+    .tool-btn.active { background: #4CAF50; }
+    .tool-btn:hover { background: #444; }
+    .tool-btn.active:hover { background: #45a049; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <h2>🎨 Terrain Palette</h2>
+    <div id="terrainPalette"></div>
+
+    <div class="tools-section">
+      <div class="tools">
+        <h3>🛠️ Tools</h3>
+        <button class="tool-btn active" id="btn-paint"      onclick="setTool('paint')">🖌️ Paint</button>
+        <button class="tool-btn"        id="btn-pan"        onclick="setTool('pan')">✋ Pan</button>
+        <button class="tool-btn"        id="btn-settlement" onclick="setTool('settlement')">🏚️ Place Settlement</button>
+        <button class="tool-btn"        id="btn-erase"      onclick="setTool('erase')">🧹 Erase Settlement</button>
+      </div>
+
+      <div style="margin-top: 15px; padding: 10px; background: #1a1a1a; border-radius: 4px; font-size: 11px; color: #888;">
+        <strong style="color: #4CAF50;">Controls:</strong><br>
+        🖱️ Left Click: Paint/Place<br>
+        🖱️ Right Click: Sample terrain<br>
+        🖱️ Right Drag: Pan view<br>
+        ✋ Pan: Tool / Shift+Drag / Middle-Click<br>
+        🖱️ Mouse Wheel: Zoom<br>
+        🤏 Pinch: Touch Zoom (trackpad/mobile)
+      </div>
+    </div>
+  </div>
+
+  <div id="main">
+    <div id="toolbar">
+      <button onclick="centerOnCity()" title="Center view on city">🏙️ Center</button>
+      <button onclick="document.getElementById('fileInput').click()" title="Load saved map">📂 Load Map</button>
+      <input type="file" id="fileInput" accept=".json" style="display: none;" onchange="loadMapFile(event)">
+      <button onclick="saveMapJSON()" class="secondary">💾 Save JSON</button>
+      <button onclick="clearMap()"    class="secondary">🗑️ Clear Map</button>
+      <button onclick="fillMap()"     class="secondary">🎨 Fill All</button>
+      <div class="zoom-controls">
+        <button onclick="zoomOut()" class="secondary" title="Zoom Out">−</button>
+        <input type="range" id="zoomSlider" min="25" max="400" value="50" step="5" oninput="setZoom(this.value)">
+        <button onclick="zoomIn()" class="secondary" title="Zoom In">+</button>
+        <span class="zoom-label" id="zoomLabel">50%</span>
+      </div>
+      <div class="info">
+        <span id="coordInfo">Hover over map</span> |
+        <span id="settlementCount">Settlements: 0</span>
+      </div>
+    </div>
+    <div id="canvas-container">
+      <canvas id="mapCanvas"></canvas>
+    </div>
+  </div>
+
+  <script>
+    // ── Map configuration ──────────────────────────────────────────────────
+    const MAP_WIDTH  = 51;
+    const MAP_HEIGHT = 51;
+
+    // Flat-top hex, odd-q offset (odd columns shift DOWN) — matches Unity game.
+    // HEX_SIZE = circumradius (center → corner) at 100% zoom.
+    const HEX_SIZE  = 40;
+    const SQRT3     = Math.sqrt(3);
+    const COL_PITCH = HEX_SIZE * 1.5;       // horizontal distance between column centers
+    const ROW_PITCH = HEX_SIZE * SQRT3;     // vertical distance between row centers
+    const STAGGER   = ROW_PITCH / 2;        // extra Y offset for odd columns
+
+    // City fixed at map center
+    const CITY_COL = Math.floor(MAP_WIDTH  / 2);
+    const CITY_ROW = Math.floor(MAP_HEIGHT / 2);
+
+    // ── State ──────────────────────────────────────────────────────────────
+    let mapData     = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(12)); // Plain_1
+    let settlements = [];
+    let selectedTerrain = 12;
+    let currentTool     = 'paint';
+    let isDrawing       = false;
+    let currentZoom     = 50; // start zoomed out to see whole map
+
+    // Camera: world-pixel coordinates of viewport top-left (at 100% zoom scale)
+    let cameraX = 0, cameraY = 0;
+    let isPanning = false, isRightClickPan = false;
+    let lastPanX = 0, lastPanY = 0;
+    let panStartX = 0, panStartY = 0;
+
+    // Touch/Pinch
+    let touchStartDist = 0, touchStartZoom = 50;
+    let touches = [];
+
+    // ── Canvas setup ───────────────────────────────────────────────────────
+    const canvas    = document.getElementById('mapCanvas');
+    const ctx       = canvas.getContext('2d');
+    const container = document.getElementById('canvas-container');
+
+    const terrainSprites = {};
+    let citySprite = null;
+
+    function resizeCanvas() {
+      canvas.width  = container.clientWidth;
+      canvas.height = container.clientHeight;
+    }
+
+    // ── Hex geometry ───────────────────────────────────────────────────────
+
+    // World-pixel center of hex (col, row) at 100% zoom, no camera offset
+    function hexCenterWorld(col, row) {
+      return {
+        x: col * COL_PITCH,
+        y: row * ROW_PITCH + (col % 2 !== 0 ? STAGGER : 0)
+      };
+    }
+
+    // Screen position of a hex center given current zoom and camera
+    function hexScreenPos(col, row) {
+      const scale = currentZoom / 100;
+      const w = hexCenterWorld(col, row);
+      return { x: w.x * scale - cameraX, y: w.y * scale - cameraY };
+    }
+
+    // Build a flat-top hex clip path centered at (cx, cy) with given radius
+    function hexClipPath(cx, cy, radius) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const angle = (Math.PI / 3) * i; // 0°, 60°, 120°, 180°, 240°, 300°
+        const px = cx + radius * Math.cos(angle);
+        const py = cy + radius * Math.sin(angle);
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+
+    // Convert screen coordinates to nearest hex grid (col, row)
+    function screenToHex(screenX, screenY) {
+      const scale  = currentZoom / 100;
+      const worldX = (screenX + cameraX) / scale;
+      const worldY = (screenY + cameraY) / scale;
+
+      const estCol = Math.round(worldX / COL_PITCH);
+      let bestCol = estCol, bestRow = 0, minDist = Infinity;
+
+      for (let c = estCol - 1; c <= estCol + 1; c++) {
+        if (c < 0 || c >= MAP_WIDTH) continue;
+        const stg = (c % 2 !== 0) ? STAGGER : 0;
+        const r   = Math.round((worldY - stg) / ROW_PITCH);
+        if (r < 0 || r >= MAP_HEIGHT) continue;
+        const d = Math.hypot(worldX - c * COL_PITCH, worldY - (r * ROW_PITCH + stg));
+        if (d < minDist) { minDist = d; bestCol = c; bestRow = r; }
+      }
+
+      return { col: bestCol, row: bestRow };
+    }
+
+    // ── Rendering ──────────────────────────────────────────────────────────
+
+    function renderMap() {
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      const scale   = currentZoom / 100;
+      const radius  = HEX_SIZE * scale;
+      const padding = radius * 2;
+
+      for (let row = 0; row < MAP_HEIGHT; row++) {
+        for (let col = 0; col < MAP_WIDTH; col++) {
+          const s = hexScreenPos(col, row);
+          if (s.x + padding < 0 || s.x - padding > canvas.width  ||
+              s.y + padding < 0 || s.y - padding > canvas.height) continue;
+
+          drawHexTile(s.x, s.y, radius, mapData[row][col]);
+        }
+      }
+
+      // Settlements and city rendered on top
+      settlements.forEach(s => {
+        const pos = hexScreenPos(s.col, s.row);
+        if (pos.x + radius < 0 || pos.x - radius > canvas.width  ||
+            pos.y + radius < 0 || pos.y - radius > canvas.height) return;
+
+        if (s.type === 'city') {
+          if (citySprite && citySprite.complete) {
+            ctx.save();
+            hexClipPath(pos.x, pos.y, radius);
+            ctx.clip();
+            ctx.drawImage(citySprite, pos.x - radius, pos.y - radius, radius * 2, radius * 2);
+            ctx.restore();
+          }
+          // Gold hex outline for city
+          ctx.save();
+          hexClipPath(pos.x, pos.y, radius);
+          ctx.strokeStyle = '#FFD700';
+          ctx.lineWidth   = Math.max(2, radius * 0.08);
+          ctx.stroke();
+          ctx.restore();
+        } else {
+          // Orange semi-transparent overlay for settlements
+          ctx.save();
+          hexClipPath(pos.x, pos.y, radius);
+          ctx.fillStyle   = 'rgba(255, 165, 0, 0.5)';
+          ctx.fill();
+          ctx.strokeStyle = '#FF8C00';
+          ctx.lineWidth   = Math.max(1, radius * 0.06);
+          ctx.stroke();
+          ctx.restore();
+        }
+      });
+
+      updateSettlementCount();
+    }
+
+    function drawHexTile(cx, cy, radius, terrainId) {
+      const sprite = terrainSprites[terrainId];
+
+      ctx.save();
+      hexClipPath(cx, cy, radius);
+
+      if (sprite && sprite.complete) {
+        ctx.clip();
+        // Draw sprite as 2r×2r square; hex path clips the corners naturally
+        ctx.drawImage(sprite, cx - radius, cy - radius, radius * 2, radius * 2);
+      } else {
+        ctx.fillStyle = '#444';
+        ctx.fill();
+      }
+
+      // Subtle border between tiles
+      ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+      ctx.lineWidth   = 1;
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    // ── Camera ─────────────────────────────────────────────────────────────
+
+    function centerOnCity() {
+      const scale = currentZoom / 100;
+      const w = hexCenterWorld(CITY_COL, CITY_ROW);
+      cameraX = w.x * scale - canvas.width  / 2;
+      cameraY = w.y * scale - canvas.height / 2;
+      clampCamera();
+      renderMap();
+    }
+
+    function clampCamera() {
+      const scale  = currentZoom / 100;
+      const radius = HEX_SIZE * scale;
+      const last   = hexCenterWorld(MAP_WIDTH - 1, MAP_HEIGHT - 1);
+      const maxX   = last.x * scale + radius * 2 - canvas.width;
+      const maxY   = last.y * scale + radius * 2 - canvas.height;
+      cameraX = Math.max(-radius * 2, Math.min(maxX + radius * 2, cameraX));
+      cameraY = Math.max(-radius * 2, Math.min(maxY + radius * 2, cameraY));
+    }
+
+    function setZoom(zoomPercent) {
+      const oldScale = currentZoom / 100;
+      const cx = (cameraX + canvas.width  / 2) / oldScale;
+      const cy = (cameraY + canvas.height / 2) / oldScale;
+      currentZoom = parseInt(zoomPercent);
+      const newScale = currentZoom / 100;
+      cameraX = cx * newScale - canvas.width  / 2;
+      cameraY = cy * newScale - canvas.height / 2;
+      document.getElementById('zoomSlider').value = currentZoom;
+      document.getElementById('zoomLabel').textContent = currentZoom + '%';
+      clampCamera();
+      renderMap();
+    }
+
+    function zoomIn()  { setZoom(Math.min(400, currentZoom + 10)); }
+    function zoomOut() { setZoom(Math.max(25,  currentZoom - 10)); }
+
+    // ── Input handling ─────────────────────────────────────────────────────
+
+    function setupEventListeners() {
+      canvas.addEventListener('mousedown',   handleMouseDown);
+      canvas.addEventListener('mousemove',   handleMouseMove);
+      canvas.addEventListener('mouseup',     handleMouseUp);
+      canvas.addEventListener('mouseleave',  handleMouseUp);
+      canvas.addEventListener('contextmenu', e => e.preventDefault());
+      canvas.addEventListener('wheel',       handleWheel, { passive: false });
+      canvas.addEventListener('touchstart',  handleTouchStart, { passive: false });
+      canvas.addEventListener('touchmove',   handleTouchMove,  { passive: false });
+      canvas.addEventListener('touchend',    handleTouchEnd,   { passive: false });
+      window.addEventListener('resize', () => { resizeCanvas(); renderMap(); });
+    }
+
+    function handleMouseDown(e) {
+      const rect    = canvas.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+
+      if (e.button === 1 || e.button === 2 || (e.button === 0 && (e.shiftKey || currentTool === 'pan'))) {
+        isPanning       = true;
+        isRightClickPan = (e.button === 2);
+        lastPanX  = e.clientX; lastPanY  = e.clientY;
+        panStartX = e.clientX; panStartY = e.clientY;
+        canvas.style.cursor = 'grabbing';
+      } else {
+        isDrawing = true;
+        applyTool(screenX, screenY);
+      }
+    }
+
+    function handleMouseMove(e) {
+      const rect    = canvas.getBoundingClientRect();
+      const screenX = e.clientX - rect.left;
+      const screenY = e.clientY - rect.top;
+      const { col, row } = screenToHex(screenX, screenY);
+
+      if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
+        document.getElementById('coordInfo').textContent =
+          `Col: ${col}, Row: ${row} | Terrain: ${TERRAIN_DATA[mapData[row][col]].name}`;
+      }
+
+      if (isPanning) {
+        cameraX -= e.clientX - lastPanX;
+        cameraY -= e.clientY - lastPanY;
+        lastPanX = e.clientX;
+        lastPanY = e.clientY;
+        clampCamera();
+        renderMap();
+      } else if (isDrawing) {
+        applyTool(screenX, screenY);
+      }
+    }
+
+    function handleMouseUp(e) {
+      if (isRightClickPan && e.button === 2) {
+        const moved = Math.hypot(e.clientX - panStartX, e.clientY - panStartY);
+        if (moved < 5) {
+          const rect = canvas.getBoundingClientRect();
+          const { col, row } = screenToHex(e.clientX - rect.left, e.clientY - rect.top);
+          if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
+            selectTerrain(mapData[row][col]);
+          }
+        }
+      }
+      isDrawing = isPanning = isRightClickPan = false;
+      canvas.style.cursor = currentTool === 'pan' ? 'grab' : 'crosshair';
+    }
+
+    function handleWheel(e) {
+      e.preventDefault();
+      setZoom(Math.max(25, Math.min(400, currentZoom - Math.sign(e.deltaY) * 5)));
+    }
+
+    function getTouchDist(t) {
+      return Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    }
+
+    function handleTouchStart(e) {
+      e.preventDefault();
+      touches = Array.from(e.touches);
+      if (touches.length === 2) {
+        touchStartDist = getTouchDist(touches);
+        touchStartZoom = currentZoom;
+        isPanning = false;
+      } else {
+        isPanning = true;
+        lastPanX = touches[0].clientX;
+        lastPanY = touches[0].clientY;
+      }
+    }
+
+    function handleTouchMove(e) {
+      e.preventDefault();
+      touches = Array.from(e.touches);
+      if (touches.length === 2) {
+        setZoom(Math.max(25, Math.min(400, touchStartZoom * getTouchDist(touches) / touchStartDist)));
+      } else if (touches.length === 1 && isPanning) {
+        cameraX -= touches[0].clientX - lastPanX;
+        cameraY -= touches[0].clientY - lastPanY;
+        lastPanX = touches[0].clientX;
+        lastPanY = touches[0].clientY;
+        clampCamera();
+        renderMap();
+      }
+    }
+
+    function handleTouchEnd(e) {
+      e.preventDefault();
+      touches = Array.from(e.touches);
+      if (touches.length < 2) touchStartDist = 0;
+      if (touches.length === 0) isPanning = false;
+    }
+
+    function applyTool(screenX, screenY) {
+      const { col, row } = screenToHex(screenX, screenY);
+      if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
+
+      if (currentTool === 'paint') {
+        mapData[row][col] = selectedTerrain;
+        renderMap();
+      } else if (currentTool === 'settlement') {
+        if (!settlements.some(s => s.col === col && s.row === row)) {
+          settlements.push({ col, row, type: (col === CITY_COL && row === CITY_ROW) ? 'city' : 'settlement' });
+          renderMap();
+        }
+      } else if (currentTool === 'erase') {
+        const target = settlements.find(s => s.col === col && s.row === row);
+        if (target && target.type !== 'city') {
+          settlements = settlements.filter(s => !(s.col === col && s.row === row));
+          renderMap();
+        }
+      }
+    }
+
+    // ── Palette & tools ────────────────────────────────────────────────────
+
+    function selectTerrain(id) {
+      selectedTerrain = id;
+      document.querySelectorAll('.terrain-option').forEach(opt => {
+        opt.classList.toggle('selected', parseInt(opt.dataset.terrain) === id);
+      });
+      setTool('paint');
+    }
+
+    function setTool(tool) {
+      currentTool = tool;
+      document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+      const btn = document.getElementById('btn-' + tool);
+      if (btn) btn.classList.add('active');
+      canvas.style.cursor = tool === 'pan' ? 'grab' : 'crosshair';
+    }
+
+    function buildTerrainPalette() {
+      const palette = document.getElementById('terrainPalette');
+      let currentHeaderText = '';
+      let currentContainer  = null;
+
+      TERRAIN_DATA.forEach((terrain, idx) => {
+        if (terrain.header && terrain.header !== currentHeaderText) {
+          currentHeaderText = terrain.header;
+          const headerEl = document.createElement('div');
+          headerEl.className = 'section-header';
+          headerEl.textContent = terrain.header;
+          currentContainer = document.createElement('div');
+          currentContainer.className = 'category-items';
+          headerEl.onclick = function() {
+            this.classList.toggle('collapsed');
+            this.nextElementSibling.classList.toggle('collapsed');
+          };
+          palette.appendChild(headerEl);
+          palette.appendChild(currentContainer);
+        }
+
+        const option = document.createElement('div');
+        option.className = 'terrain-option' + (idx === 12 ? ' selected' : '');
+        option.onclick = () => selectTerrain(idx);
+        option.dataset.terrain = idx;
+
+        const img = document.createElement('img');
+        if (terrainSprites[idx]) img.src = terrainSprites[idx].src;
+
+        const name  = document.createElement('div');
+        name.className = 'name';
+        name.textContent = terrain.name;
+
+        const value = document.createElement('div');
+        value.className = 'value';
+        value.textContent = `ID: ${idx}`;
+
+        option.appendChild(img);
+        option.appendChild(name);
+        option.appendChild(value);
+        (currentContainer || palette).appendChild(option);
+      });
+    }
+
+    function updateSettlementCount() {
+      document.getElementById('settlementCount').textContent = `Settlements: ${settlements.length}`;
+    }
+
+    // ── Map operations ─────────────────────────────────────────────────────
+
+    function clearMap() {
+      if (confirm('Clear entire map? (City will be preserved)')) {
+        mapData     = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(12));
+        settlements = settlements.filter(s => s.type === 'city');
+        renderMap();
+      }
+    }
+
+    function fillMap() {
+      if (confirm(`Fill entire map with ${TERRAIN_DATA[selectedTerrain].name}?`)) {
+        mapData = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(selectedTerrain));
+        renderMap();
+      }
+    }
+
+    // ── Save / Load ────────────────────────────────────────────────────────
+
+    function saveMapJSON() {
+      // Export settlements as {x, y} for Unity MapImporter compatibility
+      const json = {
+        width:  MAP_WIDTH,
+        height: MAP_HEIGHT,
+        data:   mapData,
+        settlements: settlements.map(s => ({ x: s.col, y: s.row, type: s.type }))
+      };
+      const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+      const a    = document.createElement('a');
+      a.href     = URL.createObjectURL(blob);
+      a.download = `hex_map_${MAP_WIDTH}x${MAP_HEIGHT}.json`;
+      a.click();
+    }
+
+    function loadMapFile(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const json = JSON.parse(e.target.result);
+          if (!json.width || !json.height || !json.data) throw new Error('Invalid map file format');
+
+          if (json.width !== MAP_WIDTH || json.height !== MAP_HEIGHT) {
+            if (!confirm(`Map is ${json.width}×${json.height}, editor expects ${MAP_WIDTH}×${MAP_HEIGHT}. Load anyway?`)) return;
+          }
+
+          mapData = json.data;
+
+          if (json.settlements && json.settlements.length > 0) {
+            // Support both {x,y} (Unity/square format) and {col,row} (hex format)
+            settlements = json.settlements.map(s => ({
+              col:  s.col !== undefined ? s.col : s.x,
+              row:  s.row !== undefined ? s.row : s.y,
+              type: s.type || 'settlement'
+            }));
+            const cityIdx = settlements.findIndex(s => s.col === CITY_COL && s.row === CITY_ROW);
+            if (cityIdx >= 0) settlements[cityIdx].type = 'city';
+            else settlements.push({ col: CITY_COL, row: CITY_ROW, type: 'city' });
+          } else {
+            settlements = [{ col: CITY_COL, row: CITY_ROW, type: 'city' }];
+          }
+
+          renderMap();
+          centerOnCity();
+          console.log(`[LOAD] Map loaded: ${json.width}×${json.height}, ${settlements.length} settlements`);
+          alert(`Map loaded!\n${json.width}×${json.height} tiles\n${settlements.length} settlements`);
+        } catch (err) {
+          console.error('[LOAD] Failed:', err);
+          alert('Failed to load map: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    // ── Sprite loading ─────────────────────────────────────────────────────
+
+    async function loadTerrainSprites() {
+      const cityPromise = new Promise(resolve => {
+        const img  = new Image();
+        img.onload = () => { citySprite = img; resolve(true); };
+        img.onerror = () => resolve(false);
+        img.src    = 'sprites/City.png';
+      });
+
+      const terrainPromises = TERRAIN_DATA.map((terrain, idx) => new Promise(resolve => {
+        const img   = new Image();
+        img.onload  = () => { terrainSprites[idx] = img; resolve(true); };
+        img.onerror = () => resolve(false);
+        img.src     = terrain.file;
+      }));
+
+      await Promise.all([cityPromise, ...terrainPromises]);
+    }
+
+    // ── Init ───────────────────────────────────────────────────────────────
+
+    async function init() {
+      try {
+        await loadTerrainSprites();
+        buildTerrainPalette();
+        resizeCanvas();
+        settlements.push({ col: CITY_COL, row: CITY_ROW, type: 'city' });
+        setupEventListeners();
+        centerOnCity();
+        console.log(`[INIT] Hex map editor ready. Map: ${MAP_WIDTH}×${MAP_HEIGHT}, city at (${CITY_COL},${CITY_ROW})`);
+      } catch (err) {
+        document.body.innerHTML = '<div style="color:white;padding:20px;font-family:monospace;">ERROR: ' + err.message + '</div>';
+      }
+    }
+
+    // ── Terrain data ───────────────────────────────────────────────────────
+
+    const TERRAIN_DATA = [
+      { "id":  0, "name": "DirtyWater",  "header": "💧 WATER TYPES",       "file": "sprites/terrain/DirtyWater.png"  },
+      { "id":  1, "name": "DirtyWater_1","header": "",                      "file": "sprites/terrain/DirtyWater_1.png"},
+      { "id":  2, "name": "DirtyWater_2","header": "",                      "file": "sprites/terrain/DirtyWater_2.png"},
+      { "id":  3, "name": "River_1",     "header": "",                      "file": "sprites/terrain/River_1.png"     },
+      { "id":  4, "name": "River_2",     "header": "",                      "file": "sprites/terrain/River_2.png"     },
+      { "id":  5, "name": "River_3",     "header": "",                      "file": "sprites/terrain/River_3.png"     },
+      { "id":  6, "name": "River_4",     "header": "",                      "file": "sprites/terrain/River_4.png"     },
+      { "id":  7, "name": "River_5",     "header": "",                      "file": "sprites/terrain/River_5.png"     },
+      { "id":  8, "name": "River_6",     "header": "",                      "file": "sprites/terrain/River_6.png"     },
+      { "id":  9, "name": "Rubble_1",    "header": "🏚️ RUBBLE/WASTELAND",  "file": "sprites/terrain/Rubble_1.png"    },
+      { "id": 10, "name": "Rubble_2",    "header": "",                      "file": "sprites/terrain/Rubble_2.png"    },
+      { "id": 11, "name": "Rubble_3",    "header": "",                      "file": "sprites/terrain/Rubble_3.png"    },
+      { "id": 12, "name": "Plain_1",     "header": "🌾 PLAINS TYPES",       "file": "sprites/terrain/Plain_1.png"     },
+      { "id": 13, "name": "Plain_2",     "header": "",                      "file": "sprites/terrain/Plain_2.png"     },
+      { "id": 14, "name": "BrokenPlain", "header": "",                      "file": "sprites/terrain/BrokenPlain.png" },
+      { "id": 15, "name": "Forest_1",    "header": "🌲 FOREST TYPES",       "file": "sprites/terrain/Forest_1.png"    },
+      { "id": 16, "name": "Forest_2",    "header": "",                      "file": "sprites/terrain/Forest_2.png"    },
+      { "id": 17, "name": "Forest_3",    "header": "",                      "file": "sprites/terrain/Forest_3.png"    },
+      { "id": 18, "name": "Hills",       "header": "⛰️ ROCKY/MOUNTAIN",    "file": "sprites/terrain/Hills.png"       },
+      { "id": 19, "name": "Mountain",    "header": "",                      "file": "sprites/terrain/Mountain.png"    },
+      { "id": 20, "name": "GoldVein",    "header": "💎 RESOURCE TYPES",     "file": "sprites/terrain/GoldVein.png"    },
+      { "id": 21, "name": "Oil",         "header": "",                      "file": "sprites/terrain/Oil.png"         },
+      { "id": 22, "name": "Barren",      "header": "🏜️ BARREN/DESERT",     "file": "sprites/terrain/Barren.png"      },
+      { "id": 23, "name": "Desert",      "header": "",                      "file": "sprites/terrain/Desert.png"      },
+      { "id": 24, "name": "Swamp",       "header": "🐊 SWAMP TYPES",        "file": "sprites/terrain/Swamp.png"       },
+      { "id": 25, "name": "RockySwamp",  "header": "",                      "file": "sprites/terrain/RockySwamp.png"  },
+      { "id": 26, "name": "LavaPlain",   "header": "🌋 VOLCANIC/RIFT",      "file": "sprites/terrain/LavaPlain.png"   },
+      { "id": 27, "name": "LavaRift",    "header": "",                      "file": "sprites/terrain/LavaRift.png"    },
+      { "id": 28, "name": "Rift",        "header": "",                      "file": "sprites/terrain/Rift.png"        }
+    ];
+
+    window.addEventListener('load', init);
+  </script>
+</body>
+</html>
