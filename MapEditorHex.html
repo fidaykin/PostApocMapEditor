@@ -713,35 +713,19 @@
 
     const HEX_SPRITES = 'sprites/hex/';
     const TERRAIN_DATA = [
-      { "id":  0, "name": "DirtyWater",  "header": "💧 WATER TYPES",       "file": HEX_SPRITES + "DirtyWater.png"  },
-      { "id":  1, "name": "DirtyWater_1","header": "",                      "file": HEX_SPRITES + "DirtyWater_1.png"},
-      { "id":  2, "name": "DirtyWater_2","header": "",                      "file": HEX_SPRITES + "DirtyWater_2.png"},
-      { "id":  3, "name": "River_1",     "header": "",                      "file": HEX_SPRITES + "River_1.png"     },
-      { "id":  4, "name": "River_2",     "header": "",                      "file": HEX_SPRITES + "River_2.png"     },
-      { "id":  5, "name": "River_3",     "header": "",                      "file": HEX_SPRITES + "River_3.png"     },
-      { "id":  6, "name": "River_4",     "header": "",                      "file": HEX_SPRITES + "River_4.png"     },
-      { "id":  7, "name": "River_5",     "header": "",                      "file": HEX_SPRITES + "River_5.png"     },
-      { "id":  8, "name": "River_6",     "header": "",                      "file": HEX_SPRITES + "River_6.png"     },
-      { "id":  9, "name": "Rubble_1",    "header": "🏚️ RUBBLE/WASTELAND",  "file": HEX_SPRITES + "Rubble_1.png"    },
-      { "id": 10, "name": "Rubble_2",    "header": "",                      "file": HEX_SPRITES + "Rubble_2.png"    },
-      { "id": 11, "name": "Rubble_3",    "header": "",                      "file": HEX_SPRITES + "Rubble_3.png"    },
-      { "id": 12, "name": "Plain_1",     "header": "🌾 PLAINS TYPES",       "file": HEX_SPRITES + "Plain_1.png"     },
-      { "id": 13, "name": "Plain_2",     "header": "",                      "file": HEX_SPRITES + "Plain_2.png"     },
-      { "id": 14, "name": "BrokenPlain", "header": "",                      "file": HEX_SPRITES + "BrokenPlain.png" },
-      { "id": 15, "name": "Forest_1",    "header": "🌲 FOREST TYPES",       "file": HEX_SPRITES + "Forest_1.png"    },
-      { "id": 16, "name": "Forest_2",    "header": "",                      "file": HEX_SPRITES + "Forest_2.png"    },
-      { "id": 17, "name": "Forest_3",    "header": "",                      "file": HEX_SPRITES + "Forest_3.png"    },
-      { "id": 18, "name": "Hills",       "header": "⛰️ ROCKY/MOUNTAIN",    "file": HEX_SPRITES + "Hills.png"       },
-      { "id": 19, "name": "Mountain",    "header": "",                      "file": HEX_SPRITES + "Mountain.png"    },
-      { "id": 20, "name": "GoldVein",    "header": "💎 RESOURCE TYPES",     "file": HEX_SPRITES + "GoldVein.png"    },
-      { "id": 21, "name": "Oil",         "header": "",                      "file": HEX_SPRITES + "Oil.png"         },
-      { "id": 22, "name": "Barren",      "header": "🏜️ BARREN/DESERT",     "file": HEX_SPRITES + "Barren.png"      },
-      { "id": 23, "name": "Desert",      "header": "",                      "file": HEX_SPRITES + "Desert.png"      },
-      { "id": 24, "name": "Swamp",       "header": "🐊 SWAMP TYPES",        "file": HEX_SPRITES + "Swamp.png"       },
-      { "id": 25, "name": "RockySwamp",  "header": "",                      "file": HEX_SPRITES + "RockySwamp.png"  },
-      { "id": 26, "name": "LavaPlain",   "header": "🌋 VOLCANIC/RIFT",      "file": HEX_SPRITES + "LavaPlain.png"   },
-      { "id": 27, "name": "LavaRift",    "header": "",                      "file": HEX_SPRITES + "LavaRift.png"    },
-      { "id": 28, "name": "Rift",        "header": "",                      "file": HEX_SPRITES + "Rift.png"        }
+      { "id":  0, "name": "DirtyWater",  "header": "💧 WATER TYPES",       "file": HEX_SPRITES + "Water.png"    },
+      { "id":  9, "name": "Rubble_1",    "header": "🏚️ RUBBLE/WASTELAND",  "file": HEX_SPRITES + "Rubble_1.png" },
+      { "id": 10, "name": "Rubble_2",    "header": "",                      "file": HEX_SPRITES + "Rubble_2.png" },
+      { "id": 11, "name": "Rubble_3",    "header": "",                      "file": HEX_SPRITES + "Rubble_3.png" },
+      { "id": 12, "name": "Plain_1",     "header": "🌾 PLAINS TYPES",       "file": HEX_SPRITES + "Plain_1.png"  },
+      { "id": 13, "name": "Plain_2",     "header": "",                      "file": HEX_SPRITES + "Plain_2.png"  },
+      { "id": 15, "name": "Forest_1",    "header": "🌲 FOREST TYPES",       "file": HEX_SPRITES + "Forest_1.png" },
+      { "id": 16, "name": "Forest_2",    "header": "",                      "file": HEX_SPRITES + "Forest_2.png" },
+      { "id": 17, "name": "Forest_3",    "header": "",                      "file": HEX_SPRITES + "Forest_3.png" },
+      { "id": 18, "name": "Hills",       "header": "⛰️ ROCKY/MOUNTAIN",    "file": HEX_SPRITES + "Hills.png"    },
+      { "id": 19, "name": "Mountain",    "header": "",                      "file": HEX_SPRITES + "Mountain.png" },
+      { "id": 20, "name": "GoldVein",    "header": "💎 RESOURCE TYPES",     "file": HEX_SPRITES + "GoldVein.png" },
+      { "id": 28, "name": "Rift",        "header": "🌋 VOLCANIC/RIFT",      "file": HEX_SPRITES + "Rift.png"     }
     ];
 
     window.addEventListener('load', init);
