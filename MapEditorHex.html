@@ -661,10 +661,10 @@
             settlements = [{ col: CITY_COL, row: CITY_ROW, type: 'city' }];
           }
 
-          renderMap();
           centerOnCity();
           console.log(`[LOAD] Map loaded: ${json.width}×${json.height}, ${settlements.length} settlements`);
           alert(`Map loaded!\n${json.width}×${json.height} tiles\n${settlements.length} settlements`);
+          renderMap();
         } catch (err) {
           console.error('[LOAD] Failed:', err);
           alert('Failed to load map: ' + err.message);
