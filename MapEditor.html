@@ -41,6 +41,11 @@
     .zoom-controls input[type="range"] { width: 120px; }
     .zoom-controls .zoom-label { color: #888; font-size: 12px; min-width: 50px; }
 
+    .resize-controls { display: flex; align-items: center; gap: 6px; margin-left: 10px; padding-left: 10px; border-left: 2px solid #333; }
+    .resize-controls input[type="number"] { width: 55px; background: #333; color: white; border: 1px solid #555; padding: 3px 5px; border-radius: 3px; font-size: 13px; text-align: center; }
+    .resize-controls .sep { color: #888; font-size: 13px; }
+    .resize-controls .label { color: #888; font-size: 12px; white-space: nowrap; }
+
     #terrainPalette { flex: 1; overflow-y: auto; margin-bottom: 10px; }
 
     .tools-section { position: sticky; bottom: 0; background: #252525; padding: 15px 0; margin: 0 -20px; padding-left: 20px; padding-right: 20px; border-top: 2px solid #333; }
@@ -87,6 +92,13 @@
       <button onclick="saveMapCSV()" class="secondary">📄 Save CSV</button>
       <button onclick="clearMap()" class="secondary">🗑️ Clear Map</button>
       <button onclick="fillMap()" class="secondary">🎨 Fill All</button>
+      <div class="resize-controls">
+        <span class="label">📐 Size:</span>
+        <input type="number" id="newWidth"  min="10" max="450" value="450">
+        <span class="sep">×</span>
+        <input type="number" id="newHeight" min="10" max="450" value="450">
+        <button onclick="applyResize()" class="secondary" title="Resize map (10–450)">Resize</button>
+      </div>
       <div class="zoom-controls">
         <button onclick="zoomOut()" class="secondary" title="Zoom Out">−</button>
         <input type="range" id="zoomSlider" min="25" max="100" value="100" step="5" oninput="setZoom(this.value)">
@@ -104,9 +116,9 @@
   </div>
 
   <script>
-    // Map configuration
-    const MAP_WIDTH = 450;
-    const MAP_HEIGHT = 450;
+    // Map configuration — mutable so resizeMap() can change them
+    let MAP_WIDTH = 450;
+    let MAP_HEIGHT = 450;
     const TILE_SIZE = 512; // Original sprite size for perfect quality
     const BASE_SCALE = 0.25; // Base scale: makes 100% zoom show tiles at 128px instead of 512px
 
@@ -634,6 +646,61 @@
       }
     }
 
+    function applyResize() {
+      const newW = parseInt(document.getElementById('newWidth').value);
+      const newH = parseInt(document.getElementById('newHeight').value);
+
+      if (isNaN(newW) || isNaN(newH) || newW < 10 || newH < 10 || newW > 450 || newH > 450) {
+        alert('Map size must be between 10×10 and 450×450.');
+        return;
+      }
+      if (newW === MAP_WIDTH && newH === MAP_HEIGHT) return;
+
+      const shrinking = newW < MAP_WIDTH || newH < MAP_HEIGHT;
+      const msg = `Resize map from ${MAP_WIDTH}×${MAP_HEIGHT} to ${newW}×${newH}?`
+        + (shrinking ? '\n⚠️ Tiles outside the new bounds will be lost.' : '');
+      if (!confirm(msg)) return;
+
+      resizeMap(newW, newH);
+    }
+
+    function resizeMap(newW, newH) {
+      // Create new terrain grid filled with Plain_1 (ID 12)
+      const newMapData = Array(newH).fill(null).map(() => Array(newW).fill(12));
+
+      // Copy existing terrain (top-left aligned; crop or expand as needed)
+      const copyW = Math.min(MAP_WIDTH, newW);
+      const copyH = Math.min(MAP_HEIGHT, newH);
+      for (let y = 0; y < copyH; y++) {
+        for (let x = 0; x < copyW; x++) {
+          newMapData[y][x] = mapData[y][x];
+        }
+      }
+
+      // Update globals
+      MAP_WIDTH  = newW;
+      MAP_HEIGHT = newH;
+      mapData    = newMapData;
+
+      // Move city to new center, ensure it's plains
+      const newCityX = Math.floor(newW / 2);
+      const newCityY = Math.floor(newH / 2);
+      mapData[newCityY][newCityX] = 12; // Plain_1
+      cityPosition = { x: newCityX, y: newCityY };
+
+      // Rebuild settlements: remove old city, discard out-of-bounds, add new city
+      settlements = settlements.filter(s => s.type !== 'city' && s.x < newW && s.y < newH);
+      settlements.push({ x: newCityX, y: newCityY, type: 'city' });
+
+      // Sync input fields
+      document.getElementById('newWidth').value  = newW;
+      document.getElementById('newHeight').value = newH;
+
+      clampCamera();
+      centerOnCity();
+      console.log(`[RESIZE] ${newW}×${newH}, city → (${newCityX}, ${newCityY}), ${settlements.length-1} settlement(s) kept`);
+    }
+
     function clearMap() {
       if (confirm('Clear entire map? (City will be preserved)')) {
         mapData = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(12)); // Reset to Plain_1
@@ -700,10 +767,16 @@
             throw new Error('Invalid map file format');
           }
 
+          // Auto-resize editor to match the loaded map (within 10–450 limits)
           if (json.width !== MAP_WIDTH || json.height !== MAP_HEIGHT) {
-            if (!confirm(`Map size is ${json.width}×${json.height} but editor expects ${MAP_WIDTH}×${MAP_HEIGHT}. Load anyway? (May cause issues)`)) {
-              return;
-            }
+            const newW = Math.max(10, Math.min(450, json.width));
+            const newH = Math.max(10, Math.min(450, json.height));
+            MAP_WIDTH  = newW;
+            MAP_HEIGHT = newH;
+            document.getElementById('newWidth').value  = newW;
+            document.getElementById('newHeight').value = newH;
+            cityPosition = { x: Math.floor(newW / 2), y: Math.floor(newH / 2) };
+            console.log(`[LOAD] Editor resized to ${newW}×${newH}`);
           }
 
           // Load terrain data

@@ -14,7 +14,9 @@
     .terrain-option { background: #2a2a2a; border: 2px solid #444; margin-bottom: 8px; padding: 8px; cursor: pointer; border-radius: 4px; transition: all 0.2s; }
     .terrain-option:hover { border-color: #666; }
     .terrain-option.selected { border-color: #4CAF50; background: #1a4a1a; }
-    .terrain-option img { width: 48px; height: 48px; display: block; margin: 0 auto 5px; image-rendering: pixelated; }
+    .terrain-option img { width: 52px; height: 52px; display: block; margin: 0 auto 5px; image-rendering: pixelated;
+      /* Clip to flat-top hexagon (tips left/right, flat edges top/bottom) */
+      clip-path: polygon(100% 50%, 75% 6.7%, 25% 6.7%, 0% 50%, 25% 93.3%, 75% 93.3%); }
     .terrain-option .name { color: white; font-size: 11px; text-align: center; }
     .terrain-option .value { color: #888; font-size: 10px; text-align: center; }
 
@@ -40,6 +42,11 @@
     .zoom-controls button { padding: 5px 12px; min-width: 35px; }
     .zoom-controls input[type="range"] { width: 120px; }
     .zoom-controls .zoom-label { color: #888; font-size: 12px; min-width: 50px; }
+
+    .resize-controls { display: flex; align-items: center; gap: 6px; margin-left: 10px; padding-left: 10px; border-left: 2px solid #333; }
+    .resize-controls input[type="number"] { width: 55px; background: #333; color: white; border: 1px solid #555; padding: 3px 5px; border-radius: 3px; font-size: 13px; text-align: center; }
+    .resize-controls .sep { color: #888; font-size: 13px; }
+    .resize-controls .label { color: #888; font-size: 12px; white-space: nowrap; }
 
     #terrainPalette { flex: 1; overflow-y: auto; margin-bottom: 10px; }
 
@@ -85,6 +92,13 @@
       <button onclick="saveMapJSON()" class="secondary">💾 Save JSON</button>
       <button onclick="clearMap()"    class="secondary">🗑️ Clear Map</button>
       <button onclick="fillMap()"     class="secondary">🎨 Fill All</button>
+      <div class="resize-controls">
+        <span class="label">📐 Size:</span>
+        <input type="number" id="newWidth"  min="10" max="450" value="450">
+        <span class="sep">×</span>
+        <input type="number" id="newHeight" min="10" max="450" value="450">
+        <button onclick="applyResize()" class="secondary" title="Resize map (10–450)">Resize</button>
+      </div>
       <div class="zoom-controls">
         <button onclick="zoomOut()" class="secondary" title="Zoom Out">−</button>
         <input type="range" id="zoomSlider" min="25" max="400" value="50" step="5" oninput="setZoom(this.value)">
@@ -103,8 +117,8 @@
 
   <script>
     // ── Map configuration ──────────────────────────────────────────────────
-    const MAP_WIDTH  = 51;
-    const MAP_HEIGHT = 51;
+    let MAP_WIDTH  = 450;
+    let MAP_HEIGHT = 450;
 
     // Flat-top hex, odd-q offset (odd columns shift DOWN) — matches Unity game.
     // HEX_SIZE = circumradius (center → corner) at 100% zoom.
@@ -114,9 +128,9 @@
     const ROW_PITCH = HEX_SIZE * SQRT3;     // vertical distance between row centers
     const STAGGER   = ROW_PITCH / 2;        // extra Y offset for odd columns
 
-    // City fixed at map center
-    const CITY_COL = Math.floor(MAP_WIDTH  / 2);
-    const CITY_ROW = Math.floor(MAP_HEIGHT / 2);
+    // City at map center — updated by resizeMap()
+    let CITY_COL = Math.floor(MAP_WIDTH  / 2);
+    let CITY_ROW = Math.floor(MAP_HEIGHT / 2);
 
     // ── State ──────────────────────────────────────────────────────────────
     let mapData     = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(12)); // Plain_1
@@ -521,6 +535,62 @@
 
     // ── Map operations ─────────────────────────────────────────────────────
 
+    function applyResize() {
+      const newW = parseInt(document.getElementById('newWidth').value);
+      const newH = parseInt(document.getElementById('newHeight').value);
+
+      if (isNaN(newW) || isNaN(newH) || newW < 10 || newH < 10 || newW > 450 || newH > 450) {
+        alert('Map size must be between 10×10 and 450×450.');
+        return;
+      }
+      if (newW === MAP_WIDTH && newH === MAP_HEIGHT) return;
+
+      const shrinking = newW < MAP_WIDTH || newH < MAP_HEIGHT;
+      const msg = `Resize map from ${MAP_WIDTH}×${MAP_HEIGHT} to ${newW}×${newH}?`
+        + (shrinking ? '\n⚠️ Tiles outside the new bounds will be lost.' : '');
+      if (!confirm(msg)) return;
+
+      resizeMap(newW, newH);
+    }
+
+    function resizeMap(newW, newH) {
+      // Create new terrain grid filled with Plain_1 (ID 12)
+      const newMapData = Array(newH).fill(null).map(() => Array(newW).fill(12));
+
+      // Copy existing terrain (top-left aligned; crop or expand as needed)
+      const copyW = Math.min(MAP_WIDTH, newW);
+      const copyH = Math.min(MAP_HEIGHT, newH);
+      for (let r = 0; r < copyH; r++) {
+        for (let c = 0; c < copyW; c++) {
+          newMapData[r][c] = mapData[r][c];
+        }
+      }
+
+      // Update globals
+      MAP_WIDTH  = newW;
+      MAP_HEIGHT = newH;
+      mapData    = newMapData;
+
+      // Move city to new center, ensure it's plains
+      const newCityCol = Math.floor(newW / 2);
+      const newCityRow = Math.floor(newH / 2);
+      mapData[newCityRow][newCityCol] = 12; // Plain_1
+      CITY_COL = newCityCol;
+      CITY_ROW = newCityRow;
+
+      // Rebuild settlements: remove old city, discard out-of-bounds, add new city
+      settlements = settlements.filter(s => s.type !== 'city' && s.col < newW && s.row < newH);
+      settlements.push({ col: newCityCol, row: newCityRow, type: 'city' });
+
+      // Sync input fields
+      document.getElementById('newWidth').value  = newW;
+      document.getElementById('newHeight').value = newH;
+
+      clampCamera();
+      centerOnCity();
+      console.log(`[RESIZE] ${newW}×${newH}, city → (${newCityCol}, ${newCityRow}), ${settlements.length-1} settlement(s) kept`);
+    }
+
     function clearMap() {
       if (confirm('Clear entire map? (City will be preserved)')) {
         mapData     = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(12));
@@ -563,8 +633,15 @@
           const json = JSON.parse(e.target.result);
           if (!json.width || !json.height || !json.data) throw new Error('Invalid map file format');
 
+          // Auto-resize editor to match the loaded map (within 10–450 limits)
           if (json.width !== MAP_WIDTH || json.height !== MAP_HEIGHT) {
-            if (!confirm(`Map is ${json.width}×${json.height}, editor expects ${MAP_WIDTH}×${MAP_HEIGHT}. Load anyway?`)) return;
+            MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
+            MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
+            CITY_COL   = Math.floor(MAP_WIDTH  / 2);
+            CITY_ROW   = Math.floor(MAP_HEIGHT / 2);
+            document.getElementById('newWidth').value  = MAP_WIDTH;
+            document.getElementById('newHeight').value = MAP_HEIGHT;
+            console.log(`[LOAD] Editor resized to ${MAP_WIDTH}×${MAP_HEIGHT}`);
           }
 
           mapData = json.data;
@@ -603,7 +680,7 @@
         const img  = new Image();
         img.onload = () => { citySprite = img; resolve(true); };
         img.onerror = () => resolve(false);
-        img.src    = 'sprites/City.png';
+        img.src    = '../Desktop/Hex/Settlements_1.png';
       });
 
       const terrainPromises = TERRAIN_DATA.map((terrain, idx) => new Promise(resolve => {
@@ -634,36 +711,39 @@
 
     // ── Terrain data ───────────────────────────────────────────────────────
 
+    const HEX_SPRITES = '../Desktop/Hex/';
     const TERRAIN_DATA = [
-      { "id":  0, "name": "DirtyWater",  "header": "💧 WATER TYPES",       "file": "sprites/terrain/DirtyWater.png"  },
-      { "id":  1, "name": "DirtyWater_1","header": "",                      "file": "sprites/terrain/DirtyWater_1.png"},
-      { "id":  2, "name": "DirtyWater_2","header": "",                      "file": "sprites/terrain/DirtyWater_2.png"},
-      { "id":  3, "name": "River_1",     "header": "",                      "file": "sprites/terrain/River_1.png"     },
-      { "id":  4, "name": "River_2",     "header": "",                      "file": "sprites/terrain/River_2.png"     },
-      { "id":  5, "name": "River_3",     "header": "",                      "file": "sprites/terrain/River_3.png"     },
-      { "id":  6, "name": "River_4",     "header": "",                      "file": "sprites/terrain/River_4.png"     },
-      { "id":  7, "name": "River_5",     "header": "",                      "file": "sprites/terrain/River_5.png"     },
-      { "id":  8, "name": "River_6",     "header": "",                      "file": "sprites/terrain/River_6.png"     },
-      { "id":  9, "name": "Rubble_1",    "header": "🏚️ RUBBLE/WASTELAND",  "file": "sprites/terrain/Rubble_1.png"    },
-      { "id": 10, "name": "Rubble_2",    "header": "",                      "file": "sprites/terrain/Rubble_2.png"    },
-      { "id": 11, "name": "Rubble_3",    "header": "",                      "file": "sprites/terrain/Rubble_3.png"    },
-      { "id": 12, "name": "Plain_1",     "header": "🌾 PLAINS TYPES",       "file": "sprites/terrain/Plain_1.png"     },
-      { "id": 13, "name": "Plain_2",     "header": "",                      "file": "sprites/terrain/Plain_2.png"     },
-      { "id": 14, "name": "BrokenPlain", "header": "",                      "file": "sprites/terrain/BrokenPlain.png" },
-      { "id": 15, "name": "Forest_1",    "header": "🌲 FOREST TYPES",       "file": "sprites/terrain/Forest_1.png"    },
-      { "id": 16, "name": "Forest_2",    "header": "",                      "file": "sprites/terrain/Forest_2.png"    },
-      { "id": 17, "name": "Forest_3",    "header": "",                      "file": "sprites/terrain/Forest_3.png"    },
-      { "id": 18, "name": "Hills",       "header": "⛰️ ROCKY/MOUNTAIN",    "file": "sprites/terrain/Hills.png"       },
-      { "id": 19, "name": "Mountain",    "header": "",                      "file": "sprites/terrain/Mountain.png"    },
-      { "id": 20, "name": "GoldVein",    "header": "💎 RESOURCE TYPES",     "file": "sprites/terrain/GoldVein.png"    },
-      { "id": 21, "name": "Oil",         "header": "",                      "file": "sprites/terrain/Oil.png"         },
-      { "id": 22, "name": "Barren",      "header": "🏜️ BARREN/DESERT",     "file": "sprites/terrain/Barren.png"      },
-      { "id": 23, "name": "Desert",      "header": "",                      "file": "sprites/terrain/Desert.png"      },
-      { "id": 24, "name": "Swamp",       "header": "🐊 SWAMP TYPES",        "file": "sprites/terrain/Swamp.png"       },
-      { "id": 25, "name": "RockySwamp",  "header": "",                      "file": "sprites/terrain/RockySwamp.png"  },
-      { "id": 26, "name": "LavaPlain",   "header": "🌋 VOLCANIC/RIFT",      "file": "sprites/terrain/LavaPlain.png"   },
-      { "id": 27, "name": "LavaRift",    "header": "",                      "file": "sprites/terrain/LavaRift.png"    },
-      { "id": 28, "name": "Rift",        "header": "",                      "file": "sprites/terrain/Rift.png"        }
+      { "id":  0, "name": "DirtyWater",  "header": "💧 WATER TYPES",       "file": HEX_SPRITES + "Water.png"    },
+      { "id":  1, "name": "DirtyWater_1","header": "",                      "file": HEX_SPRITES + "Water.png"    },
+      { "id":  2, "name": "DirtyWater_2","header": "",                      "file": HEX_SPRITES + "Water.png"    },
+      { "id":  3, "name": "River_1",     "header": "",                      "file": HEX_SPRITES + "Water.png"    },
+      { "id":  4, "name": "River_2",     "header": "",                      "file": HEX_SPRITES + "Water.png"    },
+      { "id":  5, "name": "River_3",     "header": "",                      "file": HEX_SPRITES + "Water.png"    },
+      { "id":  6, "name": "River_4",     "header": "",                      "file": HEX_SPRITES + "Water.png"    },
+      { "id":  7, "name": "River_5",     "header": "",                      "file": HEX_SPRITES + "Water.png"    },
+      { "id":  8, "name": "River_6",     "header": "",                      "file": HEX_SPRITES + "Water.png"    },
+      { "id":  9, "name": "Rubble_1",    "header": "🏚️ RUBBLE/WASTELAND",  "file": HEX_SPRITES + "Rubble_1.png" },
+      { "id": 10, "name": "Rubble_2",    "header": "",                      "file": HEX_SPRITES + "Rubble_2.png" },
+      { "id": 11, "name": "Rubble_3",    "header": "",                      "file": HEX_SPRITES + "Rubble_3.png" },
+      { "id": 12, "name": "Plain_1",     "header": "🌾 PLAINS TYPES",       "file": HEX_SPRITES + "Plain_1.png"  },
+      { "id": 13, "name": "Plain_2",     "header": "",                      "file": HEX_SPRITES + "Plain_2.png"  },
+      { "id": 14, "name": "BrokenPlain", "header": "",                      "file": HEX_SPRITES + "Plain_2.png"  },
+      { "id": 15, "name": "Forest_1",    "header": "🌲 FOREST TYPES",       "file": HEX_SPRITES + "Forest_1.png" },
+      { "id": 16, "name": "Forest_2",    "header": "",                      "file": HEX_SPRITES + "Forest_2.png" },
+      { "id": 17, "name": "Forest_3",    "header": "",                      "file": HEX_SPRITES + "Forest_3.png" },
+      { "id": 18, "name": "Hills",       "header": "⛰️ ROCKY/MOUNTAIN",    "file": HEX_SPRITES + "Hills.png"    },
+      { "id": 19, "name": "Mountain",    "header": "",                      "file": HEX_SPRITES + "Mountain.png" },
+      { "id": 20, "name": "GoldVein",    "header": "💎 RESOURCE TYPES",     "file": HEX_SPRITES + "GoldVein.png" },
+      { "id": 21, "name": "Oil",         "header": "",                      "file": HEX_SPRITES + "Rubble_2.png" },
+      { "id": 22, "name": "Barren",      "header": "🏜️ BARREN/DESERT",     "file": HEX_SPRITES + "Plain_2.png"  },
+      { "id": 23, "name": "Desert",      "header": "",                      "file": HEX_SPRITES + "Plain_2.png"  },
+      { "id": 24, "name": "Swamp",       "header": "🐊 SWAMP TYPES",        "file": HEX_SPRITES + "Water.png"    },
+      { "id": 25, "name": "RockySwamp",  "header": "",                      "file": HEX_SPRITES + "Hills.png"    },
+      { "id": 26, "name": "LavaPlain",   "header": "🌋 VOLCANIC/RIFT",      "file": HEX_SPRITES + "Rift.png"     },
+      { "id": 27, "name": "LavaRift",    "header": "",                      "file": HEX_SPRITES + "Rift.png"     },
+      { "id": 28, "name": "Rift",        "header": "",                      "file": HEX_SPRITES + "Rift.png"     },
+      { "id": 29, "name": "Farm",        "header": "🌻 FARM TYPES",         "file": HEX_SPRITES + "Farm.png"     },
+      { "id": 30, "name": "FarmGrain",   "header": "",                      "file": HEX_SPRITES + "FarmGrain.png"}
     ];
 
     window.addEventListener('load', init);
