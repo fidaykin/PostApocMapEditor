@@ -370,8 +370,9 @@
       const { col, row } = screenToHex(screenX, screenY);
 
       if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
+        const tInfo = TERRAIN_BY_ID[mapData[row][col]];
         document.getElementById('coordInfo').textContent =
-          `Col: ${col}, Row: ${row} | Terrain: ${TERRAIN_DATA[mapData[row][col]].name}`;
+          `Col: ${col}, Row: ${row} | Terrain: ${tInfo ? tInfo.name : mapData[row][col]}`;
       }
 
       if (isPanning) {
@@ -507,12 +508,12 @@
         }
 
         const option = document.createElement('div');
-        option.className = 'terrain-option' + (idx === 12 ? ' selected' : '');
-        option.onclick = () => selectTerrain(idx);
-        option.dataset.terrain = idx;
+        option.className = 'terrain-option' + (terrain.id === 12 ? ' selected' : '');
+        option.onclick = () => selectTerrain(terrain.id);
+        option.dataset.terrain = terrain.id;
 
         const img = document.createElement('img');
-        if (terrainSprites[idx]) img.src = terrainSprites[idx].src;
+        if (terrainSprites[terrain.id]) img.src = terrainSprites[terrain.id].src;
 
         const name  = document.createElement('div');
         name.className = 'name';
@@ -520,7 +521,7 @@
 
         const value = document.createElement('div');
         value.className = 'value';
-        value.textContent = `ID: ${idx}`;
+        value.textContent = `ID: ${terrain.id}`;
 
         option.appendChild(img);
         option.appendChild(name);
@@ -600,7 +601,7 @@
     }
 
     function fillMap() {
-      if (confirm(`Fill entire map with ${TERRAIN_DATA[selectedTerrain].name}?`)) {
+      if (confirm(`Fill entire map with ${TERRAIN_BY_ID[selectedTerrain].name}?`)) {
         mapData = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(selectedTerrain));
         renderMap();
       }
@@ -680,12 +681,12 @@
         const img  = new Image();
         img.onload = () => { citySprite = img; resolve(true); };
         img.onerror = () => resolve(false);
-        img.src    = '../Desktop/Hex/Settlements_1.png';
+        img.src    = 'sprites/hex/Settlements_1.png';
       });
 
-      const terrainPromises = TERRAIN_DATA.map((terrain, idx) => new Promise(resolve => {
+      const terrainPromises = TERRAIN_DATA.map((terrain) => new Promise(resolve => {
         const img   = new Image();
-        img.onload  = () => { terrainSprites[idx] = img; resolve(true); };
+        img.onload  = () => { terrainSprites[terrain.id] = img; resolve(true); };
         img.onerror = () => resolve(false);
         img.src     = terrain.file;
       }));
@@ -727,6 +728,10 @@
       { "id": 20, "name": "GoldVein",    "header": "💎 RESOURCE TYPES",     "file": HEX_SPRITES + "GoldVein.png" },
       { "id": 28, "name": "Rift",        "header": "🌋 VOLCANIC/RIFT",      "file": HEX_SPRITES + "Rift.png"     }
     ];
+
+    // Fast id→terrain lookup (used everywhere mapData values are resolved to terrain info)
+    const TERRAIN_BY_ID = {};
+    TERRAIN_DATA.forEach(t => { TERRAIN_BY_ID[t.id] = t; });
 
     window.addEventListener('load', init);
   </script>
