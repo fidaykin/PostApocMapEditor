@@ -130,7 +130,7 @@
 
     // City at map center — updated by resizeMap()
     let CITY_COL = Math.floor(MAP_WIDTH  / 2);
-    let CITY_ROW = Math.floor(MAP_HEIGHT / 2);
+    let CITY_ROW = Math.floor((MAP_HEIGHT - 1) / 2);  // -1 corrects for Unity Y-flip: (H-1)-row, so floor((H-1)/2) maps to arrayY=H/2=world(0,0)
 
     // ── State ──────────────────────────────────────────────────────────────
     let mapData     = Array(MAP_HEIGHT).fill(null).map(() => Array(MAP_WIDTH).fill(12)); // Plain_1
@@ -574,7 +574,7 @@
 
       // Move city to new center, ensure it's plains
       const newCityCol = Math.floor(newW / 2);
-      const newCityRow = Math.floor(newH / 2);
+      const newCityRow = Math.floor((newH - 1) / 2);
       mapData[newCityRow][newCityCol] = 12; // Plain_1
       CITY_COL = newCityCol;
       CITY_ROW = newCityRow;
@@ -639,7 +639,7 @@
             MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
             MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
             CITY_COL   = Math.floor(MAP_WIDTH  / 2);
-            CITY_ROW   = Math.floor(MAP_HEIGHT / 2);
+            CITY_ROW   = Math.floor((MAP_HEIGHT - 1) / 2);
             document.getElementById('newWidth').value  = MAP_WIDTH;
             document.getElementById('newHeight').value = MAP_HEIGHT;
             console.log(`[LOAD] Editor resized to ${MAP_WIDTH}×${MAP_HEIGHT}`);
