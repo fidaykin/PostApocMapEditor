@@ -2322,8 +2322,13 @@ const Satellite = (() => {
 
   function _loadImage(file) {
     const reader = new FileReader();
+    reader.onerror = () => UI.toast('Could not read file');
     reader.onload = ev => {
       const img = new Image();
+      img.onerror = () => {
+        UI.toast('Image failed to decode');
+        document.getElementById('sat-drop-label').style.display = '';
+      };
       img.onload = () => {
         const MAX = 1024;
         const scale = Math.min(1, MAX / Math.max(img.width, img.height));
