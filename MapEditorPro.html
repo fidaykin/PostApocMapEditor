@@ -1175,7 +1175,70 @@ const Tools = (() => {
 
   return { init, setActive, getActive };
 })();
-const History  = {};
+// ════════════════════════════════════════════════════════════
+// HISTORY MODULE — 50-step Int8Array undo/redo
+// ════════════════════════════════════════════════════════════
+const History = (() => {
+  const MAX = 50;
+  const _undo = [];   // stack of Int8Array snapshots (past states)
+  const _redo = [];   // stack of Int8Array snapshots (future states)
+
+  function _snapshot() {
+    // mapData is an Int8Array; copy it
+    return new Int8Array(mapData);
+  }
+
+  function push() {
+    if (_undo.length >= MAX) _undo.shift();  // evict oldest
+    _undo.push(_snapshot());
+    _redo.length = 0;   // clear redo on new action
+    UI.updateMenuHistoryState();
+  }
+
+  function undo() {
+    if (_undo.length === 0) return;
+    _redo.push(_snapshot());
+    mapData.set(_undo.pop());
+    Canvas.render();
+    Canvas.drawMinimap();
+    UI.updateMenuHistoryState();
+    UI.toast('Undo');
+  }
+
+  function redo() {
+    if (_redo.length === 0) return;
+    _undo.push(_snapshot());
+    mapData.set(_redo.pop());
+    Canvas.render();
+    Canvas.drawMinimap();
+    UI.updateMenuHistoryState();
+    UI.toast('Redo');
+  }
+
+  function clear() {
+    _undo.length = 0;
+    _redo.length = 0;
+    UI.updateMenuHistoryState();
+  }
+
+  function undoSize() { return _undo.length; }
+  function redoSize() { return _redo.length; }
+
+  function initKeyboard() {
+    window.addEventListener('keydown', e => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      if (e.key === 'z' || e.key === 'Z') {
+        e.preventDefault();
+        if (e.shiftKey) redo(); else undo();
+      }
+      if (e.key === 'y' || e.key === 'Y') {
+        e.preventDefault(); redo();
+      }
+    });
+  }
+
+  return { push, undo, redo, clear, undoSize, redoSize, initKeyboard };
+})();
 // ════════════════════════════════════════════════════════════
 // UI MODULE — palette, terrain selection, confirm modal, toasts
 // ════════════════════════════════════════════════════════════
@@ -1375,6 +1438,7 @@ window.addEventListener('load', async () => {
   UI.buildPalette();
   UI.selectTerrain(12);
   Tools.init();
+  History.initKeyboard();
   Canvas.centerOnCity();
   console.log('[MapEditorPro] Ready.');
 });
