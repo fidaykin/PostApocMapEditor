@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MapEditorPro</title>
+<style>
+/* ── Reset & theme variables ──────────────────────────────── */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:       #1e1e1e;
+  --panel:    #2a2a2a;
+  --border:   #3a3a3a;
+  --accent:   #4fc3f7;
+  --text:     #ffffff;
+  --muted:    #888888;
+  --danger:   #ef5350;
+  --hover:    #333333;
+  --canvas-bg:#0a0a0a;
+}
+
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: var(--bg); color: var(--text);
+  font-size: 13px;
+}
+
+/* ── 4-row CSS Grid shell ─────────────────────────────────── */
+#app {
+  display: grid;
+  grid-template-rows: 28px 40px 1fr 24px;
+  grid-template-columns: 1fr;
+  height: 100vh;
+  width: 100vw;
+}
+
+/* ── Menu bar ─────────────────────────────────────────────── */
+#menubar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: stretch;
+  z-index: 100;
+  user-select: none;
+}
+
+.menu-item {
+  position: relative;
+  padding: 0 12px;
+  display: flex; align-items: center;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+}
+.menu-item:hover, .menu-item.open { background: var(--hover); }
+
+.menu-dropdown {
+  display: none;
+  position: absolute;
+  top: 100%; left: 0;
+  min-width: 200px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.6);
+  z-index: 200;
+}
+.menu-item.open .menu-dropdown { display: block; }
+
+.menu-dropdown button {
+  display: block; width: 100%;
+  padding: 7px 16px;
+  background: none; border: none;
+  color: var(--text); font-size: 12px;
+  text-align: left; cursor: pointer;
+  white-space: nowrap;
+}
+.menu-dropdown button:hover { background: var(--hover); }
+.menu-dropdown button:disabled { color: var(--muted); cursor: default; }
+.menu-dropdown .separator { border-top: 1px solid var(--border); margin: 4px 0; }
+.menu-shortcut { float: right; margin-left: 24px; color: var(--muted); font-size: 11px; }
+
+/* ── Toolbar ──────────────────────────────────────────────── */
+#toolbar {
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  gap: 4px; padding: 0 8px;
+}
+
+.tool-btn {
+  width: 32px; height: 32px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer;
+  font-size: 16px; display: flex; align-items: center; justify-content: center;
+  position: relative; color: var(--text);
+  transition: background 0.1s, border-color 0.1s;
+}
+.tool-btn:hover { background: var(--hover); }
+.tool-btn.active { border-color: var(--accent); background: rgba(79,195,247,0.12); }
+
+.tool-btn .tooltip {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+  background: #111; border: 1px solid var(--border);
+  padding: 4px 8px; border-radius: 4px; white-space: nowrap;
+  font-size: 11px; color: var(--text); pointer-events: none; z-index: 300;
+}
+.tool-btn:hover .tooltip { display: block; }
+
+/* ── Main area (palette | canvas | rightpanel) ────────────── */
+#main {
+  display: grid;
+  grid-template-columns: 220px 1fr 220px;
+  overflow: hidden;
+}
+
+/* ── Left palette ─────────────────────────────────────────── */
+#palette-panel {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+#palette-scroll {
+  flex: 1; overflow-y: auto; padding: 8px;
+}
+
+.cat-header {
+  background: var(--bg); border: none;
+  width: 100%; text-align: left;
+  padding: 6px 8px; margin-bottom: 4px;
+  color: #FFA500; font-size: 11px; font-weight: bold;
+  cursor: pointer; border-radius: 3px;
+  display: flex; align-items: center; gap: 6px;
+  letter-spacing: 0.5px;
+}
+.cat-header::before { content: '▼'; font-size: 9px; transition: transform 0.15s; }
+.cat-header.collapsed::before { transform: rotate(-90deg); }
+.cat-items { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
+.cat-items.collapsed { display: none; }
+
+.tile-btn {
+  width: 52px; height: 52px;
+  background: var(--bg); border: 2px solid var(--border);
+  border-radius: 4px; cursor: pointer; padding: 2px;
+  position: relative;
+  transition: border-color 0.1s, background 0.1s;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+}
+.tile-btn:hover { background: var(--hover); }
+.tile-btn.selected { border-color: var(--accent); }
+.tile-btn img {
+  width: 38px; height: 38px; display: block; image-rendering: pixelated;
+  clip-path: polygon(100% 50%, 75% 6.7%, 25% 6.7%, 0% 50%, 25% 93.3%, 75% 93.3%);
+}
+.tile-btn .warn {
+  position: absolute; top: 1px; right: 2px;
+  font-size: 9px; line-height: 1;
+}
+.tile-btn .tile-tooltip {
+  display: none; position: absolute;
+  bottom: calc(100% + 4px); left: 50%; transform: translateX(-50%);
+  background: #111; border: 1px solid var(--border);
+  padding: 3px 7px; border-radius: 3px; white-space: nowrap;
+  font-size: 11px; pointer-events: none; z-index: 300; color: var(--text);
+}
+.tile-btn:hover .tile-tooltip { display: block; }
+
+#palette-selected {
+  padding: 10px 8px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 10px;
+  background: var(--bg); flex-shrink: 0;
+}
+#palette-selected img {
+  width: 80px; height: 80px; image-rendering: pixelated; flex-shrink: 0;
+  clip-path: polygon(100% 50%, 75% 6.7%, 25% 6.7%, 0% 50%, 25% 93.3%, 75% 93.3%);
+}
+#palette-selected-info { display: flex; flex-direction: column; gap: 3px; }
+#palette-selected-name { font-size: 13px; font-weight: bold; }
+#palette-selected-id   { font-size: 11px; color: var(--muted); }
+
+/* ── Canvas ───────────────────────────────────────────────── */
+#canvas-container {
+  position: relative; overflow: hidden;
+  background: var(--canvas-bg); cursor: crosshair;
+}
+#map-canvas { display: block; }
+
+/* ── Right panel ──────────────────────────────────────────── */
+#right-panel {
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+#minimap-container {
+  width: 220px; height: 220px; flex-shrink: 0;
+  border-bottom: 1px solid var(--border);
+  position: relative; cursor: crosshair;
+}
+#minimap { display: block; width: 220px; height: 220px; }
+
+#brush-panel { padding: 10px; border-bottom: 1px solid var(--border); }
+#brush-panel .section-title {
+  font-size: 11px; color: var(--muted); letter-spacing: 1px;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+#brush-sizes { display: flex; gap: 6px; }
+
+.brush-btn {
+  flex: 1; height: 32px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; font-size: 11px;
+  color: var(--text); transition: border-color 0.1s, background 0.1s;
+}
+.brush-btn:hover { background: var(--hover); }
+.brush-btn.active { border-color: var(--accent); background: rgba(79,195,247,0.12); }
+
+#right-active-terrain {
+  padding: 10px; border-bottom: 1px solid var(--border);
+}
+#right-active-terrain .section-title {
+  font-size: 11px; color: var(--muted); letter-spacing: 1px;
+  text-transform: uppercase; margin-bottom: 8px;
+}
+.right-terrain-display { display: flex; align-items: center; gap: 10px; }
+#right-terrain-img {
+  width: 64px; height: 64px; image-rendering: pixelated; flex-shrink: 0;
+  clip-path: polygon(100% 50%, 75% 6.7%, 25% 6.7%, 0% 50%, 25% 93.3%, 75% 93.3%);
+}
+#right-terrain-name { font-size: 12px; font-weight: bold; }
+#right-terrain-id   { font-size: 11px; color: var(--muted); }
+
+#settlement-count {
+  padding: 10px; font-size: 12px; color: var(--muted);
+  margin-top: auto; border-top: 1px solid var(--border);
+}
+
+/* ── Status bar ───────────────────────────────────────────── */
+#statusbar {
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 12px; gap: 20px;
+  font-size: 12px; color: var(--muted);
+  user-select: none;
+}
+.status-item span:first-child { color: var(--muted); }
+.status-item span:last-child  { color: var(--text); }
+
+/* ── Toast ─────────────────────────────────────────────────── */
+#toast-container {
+  position: fixed; bottom: 32px; left: 50%;
+  transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; z-index: 1000; pointer-events: none;
+}
+.toast {
+  background: #333; border: 1px solid var(--border);
+  padding: 8px 18px; border-radius: 6px; font-size: 13px;
+  opacity: 1; transition: opacity 0.4s ease;
+}
+.toast.fade-out { opacity: 0; }
+
+/* ── Modals (confirm / new-map) ─────────────────────────────── */
+.modal-overlay {
+  display: none; position: fixed; inset: 0;
+  background: rgba(0,0,0,0.72); z-index: 500;
+  align-items: center; justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 24px; min-width: 280px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+}
+.modal-box h3 { margin-bottom: 12px; font-size: 15px; }
+.modal-box p  { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.btn { padding: 7px 18px; border-radius: 4px; border: none; cursor: pointer; font-size: 13px; }
+.btn-primary { background: var(--accent); color: #000; }
+.btn-danger  { background: var(--danger); color: #fff; }
+.btn-cancel  { background: var(--hover); color: var(--text); border: 1px solid var(--border); }
+</style>
+</head>
+<body>
+
+<div id="app">
+
+  <!-- ── Menu bar ─────────────────────────────────────────── -->
+  <div id="menubar">
+    <div class="menu-item" id="menu-file">File
+      <div class="menu-dropdown">
+        <button onclick="IO.newMap()">New Map <span class="menu-shortcut">Ctrl+N</span></button>
+        <button onclick="IO.openMap()">Open… <span class="menu-shortcut">Ctrl+O</span></button>
+        <button onclick="IO.saveMap()">Save <span class="menu-shortcut">Ctrl+S</span></button>
+        <div class="separator"></div>
+        <button onclick="IO.exportCSV()">Export CSV</button>
+      </div>
+    </div>
+    <div class="menu-item" id="menu-edit">Edit
+      <div class="menu-dropdown">
+        <button id="menu-undo" onclick="History.undo()">Undo <span class="menu-shortcut">Ctrl+Z</span></button>
+        <button id="menu-redo" onclick="History.redo()">Redo <span class="menu-shortcut">Ctrl+Y</span></button>
+        <div class="separator"></div>
+        <button onclick="IO.clearMap()">Clear Map</button>
+        <button onclick="IO.fillMap()">Fill Map</button>
+      </div>
+    </div>
+    <div class="menu-item" id="menu-layer">Layer
+      <div class="menu-dropdown">
+        <button onclick="UI.toggleSettlements()">Toggle Settlement Visibility</button>
+      </div>
+    </div>
+    <div class="menu-item" id="menu-view">View
+      <div class="menu-dropdown">
+        <button onclick="Canvas.zoomIn()">Zoom In</button>
+        <button onclick="Canvas.zoomOut()">Zoom Out</button>
+        <button onclick="Canvas.fitToScreen()">Fit Map</button>
+      </div>
+    </div>
+    <div class="menu-item" id="menu-generate">Generate
+      <div class="menu-dropdown">
+        <button onclick="alert('Generator: Plan B')">Procedural Generator…</button>
+        <button onclick="alert('Satellite: Plan B')">Satellite Import…</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toolbar ──────────────────────────────────────────── -->
+  <div id="toolbar">
+    <button class="tool-btn active" data-tool="paint" onclick="Tools.setActive('paint')">✏️<span class="tooltip">Paint (P)</span></button>
+    <button class="tool-btn" data-tool="fill"  onclick="Tools.setActive('fill')">🪣<span class="tooltip">Fill (F)</span></button>
+    <button class="tool-btn" data-tool="rect"  onclick="Tools.setActive('rect')">▭<span class="tooltip">Rectangle (R)</span></button>
+    <button class="tool-btn" data-tool="eye"   onclick="Tools.setActive('eye')">💧<span class="tooltip">Eyedropper (E)</span></button>
+    <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (S)</span></button>
+    <button class="tool-btn" data-tool="erase" onclick="Tools.setActive('erase')">✕<span class="tooltip">Erase Settlement (D)</span></button>
+  </div>
+
+  <!-- ── Main ─────────────────────────────────────────────── -->
+  <div id="main">
+
+    <!-- Left palette -->
+    <div id="palette-panel">
+      <div id="palette-scroll"></div>
+      <div id="palette-selected">
+        <img id="palette-sel-img" src="" alt="">
+        <div id="palette-selected-info">
+          <div id="palette-selected-name">Plain_1</div>
+          <div id="palette-selected-id">ID: 12</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Canvas -->
+    <div id="canvas-container">
+      <canvas id="map-canvas"></canvas>
+    </div>
+
+    <!-- Right panel -->
+    <div id="right-panel">
+      <div id="minimap-container">
+        <canvas id="minimap" width="220" height="220"></canvas>
+      </div>
+      <div id="brush-panel">
+        <div class="section-title">Brush Size</div>
+        <div id="brush-sizes">
+          <button class="brush-btn active" data-brush="0" onclick="Brush.setSize(0)" title="1 tile">•</button>
+          <button class="brush-btn" data-brush="1" onclick="Brush.setSize(1)" title="~7 tiles">3×3</button>
+          <button class="brush-btn" data-brush="2" onclick="Brush.setSize(2)" title="~19 tiles">5×5</button>
+          <button class="brush-btn" data-brush="3" onclick="Brush.setSize(3)" title="~37 tiles">○7</button>
+        </div>
+      </div>
+      <div id="right-active-terrain">
+        <div class="section-title">Active Terrain</div>
+        <div class="right-terrain-display">
+          <img id="right-terrain-img" src="" alt="">
+          <div>
+            <div id="right-terrain-name">Plain_1</div>
+            <div id="right-terrain-id">ID: 12</div>
+          </div>
+        </div>
+      </div>
+      <div id="settlement-count">Settlements: 0</div>
+    </div>
+
+  </div>
+
+  <!-- Status bar -->
+  <div id="statusbar">
+    <div class="status-item"><span>Tool: </span><span id="st-tool">Paint</span></div>
+    <div class="status-item"><span>Terrain: </span><span id="st-terrain">Plain_1</span></div>
+    <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
+    <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
+    <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
+  </div>
+
+</div>
+
+<!-- Toast container -->
+<div id="toast-container"></div>
+
+<!-- Confirm modal (New Map / Clear) -->
+<div class="modal-overlay" id="confirm-modal">
+  <div class="modal-box">
+    <h3 id="confirm-title">Confirm</h3>
+    <p id="confirm-msg"></p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="UI.closeConfirm()">Cancel</button>
+      <button class="btn btn-danger"  id="confirm-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<input type="file" id="file-input" accept=".json" style="display:none">
+
+<script>
+// ════════════════════════════════════════════════════════════
+// MODULE STUBS — filled in by subsequent tasks
+// ════════════════════════════════════════════════════════════
+
+const Terrain  = {};
+const Canvas   = {};
+const Tools    = {};
+const Brush    = {};
+const History  = {};
+const UI       = {};
+const IO       = {};
+
+// ── Shared state (visible to all modules) ──────────────────
+let MAP_WIDTH  = 450;
+let MAP_HEIGHT = 450;
+let mapData    = null;  // Int8Array (filled by IO.newMap / load)
+let settlements = [];
+let settlementsVisible = true;
+
+const HEX_SIZE  = 40;
+const SQRT3     = Math.sqrt(3);
+const COL_PITCH = HEX_SIZE * 1.5;
+const ROW_PITCH = HEX_SIZE * SQRT3;
+const STAGGER   = ROW_PITCH / 2;
+
+function getCityCol() { return Math.floor(MAP_WIDTH  / 2); }
+function getCityRow() { return Math.floor((MAP_HEIGHT - 1) / 2); }
+
+window.addEventListener('load', async () => {
+  await Terrain.load();
+  IO.newMap(true);  // silent new map — no toast, no confirm
+  Canvas.init();
+  UI.init();
+  UI.buildPalette();
+  UI.selectTerrain(12);
+  Canvas.centerOnCity();
+  console.log('[MapEditorPro] Ready.');
+});
+</script>
+
+</body>
+</html>
