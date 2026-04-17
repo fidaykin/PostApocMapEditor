@@ -925,8 +925,256 @@ const Canvas = (() => {
     setMouseCallbacks, getCtx, getZoom, getCamera
   };
 })();
-const Tools    = {};
-const Brush    = {};
+// ════════════════════════════════════════════════════════════
+// BRUSH MODULE — size/shape, hex neighbor expansion
+// ════════════════════════════════════════════════════════════
+const Brush = (() => {
+  let _size = 0;   // 0=single, 1=r1, 2=r2, 3=r3
+
+  // 6 neighbors for flat-top odd-q offset
+  function _neighbors(col, row) {
+    const even = col % 2 === 0;
+    return [
+      [col,   row - 1],                         // N
+      [col+1, even ? row-1 : row],               // NE
+      [col+1, even ? row   : row+1],             // SE
+      [col,   row + 1],                          // S
+      [col-1, even ? row   : row+1],             // SW
+      [col-1, even ? row-1 : row],               // NW
+    ].filter(([c, r]) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT);
+  }
+
+  function getAffectedTiles(col, row) {
+    if (_size === 0) return [{ col, row }];
+
+    const inBounds = (c, r) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT;
+    if (!inBounds(col, row)) return [];
+
+    const visited = new Set();
+    const key = (c, r) => c * 10000 + r;
+    const result = [];
+    let frontier = [{ col, row }];
+    visited.add(key(col, row));
+    result.push({ col, row });
+
+    for (let ring = 0; ring < _size; ring++) {
+      const next = [];
+      frontier.forEach(({ col: fc, row: fr }) => {
+        _neighbors(fc, fr).forEach(([nc, nr]) => {
+          const k = key(nc, nr);
+          if (!visited.has(k)) {
+            visited.add(k);
+            result.push({ col: nc, row: nr });
+            next.push({ col: nc, row: nr });
+          }
+        });
+      });
+      frontier = next;
+    }
+    return result;
+  }
+
+  function setSize(s) {
+    _size = s;
+    document.querySelectorAll('.brush-btn').forEach(btn => {
+      btn.classList.toggle('active', parseInt(btn.dataset.brush) === s);
+    });
+  }
+
+  function getSize() { return _size; }
+
+  return { getAffectedTiles, setSize, getSize };
+})();
+// ════════════════════════════════════════════════════════════
+// TOOLS MODULE — paint, fill, rect, eyedropper, settlement, erase
+// ════════════════════════════════════════════════════════════
+const Tools = (() => {
+  let _active      = 'paint';
+  let _isDown      = false;
+  let _rectStart   = null;    // { col, row } when rect tool held
+  let _lastPainted = null;    // avoid re-painting same tile on mousemove
+
+  const TOOL_NAMES = {
+    paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
+    eye: 'Eyedropper', settlement: 'Place Settlement', erase: 'Erase Settlement'
+  };
+
+  function setActive(name) {
+    _active = name;
+    _rectStart = null;
+    _toolsRectPreview = null;
+    document.querySelectorAll('.tool-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.tool === name);
+    });
+    UI.updateStatusTool(TOOL_NAMES[name] || name);
+  }
+
+  function getActive() { return _active; }
+
+  // ── Paint ──────────────────────────────────────────────────
+  function _paint(col, row) {
+    const tiles = Brush.getAffectedTiles(col, row);
+    tiles.forEach(({ col: c, row: r }) => {
+      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT) {
+        mapData[r * MAP_WIDTH + c] = UI.getSelectedTerrain();
+      }
+    });
+    Canvas.render();
+  }
+
+  // ── Fill (hex flood fill) ──────────────────────────────────
+  function _fill(col, row) {
+    const targetId = mapData[row * MAP_WIDTH + col];
+    const fillId   = UI.getSelectedTerrain();
+    if (targetId === fillId) return;
+
+    const visited = new Set();
+    const queue   = [[col, row]];
+    const key = (c, r) => c * 10000 + r;
+    visited.add(key(col, row));
+
+    while (queue.length) {
+      const [c, r] = queue.shift();
+      mapData[r * MAP_WIDTH + c] = fillId;
+      const even = c % 2 === 0;
+      const nbrs = [
+        [c, r-1], [c+1, even ? r-1 : r], [c+1, even ? r : r+1],
+        [c, r+1], [c-1, even ? r   : r+1], [c-1, even ? r-1 : r]
+      ];
+      nbrs.forEach(([nc, nr]) => {
+        if (nc < 0 || nc >= MAP_WIDTH || nr < 0 || nr >= MAP_HEIGHT) return;
+        const k = key(nc, nr);
+        if (visited.has(k)) return;
+        if (mapData[nr * MAP_WIDTH + nc] !== targetId) return;
+        visited.add(k);
+        queue.push([nc, nr]);
+      });
+    }
+    Canvas.render();
+  }
+
+  // ── Rectangle ──────────────────────────────────────────────
+  function _applyRect(c1, r1, c2, r2) {
+    const minC = Math.min(c1, c2), maxC = Math.max(c1, c2);
+    const minR = Math.min(r1, r2), maxR = Math.max(r1, r2);
+    const fillId = UI.getSelectedTerrain();
+    for (let c = minC; c <= maxC; c++)
+      for (let r = minR; r <= maxR; r++)
+        mapData[r * MAP_WIDTH + c] = fillId;
+    Canvas.render();
+  }
+
+  // ── Settlements ────────────────────────────────────────────
+  function _placeSettlement(col, row) {
+    if (settlements.some(s => s.col === col && s.row === row)) return;
+    const type = (col === getCityCol() && row === getCityRow()) ? 'city' : 'settlement';
+    settlements.push({ col, row, type });
+    UI.updateSettlementCount();
+    Canvas.render();
+  }
+
+  function _eraseSettlement(col, row) {
+    const idx = settlements.findIndex(s => s.col === col && s.row === row && s.type !== 'city');
+    if (idx >= 0) {
+      settlements.splice(idx, 1);
+      UI.updateSettlementCount();
+      Canvas.render();
+    }
+  }
+
+  // ── Mouse callbacks (registered with Canvas) ───────────────
+  function _onDown(sx, sy, e) {
+    const { col, row } = Canvas.screenToHex(sx, sy);
+    if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
+    _isDown = true;
+
+    switch (_active) {
+      case 'paint':
+        _paint(col, row);
+        _lastPainted = { col, row };
+        break;
+      case 'fill':
+        History.push();
+        _fill(col, row);
+        Canvas.drawMinimap();
+        UI.toast('Fill applied');
+        _isDown = false;
+        break;
+      case 'rect':
+        _rectStart = { col, row };
+        _toolsRectPreview = { c1: col, r1: row, c2: col, r2: row };
+        break;
+      case 'eye':
+        UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
+        _isDown = false;
+        break;
+      case 'settlement':
+        _placeSettlement(col, row);
+        break;
+      case 'erase':
+        _eraseSettlement(col, row);
+        break;
+    }
+  }
+
+  function _onMove(sx, sy, e) {
+    if (!_isDown) return;
+    const { col, row } = Canvas.screenToHex(sx, sy);
+    if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
+
+    switch (_active) {
+      case 'paint':
+        if (_lastPainted && _lastPainted.col === col && _lastPainted.row === row) break;
+        _paint(col, row);
+        _lastPainted = { col, row };
+        break;
+      case 'rect':
+        if (_rectStart) {
+          _toolsRectPreview = { c1: _rectStart.col, r1: _rectStart.row, c2: col, r2: row };
+          Canvas.render();
+        }
+        break;
+    }
+  }
+
+  function _onUp(e) {
+    if (!_isDown) return;
+    _isDown = false;
+
+    if (_active === 'paint') {
+      History.push();
+      Canvas.drawMinimap();
+    } else if (_active === 'rect' && _rectStart && _toolsRectPreview) {
+      History.push();
+      _applyRect(_toolsRectPreview.c1, _toolsRectPreview.r1, _toolsRectPreview.c2, _toolsRectPreview.r2);
+      Canvas.drawMinimap();
+      UI.toast('Rectangle applied');
+      _rectStart = null;
+      _toolsRectPreview = null;
+      Canvas.render();
+    }
+    _lastPainted = null;
+  }
+
+  function init() {
+    Canvas.setMouseCallbacks(_onDown, _onMove, _onUp);
+    // Keyboard tool shortcuts
+    window.addEventListener('keydown', e => {
+      if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+      if (e.ctrlKey || e.metaKey) return;
+      switch (e.key.toLowerCase()) {
+        case 'p': setActive('paint');      break;
+        case 'f': setActive('fill');       break;
+        case 'r': setActive('rect');       break;
+        case 'e': setActive('eye');        break;
+        case 's': setActive('settlement'); break;
+        case 'd': setActive('erase');      break;
+      }
+    });
+  }
+
+  return { init, setActive, getActive };
+})();
 const History  = {};
 // ════════════════════════════════════════════════════════════
 // UI MODULE — palette, terrain selection, confirm modal, toasts
@@ -1126,6 +1374,7 @@ window.addEventListener('load', async () => {
   UI.init();
   UI.buildPalette();
   UI.selectTerrain(12);
+  Tools.init();
   Canvas.centerOnCity();
   console.log('[MapEditorPro] Ready.');
 });
