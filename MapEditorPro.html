@@ -529,6 +529,7 @@ const Canvas = (() => {
   let _onMouseDownCb = null;        // set by Tools after init
   let _onMouseMoveCb = null;
   let _onMouseUpCb   = null;
+  let _cursorCol = -1, _cursorRow = -1;  // hover tile for brush preview
 
   // ── Geometry ────────────────────────────────────────────
   function hexCenterWorld(col, row) {
@@ -603,6 +604,30 @@ const Canvas = (() => {
     // Rect preview overlay drawn by Tools if needed
     if (_toolsRectPreview) {
       _drawRectPreview(_toolsRectPreview, radius);
+    }
+
+    // Brush cursor preview
+    if (_cursorCol >= 0 && _cursorRow >= 0 && Tools && Tools.getActive) {
+      const tool = Tools.getActive();
+      const tiles = (tool === 'paint')
+        ? Brush.getAffectedTiles(_cursorCol, _cursorRow)
+        : [{ col: _cursorCol, row: _cursorRow }];
+      ctx.save();
+      ctx.strokeStyle = 'rgba(79,195,247,0.9)';
+      ctx.lineWidth = Math.max(1.5, radius * 0.06);
+      tiles.forEach(({ col: tc, row: tr }) => {
+        const s = hexScreenPos(tc, tr);
+        hexClipPath(s.x, s.y, radius);
+        ctx.stroke();
+      });
+      // semi-transparent fill on affected tiles
+      ctx.fillStyle = 'rgba(79,195,247,0.12)';
+      tiles.forEach(({ col: tc, row: tr }) => {
+        const s = hexScreenPos(tc, tr);
+        hexClipPath(s.x, s.y, radius);
+        ctx.fill();
+      });
+      ctx.restore();
     }
   }
 
@@ -788,7 +813,7 @@ const Canvas = (() => {
     canvas.addEventListener('mousedown',  _onMouseDown);
     canvas.addEventListener('mousemove',  _onMouseMove);
     canvas.addEventListener('mouseup',    _onMouseUp);
-    canvas.addEventListener('mouseleave', _onMouseUp);
+    canvas.addEventListener('mouseleave', e => { _onMouseUp(e); _cursorCol = -1; _cursorRow = -1; render(); });
     canvas.addEventListener('contextmenu', e => e.preventDefault());
     canvas.addEventListener('wheel', _onWheel, { passive: false });
     canvas.addEventListener('touchstart', _onTouchStart, { passive: false });
@@ -845,13 +870,17 @@ const Canvas = (() => {
     }
     if (_onMouseMoveCb) _onMouseMoveCb(sx, sy, e);
 
-    // Status bar hover info
+    // Status bar hover info + brush cursor update
     const { col, row } = screenToHex(sx, sy);
     if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
       document.getElementById('st-tile').textContent = `${col}, ${row}`;
       if (mapData) {
         const t = Terrain.byId(mapData[row * MAP_WIDTH + col]);
         document.getElementById('st-terrain').textContent = t ? t.name : '—';
+      }
+      if (_cursorCol !== col || _cursorRow !== row) {
+        _cursorCol = col; _cursorRow = row;
+        render();
       }
     }
   }
