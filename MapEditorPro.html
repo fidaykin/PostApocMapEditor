@@ -1507,6 +1507,7 @@ const IO = (() => {
     a.href     = URL.createObjectURL(blob);
     a.download = 'map_export.json';
     a.click();
+    URL.revokeObjectURL(a.href);
     UI.toast('Map saved');
   }
 
@@ -1522,6 +1523,7 @@ const IO = (() => {
     a.href     = URL.createObjectURL(blob);
     a.download = 'map_export.csv';
     a.click();
+    URL.revokeObjectURL(a.href);
     UI.toast('CSV exported');
   }
 
@@ -1568,6 +1570,7 @@ const IO = (() => {
 
   function initKeyboard() {
     window.addEventListener('keydown', e => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
       if (!e.ctrlKey && !e.metaKey) return;
       switch (e.key.toLowerCase()) {
         case 'n': e.preventDefault(); newMap();   break;
