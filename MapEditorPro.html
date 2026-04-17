@@ -928,7 +928,178 @@ const Canvas = (() => {
 const Tools    = {};
 const Brush    = {};
 const History  = {};
-const UI       = {};
+// ════════════════════════════════════════════════════════════
+// UI MODULE — palette, terrain selection, confirm modal, toasts
+// ════════════════════════════════════════════════════════════
+const UI = (() => {
+  let _selectedId = 12;
+  let _confirmCallback = null;
+
+  function init() {
+    // Confirm modal OK button
+    document.getElementById('confirm-ok').addEventListener('click', () => {
+      closeConfirm();
+      if (_confirmCallback) _confirmCallback();
+    });
+    // Escape closes open menus
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Escape') closeAllMenus();
+    });
+    // Click outside menu closes menus
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.menu-item')) closeAllMenus();
+    });
+    // Menu item toggle
+    document.querySelectorAll('.menu-item').forEach(item => {
+      item.addEventListener('click', e => {
+        const isOpen = item.classList.contains('open');
+        closeAllMenus();
+        if (!isOpen) item.classList.add('open');
+        e.stopPropagation();
+      });
+    });
+
+    updateSettlementCount();
+  }
+
+  function buildPalette() {
+    const scroll = document.getElementById('palette-scroll');
+    scroll.innerHTML = '';
+
+    let catHeader = null, catItems = null;
+    const PLAINS_CAT = '🌾 PLAINS';
+
+    Terrain.getAll().forEach(t => {
+      if (t.cat) {
+        catHeader = document.createElement('button');
+        catHeader.className = 'cat-header';
+        if (t.cat !== PLAINS_CAT) catHeader.classList.add('collapsed');
+        catHeader.textContent = t.cat;
+        catHeader.addEventListener('click', () => {
+          catHeader.classList.toggle('collapsed');
+          catItems.classList.toggle('collapsed');
+        });
+        catItems = document.createElement('div');
+        catItems.className = 'cat-items';
+        if (t.cat !== PLAINS_CAT) catItems.classList.add('collapsed');
+        scroll.appendChild(catHeader);
+        scroll.appendChild(catItems);
+      }
+
+      const btn = document.createElement('button');
+      btn.className = 'tile-btn';
+      btn.dataset.tid = t.id;
+      btn.addEventListener('click', () => selectTerrain(t.id));
+
+      const img = document.createElement('img');
+      const sprite = Terrain.getSprite(t.id);
+      if (sprite) img.src = sprite.src;
+      img.alt = t.name;
+      btn.appendChild(img);
+
+      if (t.fallback) {
+        const warn = document.createElement('span');
+        warn.className = 'warn'; warn.textContent = '⚠';
+        btn.appendChild(warn);
+      }
+
+      const tt = document.createElement('span');
+      tt.className = 'tile-tooltip';
+      tt.textContent = `${t.name} (${t.id})`;
+      btn.appendChild(tt);
+
+      (catItems || scroll).appendChild(btn);
+    });
+  }
+
+  function selectTerrain(id) {
+    _selectedId = id;
+    const t = Terrain.byId(id);
+
+    // Highlight in palette
+    document.querySelectorAll('.tile-btn').forEach(btn => {
+      btn.classList.toggle('selected', parseInt(btn.dataset.tid) === id);
+    });
+
+    // Palette bottom display
+    const sprite = Terrain.getSprite(id);
+    const selImg = document.getElementById('palette-sel-img');
+    if (sprite) selImg.src = sprite.src;
+    document.getElementById('palette-selected-name').textContent = t.name;
+    document.getElementById('palette-selected-id').textContent   = `ID: ${id}`;
+
+    // Right panel active terrain
+    const rtImg = document.getElementById('right-terrain-img');
+    if (sprite) rtImg.src = sprite.src;
+    document.getElementById('right-terrain-name').textContent = t.name;
+    document.getElementById('right-terrain-id').textContent   = `ID: ${id}`;
+
+    // Status bar
+    document.getElementById('st-terrain').textContent = t.name;
+  }
+
+  function getSelectedTerrain() { return _selectedId; }
+
+  function updateSettlementCount() {
+    document.getElementById('settlement-count').textContent =
+      `Settlements: ${settlements.length}`;
+  }
+
+  function updateMenuHistoryState() {
+    const u = document.getElementById('menu-undo');
+    const r = document.getElementById('menu-redo');
+    const us = History.undoSize(), rs = History.redoSize();
+    u.disabled = us === 0;
+    r.disabled = rs === 0;
+    u.innerHTML = `${us > 0 ? `Undo (${us})` : 'Undo'} <span class="menu-shortcut">Ctrl+Z</span>`;
+    r.innerHTML = `${rs > 0 ? `Redo (${rs})` : 'Redo'} <span class="menu-shortcut">Ctrl+Y</span>`;
+  }
+
+  function toggleSettlements() {
+    settlementsVisible = !settlementsVisible;
+    Canvas.render();
+  }
+
+  function closeAllMenus() {
+    document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+  }
+
+  function showConfirm(title, msg, onOk) {
+    document.getElementById('confirm-title').textContent = title;
+    document.getElementById('confirm-msg').textContent   = msg;
+    _confirmCallback = onOk;
+    document.getElementById('confirm-modal').classList.add('open');
+  }
+
+  function closeConfirm() {
+    document.getElementById('confirm-modal').classList.remove('open');
+  }
+
+  function toast(msg) {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(() => { el.classList.add('fade-out'); setTimeout(() => el.remove(), 400); }, 2000);
+  }
+
+  function updateStatusTool(name) {
+    document.getElementById('st-tool').textContent = name;
+  }
+
+  function updateStatusSize() {
+    document.getElementById('st-size').textContent = `${MAP_WIDTH} × ${MAP_HEIGHT}`;
+  }
+
+  return {
+    init, buildPalette, selectTerrain, getSelectedTerrain,
+    updateSettlementCount, updateMenuHistoryState,
+    toggleSettlements, closeAllMenus,
+    showConfirm, closeConfirm, toast,
+    updateStatusTool, updateStatusSize
+  };
+})();
 const IO       = {};
 
 // ── Shared state (visible to all modules) ──────────────────
