@@ -513,7 +513,418 @@ const Terrain = (() => {
 
   return { load, getSprite, getCitySprite, color, byId, getAll };
 })();
-const Canvas   = {};
+// ════════════════════════════════════════════════════════════
+// CANVAS MODULE — hex renderer, viewport, zoom/pan
+// ════════════════════════════════════════════════════════════
+const Canvas = (() => {
+  let canvas, ctx, container;
+  let cameraX = 0, cameraY = 0;
+  let zoom = 100;                   // percent; range 25–200
+  let isPanning = false;
+  let isSpacePan = false;
+  let lastPanX = 0, lastPanY = 0;
+  let panStartX = 0, panStartY = 0;
+  let touchStartDist = 0, touchStartZoom = 100;
+  let touches = [];
+  let _onMouseDownCb = null;        // set by Tools after init
+  let _onMouseMoveCb = null;
+  let _onMouseUpCb   = null;
+
+  // ── Geometry ────────────────────────────────────────────
+  function hexCenterWorld(col, row) {
+    return {
+      x: col * COL_PITCH,
+      y: row * ROW_PITCH + (col % 2 !== 0 ? STAGGER : 0)
+    };
+  }
+
+  function hexScreenPos(col, row) {
+    const scale = zoom / 100;
+    const w = hexCenterWorld(col, row);
+    return { x: w.x * scale - cameraX, y: w.y * scale - cameraY };
+  }
+
+  function hexClipPath(cx, cy, radius) {
+    ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      const a = (Math.PI / 3) * i;
+      const px = cx + radius * Math.cos(a);
+      const py = cy + radius * Math.sin(a);
+      i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+  }
+
+  function screenToHex(screenX, screenY) {
+    const scale  = zoom / 100;
+    const worldX = (screenX + cameraX) / scale;
+    const worldY = (screenY + cameraY) / scale;
+    const estCol = Math.round(worldX / COL_PITCH);
+    let bestCol = estCol, bestRow = 0, minDist = Infinity;
+    for (let c = estCol - 1; c <= estCol + 1; c++) {
+      if (c < 0 || c >= MAP_WIDTH) continue;
+      const stg = (c % 2 !== 0) ? STAGGER : 0;
+      const r   = Math.round((worldY - stg) / ROW_PITCH);
+      if (r < 0 || r >= MAP_HEIGHT) continue;
+      const d = Math.hypot(worldX - c * COL_PITCH, worldY - (r * ROW_PITCH + stg));
+      if (d < minDist) { minDist = d; bestCol = c; bestRow = r; }
+    }
+    return { col: bestCol, row: bestRow };
+  }
+
+  // ── Rendering ────────────────────────────────────────────
+  function render() {
+    if (!canvas || !mapData) return;
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    const scale   = zoom / 100;
+    const radius  = HEX_SIZE * scale;
+    const padding = radius * 2;
+
+    for (let row = 0; row < MAP_HEIGHT; row++) {
+      for (let col = 0; col < MAP_WIDTH; col++) {
+        const s = hexScreenPos(col, row);
+        if (s.x + padding < 0 || s.x - padding > canvas.width  ||
+            s.y + padding < 0 || s.y - padding > canvas.height) continue;
+        _drawHexTile(s.x, s.y, radius, mapData[row * MAP_WIDTH + col]);
+      }
+    }
+
+    if (settlementsVisible) {
+      settlements.forEach(s => {
+        const pos = hexScreenPos(s.col, s.row);
+        if (pos.x + radius < 0 || pos.x - radius > canvas.width  ||
+            pos.y + radius < 0 || pos.y - radius > canvas.height) return;
+        _drawSettlement(pos.x, pos.y, radius, s.type);
+      });
+    }
+
+    // Rect preview overlay drawn by Tools if needed
+    if (_toolsRectPreview) {
+      _drawRectPreview(_toolsRectPreview, radius);
+    }
+  }
+
+  function _drawHexTile(cx, cy, radius, terrainId) {
+    const sprite = Terrain.getSprite(terrainId);
+    ctx.save();
+    hexClipPath(cx, cy, radius);
+    if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+      ctx.clip();
+      ctx.drawImage(sprite, cx - radius, cy - radius, radius * 2, radius * 2);
+    } else {
+      ctx.fillStyle = '#444'; ctx.fill();
+    }
+    ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function _drawSettlement(cx, cy, radius, type) {
+    ctx.save();
+    hexClipPath(cx, cy, radius);
+    if (type === 'city') {
+      const cityImg = Terrain.getCitySprite();
+      if (cityImg && cityImg.complete) {
+        ctx.clip();
+        ctx.drawImage(cityImg, cx - radius, cy - radius, radius * 2, radius * 2);
+      }
+      hexClipPath(cx, cy, radius);
+      ctx.strokeStyle = '#ffffff';
+      ctx.lineWidth = Math.max(2, radius * 0.08);
+      ctx.stroke();
+    } else {
+      ctx.strokeStyle = '#4fc3f7';
+      ctx.lineWidth = Math.max(2, radius * 0.08);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function _drawRectPreview(preview, radius) {
+    const { c1, r1, c2, r2 } = preview;
+    const minC = Math.min(c1, c2), maxC = Math.max(c1, c2);
+    const minR = Math.min(r1, r2), maxR = Math.max(r1, r2);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(79,195,247,0.8)';
+    ctx.lineWidth = 2;
+    for (let col = minC; col <= maxC; col++) {
+      for (let row = minR; row <= maxR; row++) {
+        const s = hexScreenPos(col, row);
+        hexClipPath(s.x, s.y, radius);
+        ctx.stroke();
+      }
+    }
+    ctx.restore();
+  }
+
+  // ── Camera ────────────────────────────────────────────────
+  function clampCamera() {
+    const scale  = zoom / 100;
+    const radius = HEX_SIZE * scale;
+    const last   = hexCenterWorld(MAP_WIDTH - 1, MAP_HEIGHT - 1);
+    const maxX   = last.x * scale + radius * 2 - canvas.width;
+    const maxY   = last.y * scale + radius * 2 - canvas.height;
+    cameraX = Math.max(-radius * 2, Math.min(maxX + radius * 2, cameraX));
+    cameraY = Math.max(-radius * 2, Math.min(maxY + radius * 2, cameraY));
+  }
+
+  function setZoom(pct, pivotScreenX, pivotScreenY) {
+    const oldScale = zoom / 100;
+    const px = pivotScreenX !== undefined ? pivotScreenX : canvas.width  / 2;
+    const py = pivotScreenY !== undefined ? pivotScreenY : canvas.height / 2;
+    const worldX = (cameraX + px) / oldScale;
+    const worldY = (cameraY + py) / oldScale;
+    zoom = Math.max(25, Math.min(200, Math.round(pct)));
+    const newScale = zoom / 100;
+    cameraX = worldX * newScale - px;
+    cameraY = worldY * newScale - py;
+    clampCamera();
+    document.getElementById('st-zoom').textContent = zoom + '%';
+    render();
+    Canvas.drawMinimap();
+  }
+
+  function zoomIn()  { setZoom(zoom + 10); }
+  function zoomOut() { setZoom(zoom - 10); }
+
+  function centerOnCity() {
+    const scale = zoom / 100;
+    const w = hexCenterWorld(getCityCol(), getCityRow());
+    cameraX = w.x * scale - canvas.width  / 2;
+    cameraY = w.y * scale - canvas.height / 2;
+    clampCamera();
+    render();
+    drawMinimap();
+  }
+
+  function fitToScreen() {
+    const mapPixelW = (MAP_WIDTH  - 1) * COL_PITCH + HEX_SIZE * 2;
+    const mapPixelH = (MAP_HEIGHT - 1) * ROW_PITCH + STAGGER   + HEX_SIZE * 2;
+    const fit = Math.floor(Math.min(
+      canvas.width  / mapPixelW * 100,
+      canvas.height / mapPixelH * 100
+    ));
+    zoom = Math.max(25, Math.min(200, fit));
+    const scale = zoom / 100;
+    cameraX = (mapPixelW * scale - canvas.width)  / 2;
+    cameraY = (mapPixelH * scale - canvas.height) / 2;
+    clampCamera();
+    document.getElementById('st-zoom').textContent = zoom + '%';
+    render();
+    drawMinimap();
+  }
+
+  // ── Minimap ───────────────────────────────────────────────
+  function drawMinimap() {
+    if (!mapData) return;
+    const mc  = document.getElementById('minimap');
+    const mCtx = mc.getContext('2d');
+    const mw = mc.width, mh = mc.height;
+    const imgD = mCtx.createImageData(mw, mh);
+
+    for (let py = 0; py < mh; py++) {
+      for (let px = 0; px < mw; px++) {
+        const col = Math.floor(px / mw * MAP_WIDTH);
+        const row = Math.floor(py / mh * MAP_HEIGHT);
+        const id  = mapData[row * MAP_WIDTH + col] ?? 12;
+        const [r, g, b] = Terrain.color(id);
+        const i = (py * mw + px) * 4;
+        imgD.data[i] = r; imgD.data[i+1] = g; imgD.data[i+2] = b; imgD.data[i+3] = 255;
+      }
+    }
+    mCtx.putImageData(imgD, 0, 0);
+
+    // Viewport rect
+    const scale = zoom / 100;
+    const vx = (cameraX / scale) / (((MAP_WIDTH - 1) * COL_PITCH + HEX_SIZE * 2)) * mw;
+    const vy = (cameraY / scale) / (((MAP_HEIGHT- 1) * ROW_PITCH + STAGGER + HEX_SIZE * 2)) * mh;
+    const vw = (canvas.width  / scale) / ((MAP_WIDTH - 1) * COL_PITCH + HEX_SIZE * 2) * mw;
+    const vh = (canvas.height / scale) / ((MAP_HEIGHT-1) * ROW_PITCH + STAGGER + HEX_SIZE * 2) * mh;
+    mCtx.strokeStyle = '#4fc3f7';
+    mCtx.lineWidth = 1.5;
+    mCtx.strokeRect(vx, vy, vw, vh);
+
+    // City dot
+    const cdotX = (getCityCol() / MAP_WIDTH) * mw;
+    const cdotY = (getCityRow() / MAP_HEIGHT) * mh;
+    mCtx.fillStyle = '#ffffff';
+    mCtx.beginPath();
+    mCtx.arc(cdotX, cdotY, 3, 0, Math.PI * 2);
+    mCtx.fill();
+  }
+
+  // ── Minimap click/drag → pan ──────────────────────────────
+  function _minimapPan(e) {
+    const mc   = document.getElementById('minimap');
+    const rect = mc.getBoundingClientRect();
+    const mx   = Math.max(0, Math.min(1, (e.clientX - rect.left)  / rect.width));
+    const my   = Math.max(0, Math.min(1, (e.clientY - rect.top)   / rect.height));
+    const mapPixelW = (MAP_WIDTH  - 1) * COL_PITCH + HEX_SIZE * 2;
+    const mapPixelH = (MAP_HEIGHT - 1) * ROW_PITCH + STAGGER   + HEX_SIZE * 2;
+    const scale = zoom / 100;
+    cameraX = mx * mapPixelW * scale - canvas.width  / 2;
+    cameraY = my * mapPixelH * scale - canvas.height / 2;
+    clampCamera();
+    render();
+    drawMinimap();
+  }
+
+  // ── Input ────────────────────────────────────────────────
+  function _resizeCanvas() {
+    canvas.width  = container.clientWidth;
+    canvas.height = container.clientHeight;
+  }
+
+  function init() {
+    canvas    = document.getElementById('map-canvas');
+    ctx       = canvas.getContext('2d');
+    container = document.getElementById('canvas-container');
+    _resizeCanvas();
+    window.addEventListener('resize', () => { _resizeCanvas(); render(); drawMinimap(); });
+
+    canvas.addEventListener('mousedown',  _onMouseDown);
+    canvas.addEventListener('mousemove',  _onMouseMove);
+    canvas.addEventListener('mouseup',    _onMouseUp);
+    canvas.addEventListener('mouseleave', _onMouseUp);
+    canvas.addEventListener('contextmenu', e => e.preventDefault());
+    canvas.addEventListener('wheel', _onWheel, { passive: false });
+    canvas.addEventListener('touchstart', _onTouchStart, { passive: false });
+    canvas.addEventListener('touchmove',  _onTouchMove,  { passive: false });
+    canvas.addEventListener('touchend',   _onTouchEnd,   { passive: false });
+
+    window.addEventListener('keydown', _onKeyDown);
+    window.addEventListener('keyup',   _onKeyUp);
+
+    const mc = document.getElementById('minimap');
+    mc.addEventListener('mousedown', e => { e.preventDefault(); _minimapPan(e); mc.addEventListener('mousemove', _minimapPan); });
+    window.addEventListener('mouseup', () => mc.removeEventListener('mousemove', _minimapPan));
+  }
+
+  function _onKeyDown(e) {
+    if (e.code === 'Space' && !e.repeat && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
+      e.preventDefault();
+      isSpacePan = true;
+      canvas.style.cursor = 'grab';
+    }
+  }
+  function _onKeyUp(e) {
+    if (e.code === 'Space') {
+      isSpacePan = false;
+      canvas.style.cursor = 'crosshair';
+    }
+  }
+
+  function _onMouseDown(e) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+
+    if (e.button === 1 || e.button === 2 || isSpacePan) {
+      isPanning = true;
+      lastPanX = e.clientX; lastPanY = e.clientY;
+      panStartX = e.clientX; panStartY = e.clientY;
+      canvas.style.cursor = 'grabbing';
+      e.preventDefault();
+      return;
+    }
+    if (_onMouseDownCb) _onMouseDownCb(sx, sy, e);
+  }
+
+  function _onMouseMove(e) {
+    const rect = canvas.getBoundingClientRect();
+    const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
+
+    if (isPanning) {
+      cameraX -= e.clientX - lastPanX;
+      cameraY -= e.clientY - lastPanY;
+      lastPanX = e.clientX; lastPanY = e.clientY;
+      clampCamera(); render(); drawMinimap();
+      return;
+    }
+    if (_onMouseMoveCb) _onMouseMoveCb(sx, sy, e);
+
+    // Status bar hover info
+    const { col, row } = screenToHex(sx, sy);
+    if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
+      document.getElementById('st-tile').textContent = `${col}, ${row}`;
+      if (mapData) {
+        const t = Terrain.byId(mapData[row * MAP_WIDTH + col]);
+        document.getElementById('st-terrain').textContent = t ? t.name : '—';
+      }
+    }
+  }
+
+  function _onMouseUp(e) {
+    if (isPanning && e.button === 2) {
+      const moved = Math.hypot(e.clientX - panStartX, e.clientY - panStartY);
+      if (moved < 5) {
+        // Right-click without move → eyedropper
+        const rect = canvas.getBoundingClientRect();
+        const { col, row } = screenToHex(e.clientX - rect.left, e.clientY - rect.top);
+        if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
+          UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
+        }
+      }
+    }
+    isPanning = false;
+    canvas.style.cursor = isSpacePan ? 'grab' : 'crosshair';
+    if (_onMouseUpCb) _onMouseUpCb(e);
+  }
+
+  function _onWheel(e) {
+    e.preventDefault();
+    const rect = canvas.getBoundingClientRect();
+    setZoom(zoom - Math.sign(e.deltaY) * 5, e.clientX - rect.left, e.clientY - rect.top);
+  }
+
+  function _onTouchStart(e) {
+    e.preventDefault();
+    touches = Array.from(e.touches);
+    if (touches.length === 2) {
+      touchStartDist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+      touchStartZoom = zoom; isPanning = false;
+    } else {
+      isPanning = true; lastPanX = touches[0].clientX; lastPanY = touches[0].clientY;
+    }
+  }
+
+  function _onTouchMove(e) {
+    e.preventDefault();
+    touches = Array.from(e.touches);
+    if (touches.length === 2) {
+      const dist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
+      setZoom(touchStartZoom * dist / touchStartDist);
+    } else if (touches.length === 1 && isPanning) {
+      cameraX -= touches[0].clientX - lastPanX;
+      cameraY -= touches[0].clientY - lastPanY;
+      lastPanX = touches[0].clientX; lastPanY = touches[0].clientY;
+      clampCamera(); render(); drawMinimap();
+    }
+  }
+
+  function _onTouchEnd(e) {
+    e.preventDefault();
+    touches = Array.from(e.touches);
+    if (touches.length === 0) isPanning = false;
+  }
+
+  function setMouseCallbacks(down, move, up) {
+    _onMouseDownCb = down; _onMouseMoveCb = move; _onMouseUpCb = up;
+  }
+
+  function getCtx()    { return ctx; }
+  function getZoom()   { return zoom; }
+  function getCamera() { return { x: cameraX, y: cameraY }; }
+
+  return {
+    init, render, drawMinimap,
+    hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
+    clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
+    setMouseCallbacks, getCtx, getZoom, getCamera
+  };
+})();
 const Tools    = {};
 const Brush    = {};
 const History  = {};
@@ -526,6 +937,7 @@ let MAP_HEIGHT = 450;
 let mapData    = null;  // Int8Array (filled by IO.newMap / load)
 let settlements = [];
 let settlementsVisible = true;
+let _toolsRectPreview = null;
 
 const HEX_SIZE  = 40;
 const SQRT3     = Math.sqrt(3);
