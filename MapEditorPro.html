@@ -422,6 +422,34 @@ html, body {
 .sat-modal-footer a:hover { text-decoration: underline; }
 #sat-apply-btn { transition: opacity 0.2s; }
 #sat-apply-btn:disabled { opacity: 0.5; cursor: default; }
+
+/* ── New Map size picker ─────────────────────────────────────── */
+.newmap-box {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; padding: 24px; min-width: 300px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+}
+.newmap-box h3 { margin-bottom: 16px; font-size: 15px; }
+.newmap-dims {
+  display: flex; gap: 12px; align-items: center; margin-bottom: 12px;
+}
+.newmap-dim { display: flex; flex-direction: column; gap: 4px; flex: 1; }
+.newmap-dim label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+.newmap-dim input {
+  background: var(--bg); color: var(--text);
+  border: 1px solid var(--border); padding: 6px 10px;
+  border-radius: 4px; font-size: 14px; width: 100%; text-align: center;
+}
+.newmap-dim input:focus { outline: none; border-color: var(--accent); }
+.newmap-sep { font-size: 18px; color: var(--muted); padding-top: 18px; }
+.newmap-presets { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+.newmap-preset {
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: 4px 10px; border-radius: 4px;
+  cursor: pointer; font-size: 12px;
+}
+.newmap-preset:hover { background: var(--hover); border-color: var(--accent); }
+.newmap-note { font-size: 11px; color: var(--muted); margin-bottom: 20px; }
 </style>
 </head>
 <body>
@@ -554,6 +582,36 @@ html, body {
 </div>
 
 <input type="file" id="file-input" accept=".json" style="display:none">
+
+<!-- New Map size picker -->
+<div class="modal-overlay" id="newmap-modal">
+  <div class="newmap-box">
+    <h3>New Map</h3>
+    <div class="newmap-dims">
+      <div class="newmap-dim">
+        <label>Width</label>
+        <input id="newmap-w" type="number" min="20" max="450" value="450">
+      </div>
+      <div class="newmap-sep">×</div>
+      <div class="newmap-dim">
+        <label>Height</label>
+        <input id="newmap-h" type="number" min="20" max="450" value="450">
+      </div>
+    </div>
+    <div class="newmap-presets">
+      <button class="newmap-preset" onclick="IO.setNewMapSize(20,20)">20×20</button>
+      <button class="newmap-preset" onclick="IO.setNewMapSize(50,50)">50×50</button>
+      <button class="newmap-preset" onclick="IO.setNewMapSize(100,100)">100×100</button>
+      <button class="newmap-preset" onclick="IO.setNewMapSize(200,200)">200×200</button>
+      <button class="newmap-preset" onclick="IO.setNewMapSize(450,450)">450×450</button>
+    </div>
+    <p class="newmap-note">Min 20×20 · Max 450×450. Unsaved changes will be lost.</p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" id="newmap-cancel" onclick="IO.closeNewMap()">Cancel</button>
+      <button class="btn btn-primary" onclick="IO.applyNewMap()">Create</button>
+    </div>
+  </div>
+</div>
 
 <!-- Generator Modal -->
 <div class="modal-overlay" id="gen-modal">
@@ -1763,24 +1821,62 @@ const UI = (() => {
 // IO MODULE — new map, open JSON, save JSON, export CSV
 // ════════════════════════════════════════════════════════════
 const IO = (() => {
+  let _newMapCanCancel = false;
+
+  // Called at boot (silent=true) to initialize mapData before Canvas.init().
+  // Called from menu (silent=false) to open the size picker.
   function newMap(silent) {
-    const apply = () => {
+    if (silent) {
       MAP_WIDTH  = 450;
       MAP_HEIGHT = 450;
-      mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12); // Plain_1
+      mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12);
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       History.clear();
       History.push();
-      UI.updateSettlementCount();
-      UI.updateStatusSize();
-      if (Canvas.render) { Canvas.render(); Canvas.drawMinimap(); }
-      if (!silent) UI.toast('New map created');
-    };
-
-    if (silent) { apply(); return; }
-
+      return;
+    }
     UI.closeAllMenus();
-    UI.showConfirm('New Map', 'Create a new blank map? All unsaved changes will be lost.', apply);
+    _openNewMapModal(true);
+  }
+
+  function showNewMapPrompt() {
+    _openNewMapModal(false);
+  }
+
+  function _openNewMapModal(canCancel) {
+    _newMapCanCancel = canCancel;
+    document.getElementById('newmap-w').value = MAP_WIDTH;
+    document.getElementById('newmap-h').value = MAP_HEIGHT;
+    document.getElementById('newmap-cancel').style.display = canCancel ? '' : 'none';
+    document.getElementById('newmap-modal').classList.add('open');
+  }
+
+  function closeNewMap() {
+    if (!_newMapCanCancel) return;
+    document.getElementById('newmap-modal').classList.remove('open');
+  }
+
+  function setNewMapSize(w, h) {
+    document.getElementById('newmap-w').value = w;
+    document.getElementById('newmap-h').value = h;
+  }
+
+  function applyNewMap() {
+    const w = Math.max(20, Math.min(450, parseInt(document.getElementById('newmap-w').value, 10) || 450));
+    const h = Math.max(20, Math.min(450, parseInt(document.getElementById('newmap-h').value, 10) || 450));
+    MAP_WIDTH  = w;
+    MAP_HEIGHT = h;
+    mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12);
+    settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
+    History.clear();
+    History.push();
+    UI.updateSettlementCount();
+    UI.updateStatusSize();
+    document.getElementById('newmap-modal').classList.remove('open');
+    Canvas.render();
+    Canvas.drawMinimap();
+    Canvas.centerOnCity();
+    UI.toast(`Map created: ${w} × ${h}`);
   }
 
   function openMap() {
@@ -1927,7 +2023,8 @@ const IO = (() => {
     });
   }
 
-  return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard };
+  return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
+           showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -2436,7 +2533,7 @@ function getCityRow() { return Math.floor((MAP_HEIGHT - 1) / 2); }
 
 window.addEventListener('load', async () => {
   await Terrain.load();
-  IO.newMap(true);  // silent new map — no toast, no confirm
+  IO.newMap(true);  // silent — initializes mapData before Canvas.init()
   Canvas.init();
   UI.init();
   UI.buildPalette();
@@ -2446,6 +2543,7 @@ window.addEventListener('load', async () => {
   IO.initFileInput();
   IO.initKeyboard();
   Canvas.centerOnCity();
+  IO.showNewMapPrompt();  // ask user for map size on startup
   console.log('[MapEditorPro] Ready.');
 });
 </script>
