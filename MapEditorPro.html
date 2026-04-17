@@ -1412,7 +1412,173 @@ const UI = (() => {
     updateStatusTool, updateStatusSize
   };
 })();
-const IO       = {};
+// ════════════════════════════════════════════════════════════
+// IO MODULE — new map, open JSON, save JSON, export CSV
+// ════════════════════════════════════════════════════════════
+const IO = (() => {
+  function newMap(silent) {
+    const apply = () => {
+      MAP_WIDTH  = 450;
+      MAP_HEIGHT = 450;
+      mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12); // Plain_1
+      settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
+      History.clear();
+      History.push();
+      UI.updateSettlementCount();
+      UI.updateStatusSize();
+      if (Canvas.render) { Canvas.render(); Canvas.drawMinimap(); }
+      if (!silent) UI.toast('New map created');
+    };
+
+    if (silent) { apply(); return; }
+
+    UI.closeAllMenus();
+    UI.showConfirm('New Map', 'Create a new blank map? All unsaved changes will be lost.', apply);
+  }
+
+  function openMap() {
+    UI.closeAllMenus();
+    document.getElementById('file-input').click();
+  }
+
+  function _loadFromJSON(json) {
+    try {
+      if (!json.width || !json.height || !Array.isArray(json.data))
+        throw new Error('Invalid map file format');
+
+      MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
+      MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
+
+      // Convert 2D array to flat Int8Array
+      mapData = new Int8Array(MAP_WIDTH * MAP_HEIGHT);
+      for (let r = 0; r < MAP_HEIGHT; r++) {
+        const srcRow = json.data[r];
+        if (!srcRow) continue;
+        for (let c = 0; c < MAP_WIDTH; c++) {
+          mapData[r * MAP_WIDTH + c] = srcRow[c] ?? 12;
+        }
+      }
+
+      // Settlements: support both {x,y} and {col,row}
+      if (json.settlements && json.settlements.length > 0) {
+        settlements = json.settlements.map(s => ({
+          col:  s.col !== undefined ? s.col : s.x,
+          row:  s.row !== undefined ? s.row : s.y,
+          type: s.type || 'settlement'
+        }));
+        // Ensure city exists at center
+        const cc = getCityCol(), cr = getCityRow();
+        const cityIdx = settlements.findIndex(s => s.col === cc && s.row === cr);
+        if (cityIdx >= 0) settlements[cityIdx].type = 'city';
+        else settlements.unshift({ col: cc, row: cr, type: 'city' });
+      } else {
+        settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
+      }
+
+      History.clear();
+      History.push();
+      UI.updateSettlementCount();
+      UI.updateStatusSize();
+      Canvas.render();
+      Canvas.drawMinimap();
+      Canvas.centerOnCity();
+      UI.toast('Map loaded');
+    } catch (err) {
+      alert('Failed to load map: ' + err.message);
+    }
+  }
+
+  function saveMap() {
+    UI.closeAllMenus();
+    if (!mapData) return;
+    // Convert flat Int8Array back to 2D array for JSON
+    const data2d = [];
+    for (let r = 0; r < MAP_HEIGHT; r++) {
+      data2d.push(Array.from(mapData.subarray(r * MAP_WIDTH, (r + 1) * MAP_WIDTH)));
+    }
+    const json = {
+      width:  MAP_WIDTH,
+      height: MAP_HEIGHT,
+      data:   data2d,
+      settlements: settlements.map(s => ({ x: s.col, y: s.row, type: s.type }))
+    };
+    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = 'map_export.json';
+    a.click();
+    UI.toast('Map saved');
+  }
+
+  function exportCSV() {
+    UI.closeAllMenus();
+    if (!mapData) return;
+    const rows = [];
+    for (let r = 0; r < MAP_HEIGHT; r++) {
+      rows.push(Array.from(mapData.subarray(r * MAP_WIDTH, (r+1) * MAP_WIDTH)).join(','));
+    }
+    const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+    const a    = document.createElement('a');
+    a.href     = URL.createObjectURL(blob);
+    a.download = 'map_export.csv';
+    a.click();
+    UI.toast('CSV exported');
+  }
+
+  function clearMap() {
+    UI.closeAllMenus();
+    UI.showConfirm('Clear Map', 'Clear all terrain? City settlement will be preserved.', () => {
+      History.push();
+      mapData.fill(12);
+      settlements = settlements.filter(s => s.type === 'city');
+      if (settlements.length === 0) settlements.push({ col: getCityCol(), row: getCityRow(), type: 'city' });
+      UI.updateSettlementCount();
+      Canvas.render();
+      Canvas.drawMinimap();
+      UI.toast('Map cleared');
+    });
+  }
+
+  function fillMap() {
+    UI.closeAllMenus();
+    const t = Terrain.byId(UI.getSelectedTerrain());
+    UI.showConfirm('Fill Map', `Fill entire map with ${t.name}?`, () => {
+      History.push();
+      mapData.fill(UI.getSelectedTerrain());
+      Canvas.render();
+      Canvas.drawMinimap();
+      UI.toast(`Map filled with ${t.name}`);
+    });
+  }
+
+  // Wire file input
+  function initFileInput() {
+    document.getElementById('file-input').addEventListener('change', e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = ev => {
+        try { _loadFromJSON(JSON.parse(ev.target.result)); }
+        catch(err) { alert('Failed to parse JSON: ' + err.message); }
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+  }
+
+  function initKeyboard() {
+    window.addEventListener('keydown', e => {
+      if (!e.ctrlKey && !e.metaKey) return;
+      switch (e.key.toLowerCase()) {
+        case 'n': e.preventDefault(); newMap();   break;
+        case 'o': e.preventDefault(); openMap();  break;
+        case 's': e.preventDefault(); saveMap();  break;
+      }
+    });
+  }
+
+  return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard };
+})();
 
 // ── Shared state (visible to all modules) ──────────────────
 let MAP_WIDTH  = 450;
@@ -1440,6 +1606,8 @@ window.addEventListener('load', async () => {
   UI.selectTerrain(12);
   Tools.init();
   History.initKeyboard();
+  IO.initFileInput();
+  IO.initKeyboard();
   Canvas.centerOnCity();
   console.log('[MapEditorPro] Ready.');
 });
