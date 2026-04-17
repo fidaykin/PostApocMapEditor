@@ -1624,24 +1624,25 @@ const UI = (() => {
     const scroll = document.getElementById('palette-scroll');
     scroll.innerHTML = '';
 
-    let catHeader = null, catItems = null;
+    let catItems = null;
     const PLAINS_CAT = '🌾 PLAINS';
 
     Terrain.getAll().forEach(t => {
       if (t.cat) {
-        catHeader = document.createElement('button');
-        catHeader.className = 'cat-header';
-        if (t.cat !== PLAINS_CAT) catHeader.classList.add('collapsed');
-        catHeader.textContent = t.cat;
-        catHeader.addEventListener('click', () => {
-          catHeader.classList.toggle('collapsed');
-          catItems.classList.toggle('collapsed');
+        const hdr = document.createElement('button');
+        hdr.className = 'cat-header';
+        if (t.cat !== PLAINS_CAT) hdr.classList.add('collapsed');
+        hdr.textContent = t.cat;
+        const items = document.createElement('div');
+        items.className = 'cat-items';
+        if (t.cat !== PLAINS_CAT) items.classList.add('collapsed');
+        hdr.addEventListener('click', () => {
+          hdr.classList.toggle('collapsed');
+          items.classList.toggle('collapsed');
         });
-        catItems = document.createElement('div');
-        catItems.className = 'cat-items';
-        if (t.cat !== PLAINS_CAT) catItems.classList.add('collapsed');
-        scroll.appendChild(catHeader);
-        scroll.appendChild(catItems);
+        scroll.appendChild(hdr);
+        scroll.appendChild(items);
+        catItems = items;
       }
 
       const btn = document.createElement('button');
