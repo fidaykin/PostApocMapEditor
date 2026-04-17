@@ -359,6 +359,69 @@ html, body {
   display: flex; gap: 10px; justify-content: flex-end;
   padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0;
 }
+/* ── Satellite modal ─────────────────────────────────────────── */
+.sat-modal-box {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 8px; box-shadow: 0 8px 40px rgba(0,0,0,0.8);
+  display: flex; flex-direction: column;
+  max-width: 560px; width: 90vw; max-height: 90vh; overflow: hidden;
+}
+.sat-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px; border-bottom: 1px solid var(--border);
+  font-size: 15px; font-weight: bold; flex-shrink: 0;
+}
+.sat-modal-body {
+  padding: 16px; flex: 1; overflow-y: auto;
+  display: flex; flex-direction: column; gap: 10px;
+}
+.sat-drop {
+  border: 2px dashed var(--border); border-radius: 6px;
+  padding: 20px; text-align: center; cursor: pointer;
+  position: relative; transition: border-color 0.15s, background 0.15s;
+  min-height: 72px; display: flex; align-items: center; justify-content: center;
+}
+.sat-drop:hover, .sat-drop.dragover {
+  border-color: var(--accent); background: rgba(79,195,247,0.06);
+}
+.sat-drop input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+.sat-drop-label { font-size: 13px; color: var(--muted); pointer-events: none; line-height: 1.6; }
+.sat-drop img { max-height: 100px; max-width: 100%; object-fit: contain; border-radius: 4px; pointer-events: none; }
+.sat-previews { display: flex; gap: 12px; }
+.sat-preview-box { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.sat-preview-box > label { font-size: 11px; color: var(--muted); }
+#sat-orig-thumb {
+  width: 100%; aspect-ratio: 1; object-fit: contain;
+  background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px; display: block;
+}
+#sat-class-canvas {
+  width: 100%; aspect-ratio: 1; display: block;
+  image-rendering: pixelated;
+  background: #0a0a0a; border: 1px solid var(--border); border-radius: 4px;
+}
+.sat-section {
+  font-size: 11px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 1px; border-bottom: 1px solid var(--border); padding-bottom: 3px;
+}
+.sat-row {
+  display: flex; align-items: center; gap: 8px; font-size: 12px;
+}
+.sat-row label { width: 90px; flex-shrink: 0; color: var(--muted); }
+.sat-row input[type=range] { flex: 1; min-width: 0; }
+.sat-val {
+  width: 32px; text-align: right; color: var(--accent);
+  font-size: 12px; font-variant-numeric: tabular-nums; flex-shrink: 0;
+}
+.sat-options { display: flex; flex-direction: column; gap: 6px; }
+.sat-options label { display: flex; align-items: center; gap: 8px; font-size: 12px; cursor: pointer; }
+.sat-modal-footer {
+  display: flex; gap: 10px; justify-content: space-between; align-items: center;
+  padding: 12px 16px; border-top: 1px solid var(--border); flex-shrink: 0;
+}
+.sat-modal-footer a { font-size: 12px; color: var(--accent); text-decoration: none; }
+.sat-modal-footer a:hover { text-decoration: underline; }
+#sat-apply-btn { transition: opacity 0.2s; }
+#sat-apply-btn:disabled { opacity: 0.5; cursor: default; }
 </style>
 </head>
 <body>
@@ -400,7 +463,7 @@ html, body {
     <div class="menu-item" id="menu-generate">Generate
       <div class="menu-dropdown">
         <button onclick="Generator.open()">Procedural Generator…</button>
-        <button onclick="alert('Satellite: Plan B')">Satellite Import…</button>
+        <button onclick="Satellite.open()">Satellite Import…</button>
       </div>
     </div>
   </div>
@@ -598,6 +661,77 @@ html, body {
     <div class="gen-modal-footer">
       <button class="btn btn-cancel" onclick="Generator.close()">✕ Cancel</button>
       <button class="btn btn-primary" onclick="Generator.apply()">▶ Generate</button>
+    </div>
+  </div>
+</div>
+
+<!-- Satellite Import Modal -->
+<div class="modal-overlay" id="sat-modal">
+  <div class="sat-modal-box">
+    <div class="sat-modal-header">
+      <span>🛰 Satellite Import</span>
+      <button class="gen-modal-close" onclick="Satellite.close()">✕</button>
+    </div>
+    <div class="sat-modal-body">
+      <p style="font-size:12px;color:var(--muted)">Upload any satellite or map screenshot — colours are classified into terrain types.</p>
+      <!-- Drop zone -->
+      <div id="sat-drop" class="sat-drop"
+           ondragover="Satellite.onDragOver(event)"
+           ondragleave="Satellite.onDragLeave()"
+           ondrop="Satellite.onDrop(event)">
+        <input type="file" accept="image/*" onchange="Satellite.onFileInput(event)">
+        <img id="sat-drop-img" style="display:none">
+        <span id="sat-drop-label" class="sat-drop-label">📂 Drop image here or click to browse<br>
+          <span style="font-size:10px;color:#555">PNG · JPG · WebP · any size</span></span>
+      </div>
+      <!-- Dual preview -->
+      <div class="sat-previews">
+        <div class="sat-preview-box">
+          <label>Source image</label>
+          <img id="sat-orig-thumb">
+        </div>
+        <div class="sat-preview-box">
+          <label>Terrain preview</label>
+          <canvas id="sat-class-canvas" width="270" height="270"></canvas>
+        </div>
+      </div>
+      <!-- Sliders -->
+      <div class="sat-section">Colour Sensitivity</div>
+      <div class="sat-row">
+        <label>Sensitivity</label>
+        <input id="sat-sens" type="range" min="1" max="100" step="1" value="50"
+               oninput="document.getElementById('sat-sens-v').textContent=this.value; Satellite.onParamChange()">
+        <span id="sat-sens-v" class="sat-val">50</span>
+      </div>
+      <div class="sat-row">
+        <label>Sample radius</label>
+        <input id="sat-sampleR" type="range" min="1" max="10" step="1" value="3"
+               oninput="document.getElementById('sat-sampleR-v').textContent=this.value; Satellite.onParamChange()">
+        <span id="sat-sampleR-v" class="sat-val">3</span>
+      </div>
+      <!-- Options -->
+      <div class="sat-section">Options</div>
+      <div class="sat-options">
+        <label>
+          <input type="checkbox" id="sat-flipY" onchange="Satellite.onParamChange()">
+          Flip image vertically (south-up images)
+        </label>
+        <label>
+          <input type="checkbox" id="sat-keepCity" checked>
+          Keep city center tile passable
+        </label>
+        <label>
+          <input type="checkbox" id="sat-clearWater" checked>
+          Clear impassable terrain around city (radius 3)
+        </label>
+      </div>
+    </div>
+    <div class="sat-modal-footer">
+      <a href="SatelliteColorGuide.html" target="_blank" rel="noopener">Color Guide ↗</a>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-cancel" onclick="Satellite.close()">✕ Cancel</button>
+        <button id="sat-apply-btn" class="btn btn-primary" onclick="Satellite.apply()" disabled>🗺 Apply to Map</button>
+      </div>
     </div>
   </div>
 </div>
@@ -2061,6 +2195,218 @@ const Generator = (() => {
   }
 
   return { open, close, apply, applyPreset, schedule };
+})();
+
+// ════════════════════════════════════════════════════════════
+// SATELLITE MODULE
+// ════════════════════════════════════════════════════════════
+const Satellite = (() => {
+  let _pixels = null, _w = 0, _h = 0;
+  let _classified = null;  // Uint8Array [MAP_WIDTH * MAP_HEIGHT]
+
+  function _rgbToHsl(r, g, b) {
+    r /= 255; g /= 255; b /= 255;
+    const max = Math.max(r,g,b), min = Math.min(r,g,b);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      switch (max) {
+        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
+        case g: h = ((b - r) / d + 2) / 6; break;
+        case b: h = ((r - g) / d + 4) / 6; break;
+      }
+    }
+    return [h * 360, s, l];
+  }
+
+  function _sample(col, row, sampleR) {
+    const cx = (col / MAP_WIDTH)  * _w;
+    const cy = (row / MAP_HEIGHT) * _h;
+    let sr = 0, sg = 0, sb = 0, n = 0;
+    for (let dy = -sampleR; dy <= sampleR; dy++) {
+      for (let dx = -sampleR; dx <= sampleR; dx++) {
+        if (dx * dx + dy * dy > sampleR * sampleR) continue;
+        const ix = Math.max(0, Math.min(_w - 1, Math.round(cx + dx)));
+        const iy = Math.max(0, Math.min(_h - 1, Math.round(cy + dy)));
+        const i  = (iy * _w + ix) * 4;
+        sr += _pixels.data[i]; sg += _pixels.data[i+1]; sb += _pixels.data[i+2];
+        n++;
+      }
+    }
+    return [sr / n, sg / n, sb / n];
+  }
+
+  function _classifyColor(r, g, b, sens) {
+    const [h, s, l] = _rgbToHsl(r, g, b);
+
+    if (l < 0.09) return 28;
+    if ((h < 25 || h > 335) && s > 0.50 && l > 0.12 && l < 0.55) return 26;
+
+    const wSatMin = 0.42 - sens * 0.32;
+    if (h >= 170 && h <= 268 && s > wSatMin && l < 0.70) return l < 0.32 ? 0 : 1;
+
+    if (s < 0.18 && l > 0.74 - (1 - sens) * 0.12) return 19;
+    if (s < 0.20) {
+      if (l > 0.56) return 18;
+      if (l > 0.30) return 9;
+      return 28;
+    }
+
+    const fSatMin = 0.28 - sens * 0.20;
+    if (h >= 78 && h <= 168) {
+      if (s > fSatMin) {
+        if (l < 0.22) return 24;
+        if (l < 0.37) return 16;
+        if (l < 0.53) return 15;
+        return 12;
+      }
+      if (l < 0.30) return 24;
+      if (l < 0.50) return 13;
+      return 12;
+    }
+    if (h >= 50 && h < 78) {
+      if (s > 0.30 && l > 0.52) return 12;
+      if (s > 0.22 && l > 0.38) return 13;
+      return 22;
+    }
+    if (h >= 30 && h < 60 && s > 0.28 && l > 0.56) return 23;
+    if (h >= 12 && h < 50) {
+      if (l > 0.52 && s > 0.22) return 22;
+      if (l > 0.36 && s > 0.18) return 9;
+      return 10;
+    }
+    return 12;
+  }
+
+  function _classify() {
+    if (!_pixels) return;
+    const W = MAP_WIDTH, H = MAP_HEIGHT;
+    const sampleR = parseInt(document.getElementById('sat-sampleR').value, 10);
+    const sens    = parseInt(document.getElementById('sat-sens').value, 10) / 100;
+    const flipY   = document.getElementById('sat-flipY').checked;
+
+    _classified = new Uint8Array(W * H);
+    for (let row = 0; row < H; row++) {
+      for (let col = 0; col < W; col++) {
+        const srcRow = flipY ? H - 1 - row : row;
+        const [r, g, b] = _sample(col, srcRow, sampleR);
+        _classified[row * W + col] = _classifyColor(r, g, b, sens);
+      }
+    }
+    _renderPreview();
+    document.getElementById('sat-apply-btn').disabled = false;
+  }
+
+  function _renderPreview() {
+    if (!_classified) return;
+    const cv = document.getElementById('sat-class-canvas');
+    if (!cv) return;
+    const ctx = cv.getContext('2d');
+    const pw = cv.width, ph = cv.height;
+    const W = MAP_WIDTH, H = MAP_HEIGHT;
+    const img = ctx.createImageData(pw, ph);
+    for (let py = 0; py < ph; py++) {
+      for (let px = 0; px < pw; px++) {
+        const col = Math.floor(px / pw * W);
+        const row = Math.floor(py / ph * H);
+        const id  = _classified[row * W + col] ?? 12;
+        const [r, g, b] = Terrain.color(id);
+        const i = (py * pw + px) * 4;
+        img.data[i] = r; img.data[i+1] = g; img.data[i+2] = b; img.data[i+3] = 255;
+      }
+    }
+    ctx.putImageData(img, 0, 0);
+  }
+
+  function _loadImage(file) {
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 1024;
+        const scale = Math.min(1, MAX / Math.max(img.width, img.height));
+        _w = Math.round(img.width  * scale);
+        _h = Math.round(img.height * scale);
+        const offC = document.createElement('canvas');
+        offC.width = _w; offC.height = _h;
+        const offX = offC.getContext('2d');
+        offX.drawImage(img, 0, 0, _w, _h);
+        _pixels = offX.getImageData(0, 0, _w, _h);
+
+        const thumb = document.getElementById('sat-orig-thumb');
+        thumb.src = ev.target.result;
+
+        const dropImg = document.getElementById('sat-drop-img');
+        dropImg.src = ev.target.result;
+        dropImg.style.display = 'block';
+        document.getElementById('sat-drop-label').style.display = 'none';
+
+        _classify();
+      };
+      img.src = ev.target.result;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function open() {
+    UI.closeAllMenus();
+    _pixels = null; _classified = null;
+    document.getElementById('sat-drop-img').src = '';
+    document.getElementById('sat-drop-img').style.display = 'none';
+    document.getElementById('sat-drop-label').style.display = '';
+    document.getElementById('sat-orig-thumb').src = '';
+    document.getElementById('sat-class-canvas').getContext('2d').clearRect(0, 0, 270, 270);
+    document.getElementById('sat-apply-btn').disabled = true;
+    document.getElementById('sat-modal').classList.add('open');
+  }
+
+  function close() {
+    document.getElementById('sat-modal').classList.remove('open');
+  }
+
+  function apply() {
+    if (!_classified) return;
+    History.push();
+    const len = MAP_WIDTH * MAP_HEIGHT;
+    for (let i = 0; i < len; i++) mapData[i] = _classified[i];
+
+    const cityC = getCityCol(), cityR = getCityRow();
+    const keepCity   = document.getElementById('sat-keepCity').checked;
+    const clearWater = document.getElementById('sat-clearWater').checked;
+    if (keepCity || clearWater) {
+      const clearR   = 3;
+      const waterIds = new Set([0,1,2,3,4,5,6,7,8,19,26,27,28]);
+      for (let dr = -clearR; dr <= clearR; dr++) {
+        for (let dc = -clearR; dc <= clearR; dc++) {
+          if (dc * dc + dr * dr > clearR * clearR) continue;
+          const r = cityR + dr, c = cityC + dc;
+          if (r < 0 || r >= MAP_HEIGHT || c < 0 || c >= MAP_WIDTH) continue;
+          const idx = r * MAP_WIDTH + c;
+          if (clearWater && waterIds.has(mapData[idx])) mapData[idx] = 12;
+          if (keepCity && dr === 0 && dc === 0) mapData[idx] = 12;
+        }
+      }
+    }
+
+    settlements = settlements.filter(s => s.type !== 'city');
+    settlements.unshift({ col: cityC, row: cityR, type: 'city' });
+    UI.updateSettlementCount();
+    close();
+    Canvas.render();
+    Canvas.drawMinimap();
+    UI.toast('Satellite map applied');
+  }
+
+  return {
+    open, close, apply,
+    onDragOver(e)   { e.preventDefault(); document.getElementById('sat-drop').classList.add('dragover'); },
+    onDragLeave()   { document.getElementById('sat-drop').classList.remove('dragover'); },
+    onDrop(e)       { e.preventDefault(); document.getElementById('sat-drop').classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f?.type.startsWith('image/')) _loadImage(f); },
+    onFileInput(e)  { const f = e.target.files[0]; if (f) _loadImage(f); e.target.value = ''; },
+    onParamChange() { _classify(); },
+  };
 })();
 
 // ── Shared state (visible to all modules) ──────────────────
