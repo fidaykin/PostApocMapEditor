@@ -1226,6 +1226,7 @@ const History = (() => {
 
   function initKeyboard() {
     window.addEventListener('keydown', e => {
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
       if (!e.ctrlKey && !e.metaKey) return;
       if (e.key === 'z' || e.key === 'Z') {
         e.preventDefault();
