@@ -2202,7 +2202,8 @@ const Generator = (() => {
 // ════════════════════════════════════════════════════════════
 const Satellite = (() => {
   let _pixels = null, _w = 0, _h = 0;
-  let _classified = null;  // Uint8Array [MAP_WIDTH * MAP_HEIGHT]
+  let _classified = null;  // Int8Array [MAP_WIDTH * MAP_HEIGHT]
+  let _satDebounce = null;
 
   function _rgbToHsl(r, g, b) {
     r /= 255; g /= 255; b /= 255;
@@ -2287,7 +2288,7 @@ const Satellite = (() => {
     const sens    = parseInt(document.getElementById('sat-sens').value, 10) / 100;
     const flipY   = document.getElementById('sat-flipY').checked;
 
-    _classified = new Uint8Array(W * H);
+    _classified = new Int8Array(W * H);
     for (let row = 0; row < H; row++) {
       for (let col = 0; col < W; col++) {
         const srcRow = flipY ? H - 1 - row : row;
@@ -2382,14 +2383,14 @@ const Satellite = (() => {
     const clearWater = document.getElementById('sat-clearWater').checked;
     if (keepCity || clearWater) {
       const clearR   = 3;
-      const waterIds = new Set([0,1,2,3,4,5,6,7,8,19,26,27,28]);
+      const impassableIds = new Set([0,1,2,3,4,5,6,7,8,19,26,27,28]);
       for (let dr = -clearR; dr <= clearR; dr++) {
         for (let dc = -clearR; dc <= clearR; dc++) {
           if (dc * dc + dr * dr > clearR * clearR) continue;
           const r = cityR + dr, c = cityC + dc;
           if (r < 0 || r >= MAP_HEIGHT || c < 0 || c >= MAP_WIDTH) continue;
           const idx = r * MAP_WIDTH + c;
-          if (clearWater && waterIds.has(mapData[idx])) mapData[idx] = 12;
+          if (clearWater && impassableIds.has(mapData[idx])) mapData[idx] = 12;
           if (keepCity && dr === 0 && dc === 0) mapData[idx] = 12;
         }
       }
@@ -2410,7 +2411,7 @@ const Satellite = (() => {
     onDragLeave()   { document.getElementById('sat-drop').classList.remove('dragover'); },
     onDrop(e)       { e.preventDefault(); document.getElementById('sat-drop').classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f?.type.startsWith('image/')) _loadImage(f); },
     onFileInput(e)  { const f = e.target.files[0]; if (f) _loadImage(f); e.target.value = ''; },
-    onParamChange() { _classify(); },
+    onParamChange() { clearTimeout(_satDebounce); _satDebounce = setTimeout(_classify, 150); },
   };
 })();
 
