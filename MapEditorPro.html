@@ -1055,8 +1055,8 @@ const Tools = (() => {
 
   // ── Rectangle ──────────────────────────────────────────────
   function _applyRect(c1, r1, c2, r2) {
-    const minC = Math.min(c1, c2), maxC = Math.max(c1, c2);
-    const minR = Math.min(r1, r2), maxR = Math.max(r1, r2);
+    const minC = Math.max(0, Math.min(c1, c2)), maxC = Math.min(MAP_WIDTH - 1, Math.max(c1, c2));
+    const minR = Math.max(0, Math.min(r1, r2)), maxR = Math.min(MAP_HEIGHT - 1, Math.max(r1, r2));
     const fillId = UI.getSelectedTerrain();
     for (let c = minC; c <= maxC; c++)
       for (let r = minR; r <= maxR; r++)
@@ -1090,6 +1090,7 @@ const Tools = (() => {
 
     switch (_active) {
       case 'paint':
+        History.push();   // save pre-paint state before first stroke
         _paint(col, row);
         _lastPainted = { col, row };
         break;
@@ -1142,7 +1143,6 @@ const Tools = (() => {
     _isDown = false;
 
     if (_active === 'paint') {
-      History.push();
       Canvas.drawMinimap();
     } else if (_active === 'rect' && _rectStart && _toolsRectPreview) {
       History.push();
