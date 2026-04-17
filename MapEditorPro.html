@@ -1507,7 +1507,7 @@ const IO = (() => {
     a.href     = URL.createObjectURL(blob);
     a.download = 'map_export.json';
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => URL.revokeObjectURL(a.href), 100);
     UI.toast('Map saved');
   }
 
@@ -1523,7 +1523,7 @@ const IO = (() => {
     a.href     = URL.createObjectURL(blob);
     a.download = 'map_export.csv';
     a.click();
-    URL.revokeObjectURL(a.href);
+    setTimeout(() => URL.revokeObjectURL(a.href), 100);
     UI.toast('CSV exported');
   }
 
