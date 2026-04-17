@@ -424,7 +424,95 @@ html, body {
 // MODULE STUBS — filled in by subsequent tasks
 // ════════════════════════════════════════════════════════════
 
-const Terrain  = {};
+// ════════════════════════════════════════════════════════════
+// TERRAIN MODULE
+// ════════════════════════════════════════════════════════════
+const Terrain = (() => {
+  const HEX_DIR = 'sprites/hex/';
+
+  const DATA = [
+    // Water / River (0–8)
+    { id:  0, name: "DirtyWater",  cat: "💧 WATER / RIVER",     file: "Water.png"    },
+    { id:  1, name: "DirtyWater_1",cat: "",                      file: "Water.png"    },
+    { id:  2, name: "DirtyWater_2",cat: "",                      file: "Water.png"    },
+    { id:  3, name: "River_1",     cat: "",                      file: "Water.png"    },
+    { id:  4, name: "River_2",     cat: "",                      file: "Water.png"    },
+    { id:  5, name: "River_3",     cat: "",                      file: "Water.png"    },
+    { id:  6, name: "River_4",     cat: "",                      file: "Water.png"    },
+    { id:  7, name: "River_5",     cat: "",                      file: "Water.png"    },
+    { id:  8, name: "River_6",     cat: "",                      file: "Water.png"    },
+    // Rubble / Wasteland (9–11)
+    { id:  9, name: "Rubble_1",    cat: "🏚️ RUBBLE/WASTELAND",   file: "Rubble_1.png" },
+    { id: 10, name: "Rubble_2",    cat: "",                      file: "Rubble_2.png" },
+    { id: 11, name: "Rubble_3",    cat: "",                      file: "Rubble_3.png" },
+    // Plains (12–14)
+    { id: 12, name: "Plain_1",     cat: "🌾 PLAINS",             file: "Plain_1.png"  },
+    { id: 13, name: "Plain_2",     cat: "",                      file: "Plain_2.png"  },
+    { id: 14, name: "BrokenPlain", cat: "",                      file: "Rubble_1.png", fallback: true },
+    // Forest (15–17)
+    { id: 15, name: "Forest_1",    cat: "🌲 FOREST",             file: "Forest_1.png" },
+    { id: 16, name: "Forest_2",    cat: "",                      file: "Forest_2.png" },
+    { id: 17, name: "Forest_3",    cat: "",                      file: "Forest_3.png" },
+    // Rocky / Mountain (18–19)
+    { id: 18, name: "Hills",       cat: "⛰️ ROCKY/MOUNTAIN",     file: "Hills.png"    },
+    { id: 19, name: "Mountain",    cat: "",                      file: "Mountain.png" },
+    // Resources (20–21)
+    { id: 20, name: "GoldVein",    cat: "💎 RESOURCES",          file: "GoldVein.png" },
+    { id: 21, name: "Oil",         cat: "",                      file: "Rubble_2.png", fallback: true },
+    // Barren / Desert (22–23)
+    { id: 22, name: "Barren",      cat: "🏜️ BARREN/DESERT",      file: "Rubble_1.png", fallback: true },
+    { id: 23, name: "Desert",      cat: "",                      file: "Plain_1.png",  fallback: true },
+    // Swamp (24–25)
+    { id: 24, name: "Swamp",       cat: "🟫 SWAMP",              file: "Water.png",    fallback: true },
+    { id: 25, name: "RockySwamp",  cat: "",                      file: "Hills.png",    fallback: true },
+    // Volcanic / Rift (26–28)
+    { id: 26, name: "LavaPlain",   cat: "🌋 VOLCANIC/RIFT",      file: "Rift.png",     fallback: true },
+    { id: 27, name: "LavaRift",    cat: "",                      file: "Rift.png",     fallback: true },
+    { id: 28, name: "Rift",        cat: "",                      file: "Rift.png"     },
+  ];
+
+  // RGB triples for minimap color rendering
+  const COLORS = {
+     0:[42,70,100],  1:[50,80,120],  2:[35,60,95],
+     3:[60,100,160], 4:[60,100,160], 5:[60,100,160],
+     6:[60,100,160], 7:[60,100,160], 8:[60,100,160],
+     9:[100,85,65], 10:[85,70,50],  11:[65,50,35],
+    12:[120,155,85],13:[100,135,65],14:[130,130,75],
+    15:[50,115,50], 16:[35,95,35],  17:[65,130,65],
+    18:[100,120,90],19:[150,150,150],
+    20:[200,170,25],21:[50,50,50],
+    22:[150,130,95],23:[210,185,120],
+    24:[50,80,50],  25:[80,95,75],
+    26:[170,70,20], 27:[130,35,15], 28:[35,25,25]
+  };
+
+  const sprites  = {};  // id → HTMLImageElement
+  let   citySprite = null;
+
+  async function load() {
+    const jobs = DATA.map(t => new Promise(resolve => {
+      const img = new Image();
+      img.onload  = () => { sprites[t.id] = img; resolve(); };
+      img.onerror = () => resolve();
+      img.src = HEX_DIR + t.file;
+    }));
+    const cityJob = new Promise(resolve => {
+      const img = new Image();
+      img.onload  = () => { citySprite = img; resolve(); };
+      img.onerror = () => resolve();
+      img.src = HEX_DIR + 'Settlements_1.png';
+    });
+    await Promise.all([...jobs, cityJob]);
+  }
+
+  function getSprite(id) { return sprites[id] || null; }
+  function getCitySprite() { return citySprite; }
+  function color(id) { return COLORS[id] || [120,155,85]; }
+  function byId(id)  { return DATA.find(t => t.id === id) || DATA[12]; }
+  function getAll()  { return DATA; }
+
+  return { load, getSprite, getCitySprite, color, byId, getAll };
+})();
 const Canvas   = {};
 const Tools    = {};
 const Brush    = {};
