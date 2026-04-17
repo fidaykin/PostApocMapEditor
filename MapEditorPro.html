@@ -719,7 +719,7 @@ const Canvas = (() => {
 
   // ── Minimap ───────────────────────────────────────────────
   function drawMinimap() {
-    if (!mapData) return;
+    if (!canvas || !mapData) return;
     const mc  = document.getElementById('minimap');
     const mCtx = mc.getContext('2d');
     const mw = mc.width, mh = mc.height;
