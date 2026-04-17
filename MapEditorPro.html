@@ -1996,7 +1996,6 @@ const Generator = (() => {
   }
 
   function _renderPreview() {
-    if (!mapData) return;
     const W = MAP_WIDTH, H = MAP_HEIGHT;
     const tmp = new Int8Array(W * H);
     _generateInto(tmp, _getParams());
