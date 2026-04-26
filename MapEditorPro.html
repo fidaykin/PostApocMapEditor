@@ -450,9 +450,233 @@ html, body {
 }
 .newmap-preset:hover { background: var(--hover); border-color: var(--accent); }
 .newmap-note { font-size: 11px; color: var(--muted); margin-bottom: 20px; }
+
+/* ── Mode panels ─────────────────────────────────────────────── */
+body.mode-hexdb       #main             { display: none; }
+body.mode-hexdb       #hexdb-main       { display: grid; }
+body.mode-buildings   #main             { display: none; }
+body.mode-buildings   #hexdb-main       { display: none; }
+body.mode-buildings   #buildings-main   { display: grid; }
+body.mode-settlements #main             { display: none; }
+body.mode-settlements #hexdb-main       { display: none; }
+body.mode-settlements #settlements-main { display: grid; }
+#hexdb-main       { display: none; }
+#buildings-main   { display: none; }
+#settlements-main { display: none; }
+
+/* Mode tabs */
+.mode-tabs {
+  display: flex; align-items: stretch;
+  border-right: 1px solid var(--border); margin-right: 8px; padding-right: 4px;
+}
+.mode-tab {
+  padding: 0 14px; cursor: pointer; font-size: 12px; font-weight: 600;
+  border: none; background: none; color: var(--muted);
+  border-bottom: 2px solid transparent; letter-spacing: .05em;
+}
+.mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.mode-tab:hover:not(.active) { color: var(--text); }
+
+/* Toolbar sections */
+#map-tools   { display: flex; align-items: center; gap: 4px; }
+#hexdb-tools { display: none; align-items: center; gap: 6px; }
+#bld-tools   { display: none; align-items: center; gap: 6px; }
+#stt-tools   { display: none; align-items: center; gap: 6px; }
+body.mode-hexdb       #map-tools   { display: none; }
+body.mode-hexdb       #hexdb-tools { display: flex; }
+body.mode-buildings   #map-tools   { display: none; }
+body.mode-buildings   #bld-tools   { display: flex; }
+body.mode-settlements #map-tools   { display: none; }
+body.mode-settlements #stt-tools   { display: flex; }
+.hexdb-tool-btn {
+  height: 30px; padding: 0 12px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; cursor: pointer; font-size: 13px;
+  color: var(--text); white-space: nowrap;
+  transition: background .1s, border-color .1s;
+}
+.hexdb-tool-btn:hover { background: var(--hover); border-color: var(--accent); }
+
+/* HexDB main layout */
+#hexdb-main {
+  grid-row: 3; grid-column: 1;
+  grid-template-columns: 260px 1fr;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* Left panel */
+#hexdb-left {
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--panel);
+}
+#hexdb-filters {
+  padding: 8px; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+}
+#hexdb-search {
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: 5px 8px; border-radius: 4px;
+  font-size: 13px; width: 100%; box-sizing: border-box;
+}
+#hexdb-search:focus { outline: none; border-color: var(--accent); }
+.hexdb-filter-row {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 12px; color: var(--muted);
+}
+.hexdb-filter-row select {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: 3px 6px; border-radius: 3px; font-size: 12px;
+}
+.hexdb-filter-row select:focus { outline: none; border-color: var(--accent); }
+#hexdb-list { flex: 1; overflow-y: auto; }
+.hexdb-list-row {
+  padding: 6px 10px; cursor: pointer;
+  display: flex; align-items: center; gap: 7px;
+  font-size: 13px; border-bottom: 1px solid var(--border);
+  user-select: none;
+}
+.hexdb-list-row:hover { background: var(--hover); }
+.hexdb-list-row.selected { background: var(--accent); color: #fff; }
+.hexdb-biome-badge {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.hexdb-list-footer {
+  padding: 6px 10px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; color: var(--muted); flex-shrink: 0;
+}
+.hexdb-list-footer button {
+  background: none; border: 1px solid var(--border); color: var(--muted);
+  padding: 3px 8px; border-radius: 3px; cursor: pointer; font-size: 11px;
+}
+.hexdb-list-footer button:hover { border-color: #e55; color: #e55; }
+
+/* Right panel */
+#hexdb-right {
+  overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 0;
+}
+.hexdb-empty {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  height: 100%; color: var(--muted); gap: 14px; font-size: 14px;
+}
+.hexdb-empty-btn {
+  cursor: pointer; padding: 4px 12px;
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); border-radius: 3px; font-size: 13px;
+}
+.hexdb-section {
+  border: 1px solid var(--border); border-radius: 5px;
+  margin-bottom: 8px; overflow: hidden;
+}
+.hexdb-section-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 12px; cursor: pointer; font-size: 11px; font-weight: 700;
+  background: var(--panel); color: var(--muted);
+  text-transform: uppercase; letter-spacing: .06em; user-select: none;
+}
+.hexdb-section-hdr:hover { color: var(--text); }
+.hexdb-section-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; }
+.hexdb-section.collapsed .hexdb-section-body { display: none; }
+.hexdb-row { display: flex; align-items: center; gap: 8px; }
+.hexdb-label {
+  width: 126px; flex-shrink: 0; font-size: 12px;
+  color: var(--muted); text-align: right;
+}
+.hexdb-input, .hexdb-select {
+  flex: 1; background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: 4px 7px; border-radius: 3px; font-size: 13px;
+}
+.hexdb-input:focus, .hexdb-select:focus { outline: none; border-color: var(--accent); }
+.hexdb-input.error { border-color: #e55 !important; }
+.hexdb-cost-row { display: flex; align-items: center; gap: 6px; flex: 1; }
+.hexdb-cost-row label { font-size: 11px; color: var(--muted); }
+.hexdb-cost-row input {
+  width: 54px; background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: 4px 6px; border-radius: 3px;
+  font-size: 13px; text-align: right;
+}
+.hexdb-cost-row input:focus { outline: none; border-color: var(--accent); }
+.hexdb-checkbox-row { display: flex; align-items: center; gap: 8px; }
+.hexdb-checkbox-row label { font-size: 12px; color: var(--muted); }
+.hexdb-actions {
+  display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;
+}
+.hexdb-actions button {
+  background: var(--panel); border: 1px solid var(--border);
+  color: var(--text); padding: 5px 16px; border-radius: 4px;
+  cursor: pointer; font-size: 13px;
+}
+.hexdb-actions button:hover { border-color: var(--accent); color: var(--accent); }
+
+/* Drag-drop highlight */
+#hexdb-main.dragover { outline: 2px dashed var(--accent); outline-offset: -4px; }
+
+/* ── Buildings & Settlements panels ───────────────────────── */
+#buildings-main,
+#settlements-main {
+  grid-row: 3; grid-column: 1;
+  grid-template-columns: 260px 1fr;
+  background: var(--bg);
+  overflow: hidden;
+}
+#bld-left, #stt-left {
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--panel);
+}
+#bld-filters, #stt-filters {
+  padding: 8px; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+}
+#bld-search, #stt-search {
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: 5px 8px; border-radius: 4px;
+  font-size: 13px; width: 100%; box-sizing: border-box;
+}
+#bld-search:focus, #stt-search:focus { outline: none; border-color: var(--accent); }
+#bld-list, #stt-list { flex: 1; overflow-y: auto; }
+#bld-right, #stt-right {
+  overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 0;
+}
+
+/* Level cards */
+.level-cards { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.level-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+.level-hdr {
+  background: var(--panel);
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.level-body { padding: 6px 8px; }
+.level-row {
+  display: flex; align-items: center; gap: 6px;
+  margin-bottom: 4px; font-size: 12px;
+}
+.level-row label { width: 130px; flex-shrink: 0; color: var(--muted); }
+.level-row input[type=text],
+.level-row input[type=number] {
+  flex: 1;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 3px; color: var(--text);
+  padding: 2px 5px; font-size: 12px;
+}
+#buildings-main.dragover,
+#settlements-main.dragover { outline: 2px dashed var(--accent); outline-offset: -4px; }
 </style>
 </head>
-<body>
+<body class="mode-map">
 
 <div id="app">
 
@@ -494,16 +718,51 @@ html, body {
         <button onclick="Satellite.open()">Satellite Import…</button>
       </div>
     </div>
+    <div class="menu-item" id="menu-data">Data
+      <div class="menu-dropdown">
+        <button onclick="HexDB.triggerLoad()">Load Hex DB…</button>
+        <button onclick="HexDB.save()">Save Hex DB <span class="menu-shortcut">Ctrl+Shift+S</span></button>
+        <div class="separator"></div>
+        <button onclick="BldDB.triggerLoad()">Load Building DB…</button>
+        <button onclick="BldDB.save()">Save Building DB</button>
+        <div class="separator"></div>
+        <button onclick="SttDB.triggerLoad()">Load Settlement DB…</button>
+        <button onclick="SttDB.save()">Save Settlement DB</button>
+      </div>
+    </div>
   </div>
 
   <!-- ── Toolbar ──────────────────────────────────────────── -->
   <div id="toolbar">
-    <button class="tool-btn active" data-tool="paint" onclick="Tools.setActive('paint')">✏️<span class="tooltip">Paint (P)</span></button>
-    <button class="tool-btn" data-tool="fill"  onclick="Tools.setActive('fill')">🪣<span class="tooltip">Fill (F)</span></button>
-    <button class="tool-btn" data-tool="rect"  onclick="Tools.setActive('rect')">▭<span class="tooltip">Rectangle (R)</span></button>
-    <button class="tool-btn" data-tool="eye"   onclick="Tools.setActive('eye')">💧<span class="tooltip">Eyedropper (E)</span></button>
-    <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (S)</span></button>
-    <button class="tool-btn" data-tool="erase" onclick="Tools.setActive('erase')">✕<span class="tooltip">Erase Settlement (D)</span></button>
+    <div class="mode-tabs">
+      <button class="mode-tab active" id="tab-map"         onclick="App.setMode('map')">MAP</button>
+      <button class="mode-tab"        id="tab-hexdb"       onclick="App.setMode('hexdb')">HEX DB</button>
+      <button class="mode-tab"        id="tab-buildings"   onclick="App.setMode('buildings')">BUILDINGS</button>
+      <button class="mode-tab"        id="tab-settlements" onclick="App.setMode('settlements')">SETTLEMENTS</button>
+    </div>
+    <div id="map-tools">
+      <button class="tool-btn active" data-tool="paint" onclick="Tools.setActive('paint')">✏️<span class="tooltip">Paint (P)</span></button>
+      <button class="tool-btn" data-tool="fill"  onclick="Tools.setActive('fill')">🪣<span class="tooltip">Fill (F)</span></button>
+      <button class="tool-btn" data-tool="rect"  onclick="Tools.setActive('rect')">▭<span class="tooltip">Rectangle (R)</span></button>
+      <button class="tool-btn" data-tool="eye"   onclick="Tools.setActive('eye')">💧<span class="tooltip">Eyedropper (E)</span></button>
+      <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (S)</span></button>
+      <button class="tool-btn" data-tool="erase" onclick="Tools.setActive('erase')">✕<span class="tooltip">Erase Settlement (D)</span></button>
+    </div>
+    <div id="hexdb-tools">
+      <button class="hexdb-tool-btn" onclick="HexDB.add()">+ Add Hex</button>
+      <button class="hexdb-tool-btn" onclick="HexDB.triggerLoad()">📂 Load DB</button>
+      <button class="hexdb-tool-btn" onclick="HexDB.save()">💾 Save DB</button>
+    </div>
+    <div id="bld-tools">
+      <button class="hexdb-tool-btn" onclick="BldDB.add()">+ Add Building</button>
+      <button class="hexdb-tool-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button>
+      <button class="hexdb-tool-btn" onclick="BldDB.save()">💾 Save DB</button>
+    </div>
+    <div id="stt-tools">
+      <button class="hexdb-tool-btn" onclick="SttDB.add()">+ Add Settlement</button>
+      <button class="hexdb-tool-btn" onclick="SttDB.triggerLoad()">📂 Load DB</button>
+      <button class="hexdb-tool-btn" onclick="SttDB.save()">💾 Save DB</button>
+    </div>
   </div>
 
   <!-- ── Main ─────────────────────────────────────────────── -->
@@ -555,6 +814,98 @@ html, body {
 
   </div>
 
+  <!-- ── HEX DB Main ─────────────────────────────────────────── -->
+  <div id="hexdb-main">
+
+    <!-- Left panel: list + filters -->
+    <div id="hexdb-left">
+      <div id="hexdb-filters">
+        <input id="hexdb-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
+        <div class="hexdb-filter-row">
+          <span style="width:38px;flex-shrink:0">Biome</span>
+          <select id="hexdb-biome-filter">
+            <option value="">All</option>
+            <option>Summer</option>
+            <option>Winter</option>
+            <option>Desert</option>
+            <option>Radioactive</option>
+          </select>
+        </div>
+        <div class="hexdb-filter-row">
+          <span style="width:38px;flex-shrink:0">Type</span>
+          <select id="hexdb-type-filter">
+            <option value="">All</option>
+            <!-- populated by HexDB.init() from Terrain.getAll() -->
+          </select>
+        </div>
+      </div>
+      <div id="hexdb-list"></div>
+      <div class="hexdb-list-footer">
+        <span id="hexdb-count">0 shown / 0</span>
+        <button onclick="HexDB.deleteSelected()">🗑 Delete</button>
+      </div>
+    </div>
+
+    <!-- Right panel: record editor -->
+    <div id="hexdb-right">
+      <div class="hexdb-empty">
+        <div>Drop hex_database.json here</div>
+        <div>or use <button class="hexdb-empty-btn" onclick="HexDB.triggerLoad()">📂 Load DB</button></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Buildings Main ────────────────────────────────────────── -->
+  <div id="buildings-main">
+
+    <!-- Left panel: list + filters -->
+    <div id="bld-left">
+      <div id="bld-filters">
+        <input id="bld-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
+      </div>
+      <div id="bld-list"></div>
+      <div class="hexdb-list-footer">
+        <span id="bld-count">0 shown / 0</span>
+        <button onclick="BldDB.deleteSelected()">🗑 Delete</button>
+      </div>
+    </div>
+
+    <!-- Right panel: record editor -->
+    <div id="bld-right">
+      <div class="hexdb-empty">
+        <div>Drop building_database.json here</div>
+        <div>or use <button class="hexdb-empty-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ── Settlements Main ───────────────────────────────────────── -->
+  <div id="settlements-main">
+
+    <!-- Left panel: list + filters -->
+    <div id="stt-left">
+      <div id="stt-filters">
+        <input id="stt-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
+      </div>
+      <div id="stt-list"></div>
+      <div class="hexdb-list-footer">
+        <span id="stt-count">0 shown / 0</span>
+        <button onclick="SttDB.deleteSelected()">🗑 Delete</button>
+      </div>
+    </div>
+
+    <!-- Right panel: record editor -->
+    <div id="stt-right">
+      <div class="hexdb-empty">
+        <div>Drop settlement_database.json here</div>
+        <div>or use <button class="hexdb-empty-btn" onclick="SttDB.triggerLoad()">📂 Load DB</button></div>
+      </div>
+    </div>
+
+  </div>
+
   <!-- Status bar -->
   <div id="statusbar">
     <div class="status-item"><span>Tool: </span><span id="st-tool">Paint</span></div>
@@ -581,7 +932,10 @@ html, body {
   </div>
 </div>
 
-<input type="file" id="file-input" accept=".json" style="display:none">
+<input type="file" id="file-input"       accept=".json" style="display:none">
+<input type="file" id="hexdb-file-input" accept=".json" style="display:none">
+<input type="file" id="bld-file-input"   accept=".json" style="display:none">
+<input type="file" id="stt-file-input"   accept=".json" style="display:none">
 
 <!-- New Map size picker -->
 <div class="modal-overlay" id="newmap-modal">
@@ -2513,6 +2867,1066 @@ const Satellite = (() => {
   };
 })();
 
+// ── App: mode switching ────────────────────────────────────
+const App = {
+  setMode(mode) {
+    const MODES = ['map', 'hexdb', 'buildings', 'settlements'];
+    MODES.forEach(m => {
+      document.body.classList.toggle('mode-' + m, m === mode);
+      const tab = document.getElementById('tab-' + m);
+      if (tab) tab.classList.toggle('active', m === mode);
+    });
+  }
+};
+
+// ── HexDB Module ───────────────────────────────────────────
+const HexDB = (() => {
+  const BIOME_COLORS = {
+    Summer: '#4caf50', Winter: '#90caf9',
+    Desert: '#ffd54f', Radioactive: '#ce93d8'
+  };
+  const BIOMES      = ['Summer', 'Winter', 'Desert', 'Radioactive'];
+  const FILTER_CATS = ['FilterTerrain','FilterResource','FilterWater','FilterSettlement','FilterHazard'];
+  const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, special: true };
+
+  let _data        = { version: 1, hexes: [] };
+  let _clipboard   = null;
+  let _selFilt     = -1;    // selected index in _filtered
+  let _filter      = { search: '', biome: '', type: '' };
+  let _filtered    = [];    // indices into _data.hexes
+  let _secState    = {};    // persisted collapse state per section key
+
+  // ── Blank record ─────────────────────────────────────────
+  function _blank() {
+    return {
+      id:'', textId:'', type:'Plain_1', biome:'Summer',
+      filterCategory:'FilterTerrain', spriteName:'',
+      baseCostGold:0, baseCostGems:0, baseCostEvent:0, mainField9:0,
+      destroyIncomeGold:0, destroyIncomeGems:0, destroyTransformTo:'',
+      destroyCondition:'', destroyBonus:0, destroyEffect:'',
+      destroyDelay:0, destroyRequiresRoad:false,
+      buildCostGold:0, buildCostGems:0, buildCostEvent:0,
+      buildRequiresRoad:false, buildPlacementRule:'',
+      buildMinLevel:0, buildMaxPerMap:0,
+      incomeOnCapture:0, incomePerTurn:0, incomeOccupiedPerTurn:0,
+      humanResourcesPerHex:0, damageModifier:0,
+      bonusDrop:'', booster:'',
+      storageCapacity:0, energyConsumption:0, pollutionConstant:0,
+    };
+  }
+
+  // ── HTML escape ──────────────────────────────────────────
+  function _esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+                          .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  // ── Section collapse helpers ─────────────────────────────
+  function _isCollapsed(key) {
+    return (_secState[key] !== undefined) ? _secState[key] : SECTION_DEFAULTS[key];
+  }
+  function _loadSecState() {
+    try { const s = localStorage.getItem('hexdb_sections'); if (s) _secState = JSON.parse(s); } catch(e) {}
+  }
+  function _saveSecState() {
+    try { localStorage.setItem('hexdb_sections', JSON.stringify(_secState)); } catch(e) {}
+  }
+
+  // ── Duplicate-id check ───────────────────────────────────
+  function _isDuplicate(id, skipRealIdx) {
+    return id !== '' && _data.hexes.some((h, i) => i !== skipRealIdx && h.id === id);
+  }
+
+  // ── Filter & rebuild list ────────────────────────────────
+  function _applyFilter() {
+    const s = _filter.search.toLowerCase();
+    const b = _filter.biome;
+    const t = _filter.type;
+    _filtered = _data.hexes
+      .map((h, i) => i)
+      .filter(i => {
+        const h = _data.hexes[i];
+        if (s && !h.id.toLowerCase().includes(s)) return false;
+        if (b && h.biome !== b) return false;
+        if (t && h.type !== t) return false;
+        return true;
+      });
+    document.getElementById('hexdb-count').textContent =
+      `${_filtered.length} shown / ${_data.hexes.length}`;
+  }
+
+  function _buildList() {
+    const list = document.getElementById('hexdb-list');
+    list.innerHTML = '';
+    _filtered.forEach((realIdx, filtIdx) => {
+      const h = _data.hexes[realIdx];
+      const row = document.createElement('div');
+      row.className = 'hexdb-list-row' + (filtIdx === _selFilt ? ' selected' : '');
+      row.dataset.filtIdx = filtIdx;
+
+      const badge = document.createElement('span');
+      badge.className = 'hexdb-biome-badge';
+      badge.style.background = BIOME_COLORS[h.biome] || '#888';
+
+      const lbl = document.createElement('span');
+      lbl.textContent = h.id || '(unnamed)';
+      if (!h.id || _isDuplicate(h.id, realIdx)) lbl.style.color = '#e55';
+
+      row.appendChild(badge);
+      row.appendChild(lbl);
+      row.addEventListener('click', () => _selectIdx(filtIdx));
+      list.appendChild(row);
+    });
+
+    // Right panel empty state
+    if (_data.hexes.length === 0) {
+      document.getElementById('hexdb-right').innerHTML =
+        `<div class="hexdb-empty">
+          <div>Drop hex_database.json here</div>
+          <div>or use <button class="hexdb-empty-btn" onclick="HexDB.triggerLoad()">📂 Load DB</button></div>
+        </div>`;
+    } else if (_selFilt === -1) {
+      document.getElementById('hexdb-right').innerHTML =
+        '<div class="hexdb-empty"><div>Select a hex to edit</div></div>';
+    }
+  }
+
+  // ── Select row ───────────────────────────────────────────
+  function _selectIdx(filtIdx) {
+    if (filtIdx < 0 || filtIdx >= _filtered.length) { _selFilt = -1; _buildList(); return; }
+    _selFilt = filtIdx;
+    _buildList();
+    _renderRecord(_data.hexes[_filtered[filtIdx]]);
+  }
+
+  // ── Build right-panel HTML ────────────────────────────────
+  function _sectionHTML(key, title, bodyHTML) {
+    const collapsed = _isCollapsed(key);
+    return `<div class="hexdb-section${collapsed ? ' collapsed' : ''}">
+  <div class="hexdb-section-hdr" data-key="${key}">
+    <span>${title}</span><span class="hexdb-chevron">${collapsed ? '▶' : '▼'}</span>
+  </div>
+  <div class="hexdb-section-body">${bodyHTML}</div>
+</div>`;
+  }
+
+  function _row(label, inputHTML) {
+    return `<div class="hexdb-row"><span class="hexdb-label">${label}</span>${inputHTML}</div>`;
+  }
+  function _numInput(field, val) {
+    return `<input class="hexdb-input" type="number" step="1" data-field="${field}" value="${val}">`;
+  }
+  function _textInput(field, val) {
+    return `<input class="hexdb-input" data-field="${field}" value="${_esc(val)}">`;
+  }
+  function _costRow(fields, vals) {
+    return `<div class="hexdb-cost-row">${fields.map((f,i) =>
+      `<label>${f.label}</label><input type="number" step="1" data-field="${f.field}" value="${vals[i]}">`
+    ).join('')}</div>`;
+  }
+  function _checkRow(field, val, labelText) {
+    return `<div class="hexdb-row hexdb-checkbox-row">
+  <span class="hexdb-label"></span>
+  <input type="checkbox" data-field="${field}"${val ? ' checked' : ''}>
+  <label>${labelText}</label>
+</div>`;
+  }
+  function _selectInput(field, options, curVal) {
+    const opts = options.map(o => `<option${o===curVal?' selected':''}>${o}</option>`).join('');
+    return `<select class="hexdb-select" data-field="${field}">${opts}</select>`;
+  }
+
+  function _renderRecord(hex) {
+    const terrainNames = Terrain.getAll().map(t => t.name);
+
+    const mainBody = [
+      `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
+       <input class="hexdb-input" id="hexdb-id" data-field="id" value="${_esc(hex.id)}" placeholder="required"></div>`,
+      _row('TextId',          _textInput('textId', hex.textId)),
+      _row('Type',            _selectInput('type', terrainNames, hex.type)),
+      _row('Biome',           _selectInput('biome', BIOMES, hex.biome)),
+      _row('Filter',          _selectInput('filterCategory', FILTER_CATS, hex.filterCategory)),
+      _row('SpriteName',      _textInput('spriteName', hex.spriteName)),
+      _row('BaseCost',        _costRow(
+        [{label:'Gold',field:'baseCostGold'},{label:'Gems',field:'baseCostGems'},{label:'Event',field:'baseCostEvent'}],
+        [hex.baseCostGold, hex.baseCostGems, hex.baseCostEvent])),
+    ].join('');
+
+    const destroyBody = [
+      _row('Income', _costRow(
+        [{label:'Gold',field:'destroyIncomeGold'},{label:'Gems',field:'destroyIncomeGems'}],
+        [hex.destroyIncomeGold, hex.destroyIncomeGems])),
+      _row('TransformTo',   _textInput('destroyTransformTo', hex.destroyTransformTo)),
+      _row('Condition',     _textInput('destroyCondition',   hex.destroyCondition)),
+      _row('Bonus',         _numInput('destroyBonus',        hex.destroyBonus)),
+      _row('Effect',        _textInput('destroyEffect',      hex.destroyEffect)),
+      _row('Delay',         _numInput('destroyDelay',        hex.destroyDelay)),
+      _checkRow('destroyRequiresRoad', hex.destroyRequiresRoad, 'Requires road to destroy'),
+    ].join('');
+
+    const buildBody = [
+      _row('Cost', _costRow(
+        [{label:'Gold',field:'buildCostGold'},{label:'Gems',field:'buildCostGems'},{label:'Event',field:'buildCostEvent'}],
+        [hex.buildCostGold, hex.buildCostGems, hex.buildCostEvent])),
+      _checkRow('buildRequiresRoad', hex.buildRequiresRoad, 'Requires road to build'),
+      _row('PlacementRule', _textInput('buildPlacementRule', hex.buildPlacementRule)),
+      _row('MinLevel',      _numInput('buildMinLevel',       hex.buildMinLevel)),
+      _row('MaxPerMap',     _numInput('buildMaxPerMap',      hex.buildMaxPerMap)),
+    ].join('');
+
+    const incomeBody = [
+      _row('OnCapture',     _numInput('incomeOnCapture',      hex.incomeOnCapture)),
+      _row('PerTurn',       _numInput('incomePerTurn',        hex.incomePerTurn)),
+      _row('OccupiedPerTurn',_numInput('incomeOccupiedPerTurn',hex.incomeOccupiedPerTurn)),
+      _row('HumanResources',_numInput('humanResourcesPerHex',hex.humanResourcesPerHex)),
+      _row('DamageMod',     _numInput('damageModifier',       hex.damageModifier)),
+    ].join('');
+
+    const specialBody = [
+      _row('BonusDrop',          _textInput('bonusDrop',          hex.bonusDrop)),
+      _row('Booster',            _textInput('booster',            hex.booster)),
+      _row('StorageCapacity',    _numInput('storageCapacity',     hex.storageCapacity)),
+      _row('EnergyConsumption',  _numInput('energyConsumption',   hex.energyConsumption)),
+      _row('PollutionConstant',  _numInput('pollutionConstant',   hex.pollutionConstant)),
+    ].join('');
+
+    const actionsHTML = `<div class="hexdb-actions">
+  <button onclick="HexDB.copy()">Copy</button>
+  <button onclick="HexDB.paste()">Paste</button>
+</div>`;
+
+    document.getElementById('hexdb-right').innerHTML =
+      _sectionHTML('main',    'MAIN (0–9)',     mainBody)    +
+      _sectionHTML('destroy', 'DESTROY (10–17)',destroyBody) +
+      _sectionHTML('build',   'BUILD (18–24)',  buildBody)   +
+      _sectionHTML('income',  'INCOME',         incomeBody)  +
+      _sectionHTML('special', 'SPECIAL',        specialBody) +
+      actionsHTML;
+
+    // Wire section toggles
+    document.querySelectorAll('#hexdb-right .hexdb-section-hdr').forEach(hdr => {
+      hdr.addEventListener('click', () => {
+        const sec = hdr.closest('.hexdb-section');
+        const key = hdr.dataset.key;
+        const col = sec.classList.toggle('collapsed');
+        _secState[key] = col;
+        hdr.querySelector('.hexdb-chevron').textContent = col ? '▶' : '▼';
+        _saveSecState();
+      });
+    });
+
+    // Wire inputs
+    document.querySelectorAll('#hexdb-right [data-field]').forEach(el => {
+      el.addEventListener('input',  _readRecord);
+      el.addEventListener('change', _readRecord);
+      if (el.type === 'number') {
+        el.addEventListener('blur', () => {
+          el.value = Math.round(parseFloat(el.value) || 0);
+          _readRecord();
+        });
+      }
+    });
+
+    _validateId();
+  }
+
+  // ── Read inputs → data ────────────────────────────────────
+  function _readRecord() {
+    if (_selFilt < 0 || _selFilt >= _filtered.length) return;
+    const realIdx = _filtered[_selFilt];
+    const h = _data.hexes[realIdx];
+    document.querySelectorAll('#hexdb-right [data-field]').forEach(el => {
+      const f = el.dataset.field;
+      if (el.type === 'checkbox') h[f] = el.checked;
+      else if (el.type === 'number') h[f] = Math.round(parseFloat(el.value) || 0);
+      else h[f] = el.value;
+    });
+    _validateId();
+    // Update list row label in place
+    const row = document.querySelector(`.hexdb-list-row[data-filt-idx="${_selFilt}"]`);
+    if (row) {
+      const lbl = row.querySelector('span:last-child');
+      if (lbl) {
+        lbl.textContent = h.id || '(unnamed)';
+        lbl.style.color = (!h.id || _isDuplicate(h.id, realIdx)) ? '#e55' : '';
+      }
+      const badge = row.querySelector('.hexdb-biome-badge');
+      if (badge) badge.style.background = BIOME_COLORS[h.biome] || '#888';
+    }
+  }
+
+  function _validateId() {
+    if (_selFilt < 0) return;
+    const realIdx = _filtered[_selFilt];
+    if (realIdx === undefined) return;
+    const h = _data.hexes[realIdx];
+    const el = document.getElementById('hexdb-id');
+    if (el) el.classList.toggle('error', !h.id || _isDuplicate(h.id, realIdx));
+  }
+
+  // ── Public API ────────────────────────────────────────────
+  function init() {
+    _loadSecState();
+
+    // Search
+    document.getElementById('hexdb-search').addEventListener('input', e => {
+      _filter.search = e.target.value;
+      _applyFilter(); _buildList();
+    });
+    // Biome filter
+    document.getElementById('hexdb-biome-filter').addEventListener('change', e => {
+      _filter.biome = e.target.value;
+      _applyFilter(); _buildList();
+    });
+    // Type filter — populate from Terrain
+    const typeFilter = document.getElementById('hexdb-type-filter');
+    Terrain.getAll().forEach(t => {
+      const o = document.createElement('option');
+      o.value = t.name; o.textContent = t.name;
+      typeFilter.appendChild(o);
+    });
+    typeFilter.addEventListener('change', e => {
+      _filter.type = e.target.value;
+      _applyFilter(); _buildList();
+    });
+
+    // File input
+    document.getElementById('hexdb-file-input').addEventListener('change', e => {
+      const f = e.target.files[0];
+      if (f) { const r = new FileReader(); r.onload = ev => load(ev.target.result); r.readAsText(f); }
+      e.target.value = '';
+    });
+
+    // Drag-drop
+    const main = document.getElementById('hexdb-main');
+    main.addEventListener('dragover', e => { e.preventDefault(); main.classList.add('dragover'); });
+    main.addEventListener('dragleave', e => { if (!main.contains(e.relatedTarget)) main.classList.remove('dragover'); });
+    main.addEventListener('drop', e => {
+      e.preventDefault(); main.classList.remove('dragover');
+      const f = e.dataTransfer.files[0];
+      if (f?.name.endsWith('.json')) {
+        const r = new FileReader(); r.onload = ev => load(ev.target.result); r.readAsText(f);
+      }
+    });
+
+    // Keyboard: Delete (HexDB mode, no input focused), Ctrl+Shift+S (HexDB mode)
+    document.addEventListener('keydown', e => {
+      if (!document.body.classList.contains('mode-hexdb')) return;
+      const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
+      if (e.key === 'Delete' && !inInput && _selFilt >= 0) { e.preventDefault(); deleteSelected(); }
+      if (e.ctrlKey && e.shiftKey && e.key === 'S') { e.preventDefault(); save(); }
+    });
+
+    _applyFilter();
+    _buildList();
+  }
+
+  function add() {
+    const h = _blank();
+    h.id = `NewHex_${_data.hexes.length}`;
+    _data.hexes.push(h);
+    _applyFilter();
+    _buildList();
+    const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
+    _selectIdx(filtIdx >= 0 ? filtIdx : _filtered.length - 1);
+    document.getElementById('hexdb-list').scrollTop = 999999;
+  }
+
+  function deleteSelected() {
+    if (_selFilt < 0 || _selFilt >= _filtered.length) return;
+    const realIdx = _filtered[_selFilt];
+    const label = _data.hexes[realIdx].id || '(unnamed)';
+    UI.confirm(`Delete "${label}"?`, () => {
+      _data.hexes.splice(realIdx, 1);
+      _selFilt = -1;
+      _applyFilter(); _buildList();
+    });
+  }
+
+  function copy() {
+    if (_selFilt < 0 || _selFilt >= _filtered.length) return;
+    _clipboard = structuredClone(_data.hexes[_filtered[_selFilt]]);
+    UI.toast('Copied');
+  }
+
+  function paste() {
+    if (!_clipboard) { UI.toast('Nothing to paste'); return; }
+    const h = structuredClone(_clipboard);
+    h.id = h.id + '_copy';
+    _data.hexes.push(h);
+    _applyFilter(); _buildList();
+    const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
+    _selectIdx(filtIdx >= 0 ? filtIdx : _filtered.length - 1);
+    document.getElementById('hexdb-list').scrollTop = 999999;
+  }
+
+  function load(text) {
+    try {
+      const parsed = JSON.parse(text);
+      if (!parsed.hexes || !Array.isArray(parsed.hexes)) throw new Error('Missing hexes array');
+      _data = parsed;
+      _selFilt = -1;
+      _filter = { search: '', biome: '', type: '' };
+      document.getElementById('hexdb-search').value = '';
+      document.getElementById('hexdb-biome-filter').value = '';
+      document.getElementById('hexdb-type-filter').value = '';
+      _applyFilter(); _buildList();
+      UI.toast(`Loaded ${_data.hexes.length} hexes`);
+    } catch(err) {
+      UI.toast('Error: ' + err.message);
+    }
+  }
+
+  function save() {
+    const json = JSON.stringify(_data, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'hex_database.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    UI.toast('Saved hex_database.json');
+  }
+
+  function triggerLoad() { document.getElementById('hexdb-file-input').click(); }
+
+  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad };
+})();
+
+// ── BldDB Module ───────────────────────────────────────────
+const BldDB = (() => {
+  const SECTION_DEFAULTS = { main: false, build: true, levels: false };
+
+  let _data      = { version: 1, buildings: [] };
+  let _clipboard = null;
+  let _selFilt   = -1;
+  let _filter    = { search: '' };
+  let _filtered  = [];
+  let _secState  = {};
+
+  function _blank() {
+    return {
+      id: '', textId: '', spriteName: '', buildingType: '',
+      biome: 'Summer', filterCategory: 'FilterBuilding',
+      startLevel: 1, maxLevel: 1,
+      buildCostGold: 0, buildCostGems: 0, buildCostEvent: 0,
+      buildRequiresRoad: false, buildPlacementRule: '',
+      buildMaxPerMap: 0,
+      levels: [_blankLevel(1)],
+    };
+  }
+
+  function _blankLevel(n) {
+    return {
+      level: n,
+      upgradePriceGold: 0, upgradePriceGems: 0,
+      upgradeCondition: '', transformTo: '', unlockList: '',
+    };
+  }
+
+  function _esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+                          .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _loadSecState() {
+    try { _secState = JSON.parse(localStorage.getItem('blddb-sec') || '{}'); }
+    catch(e) { _secState = {}; }
+    Object.keys(SECTION_DEFAULTS).forEach(k => {
+      if (_secState[k] === undefined) _secState[k] = SECTION_DEFAULTS[k];
+    });
+  }
+
+  function _saveSecState() {
+    localStorage.setItem('blddb-sec', JSON.stringify(_secState));
+  }
+
+  function _applyFilter() {
+    const s = _filter.search.toLowerCase();
+    _filtered = _data.buildings.map((h, i) => i)
+      .filter(i => !s || _data.buildings[i].id.toLowerCase().includes(s));
+  }
+
+  function _buildList() {
+    const list = document.getElementById('bld-list');
+    const count = document.getElementById('bld-count');
+    list.innerHTML = '';
+    _filtered.forEach((dataIdx, filtIdx) => {
+      const h = _data.buildings[dataIdx];
+      const row = document.createElement('div');
+      row.className = 'hexdb-list-row' + (_selFilt === filtIdx ? ' selected' : '');
+      row.dataset.filtIdx = filtIdx;
+      row.innerHTML = `<span class="hexdb-list-id">${_esc(h.id) || '(no id)'}</span>`;
+      row.addEventListener('click', () => _selectIdx(filtIdx));
+      list.appendChild(row);
+    });
+    count.textContent = `${_filtered.length} shown / ${_data.buildings.length}`;
+  }
+
+  function _selectIdx(filtIdx) {
+    _selFilt = filtIdx;
+    document.querySelectorAll('#bld-list .hexdb-list-row').forEach(r => {
+      r.classList.toggle('selected', +r.dataset.filtIdx === filtIdx);
+    });
+    if (filtIdx >= 0 && filtIdx < _filtered.length) {
+      _renderRecord(_data.buildings[_filtered[filtIdx]]);
+    }
+  }
+
+  function _renderRecord(bld) {
+    const right = document.getElementById('bld-right');
+    const collapsed = s => _secState[s] ? '▶' : '▼';
+    const bodyDisplay = s => _secState[s] ? 'none' : 'block';
+
+    function levelCards() {
+      const n = Math.max(1, Math.min(8, bld.maxLevel || 1));
+      let html = '<div class="level-cards">';
+      for (let i = 0; i < n; i++) {
+        const lv = bld.levels[i] || _blankLevel(i + 1);
+        html += `<div class="level-card">
+          <div class="level-hdr">Level ${i + 1}</div>
+          <div class="level-body">
+            <div class="level-row"><label>Upgrade Gold</label>
+              <input type="number" step="1" data-lv="${i}" data-f="upgradePriceGold" value="${_esc(lv.upgradePriceGold)}"></div>
+            <div class="level-row"><label>Upgrade Gems</label>
+              <input type="number" step="1" data-lv="${i}" data-f="upgradePriceGems" value="${_esc(lv.upgradePriceGems)}"></div>
+            <div class="level-row"><label>Upgrade Condition</label>
+              <input type="text" data-lv="${i}" data-f="upgradeCondition" value="${_esc(lv.upgradeCondition)}"></div>
+            <div class="level-row"><label>Transform To</label>
+              <input type="text" data-lv="${i}" data-f="transformTo" value="${_esc(lv.transformTo)}"></div>
+            <div class="level-row"><label>Unlock List</label>
+              <input type="text" data-lv="${i}" data-f="unlockList" value="${_esc(lv.unlockList)}"></div>
+          </div></div>`;
+      }
+      return html + '</div>';
+    }
+
+    right.innerHTML = `<div class="hexdb-form">
+      <div class="hexdb-section-hdr" data-sec="main">${collapsed('main')} MAIN</div>
+      <div class="hexdb-section-body" data-sec="main" style="display:${bodyDisplay('main')}">
+        <div class="hexdb-field-row"><label>Id *</label>
+          <input id="bld-f-id" type="text" value="${_esc(bld.id)}"
+            style="border-color:${!bld.id || _data.buildings.some((b,i)=>b.id===bld.id&&i!==_filtered[_selFilt])?'#e57373':''}"></div>
+        <div class="hexdb-field-row"><label>TextId</label>
+          <input id="bld-f-textId" type="text" value="${_esc(bld.textId)}"></div>
+        <div class="hexdb-field-row"><label>SpriteName</label>
+          <input id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}"></div>
+        <div class="hexdb-field-row"><label>BuildingType</label>
+          <input id="bld-f-buildingType" type="text" value="${_esc(bld.buildingType)}"></div>
+        <div class="hexdb-field-row"><label>Biome</label>
+          <select id="bld-f-biome">${['Summer','Winter','Desert','Radioactive'].map(b=>`<option${bld.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
+        <div class="hexdb-field-row"><label>Filter</label>
+          <input id="bld-f-filterCategory" type="text" value="${_esc(bld.filterCategory)}"></div>
+        <div class="hexdb-field-row"><label>Start Level</label>
+          <input id="bld-f-startLevel" type="number" step="1" min="1" max="8" value="${_esc(bld.startLevel)}"></div>
+        <div class="hexdb-field-row"><label>Max Level</label>
+          <input id="bld-f-maxLevel" type="number" step="1" min="1" max="8" value="${_esc(bld.maxLevel)}"></div>
+      </div>
+      <div class="hexdb-section-hdr" data-sec="build">${collapsed('build')} BUILD</div>
+      <div class="hexdb-section-body" data-sec="build" style="display:${bodyDisplay('build')}">
+        <div class="hexdb-field-row"><label>Cost Gold</label>
+          <input id="bld-f-buildCostGold" type="number" step="1" value="${_esc(bld.buildCostGold)}"></div>
+        <div class="hexdb-field-row"><label>Cost Gems</label>
+          <input id="bld-f-buildCostGems" type="number" step="1" value="${_esc(bld.buildCostGems)}"></div>
+        <div class="hexdb-field-row"><label>Cost Event</label>
+          <input id="bld-f-buildCostEvent" type="number" step="1" value="${_esc(bld.buildCostEvent)}"></div>
+        <div class="hexdb-field-row"><label>Requires Road</label>
+          <input id="bld-f-buildRequiresRoad" type="checkbox"${bld.buildRequiresRoad?' checked':''}></div>
+        <div class="hexdb-field-row"><label>Placement Rule</label>
+          <input id="bld-f-buildPlacementRule" type="text" value="${_esc(bld.buildPlacementRule)}"></div>
+        <div class="hexdb-field-row"><label>Max Per Map</label>
+          <input id="bld-f-buildMaxPerMap" type="number" step="1" value="${_esc(bld.buildMaxPerMap)}"></div>
+      </div>
+      <div class="hexdb-section-hdr" data-sec="levels">${collapsed('levels')} LEVELS</div>
+      <div class="hexdb-section-body" data-sec="levels" style="display:${bodyDisplay('levels')}">${levelCards()}</div>
+      <div class="hexdb-actions">
+        <button onclick="BldDB.copy()">Copy</button>
+        <button onclick="BldDB.paste()">Paste</button>
+      </div>
+    </div>`;
+
+    right.querySelectorAll('.hexdb-section-hdr').forEach(hdr => {
+      hdr.addEventListener('click', () => {
+        const s = hdr.dataset.sec;
+        _secState[s] = !_secState[s];
+        _saveSecState();
+        right.querySelector(`.hexdb-section-body[data-sec="${s}"]`).style.display = _secState[s] ? 'none' : 'block';
+        hdr.textContent = (_secState[s] ? '▶ ' : '▼ ') + hdr.textContent.slice(2);
+      });
+    });
+
+    right.querySelectorAll('input,select').forEach(el => {
+      el.addEventListener('input',  () => _readRecord());
+      el.addEventListener('change', () => _readRecord());
+    });
+
+    const maxLvlEl = document.getElementById('bld-f-maxLevel');
+    if (maxLvlEl) {
+      maxLvlEl.addEventListener('change', () => {
+        _readRecord();
+        _renderRecord(_data.buildings[_filtered[_selFilt]]);
+      });
+    }
+  }
+
+  function _readRecord() {
+    if (_selFilt < 0 || _selFilt >= _filtered.length) return;
+    const bld = _data.buildings[_filtered[_selFilt]];
+    const g = id => document.getElementById(id);
+    const iv = id => { const el = g(id); return el ? el.value : ''; };
+    const nv = id => { const el = g(id); return el ? (parseInt(el.value,10)||0) : 0; };
+    const bv = id => { const el = g(id); return el ? el.checked : false; };
+
+    bld.id              = iv('bld-f-id');
+    bld.textId          = iv('bld-f-textId');
+    bld.spriteName      = iv('bld-f-spriteName');
+    bld.buildingType    = iv('bld-f-buildingType');
+    bld.biome           = iv('bld-f-biome');
+    bld.filterCategory  = iv('bld-f-filterCategory');
+    bld.startLevel      = nv('bld-f-startLevel');
+    bld.maxLevel        = nv('bld-f-maxLevel');
+    bld.buildCostGold   = nv('bld-f-buildCostGold');
+    bld.buildCostGems   = nv('bld-f-buildCostGems');
+    bld.buildCostEvent  = nv('bld-f-buildCostEvent');
+    bld.buildRequiresRoad   = bv('bld-f-buildRequiresRoad');
+    bld.buildPlacementRule  = iv('bld-f-buildPlacementRule');
+    bld.buildMaxPerMap      = nv('bld-f-buildMaxPerMap');
+
+    const n = Math.max(1, Math.min(8, bld.maxLevel || 1));
+    while (bld.levels.length < n) bld.levels.push(_blankLevel(bld.levels.length + 1));
+    if (bld.levels.length > n) bld.levels.length = n;
+
+    document.getElementById('bld-right').querySelectorAll('[data-lv]').forEach(el => {
+      const lv = parseInt(el.dataset.lv, 10);
+      const f  = el.dataset.f;
+      if (!bld.levels[lv]) return;
+      bld.levels[lv][f] = el.type === 'number' ? (parseInt(el.value,10)||0) : el.value;
+    });
+
+    const row = document.querySelector(`#bld-list .hexdb-list-row[data-filt-idx="${_selFilt}"]`);
+    if (row) row.querySelector('.hexdb-list-id').textContent = bld.id || '(no id)';
+
+    const idEl = g('bld-f-id');
+    if (idEl) {
+      const isDupe = _data.buildings.some((b,i) => b.id===bld.id && i!==_filtered[_selFilt]);
+      idEl.style.borderColor = (!bld.id || isDupe) ? '#e57373' : '';
+    }
+  }
+
+  function add() {
+    _data.buildings.push(_blank());
+    _applyFilter();
+    _buildList();
+    _selectIdx(_filtered.indexOf(_data.buildings.length - 1));
+  }
+
+  function deleteSelected() {
+    if (_selFilt < 0) return;
+    const dataIdx = _filtered[_selFilt];
+    UI.confirm(`Delete "${_data.buildings[dataIdx].id || '(no id)'}"?`, () => {
+      _data.buildings.splice(dataIdx, 1);
+      _selFilt = -1;
+      _applyFilter();
+      _buildList();
+      document.getElementById('bld-right').innerHTML =
+        '<div class="hexdb-empty"><div>Drop building_database.json here</div>' +
+        '<div>or use <button class="hexdb-empty-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button></div></div>';
+    });
+  }
+
+  function copy() {
+    if (_selFilt < 0) return;
+    _clipboard = structuredClone(_data.buildings[_filtered[_selFilt]]);
+    UI.toast('Copied ' + (_clipboard.id || '(no id)'));
+  }
+
+  function paste() {
+    if (!_clipboard) return;
+    const clone = structuredClone(_clipboard);
+    clone.id += '_copy';
+    _data.buildings.push(clone);
+    _applyFilter();
+    _buildList();
+    _selectIdx(_filtered.indexOf(_data.buildings.length - 1));
+  }
+
+  function load(json) {
+    try {
+      const parsed = JSON.parse(json);
+      if (!parsed.buildings || !Array.isArray(parsed.buildings)) throw new Error('No "buildings" array');
+      _data = parsed;
+      _selFilt = -1;
+      _applyFilter();
+      _buildList();
+      document.getElementById('bld-right').innerHTML =
+        '<div class="hexdb-empty"><div>Drop building_database.json here</div>' +
+        '<div>or use <button class="hexdb-empty-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button></div></div>';
+      if (_filtered.length) _selectIdx(0);
+      UI.toast(`Loaded ${_data.buildings.length} buildings`);
+    } catch(e) { UI.toast('Error: ' + e.message); }
+  }
+
+  function save() {
+    const blob = new Blob([JSON.stringify(_data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'building_database.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    UI.toast('Saved building_database.json');
+  }
+
+  function triggerLoad() { document.getElementById('bld-file-input').click(); }
+
+  function init() {
+    _loadSecState();
+
+    const fi = document.getElementById('bld-file-input');
+    fi.addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => load(ev.target.result);
+      r.readAsText(f); fi.value = '';
+    });
+
+    document.getElementById('bld-search').addEventListener('input', e => {
+      _filter.search = e.target.value;
+      _applyFilter(); _buildList();
+      if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+    });
+
+    const main = document.getElementById('buildings-main');
+    main.addEventListener('dragover', e => { e.preventDefault(); main.classList.add('dragover'); });
+    main.addEventListener('dragleave', () => main.classList.remove('dragover'));
+    main.addEventListener('drop', e => {
+      e.preventDefault(); main.classList.remove('dragover');
+      const f = e.dataTransfer.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => load(ev.target.result);
+      r.readAsText(f);
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Delete' && document.body.classList.contains('mode-buildings') &&
+          !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))
+        BldDB.deleteSelected();
+    });
+  }
+
+  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad };
+})();
+
+// ── SttDB Module ───────────────────────────────────────────
+const SttDB = (() => {
+  const SECTION_DEFAULTS = { main: false, build: true, levels: false };
+
+  let _data      = { version: 1, settlements: [] };
+  let _clipboard = null;
+  let _selFilt   = -1;
+  let _filter    = { search: '' };
+  let _filtered  = [];
+  let _secState  = {};
+
+  function _blank() {
+    return {
+      id: '', textId: '', spriteName: '', settlementType: '',
+      biome: 'Summer', filterCategory: 'FilterSettlement',
+      startLevel: 1, maxLevel: 1,
+      buildCostGold: 0, buildCostGems: 0,
+      levels: [_blankLevel(1)],
+    };
+  }
+
+  function _blankLevel(n) {
+    return {
+      level: n,
+      upgradePriceGold: 0, upgradePriceGems: 0,
+      upgradeCondition: '', transformTo: '',
+      unlockList: '', unlockBuildings: '',
+    };
+  }
+
+  function _esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+                          .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _loadSecState() {
+    try { _secState = JSON.parse(localStorage.getItem('sttdb-sec') || '{}'); }
+    catch(e) { _secState = {}; }
+    Object.keys(SECTION_DEFAULTS).forEach(k => {
+      if (_secState[k] === undefined) _secState[k] = SECTION_DEFAULTS[k];
+    });
+  }
+
+  function _saveSecState() {
+    localStorage.setItem('sttdb-sec', JSON.stringify(_secState));
+  }
+
+  function _applyFilter() {
+    const s = _filter.search.toLowerCase();
+    _filtered = _data.settlements.map((h, i) => i)
+      .filter(i => !s || _data.settlements[i].id.toLowerCase().includes(s));
+  }
+
+  function _buildList() {
+    const list = document.getElementById('stt-list');
+    const count = document.getElementById('stt-count');
+    list.innerHTML = '';
+    _filtered.forEach((dataIdx, filtIdx) => {
+      const h = _data.settlements[dataIdx];
+      const row = document.createElement('div');
+      row.className = 'hexdb-list-row' + (_selFilt === filtIdx ? ' selected' : '');
+      row.dataset.filtIdx = filtIdx;
+      row.innerHTML = `<span class="hexdb-list-id">${_esc(h.id) || '(no id)'}</span>`;
+      row.addEventListener('click', () => _selectIdx(filtIdx));
+      list.appendChild(row);
+    });
+    count.textContent = `${_filtered.length} shown / ${_data.settlements.length}`;
+  }
+
+  function _selectIdx(filtIdx) {
+    _selFilt = filtIdx;
+    document.querySelectorAll('#stt-list .hexdb-list-row').forEach(r => {
+      r.classList.toggle('selected', +r.dataset.filtIdx === filtIdx);
+    });
+    if (filtIdx >= 0 && filtIdx < _filtered.length) {
+      _renderRecord(_data.settlements[_filtered[filtIdx]]);
+    }
+  }
+
+  function _renderRecord(stt) {
+    const right = document.getElementById('stt-right');
+    const collapsed = s => _secState[s] ? '▶' : '▼';
+    const bodyDisplay = s => _secState[s] ? 'none' : 'block';
+
+    function levelCards() {
+      const n = Math.max(1, Math.min(8, stt.maxLevel || 1));
+      let html = '<div class="level-cards">';
+      for (let i = 0; i < n; i++) {
+        const lv = stt.levels[i] || _blankLevel(i + 1);
+        html += `<div class="level-card">
+          <div class="level-hdr">Level ${i + 1}</div>
+          <div class="level-body">
+            <div class="level-row"><label>Upgrade Gold</label>
+              <input type="number" step="1" data-lv="${i}" data-f="upgradePriceGold" value="${_esc(lv.upgradePriceGold)}"></div>
+            <div class="level-row"><label>Upgrade Gems</label>
+              <input type="number" step="1" data-lv="${i}" data-f="upgradePriceGems" value="${_esc(lv.upgradePriceGems)}"></div>
+            <div class="level-row"><label>Upgrade Condition</label>
+              <input type="text" data-lv="${i}" data-f="upgradeCondition" value="${_esc(lv.upgradeCondition)}"></div>
+            <div class="level-row"><label>Transform To</label>
+              <input type="text" data-lv="${i}" data-f="transformTo" value="${_esc(lv.transformTo)}"></div>
+            <div class="level-row"><label>Unlock List</label>
+              <input type="text" data-lv="${i}" data-f="unlockList" value="${_esc(lv.unlockList)}"></div>
+            <div class="level-row"><label>Unlock Buildings</label>
+              <input type="text" data-lv="${i}" data-f="unlockBuildings" value="${_esc(lv.unlockBuildings)}"></div>
+          </div></div>`;
+      }
+      return html + '</div>';
+    }
+
+    right.innerHTML = `<div class="hexdb-form">
+      <div class="hexdb-section-hdr" data-sec="main">${collapsed('main')} MAIN</div>
+      <div class="hexdb-section-body" data-sec="main" style="display:${bodyDisplay('main')}">
+        <div class="hexdb-field-row"><label>Id *</label>
+          <input id="stt-f-id" type="text" value="${_esc(stt.id)}"
+            style="border-color:${!stt.id || _data.settlements.some((b,i)=>b.id===stt.id&&i!==_filtered[_selFilt])?'#e57373':''}"></div>
+        <div class="hexdb-field-row"><label>TextId</label>
+          <input id="stt-f-textId" type="text" value="${_esc(stt.textId)}"></div>
+        <div class="hexdb-field-row"><label>SpriteName</label>
+          <input id="stt-f-spriteName" type="text" value="${_esc(stt.spriteName)}"></div>
+        <div class="hexdb-field-row"><label>SettlementType</label>
+          <input id="stt-f-settlementType" type="text" value="${_esc(stt.settlementType)}"></div>
+        <div class="hexdb-field-row"><label>Biome</label>
+          <select id="stt-f-biome">${['Summer','Winter','Desert','Radioactive'].map(b=>`<option${stt.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
+        <div class="hexdb-field-row"><label>Filter</label>
+          <input id="stt-f-filterCategory" type="text" value="${_esc(stt.filterCategory)}"></div>
+        <div class="hexdb-field-row"><label>Start Level</label>
+          <input id="stt-f-startLevel" type="number" step="1" min="1" max="8" value="${_esc(stt.startLevel)}"></div>
+        <div class="hexdb-field-row"><label>Max Level</label>
+          <input id="stt-f-maxLevel" type="number" step="1" min="1" max="8" value="${_esc(stt.maxLevel)}"></div>
+      </div>
+      <div class="hexdb-section-hdr" data-sec="build">${collapsed('build')} BUILD</div>
+      <div class="hexdb-section-body" data-sec="build" style="display:${bodyDisplay('build')}">
+        <div class="hexdb-field-row"><label>Cost Gold</label>
+          <input id="stt-f-buildCostGold" type="number" step="1" value="${_esc(stt.buildCostGold)}"></div>
+        <div class="hexdb-field-row"><label>Cost Gems</label>
+          <input id="stt-f-buildCostGems" type="number" step="1" value="${_esc(stt.buildCostGems)}"></div>
+      </div>
+      <div class="hexdb-section-hdr" data-sec="levels">${collapsed('levels')} LEVELS</div>
+      <div class="hexdb-section-body" data-sec="levels" style="display:${bodyDisplay('levels')}">${levelCards()}</div>
+      <div class="hexdb-actions">
+        <button onclick="SttDB.copy()">Copy</button>
+        <button onclick="SttDB.paste()">Paste</button>
+      </div>
+    </div>`;
+
+    right.querySelectorAll('.hexdb-section-hdr').forEach(hdr => {
+      hdr.addEventListener('click', () => {
+        const s = hdr.dataset.sec;
+        _secState[s] = !_secState[s];
+        _saveSecState();
+        right.querySelector(`.hexdb-section-body[data-sec="${s}"]`).style.display = _secState[s] ? 'none' : 'block';
+        hdr.textContent = (_secState[s] ? '▶ ' : '▼ ') + hdr.textContent.slice(2);
+      });
+    });
+
+    right.querySelectorAll('input,select').forEach(el => {
+      el.addEventListener('input',  () => _readRecord());
+      el.addEventListener('change', () => _readRecord());
+    });
+
+    const maxLvlEl = document.getElementById('stt-f-maxLevel');
+    if (maxLvlEl) {
+      maxLvlEl.addEventListener('change', () => {
+        _readRecord();
+        _renderRecord(_data.settlements[_filtered[_selFilt]]);
+      });
+    }
+  }
+
+  function _readRecord() {
+    if (_selFilt < 0 || _selFilt >= _filtered.length) return;
+    const stt = _data.settlements[_filtered[_selFilt]];
+    const g = id => document.getElementById(id);
+    const iv = id => { const el = g(id); return el ? el.value : ''; };
+    const nv = id => { const el = g(id); return el ? (parseInt(el.value,10)||0) : 0; };
+
+    stt.id             = iv('stt-f-id');
+    stt.textId         = iv('stt-f-textId');
+    stt.spriteName     = iv('stt-f-spriteName');
+    stt.settlementType = iv('stt-f-settlementType');
+    stt.biome          = iv('stt-f-biome');
+    stt.filterCategory = iv('stt-f-filterCategory');
+    stt.startLevel     = nv('stt-f-startLevel');
+    stt.maxLevel       = nv('stt-f-maxLevel');
+    stt.buildCostGold  = nv('stt-f-buildCostGold');
+    stt.buildCostGems  = nv('stt-f-buildCostGems');
+
+    const n = Math.max(1, Math.min(8, stt.maxLevel || 1));
+    while (stt.levels.length < n) stt.levels.push(_blankLevel(stt.levels.length + 1));
+    if (stt.levels.length > n) stt.levels.length = n;
+
+    document.getElementById('stt-right').querySelectorAll('[data-lv]').forEach(el => {
+      const lv = parseInt(el.dataset.lv, 10);
+      const f  = el.dataset.f;
+      if (!stt.levels[lv]) return;
+      stt.levels[lv][f] = el.type === 'number' ? (parseInt(el.value,10)||0) : el.value;
+    });
+
+    const row = document.querySelector(`#stt-list .hexdb-list-row[data-filt-idx="${_selFilt}"]`);
+    if (row) row.querySelector('.hexdb-list-id').textContent = stt.id || '(no id)';
+
+    const idEl = g('stt-f-id');
+    if (idEl) {
+      const isDupe = _data.settlements.some((b,i) => b.id===stt.id && i!==_filtered[_selFilt]);
+      idEl.style.borderColor = (!stt.id || isDupe) ? '#e57373' : '';
+    }
+  }
+
+  function add() {
+    _data.settlements.push(_blank());
+    _applyFilter();
+    _buildList();
+    _selectIdx(_filtered.indexOf(_data.settlements.length - 1));
+  }
+
+  function deleteSelected() {
+    if (_selFilt < 0) return;
+    const dataIdx = _filtered[_selFilt];
+    UI.confirm(`Delete "${_data.settlements[dataIdx].id || '(no id)'}"?`, () => {
+      _data.settlements.splice(dataIdx, 1);
+      _selFilt = -1;
+      _applyFilter();
+      _buildList();
+      document.getElementById('stt-right').innerHTML =
+        '<div class="hexdb-empty"><div>Drop settlement_database.json here</div>' +
+        '<div>or use <button class="hexdb-empty-btn" onclick="SttDB.triggerLoad()">📂 Load DB</button></div></div>';
+    });
+  }
+
+  function copy() {
+    if (_selFilt < 0) return;
+    _clipboard = structuredClone(_data.settlements[_filtered[_selFilt]]);
+    UI.toast('Copied ' + (_clipboard.id || '(no id)'));
+  }
+
+  function paste() {
+    if (!_clipboard) return;
+    const clone = structuredClone(_clipboard);
+    clone.id += '_copy';
+    _data.settlements.push(clone);
+    _applyFilter();
+    _buildList();
+    _selectIdx(_filtered.indexOf(_data.settlements.length - 1));
+  }
+
+  function load(json) {
+    try {
+      const parsed = JSON.parse(json);
+      if (!parsed.settlements || !Array.isArray(parsed.settlements)) throw new Error('No "settlements" array');
+      _data = parsed;
+      _selFilt = -1;
+      _applyFilter();
+      _buildList();
+      document.getElementById('stt-right').innerHTML =
+        '<div class="hexdb-empty"><div>Drop settlement_database.json here</div>' +
+        '<div>or use <button class="hexdb-empty-btn" onclick="SttDB.triggerLoad()">📂 Load DB</button></div></div>';
+      if (_filtered.length) _selectIdx(0);
+      UI.toast(`Loaded ${_data.settlements.length} settlements`);
+    } catch(e) { UI.toast('Error: ' + e.message); }
+  }
+
+  function save() {
+    const blob = new Blob([JSON.stringify(_data, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'settlement_database.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    UI.toast('Saved settlement_database.json');
+  }
+
+  function triggerLoad() { document.getElementById('stt-file-input').click(); }
+
+  function init() {
+    _loadSecState();
+
+    const fi = document.getElementById('stt-file-input');
+    fi.addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => load(ev.target.result);
+      r.readAsText(f); fi.value = '';
+    });
+
+    document.getElementById('stt-search').addEventListener('input', e => {
+      _filter.search = e.target.value;
+      _applyFilter(); _buildList();
+      if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+    });
+
+    const main = document.getElementById('settlements-main');
+    main.addEventListener('dragover', e => { e.preventDefault(); main.classList.add('dragover'); });
+    main.addEventListener('dragleave', () => main.classList.remove('dragover'));
+    main.addEventListener('drop', e => {
+      e.preventDefault(); main.classList.remove('dragover');
+      const f = e.dataTransfer.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => load(ev.target.result);
+      r.readAsText(f);
+    });
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'Delete' && document.body.classList.contains('mode-settlements') &&
+          !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))
+        SttDB.deleteSelected();
+    });
+  }
+
+  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad };
+})();
+
 // ── Shared state (visible to all modules) ──────────────────
 // Task 8: menu wiring verified
 let MAP_WIDTH  = 450;
@@ -2542,6 +3956,18 @@ window.addEventListener('load', async () => {
   History.initKeyboard();
   IO.initFileInput();
   IO.initKeyboard();
+  HexDB.init();
+  BldDB.init();
+  SttDB.init();
+  // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Tab' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+      e.preventDefault();
+      const MODES = ['map', 'hexdb', 'buildings', 'settlements'];
+      const cur = MODES.findIndex(m => document.body.classList.contains('mode-' + m));
+      App.setMode(MODES[(cur + 1) % MODES.length]);
+    }
+  });
   Canvas.centerOnCity();
   IO.showNewMapPrompt();  // ask user for map size on startup
   console.log('[MapEditorPro] Ready.');
