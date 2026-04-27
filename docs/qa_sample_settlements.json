@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "settlements": [
+    {
+      "id": "Village",
+      "textId": "village_title",
+      "spriteName": "village_sprite",
+      "settlementType": "Rural",
+      "biome": "Summer",
+      "filterCategory": "FilterSettlement",
+      "startLevel": 1,
+      "maxLevel": 3,
+      "buildCostGold": 50,
+      "buildCostGems": 0,
+      "levels": [
+        {
+          "level": 1,
+          "upgradePriceGold": 0,
+          "upgradePriceGems": 0,
+          "upgradeCondition": "",
+          "transformTo": "",
+          "unlockList": "",
+          "unlockBuildings": "Farm"
+        },
+        {
+          "level": 2,
+          "upgradePriceGold": 200,
+          "upgradePriceGems": 0,
+          "upgradeCondition": "Population100",
+          "transformTo": "",
+          "unlockList": "",
+          "unlockBuildings": "Farm,Barracks"
+        },
+        {
+          "level": 3,
+          "upgradePriceGold": 500,
+          "upgradePriceGems": 5,
+          "upgradeCondition": "Population500",
+          "transformTo": "Town",
+          "unlockList": "",
+          "unlockBuildings": "Farm,Barracks,PowerPlant"
+        }
+      ]
+    },
+    {
+      "id": "Town",
+      "textId": "town_title",
+      "spriteName": "town_sprite",
+      "settlementType": "Urban",
+      "biome": "Summer",
+      "filterCategory": "FilterSettlement",
+      "startLevel": 3,
+      "maxLevel": 5,
+      "buildCostGold": 0,
+      "buildCostGems": 0,
+      "levels": [
+        {
+          "level": 3,
+          "upgradePriceGold": 0,
+          "upgradePriceGems": 0,
+          "upgradeCondition": "",
+          "transformTo": "",
+          "unlockList": "",
+          "unlockBuildings": "Farm,Barracks,PowerPlant"
+        },
+        {
+          "level": 4,
+          "upgradePriceGold": 1000,
+          "upgradePriceGems": 10,
+          "upgradeCondition": "Population2000",
+          "transformTo": "",
+          "unlockList": "",
+          "unlockBuildings": "Farm,Barracks,PowerPlant,Barracks_Elite"
+        },
+        {
+          "level": 5,
+          "upgradePriceGold": 2500,
+          "upgradePriceGems": 25,
+          "upgradeCondition": "Population5000",
+          "transformTo": "City",
+          "unlockList": "",
+          "unlockBuildings": "Farm,Barracks,PowerPlant,Barracks_Elite"
+        }
+      ]
+    },
+    {
+      "id": "City",
+      "textId": "city_title",
+      "spriteName": "city_sprite",
+      "settlementType": "Metro",
+      "biome": "Summer",
+      "filterCategory": "FilterSettlement",
+      "startLevel": 5,
+      "maxLevel": 8,
+      "buildCostGold": 0,
+      "buildCostGems": 0,
+      "levels": [
+        {
+          "level": 5,
+          "upgradePriceGold": 0,
+          "upgradePriceGems": 0,
+          "upgradeCondition": "",
+          "transformTo": "",
+          "unlockList": "",
+          "unlockBuildings": "Farm,Barracks,PowerPlant,Barracks_Elite"
+        },
+        {
+          "level": 6,
+          "upgradePriceGold": 5000,
+          "upgradePriceGems": 50,
+          "upgradeCondition": "Population20000",
+          "transformTo": "",
+          "unlockList": "",
+          "unlockBuildings": "Farm,Barracks,PowerPlant,Barracks_Elite"
+        },
+        {
+          "level": 7,
+          "upgradePriceGold": 10000,
+          "upgradePriceGems": 100,
+          "upgradeCondition": "Population50000",
+          "transformTo": "",
+          "unlockList": "",
+          "unlockBuildings": "Farm,Barracks,PowerPlant,Barracks_Elite"
+        },
+        {
+          "level": 8,
+          "upgradePriceGold": 20000,
+          "upgradePriceGems": 200,
+          "upgradeCondition": "Population100000",
+          "transformTo": "",
+          "unlockList": "",
+          "unlockBuildings": "Farm,Barracks,PowerPlant,Barracks_Elite"
+        }
+      ]
+    }
+  ]
+}

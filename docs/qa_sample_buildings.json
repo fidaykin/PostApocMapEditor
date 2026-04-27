@@ -1,0 +1,133 @@
+{
+  "version": 1,
+  "buildings": [
+    {
+      "id": "Barracks",
+      "textId": "barracks_title",
+      "spriteName": "barracks_sprite",
+      "buildingType": "Military",
+      "biome": "Summer",
+      "filterCategory": "FilterBuilding",
+      "startLevel": 1,
+      "maxLevel": 3,
+      "buildCostGold": 200,
+      "buildCostGems": 5,
+      "buildCostEvent": 0,
+      "buildRequiresRoad": false,
+      "buildPlacementRule": "AdjacentToRoad",
+      "buildMaxPerMap": 10,
+      "levels": [
+        {
+          "level": 1,
+          "upgradePriceGold": 0,
+          "upgradePriceGems": 0,
+          "upgradeCondition": "",
+          "transformTo": "",
+          "unlockList": ""
+        },
+        {
+          "level": 2,
+          "upgradePriceGold": 300,
+          "upgradePriceGems": 10,
+          "upgradeCondition": "PlayerLevel5",
+          "transformTo": "",
+          "unlockList": ""
+        },
+        {
+          "level": 3,
+          "upgradePriceGold": 600,
+          "upgradePriceGems": 20,
+          "upgradeCondition": "PlayerLevel10",
+          "transformTo": "Barracks_Elite",
+          "unlockList": "HeavyInfantry,Sniper"
+        }
+      ]
+    },
+    {
+      "id": "Farm",
+      "textId": "farm_title",
+      "spriteName": "farm_sprite",
+      "buildingType": "Production",
+      "biome": "Summer",
+      "filterCategory": "FilterBuilding",
+      "startLevel": 1,
+      "maxLevel": 2,
+      "buildCostGold": 80,
+      "buildCostGems": 0,
+      "buildCostEvent": 0,
+      "buildRequiresRoad": false,
+      "buildPlacementRule": "",
+      "buildMaxPerMap": 20,
+      "levels": [
+        {
+          "level": 1,
+          "upgradePriceGold": 0,
+          "upgradePriceGems": 0,
+          "upgradeCondition": "",
+          "transformTo": "",
+          "unlockList": ""
+        },
+        {
+          "level": 2,
+          "upgradePriceGold": 150,
+          "upgradePriceGems": 0,
+          "upgradeCondition": "",
+          "transformTo": "",
+          "unlockList": ""
+        }
+      ]
+    },
+    {
+      "id": "PowerPlant",
+      "textId": "powerplant_title",
+      "spriteName": "powerplant_sprite",
+      "buildingType": "Energy",
+      "biome": "Summer",
+      "filterCategory": "FilterBuilding",
+      "startLevel": 1,
+      "maxLevel": 1,
+      "buildCostGold": 500,
+      "buildCostGems": 15,
+      "buildCostEvent": 0,
+      "buildRequiresRoad": true,
+      "buildPlacementRule": "NearWater",
+      "buildMaxPerMap": 3,
+      "levels": [
+        {
+          "level": 1,
+          "upgradePriceGold": 0,
+          "upgradePriceGems": 0,
+          "upgradeCondition": "",
+          "transformTo": "",
+          "unlockList": ""
+        }
+      ]
+    },
+    {
+      "id": "Barracks_Elite",
+      "textId": "barracks_elite_title",
+      "spriteName": "barracks_elite_sprite",
+      "buildingType": "Military",
+      "biome": "Summer",
+      "filterCategory": "FilterBuilding",
+      "startLevel": 3,
+      "maxLevel": 3,
+      "buildCostGold": 0,
+      "buildCostGems": 0,
+      "buildCostEvent": 0,
+      "buildRequiresRoad": false,
+      "buildPlacementRule": "",
+      "buildMaxPerMap": 5,
+      "levels": [
+        {
+          "level": 3,
+          "upgradePriceGold": 0,
+          "upgradePriceGems": 0,
+          "upgradeCondition": "",
+          "transformTo": "",
+          "unlockList": "HeavyInfantry,Sniper,Artillery"
+        }
+      ]
+    }
+  ]
+}
