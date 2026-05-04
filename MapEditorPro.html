@@ -4014,6 +4014,13 @@ window.addEventListener('load', async () => {
     }
   });
   Canvas.centerOnCity();
+  // Force a canvas redraw when the tab becomes visible again after being
+  // inactive — the browser may have discarded the canvas contents while hidden.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) {
+      Canvas.render();
+    }
+  });
   IO.showNewMapPrompt();  // ask user for map size on startup
   console.log('[MapEditorPro] Ready.');
 });
