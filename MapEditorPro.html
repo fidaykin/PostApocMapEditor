@@ -3236,7 +3236,7 @@ const HexDB = (() => {
     if (_selFilt < 0 || _selFilt >= _filtered.length) return;
     const realIdx = _filtered[_selFilt];
     const label = _data.hexes[realIdx].id || '(unnamed)';
-    UI.confirm(`Delete "${label}"?`, () => {
+    UI.showConfirm('Delete Hex', `Delete "${label}"?`, () => {
       _data.hexes.splice(realIdx, 1);
       _selFilt = -1;
       _applyFilter(); _buildList();
@@ -3523,7 +3523,7 @@ const BldDB = (() => {
   function deleteSelected() {
     if (_selFilt < 0) return;
     const dataIdx = _filtered[_selFilt];
-    UI.confirm(`Delete "${_data.buildings[dataIdx].id || '(no id)'}"?`, () => {
+    UI.showConfirm('Delete Building', `Delete "${_data.buildings[dataIdx].id || '(no id)'}"?`, () => {
       _data.buildings.splice(dataIdx, 1);
       _selFilt = -1;
       _applyFilter();
@@ -3834,7 +3834,7 @@ const SttDB = (() => {
   function deleteSelected() {
     if (_selFilt < 0) return;
     const dataIdx = _filtered[_selFilt];
-    UI.confirm(`Delete "${_data.settlements[dataIdx].id || '(no id)'}"?`, () => {
+    UI.showConfirm('Delete Settlement', `Delete "${_data.settlements[dataIdx].id || '(no id)'}"?`, () => {
       _data.settlements.splice(dataIdx, 1);
       _selFilt = -1;
       _applyFilter();
