@@ -2956,7 +2956,8 @@ const HexDB = (() => {
         if (b && h.biome !== b) return false;
         if (t && h.type !== t) return false;
         return true;
-      });
+      })
+      .sort((a, b) => _data.hexes[a].id.toLowerCase().localeCompare(_data.hexes[b].id.toLowerCase()));
     document.getElementById('hexdb-count').textContent =
       `${_filtered.length} shown / ${_data.hexes.length}`;
   }
