@@ -3195,15 +3195,9 @@ const HexDB = (() => {
     });
     // Type filter — populate from Terrain
     const typeFilter = document.getElementById('hexdb-type-filter');
-    // Add 'New' as first option
-    {
+    ['New', ...Terrain.getAll().map(t => t.name)].forEach(name => {
       const o = document.createElement('option');
-      o.value = 'New'; o.textContent = 'New';
-      typeFilter.appendChild(o);
-    }
-    Terrain.getAll().forEach(t => {
-      const o = document.createElement('option');
-      o.value = t.name; o.textContent = t.name;
+      o.value = name; o.textContent = name;
       typeFilter.appendChild(o);
     });
     typeFilter.addEventListener('change', e => {
