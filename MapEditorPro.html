@@ -2899,6 +2899,24 @@ const HexDB = (() => {
   let _filtered    = [];    // indices into _data.hexes
   let _secState    = {};    // persisted collapse state per section key
 
+  const TYPE_GROUPS = {
+    'Special':   ['New'],
+    'Plains':    ['Plain_1', 'Plain_2', 'Plain_3'],
+    'Forests':   ['Forest_1', 'Forest_2', 'Forest_3'],
+    'Rivers':    ['River_1', 'River_2', 'River_3', 'River_4', 'River_5', 'River_6'],
+    'Seas':      ['Sea_1', 'Sea_2', 'Sea_3'],
+    'Mountains': ['Mountain_1', 'Mountain_2'],
+    'Hills':     ['Hill_1', 'Hill_2'],
+  };
+
+  function _typeGroupOptions(selectedVal) {
+    return Object.entries(TYPE_GROUPS).map(([group, types]) =>
+      `<optgroup label="${group}">${types.map(t =>
+        `<option value="${t}"${t === selectedVal ? ' selected' : ''}>${t}</option>`
+      ).join('')}</optgroup>`
+    ).join('');
+  }
+
   // ── Blank record ─────────────────────────────────────────
   function _blank() {
     return {
@@ -3044,13 +3062,12 @@ const HexDB = (() => {
   }
 
   function _renderRecord(hex) {
-    const terrainNames = ['New', ...Terrain.getAll().map(t => t.name)];
-
     const mainBody = [
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
-       <input class="hexdb-input" id="hexdb-id" data-field="id" value="${_esc(hex.id)}" placeholder="required"></div>`,
+       <input class="hexdb-input" id="hexdb-id" data-field="id" value="${_esc(hex.id)}" placeholder="e.g. Plain_1">
+       <small style="color:#888;font-size:0.8em;display:block;margin-top:2px">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small></div>`,
       _row('TextId',          _textInput('textId', hex.textId)),
-      _row('Type',            _selectInput('type', terrainNames, hex.type)),
+      _row('Type',            `<select class="hexdb-select" data-field="type">${_typeGroupOptions(hex.type)}</select>`),
       _row('Biome',           _selectInput('biome', BIOMES, hex.biome)),
       _row('Filter',          _selectInput('filterCategory', FILTER_CATS, hex.filterCategory)),
       _row('SpriteName',      _textInput('spriteName', hex.spriteName) +
@@ -3194,12 +3211,17 @@ const HexDB = (() => {
       _filter.biome = e.target.value;
       _applyFilter(); _buildList();
     });
-    // Type filter — populate from Terrain
+    // Type filter — populate grouped by TYPE_GROUPS
     const typeFilter = document.getElementById('hexdb-type-filter');
-    ['New', ...Terrain.getAll().map(t => t.name)].forEach(name => {
-      const o = document.createElement('option');
-      o.value = name; o.textContent = name;
-      typeFilter.appendChild(o);
+    Object.entries(TYPE_GROUPS).forEach(([group, types]) => {
+      const grp = document.createElement('optgroup');
+      grp.label = group;
+      types.forEach(name => {
+        const o = document.createElement('option');
+        o.value = name; o.textContent = name;
+        grp.appendChild(o);
+      });
+      typeFilter.appendChild(grp);
     });
     typeFilter.addEventListener('change', e => {
       _filter.type = e.target.value;
