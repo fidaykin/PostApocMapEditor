@@ -253,6 +253,9 @@ html, body {
 .status-item span:first-child { color: var(--muted); }
 .status-item span:last-child  { color: var(--text); }
 
+/* Hide map-specific statusbar in non-map editor modes */
+body:not(.mode-map) #statusbar { display: none; }
+
 /* ── Toast ─────────────────────────────────────────────────── */
 #toast-container {
   position: fixed; bottom: 32px; left: 50%;
