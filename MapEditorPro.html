@@ -2931,6 +2931,9 @@ const HexDB = (() => {
   function _saveSecState() {
     try { localStorage.setItem('hexdb_sections', JSON.stringify(_secState)); } catch(e) {}
   }
+  function _autoSave() {
+    try { localStorage.setItem('hexdb_autosave', JSON.stringify(_data)); } catch(e) {}
+  }
 
   // ── Duplicate-id check ───────────────────────────────────
   function _isDuplicate(id, skipRealIdx) {
@@ -3142,6 +3145,7 @@ const HexDB = (() => {
       else h[f] = el.value;
     });
     _validateId();
+    _autoSave();
     // Update list row label in place
     const row = document.querySelector(`.hexdb-list-row[data-filt-idx="${_selFilt}"]`);
     if (row) {
@@ -3167,6 +3171,13 @@ const HexDB = (() => {
   // ── Public API ────────────────────────────────────────────
   function init() {
     _loadSecState();
+    try {
+      const saved = localStorage.getItem('hexdb_autosave');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.hexes)) _data = parsed;
+      }
+    } catch(e) {}
 
     // Search
     document.getElementById('hexdb-search').addEventListener('input', e => {
@@ -3225,6 +3236,7 @@ const HexDB = (() => {
     const h = _blank();
     h.id = `NewHex_${_data.hexes.length}`;
     _data.hexes.push(h);
+    _autoSave();
     _applyFilter();
     _buildList();
     const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
@@ -3238,6 +3250,7 @@ const HexDB = (() => {
     const label = _data.hexes[realIdx].id || '(unnamed)';
     UI.showConfirm('Delete Hex', `Delete "${label}"?`, () => {
       _data.hexes.splice(realIdx, 1);
+      _autoSave();
       _selFilt = -1;
       _applyFilter(); _buildList();
     });
@@ -3254,6 +3267,7 @@ const HexDB = (() => {
     const h = structuredClone(_clipboard);
     h.id = h.id + '_copy';
     _data.hexes.push(h);
+    _autoSave();
     _applyFilter(); _buildList();
     const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
     _selectIdx(filtIdx >= 0 ? filtIdx : _filtered.length - 1);
@@ -3265,6 +3279,7 @@ const HexDB = (() => {
       const parsed = JSON.parse(text);
       if (!parsed.hexes || !Array.isArray(parsed.hexes)) throw new Error('Missing hexes array');
       _data = parsed;
+      _autoSave();
       _selFilt = -1;
       _filter = { search: '', biome: '', type: '' };
       document.getElementById('hexdb-search').value = '';
@@ -3339,6 +3354,9 @@ const BldDB = (() => {
 
   function _saveSecState() {
     localStorage.setItem('blddb-sec', JSON.stringify(_secState));
+  }
+  function _autoSave() {
+    try { localStorage.setItem('blddb_autosave', JSON.stringify(_data)); } catch(e) {}
   }
 
   function _applyFilter() {
@@ -3511,10 +3529,12 @@ const BldDB = (() => {
       const isDupe = _data.buildings.some((b,i) => b.id===bld.id && i!==_filtered[_selFilt]);
       idEl.style.borderColor = (!bld.id || isDupe) ? '#e57373' : '';
     }
+    _autoSave();
   }
 
   function add() {
     _data.buildings.push(_blank());
+    _autoSave();
     _applyFilter();
     _buildList();
     _selectIdx(_filtered.indexOf(_data.buildings.length - 1));
@@ -3525,6 +3545,7 @@ const BldDB = (() => {
     const dataIdx = _filtered[_selFilt];
     UI.showConfirm('Delete Building', `Delete "${_data.buildings[dataIdx].id || '(no id)'}"?`, () => {
       _data.buildings.splice(dataIdx, 1);
+      _autoSave();
       _selFilt = -1;
       _applyFilter();
       _buildList();
@@ -3545,6 +3566,7 @@ const BldDB = (() => {
     const clone = structuredClone(_clipboard);
     clone.id += '_copy';
     _data.buildings.push(clone);
+    _autoSave();
     _applyFilter();
     _buildList();
     _selectIdx(_filtered.indexOf(_data.buildings.length - 1));
@@ -3555,6 +3577,7 @@ const BldDB = (() => {
       const parsed = JSON.parse(json);
       if (!parsed.buildings || !Array.isArray(parsed.buildings)) throw new Error('No "buildings" array');
       _data = parsed;
+      _autoSave();
       _selFilt = -1;
       _applyFilter();
       _buildList();
@@ -3580,6 +3603,13 @@ const BldDB = (() => {
 
   function init() {
     _loadSecState();
+    try {
+      const saved = localStorage.getItem('blddb_autosave');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.buildings)) _data = parsed;
+      }
+    } catch(e) {}
 
     const fi = document.getElementById('bld-file-input');
     fi.addEventListener('change', e => {
@@ -3661,6 +3691,9 @@ const SttDB = (() => {
 
   function _saveSecState() {
     localStorage.setItem('sttdb-sec', JSON.stringify(_secState));
+  }
+  function _autoSave() {
+    try { localStorage.setItem('sttdb_autosave', JSON.stringify(_data)); } catch(e) {}
   }
 
   function _applyFilter() {
@@ -3822,10 +3855,12 @@ const SttDB = (() => {
       const isDupe = _data.settlements.some((b,i) => b.id===stt.id && i!==_filtered[_selFilt]);
       idEl.style.borderColor = (!stt.id || isDupe) ? '#e57373' : '';
     }
+    _autoSave();
   }
 
   function add() {
     _data.settlements.push(_blank());
+    _autoSave();
     _applyFilter();
     _buildList();
     _selectIdx(_filtered.indexOf(_data.settlements.length - 1));
@@ -3836,6 +3871,7 @@ const SttDB = (() => {
     const dataIdx = _filtered[_selFilt];
     UI.showConfirm('Delete Settlement', `Delete "${_data.settlements[dataIdx].id || '(no id)'}"?`, () => {
       _data.settlements.splice(dataIdx, 1);
+      _autoSave();
       _selFilt = -1;
       _applyFilter();
       _buildList();
@@ -3856,6 +3892,7 @@ const SttDB = (() => {
     const clone = structuredClone(_clipboard);
     clone.id += '_copy';
     _data.settlements.push(clone);
+    _autoSave();
     _applyFilter();
     _buildList();
     _selectIdx(_filtered.indexOf(_data.settlements.length - 1));
@@ -3866,6 +3903,7 @@ const SttDB = (() => {
       const parsed = JSON.parse(json);
       if (!parsed.settlements || !Array.isArray(parsed.settlements)) throw new Error('No "settlements" array');
       _data = parsed;
+      _autoSave();
       _selFilt = -1;
       _applyFilter();
       _buildList();
@@ -3891,6 +3929,13 @@ const SttDB = (() => {
 
   function init() {
     _loadSecState();
+    try {
+      const saved = localStorage.getItem('sttdb_autosave');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.settlements)) _data = parsed;
+      }
+    } catch(e) {}
 
     const fi = document.getElementById('stt-file-input');
     fi.addEventListener('change', e => {
