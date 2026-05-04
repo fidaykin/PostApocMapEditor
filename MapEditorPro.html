@@ -2914,17 +2914,15 @@ const HexDB = (() => {
   };
 
   function _typeGroupOptions(selectedVal) {
-    return Object.entries(TYPE_GROUPS).map(([group, types]) =>
-      `<optgroup label="${group}">${types.map(t =>
-        `<option value="${t}"${t === selectedVal ? ' selected' : ''}>${t}</option>`
-      ).join('')}</optgroup>`
+    return Object.keys(TYPE_GROUPS).map(group =>
+      `<option value="${group}"${group === selectedVal ? ' selected' : ''}>${group}</option>`
     ).join('');
   }
 
   // ── Blank record ─────────────────────────────────────────
   function _blank() {
     return {
-      id:'', textId:'', type:'New', biome:'Summer',
+      id:'', textId:'', type:'Special', biome:'Summer',
       filterCategory:'FilterTerrain', spriteName:'',
       baseCostGold:0, baseCostGems:0, baseCostEvent:0, mainField9:0,
       destroyIncomeGold:0, destroyIncomeGems:0, destroyTransformTo:'',
@@ -2958,6 +2956,17 @@ const HexDB = (() => {
   }
   function _autoSave() {
     try { localStorage.setItem('hexdb_autosave', JSON.stringify(_data)); } catch(e) {}
+  }
+
+  function _migrateHexTypes(hexes) {
+    const toGroup = {};
+    Object.entries(TYPE_GROUPS).forEach(([group, types]) =>
+      types.forEach(t => { toGroup[t] = group; })
+    );
+    const groupNames = new Set(Object.keys(TYPE_GROUPS));
+    hexes.forEach(h => {
+      if (!groupNames.has(h.type)) h.type = toGroup[h.type] || 'Special';
+    });
   }
 
   // ── Duplicate-id check ───────────────────────────────────
@@ -3201,7 +3210,10 @@ const HexDB = (() => {
       const saved = localStorage.getItem('hexdb_autosave');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.hexes)) _data = parsed;
+        if (parsed && Array.isArray(parsed.hexes)) {
+          _data = parsed;
+          _migrateHexTypes(_data.hexes);
+        }
       }
     } catch(e) {}
 
@@ -3215,17 +3227,12 @@ const HexDB = (() => {
       _filter.biome = e.target.value;
       _applyFilter(); _buildList();
     });
-    // Type filter — populate grouped by TYPE_GROUPS
+    // Type filter — group names only (hex.type now stores group, not specific tile)
     const typeFilter = document.getElementById('hexdb-type-filter');
-    Object.entries(TYPE_GROUPS).forEach(([group, types]) => {
-      const grp = document.createElement('optgroup');
-      grp.label = group;
-      types.forEach(name => {
-        const o = document.createElement('option');
-        o.value = name; o.textContent = name;
-        grp.appendChild(o);
-      });
-      typeFilter.appendChild(grp);
+    Object.keys(TYPE_GROUPS).forEach(group => {
+      const o = document.createElement('option');
+      o.value = group; o.textContent = group;
+      typeFilter.appendChild(o);
     });
     typeFilter.addEventListener('change', e => {
       _filter.type = e.target.value;
@@ -3310,6 +3317,7 @@ const HexDB = (() => {
       const parsed = JSON.parse(text);
       if (!parsed.hexes || !Array.isArray(parsed.hexes)) throw new Error('Missing hexes array');
       _data = parsed;
+      _migrateHexTypes(_data.hexes);
       _autoSave();
       _selFilt = -1;
       _filter = { search: '', biome: '', type: '' };
