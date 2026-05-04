@@ -285,6 +285,24 @@ body:not(.mode-map) #statusbar { display: none; }
 .modal-box h3 { margin-bottom: 12px; font-size: 15px; }
 .modal-box p  { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.sprite-picker-box { max-width: 500px; width: 100%; }
+#sprite-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: 8px; max-height: 320px; overflow-y: auto;
+  margin-bottom: 16px; padding: 4px;
+}
+.sprite-picker-thumb {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 6px; border-radius: 4px;
+  cursor: pointer; border: 2px solid transparent;
+  background: var(--panel);
+}
+.sprite-picker-thumb:hover { border-color: var(--accent); background: var(--hover); }
+.sprite-picker-thumb img {
+  width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated;
+}
+.sprite-picker-thumb span { font-size: 9px; color: var(--muted); word-break: break-all; text-align: center; }
 .btn { padding: 7px 18px; border-radius: 4px; border: none; cursor: pointer; font-size: 13px; }
 .btn-primary { background: var(--accent); color: #000; }
 .btn-danger  { background: var(--danger); color: #fff; }
@@ -939,6 +957,17 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="modal-actions">
       <button class="btn btn-cancel" onclick="UI.closeConfirm()">Cancel</button>
       <button class="btn btn-danger"  id="confirm-ok">OK</button>
+    </div>
+  </div>
+</div>
+
+<!-- Sprite picker modal -->
+<div class="modal-overlay" id="sprite-picker-modal">
+  <div class="modal-box sprite-picker-box">
+    <h3>Pick Sprite</h3>
+    <div id="sprite-picker-grid"></div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="UI.closeSpritePicker()">Cancel</button>
     </div>
   </div>
 </div>
@@ -2015,6 +2044,7 @@ const History = (() => {
 const UI = (() => {
   let _selectedId = 12;
   let _confirmCallback = null;
+  let _spritePickerCallback = null;
 
   function init() {
     // Confirm modal OK button
@@ -2024,7 +2054,7 @@ const UI = (() => {
     });
     // Escape closes open menus
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') closeAllMenus();
+      if (e.key === 'Escape') { closeAllMenus(); closeSpritePicker(); }
     });
     // Click outside menu closes menus
     document.addEventListener('click', e => {
@@ -2157,6 +2187,35 @@ const UI = (() => {
     document.getElementById('confirm-modal').classList.remove('open');
   }
 
+  function showSpritePicker(onSelect) {
+    _spritePickerCallback = onSelect;
+    const grid = document.getElementById('sprite-picker-grid');
+    grid.innerHTML = '';
+    HexDB.getSpriteList().forEach(name => {
+      const thumb = document.createElement('div');
+      thumb.className = 'sprite-picker-thumb';
+      const img = document.createElement('img');
+      img.src = `sprites/hex/${name}.png`;
+      img.alt = name;
+      img.onerror = () => { img.style.opacity = '0.3'; };
+      const lbl = document.createElement('span');
+      lbl.textContent = name;
+      thumb.appendChild(img);
+      thumb.appendChild(lbl);
+      thumb.addEventListener('click', () => {
+        closeSpritePicker();
+        if (_spritePickerCallback) _spritePickerCallback(name);
+      });
+      grid.appendChild(thumb);
+    });
+    document.getElementById('sprite-picker-modal').classList.add('open');
+  }
+
+  function closeSpritePicker() {
+    document.getElementById('sprite-picker-modal').classList.remove('open');
+    _spritePickerCallback = null;
+  }
+
   function toast(msg) {
     const container = document.getElementById('toast-container');
     const el = document.createElement('div');
@@ -2179,6 +2238,7 @@ const UI = (() => {
     updateSettlementCount, updateMenuHistoryState,
     toggleSettlements, closeAllMenus,
     showConfirm, closeConfirm, toast,
+    showSpritePicker, closeSpritePicker,
     updateStatusTool, updateStatusSize
   };
 })();
@@ -2921,6 +2981,15 @@ const HexDB = (() => {
     'Volcanic/Rift':   ['LavaPlain', 'LavaRift', 'Rift'],
   };
 
+  const SPRITE_LIST = [
+    'Farm', 'FarmGrain',
+    'Forest_1', 'Forest_2', 'Forest_3',
+    'GoldVein', 'Hills', 'Mountain',
+    'Plain_1', 'Plain_2',
+    'Rift', 'Rubble_1', 'Rubble_2', 'Rubble_3',
+    'Settlements_1', 'Water',
+  ];
+
   function _typeGroupOptions(selectedVal) {
     return Object.keys(TYPE_GROUPS).map(group =>
       `<option value="${group}"${group === selectedVal ? ' selected' : ''}>${group}</option>`
@@ -3091,8 +3160,14 @@ const HexDB = (() => {
       _row('Type',            `<select class="hexdb-select" data-field="type">${_typeGroupOptions(hex.type)}</select>`),
       _row('Biome',           _selectInput('biome', BIOMES, hex.biome)),
       _row('Filter',          _selectInput('filterCategory', FILTER_CATS, hex.filterCategory)),
-      _row('SpriteName',      _textInput('spriteName', hex.spriteName) +
-        '<small style="color:#888;font-size:0.8em;display:block;margin-top:2px">Web editor: sprites/hex/&lt;name&gt;.png &nbsp;|&nbsp; Unity: Resources/Hex/&lt;name&gt;</small>'),
+      _row('SpriteName',
+        `<div style="display:flex;gap:6px;align-items:flex-start;width:100%">` +
+        `<div style="flex:1;min-width:0">` +
+        _textInput('spriteName', hex.spriteName) +
+        `<small style="color:#888;font-size:0.8em;display:block;margin-top:2px">Web editor: sprites/hex/&lt;name&gt;.png &nbsp;|&nbsp; Unity: Resources/Hex/&lt;name&gt;</small>` +
+        `</div>` +
+        `<button class="hexdb-tool-btn" onclick="HexDB.pickSprite()" title="Browse sprites">🖼</button>` +
+        `</div>`),
       _row('BaseCost',        _costRow(
         [{label:'Gold',field:'baseCostGold'},{label:'Gems',field:'baseCostGems'},{label:'Event',field:'baseCostEvent'}],
         [hex.baseCostGold, hex.baseCostGems, hex.baseCostEvent])),
@@ -3352,7 +3427,16 @@ const HexDB = (() => {
 
   function triggerLoad() { document.getElementById('hexdb-file-input').click(); }
 
-  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad };
+  function getSpriteList() { return SPRITE_LIST; }
+
+  function pickSprite() {
+    UI.showSpritePicker(name => {
+      const el = document.querySelector('#hexdb-right [data-field="spriteName"]');
+      if (el) { el.value = name; el.dispatchEvent(new Event('input')); }
+    });
+  }
+
+  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad, getSpriteList, pickSprite };
 })();
 
 // ── BldDB Module ───────────────────────────────────────────
