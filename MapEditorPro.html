@@ -482,14 +482,18 @@ body.mode-settlements #settlements-main { display: grid; }
 
 /* Toolbar sections */
 #map-tools   { display: flex; align-items: center; gap: 4px; }
+#map-io      { display: flex; align-items: center; gap: 6px; margin-right: 4px; }
 #hexdb-tools { display: none; align-items: center; gap: 6px; }
 #bld-tools   { display: none; align-items: center; gap: 6px; }
 #stt-tools   { display: none; align-items: center; gap: 6px; }
 body.mode-hexdb       #map-tools   { display: none; }
+body.mode-hexdb       #map-io      { display: none; }
 body.mode-hexdb       #hexdb-tools { display: flex; }
 body.mode-buildings   #map-tools   { display: none; }
+body.mode-buildings   #map-io      { display: none; }
 body.mode-buildings   #bld-tools   { display: flex; }
 body.mode-settlements #map-tools   { display: none; }
+body.mode-settlements #map-io      { display: none; }
 body.mode-settlements #stt-tools   { display: flex; }
 .hexdb-tool-btn {
   height: 30px; padding: 0 12px;
@@ -742,6 +746,10 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="mode-tab"        id="tab-hexdb"       onclick="App.setMode('hexdb')">HEX DB</button>
       <button class="mode-tab"        id="tab-buildings"   onclick="App.setMode('buildings')">BUILDINGS</button>
       <button class="mode-tab"        id="tab-settlements" onclick="App.setMode('settlements')">SETTLEMENTS</button>
+    </div>
+    <div id="map-io">
+      <button class="hexdb-tool-btn" onclick="IO.openMap()">📂 Open</button>
+      <button class="hexdb-tool-btn" onclick="IO.saveMap()">💾 Save</button>
     </div>
     <div id="map-tools">
       <button class="tool-btn active" data-tool="paint" onclick="Tools.setActive('paint')">✏️<span class="tooltip">Paint (P)</span></button>
