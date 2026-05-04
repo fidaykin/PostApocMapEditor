@@ -3053,7 +3053,8 @@ const HexDB = (() => {
       _row('Type',            _selectInput('type', terrainNames, hex.type)),
       _row('Biome',           _selectInput('biome', BIOMES, hex.biome)),
       _row('Filter',          _selectInput('filterCategory', FILTER_CATS, hex.filterCategory)),
-      _row('SpriteName',      _textInput('spriteName', hex.spriteName)),
+      _row('SpriteName',      _textInput('spriteName', hex.spriteName) +
+        '<small style="color:#888;font-size:0.8em;display:block;margin-top:2px">Web editor: sprites/hex/&lt;name&gt;.png &nbsp;|&nbsp; Unity: Resources/Hex/&lt;name&gt;</small>'),
       _row('BaseCost',        _costRow(
         [{label:'Gold',field:'baseCostGold'},{label:'Gems',field:'baseCostGems'},{label:'Event',field:'baseCostEvent'}],
         [hex.baseCostGold, hex.baseCostGems, hex.baseCostEvent])),
