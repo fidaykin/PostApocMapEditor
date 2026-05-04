@@ -2900,13 +2900,17 @@ const HexDB = (() => {
   let _secState    = {};    // persisted collapse state per section key
 
   const TYPE_GROUPS = {
-    'Special':   ['New'],
-    'Plains':    ['Plain_1', 'Plain_2', 'Plain_3'],
-    'Forests':   ['Forest_1', 'Forest_2', 'Forest_3'],
-    'Rivers':    ['River_1', 'River_2', 'River_3', 'River_4', 'River_5', 'River_6'],
-    'Seas':      ['Sea_1', 'Sea_2', 'Sea_3'],
-    'Mountains': ['Mountain_1', 'Mountain_2'],
-    'Hills':     ['Hill_1', 'Hill_2'],
+    'Special':         ['New'],
+    'Plains':          ['Plain_1', 'Plain_2', 'BrokenPlain'],
+    'Forests':         ['Forest_1', 'Forest_2', 'Forest_3'],
+    'Hills/Mountains': ['Hills', 'Mountain'],
+    'Rivers':          ['River_1', 'River_2', 'River_3', 'River_4', 'River_5', 'River_6'],
+    'Water':           ['DirtyWater', 'DirtyWater_1', 'DirtyWater_2'],
+    'Rubble':          ['Rubble_1', 'Rubble_2', 'Rubble_3'],
+    'Resources':       ['GoldVein', 'Oil'],
+    'Barren/Desert':   ['Barren', 'Desert'],
+    'Swamp':           ['Swamp', 'RockySwamp'],
+    'Volcanic/Rift':   ['LavaPlain', 'LavaRift', 'Rift'],
   };
 
   function _typeGroupOptions(selectedVal) {
