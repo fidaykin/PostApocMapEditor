@@ -3044,7 +3044,7 @@ const HexDB = (() => {
   }
 
   function _renderRecord(hex) {
-    const terrainNames = Terrain.getAll().map(t => t.name);
+    const terrainNames = ['New', ...Terrain.getAll().map(t => t.name)];
 
     const mainBody = [
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
@@ -3195,6 +3195,12 @@ const HexDB = (() => {
     });
     // Type filter — populate from Terrain
     const typeFilter = document.getElementById('hexdb-type-filter');
+    // Add 'New' as first option
+    {
+      const o = document.createElement('option');
+      o.value = 'New'; o.textContent = 'New';
+      typeFilter.appendChild(o);
+    }
     Terrain.getAll().forEach(t => {
       const o = document.createElement('option');
       o.value = t.name; o.textContent = t.name;
