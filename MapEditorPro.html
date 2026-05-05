@@ -3432,7 +3432,7 @@ const HexDB = (() => {
   function pickSprite() {
     UI.showSpritePicker(name => {
       const el = document.querySelector('#hexdb-right [data-field="spriteName"]');
-      if (el) { el.value = name; el.dispatchEvent(new Event('input')); }
+      if (el) { el.value = name; el.dispatchEvent(new Event('input', { bubbles: true })); }
     });
   }
 
