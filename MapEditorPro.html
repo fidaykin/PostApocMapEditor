@@ -2203,8 +2203,9 @@ const UI = (() => {
       thumb.appendChild(img);
       thumb.appendChild(lbl);
       thumb.addEventListener('click', () => {
+        const cb = _spritePickerCallback;
         closeSpritePicker();
-        if (_spritePickerCallback) _spritePickerCallback(name);
+        if (cb) cb(name);
       });
       grid.appendChild(thumb);
     });
@@ -3296,6 +3297,7 @@ const HexDB = (() => {
         if (parsed && Array.isArray(parsed.hexes)) {
           _data = parsed;
           _migrateHexTypes(_data.hexes);
+          _autoSave();
         }
       }
     } catch(e) {}
