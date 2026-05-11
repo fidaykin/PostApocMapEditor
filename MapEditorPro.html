@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.3.2</title>
+<title>MapEditorPro v0.3.3</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -949,7 +949,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.3.2</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.3.3</div>
   </div>
 
 </div>
@@ -1197,7 +1197,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.3.2";
+const VERSION = "0.3.3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -1679,6 +1679,7 @@ const Canvas = (() => {
     isPanning = false;
     canvas.style.cursor = isSpacePan ? 'grab' : 'crosshair';
     if (_onMouseUpCb) _onMouseUpCb(e);
+    IO.scheduleAutoSave();
   }
 
   function _onWheel(e) {
@@ -2264,6 +2265,53 @@ const UI = (() => {
 // ════════════════════════════════════════════════════════════
 const IO = (() => {
   let _newMapCanCancel = false;
+  let _autoSaveTimer   = null;
+
+  function _autoSave() {
+    if (!mapData) return;
+    try {
+      const data2d = [];
+      for (let r = 0; r < MAP_HEIGHT; r++)
+        data2d.push(Array.from(mapData.subarray(r * MAP_WIDTH, (r+1) * MAP_WIDTH)));
+      localStorage.setItem('map_autosave', JSON.stringify({
+        width: MAP_WIDTH, height: MAP_HEIGHT,
+        data: data2d,
+        settlements: settlements.map(s => ({ col: s.col, row: s.row, type: s.type }))
+      }));
+    } catch(e) {}
+  }
+
+  // Debounced autosave — used for high-frequency operations like painting.
+  function scheduleAutoSave() {
+    clearTimeout(_autoSaveTimer);
+    _autoSaveTimer = setTimeout(_autoSave, 2000);
+  }
+
+  // Attempts to restore the last autosaved map. Returns true on success.
+  // Safe to call before Canvas.init() — only sets mapData / settlements.
+  function tryRestoreAutosave() {
+    try {
+      const saved = localStorage.getItem('map_autosave');
+      if (!saved) return false;
+      const json = JSON.parse(saved);
+      if (!json.width || !json.height || !Array.isArray(json.data)) return false;
+      MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
+      MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
+      mapData = new Int8Array(MAP_WIDTH * MAP_HEIGHT);
+      for (let r = 0; r < MAP_HEIGHT; r++) {
+        const srcRow = json.data[r];
+        if (!srcRow) continue;
+        for (let c = 0; c < MAP_WIDTH; c++)
+          mapData[r * MAP_WIDTH + c] = srcRow[c] ?? 12;
+      }
+      settlements = json.settlements && json.settlements.length
+        ? json.settlements.map(s => ({ col: s.col ?? s.x, row: s.row ?? s.y, type: s.type || 'settlement' }))
+        : [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
+      History.clear();
+      History.push();
+      return true;
+    } catch(e) { return false; }
+  }
 
   // Called at boot (silent=true) to initialize mapData before Canvas.init().
   // Called from menu (silent=false) to open the size picker.
@@ -2319,6 +2367,7 @@ const IO = (() => {
     Canvas.drawMinimap();
     Canvas.centerOnCity();
     UI.toast(`Map created: ${w} × ${h}`);
+    _autoSave();
   }
 
   function openMap() {
@@ -2368,6 +2417,7 @@ const IO = (() => {
       Canvas.drawMinimap();
       Canvas.centerOnCity();
       UI.toast('Map loaded');
+      _autoSave();
     } catch (err) {
       alert('Failed to load map: ' + err.message);
     }
@@ -2423,6 +2473,7 @@ const IO = (() => {
       Canvas.render();
       Canvas.drawMinimap();
       UI.toast('Map cleared');
+      _autoSave();
     });
   }
 
@@ -2435,6 +2486,7 @@ const IO = (() => {
       Canvas.render();
       Canvas.drawMinimap();
       UI.toast(`Map filled with ${t.name}`);
+      _autoSave();
     });
   }
 
@@ -2466,7 +2518,8 @@ const IO = (() => {
   }
 
   return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
-           showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap };
+           showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
+           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -4143,7 +4196,9 @@ function getCityRow() { return Math.floor((MAP_HEIGHT - 1) / 2); }
 
 window.addEventListener('load', async () => {
   await Terrain.load();
-  IO.newMap(true);  // silent — initializes mapData before Canvas.init()
+  // Restore last session if available, otherwise init a blank map
+  const _mapRestored = IO.tryRestoreAutosave();
+  if (!_mapRestored) IO.newMap(true);
   Canvas.init();
   UI.init();
   UI.buildPalette();
@@ -4165,14 +4220,17 @@ window.addEventListener('load', async () => {
     }
   });
   Canvas.centerOnCity();
+  if (_mapRestored) { UI.updateSettlementCount(); UI.updateStatusSize(); }
   // Force a canvas redraw when the tab becomes visible again after being
   // inactive — the browser may have discarded the canvas contents while hidden.
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) {
-      Canvas.forceRedraw();
-    }
+    if (!document.hidden) Canvas.forceRedraw();
   });
-  IO.showNewMapPrompt();  // ask user for map size on startup
+  // Autosave map on page unload and every 30 s (covers paint strokes, undo/redo)
+  window.addEventListener('beforeunload', () => IO.autoSave());
+  setInterval(() => IO.autoSave(), 30_000);
+  // Show new-map prompt only when there is nothing to restore
+  if (!_mapRestored) IO.showNewMapPrompt();
   console.log('[MapEditorPro] Ready.');
 });
 </script>

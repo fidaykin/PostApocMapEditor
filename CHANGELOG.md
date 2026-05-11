@@ -5,6 +5,14 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.3.3 — 2026-05-11
+
+### Fixes
+- Map editor now restores the last session on page reload — autosaves to `localStorage` after every significant change (new map, load, clear, fill) and on a 2-second debounce after each paint stroke; also saves on `beforeunload` and every 30 seconds
+- New-map prompt is suppressed on startup when a previous session is successfully restored
+
+---
+
 ## v0.3.2 — 2026-05-11
 
 ### Fixes
