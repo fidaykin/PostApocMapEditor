@@ -5,6 +5,16 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.4.3 — 2026-05-11
+
+### Features
+- HexDB Income section: full restructure — `Tap Income` + `Destroyable` checkboxes gate Transform to / Capacity / Get per Tap; `Transform to` datalist picker with Parent Hex option; `Capacity` (renamed from DamageMod, default 3, min 1); `Get per Tap` dynamic resource block; `Per Turn` upgraded from single number to resource block; new `Income Idle`, `Income Constant`, `Spend Constant` resource blocks (Spend Constant includes Pollution + Energy types)
+- `_resourceBlockHTML` extended with optional `resTypes` param for custom type lists
+- Migration: `incomePerTurn` number auto-converted to Gold array; `damageModifier` migrated to `incomeCapacity`
+- Removed: OnCapture, OccupiedPerTurn, HumanResources fields
+
+---
+
 ## v0.4.2 — 2026-05-11
 
 ### Features

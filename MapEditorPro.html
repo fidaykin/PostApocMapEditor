@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.4.2</title>
+<title>MapEditorPro v0.4.3</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -985,7 +985,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.4.2</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.4.3</div>
   </div>
 
 </div>
@@ -1233,7 +1233,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.4.2";
+const VERSION = "0.4.3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3196,8 +3196,11 @@ const HexDB = (() => {
       buildAvailableTiles:[], buildMinLevel:1,
       buildPrice:[], buildPremiumPrice:0,
       buildPlacementRule:'',
-      incomeOnCapture:0, incomePerTurn:0, incomeOccupiedPerTurn:0,
-      humanResourcesPerHex:0, damageModifier:0,
+      tapIncomeEnabled:false, destroyable:false,
+      incomeTransformTo:'Plains_1', incomeCapacity:3,
+      incomeGetPerTap:[], incomePerTurn:[],
+      incomeIdle:[], incomeConstant:[],
+      spendConstant:[{type:'Pollution',amount:1}],
       bonusDrop:'', booster:'',
       storageCapacity:0, energyConsumption:0, pollutionConstant:0,
     };
@@ -3356,14 +3359,17 @@ const HexDB = (() => {
   // ── Dynamic resource block helper ────────────────────────
   const DESTROY_RES_TYPES = ['Gold','Gems','Food','Lumber','Stone',
     'Steel','Oil','Chips','Clay'];
+  const SPEND_RES_TYPES = ['Pollution','Energy','Gold','Gems','Food',
+    'Lumber','Stone','Steel','Oil','Chips','Clay'];
 
-  function _resourceBlockHTML(fieldName, rows, disabled) {
+  function _resourceBlockHTML(fieldName, rows, disabled, resTypes) {
+    const types = resTypes || DESTROY_RES_TYPES;
     const dis = disabled ? ' disabled' : '';
     const rowsHTML = (rows || []).map((r, i) => {
-      const stdOpts = DESTROY_RES_TYPES.map(t =>
+      const stdOpts = types.map(t =>
         `<option${t === r.type ? ' selected' : ''}>${t}</option>`
       ).join('');
-      const customOpt = DESTROY_RES_TYPES.includes(r.type) ? '' :
+      const customOpt = types.includes(r.type) ? '' :
         `<option selected>${_esc(r.type)}</option>`;
       return `<div class="hexdb-res-row">
         <select class="hexdb-select" style="width:110px"
@@ -3452,12 +3458,58 @@ const HexDB = (() => {
       _row('Placement Rule', _textInput('buildPlacementRule', hex.buildPlacementRule ?? '')),
     ].join('');
 
+    const tapOn = hex.tapIncomeEnabled ?? false;
+    const desOn = hex.destroyable ?? false;
+    const tapDis = tapOn ? '' : ' disabled';
+    const isParent = (hex.incomeTransformTo ?? '') === '__parent__';
     const incomeBody = [
-      _row('OnCapture',     _numInput('incomeOnCapture',      hex.incomeOnCapture)),
-      _row('PerTurn',       _numInput('incomePerTurn',        hex.incomePerTurn)),
-      _row('OccupiedPerTurn',_numInput('incomeOccupiedPerTurn',hex.incomeOccupiedPerTurn)),
-      _row('HumanResources',_numInput('humanResourcesPerHex',hex.humanResourcesPerHex)),
-      _row('DamageMod',     _numInput('damageModifier',       hex.damageModifier)),
+      // Tap Income + Destroyable on same row
+      `<div class="hexdb-row hexdb-checkbox-row">
+         <span class="hexdb-label"></span>
+         <input type="checkbox" data-field="tapIncomeEnabled"${tapOn ? ' checked' : ''}>
+         <label>hex earns on tap</label>
+         <input type="checkbox" data-field="destroyable"
+           ${desOn ? ' checked' : ''}${tapDis}>
+         <label style="${tapOn ? '' : 'color:var(--muted)'}">Destroyable</label>
+       </div>`,
+      // Transform to — active when tapOn AND desOn
+      _row('Transform to', (() => {
+        const active = tapOn && desOn;
+        const d = active ? '' : ' disabled';
+        return `<div style="display:flex;gap:6px;align-items:center">
+          <input class="hexdb-input" list="hexdb-id-list"
+            data-field="incomeTransformTo" style="width:160px"
+            value="${isParent ? '' : _esc(hex.incomeTransformTo ?? 'Plains_1')}"
+            ${isParent ? ' disabled' : ''}${d}>
+          <select class="hexdb-select" id="income-transform-mode"
+            style="width:100px"${d}>
+            <option${isParent ? '' : ' selected'}>Hex ID</option>
+            <option${isParent ? ' selected' : ''}>Parent Hex</option>
+          </select>
+        </div>`;
+      })()),
+      // Capacity
+      _row('Capacity',
+        `<input class="hexdb-input" type="number" step="1" min="1"
+           style="width:110px" data-field="incomeCapacity"
+           value="${hex.incomeCapacity ?? 3}"${tapDis}>`),
+      // Get per Tap
+      _row('Get per Tap',
+        _resourceBlockHTML('incomeGetPerTap', hex.incomeGetPerTap ?? [], !tapOn)),
+      // Per Turn
+      _row('Per Turn',
+        _resourceBlockHTML('incomePerTurn', hex.incomePerTurn ?? [], false)),
+      // Income Idle
+      _row('Income Idle',
+        _resourceBlockHTML('incomeIdle', hex.incomeIdle ?? [], false)),
+      // Income Constant
+      _row('Income Constant',
+        _resourceBlockHTML('incomeConstant', hex.incomeConstant ?? [], false)),
+      // Spend Constant
+      _row('Spend Constant',
+        _resourceBlockHTML('spendConstant',
+          hex.spendConstant ?? [{ type: 'Pollution', amount: 1 }],
+          false, SPEND_RES_TYPES)),
     ].join('');
 
     const specialBody = [
@@ -3524,6 +3576,31 @@ const HexDB = (() => {
       canBldEl.addEventListener('change', () => {
         if (_selFilt < 0) return;
         _renderRecord(_data.hexes[_filtered[_selFilt]]);
+      });
+    }
+
+    // ── Wire Tap Income toggle → re-render + auto-set Destroyable ─
+    const tapIncEl = document.querySelector('#hexdb-right [data-field="tapIncomeEnabled"]');
+    if (tapIncEl) {
+      tapIncEl.addEventListener('change', () => {
+        if (_selFilt < 0) return;
+        const h = _data.hexes[_filtered[_selFilt]];
+        if (h.tapIncomeEnabled && !h.destroyable) {
+          h.destroyable = true;
+        }
+        _renderRecord(h);
+      });
+    }
+
+    // ── Wire Transform to mode select ─────────────────────────────
+    const modeEl = document.getElementById('income-transform-mode');
+    if (modeEl) {
+      modeEl.addEventListener('change', () => {
+        if (_selFilt < 0) return;
+        const h = _data.hexes[_filtered[_selFilt]];
+        h.incomeTransformTo = modeEl.value === 'Parent Hex' ? '__parent__' : 'Plains_1';
+        _autoSave();
+        _renderRecord(h);
       });
     }
 
@@ -3658,6 +3735,7 @@ const HexDB = (() => {
           _migrateHexTypes(_data.hexes);
           _migrateDestroyFields(_data.hexes);
           _migrateBuildFields(_data.hexes);
+          _migrateIncomeFields(_data.hexes);
           _autoSave();
         }
       }
@@ -3810,6 +3888,34 @@ const HexDB = (() => {
     });
   }
 
+  function _migrateIncomeFields(hexes) {
+    hexes.forEach(h => {
+      // Migrate incomePerTurn from number to array
+      if (!Array.isArray(h.incomePerTurn)) {
+        const n = h.incomePerTurn ?? 0;
+        h.incomePerTurn = n > 0 ? [{ type: 'Gold', amount: n }] : [];
+      }
+      // Migrate damageModifier → incomeCapacity
+      if (h.damageModifier !== undefined) {
+        h.incomeCapacity = Math.max(1, h.damageModifier || 3);
+        delete h.damageModifier;
+      }
+      // Default new fields
+      if (h.tapIncomeEnabled === undefined)   h.tapIncomeEnabled = false;
+      if (h.destroyable === undefined)        h.destroyable = false;
+      if (!h.incomeTransformTo)              h.incomeTransformTo = 'Plains_1';
+      if (h.incomeCapacity === undefined)    h.incomeCapacity = 3;
+      if (!Array.isArray(h.incomeGetPerTap)) h.incomeGetPerTap = [];
+      if (!Array.isArray(h.incomeIdle))      h.incomeIdle = [];
+      if (!Array.isArray(h.incomeConstant))  h.incomeConstant = [];
+      if (!Array.isArray(h.spendConstant))   h.spendConstant = [{ type: 'Pollution', amount: 1 }];
+      // Remove stale fields
+      delete h.incomeOnCapture;
+      delete h.incomeOccupiedPerTurn;
+      delete h.humanResourcesPerHex;
+    });
+  }
+
   function load(text) {
     try {
       const parsed = JSON.parse(text);
@@ -3818,6 +3924,7 @@ const HexDB = (() => {
       _migrateHexTypes(_data.hexes);
       _migrateDestroyFields(_data.hexes);
       _migrateBuildFields(_data.hexes);
+      _migrateIncomeFields(_data.hexes);
       _autoSave();
       _selFilt = -1;
       _filter = { search: '', biome: '', type: '' };
