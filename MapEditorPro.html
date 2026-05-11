@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.3.0</title>
+<title>MapEditorPro v0.3.1</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -942,7 +942,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.3.0</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.3.1</div>
   </div>
 
 </div>
@@ -1190,7 +1190,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.3.0";
+const VERSION = "0.3.1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -1719,8 +1719,14 @@ const Canvas = (() => {
   function getZoom()   { return zoom; }
   function getCamera() { return { x: cameraX, y: cameraY }; }
 
+  function forceRedraw() {
+    _resizeCanvas();
+    render();
+    drawMinimap();
+  }
+
   return {
-    init, render, drawMinimap,
+    init, render, drawMinimap, forceRedraw,
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera
@@ -3746,6 +3752,7 @@ const BldDB = (() => {
         if (parsed && Array.isArray(parsed.buildings)) _data = parsed;
       }
     } catch(e) {}
+    _applyFilter(); _buildList();
 
     const fi = document.getElementById('bld-file-input');
     fi.addEventListener('change', e => {
@@ -4072,6 +4079,7 @@ const SttDB = (() => {
         if (parsed && Array.isArray(parsed.settlements)) _data = parsed;
       }
     } catch(e) {}
+    _applyFilter(); _buildList();
 
     const fi = document.getElementById('stt-file-input');
     fi.addEventListener('change', e => {
@@ -4154,7 +4162,7 @@ window.addEventListener('load', async () => {
   // inactive — the browser may have discarded the canvas contents while hidden.
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
-      Canvas.render();
+      Canvas.forceRedraw();
     }
   });
   IO.showNewMapPrompt();  // ask user for map size on startup

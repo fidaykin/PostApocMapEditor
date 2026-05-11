@@ -5,6 +5,14 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.3.1 — 2026-05-11
+
+### Fixes
+- Buildings editor and Settlements editor now restore data after page reload (autosave was saved but list was never rebuilt on init)
+- Map Editor canvas no longer goes black after tab is inactive — `forceRedraw()` now resets canvas backing store before re-rendering
+
+---
+
 ## v0.3.0 — 2026-05-05
 
 ### Features
