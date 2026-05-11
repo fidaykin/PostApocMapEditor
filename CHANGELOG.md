@@ -5,6 +5,15 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.4.2 — 2026-05-11
+
+### Features
+- HexDB Build section: full restructure — `Can Build` + `Need Road` checkboxes on same row gate all fields; `Available Tiles` tags input (hex IDs with datalist autocomplete); dynamic `Price` resource block (add/remove, all resource types); separate `Premium Price` field; `Placement Rule` moved to bottom
+- Migration: old `buildCostGold/Gems/Event` flat fields auto-converted to new `buildPrice` array on load
+- Removed: `MaxPerMap` field
+
+---
+
 ## v0.4.1 — 2026-05-11
 
 ### Features

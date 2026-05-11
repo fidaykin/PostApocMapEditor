@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.4.1</title>
+<title>MapEditorPro v0.4.2</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -985,7 +985,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.4.1</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.4.2</div>
   </div>
 
 </div>
@@ -1233,7 +1233,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.4.1";
+const VERSION = "0.4.2";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3192,9 +3192,10 @@ const HexDB = (() => {
       canDestroy:false, destroyTransformTo:'Plains_1',
       destroySource:[], canStored:false,
       destroyIncomeEnabled:false, destroyIncome:[],
-      buildCostGold:0, buildCostGems:0, buildCostEvent:0,
-      buildRequiresRoad:false, buildPlacementRule:'',
-      buildMinLevel:0, buildMaxPerMap:0,
+      canBuild:false, buildRequiresRoad:false,
+      buildAvailableTiles:[], buildMinLevel:1,
+      buildPrice:[], buildPremiumPrice:0,
+      buildPlacementRule:'',
       incomeOnCapture:0, incomePerTurn:0, incomeOccupiedPerTurn:0,
       humanResourcesPerHex:0, damageModifier:0,
       bonusDrop:'', booster:'',
@@ -3425,14 +3426,30 @@ const HexDB = (() => {
         !canDes || !(hex.destroyIncomeEnabled ?? false))),
     ].join('');
 
+    const canBld = hex.canBuild ?? false;
+    const bdis = canBld ? '' : ' disabled';
     const buildBody = [
-      _row('Cost', _costRow(
-        [{label:'Gold',field:'buildCostGold'},{label:'Gems',field:'buildCostGems'},{label:'Event',field:'buildCostEvent'}],
-        [hex.buildCostGold, hex.buildCostGems, hex.buildCostEvent])),
-      _checkRow('buildRequiresRoad', hex.buildRequiresRoad, 'Requires road to build'),
-      _row('PlacementRule', _textInput('buildPlacementRule', hex.buildPlacementRule)),
-      _row('MinLevel',      _numInput('buildMinLevel',       hex.buildMinLevel)),
-      _row('MaxPerMap',     _numInput('buildMaxPerMap',      hex.buildMaxPerMap)),
+      // Can Build + Need Road on same row
+      `<div class="hexdb-row hexdb-checkbox-row">
+         <span class="hexdb-label"></span>
+         <input type="checkbox" data-field="canBuild"${canBld ? ' checked' : ''}>
+         <label>hex can be built</label>
+         <input type="checkbox" data-field="buildRequiresRoad"
+           ${(hex.buildRequiresRoad ?? false) ? ' checked' : ''}${bdis}>
+         <label style="${canBld ? '' : 'color:var(--muted)'}">Need Road</label>
+       </div>`,
+      _row('Available Tiles',
+        _sourceTagsHTML('buildAvailableTiles', hex.buildAvailableTiles ?? [], !canBld)),
+      _row('MinLevel',
+        `<input class="hexdb-input" type="number" step="1" min="0"
+           style="width:110px" data-field="buildMinLevel"
+           value="${hex.buildMinLevel ?? 1}"${bdis}>`),
+      _row('Price', _resourceBlockHTML('buildPrice', hex.buildPrice ?? [], !canBld)),
+      _row('Premium Price',
+        `<input class="hexdb-input" type="number" step="1" min="0"
+           style="width:110px" data-field="buildPremiumPrice"
+           value="${hex.buildPremiumPrice ?? 0}"${bdis}>`),
+      _row('Placement Rule', _textInput('buildPlacementRule', hex.buildPlacementRule ?? '')),
     ].join('');
 
     const incomeBody = [
@@ -3496,6 +3513,15 @@ const HexDB = (() => {
     const canDesEl = document.querySelector('#hexdb-right [data-field="canDestroy"]');
     if (canDesEl) {
       canDesEl.addEventListener('change', () => {
+        if (_selFilt < 0) return;
+        _renderRecord(_data.hexes[_filtered[_selFilt]]);
+      });
+    }
+
+    // ── Wire Can Build toggle → re-render ─────────────────────
+    const canBldEl = document.querySelector('#hexdb-right [data-field="canBuild"]');
+    if (canBldEl) {
+      canBldEl.addEventListener('change', () => {
         if (_selFilt < 0) return;
         _renderRecord(_data.hexes[_filtered[_selFilt]]);
       });
@@ -3631,6 +3657,7 @@ const HexDB = (() => {
           _data = parsed;
           _migrateHexTypes(_data.hexes);
           _migrateDestroyFields(_data.hexes);
+          _migrateBuildFields(_data.hexes);
           _autoSave();
         }
       }
@@ -3755,6 +3782,34 @@ const HexDB = (() => {
     });
   }
 
+  function _migrateBuildFields(hexes) {
+    hexes.forEach(h => {
+      if (!Array.isArray(h.buildPrice)) {
+        h.buildPrice = [];
+        if ((h.buildCostGold ?? 0) > 0) {
+          h.buildPrice.push({ type: 'Gold', amount: h.buildCostGold });
+          h.canBuild = true;
+        }
+        if ((h.buildCostGems ?? 0) > 0) {
+          h.buildPrice.push({ type: 'Gems', amount: h.buildCostGems });
+          h.canBuild = true;
+        }
+        if ((h.buildCostEvent ?? 0) > 0) {
+          h.buildPrice.push({ type: 'Event', amount: h.buildCostEvent });
+          h.canBuild = true;
+        }
+        delete h.buildCostGold;
+        delete h.buildCostGems;
+        delete h.buildCostEvent;
+      }
+      if (h.canBuild === undefined)                 h.canBuild = false;
+      if (!Array.isArray(h.buildAvailableTiles))    h.buildAvailableTiles = [];
+      if (h.buildMinLevel === undefined)            h.buildMinLevel = 1;
+      if (h.buildPremiumPrice === undefined)        h.buildPremiumPrice = 0;
+      if (h.buildMaxPerMap !== undefined)           delete h.buildMaxPerMap;
+    });
+  }
+
   function load(text) {
     try {
       const parsed = JSON.parse(text);
@@ -3762,6 +3817,7 @@ const HexDB = (() => {
       _data = parsed;
       _migrateHexTypes(_data.hexes);
       _migrateDestroyFields(_data.hexes);
+      _migrateBuildFields(_data.hexes);
       _autoSave();
       _selFilt = -1;
       _filter = { search: '', biome: '', type: '' };
