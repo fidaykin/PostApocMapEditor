@@ -5,6 +5,14 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.4.4 — 2026-05-11
+
+### Features
+- HexDB Special section: `Bonus Drop` checkbox gates `Triggers` dropdown (Destroy/Reveal/Build, default Destroy) and `Bonuses` dynamic resource block (default Gold=10); `Boosters` and `Effects` kept as locked placeholder fields; removed StorageCapacity, EnergyConsumption, PollutionConstant
+- Migration: old `bonusDrop` text field auto-converted to boolean on load
+
+---
+
 ## v0.4.3 — 2026-05-11
 
 ### Features

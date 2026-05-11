@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.4.3</title>
+<title>MapEditorPro v0.4.4</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -985,7 +985,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.4.3</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.4.4</div>
   </div>
 
 </div>
@@ -1233,7 +1233,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.4.3";
+const VERSION = "0.4.4";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3201,8 +3201,8 @@ const HexDB = (() => {
       incomeGetPerTap:[], incomePerTurn:[],
       incomeIdle:[], incomeConstant:[],
       spendConstant:[{type:'Pollution',amount:1}],
-      bonusDrop:'', booster:'',
-      storageCapacity:0, energyConsumption:0, pollutionConstant:0,
+      bonusDrop:false, bonusTrigger:'Destroy', bonuses:[],
+      booster:'', effects:'',
     };
   }
 
@@ -3512,12 +3512,25 @@ const HexDB = (() => {
           false, SPEND_RES_TYPES)),
     ].join('');
 
+    const bdOn = hex.bonusDrop ?? false;
+    const bdDis = bdOn ? '' : ' disabled';
     const specialBody = [
-      _row('BonusDrop',          _textInput('bonusDrop',          hex.bonusDrop)),
-      _row('Booster',            _textInput('booster',            hex.booster)),
-      _row('StorageCapacity',    _numInput('storageCapacity',     hex.storageCapacity)),
-      _row('EnergyConsumption',  _numInput('energyConsumption',   hex.energyConsumption)),
-      _row('PollutionConstant',  _numInput('pollutionConstant',   hex.pollutionConstant)),
+      _checkRow('bonusDrop', bdOn, 'has bonus drop on trigger'),
+      _row('Triggers',
+        `<select class="hexdb-select" style="width:120px"
+           data-field="bonusTrigger"${bdDis}>
+           <option${(hex.bonusTrigger ?? 'Destroy') === 'Destroy' ? ' selected' : ''}>Destroy</option>
+           <option${(hex.bonusTrigger ?? '') === 'Reveal' ? ' selected' : ''}>Reveal</option>
+           <option${(hex.bonusTrigger ?? '') === 'Build'  ? ' selected' : ''}>Build</option>
+         </select>`),
+      _row('Bonuses',
+        _resourceBlockHTML('bonuses', hex.bonuses ?? [], !bdOn)),
+      _row('Boosters',
+        `<input class="hexdb-input" style="width:200px;opacity:0.5"
+           value="${_esc(hex.booster ?? '')}" disabled>`),
+      _row('Effects',
+        `<input class="hexdb-input" style="width:200px;opacity:0.5"
+           value="${_esc(hex.effects ?? '')}" disabled>`),
     ].join('');
 
     const actionsHTML = `<div class="hexdb-actions">
@@ -3589,6 +3602,15 @@ const HexDB = (() => {
           h.destroyable = true;
         }
         _renderRecord(h);
+      });
+    }
+
+    // ── Wire Bonus Drop toggle → re-render ────────────────────
+    const bonusDropEl = document.querySelector('#hexdb-right [data-field="bonusDrop"]');
+    if (bonusDropEl) {
+      bonusDropEl.addEventListener('change', () => {
+        if (_selFilt < 0) return;
+        _renderRecord(_data.hexes[_filtered[_selFilt]]);
       });
     }
 
@@ -3736,6 +3758,7 @@ const HexDB = (() => {
           _migrateDestroyFields(_data.hexes);
           _migrateBuildFields(_data.hexes);
           _migrateIncomeFields(_data.hexes);
+          _migrateSpecialFields(_data.hexes);
           _autoSave();
         }
       }
@@ -3916,6 +3939,20 @@ const HexDB = (() => {
     });
   }
 
+  function _migrateSpecialFields(hexes) {
+    hexes.forEach(h => {
+      if (typeof h.bonusDrop !== 'boolean') {
+        h.bonusDrop = !!h.bonusDrop;
+      }
+      if (!h.bonusTrigger)              h.bonusTrigger = 'Destroy';
+      if (!Array.isArray(h.bonuses))    h.bonuses = [];
+      if (h.effects === undefined)      h.effects = '';
+      delete h.storageCapacity;
+      delete h.energyConsumption;
+      delete h.pollutionConstant;
+    });
+  }
+
   function load(text) {
     try {
       const parsed = JSON.parse(text);
@@ -3925,6 +3962,7 @@ const HexDB = (() => {
       _migrateDestroyFields(_data.hexes);
       _migrateBuildFields(_data.hexes);
       _migrateIncomeFields(_data.hexes);
+      _migrateSpecialFields(_data.hexes);
       _autoSave();
       _selFilt = -1;
       _filter = { search: '', biome: '', type: '' };
