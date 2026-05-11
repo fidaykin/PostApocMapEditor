@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.4.5</title>
+<title>MapEditorPro v0.4.6</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -985,7 +985,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.4.5</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.4.6</div>
   </div>
 
 </div>
@@ -1233,7 +1233,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.4.5";
+const VERSION = "0.4.6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3542,7 +3542,20 @@ const HexDB = (() => {
       _data.hexes.map(h => `<option value="${_esc(h.id)}">`).join('') +
       '</datalist>';
 
+    const spriteSrc = hex.spriteName ? `sprites/hex/${_esc(hex.spriteName)}.png` : '';
+    const visualHTML = `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0">
+      <img src="${spriteSrc}" alt=""
+        style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0;
+               clip-path:polygon(100% 50%,75% 6.7%,25% 6.7%,0% 50%,25% 93.3%,75% 93.3%)"
+        onerror="this.style.opacity='0.2'">
+      <div style="min-width:0">
+        <div style="font-size:13px;font-weight:bold;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(hex.id) || '(unnamed)'}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${spriteSrc || '—'}</div>
+      </div>
+    </div>`;
+
     document.getElementById('hexdb-right').innerHTML =
+      visualHTML +
       _sectionHTML('main',    'MAIN (0–9)',     mainBody)    +
       _sectionHTML('destroy', 'DESTROY (10–17)',destroyBody) +
       _sectionHTML('build',   'BUILD (18–24)',  buildBody)   +

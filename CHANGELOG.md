@@ -5,6 +5,13 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.4.6 — 2026-05-11
+
+### Features
+- HexDB editor: restored Visual block at the top of the record form — shows tile sprite preview (hex-shaped), ID, and sprite path on every hex record
+
+---
+
 ## v0.4.5 — 2026-05-11
 
 ### Fixes
