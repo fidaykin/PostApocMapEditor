@@ -5,6 +5,14 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.3.2 — 2026-05-11
+
+### Fixes
+- Hex / Buildings / Settlements editor right panel now scrolls vertically — added `grid-template-rows: 1fr` to constrain the internal grid row, and `min-height: 0` to the panel so `overflow-y: auto` activates
+- Section frames (Main, Destroy, Build, Income, Special) no longer clip their content when adjacent frames are expanded — added `flex-shrink: 0` to `.hexdb-section` so sections always render at full natural height
+
+---
+
 ## v0.3.1 — 2026-05-11
 
 ### Fixes
