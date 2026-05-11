@@ -1,0 +1,1835 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MapEditorPro v0.4.6 — User Guide</title>
+<style>
+  /* ── Design tokens ─────────────────────────────────────────── */
+  :root {
+    --bg:      #1e1e1e;
+    --panel:   #2a2a2a;
+    --border:  #3a3a3a;
+    --accent:  #4fc3f7;
+    --text:    #ffffff;
+    --muted:   #888888;
+    --danger:  #ef5350;
+    --success: #66bb6a;
+    --warn:    #ffa726;
+    --panel2:  #333333;
+    --sidebar-w: 220px;
+  }
+
+  /* ── Reset / Base ──────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; font-size: 15px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    line-height: 1.65;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  h1 { font-size: 2rem; font-weight: 700; color: var(--accent); margin-bottom: .5rem; }
+  h2 { font-size: 1.45rem; font-weight: 700; color: var(--accent); margin: 2.5rem 0 .75rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+  h3 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 1.6rem 0 .5rem; }
+  h4 { font-size: .95rem; font-weight: 600; color: var(--accent); margin: 1.2rem 0 .4rem; }
+
+  p { margin-bottom: .85rem; }
+  ul, ol { margin: .4rem 0 .85rem 1.4rem; }
+  li { margin-bottom: .3rem; }
+  code {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: .88em;
+    color: var(--accent);
+  }
+  kbd {
+    display: inline-block;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-bottom: 2px solid #555;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-family: inherit;
+    font-size: .82em;
+    color: var(--text);
+  }
+
+  strong { color: var(--text); font-weight: 600; }
+  em { color: var(--muted); font-style: italic; }
+
+  /* ── Layout ────────────────────────────────────────────────── */
+  nav#sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 1.2rem 0 2rem;
+    flex-shrink: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  nav#sidebar::-webkit-scrollbar { width: 5px; }
+  nav#sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .sidebar-logo {
+    padding: .5rem 1rem 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: .8rem;
+  }
+  .sidebar-logo .app-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    display: block;
+  }
+  .sidebar-logo .app-ver {
+    font-size: .75rem;
+    color: var(--muted);
+  }
+
+  nav#sidebar ul { list-style: none; margin: 0; padding: 0; }
+  nav#sidebar ul li a {
+    display: block;
+    padding: .3rem 1.2rem;
+    color: var(--muted);
+    font-size: .82rem;
+    transition: color .15s, background .15s;
+    border-left: 2px solid transparent;
+  }
+  nav#sidebar ul li a:hover {
+    color: var(--text);
+    background: rgba(79,195,247,.06);
+    text-decoration: none;
+  }
+  nav#sidebar ul li a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(79,195,247,.08);
+  }
+  nav#sidebar .nav-section-label {
+    display: block;
+    padding: .7rem 1rem .2rem;
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  nav#sidebar .nav-sub a {
+    padding-left: 1.8rem;
+    font-size: .79rem;
+  }
+
+  main#content {
+    flex: 1;
+    padding: 2rem 2.5rem 4rem;
+    max-width: 960px;
+    min-width: 0;
+  }
+
+  /* ── Info boxes ────────────────────────────────────────────── */
+  .box {
+    border-left: 3px solid var(--accent);
+    background: rgba(79,195,247,.06);
+    border-radius: 0 6px 6px 0;
+    padding: .7rem 1rem;
+    margin: 1rem 0;
+    font-size: .9rem;
+  }
+  .box.warn  { border-color: var(--warn);    background: rgba(255,167,38,.06); }
+  .box.tip   { border-color: var(--success); background: rgba(102,187,106,.06); }
+  .box.note  { border-color: var(--muted);   background: rgba(136,136,136,.06); }
+
+  /* ── Shortcut table ─────────────────────────────────────────── */
+  table.shortcuts {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+    margin: 1rem 0;
+  }
+  table.shortcuts th {
+    background: var(--panel);
+    color: var(--accent);
+    text-align: left;
+    padding: .5rem .85rem;
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  table.shortcuts td {
+    padding: .45rem .85rem;
+    border: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.shortcuts tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+  table.shortcuts tr:hover td { background: rgba(79,195,247,.04); }
+
+  /* ── Mockup helpers ─────────────────────────────────────────── */
+  .mockup {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    overflow: hidden;
+    margin: 1.2rem 0;
+    box-shadow: 0 4px 24px rgba(0,0,0,.5);
+    font-size: .82rem;
+  }
+  .mockup-title {
+    background: #111;
+    color: var(--muted);
+    font-size: .72rem;
+    padding: .35rem .8rem;
+    border-bottom: 1px solid var(--border);
+    font-style: italic;
+  }
+
+  /* Toolbar strip */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    background: #111;
+    border-bottom: 1px solid var(--border);
+    padding: 4px 8px;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .tb-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 3px 9px;
+    font-size: .75rem;
+    cursor: default;
+    white-space: nowrap;
+  }
+  .tb-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .tb-btn.tab    { padding: 4px 12px; font-size: .8rem; }
+  .tb-sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+  .tb-menu { position: relative; display: inline-block; }
+  .tb-menu-label {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: .8rem;
+    padding: 4px 8px;
+    cursor: default;
+    border-radius: 3px;
+  }
+  .tb-menu-label:hover { background: var(--panel); }
+
+  /* Panel */
+  .side-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .panel-header {
+    background: #222;
+    border-bottom: 1px solid var(--border);
+    padding: 5px 10px;
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  /* Form controls */
+  .mock-input {
+    background: #111;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-size: .8rem;
+    padding: 3px 7px;
+    display: inline-block;
+    min-width: 80px;
+  }
+  .mock-input.wide { min-width: 160px; display: block; }
+  .mock-label { color: var(--muted); font-size: .78rem; margin-bottom: 2px; display: block; }
+  .mock-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .mock-check { width: 13px; height: 13px; border: 1px solid var(--border); border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; background: #111; color: var(--accent); font-size: .65rem; }
+  .mock-check.checked::after { content: '✓'; }
+  .mock-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    padding: 3px 10px;
+    font-size: .78rem;
+    cursor: default;
+  }
+  .mock-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .mock-btn.danger  { background: rgba(239,83,80,.2); color: var(--danger); border-color: var(--danger); }
+
+  /* Tag chips */
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(79,195,247,.12);
+    border: 1px solid rgba(79,195,247,.3);
+    border-radius: 12px;
+    padding: 1px 8px;
+    font-size: .73rem;
+    color: var(--accent);
+    gap: 4px;
+    margin: 2px;
+  }
+  .tag-chip .rm { color: var(--muted); font-size: .65rem; cursor: default; }
+
+  /* Collapsible section header */
+  .section-hdr {
+    background: #222;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 10px;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: default;
+  }
+  .section-hdr .arrow { color: var(--muted); font-size: .7rem; }
+  .section-body {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+  }
+
+  /* Hex tile */
+  .hex-tile {
+    display: inline-block;
+    width: 36px; height: 36px;
+    border-radius: 4px;
+    border: 2px solid var(--border);
+  }
+  .hex-tile.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,195,247,.3); }
+
+  /* Resource row */
+  .res-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 3px 0;
+    font-size: .78rem;
+  }
+  .res-icon {
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .6rem;
+    color: var(--muted);
+  }
+
+  /* Minimap widget */
+  .minimap-widget {
+    width: 100%;
+    aspect-ratio: 1;
+    background: #111;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .minimap-viewport {
+    position: absolute;
+    border: 1px solid var(--accent);
+    background: rgba(79,195,247,.1);
+    border-radius: 2px;
+  }
+
+  /* Brush size buttons */
+  .brush-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px; height: 34px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: .72rem;
+    color: var(--muted);
+    cursor: default;
+  }
+  .brush-btn.active {
+    background: rgba(79,195,247,.15);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* Canvas area */
+  .canvas-area {
+    background: #111;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: .78rem;
+  }
+  .canvas-hex-grid {
+    display: grid;
+    gap: 2px;
+    opacity: .7;
+  }
+
+  /* Palette item */
+  .palette-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: default;
+    font-size: .78rem;
+  }
+  .palette-item:hover { background: rgba(255,255,255,.04); }
+  .palette-item.active { background: rgba(79,195,247,.12); color: var(--accent); }
+  .palette-dot {
+    width: 14px; height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  /* List item */
+  .list-item {
+    padding: 4px 10px;
+    font-size: .8rem;
+    cursor: default;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .list-item:hover { background: rgba(255,255,255,.04); }
+  .list-item.active { background: rgba(79,195,247,.1); color: var(--accent); }
+  .list-badge {
+    display: inline-block;
+    background: rgba(79,195,247,.12);
+    color: var(--accent);
+    border-radius: 3px;
+    padding: 0 5px;
+    font-size: .68rem;
+    margin-left: auto;
+  }
+
+  /* Preview sprite block */
+  .sprite-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #111;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    gap: 6px;
+    text-align: center;
+  }
+  .sprite-box {
+    width: 72px; height: 72px;
+    background: var(--panel2);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+  }
+  .sprite-id   { font-size: .9rem; font-weight: 700; color: var(--accent); }
+  .sprite-path { font-size: .7rem; color: var(--muted); word-break: break-all; }
+
+  /* Two-col form grid */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+  .form-field { display: flex; flex-direction: column; gap: 2px; }
+
+  /* zoom indicator */
+  .zoom-badge {
+    position: absolute;
+    bottom: 6px; right: 8px;
+    background: rgba(0,0,0,.7);
+    color: var(--muted);
+    font-size: .72rem;
+    padding: 2px 7px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  /* Section anchor target offset */
+  section[id] { scroll-margin-top: 1rem; }
+
+  /* ── Divider ─────────────────────────────────────────────────── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ SIDEBAR ═══════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <span class="app-name">MapEditorPro</span>
+    <span class="app-ver">v0.4.6 — User Guide</span>
+  </div>
+
+  <ul>
+    <li><span class="nav-section-label">Getting started</span></li>
+    <li><a href="#introduction">1. Introduction</a></li>
+    <li><a href="#interface">2. Interface Overview</a></li>
+
+    <li><span class="nav-section-label">Map Editor</span></li>
+    <li class="nav-sub"><a href="#map-tab">3. Map Editor</a></li>
+    <li class="nav-sub"><a href="#terrain-palette">Terrain Palette</a></li>
+    <li class="nav-sub"><a href="#drawing-tools">Drawing Tools</a></li>
+    <li class="nav-sub"><a href="#zoom-pan">Zoom &amp; Pan</a></li>
+    <li class="nav-sub"><a href="#minimap">Minimap</a></li>
+    <li class="nav-sub"><a href="#saving">Saving &amp; Loading</a></li>
+    <li class="nav-sub"><a href="#autosave">Autosave to Folder</a></li>
+
+    <li><span class="nav-section-label">Hex Database</span></li>
+    <li class="nav-sub"><a href="#hexdb">4. HexDB Editor</a></li>
+    <li class="nav-sub"><a href="#hexdb-list">Managing Entries</a></li>
+    <li class="nav-sub"><a href="#hexdb-preview">Visual Preview</a></li>
+    <li class="nav-sub"><a href="#hexdb-main">MAIN Section</a></li>
+    <li class="nav-sub"><a href="#hexdb-destroy">DESTROY Section</a></li>
+    <li class="nav-sub"><a href="#hexdb-build">BUILD Section</a></li>
+    <li class="nav-sub"><a href="#hexdb-income">INCOME Section</a></li>
+    <li class="nav-sub"><a href="#hexdb-special">SPECIAL Section</a></li>
+    <li class="nav-sub"><a href="#hexdb-save">Copy/Paste &amp; Save DB</a></li>
+
+    <li><span class="nav-section-label">Other editors</span></li>
+    <li><a href="#buildings">5. Buildings Editor</a></li>
+    <li><a href="#settlements">6. Settlements Editor</a></li>
+
+    <li><span class="nav-section-label">Reference</span></li>
+    <li><a href="#shortcuts">7. Keyboard Shortcuts</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════════════════════════ CONTENT ═══════════════════════════════════ -->
+<main id="content">
+
+  <!-- ─────────────────────────── HEADER ─────────────────────────── -->
+  <h1>MapEditorPro v0.4.6</h1>
+  <p style="color:var(--muted); font-size:.9rem;">User Guide &nbsp;·&nbsp; English &nbsp;·&nbsp; Last updated 2026-05-06</p>
+  <hr>
+
+  <!-- ═════════════════════ 1. INTRODUCTION ═════════════════════ -->
+  <section id="introduction">
+    <h2>1. Introduction</h2>
+    <p>
+      MapEditorPro is a browser-based, zero-install hex-tile map editor written in vanilla JavaScript.
+      Version 0.4.6 ships four integrated tools in a single HTML file: a <strong>Map canvas editor</strong>,
+      a <strong>Hex Database editor</strong>, a <strong>Buildings editor</strong>, and a
+      <strong>Settlements editor</strong>. It is designed for top-down strategy and city-builder games
+      that use hexagonal tile grids.
+    </p>
+    <p>
+      Because the entire application is a single <code>.html</code> file with no server-side component,
+      it works completely offline and requires no installation.
+    </p>
+
+    <h3>System requirements</h3>
+    <ul>
+      <li><strong>Browser:</strong> Google Chrome 90+ or Microsoft Edge 90+ (Chromium-based) recommended.
+        Firefox works for map editing; the autosave-to-folder feature requires the File System Access API
+        (Chrome/Edge only).</li>
+      <li><strong>Screen:</strong> 1200 px wide minimum for a comfortable layout.</li>
+    </ul>
+
+    <h3>Opening the editor</h3>
+    <ol>
+      <li>Locate <code>MapEditorPro.html</code> in your project folder.</li>
+      <li>Drag the file onto an open Chrome or Edge window, <em>or</em> double-click it to open in your
+        system default browser.</li>
+      <li>If Chrome asks for file-access permission (for autosave), click <strong>Allow</strong>.</li>
+    </ol>
+
+    <!-- Mockup: browser address bar showing a local file -->
+    <div class="mockup">
+      <div class="mockup-title">Mockup — opening the editor from a local file</div>
+      <div style="background:#111; padding:8px 12px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border);">
+        <div style="display:flex; gap:5px;">
+          <span style="width:11px;height:11px;border-radius:50%;background:#ef5350;display:inline-block;"></span>
+          <span style="width:11px;height:11px;border-radius:50%;background:#ffa726;display:inline-block;"></span>
+          <span style="width:11px;height:11px;border-radius:50%;background:#66bb6a;display:inline-block;"></span>
+        </div>
+        <div style="flex:1; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:3px 14px; font-size:.78rem; color:var(--muted);">
+          file:///C:/Projects/MapEditorPro.html
+        </div>
+      </div>
+      <div style="padding:16px 20px; display:flex; align-items:center; gap:14px;">
+        <div style="font-size:2rem;">🗺️</div>
+        <div>
+          <div style="font-size:1rem; font-weight:700; color:var(--accent);">MapEditorPro v0.4.6</div>
+          <div style="font-size:.8rem; color:var(--muted);">Loaded locally — no internet connection required</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box tip">
+      <strong>Tip:</strong> Pin the file to your taskbar or create a desktop shortcut so you can
+      launch the editor with a single click.
+    </div>
+  </section>
+
+  <!-- ═════════════════════ 2. INTERFACE OVERVIEW ═════════════════════ -->
+  <section id="interface">
+    <h2>2. Interface Overview</h2>
+    <p>
+      The editor is divided into three horizontal bands: a <strong>menu bar</strong> at the very top,
+      a <strong>tab toolbar</strong> directly beneath it, and the <strong>main workspace</strong> below.
+      The workspace is always split into a narrow left panel, a central canvas or list view, and a
+      narrower right panel. Switching between the four tabs changes every panel simultaneously.
+    </p>
+
+    <!-- Mockup: full layout diagram -->
+    <div class="mockup">
+      <div class="mockup-title">Mockup — overall 4-tab layout</div>
+
+      <!-- Menu bar -->
+      <div style="background:#111; border-bottom:1px solid var(--border); padding:4px 12px; display:flex; gap:6px; font-size:.8rem;">
+        <span class="tb-menu-label">File</span>
+        <span class="tb-menu-label">Edit</span>
+        <span class="tb-menu-label">Layer</span>
+        <span class="tb-menu-label">View</span>
+        <span class="tb-menu-label">Generate</span>
+        <span class="tb-menu-label">Data</span>
+      </div>
+
+      <!-- Tab toolbar -->
+      <div class="toolbar">
+        <span class="tb-btn tab active">MAP</span>
+        <span class="tb-btn tab">HEX DB</span>
+        <span class="tb-btn tab">BUILDINGS</span>
+        <span class="tb-btn tab">SETTLEMENTS</span>
+        <span class="tb-sep"></span>
+        <span class="tb-btn active" title="Paint">🖌 Paint</span>
+        <span class="tb-btn" title="Erase">🗑 Erase</span>
+        <span class="tb-btn" title="Fill">🪣 Fill</span>
+        <span class="tb-btn" title="Eyedropper">👁 Pick</span>
+        <span class="tb-btn" title="Rectangle">⬛ Rect</span>
+        <span class="tb-btn" title="Settlement">⬡ Settlement</span>
+        <span class="tb-btn" title="Clear">✕ Clear</span>
+      </div>
+
+      <!-- Three-column workspace -->
+      <div style="display:flex; height:200px;">
+        <!-- Left panel -->
+        <div style="width:160px; min-width:160px; background:var(--panel); border-right:1px solid var(--border); padding:6px; overflow:hidden;">
+          <div class="panel-header" style="margin:-6px -6px 6px; border-radius:0;">TERRAIN PALETTE</div>
+          <div class="palette-item active"><div class="palette-dot" style="background:#4a7c59;"></div>Grassland</div>
+          <div class="palette-item"><div class="palette-dot" style="background:#c29a56;"></div>Desert Sand</div>
+          <div class="palette-item"><div class="palette-dot" style="background:#2e4d7b;"></div>Deep Water</div>
+          <div class="palette-item"><div class="palette-dot" style="background:#7a7a6e;"></div>Rubble</div>
+          <div class="palette-item"><div class="palette-dot" style="background:#5a4e3c;"></div>Wasteland</div>
+          <div style="color:var(--muted); font-size:.7rem; margin-top:6px; text-align:center;">…29 terrain types</div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-area" style="flex:1; flex-direction:column; gap:8px;">
+          <div style="display:grid; grid-template-columns: repeat(7, 24px); grid-template-rows: repeat(5, 24px); gap:2px; opacity:.6;">
+            <div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+            <div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#7a7a6e; border-radius:3px;"></div><div style="background:#7a7a6e; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+            <div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#7a7a6e; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+            <div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div>
+            <div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div>
+          </div>
+          <span style="font-size:.72rem;">Hex canvas — pan &amp; zoom</span>
+          <div class="zoom-badge" style="position:relative; bottom:auto; right:auto; margin-top:2px;">100%</div>
+        </div>
+
+        <!-- Right panel -->
+        <div style="width:150px; min-width:150px; background:var(--panel); border-left:1px solid var(--border); padding:6px;">
+          <div class="panel-header" style="margin:-6px -6px 6px; border-radius:0;">MINIMAP</div>
+          <div class="minimap-widget" style="height:100px;">
+            <div class="minimap-viewport" style="width:40%; height:40%; top:20%; left:25%;"></div>
+          </div>
+          <div style="margin-top:8px; font-size:.72rem; color:var(--muted);">Brush size</div>
+          <div style="display:flex; gap:3px; margin-top:3px;">
+            <div class="brush-btn">1</div>
+            <div class="brush-btn active">3×3</div>
+            <div class="brush-btn">5×5</div>
+            <div class="brush-btn">○7</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      The four tabs share the same three-panel frame. Only the content of each panel changes:
+    </p>
+    <ul>
+      <li><strong>MAP</strong> — terrain palette (left) · hex canvas (centre) · minimap + brush options (right)</li>
+      <li><strong>HEX DB</strong> — hex entry list (left) · visual preview + property form (centre/right)</li>
+      <li><strong>BUILDINGS</strong> — building list (left) · MAIN / BUILD / LEVELS form (right)</li>
+      <li><strong>SETTLEMENTS</strong> — settlement list (left) · MAIN / BUILD / LEVELS form (right)</li>
+    </ul>
+  </section>
+
+  <!-- ═════════════════════ 3. MAP EDITOR ═════════════════════ -->
+  <section id="map-tab">
+    <h2>3. Map Editor</h2>
+    <p>
+      The MAP tab is the primary canvas workspace. You paint terrain onto a hex grid, manage
+      settlements, and export or save your map from here.
+    </p>
+  </section>
+
+  <!-- ─── 3a Terrain Palette ─── -->
+  <section id="terrain-palette">
+    <h3>Terrain Palette</h3>
+    <p>
+      The left panel lists all 29 terrain types, organized into collapsible category groups
+      (e.g., Natural, Urban, Wasteland, Water). Click any category header to expand or collapse it.
+      Click a terrain swatch to select it as the active brush terrain; the selected entry is
+      highlighted in the accent color and mirrored in the right panel's <em>Active Terrain</em> display.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — terrain palette (left panel, MAP tab)</div>
+      <div style="width:190px; background:var(--panel); padding:0; font-size:.8rem;">
+
+        <!-- category: Natural -->
+        <div class="section-hdr" style="border-radius:0; margin-bottom:0;">
+          <span class="arrow">▾</span> Natural
+          <span style="margin-left:auto; color:var(--muted); font-size:.7rem; font-weight:400;">8</span>
+        </div>
+        <div style="padding:4px 6px; border:1px solid var(--border); border-top:none; border-bottom:1px solid var(--border); background:var(--bg);">
+          <div class="palette-item active"><div class="palette-dot" style="background:#4a7c59;"></div>Grassland <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">001</span></div>
+          <div class="palette-item"><div class="palette-dot" style="background:#6b8e23;"></div>Forest <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">002</span></div>
+          <div class="palette-item"><div class="palette-dot" style="background:#2e4d7b;"></div>Deep Water <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">003</span></div>
+          <div class="palette-item"><div class="palette-dot" style="background:#3c6b8a;"></div>Shallow Water <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">004</span></div>
+          <div style="color:var(--muted); font-size:.7rem; padding:2px 4px;">…4 more</div>
+        </div>
+
+        <!-- category: Wasteland -->
+        <div class="section-hdr" style="border-radius:0; margin-bottom:0;">
+          <span class="arrow">▾</span> Wasteland
+          <span style="margin-left:auto; color:var(--muted); font-size:.7rem; font-weight:400;">7</span>
+        </div>
+        <div style="padding:4px 6px; border:1px solid var(--border); border-top:none; background:var(--bg);">
+          <div class="palette-item"><div class="palette-dot" style="background:#5a4e3c;"></div>Wasteland <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">010</span></div>
+          <div class="palette-item"><div class="palette-dot" style="background:#7a7a6e;"></div>Rubble <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">011</span></div>
+          <div style="color:var(--muted); font-size:.7rem; padding:2px 4px;">…5 more</div>
+        </div>
+
+        <!-- category: Urban (collapsed) -->
+        <div class="section-hdr" style="border-radius:0; margin-bottom:0; border-top:1px solid var(--border);">
+          <span class="arrow">▸</span> Urban
+          <span style="margin-left:auto; color:var(--muted); font-size:.7rem; font-weight:400;">6</span>
+        </div>
+        <div class="section-hdr" style="border-radius:0; margin-bottom:0; border-top:1px solid var(--border);">
+          <span class="arrow">▸</span> Special
+          <span style="margin-left:auto; color:var(--muted); font-size:.7rem; font-weight:400;">8</span>
+        </div>
+
+      </div>
+    </div>
+
+    <ul>
+      <li>Each entry shows a color swatch, the terrain name, and its numeric ID.</li>
+      <li>Click a category header to collapse it and save vertical space.</li>
+      <li>Use the <strong>Eyedropper</strong> tool (keyboard <kbd>E</kbd>) to pick a terrain directly
+        from the canvas — the palette will scroll to and highlight the picked terrain.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 3b Drawing Tools ─── -->
+  <section id="drawing-tools">
+    <h3>Drawing Tools</h3>
+    <p>
+      Seven tools are available in the toolbar. The active tool is shown with an accent-colored
+      background. Select a tool by clicking its button or pressing its keyboard shortcut.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — tool buttons in the toolbar</div>
+      <div class="toolbar">
+        <span class="tb-btn tab">MAP</span>
+        <span class="tb-btn tab">HEX DB</span>
+        <span class="tb-btn tab">BUILDINGS</span>
+        <span class="tb-btn tab">SETTLEMENTS</span>
+        <span class="tb-sep"></span>
+        <span class="tb-btn active">🖌 Paint</span>
+        <span class="tb-btn">🗑 Erase</span>
+        <span class="tb-btn">🪣 Fill</span>
+        <span class="tb-btn">👁 Pick</span>
+        <span class="tb-btn">⬛ Rect</span>
+        <span class="tb-btn">⬡ Settlement</span>
+        <span class="tb-btn">✕ Clear</span>
+      </div>
+      <div style="padding:8px 12px; font-size:.78rem; color:var(--muted);">
+        Active tool: <span style="color:var(--accent); font-weight:600;">Paint</span> &nbsp;·&nbsp;
+        Brush: <span style="color:var(--text);">3×3</span> &nbsp;·&nbsp;
+        Terrain: <span style="color:var(--text);">Grassland (001)</span>
+      </div>
+    </div>
+
+    <table class="shortcuts" style="margin-top:.5rem;">
+      <thead>
+        <tr><th style="width:130px;">Tool</th><th>Description</th><th style="width:80px;">Shortcut</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>🖌 <strong>Paint</strong></td><td>Click or drag to paint the active terrain onto hovered hexes. Brush size applies.</td><td><kbd>P</kbd></td></tr>
+        <tr><td>🗑 <strong>Erase</strong></td><td>Removes terrain, resetting hexes to empty/default. Brush size applies.</td><td><kbd>Del</kbd></td></tr>
+        <tr><td>🪣 <strong>Fill</strong></td><td>Flood-fills a contiguous region of the same terrain with the active terrain.</td><td><kbd>F</kbd></td></tr>
+        <tr><td>👁 <strong>Eyedropper</strong></td><td>Picks the terrain under the cursor and sets it as the active terrain.</td><td><kbd>E</kbd></td></tr>
+        <tr><td>⬛ <strong>Rect</strong></td><td>Click-drag to paint a rectangular region of hexes with the active terrain.</td><td><kbd>R</kbd></td></tr>
+        <tr><td>⬡ <strong>Settlement</strong></td><td>Click a hex to place or remove a settlement marker on it.</td><td><kbd>S</kbd></td></tr>
+        <tr><td>✕ <strong>Clear</strong></td><td>Clears a single hex (acts like Erase with brush size 1).</td><td><kbd>X</kbd></td></tr>
+      </tbody>
+    </table>
+
+    <div class="box tip">
+      <strong>Tip:</strong> Holding <kbd>Shift</kbd> while dragging with Paint temporarily switches to
+      Erase mode, letting you clean up edges without changing the active tool.
+    </div>
+    <div class="box">
+      <strong>Brush size</strong> is controlled from the right panel (see Minimap section). It applies
+      to Paint, Erase, and Rect. The circular 7-hex option (○7) paints a radially symmetric 7-hex cluster.
+    </div>
+  </section>
+
+  <!-- ─── 3c Zoom and Pan ─── -->
+  <section id="zoom-pan">
+    <h3>Zoom and Pan</h3>
+    <p>
+      The hex canvas supports zoom from <strong>25%</strong> to <strong>400%</strong>. Pan by holding
+      <kbd>Space</kbd> and dragging, or by using the middle mouse button. The current zoom level is
+      displayed in the bottom-right corner of the canvas.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — canvas with zoom indicator and pan cursor</div>
+      <div class="canvas-area" style="height:160px; position:relative;">
+        <div style="display:grid; grid-template-columns: repeat(9, 28px); grid-template-rows: repeat(4, 28px); gap:2px; opacity:.65;">
+          <div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#6b8e23; border-radius:3px;"></div><div style="background:#6b8e23; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+          <div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#7a7a6e; border-radius:3px; border:2px solid var(--accent);"></div><div style="background:#7a7a6e; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#6b8e23; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+          <div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+          <div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div>
+        </div>
+        <div class="zoom-badge">150%</div>
+        <div style="position:absolute; bottom:6px; left:8px; background:rgba(0,0,0,.7); color:var(--muted); font-size:.7rem; padding:2px 7px; border-radius:10px; border:1px solid var(--border);">Space+drag to pan</div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Scroll wheel</strong> — zoom in/out centred on the cursor position.</li>
+      <li><kbd>Ctrl</kbd> + <kbd>+</kbd> / <kbd>Ctrl</kbd> + <kbd>-</kbd> — zoom in/out by one step.</li>
+      <li><kbd>Ctrl</kbd> + <kbd>0</kbd> — reset zoom to 100%.</li>
+      <li><strong>Middle-mouse drag</strong> or <kbd>Space</kbd> + left-drag — pan the canvas.</li>
+    </ul>
+
+    <div class="box note">
+      When zoomed below 50%, individual hex borders are hidden to reduce visual noise.
+    </div>
+  </section>
+
+  <!-- ─── 3d Minimap ─── -->
+  <section id="minimap">
+    <h3>Minimap</h3>
+    <p>
+      The right panel contains a 220×220 minimap that shows the entire map at a reduced scale.
+      A translucent blue rectangle represents the current viewport. Click or drag inside the minimap
+      to pan the main canvas to that position. Below the minimap are the <strong>Brush Size</strong>
+      selector, the <strong>Active Terrain</strong> display, and the <strong>Settlement Count</strong>.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — right panel (MAP tab)</div>
+      <div style="width:190px; background:var(--panel); padding:0;">
+        <div class="panel-header" style="border-radius:0;">MINIMAP</div>
+        <div style="padding:8px;">
+          <!-- Minimap -->
+          <div class="minimap-widget" style="height:120px;">
+            <div style="position:absolute; inset:0; opacity:.5; display:grid; grid-template-columns:repeat(10,1fr); grid-template-rows:repeat(8,1fr); gap:1px; padding:1px;">
+              <div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#6b8e23;"></div><div style="background:#c29a56;"></div><div style="background:#c29a56;"></div><div style="background:#2e4d7b;"></div><div style="background:#2e4d7b;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div>
+              <div style="background:#4a7c59;"></div><div style="background:#7a7a6e;"></div><div style="background:#7a7a6e;"></div><div style="background:#4a7c59;"></div><div style="background:#c29a56;"></div><div style="background:#2e4d7b;"></div><div style="background:#2e4d7b;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div>
+              <div style="background:#5a4e3c;"></div><div style="background:#5a4e3c;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#2e4d7b;"></div><div style="background:#2e4d7b;"></div><div style="background:#2e4d7b;"></div>
+              <div style="background:#5a4e3c;"></div><div style="background:#5a4e3c;"></div><div style="background:#4a7c59;"></div><div style="background:#c29a56;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div>
+              <div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#6b8e23;"></div><div style="background:#6b8e23;"></div><div style="background:#4a7c59;"></div><div style="background:#c29a56;"></div><div style="background:#c29a56;"></div><div style="background:#c29a56;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div>
+              <div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#7a7a6e;"></div><div style="background:#7a7a6e;"></div><div style="background:#c29a56;"></div><div style="background:#c29a56;"></div><div style="background:#4a7c59;"></div><div style="background:#2e4d7b;"></div>
+              <div style="background:#6b8e23;"></div><div style="background:#6b8e23;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#5a4e3c;"></div><div style="background:#5a4e3c;"></div><div style="background:#2e4d7b;"></div>
+              <div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div>
+            </div>
+            <div class="minimap-viewport" style="width:45%; height:50%; top:10%; left:20%;"></div>
+          </div>
+
+          <!-- Brush size -->
+          <div style="margin-top:10px; font-size:.75rem; color:var(--muted); margin-bottom:4px;">BRUSH SIZE</div>
+          <div style="display:flex; gap:4px;">
+            <div class="brush-btn">1</div>
+            <div class="brush-btn active">3×3</div>
+            <div class="brush-btn">5×5</div>
+            <div class="brush-btn">○7</div>
+          </div>
+
+          <!-- Active terrain -->
+          <div style="margin-top:10px; font-size:.75rem; color:var(--muted); margin-bottom:4px;">ACTIVE TERRAIN</div>
+          <div style="display:flex; align-items:center; gap:8px; background:#111; border:1px solid var(--border); border-radius:4px; padding:6px;">
+            <div class="palette-dot" style="width:22px; height:22px; background:#4a7c59; border-radius:3px;"></div>
+            <div>
+              <div style="font-size:.82rem; font-weight:600;">Grassland</div>
+              <div style="font-size:.7rem; color:var(--muted);">ID: 001</div>
+            </div>
+          </div>
+
+          <!-- Settlement count -->
+          <div style="margin-top:10px; font-size:.75rem; color:var(--muted); margin-bottom:2px;">SETTLEMENTS</div>
+          <div style="font-size:1.1rem; font-weight:700; color:var(--accent); padding-left:2px;">3</div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li>Click anywhere on the minimap to jump the viewport to that position instantly.</li>
+      <li>The viewport rectangle updates in real time as you pan or zoom the canvas.</li>
+      <li>Brush sizes: <strong>1</strong> (single hex), <strong>3×3</strong> (diamond 3), <strong>5×5</strong> (diamond 5), <strong>○7</strong> (radial 7-hex cluster).</li>
+    </ul>
+  </section>
+
+  <!-- ─── 3e Saving and Loading ─── -->
+  <section id="saving">
+    <h3>Saving and Loading Maps</h3>
+    <p>
+      Maps are saved as JSON files that store the terrain grid, settlement positions, and metadata.
+      Use the <strong>File</strong> menu or keyboard shortcuts to manage map files.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — File menu</div>
+      <div style="background:#111; border-bottom:1px solid var(--border); padding:4px 12px; display:flex; gap:2px; font-size:.8rem; position:relative;">
+        <div style="position:relative;">
+          <span class="tb-menu-label" style="background:var(--panel); border-radius:3px;">File</span>
+          <div style="position:absolute; top:100%; left:0; background:var(--panel2); border:1px solid var(--border); border-radius:4px; width:220px; z-index:10; box-shadow:0 6px 20px rgba(0,0,0,.6); margin-top:2px;">
+            <div style="padding:5px 12px; font-size:.8rem; display:flex; justify-content:space-between; align-items:center; cursor:default; border-bottom:1px solid var(--border);">
+              <span>New Map</span><kbd>Ctrl+N</kbd>
+            </div>
+            <div style="padding:5px 12px; font-size:.8rem; display:flex; justify-content:space-between; align-items:center; cursor:default;">
+              <span>Open…</span><kbd>Ctrl+O</kbd>
+            </div>
+            <div style="padding:5px 12px; font-size:.8rem; display:flex; justify-content:space-between; align-items:center; cursor:default; background:rgba(79,195,247,.08);">
+              <span style="color:var(--accent);">Save</span><kbd>Ctrl+S</kbd>
+            </div>
+            <div style="padding:5px 12px; font-size:.8rem; cursor:default; border-top:1px solid var(--border);">
+              Set Autosave Folder…
+            </div>
+            <div style="padding:5px 12px; font-size:.8rem; cursor:default;">
+              Export CSV
+            </div>
+          </div>
+        </div>
+        <span class="tb-menu-label">Edit</span>
+        <span class="tb-menu-label">Layer</span>
+        <span class="tb-menu-label">View</span>
+        <span class="tb-menu-label">Generate</span>
+        <span class="tb-menu-label">Data</span>
+      </div>
+      <div style="padding:10px 14px; font-size:.78rem; color:var(--muted);">Click a menu item or use the keyboard shortcut</div>
+    </div>
+
+    <ul>
+      <li><strong>New Map</strong> (<kbd>Ctrl</kbd>+<kbd>N</kbd>) — prompts for map dimensions, then creates a blank grid.</li>
+      <li><strong>Open</strong> (<kbd>Ctrl</kbd>+<kbd>O</kbd>) — opens a file picker; select any <code>.json</code> map file.</li>
+      <li><strong>Save</strong> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) — triggers a browser download of the current map as <code>map_session.json</code>.</li>
+      <li><strong>Export CSV</strong> — exports the terrain grid as a comma-separated values file (row × column, terrain ID per cell).</li>
+    </ul>
+
+    <div class="box">
+      <strong>Edit menu extras:</strong> <em>Undo</em> (<kbd>Ctrl</kbd>+<kbd>Z</kbd>), <em>Redo</em>
+      (<kbd>Ctrl</kbd>+<kbd>Y</kbd>), <em>Clear Map</em> (reset all hexes), and
+      <em>Fill Map</em> (flood the entire map with the active terrain).
+    </div>
+  </section>
+
+  <!-- ─── 3f Autosave ─── -->
+  <section id="autosave">
+    <h3>Autosave to Folder</h3>
+    <p>
+      The editor auto-saves your map to <strong>browser localStorage</strong> after every change.
+      If you close the tab accidentally, reopening the editor will restore the last state automatically.
+    </p>
+    <p>
+      For persistent file-system backups, use <strong>File → Set Autosave Folder…</strong>. This
+      opens a system folder picker. The editor creates a <code>saved_maps/</code> subdirectory inside
+      the chosen folder and writes <code>map_session.json</code> there after every change.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — autosave folder confirmation dialog</div>
+      <div style="padding:18px 20px;">
+        <div style="background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:18px 20px; max-width:380px; margin:0 auto; box-shadow:0 6px 24px rgba(0,0,0,.5);">
+          <div style="font-weight:700; font-size:1rem; margin-bottom:6px; color:var(--accent);">Autosave Folder Set</div>
+          <div style="font-size:.82rem; color:var(--muted); margin-bottom:12px;">
+            Map will be saved automatically to:<br>
+            <code style="color:var(--text); display:block; margin-top:6px; word-break:break-all;">
+              /Projects/MyGame/saved_maps/map_session.json
+            </code>
+          </div>
+          <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <div class="mock-btn primary">OK</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box warn">
+      <strong>Browser compatibility:</strong> The File System Access API used for autosave is
+      available in Chrome and Edge only. In Firefox and Safari the folder picker will not appear;
+      use <kbd>Ctrl</kbd>+<kbd>S</kbd> to download a manual save instead.
+    </div>
+    <div class="box tip">
+      <strong>Tip:</strong> Set the autosave folder to a cloud-synced directory (Dropbox, Google Drive,
+      OneDrive) for automatic off-device backup.
+    </div>
+  </section>
+
+  <!-- ═════════════════════ 4. HEX DB EDITOR ═════════════════════ -->
+  <section id="hexdb">
+    <h2>4. HexDB Editor</h2>
+    <p>
+      The <strong>HEX DB</strong> tab is a full database editor for every terrain and object type
+      used on the map. Each database entry (a "hex") defines gameplay properties: how it looks,
+      whether it can be destroyed or built upon, what income it generates, and any special behaviors.
+    </p>
+    <p>
+      The tab is split into a left list and a right detail form. Selecting an entry in the list
+      loads its data into the form immediately.
+    </p>
+  </section>
+
+  <!-- ─── 4a Adding / managing ─── -->
+  <section id="hexdb-list">
+    <h3>Adding and Managing Hex Entries</h3>
+    <p>
+      The left panel shows all hex entries sorted A-Z. A search field and two filter dropdowns
+      (Biome and Type) narrow the list in real time. The footer shows the total entry count and
+      a <strong>Delete</strong> button for the selected entry.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — HEX DB left panel</div>
+      <div style="display:flex;">
+        <!-- Toolbar -->
+        <div style="width:200px; background:var(--panel); border-right:1px solid var(--border);">
+          <!-- List toolbar -->
+          <div style="background:#111; border-bottom:1px solid var(--border); padding:6px 8px; display:flex; gap:4px;">
+            <span class="mock-btn primary" style="font-size:.75rem;">+ Add Hex</span>
+            <span class="mock-btn" style="font-size:.75rem;">📂 Load DB</span>
+            <span class="mock-btn" style="font-size:.75rem;">💾 Save DB</span>
+          </div>
+
+          <!-- Filters -->
+          <div style="padding:6px 8px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:4px;">
+            <div class="mock-input wide" style="color:var(--muted);">🔍 Search…</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+              <div class="mock-input" style="font-size:.72rem; color:var(--muted);">Biome ▾</div>
+              <div class="mock-input" style="font-size:.72rem; color:var(--muted);">Type ▾</div>
+            </div>
+          </div>
+
+          <!-- List items -->
+          <div style="overflow-y:auto; flex:1;">
+            <div class="list-item active">
+              <div>
+                <div style="font-size:.8rem;">Grassland</div>
+                <div style="font-size:.68rem; color:var(--muted);">ID: 001</div>
+              </div>
+              <span class="list-badge">Natural</span>
+            </div>
+            <div class="list-item">
+              <div>
+                <div style="font-size:.8rem;">Forest</div>
+                <div style="font-size:.68rem; color:var(--muted);">ID: 002</div>
+              </div>
+              <span class="list-badge">Natural</span>
+            </div>
+            <div class="list-item">
+              <div>
+                <div style="font-size:.8rem;">Rubble</div>
+                <div style="font-size:.68rem; color:var(--muted);">ID: 011</div>
+              </div>
+              <span class="list-badge">Waste</span>
+            </div>
+            <div class="list-item">
+              <div>
+                <div style="font-size:.8rem;">Wasteland</div>
+                <div style="font-size:.68rem; color:var(--muted);">ID: 010</div>
+              </div>
+              <span class="list-badge">Waste</span>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="border-top:1px solid var(--border); padding:5px 8px; display:flex; justify-content:space-between; align-items:center; font-size:.75rem;">
+            <span style="color:var(--muted);">29 entries</span>
+            <span class="mock-btn danger" style="font-size:.72rem;">🗑 Delete</span>
+          </div>
+        </div>
+        <!-- Placeholder for right side -->
+        <div style="flex:1; background:var(--bg); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:.8rem;">
+          Select an entry to edit →
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li>Click <strong>+ Add Hex</strong> to create a new blank entry; fill in the ID first as it is the primary key.</li>
+      <li>Use the <strong>Biome</strong> and <strong>Type</strong> dropdowns together to quickly locate specific hex types.</li>
+      <li>The <strong>Delete</strong> button removes the selected entry permanently. This action is not undoable within the DB form — save a backup with <strong>Save DB</strong> first.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4b Visual Preview ─── -->
+  <section id="hexdb-preview">
+    <h3>Visual Preview Block</h3>
+    <p>
+      At the top of the right panel, above all the collapsible sections, sits the visual preview
+      block. It shows the hex's assigned sprite, its numeric ID, and the sprite file path.
+      This block updates instantly when you change the <em>SpriteName</em> field in the MAIN section.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — visual preview block</div>
+      <div style="padding:14px; max-width:340px;">
+        <div class="sprite-preview">
+          <div class="sprite-box">🌿</div>
+          <div class="sprite-id">001</div>
+          <div class="sprite-path">sprites/terrain/grassland.png</div>
+          <div style="display:flex; gap:6px; margin-top:4px;">
+            <span class="mock-btn" style="font-size:.72rem;">📋 Copy ID</span>
+            <span class="mock-btn" style="font-size:.72rem;">📋 Copy Path</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box note">
+      The preview renders the sprite via the path stored in SpriteName. If the path is invalid or
+      the sprite file is missing, the box shows a placeholder icon.
+    </div>
+  </section>
+
+  <!-- ─── 4c MAIN ─── -->
+  <section id="hexdb-main">
+    <h3>MAIN Section</h3>
+    <p>
+      The MAIN collapsible section holds the core identity fields for a hex entry. The
+      <strong>Id</strong> field is required (marked with *) and must be unique across the database.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — MAIN section (expanded)</div>
+      <div style="padding:10px; max-width:480px;">
+        <div class="section-hdr"><span class="arrow">▾</span> MAIN</div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <span class="mock-label">Id <span style="color:var(--danger);">*</span></span>
+              <div class="mock-input">001</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">TextId</span>
+              <div class="mock-input">HEX_GRASSLAND</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Desc Idle</span>
+              <div class="mock-input">Open grassland…</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Desc Build</span>
+              <div class="mock-input">Building here…</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Type (grouped)</span>
+              <div class="mock-input">Natural ▾</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Biome</span>
+              <div class="mock-input">Temperate ▾</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Filter</span>
+              <div class="mock-input">Grassland ▾</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Base Cost Taps</span>
+              <div class="mock-input">0</div>
+            </div>
+          </div>
+          <div style="margin-top:6px;">
+            <span class="mock-label">SpriteName</span>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <div class="mock-input" style="flex:1;">sprites/terrain/grassland.png</div>
+              <span class="mock-btn">📂</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Id</strong> — numeric unique key. Changing this after creation renames the entry; ensure no other hex references this ID.</li>
+      <li><strong>TextId</strong> — localization key used by the game engine at runtime.</li>
+      <li><strong>Type</strong> — grouped dropdown; the categories (Natural, Wasteland, Water, Urban, Special) correspond to the palette groups in the MAP tab.</li>
+      <li><strong>SpriteName</strong> — relative path to the sprite image. Click the folder button to browse sprite assets.</li>
+      <li><strong>Base Cost Taps</strong> — the default number of player taps required to complete a base action on this hex (0 = instant).</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4d DESTROY ─── -->
+  <section id="hexdb-destroy">
+    <h3>DESTROY Section</h3>
+    <p>
+      The DESTROY section defines what happens when the player destroys this hex. The master toggle
+      <strong>Can Destroy</strong> gates all sub-fields — when unchecked, all fields below it are
+      disabled. The <em>Transform to</em> datalist and <em>Unbreakable</em> button are mutually exclusive:
+      selecting "Unbreakable" clears the transform target.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — DESTROY section</div>
+      <div style="padding:10px; max-width:480px;">
+        <div class="section-hdr"><span class="arrow">▾</span> DESTROY</div>
+        <div class="section-body">
+          <!-- Can Destroy row -->
+          <div class="mock-row">
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem; font-weight:600;">Can Destroy</span>
+          </div>
+
+          <!-- Transform to -->
+          <div class="form-field" style="margin-bottom:6px;">
+            <span class="mock-label">Transform to</span>
+            <div style="display:flex; gap:6px;">
+              <div class="mock-input" style="flex:1;">Rubble (011)</div>
+              <div class="mock-btn" style="background:rgba(136,136,136,.15); color:var(--muted); font-size:.72rem;">Unbreakable</div>
+            </div>
+          </div>
+
+          <!-- Source tags -->
+          <div class="form-field" style="margin-bottom:6px;">
+            <span class="mock-label">Source</span>
+            <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:4px 6px; min-height:30px;">
+              <span class="tag-chip">axe<span class="rm">✕</span></span>
+              <span class="tag-chip">fire<span class="rm">✕</span></span>
+              <span style="font-size:.72rem; color:var(--muted); margin-left:4px;">Press Enter to add…</span>
+            </div>
+          </div>
+
+          <!-- Can Stored / Destroy Income row -->
+          <div class="mock-row" style="margin-bottom:6px;">
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem;">Can Stored</span>
+            <div style="margin-left:16px;"></div>
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem;">Destroy Income</span>
+          </div>
+
+          <!-- Resources block -->
+          <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:6px;">
+            <div style="font-size:.72rem; color:var(--muted); margin-bottom:4px;">Resources</div>
+            <div class="res-row">
+              <div class="res-icon">🪵</div>
+              <div class="mock-input" style="width:60px;">Wood</div>
+              <div class="mock-input" style="width:50px;">5</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="res-row">
+              <div class="res-icon">🪨</div>
+              <div class="mock-input" style="width:60px;">Stone</div>
+              <div class="mock-input" style="width:50px;">2</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="mock-btn" style="font-size:.72rem; margin-top:4px;">+ Add Resource</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Can Destroy</strong> (master toggle) — disabling this greys out all sub-fields.</li>
+      <li><strong>Transform to</strong> — what hex ID this tile becomes after destruction. Leave blank or click <em>Unbreakable</em> to make it non-destructible despite the toggle.</li>
+      <li><strong>Source</strong> — tag list of destruction methods (e.g., <em>axe</em>, <em>fire</em>, <em>bomb</em>). Press <kbd>Enter</kbd> after typing to add; click ✕ to remove.</li>
+      <li><strong>Can Stored</strong> — whether the destroyed tile's resources are added to storage.</li>
+      <li><strong>Destroy Income</strong> — gates the Resources block; when checked, the listed resources are granted on destruction.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4e BUILD ─── -->
+  <section id="hexdb-build">
+    <h3>BUILD Section</h3>
+    <p>
+      The BUILD section defines whether a building can be constructed on this hex. The
+      <strong>Can Build</strong> and <strong>Need Road</strong> checkboxes share the top row and
+      gate all content below. <em>Available Tiles</em> is a tag list of terrain IDs that are valid
+      base surfaces for this hex type.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — BUILD section</div>
+      <div style="padding:10px; max-width:480px;">
+        <div class="section-hdr"><span class="arrow">▾</span> BUILD</div>
+        <div class="section-body">
+
+          <!-- Top row toggles -->
+          <div class="mock-row" style="margin-bottom:8px;">
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem; font-weight:600;">Can Build</span>
+            <div style="margin-left:20px;"></div>
+            <div class="mock-check"></div>
+            <span style="font-size:.8rem; font-weight:600;">Need Road</span>
+          </div>
+
+          <!-- Available Tiles -->
+          <div class="form-field" style="margin-bottom:6px;">
+            <span class="mock-label">Available Tiles</span>
+            <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:4px 6px;">
+              <span class="tag-chip">001<span class="rm">✕</span></span>
+              <span class="tag-chip">002<span class="rm">✕</span></span>
+              <span class="tag-chip">010<span class="rm">✕</span></span>
+              <span style="font-size:.72rem; color:var(--muted); margin-left:4px;">Press Enter…</span>
+            </div>
+          </div>
+
+          <!-- MinLevel / Placement Rule -->
+          <div class="form-grid" style="margin-bottom:6px;">
+            <div class="form-field">
+              <span class="mock-label">MinLevel</span>
+              <div class="mock-input">1</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Placement Rule</span>
+              <div class="mock-input">Always on ▾</div>
+            </div>
+          </div>
+
+          <!-- Price block -->
+          <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:6px; margin-bottom:6px;">
+            <div style="font-size:.72rem; color:var(--muted); margin-bottom:4px;">Price</div>
+            <div class="res-row">
+              <div class="res-icon">💰</div>
+              <div class="mock-input" style="width:60px;">Coins</div>
+              <div class="mock-input" style="width:50px;">100</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="mock-btn" style="font-size:.72rem; margin-top:4px;">+ Add Resource</div>
+          </div>
+
+          <!-- Premium Price -->
+          <div class="form-field">
+            <span class="mock-label">Premium Price</span>
+            <div class="mock-input">10</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Can Build</strong> — master toggle; when unchecked all BUILD fields are disabled.</li>
+      <li><strong>Need Road</strong> — if checked, the hex must be adjacent to a road tile before construction can begin.</li>
+      <li><strong>Available Tiles</strong> — IDs of valid ground tiles. An empty list means no restriction.</li>
+      <li><strong>MinLevel</strong> — minimum player level required to place this hex type.</li>
+      <li><strong>Placement Rule</strong> — currently supports <em>Always on</em> and <em>Bottom</em> (must be placed on the bottom row of the map).</li>
+      <li><strong>Premium Price</strong> — hard-currency cost to skip the build timer.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4f INCOME ─── -->
+  <section id="hexdb-income">
+    <h3>INCOME Section</h3>
+    <p>
+      The INCOME section configures resource generation. Two master toggles share the top row:
+      <strong>Tap Income</strong> (gates the tap-triggered income chain) and
+      <strong>Destroyable</strong> (gates the on-tap transform chain). Both are independent.
+      The <em>Per Turn</em> and constant income fields are always visible and active regardless
+      of the toggles.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — INCOME section</div>
+      <div style="padding:10px; max-width:480px;">
+        <div class="section-hdr"><span class="arrow">▾</span> INCOME</div>
+        <div class="section-body">
+
+          <!-- Top toggles row -->
+          <div class="mock-row" style="margin-bottom:8px;">
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem; font-weight:600;">Tap Income</span>
+            <div style="margin-left:20px;"></div>
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem; font-weight:600;">Destroyable</span>
+          </div>
+
+          <!-- Transform to + Parent Hex (gated by Destroyable) -->
+          <div class="form-grid" style="margin-bottom:6px;">
+            <div class="form-field">
+              <span class="mock-label">Transform to</span>
+              <div class="mock-input">Forest (002)</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Parent Hex</span>
+              <div class="mock-input">Grassland ▾</div>
+            </div>
+          </div>
+
+          <!-- Capacity / Get per Tap (gated by Tap Income) -->
+          <div class="form-grid" style="margin-bottom:6px;">
+            <div class="form-field">
+              <span class="mock-label">Capacity (min 1)</span>
+              <div class="mock-input">3</div>
+            </div>
+          </div>
+
+          <!-- Get per Tap resource block -->
+          <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:6px; margin-bottom:6px;">
+            <div style="font-size:.72rem; color:var(--muted); margin-bottom:4px;">Get per Tap</div>
+            <div class="res-row">
+              <div class="res-icon">🌾</div>
+              <div class="mock-input" style="width:60px;">Food</div>
+              <div class="mock-input" style="width:50px;">3</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="mock-btn" style="font-size:.72rem; margin-top:4px;">+ Add Resource</div>
+          </div>
+
+          <!-- Per Turn (always on) -->
+          <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:6px; margin-bottom:6px;">
+            <div style="font-size:.72rem; color:var(--muted); margin-bottom:4px;">Per Turn</div>
+            <div class="res-row">
+              <div class="res-icon">⚡</div>
+              <div class="mock-input" style="width:60px;">Energy</div>
+              <div class="mock-input" style="width:50px;">1</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="mock-btn" style="font-size:.72rem; margin-top:4px;">+ Add Resource</div>
+          </div>
+
+          <!-- Idle / Constant / Spend Constant labels -->
+          <div class="form-grid">
+            <div class="form-field">
+              <span class="mock-label">Income Idle</span>
+              <div class="mock-input">0</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Income Constant</span>
+              <div class="mock-input">0</div>
+            </div>
+          </div>
+          <div class="form-field" style="margin-top:6px;">
+            <span class="mock-label">Spend Constant (incl. Pollution &amp; Energy)</span>
+            <div class="mock-input wide" style="color:var(--muted);">+ Add resource…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Tap Income</strong> — enables per-tap resource drops. Gates <em>Capacity</em> and the <em>Get per Tap</em> block.</li>
+      <li><strong>Destroyable</strong> — enables on-tap transformation. Gates <em>Transform to</em> and <em>Parent Hex</em> dropdown.</li>
+      <li><strong>Capacity</strong> — how many taps this hex can absorb before it transforms (minimum 1, default 3).</li>
+      <li><strong>Get per Tap</strong> — dynamic resource block; each tap grants these resources to the player.</li>
+      <li><strong>Per Turn</strong> — always-active; resources generated each game turn regardless of interaction.</li>
+      <li><strong>Spend Constant</strong> — resources consumed per turn (use for pollution, energy drains, maintenance).</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4g SPECIAL ─── -->
+  <section id="hexdb-special">
+    <h3>SPECIAL Section</h3>
+    <p>
+      The SPECIAL section handles bonus drops, trigger events, and future-facing locked placeholder
+      fields for Boosters and Effects.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — SPECIAL section</div>
+      <div style="padding:10px; max-width:480px;">
+        <div class="section-hdr"><span class="arrow">▾</span> SPECIAL</div>
+        <div class="section-body">
+
+          <!-- Bonus Drop toggle -->
+          <div class="mock-row" style="margin-bottom:8px;">
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem; font-weight:600;">Bonus Drop</span>
+          </div>
+
+          <!-- Triggers dropdown -->
+          <div class="form-field" style="margin-bottom:6px;">
+            <span class="mock-label">Triggers</span>
+            <div class="mock-input">Destroy ▾</div>
+          </div>
+
+          <!-- Bonuses resource block -->
+          <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:6px; margin-bottom:10px;">
+            <div style="font-size:.72rem; color:var(--muted); margin-bottom:4px;">Bonuses</div>
+            <div class="res-row">
+              <div class="res-icon">⭐</div>
+              <div class="mock-input" style="width:70px;">Stars</div>
+              <div class="mock-input" style="width:50px;">1</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="mock-btn" style="font-size:.72rem; margin-top:4px;">+ Add Resource</div>
+          </div>
+
+          <!-- Locked placeholders -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div style="background:rgba(136,136,136,.06); border:1px dashed var(--border); border-radius:4px; padding:8px; text-align:center;">
+              <div style="font-size:.75rem; color:var(--muted); margin-bottom:2px;">Boosters</div>
+              <div style="font-size:.68rem; color:var(--border);">🔒 Coming soon</div>
+            </div>
+            <div style="background:rgba(136,136,136,.06); border:1px dashed var(--border); border-radius:4px; padding:8px; text-align:center;">
+              <div style="font-size:.75rem; color:var(--muted); margin-bottom:2px;">Effects</div>
+              <div style="font-size:.68rem; color:var(--border);">🔒 Coming soon</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Bonus Drop</strong> — master toggle; when unchecked the Triggers and Bonuses fields are disabled.</li>
+      <li><strong>Triggers</strong> — when the bonus is awarded: <em>Destroy</em>, <em>Reveal</em>, or <em>Build</em>.</li>
+      <li><strong>Bonuses</strong> — resource block defining what the player receives when the trigger fires.</li>
+      <li><strong>Boosters</strong> and <strong>Effects</strong> — locked placeholders; these fields will be unlocked in a future version.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4h Copy/Paste & Save DB ─── -->
+  <section id="hexdb-save">
+    <h3>Copy/Paste and Save DB</h3>
+    <p>
+      All hex data is stored in memory as you edit. Use the toolbar actions to persist changes:
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — HEX DB toolbar actions</div>
+      <div style="background:#111; border-bottom:1px solid var(--border); padding:6px 10px; display:flex; gap:6px; align-items:center;">
+        <span class="mock-btn primary">+ Add Hex</span>
+        <span class="mock-btn">📂 Load DB</span>
+        <span class="mock-btn">💾 Save DB</span>
+        <div style="margin-left:auto; font-size:.75rem; color:var(--success);">✓ Saved 14:32</div>
+      </div>
+      <div style="padding:10px 12px; font-size:.78rem; color:var(--muted);">
+        29 entries in database &nbsp;·&nbsp; Last saved: <span style="color:var(--text);">hexdb_v0.4.6.json</span>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>📂 Load DB</strong> — opens a file picker to load a <code>.json</code> hex database file, replacing the current in-memory database.</li>
+      <li><strong>💾 Save DB</strong> — downloads the entire database as a <code>.json</code> file. Save frequently; there is no in-database undo history.</li>
+    </ul>
+
+    <div class="box warn">
+      <strong>Important:</strong> Loading a new DB file replaces the current database in memory immediately.
+      Any unsaved changes will be lost. Always <strong>Save DB</strong> before loading a different file.
+    </div>
+    <div class="box tip">
+      <strong>Duplicate trick:</strong> To copy a hex entry, open the JSON file in a text editor,
+      duplicate the object, assign a new ID, and reload with <strong>Load DB</strong>.
+    </div>
+  </section>
+
+  <!-- ═════════════════════ 5. BUILDINGS EDITOR ═════════════════════ -->
+  <section id="buildings">
+    <h2>5. Buildings Editor</h2>
+    <p>
+      The <strong>BUILDINGS</strong> tab manages the catalog of buildings that can be placed on map
+      hexes. Its layout mirrors HEX DB: a searchable list on the left and a detail form on the right.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — BUILDINGS tab overview</div>
+      <div style="display:flex; height:210px;">
+        <!-- Left list -->
+        <div style="width:180px; background:var(--panel); border-right:1px solid var(--border);">
+          <div style="background:#111; border-bottom:1px solid var(--border); padding:5px 8px; display:flex; gap:4px;">
+            <span class="mock-btn primary" style="font-size:.73rem;">+ Add Building</span>
+            <span class="mock-btn" style="font-size:.73rem;">💾</span>
+          </div>
+          <div style="padding:5px 8px; border-bottom:1px solid var(--border);">
+            <div class="mock-input wide" style="color:var(--muted); font-size:.75rem;">🔍 Search…</div>
+          </div>
+          <div class="list-item active">
+            <div><div style="font-size:.8rem;">Lumber Mill</div><div style="font-size:.68rem; color:var(--muted);">ID: B001</div></div>
+          </div>
+          <div class="list-item">
+            <div><div style="font-size:.8rem;">Stone Quarry</div><div style="font-size:.68rem; color:var(--muted);">ID: B002</div></div>
+          </div>
+          <div class="list-item">
+            <div><div style="font-size:.8rem;">Watch Tower</div><div style="font-size:.68rem; color:var(--muted);">ID: B003</div></div>
+          </div>
+          <div style="border-top:1px solid var(--border); padding:5px 8px; display:flex; justify-content:space-between; margin-top:auto;">
+            <span style="color:var(--muted); font-size:.73rem;">3 buildings</span>
+            <span class="mock-btn danger" style="font-size:.7rem;">🗑 Delete</span>
+          </div>
+        </div>
+
+        <!-- Right form -->
+        <div style="flex:1; background:var(--bg); padding:10px; overflow:hidden;">
+          <div class="section-hdr"><span class="arrow">▾</span> MAIN</div>
+          <div class="section-body" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:4px;">
+            <div class="form-field"><span class="mock-label">Id *</span><div class="mock-input">B001</div></div>
+            <div class="form-field"><span class="mock-label">TextId</span><div class="mock-input">BLDG_LUMBER_MILL</div></div>
+            <div class="form-field"><span class="mock-label">Max Level</span><div class="mock-input">5</div></div>
+            <div class="form-field"><span class="mock-label">SpriteName</span><div class="mock-input">bldg/lumber_mill.png</div></div>
+          </div>
+          <div class="section-hdr" style="margin-top:4px;"><span class="arrow">▸</span> BUILD</div>
+          <div class="section-hdr" style="margin-top:2px;"><span class="arrow">▸</span> LEVELS</div>
+        </div>
+      </div>
+    </div>
+
+    <p>The right-side form has three collapsible sections:</p>
+    <ul>
+      <li><strong>MAIN</strong> — Id, TextId, descriptions, sprite, and <strong>Max Level</strong>.
+        Max Level accepts any value ≥ 1 with no upper limit.</li>
+      <li><strong>BUILD</strong> — placement rules and price, analogous to the hex BUILD section.</li>
+      <li><strong>LEVELS</strong> — per-level upgrade costs, income values, and stat modifiers.
+        Rows are added/removed dynamically and keyed to the Max Level value.</li>
+    </ul>
+
+    <div class="box note">
+      Building data is stored independently from the Hex DB. A building's <em>Id</em> is referenced
+      by the map via settlement markers, not directly by hex tiles.
+    </div>
+  </section>
+
+  <!-- ═════════════════════ 6. SETTLEMENTS EDITOR ═════════════════════ -->
+  <section id="settlements">
+    <h2>6. Settlements Editor</h2>
+    <p>
+      The <strong>SETTLEMENTS</strong> tab defines the settlement types that can be placed on the map
+      using the Settlement tool (⬡). Settlements act as named named areas composed of multiple hexes
+      and can reference a set of allowed buildings.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Mockup — SETTLEMENTS tab overview</div>
+      <div style="display:flex; height:210px;">
+        <!-- Left list -->
+        <div style="width:180px; background:var(--panel); border-right:1px solid var(--border);">
+          <div style="background:#111; border-bottom:1px solid var(--border); padding:5px 8px; display:flex; gap:4px;">
+            <span class="mock-btn primary" style="font-size:.73rem;">+ Add Settlement</span>
+            <span class="mock-btn" style="font-size:.73rem;">💾</span>
+          </div>
+          <div style="padding:5px 8px; border-bottom:1px solid var(--border);">
+            <div class="mock-input wide" style="color:var(--muted); font-size:.75rem;">🔍 Search…</div>
+          </div>
+          <div class="list-item active">
+            <div><div style="font-size:.8rem;">Outpost Alpha</div><div style="font-size:.68rem; color:var(--muted);">ID: S001</div></div>
+          </div>
+          <div class="list-item">
+            <div><div style="font-size:.8rem;">Trading Post</div><div style="font-size:.68rem; color:var(--muted);">ID: S002</div></div>
+          </div>
+          <div class="list-item">
+            <div><div style="font-size:.8rem;">Fortress</div><div style="font-size:.68rem; color:var(--muted);">ID: S003</div></div>
+          </div>
+          <div style="border-top:1px solid var(--border); padding:5px 8px; display:flex; justify-content:space-between; margin-top:auto;">
+            <span style="color:var(--muted); font-size:.73rem;">3 settlements</span>
+            <span class="mock-btn danger" style="font-size:.7rem;">🗑 Delete</span>
+          </div>
+        </div>
+
+        <!-- Right form -->
+        <div style="flex:1; background:var(--bg); padding:10px; overflow:hidden;">
+          <div class="section-hdr"><span class="arrow">▾</span> MAIN</div>
+          <div class="section-body" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:4px;">
+            <div class="form-field"><span class="mock-label">Id *</span><div class="mock-input">S001</div></div>
+            <div class="form-field"><span class="mock-label">TextId</span><div class="mock-input">SETTL_OUTPOST_A</div></div>
+            <div class="form-field"><span class="mock-label">Max Level</span><div class="mock-input">3</div></div>
+            <div class="form-field"><span class="mock-label">SpriteName</span><div class="mock-input">settl/outpost.png</div></div>
+          </div>
+          <div class="section-hdr" style="margin-top:4px;"><span class="arrow">▸</span> BUILD</div>
+          <div class="section-hdr" style="margin-top:2px;"><span class="arrow">▸</span> LEVELS</div>
+        </div>
+      </div>
+    </div>
+
+    <p>The form mirrors the Buildings Editor structure:</p>
+    <ul>
+      <li><strong>MAIN</strong> — Id, TextId, descriptions, sprite, and Max Level (no upper cap).</li>
+      <li><strong>BUILD</strong> — tile restrictions, minimum player level, and build cost.</li>
+      <li><strong>LEVELS</strong> — per-level data rows; count is driven by Max Level.</li>
+    </ul>
+
+    <div class="box">
+      The <strong>Settlement Count</strong> shown in the MAP tab's right panel reflects the number of
+      settlement markers currently placed on the canvas, not the number of settlement definitions in
+      this editor.
+    </div>
+  </section>
+
+  <!-- ═════════════════════ 7. KEYBOARD SHORTCUTS ═════════════════════ -->
+  <section id="shortcuts">
+    <h2>7. Keyboard Shortcuts</h2>
+    <p>All shortcuts are available globally while the MAP tab is focused. DB/Buildings/Settlements
+    forms capture keyboard input for their own fields and do not respond to tool shortcuts.</p>
+
+    <h3>File operations</h3>
+    <table class="shortcuts">
+      <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>N</kbd></td><td>New Map — creates a blank hex grid (prompts for dimensions)</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open Map — file picker for <code>.json</code> map files</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save Map — downloads <code>map_session.json</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Edit operations</h3>
+    <table class="shortcuts">
+      <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Undo last paint operation</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Redo last undone operation</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Drawing tools</h3>
+    <table class="shortcuts">
+      <thead><tr><th>Shortcut</th><th>Tool</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>P</kbd></td><td>🖌 Paint</td><td>Hold and drag to paint continuously</td></tr>
+        <tr><td><kbd>Del</kbd></td><td>🗑 Erase</td><td>Brush size applies</td></tr>
+        <tr><td><kbd>F</kbd></td><td>🪣 Fill</td><td>Flood-fills contiguous same-terrain region</td></tr>
+        <tr><td><kbd>E</kbd></td><td>👁 Eyedropper</td><td>Single click; reverts to previous tool after pick</td></tr>
+        <tr><td><kbd>R</kbd></td><td>⬛ Rect</td><td>Drag to define rectangle; release to apply</td></tr>
+        <tr><td><kbd>S</kbd></td><td>⬡ Settlement</td><td>Toggle settlement marker on clicked hex</td></tr>
+        <tr><td><kbd>X</kbd></td><td>✕ Clear</td><td>Clears a single hex (brush-size-1 erase)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Canvas navigation</h3>
+    <table class="shortcuts">
+      <thead><tr><th>Shortcut</th><th>Action</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Scroll wheel</kbd></td><td>Zoom in / out, centred on cursor</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>+</kbd></td><td>Zoom in one step</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Zoom out one step</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Reset zoom to 100%</td></tr>
+        <tr><td><kbd>Space</kbd> + drag</td><td>Pan the canvas</td></tr>
+        <tr><td>Middle-mouse drag</td><td>Pan the canvas</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Brush size</h3>
+    <table class="shortcuts">
+      <thead><tr><th>Shortcut</th><th>Brush size</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>1</kbd></td><td>Single hex</td></tr>
+        <tr><td><kbd>2</kbd></td><td>3×3 diamond</td></tr>
+        <tr><td><kbd>3</kbd></td><td>5×5 diamond</td></tr>
+        <tr><td><kbd>4</kbd></td><td>○7 radial cluster</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Visual shortcut quick-reference card -->
+    <div class="mockup" style="margin-top:1.5rem;">
+      <div class="mockup-title">Quick-reference card</div>
+      <div style="padding:14px; display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; font-size:.82rem;">
+        <div>
+          <div style="color:var(--accent); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Files</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>N</kbd> <span style="color:var(--muted);">New</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>O</kbd> <span style="color:var(--muted);">Open</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>S</kbd> <span style="color:var(--muted);">Save</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>Z</kbd> <span style="color:var(--muted);">Undo</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>Y</kbd> <span style="color:var(--muted);">Redo</span></div>
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--accent); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Tools</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>P</kbd> <span style="color:var(--muted);">Paint</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Del</kbd> <span style="color:var(--muted);">Erase</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>F</kbd> <span style="color:var(--muted);">Fill</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>E</kbd> <span style="color:var(--muted);">Eyedropper</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>R</kbd> <span style="color:var(--muted);">Rect</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>S</kbd> <span style="color:var(--muted);">Settlement</span></div>
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--accent); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Zoom</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>+</kbd> <span style="color:var(--muted);">Zoom in</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>-</kbd> <span style="color:var(--muted);">Zoom out</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>0</kbd> <span style="color:var(--muted);">Reset 100%</span></div>
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--accent); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Brush</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>1</kbd> <span style="color:var(--muted);">Single hex</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>2</kbd> <span style="color:var(--muted);">3×3 diamond</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>3</kbd> <span style="color:var(--muted);">5×5 diamond</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>4</kbd> <span style="color:var(--muted);">○7 radial</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+  <p style="font-size:.78rem; color:var(--muted); text-align:center;">
+    MapEditorPro v0.4.6 &nbsp;·&nbsp; User Guide &nbsp;·&nbsp; Generated 2026-05-06
+  </p>
+
+</main>
+
+<script>
+  // Highlight the active sidebar link on scroll
+  (function () {
+    const links = document.querySelectorAll('nav#sidebar a[href^="#"]');
+    const sections = Array.from(links).map(l => document.querySelector(l.getAttribute('href')));
+
+    function onScroll() {
+      let current = '';
+      const scrollY = window.scrollY + 80;
+      sections.forEach((sec, i) => {
+        if (sec && sec.offsetTop <= scrollY) current = links[i].getAttribute('href');
+      });
+      links.forEach(l => {
+        l.classList.toggle('active', l.getAttribute('href') === current);
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+
+</body>
+</html>
