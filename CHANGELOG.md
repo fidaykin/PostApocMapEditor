@@ -5,6 +5,13 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.4.5 — 2026-05-11
+
+### Fixes
+- Buildings and Settlements editors: `Max Level` input widened to 9 chars (110px); removed illogical `max=8` restriction — levels above 8 now supported
+
+---
+
 ## v0.4.4 — 2026-05-11
 
 ### Features
