@@ -5,6 +5,16 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.4.0 — 2026-05-11
+
+### Features
+- HexDB Main section: added `Desc Idle` and `Desc Build` text fields for
+  localisation key references (position: after TextId, before Type)
+- HexDB Main section: replaced BaseCost Gold/Gems/Event inputs with a single
+  `Base Cost Taps` number field (9-char wide, min 0)
+
+---
+
 ## v0.3.4 — 2026-05-11
 
 ### Features

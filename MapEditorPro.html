@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.3.4</title>
+<title>MapEditorPro v0.4.0</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -951,7 +951,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.3.4</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.4.0</div>
   </div>
 
 </div>
@@ -1199,7 +1199,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.3.4";
+const VERSION = "0.4.0";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3154,7 +3154,7 @@ const HexDB = (() => {
     return {
       id:'', textId:'', type:'Special', biome:'Summer',
       filterCategory:'FilterTerrain', spriteName:'',
-      baseCostGold:0, baseCostGems:0, baseCostEvent:0, mainField9:0,
+      descriptionIdleId:'', descriptionBuildId:'', baseCostTaps:0,
       destroyIncomeGold:0, destroyIncomeGems:0, destroyTransformTo:'',
       destroyCondition:'', destroyBonus:0, destroyEffect:'',
       destroyDelay:0, destroyRequiresRoad:false,
@@ -3309,10 +3309,12 @@ const HexDB = (() => {
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
        <input class="hexdb-input" id="hexdb-id" data-field="id" value="${_esc(hex.id)}" placeholder="e.g. Plain_1">
        <small style="color:#888;font-size:0.8em;display:block;margin-top:2px">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small></div>`,
-      _row('TextId',          _textInput('textId', hex.textId)),
-      _row('Type',            `<select class="hexdb-select" data-field="type">${_typeGroupOptions(hex.type)}</select>`),
-      _row('Biome',           _selectInput('biome', BIOMES, hex.biome)),
-      _row('Filter',          _selectInput('filterCategory', FILTER_CATS, hex.filterCategory)),
+      _row('TextId',         _textInput('textId', hex.textId)),
+      _row('Desc Idle',      _textInput('descriptionIdleId',  hex.descriptionIdleId  ?? '')),
+      _row('Desc Build',     _textInput('descriptionBuildId', hex.descriptionBuildId ?? '')),
+      _row('Type',           `<select class="hexdb-select" data-field="type">${_typeGroupOptions(hex.type)}</select>`),
+      _row('Biome',          _selectInput('biome', BIOMES, hex.biome)),
+      _row('Filter',         _selectInput('filterCategory', FILTER_CATS, hex.filterCategory)),
       _row('SpriteName',
         `<div style="display:flex;gap:6px;align-items:flex-start;width:100%">` +
         `<div style="flex:1;min-width:0">` +
@@ -3321,9 +3323,10 @@ const HexDB = (() => {
         `</div>` +
         `<button class="hexdb-tool-btn" onclick="HexDB.pickSprite()" title="Browse sprites">🖼</button>` +
         `</div>`),
-      _row('BaseCost',        _costRow(
-        [{label:'Gold',field:'baseCostGold'},{label:'Gems',field:'baseCostGems'},{label:'Event',field:'baseCostEvent'}],
-        [hex.baseCostGold, hex.baseCostGems, hex.baseCostEvent])),
+      _row('Base Cost Taps',
+        `<input class="hexdb-input" type="number" step="1" min="0"
+           style="width:110px" data-field="baseCostTaps"
+           value="${hex.baseCostTaps ?? 0}">`),
     ].join('');
 
     const destroyBody = [
