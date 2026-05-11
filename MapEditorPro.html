@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.3.3</title>
+<title>MapEditorPro v0.3.4</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -720,6 +720,8 @@ body.mode-settlements #stt-tools   { display: flex; }
         <button onclick="IO.openMap()">Open… <span class="menu-shortcut">Ctrl+O</span></button>
         <button onclick="IO.saveMap()">Save <span class="menu-shortcut">Ctrl+S</span></button>
         <div class="separator"></div>
+        <button onclick="IO.setAutosaveFolder()">📁 Set Autosave Folder…</button>
+        <div class="separator"></div>
         <button onclick="IO.exportCSV()">Export CSV</button>
       </div>
     </div>
@@ -949,7 +951,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.3.3</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.3.4</div>
   </div>
 
 </div>
@@ -1197,7 +1199,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.3.3";
+const VERSION = "0.3.4";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2264,21 +2266,101 @@ const UI = (() => {
 // IO MODULE — new map, open JSON, save JSON, export CSV
 // ════════════════════════════════════════════════════════════
 const IO = (() => {
-  let _newMapCanCancel = false;
-  let _autoSaveTimer   = null;
+  let _newMapCanCancel  = false;
+  let _autoSaveTimer    = null;
+  let _fsDirHandle      = null;   // FileSystemDirectoryHandle for saved_maps/
+
+  // ── IndexedDB helper (stores FileSystemDirectoryHandle across sessions) ──
+  const _idb = (() => {
+    let _db = null;
+    const _open = () => _db ? Promise.resolve(_db) : new Promise((res, rej) => {
+      const r = indexedDB.open('MapEditorPro', 1);
+      r.onupgradeneeded = e => e.target.result.createObjectStore('kv');
+      r.onsuccess = e => { _db = e.target.result; res(_db); };
+      r.onerror = rej;
+    });
+    return {
+      get: async k => { const db = await _open(); return new Promise((res, rej) => { const r = db.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => res(r.result); r.onerror = rej; }); },
+      set: async (k, v) => { const db = await _open(); return new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = res; tx.onerror = rej; }); }
+    };
+  })();
+
+  // Returns the saved_maps/ handle if permission is still granted, else null.
+  async function _getFsDir() {
+    const handle = _fsDirHandle || await _idb.get('autosave_dir').catch(() => null);
+    if (!handle) return null;
+    try {
+      const perm = await handle.queryPermission({ mode: 'readwrite' });
+      if (perm === 'granted') { _fsDirHandle = handle; return handle; }
+    } catch(e) {}
+    return null;
+  }
+
+  // User-triggered: pick root folder → create saved_maps/ → persist handle.
+  async function setAutosaveFolder() {
+    UI.closeAllMenus();
+    if (!window.showDirectoryPicker) {
+      alert('File System Access API not supported in this browser. Use Chrome or Edge.');
+      return;
+    }
+    try {
+      const root = await window.showDirectoryPicker({ mode: 'readwrite' });
+      const dir  = await root.getDirectoryHandle('saved_maps', { create: true });
+      _fsDirHandle = dir;
+      await _idb.set('autosave_dir', dir);
+      UI.toast('Autosave folder set → saved_maps/');
+      _autoSave();
+    } catch(e) {
+      if (e.name !== 'AbortError') UI.toast('Could not set folder');
+    }
+  }
+
+  // Re-grant permission for a previously configured folder (requires user gesture).
+  async function resumeFolderAutosave() {
+    const handle = await _idb.get('autosave_dir').catch(() => null);
+    if (!handle) return;
+    try {
+      const perm = await handle.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') { _fsDirHandle = handle; UI.toast('Folder autosave resumed'); }
+    } catch(e) {}
+  }
+
+  // Initialise: load stored handle from IDB and check if permission already granted.
+  async function _initFsDir() {
+    const handle = await _idb.get('autosave_dir').catch(() => null);
+    if (!handle) return;
+    try {
+      const perm = await handle.queryPermission({ mode: 'readwrite' });
+      if (perm === 'granted') { _fsDirHandle = handle; return; }
+      // Permission needs re-grant on next user gesture.
+      UI.toast('📁 Folder autosave paused — use File → Set Autosave Folder to resume');
+    } catch(e) {}
+  }
+
+  function _buildJson() {
+    const data2d = [];
+    for (let r = 0; r < MAP_HEIGHT; r++)
+      data2d.push(Array.from(mapData.subarray(r * MAP_WIDTH, (r+1) * MAP_WIDTH)));
+    return JSON.stringify({
+      width: MAP_WIDTH, height: MAP_HEIGHT,
+      data: data2d,
+      settlements: settlements.map(s => ({ col: s.col, row: s.row, type: s.type }))
+    });
+  }
 
   function _autoSave() {
     if (!mapData) return;
-    try {
-      const data2d = [];
-      for (let r = 0; r < MAP_HEIGHT; r++)
-        data2d.push(Array.from(mapData.subarray(r * MAP_WIDTH, (r+1) * MAP_WIDTH)));
-      localStorage.setItem('map_autosave', JSON.stringify({
-        width: MAP_WIDTH, height: MAP_HEIGHT,
-        data: data2d,
-        settlements: settlements.map(s => ({ col: s.col, row: s.row, type: s.type }))
-      }));
-    } catch(e) {}
+    const json = _buildJson();
+    // 1. Always write to localStorage (sync, survives beforeunload)
+    try { localStorage.setItem('map_autosave', json); } catch(e) {}
+    // 2. Best-effort async write to filesystem folder
+    _getFsDir().then(dir => {
+      if (!dir) return;
+      dir.getFileHandle('map_session.json', { create: true })
+        .then(fh => fh.createWritable())
+        .then(w  => w.write(json).then(() => w.close()))
+        .catch(() => {});
+    });
   }
 
   // Debounced autosave — used for high-frequency operations like painting.
@@ -2519,7 +2601,8 @@ const IO = (() => {
 
   return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
-           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave };
+           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave,
+           setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -4229,6 +4312,8 @@ window.addEventListener('load', async () => {
   // Autosave map on page unload and every 30 s (covers paint strokes, undo/redo)
   window.addEventListener('beforeunload', () => IO.autoSave());
   setInterval(() => IO.autoSave(), 30_000);
+  // Restore filesystem folder handle from IndexedDB (silent if permission already granted)
+  IO.initFsDir();
   // Show new-map prompt only when there is nothing to restore
   if (!_mapRestored) IO.showNewMapPrompt();
   console.log('[MapEditorPro] Ready.');

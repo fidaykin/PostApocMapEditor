@@ -5,6 +5,15 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.3.4 — 2026-05-11
+
+### Features
+- **File → Set Autosave Folder…** — pick any local folder; a `saved_maps/` subfolder is created inside it automatically. Autosave writes `map_session.json` there on every save event. Folder handle persists across sessions via IndexedDB (Chrome/Edge only — requires File System Access API)
+- If folder permission is lost after reload, a toast prompts to re-set via File menu
+- localStorage autosave is kept as fallback when no folder is configured
+
+---
+
 ## v0.3.3 — 2026-05-11
 
 ### Fixes
