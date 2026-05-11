@@ -5,6 +5,16 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.4.1 — 2026-05-11
+
+### Features
+- HexDB Destroy section: full restructure — `Can Destroy` checkbox gates all fields; `Transform to` now uses a datalist picker (shows "Unbreakable" when disabled, defaults to Plains_1); `Source` tags input (free-text IDs with add/remove); `Can Stored` checkbox; dynamic multi-resource `Destroy Income` block (add/remove rows, supports all resource types including custom Events currencies)
+- Migration: old `destroyIncomeGold`/`destroyIncomeGems` flat fields auto-converted to the new resource array on load
+- Removed stale fields: Condition, Bonus, Effect, Delay, Requires Road to destroy
+- New reusable helpers `_sourceTagsHTML` and `_resourceBlockHTML` (will be reused in Income and Special sections)
+
+---
+
 ## v0.4.0 — 2026-05-11
 
 ### Features
