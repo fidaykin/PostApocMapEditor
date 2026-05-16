@@ -4103,7 +4103,7 @@ const BldDB = (() => {
     const bodyDisplay = s => _secState[s] ? 'none' : 'block';
 
     function levelCards() {
-      const n = Math.max(1, bld.maxLevel || 1);
+      const n = Math.min(9999, Math.max(1, bld.maxLevel || 1));
       let html = '<div class="level-cards">';
       for (let i = 0; i < n; i++) {
         const lv = bld.levels[i] || _blankLevel(i + 1);
@@ -4144,7 +4144,7 @@ const BldDB = (() => {
         <div class="hexdb-field-row"><label>Start Level</label>
           <input id="bld-f-startLevel" type="number" step="1" min="1" max="8" value="${_esc(bld.startLevel)}"></div>
         <div class="hexdb-field-row"><label>Max Level</label>
-          <input id="bld-f-maxLevel" type="number" step="1" min="1" style="width:110px" value="${_esc(bld.maxLevel)}"></div>
+          <input id="bld-f-maxLevel" type="number" step="1" min="1" max="9999" style="width:110px" value="${_esc(bld.maxLevel)}"></div>
       </div>
       <div class="hexdb-section-hdr" data-sec="build">${collapsed('build')} BUILD</div>
       <div class="hexdb-section-body" data-sec="build" style="display:${bodyDisplay('build')}">
@@ -4216,7 +4216,7 @@ const BldDB = (() => {
     bld.buildPlacementRule  = iv('bld-f-buildPlacementRule');
     bld.buildMaxPerMap      = nv('bld-f-buildMaxPerMap');
 
-    const n = Math.max(1, bld.maxLevel || 1);
+    const n = Math.min(9999, Math.max(1, bld.maxLevel || 1));
     while (bld.levels.length < n) bld.levels.push(_blankLevel(bld.levels.length + 1));
     if (bld.levels.length > n) bld.levels.length = n;
 
@@ -4441,7 +4441,7 @@ const SttDB = (() => {
     const bodyDisplay = s => _secState[s] ? 'none' : 'block';
 
     function levelCards() {
-      const n = Math.max(1, stt.maxLevel || 1);
+      const n = Math.min(9999, Math.max(1, stt.maxLevel || 1));
       let html = '<div class="level-cards">';
       for (let i = 0; i < n; i++) {
         const lv = stt.levels[i] || _blankLevel(i + 1);
@@ -4484,7 +4484,7 @@ const SttDB = (() => {
         <div class="hexdb-field-row"><label>Start Level</label>
           <input id="stt-f-startLevel" type="number" step="1" min="1" max="8" value="${_esc(stt.startLevel)}"></div>
         <div class="hexdb-field-row"><label>Max Level</label>
-          <input id="stt-f-maxLevel" type="number" step="1" min="1" style="width:110px" value="${_esc(stt.maxLevel)}"></div>
+          <input id="stt-f-maxLevel" type="number" step="1" min="1" max="9999" style="width:110px" value="${_esc(stt.maxLevel)}"></div>
       </div>
       <div class="hexdb-section-hdr" data-sec="build">${collapsed('build')} BUILD</div>
       <div class="hexdb-section-body" data-sec="build" style="display:${bodyDisplay('build')}">
@@ -4543,7 +4543,7 @@ const SttDB = (() => {
     stt.buildCostGold  = nv('stt-f-buildCostGold');
     stt.buildCostGems  = nv('stt-f-buildCostGems');
 
-    const n = Math.max(1, stt.maxLevel || 1);
+    const n = Math.min(9999, Math.max(1, stt.maxLevel || 1));
     while (stt.levels.length < n) stt.levels.push(_blankLevel(stt.levels.length + 1));
     if (stt.levels.length > n) stt.levels.length = n;
 
