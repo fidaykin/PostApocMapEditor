@@ -5,6 +5,18 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.5.0 — 2026-05-16
+
+### Fixes
+- BldDB / SttDB: Max Levels field no longer crashes browser when values > 5 chars — capped at 9999 with `Math.min` guard and `max="9999"` on input; also clamped at write-back to prevent uncapped JSON export
+- HexDB Income: removed duplicate `Income Idle` field (identical to `Income per Turn`)
+- HexDB Income: `Income Constant` now uses full resource list including Energy and Pollution
+
+### Polish
+- HexDB Build / Special: disabled inputs (gated by Can Build / Bonus Drop) now rendered with 35% opacity and gray background for clear visual distinction
+
+---
+
 ## v0.4.6 — 2026-05-11
 
 ### Features
