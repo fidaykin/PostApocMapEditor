@@ -4208,7 +4208,7 @@ const BldDB = (() => {
     bld.biome           = iv('bld-f-biome');
     bld.filterCategory  = iv('bld-f-filterCategory');
     bld.startLevel      = nv('bld-f-startLevel');
-    bld.maxLevel        = nv('bld-f-maxLevel');
+    bld.maxLevel        = Math.min(9999, Math.max(1, nv('bld-f-maxLevel') || 1));
     bld.buildCostGold   = nv('bld-f-buildCostGold');
     bld.buildCostGems   = nv('bld-f-buildCostGems');
     bld.buildCostEvent  = nv('bld-f-buildCostEvent');
@@ -4539,7 +4539,7 @@ const SttDB = (() => {
     stt.biome          = iv('stt-f-biome');
     stt.filterCategory = iv('stt-f-filterCategory');
     stt.startLevel     = nv('stt-f-startLevel');
-    stt.maxLevel       = nv('stt-f-maxLevel');
+    stt.maxLevel       = Math.min(9999, Math.max(1, nv('stt-f-maxLevel') || 1));
     stt.buildCostGold  = nv('stt-f-buildCostGold');
     stt.buildCostGems  = nv('stt-f-buildCostGems');
 
