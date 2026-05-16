@@ -3199,7 +3199,7 @@ const HexDB = (() => {
       tapIncomeEnabled:false, destroyable:false,
       incomeTransformTo:'Plains_1', incomeCapacity:3,
       incomeGetPerTap:[], incomePerTurn:[],
-      incomeIdle:[], incomeConstant:[],
+      incomeConstant:[],
       spendConstant:[{type:'Pollution',amount:1}],
       bonusDrop:false, bonusTrigger:'Destroy', bonuses:[],
       booster:'', effects:'',
@@ -3499,9 +3499,6 @@ const HexDB = (() => {
       // Per Turn
       _row('Per Turn',
         _resourceBlockHTML('incomePerTurn', hex.incomePerTurn ?? [], false)),
-      // Income Idle
-      _row('Income Idle',
-        _resourceBlockHTML('incomeIdle', hex.incomeIdle ?? [], false)),
       // Income Constant
       _row('Income Constant',
         _resourceBlockHTML('incomeConstant', hex.incomeConstant ?? [], false)),
@@ -3942,7 +3939,6 @@ const HexDB = (() => {
       if (!h.incomeTransformTo)              h.incomeTransformTo = 'Plains_1';
       if (h.incomeCapacity === undefined)    h.incomeCapacity = 3;
       if (!Array.isArray(h.incomeGetPerTap)) h.incomeGetPerTap = [];
-      if (!Array.isArray(h.incomeIdle))      h.incomeIdle = [];
       if (!Array.isArray(h.incomeConstant))  h.incomeConstant = [];
       if (!Array.isArray(h.spendConstant))   h.spendConstant = [{ type: 'Pollution', amount: 1 }];
       // Remove stale fields
