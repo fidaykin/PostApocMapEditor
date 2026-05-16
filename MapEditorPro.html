@@ -620,6 +620,9 @@ body.mode-settlements #stt-tools   { display: flex; }
   color: var(--text); padding: 4px 7px; border-radius: 3px; font-size: 13px;
 }
 .hexdb-input:focus, .hexdb-select:focus { outline: none; border-color: var(--accent); }
+.hexdb-input:disabled, .hexdb-select:disabled {
+  opacity: 0.35; background: var(--border); cursor: not-allowed;
+}
 .hexdb-input.error { border-color: #e55 !important; }
 .hexdb-cost-row { display: flex; align-items: center; gap: 6px; flex: 1; }
 .hexdb-cost-row label { font-size: 11px; color: var(--muted); }
