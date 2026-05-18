@@ -196,7 +196,7 @@
     <li><a href="#overview">Overview</a></li>
     <li><a href="#how-it-works">How It Works</a></li>
     <span class="nav-section-label">Setup (one-time)</span>
-    <li><a href="#unity-setup">Unity Setup</a></li>
+    <li><a href="#unity-setup">Unity Setup (1 click)</a></li>
     <span class="nav-section-label">Workflows</span>
     <li><a href="#wf-sprites">Update Sprites</a></li>
     <li><a href="#wf-new-type">Add New Terrain Type</a></li>
@@ -292,37 +292,40 @@
 <section id="unity-setup">
   <h2>Unity Setup (one-time)</h2>
 
-  <ol class="steps">
-    <li>
-      <div class="step-body">
-        <p>Open <code>Assets/_Project/Scenes/Game.unity</code>.</p>
-      </div>
-    </li>
-    <li>
-      <div class="step-body">
-        <p>Find the manager GameObject that holds <strong>GoogleDriveMapLoader</strong>. Add <strong>RuntimeDatabaseSync</strong> component to it.</p>
-        <div class="inspector">
-          <div class="inspector-header">Inspector — RuntimeDatabaseSync</div>
-          <div class="inspector-section">Google Drive Configuration</div>
-          <div class="inspector-row"><span class="lbl">Drive Folder Id</span><span class="val accent">1740gOYYEbZeTMEm5BQgga4JguOC7Di1Q</span></div>
-          <div class="inspector-row"><span class="lbl">Api Key</span><span class="val">AIzaSyDH1j_eIHu58zawC21D6pPflxOupgojJac</span></div>
-          <div class="inspector-section">Sprite Configuration</div>
-          <div class="inspector-row"><span class="lbl">Pixels Per Unit</span><span class="val new">100</span></div>
-        </div>
-        <p>Defaults are pre-filled. <strong>Pixels Per Unit</strong> must match your existing hex tile sprites — leave at 100 unless your sprites were authored at a different resolution.</p>
-      </div>
-    </li>
-    <li>
-      <div class="step-body">
-        <p>In the Map panel (<strong>MapListPanel</strong> GameObject), add a <strong>Button</strong> named <code>SyncDb_Button</code>, label it <em>Sync Database</em>, and drag it into the <strong>Sync Db Button</strong> slot on <code>MapListPanel</code>.</p>
-      </div>
-    </li>
-    <li>
-      <div class="step-body">
-        <p>Save the scene and build. Setup is complete.</p>
-      </div>
-    </li>
-  </ol>
+  <p>
+    Open the Unity project and run the setup menu item:
+  </p>
+
+  <div class="inspector" style="margin-bottom:1.2rem">
+    <div class="inspector-header">Unity Editor menu bar</div>
+    <div class="inspector-row" style="padding:.5rem .9rem">
+      <span style="color:var(--accent);font-weight:600;font-size:.9rem">PostApoc → Wire Sync DB</span>
+    </div>
+  </div>
+
+  <p>The script will:</p>
+  <ul>
+    <li>Add <code>RuntimeDatabaseSync</code> to the <strong>GoogleDriveMapLoader</strong> GameObject with the folder ID and API key pre-filled</li>
+    <li>Create a <strong>Sync Database</strong> button in the Map panel and wire it to <code>MapListPanel._syncDbButton</code></li>
+    <li>Save <code>Game.unity</code> automatically</li>
+  </ul>
+
+  <div class="box tip">
+    <strong>Done.</strong> Build and deploy — no manual component placement or slot assignment needed.
+  </div>
+
+  <h3>Pixels Per Unit (optional)</h3>
+  <p>
+    After running the script, check the <strong>Pixels Per Unit</strong> field on <code>RuntimeDatabaseSync</code> in the Inspector. It defaults to <code>100</code> — leave it unless your hex sprites were authored at a different resolution.
+  </p>
+  <div class="inspector">
+    <div class="inspector-header">Inspector — RuntimeDatabaseSync (after Wire Sync DB)</div>
+    <div class="inspector-section">Google Drive Configuration</div>
+    <div class="inspector-row"><span class="lbl">Drive Folder Id</span><span class="val accent">1740gOYYEbZeTMEm5BQgga4JguOC7Di1Q</span></div>
+    <div class="inspector-row"><span class="lbl">Api Key</span><span class="val">AIzaSyDH1j_eIHu58zawC21D6pPflxOupgojJac</span></div>
+    <div class="inspector-section">Sprite Configuration</div>
+    <div class="inspector-row"><span class="lbl">Pixels Per Unit</span><span class="val new">100  ← adjust if needed</span></div>
+  </div>
 </section>
 
 <!-- ── Workflow: Update Sprites ──────────────────────────────────── -->
