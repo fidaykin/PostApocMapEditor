@@ -2051,8 +2051,13 @@ const History = (() => {
   const _redo = [];   // stack of Int8Array snapshots (future states)
 
   function _snapshot() {
-    // mapData is an Int8Array; copy it
-    return new Int8Array(mapData);
+    // snapshot both the Int8Array terrain grid AND the custom overlay
+    return { grid: new Int8Array(mapData), overlay: Object.assign({}, customTerrainOverlay) };
+  }
+
+  function _restore(snap) {
+    mapData.set(snap.grid);
+    customTerrainOverlay = Object.assign({}, snap.overlay);
   }
 
   function push() {
@@ -2065,7 +2070,7 @@ const History = (() => {
   function undo() {
     if (_undo.length === 0) return;
     _redo.push(_snapshot());
-    mapData.set(_undo.pop());
+    _restore(_undo.pop());
     Canvas.render();
     Canvas.drawMinimap();
     UI.updateMenuHistoryState();
@@ -2075,7 +2080,7 @@ const History = (() => {
   function redo() {
     if (_redo.length === 0) return;
     _undo.push(_snapshot());
-    mapData.set(_redo.pop());
+    _restore(_redo.pop());
     Canvas.render();
     Canvas.drawMinimap();
     UI.updateMenuHistoryState();
