@@ -5,6 +5,13 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.6.1 — 2026-05-19
+
+### Fixes
+- **Hex render axis swap**: `hexCenterWorld` now correctly maps `row` (worldX) to the horizontal axis and `col` (worldY) to the vertical axis, matching Unity's YXZ swizzle. Previously, tiles placed as NORTH of center appeared as NE in the app (and vice versa). `screenToHex`, `clampCamera`, `fitToScreen`, `drawMinimap`, and `_minimapPan` updated to match the new coordinate formula.
+
+---
+
 ## v0.6.0 — 2026-05-19
 
 ### Features
