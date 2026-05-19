@@ -1329,7 +1329,26 @@ const Terrain = (() => {
   function byId(id)  { return DATA.find(t => t.id === id) || DATA[12]; }
   function getAll()  { return DATA; }
 
-  return { load, getSprite, getCitySprite, color, byId, getAll };
+  // Overrides the map-canvas sprite for any built-in terrain type that has a
+  // matching HexDB entry (case-insensitive id match). Called after HexDB loads.
+  async function applyHexDbOverrides(hexes) {
+    if (!hexes || !hexes.length) return;
+    const jobs = [];
+    for (const h of hexes) {
+      if (!h.id || !h.spriteName) continue;
+      const terrain = DATA.find(t => t.name.toLowerCase() === h.id.toLowerCase());
+      if (!terrain) continue; // custom type — not a built-in override
+      jobs.push(new Promise(resolve => {
+        const img = new Image();
+        img.onload  = () => { sprites[terrain.id] = img; resolve(); };
+        img.onerror = () => resolve(); // keep existing sprite if file missing
+        img.src = HEX_DIR + h.spriteName + '.png';
+      }));
+    }
+    await Promise.all(jobs);
+  }
+
+  return { load, applyHexDbOverrides, getSprite, getCitySprite, color, byId, getAll };
 })();
 // ════════════════════════════════════════════════════════════
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
@@ -3853,6 +3872,13 @@ const HexDB = (() => {
           _migrateIncomeFields(_data.hexes);
           _migrateSpecialFields(_data.hexes);
           _autoSave();
+          // Re-apply terrain overrides from autosaved HexDB after page load
+          setTimeout(() => {
+            Terrain.applyHexDbOverrides(_data.hexes).then(() => {
+              UI.buildPalette();
+              Canvas.render();
+            });
+          }, 0);
         }
       }
     } catch(e) {}
@@ -4063,6 +4089,11 @@ const HexDB = (() => {
       document.getElementById('hexdb-type-filter').value = '';
       _applyFilter(); _buildList();
       UI.toast(`Loaded ${_data.hexes.length} hexes`);
+      // Apply any built-in terrain overrides from HexDB, then refresh palette + map
+      Terrain.applyHexDbOverrides(_data.hexes).then(() => {
+        UI.buildPalette();
+        Canvas.render();
+      });
     } catch(err) {
       UI.toast('Error: ' + err.message);
     }
@@ -4086,7 +4117,8 @@ const HexDB = (() => {
   function getAll() { return _data.hexes || []; }
 
   function isCustomType(hexId) {
-    return !Terrain.getAll().some(t => t.name === hexId);
+    // Case-insensitive: "plain_1" matches built-in "Plain_1" → not custom
+    return !Terrain.getAll().some(t => t.name.toLowerCase() === hexId.toLowerCase());
   }
 
   function pickSprite() {
