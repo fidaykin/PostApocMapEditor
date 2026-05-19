@@ -5,6 +5,19 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.6.0 — 2026-05-19
+
+### Features
+- **App coords in status bar**: hovering any tile now shows its Unity world coordinate (x, y) — city center = (0,0), matching the app. Eliminates guesswork when painting tiles for specific app positions.
+- **HexDB overrides built-in terrain sprites**: add a HexDB entry with an Id matching a built-in terrain name (e.g. `plain_1`) — the map canvas immediately uses that entry's sprite. QA can replace default tile visuals without editing HTML.
+- **Undo/Redo covers custom terrain**: History snapshots now include `customTerrainOverlay` — undoing a custom terrain stroke correctly removes it from the export.
+- **New sprites**: `Barren.png`, `Desert.png`, `Swamp.png` added to `sprites/hex/`.
+
+### Fixes
+- `isCustomType` is now case-insensitive — `plain_1` correctly matches built-in `Plain_1`.
+
+---
+
 ## v0.5.0 — 2026-05-16
 
 ### Fixes
