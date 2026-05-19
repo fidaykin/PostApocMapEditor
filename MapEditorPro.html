@@ -1712,9 +1712,10 @@ const Canvas = (() => {
     const { col, row } = screenToHex(sx, sy);
     if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
       document.getElementById('st-tile').textContent = `${col}, ${row}`;
-      // App world coords: same system as Unity (city = 0,0; Y flipped)
-      const appX = col - Math.floor(MAP_WIDTH / 2);
-      const appY = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
+      // App world coords matching Unity's YXZ swizzle: ToCell(worldX,worldY)=(worldY,worldX)
+      // Editor col → worldY (Unity horizontal), editor row → worldX (Unity vertical)
+      const appX = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2); // worldX (from row)
+      const appY = col - Math.floor(MAP_WIDTH / 2);                      // worldY (from col)
       document.getElementById('st-app-coords').textContent = `${appX}, ${appY}`;
       if (mapData) {
         const t = Terrain.byId(mapData[row * MAP_WIDTH + col]);
