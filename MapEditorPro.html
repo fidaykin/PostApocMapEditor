@@ -986,6 +986,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Tool: </span><span id="st-tool">Paint</span></div>
     <div class="status-item"><span>Terrain: </span><span id="st-terrain">Plain_1</span></div>
     <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
+    <div class="status-item"><span style="color:var(--accent)">App: </span><span id="st-app-coords" style="color:var(--accent)">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
     <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.5.0</div>
@@ -1711,6 +1712,10 @@ const Canvas = (() => {
     const { col, row } = screenToHex(sx, sy);
     if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
       document.getElementById('st-tile').textContent = `${col}, ${row}`;
+      // App world coords: same system as Unity (city = 0,0; Y flipped)
+      const appX = col - Math.floor(MAP_WIDTH / 2);
+      const appY = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
+      document.getElementById('st-app-coords').textContent = `${appX}, ${appY}`;
       if (mapData) {
         const t = Terrain.byId(mapData[row * MAP_WIDTH + col]);
         document.getElementById('st-terrain').textContent = t ? t.name : '—';
