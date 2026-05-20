@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.6.3</title>
+<title>MapEditorPro v0.6.4</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -989,7 +989,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span style="color:var(--accent)">App: </span><span id="st-app-coords" style="color:var(--accent)">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.3</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.4</div>
   </div>
 
 </div>
@@ -3910,6 +3910,14 @@ const HexDB = (() => {
     });
     _validateId();
     _autoSave();
+    // Reload custom sprite immediately so the map canvas reflects the change
+    // without requiring a page reload.
+    if (h.id && h.spriteName && HexDB.isCustomType(h.id)) {
+      Terrain.applyHexDbOverrides([h]).then(() => {
+        UI.buildPalette();
+        Canvas.render();
+      });
+    }
     // Update list row label in place
     const row = document.querySelector(`.hexdb-list-row[data-filt-idx="${_selFilt}"]`);
     if (row) {

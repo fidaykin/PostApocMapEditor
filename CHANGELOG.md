@@ -5,6 +5,13 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.6.4 — 2026-05-20
+
+### Fixes
+- **Custom tile visible on map immediately**: `_readRecord` now calls `Terrain.applyHexDbOverrides([h])` after saving a custom-type entry, loading the sprite into `customSprites` without needing a page reload. Palette and canvas refresh automatically.
+
+---
+
 ## v0.6.3 — 2026-05-20
 
 ### Fixes
