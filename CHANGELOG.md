@@ -5,6 +5,13 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.6.2 — 2026-05-20
+
+### Fixes
+- **Stagger direction corrected**: odd worldX columns now render higher (smaller canvas y) to match Unity's visual layout. The previous fix swapped axes but left the stagger sign inverted, causing NE tiles to appear as SE in the editor. Fix: stagger is now applied as `STAGGER − stg` (baseline + STAGGER, subtract for odd worldX) using the centered worldX value, making the formula correct for any map size.
+
+---
+
 ## v0.6.1 — 2026-05-19
 
 ### Fixes

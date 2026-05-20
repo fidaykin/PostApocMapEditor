@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.6.1</title>
+<title>MapEditorPro v0.6.2</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -989,7 +989,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span style="color:var(--accent)">App: </span><span id="st-app-coords" style="color:var(--accent)">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.1</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.2</div>
   </div>
 
 </div>
@@ -1372,11 +1372,16 @@ const Canvas = (() => {
   // ── Geometry ────────────────────────────────────────────
   function hexCenterWorld(col, row) {
     // Unity YXZ swizzle: col=worldY (N-S), row=worldX (E-W).
-    // x axis: row drives E-W, row=0 is East (right), row=MAX is West (left).
-    // y axis: col drives N-S, col=MAX is North (top, y=0), col=0 is South (bottom).
+    // x: worldXidx drives horizontal (East = right).
+    // y: col drives vertical (North = top = small y).
+    // Stagger: odd worldX shifts UP in Unity → smaller canvas y.
+    //   Achieved by baseline y = ...+STAGGER, then subtracting stg for odd worldX.
+    const worldXidx = MAP_HEIGHT - 1 - row;
+    const worldX    = worldXidx - Math.floor(MAP_HEIGHT / 2);
+    const stg       = (worldX % 2 !== 0) ? STAGGER : 0;
     return {
-      x: (MAP_HEIGHT - 1 - row) * COL_PITCH,
-      y: (MAP_WIDTH  - 1 - col) * ROW_PITCH + (row % 2 !== 0 ? STAGGER : 0)
+      x: worldXidx * COL_PITCH,
+      y: (MAP_WIDTH - 1 - col) * ROW_PITCH + STAGGER - stg
     };
   }
 
@@ -1401,16 +1406,19 @@ const Canvas = (() => {
     const scale = zoom / 100;
     const wx = (screenX + cameraX) / scale;
     const wy = (screenY + cameraY) / scale;
-    // Inverse of hexCenterWorld: x=(MAP_HEIGHT-1-row)*COL_PITCH, y=(MAP_WIDTH-1-col)*ROW_PITCH+stagger(row)
-    const estRow = Math.round(MAP_HEIGHT - 1 - wx / COL_PITCH);
+    // Inverse of hexCenterWorld: x=worldXidx*COL_PITCH, y=(MAP_WIDTH-1-col)*ROW_PITCH+STAGGER-stg
+    const estWorldXidx = Math.round(wx / COL_PITCH);
+    const estRow = MAP_HEIGHT - 1 - estWorldXidx;
     let bestCol = 0, bestRow = estRow, minDist = Infinity;
     for (let r = estRow - 1; r <= estRow + 1; r++) {
       if (r < 0 || r >= MAP_HEIGHT) continue;
-      const stg = (r % 2 !== 0) ? STAGGER : 0;
-      const c   = Math.round(MAP_WIDTH - 1 - (wy - stg) / ROW_PITCH);
+      const wxi  = MAP_HEIGHT - 1 - r;
+      const wxc  = wxi - Math.floor(MAP_HEIGHT / 2);
+      const stg  = (wxc % 2 !== 0) ? STAGGER : 0;
+      const c    = Math.round(MAP_WIDTH - 1 - (wy - STAGGER + stg) / ROW_PITCH);
       if (c < 0 || c >= MAP_WIDTH) continue;
-      const rwx = (MAP_HEIGHT - 1 - r) * COL_PITCH;
-      const rwy = (MAP_WIDTH  - 1 - c) * ROW_PITCH + stg;
+      const rwx = wxi * COL_PITCH;
+      const rwy = (MAP_WIDTH - 1 - c) * ROW_PITCH + STAGGER - stg;
       const d = Math.hypot(wx - rwx, wy - rwy);
       if (d < minDist) { minDist = d; bestCol = c; bestRow = r; }
     }
