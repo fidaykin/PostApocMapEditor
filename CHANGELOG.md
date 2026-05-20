@@ -5,6 +5,17 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.6.3 — 2026-05-20
+
+### Fixes
+- **Custom tiles now render on canvas**: `_drawHexTile` accepts an optional sprite override; the render loop looks up `customTerrainOverlay` and passes the custom sprite so painted tiles show their HexDB sprite instead of the base terrain.
+- **Custom tile size in palette fixed**: buttons now use the standard `tile-btn` class (52×52 px, hex-clipped image, tooltip) instead of the unstyled `terrain-btn`.
+- **Custom tiles in correct section**: grouped under a collapsible **☢ CUSTOM** category at the bottom of the palette, matching the style of built-in categories.
+- **Custom tile selection highlight**: clicking a custom tile highlights it in the palette and updates the info bar; selecting a built-in tile clears the custom highlight.
+- **Eyedropper picks custom terrain**: right-click now reads `customTerrainOverlay` so picking a custom tile re-selects it (not just the underlying base terrain).
+
+---
+
 ## v0.6.2 — 2026-05-20
 
 ### Fixes

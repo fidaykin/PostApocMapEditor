@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.6.2</title>
+<title>MapEditorPro v0.6.3</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -989,7 +989,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span style="color:var(--accent)">App: </span><span id="st-app-coords" style="color:var(--accent)">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.2</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.3</div>
   </div>
 
 </div>
@@ -1305,7 +1305,8 @@ const Terrain = (() => {
     26:[170,70,20], 27:[130,35,15], 28:[35,25,25]
   };
 
-  const sprites  = {};  // id → HTMLImageElement
+  const sprites       = {};  // int id  → HTMLImageElement
+  const customSprites = {};  // string id → HTMLImageElement  (HexDB custom types)
   let   citySprite = null;
 
   async function load() {
@@ -1338,18 +1339,30 @@ const Terrain = (() => {
     for (const h of hexes) {
       if (!h.id || !h.spriteName) continue;
       const terrain = DATA.find(t => t.name.toLowerCase() === h.id.toLowerCase());
-      if (!terrain) continue; // custom type — not a built-in override
-      jobs.push(new Promise(resolve => {
-        const img = new Image();
-        img.onload  = () => { sprites[terrain.id] = img; resolve(); };
-        img.onerror = () => resolve(); // keep existing sprite if file missing
-        img.src = HEX_DIR + h.spriteName + '.png';
-      }));
+      if (terrain) {
+        // Override built-in terrain sprite
+        jobs.push(new Promise(resolve => {
+          const img = new Image();
+          img.onload  = () => { sprites[terrain.id] = img; resolve(); };
+          img.onerror = () => resolve();
+          img.src = HEX_DIR + h.spriteName + '.png';
+        }));
+      } else {
+        // Load custom type sprite into separate cache
+        jobs.push(new Promise(resolve => {
+          const img = new Image();
+          img.onload  = () => { customSprites[h.id] = img; resolve(); };
+          img.onerror = () => resolve();
+          img.src = HEX_DIR + h.spriteName + '.png';
+        }));
+      }
     }
     await Promise.all(jobs);
   }
 
-  return { load, applyHexDbOverrides, getSprite, getCitySprite, color, byId, getAll };
+  function getCustomSprite(id) { return customSprites[id] || null; }
+
+  return { load, applyHexDbOverrides, getSprite, getCustomSprite, getCitySprite, color, byId, getAll };
 })();
 // ════════════════════════════════════════════════════════════
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
@@ -1440,7 +1453,9 @@ const Canvas = (() => {
         const s = hexScreenPos(col, row);
         if (s.x + padding < 0 || s.x - padding > canvas.width  ||
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
-        _drawHexTile(s.x, s.y, radius, mapData[row * MAP_WIDTH + col]);
+        const customId = customTerrainOverlay[`${row}_${col}`];
+        const customSpr = customId ? Terrain.getCustomSprite(customId) : null;
+        _drawHexTile(s.x, s.y, radius, mapData[row * MAP_WIDTH + col], customSpr);
       }
     }
 
@@ -1483,8 +1498,8 @@ const Canvas = (() => {
     }
   }
 
-  function _drawHexTile(cx, cy, radius, terrainId) {
-    const sprite = Terrain.getSprite(terrainId);
+  function _drawHexTile(cx, cy, radius, terrainId, spriteOverride) {
+    const sprite = spriteOverride || Terrain.getSprite(terrainId);
     ctx.save();
     hexClipPath(cx, cy, radius);
     if (sprite && sprite.complete && sprite.naturalWidth > 0) {
@@ -1750,11 +1765,13 @@ const Canvas = (() => {
     if (isPanning && e.button === 2) {
       const moved = Math.hypot(e.clientX - panStartX, e.clientY - panStartY);
       if (moved < 5) {
-        // Right-click without move → eyedropper
+        // Right-click without move → eyedropper (picks custom terrain too)
         const rect = canvas.getBoundingClientRect();
         const { col, row } = screenToHex(e.clientX - rect.left, e.clientY - rect.top);
         if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
-          UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
+          const _pickCustomId = customTerrainOverlay[`${row}_${col}`];
+          if (_pickCustomId) UI.selectCustomTerrain(mapData[row * MAP_WIDTH + col], _pickCustomId);
+          else               UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
         }
       }
     }
@@ -2241,23 +2258,41 @@ const UI = (() => {
       (catItems || scroll).appendChild(btn);
     });
 
-    // Custom HexDB types (not in built-in Terrain list)
+    // Custom HexDB types — put in a collapsible "☢ CUSTOM" section
     const customHexTypes = HexDB.getAll().filter(h => h.id && HexDB.isCustomType(h.id));
-    customHexTypes.forEach(h => {
-      const btn = document.createElement('button');
-      btn.className = 'terrain-btn';
-      btn.title = `Custom: ${h.id}`;
-      btn.dataset.customId = h.id;
-      if (h.spriteName) {
+    if (customHexTypes.length > 0) {
+      const customHdr = document.createElement('button');
+      customHdr.className = 'cat-header collapsed';
+      customHdr.textContent = '☢ CUSTOM';
+      const customItems = document.createElement('div');
+      customItems.className = 'cat-items collapsed';
+      customHdr.addEventListener('click', () => {
+        customHdr.classList.toggle('collapsed');
+        customItems.classList.toggle('collapsed');
+      });
+      scroll.appendChild(customHdr);
+      scroll.appendChild(customItems);
+
+      customHexTypes.forEach(h => {
+        const btn = document.createElement('button');
+        btn.className = 'tile-btn';
+        btn.dataset.customId = h.id;
+
         const img = document.createElement('img');
-        img.src = `sprites/hex/${h.spriteName}.png`;
-        img.onerror = () => { img.style.display = 'none'; };
-        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:3px;pointer-events:none';
+        const cSprite = Terrain.getCustomSprite(h.id);
+        img.src = cSprite ? cSprite.src : (h.spriteName ? `sprites/hex/${h.spriteName}.png` : '');
+        img.alt = h.id;
         btn.appendChild(img);
-      }
-      btn.addEventListener('click', () => UI.selectCustomTerrain(12, h.id));
-      scroll.appendChild(btn);
-    });
+
+        const tt = document.createElement('span');
+        tt.className = 'tile-tooltip';
+        tt.textContent = `Custom: ${h.id}`;
+        btn.appendChild(tt);
+
+        btn.addEventListener('click', () => UI.selectCustomTerrain(12, h.id));
+        customItems.appendChild(btn);
+      });
+    }
   }
 
   function selectTerrain(id) {
@@ -2265,9 +2300,10 @@ const UI = (() => {
     _selectedCustomId = '';
     const t = Terrain.byId(id);
 
-    // Highlight in palette
+    // Highlight in palette — built-in tile, clear any custom selection
     document.querySelectorAll('.tile-btn').forEach(btn => {
-      btn.classList.toggle('selected', parseInt(btn.dataset.tid) === id);
+      btn.classList.toggle('selected',
+        !btn.dataset.customId && parseInt(btn.dataset.tid) === id);
     });
 
     // Palette bottom display
@@ -2292,6 +2328,21 @@ const UI = (() => {
   function selectCustomTerrain(baseInt, customId) {
     _selectedId = baseInt;
     _selectedCustomId = customId;
+
+    // Highlight in palette
+    document.querySelectorAll('.tile-btn').forEach(btn => {
+      btn.classList.toggle('selected', btn.dataset.customId === customId);
+    });
+
+    // Palette bottom display
+    const sprite = Terrain.getCustomSprite(customId);
+    const selImg = document.getElementById('palette-sel-img');
+    if (sprite) selImg.src = sprite.src;
+    document.getElementById('palette-selected-name').textContent = customId;
+    document.getElementById('palette-selected-id').textContent   = `Custom`;
+
+    // Status bar
+    document.getElementById('st-terrain').textContent = customId;
   }
 
   function getSelectedCustomId() { return _selectedCustomId; }
