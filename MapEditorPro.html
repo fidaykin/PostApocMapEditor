@@ -1406,11 +1406,22 @@ const Canvas = (() => {
   let _onMouseUpCb   = null;
   let _cursorCol = -1, _cursorRow = -1;  // hover tile for brush preview
   let _showZones = false;
+  let _selectedSlotIdx = -1;
 
   // Zone palette: 10 colours for distance bands 0–9, 10–19, …, 90+
   const ZONE_PALETTE = [
     [100,220,100],[150,220, 80],[220,220, 50],[240,180, 30],[240,130, 20],
     [230, 80, 20],[210, 40, 40],[180, 20,120],[140, 10,180],[ 80,  0, 80]
+  ];
+
+  // Slot palette: per-slot ring colours (rgba prefix, alpha appended at draw time)
+  const SLOT_PALETTE = [
+    'rgba(79,195,247,',   // blue
+    'rgba(255,183,77,',   // amber
+    'rgba(174,213,129,',  // green
+    'rgba(240,98,146,',   // pink
+    'rgba(206,147,216,',  // purple
+    'rgba(255,138,101,',  // orange
   ];
 
   // Hex distance from origin in odd-q offset world coordinates
@@ -1498,6 +1509,7 @@ const Canvas = (() => {
     }
 
     if (_showZones) _drawZoneOverlays(scale, radius);
+    if (settlementsVisible) _drawSlotRings(scale, radius);
 
     if (settlementsVisible) {
       settlements.forEach(s => {
@@ -1925,6 +1937,59 @@ const Canvas = (() => {
     ctx.restore();
   }
 
+  function _drawSlotRings(scale, radius) {
+    if (!settlementSlots || settlementSlots.length === 0) return;
+    const padding = radius * 2;
+    ctx.save();
+
+    settlementSlots.forEach((slot, si) => {
+      if (slot.minDist > slot.maxDist) return;
+      const base       = SLOT_PALETTE[si % SLOT_PALETTE.length];
+      const isSelected = si === _selectedSlotIdx;
+      const alpha      = isSelected ? 0.40 : (_selectedSlotIdx >= 0 ? 0.12 : 0.28);
+
+      for (let row = 0; row < MAP_HEIGHT; row++) {
+        for (let col = 0; col < MAP_WIDTH; col++) {
+          const s = hexScreenPos(col, row);
+          if (s.x + padding < 0 || s.x - padding > canvas.width ||
+              s.y + padding < 0 || s.y - padding > canvas.height) continue;
+          const appX = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
+          const appY = col - Math.floor(MAP_WIDTH / 2);
+          const d    = hexDist(appX, appY);
+          if (d < slot.minDist || d > slot.maxDist) continue;
+          const a = (d === slot.minDist || d === slot.maxDist)
+              ? Math.min(alpha + 0.15, 0.6) : alpha;
+          ctx.globalAlpha = a;
+          ctx.fillStyle = base + ')';
+          hexClipPath(s.x, s.y, radius);
+          ctx.fill();
+        }
+      }
+
+      // Label at due-East tile of maxDist
+      const labelRow = MAP_HEIGHT - 1 - (slot.maxDist + Math.floor(MAP_HEIGHT / 2));
+      const labelCol = Math.floor(MAP_WIDTH / 2);
+      if (labelRow >= 0 && labelRow < MAP_HEIGHT) {
+        const ls = hexScreenPos(labelCol, labelRow);
+        if (ls.x - radius < canvas.width && ls.y - radius < canvas.height) {
+          ctx.globalAlpha = 1;
+          const fontSize = Math.max(9, Math.round(radius * 0.55));
+          ctx.font = `bold ${fontSize}px monospace`;
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillStyle = 'rgba(0,0,0,0.6)';
+          ctx.beginPath();
+          ctx.arc(ls.x, ls.y, radius * 0.5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.fillText(`${slot.type}×${slot.count}`, ls.x, ls.y);
+        }
+      }
+    });
+
+    ctx.restore();
+  }
+
   function toggleZones() {
     _showZones = !_showZones;
     const btn = document.getElementById('btn-zones');
@@ -1932,12 +1997,14 @@ const Canvas = (() => {
     render();
   }
 
+  function setSelectedSlot(idx) { _selectedSlotIdx = idx; render(); }
+
   return {
     init, render, drawMinimap, forceRedraw,
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
-    toggleZones, hexDist
+    toggleZones, hexDist, setSelectedSlot
   };
 })();
 // ════════════════════════════════════════════════════════════
@@ -2477,6 +2544,12 @@ const UI = (() => {
     const div = document.createElement('div');
     div.className = 'slot-row';
     div.dataset.slotIdx = idx;
+    div.addEventListener('click', () => {
+      Canvas.setSelectedSlot(idx);
+      document.querySelectorAll('.slot-row').forEach((r, i) => {
+        r.style.outline = i === idx ? '1px solid var(--accent)' : '';
+      });
+    });
     div.innerHTML = `
         <input type="number" class="hexdb-input slot-min" min="0" value="${slot.minDist}" title="Min distance">
         <span style="color:var(--muted)">→</span>
@@ -2501,6 +2574,7 @@ const UI = (() => {
     settlementSlots.forEach((slot, idx) => {
       container.appendChild(_buildSlotRow(slot, idx));
     });
+    Canvas.setSelectedSlot(-1);
     _wireSlotPanel();
   }
 
