@@ -241,6 +241,20 @@ html, body {
   margin-top: auto; border-top: 1px solid var(--border);
 }
 
+#slot-panel { padding: 8px; border-top: 1px solid var(--border); }
+#slot-panel .section-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.slot-row { display: flex; gap: 4px; align-items: center; margin-bottom: 4px; flex-wrap: wrap; }
+.slot-row input[type=number] { width: 52px; }
+.slot-count { width: 36px; }
+.slot-type-select { width: 100px; }
+.slot-type-text   { width: 90px; display: none; }
+.slot-type-text.visible { display: inline-block; }
+.slot-remove { background: none; border: 1px solid var(--border); color: var(--muted); padding: 2px 6px; cursor: pointer; border-radius: 3px; }
+.slot-remove:hover { border-color: var(--danger); color: var(--danger); }
+#slot-add { margin-top: 4px; width: 100%; background: none; border: 1px dashed var(--border); color: var(--muted); padding: 4px; cursor: pointer; border-radius: 3px; font-size: 11px; }
+#slot-add:hover { border-color: var(--accent); color: var(--accent); }
+#slot-panel.collapsed .slot-rows, #slot-panel.collapsed #slot-add { display: none; }
+
 /* ── Status bar ───────────────────────────────────────────── */
 #statusbar {
   background: var(--panel);
@@ -886,6 +900,14 @@ body.mode-settlements #stt-tools   { display: flex; }
         </div>
       </div>
       <div id="settlement-count">Settlements: 0</div>
+      <div id="slot-panel" class="collapsed">
+        <div class="section-title" id="slot-panel-hdr">
+          <span>🏘️ Settlement Slots</span>
+          <span id="slot-chevron">▶</span>
+        </div>
+        <div class="slot-rows" id="slot-rows"></div>
+        <button id="slot-add">+ Add Slot</button>
+      </div>
     </div>
 
   </div>
@@ -2448,6 +2470,110 @@ const UI = (() => {
       `Settlements: ${settlements.length}`;
   }
 
+  function _buildSlotRow(slot, idx) {
+    const isCustom = !['settlement','outpost','trading_post'].includes(slot.type);
+    const div = document.createElement('div');
+    div.className = 'slot-row';
+    div.dataset.slotIdx = idx;
+    div.innerHTML = `
+        <input type="number" class="hexdb-input slot-min" min="0" value="${slot.minDist}" title="Min distance">
+        <span style="color:var(--muted)">→</span>
+        <input type="number" class="hexdb-input slot-max" min="0" value="${slot.maxDist}" title="Max distance">
+        <span style="color:var(--muted)">×</span>
+        <input type="number" class="hexdb-input slot-count" min="1" max="99" value="${slot.count}" title="Count">
+        <select class="hexdb-select slot-type-select">
+            <option${slot.type==='settlement'?' selected':''}>settlement</option>
+            <option${slot.type==='outpost'?' selected':''}>outpost</option>
+            <option${slot.type==='trading_post'?' selected':''}>trading_post</option>
+            <option${isCustom?' selected':''} value="__custom__">Custom…</option>
+        </select>
+        <input class="hexdb-input slot-type-text${isCustom?' visible':''}" value="${isCustom?slot.type:''}" placeholder="type name">
+        <button class="slot-remove" data-slot-idx="${idx}">✕</button>`;
+    return div;
+  }
+
+  function rebuildSlotPanel() {
+    const container = document.getElementById('slot-rows');
+    if (!container) return;
+    container.innerHTML = '';
+    settlementSlots.forEach((slot, idx) => {
+      container.appendChild(_buildSlotRow(slot, idx));
+    });
+    _wireSlotPanel();
+  }
+
+  function _wireSlotPanel() {
+    document.querySelectorAll('.slot-min').forEach(el => {
+      el.addEventListener('change', () => {
+        const idx = parseInt(el.closest('.slot-row').dataset.slotIdx);
+        settlementSlots[idx].minDist = Math.max(0, parseInt(el.value) || 0);
+        IO.scheduleAutoSave(); Canvas.render();
+      });
+    });
+    document.querySelectorAll('.slot-max').forEach(el => {
+      el.addEventListener('change', () => {
+        const idx = parseInt(el.closest('.slot-row').dataset.slotIdx);
+        settlementSlots[idx].maxDist = Math.max(0, parseInt(el.value) || 0);
+        IO.scheduleAutoSave(); Canvas.render();
+      });
+    });
+    document.querySelectorAll('.slot-count').forEach(el => {
+      el.addEventListener('change', () => {
+        const idx = parseInt(el.closest('.slot-row').dataset.slotIdx);
+        settlementSlots[idx].count = Math.max(1, parseInt(el.value) || 1);
+        IO.scheduleAutoSave();
+      });
+    });
+    document.querySelectorAll('.slot-type-select').forEach(el => {
+      el.addEventListener('change', () => {
+        const idx = parseInt(el.closest('.slot-row').dataset.slotIdx);
+        const textInput = el.nextElementSibling;
+        if (el.value === '__custom__') {
+          textInput.classList.add('visible');
+          settlementSlots[idx].type = textInput.value || 'settlement';
+        } else {
+          textInput.classList.remove('visible');
+          settlementSlots[idx].type = el.value;
+        }
+        IO.scheduleAutoSave(); Canvas.render();
+      });
+    });
+    document.querySelectorAll('.slot-type-text').forEach(el => {
+      el.addEventListener('input', () => {
+        const idx = parseInt(el.closest('.slot-row').dataset.slotIdx);
+        settlementSlots[idx].type = el.value || 'settlement';
+        IO.scheduleAutoSave(); Canvas.render();
+      });
+    });
+    document.querySelectorAll('.slot-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        History.push();
+        const idx = parseInt(btn.dataset.slotIdx);
+        settlementSlots.splice(idx, 1);
+        rebuildSlotPanel(); IO.scheduleAutoSave(); Canvas.render();
+      });
+    });
+    const addBtn = document.getElementById('slot-add');
+    if (addBtn) {
+      addBtn.replaceWith(addBtn.cloneNode(true)); // remove old listener
+      document.getElementById('slot-add').addEventListener('click', () => {
+        History.push();
+        settlementSlots.push({ minDist: 10, maxDist: 20, count: 1, type: 'settlement' });
+        rebuildSlotPanel(); IO.scheduleAutoSave(); Canvas.render();
+      });
+    }
+    const hdr = document.getElementById('slot-panel-hdr');
+    if (hdr) {
+      hdr.replaceWith(hdr.cloneNode(true));
+      document.getElementById('slot-panel-hdr').addEventListener('click', () => {
+        const panel = document.getElementById('slot-panel');
+        const chevron = document.getElementById('slot-chevron');
+        panel.classList.toggle('collapsed');
+        chevron.textContent = panel.classList.contains('collapsed') ? '▶' : '▼';
+      });
+    }
+  }
+
   function updateMenuHistoryState() {
     const u = document.getElementById('menu-undo');
     const r = document.getElementById('menu-redo');
@@ -2532,7 +2658,8 @@ const UI = (() => {
     toggleSettlements, closeAllMenus,
     showConfirm, closeConfirm, toast,
     showSpritePicker, closeSpritePicker,
-    updateStatusTool, updateStatusSize
+    updateStatusTool, updateStatusSize,
+    rebuildSlotPanel
   };
 })();
 // ════════════════════════════════════════════════════════════
@@ -2690,6 +2817,7 @@ const IO = (() => {
             count:   s.count   ?? 1,  type:    s.type    ?? 'settlement'
           }))
         : [];
+      if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
       History.clear();
       History.push();
       return true;
@@ -2808,6 +2936,7 @@ const IO = (() => {
             count:   s.count   ?? 1,  type:    s.type    ?? 'settlement'
           }))
         : [];
+      if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
 
       History.clear();
       History.push();
@@ -5046,6 +5175,7 @@ window.addEventListener('load', async () => {
   Canvas.init();
   UI.init();
   UI.buildPalette();
+  UI.rebuildSlotPanel();
   UI.selectTerrain(12);
   Tools.init();
   History.initKeyboard();
