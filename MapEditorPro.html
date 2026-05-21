@@ -2203,7 +2203,8 @@ const History = (() => {
     return {
       grid:        new Int8Array(mapData),
       overlay:     Object.assign({}, customTerrainOverlay),
-      settlements: settlements.map(s => Object.assign({}, s))
+      settlements: settlements.map(s => Object.assign({}, s)),
+      slots:       settlementSlots.map(s => Object.assign({}, s))
     };
   }
 
@@ -2211,6 +2212,7 @@ const History = (() => {
     mapData.set(snap.grid);
     customTerrainOverlay = Object.assign({}, snap.overlay);
     settlements = snap.settlements.map(s => Object.assign({}, s));
+    settlementSlots = (snap.slots || []).map(s => Object.assign({}, s));
     UI.updateSettlementCount();
   }
 
@@ -2625,6 +2627,11 @@ const IO = (() => {
     };
     if (customTerrain.length > 0)
       result.custom_terrain = customTerrain;
+    if (settlementSlots.length > 0)
+      result.settlement_slots = settlementSlots.map(s => ({
+        minDist: s.minDist, maxDist: s.maxDist,
+        count:   s.count,   type:    s.type
+      }));
     return JSON.stringify(result);
   }
 
@@ -2677,6 +2684,12 @@ const IO = (() => {
       settlements = json.settlements && json.settlements.length
         ? json.settlements.map(s => ({ col: s.col ?? s.x, row: s.row ?? s.y, type: s.type || 'settlement' }))
         : [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
+      settlementSlots = (json.settlement_slots && Array.isArray(json.settlement_slots))
+        ? json.settlement_slots.map(s => ({
+            minDist: s.minDist ?? 10, maxDist: s.maxDist ?? 20,
+            count:   s.count   ?? 1,  type:    s.type    ?? 'settlement'
+          }))
+        : [];
       History.clear();
       History.push();
       return true;
@@ -2691,6 +2704,7 @@ const IO = (() => {
       MAP_HEIGHT = 450;
       mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12);
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
+      settlementSlots = [];
       History.clear();
       History.push();
       return;
@@ -2728,6 +2742,7 @@ const IO = (() => {
     MAP_HEIGHT = h;
     mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12);
     settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
+    settlementSlots = [];
     History.clear();
     History.push();
     UI.updateSettlementCount();
@@ -2787,6 +2802,12 @@ const IO = (() => {
       } else {
         settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       }
+      settlementSlots = (json.settlement_slots && Array.isArray(json.settlement_slots))
+        ? json.settlement_slots.map(s => ({
+            minDist: s.minDist ?? 10, maxDist: s.maxDist ?? 20,
+            count:   s.count   ?? 1,  type:    s.type    ?? 'settlement'
+          }))
+        : [];
 
       History.clear();
       History.push();
@@ -5004,6 +5025,7 @@ let MAP_HEIGHT = 450;
 let mapData    = null;  // Int8Array (filled by IO.newMap / load)
 let customTerrainOverlay = {}; // "row_col" → HexDB string id  (sparse, only custom types)
 let settlements = [];
+let settlementSlots = []; // [{minDist,maxDist,count,type}]
 let settlementsVisible = true;
 let _toolsRectPreview = null;
 
