@@ -5,6 +5,13 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.6.5 — 2026-05-21
+
+### Fixes
+- **Save now includes custom terrain**: `saveMap()` was duplicating JSON-build logic without `customTerrainOverlay`, so exported files never contained the `custom_terrain` section. Fixed by delegating to `_buildJson()` which already handles it correctly. Also fixes settlement keys (`col`/`row` instead of `x`/`y`) in saved files.
+
+---
+
 ## v0.6.4 — 2026-05-20
 
 ### Fixes

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.6.4</title>
+<title>MapEditorPro v0.6.5</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -989,7 +989,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span style="color:var(--accent)">App: </span><span id="st-app-coords" style="color:var(--accent)">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.4</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.5</div>
   </div>
 
 </div>
@@ -2711,18 +2711,7 @@ const IO = (() => {
   function saveMap() {
     UI.closeAllMenus();
     if (!mapData) return;
-    // Convert flat Int8Array back to 2D array for JSON
-    const data2d = [];
-    for (let r = 0; r < MAP_HEIGHT; r++) {
-      data2d.push(Array.from(mapData.subarray(r * MAP_WIDTH, (r + 1) * MAP_WIDTH)));
-    }
-    const json = {
-      width:  MAP_WIDTH,
-      height: MAP_HEIGHT,
-      data:   data2d,
-      settlements: settlements.map(s => ({ x: s.col, y: s.row, type: s.type }))
-    };
-    const blob = new Blob([JSON.stringify(json, null, 2)], { type: 'application/json' });
+    const blob = new Blob([_buildJson()], { type: 'application/json' });
     const a    = document.createElement('a');
     a.href     = URL.createObjectURL(blob);
     a.download = 'map_export.json';
