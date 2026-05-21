@@ -5,6 +5,14 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.6.8 — 2026-05-21
+
+### Polish — Minor feedback 18.05
+- **Resource icons**: emoji badge (🪙💎🌾🪵🪨⚙️🛢️💻🏺⛏️☣️⚡) appears before each resource-type selector in every resource block; icon updates live when the type changes.
+- **Field tooltips**: `ⓘ` indicator on labels with non-obvious purpose — hover to read (TextId, Desc Idle/Build, Type, Biome, Filter, Base Cost Taps, Transform to, Source, Resources, Available Tiles, MinLevel, Premium Price, Placement Rule, Capacity, Get per Tap, Per Turn, Income/Spend Constant, Triggers, Bonuses, Boosters, Effects).
+
+---
+
 ## v0.6.7 — 2026-05-21
 
 ### Features — Distance & Zones (Important feedback 18.05)

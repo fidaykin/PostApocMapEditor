@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.6.7</title>
+<title>MapEditorPro v0.6.8</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -991,7 +991,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.7</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.8</div>
   </div>
 
 </div>
@@ -3576,8 +3576,11 @@ const HexDB = (() => {
 </div>`;
   }
 
-  function _row(label, inputHTML) {
-    return `<div class="hexdb-row"><span class="hexdb-label">${label}</span>${inputHTML}</div>`;
+  function _row(label, inputHTML, tip) {
+    const tipHTML = tip
+      ? ` <span style="color:var(--muted);cursor:help;font-size:0.85em" title="${tip}">ⓘ</span>`
+      : '';
+    return `<div class="hexdb-row"><span class="hexdb-label">${label}${tipHTML}</span>${inputHTML}</div>`;
   }
   function _numInput(field, val) {
     return `<input class="hexdb-input" type="number" step="1" data-field="${field}" value="${val}">`;
@@ -3622,6 +3625,13 @@ const HexDB = (() => {
   const SPEND_RES_TYPES = ['Pollution','Energy','Gold','Gems','Food',
     'Lumber','Stone','Steel','Oil','Chips','Clay'];
 
+  const RESOURCE_ICONS = {
+    Gold:'🪙', Gems:'💎', Food:'🌾', Lumber:'🪵', Stone:'🪨',
+    Steel:'⚙️', Oil:'🛢️', Chips:'💻', Clay:'🏺', Ore:'⛏️',
+    Pollution:'☣️', Energy:'⚡'
+  };
+  function _resIcon(type) { return RESOURCE_ICONS[type] || '◆'; }
+
   function _resourceBlockHTML(fieldName, rows, disabled, resTypes) {
     const types = resTypes || DESTROY_RES_TYPES;
     const dis = disabled ? ' disabled' : '';
@@ -3632,6 +3642,7 @@ const HexDB = (() => {
       const customOpt = types.includes(r.type) ? '' :
         `<option selected>${_esc(r.type)}</option>`;
       return `<div class="hexdb-res-row">
+        <span class="res-icon" style="font-size:16px;width:20px;text-align:center;flex-shrink:0">${_resIcon(r.type)}</span>
         <select class="hexdb-select" style="width:110px"
           data-res-field="${fieldName}" data-res-index="${i}"${dis}>
           ${stdOpts}${customOpt}
@@ -3654,12 +3665,18 @@ const HexDB = (() => {
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
        <input class="hexdb-input" id="hexdb-id" data-field="id" value="${_esc(hex.id)}" placeholder="e.g. Plain_1">
        <small style="color:#888;font-size:0.8em;display:block;margin-top:2px">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small></div>`,
-      _row('TextId',         _textInput('textId', hex.textId)),
-      _row('Desc Idle',      _textInput('descriptionIdleId',  hex.descriptionIdleId  ?? '')),
-      _row('Desc Build',     _textInput('descriptionBuildId', hex.descriptionBuildId ?? '')),
-      _row('Type',           `<select class="hexdb-select" data-field="type">${_typeGroupOptions(hex.type)}</select>`),
-      _row('Biome',          _selectInput('biome', BIOMES, hex.biome)),
-      _row('Filter',         _selectInput('filterCategory', FILTER_CATS, hex.filterCategory)),
+      _row('TextId',    _textInput('textId', hex.textId),
+        'Localisation key for the display name shown in-app'),
+      _row('Desc Idle', _textInput('descriptionIdleId',  hex.descriptionIdleId  ?? ''),
+        'Localisation key for description when tile is idle / not yet built'),
+      _row('Desc Build',_textInput('descriptionBuildId', hex.descriptionBuildId ?? ''),
+        'Localisation key for description shown when a building is available'),
+      _row('Type', `<select class="hexdb-select" data-field="type">${_typeGroupOptions(hex.type)}</select>`,
+        'Terrain group used for tile filtering and build placement rules'),
+      _row('Biome',  _selectInput('biome', BIOMES, hex.biome),
+        'Season / biome context — affects which tiles appear in this category'),
+      _row('Filter', _selectInput('filterCategory', FILTER_CATS, hex.filterCategory),
+        'Category key used in the app UI filter panel'),
       _row('SpriteName',
         `<div style="display:flex;gap:6px;align-items:flex-start;width:100%">` +
         `<div style="flex:1;min-width:0">` +
@@ -3671,7 +3688,8 @@ const HexDB = (() => {
       _row('Base Cost Taps',
         `<input class="hexdb-input" type="number" step="1" min="0"
            style="width:110px" data-field="baseCostTaps"
-           value="${hex.baseCostTaps ?? 0}">`),
+           value="${hex.baseCostTaps ?? 0}">`,
+        'Taps required to unlock this tile when first revealed on the map'),
     ].join('');
 
     const canDes = hex.canDestroy ?? false;
@@ -3682,14 +3700,17 @@ const HexDB = (() => {
              data-field="destroyTransformTo" style="width:200px"
              value="${_esc(hex.destroyTransformTo ?? 'Plains_1')}">`
         : `<input class="hexdb-input" value="Unbreakable"
-             style="width:200px" disabled>`),
-      _row('Source', _sourceTagsHTML('destroySource', hex.destroySource ?? [], !canDes)),
+             style="width:200px" disabled>`,
+        'Tile ID that replaces this hex after destruction (e.g. Plains_1)'),
+      _row('Source', _sourceTagsHTML('destroySource', hex.destroySource ?? [], !canDes),
+        'Action / Booster / Special IDs that are allowed to destroy this tile'),
       _checkRow('canStored', hex.canStored ?? false, 'hex moves to storage on destroy'),
       _checkRow('destroyIncomeEnabled', hex.destroyIncomeEnabled ?? false,
         'resources awarded on destroy'),
       _row('Resources', _resourceBlockHTML(
         'destroyIncome', hex.destroyIncome ?? [],
-        !canDes || !(hex.destroyIncomeEnabled ?? false))),
+        !canDes || !(hex.destroyIncomeEnabled ?? false)),
+        'Resources awarded to the player when this tile is destroyed'),
     ].join('');
 
     const canBld = hex.canBuild ?? false;
@@ -3705,17 +3726,22 @@ const HexDB = (() => {
          <label style="${canBld ? '' : 'color:var(--muted)'}">Need Road</label>
        </div>`,
       _row('Available Tiles',
-        _sourceTagsHTML('buildAvailableTiles', hex.buildAvailableTiles ?? [], !canBld)),
+        _sourceTagsHTML('buildAvailableTiles', hex.buildAvailableTiles ?? [], !canBld),
+        'Tile IDs on which this building can be placed (empty = any tile)'),
       _row('MinLevel',
         `<input class="hexdb-input" type="number" step="1" min="0"
            style="width:110px" data-field="buildMinLevel"
-           value="${hex.buildMinLevel ?? 1}"${bdis}>`),
-      _row('Price', _resourceBlockHTML('buildPrice', hex.buildPrice ?? [], !canBld)),
+           value="${hex.buildMinLevel ?? 1}"${bdis}>`,
+        'Minimum city level required before this can be built (0 = always available)'),
+      _row('Price', _resourceBlockHTML('buildPrice', hex.buildPrice ?? [], !canBld),
+        'Resource cost to build this tile'),
       _row('Premium Price',
         `<input class="hexdb-input" type="number" step="1" min="0"
            style="width:110px" data-field="buildPremiumPrice"
-           value="${hex.buildPremiumPrice ?? 0}"${bdis}>`),
-      _row('Placement Rule', _textInput('buildPlacementRule', hex.buildPlacementRule ?? '')),
+           value="${hex.buildPremiumPrice ?? 0}"${bdis}>`,
+        'Gem cost — if > 0 this is shown instead of the regular Price'),
+      _row('Placement Rule', _textInput('buildPlacementRule', hex.buildPlacementRule ?? ''),
+        'Rule ID for special placement constraints (configured in app data)'),
     ].join('');
 
     const tapOn = hex.tapIncomeEnabled ?? false;
@@ -3752,21 +3778,22 @@ const HexDB = (() => {
       _row('Capacity',
         `<input class="hexdb-input" type="number" step="1" min="1"
            style="width:110px" data-field="incomeCapacity"
-           value="${hex.incomeCapacity ?? 3}"${tapDis}>`),
-      // Get per Tap
+           value="${hex.incomeCapacity ?? 3}"${tapDis}>`,
+        'Number of taps before the tile is destroyed. Min 1'),
       _row('Get per Tap',
-        _resourceBlockHTML('incomeGetPerTap', hex.incomeGetPerTap ?? [], !tapOn)),
-      // Per Turn
+        _resourceBlockHTML('incomeGetPerTap', hex.incomeGetPerTap ?? [], !tapOn),
+        'Resources earned by the player on each tap'),
       _row('Per Turn',
-        _resourceBlockHTML('incomePerTurn', hex.incomePerTurn ?? [], false)),
-      // Income Constant
+        _resourceBlockHTML('incomePerTurn', hex.incomePerTurn ?? [], false),
+        'Resources produced each game turn while this tile is revealed'),
       _row('Income Constant',
-        _resourceBlockHTML('incomeConstant', hex.incomeConstant ?? [], false, SPEND_RES_TYPES)),
-      // Spend Constant
+        _resourceBlockHTML('incomeConstant', hex.incomeConstant ?? [], false, SPEND_RES_TYPES),
+        'Resources generated every tick regardless of tile state'),
       _row('Spend Constant',
         _resourceBlockHTML('spendConstant',
           hex.spendConstant ?? [{ type: 'Pollution', amount: 1 }],
-          false, SPEND_RES_TYPES)),
+          false, SPEND_RES_TYPES),
+        'Resources consumed every tick as a running cost (e.g. Pollution upkeep)'),
     ].join('');
 
     const bdOn = hex.bonusDrop ?? false;
@@ -3779,15 +3806,19 @@ const HexDB = (() => {
            <option${(hex.bonusTrigger ?? 'Destroy') === 'Destroy' ? ' selected' : ''}>Destroy</option>
            <option${(hex.bonusTrigger ?? '') === 'Reveal' ? ' selected' : ''}>Reveal</option>
            <option${(hex.bonusTrigger ?? '') === 'Build'  ? ' selected' : ''}>Build</option>
-         </select>`),
+         </select>`,
+        'Game event that triggers the bonus drop (Destroy / Reveal / Build)'),
       _row('Bonuses',
-        _resourceBlockHTML('bonuses', hex.bonuses ?? [], !bdOn)),
+        _resourceBlockHTML('bonuses', hex.bonuses ?? [], !bdOn),
+        'Resources dropped when the trigger event fires'),
       _row('Boosters',
         `<input class="hexdb-input" style="width:200px;opacity:0.5"
-           value="${_esc(hex.booster ?? '')}" disabled>`),
+           value="${_esc(hex.booster ?? '')}" disabled>`,
+        'Reserved — booster IDs (future use)'),
       _row('Effects',
         `<input class="hexdb-input" style="width:200px;opacity:0.5"
-           value="${_esc(hex.effects ?? '')}" disabled>`),
+           value="${_esc(hex.effects ?? '')}" disabled>`,
+        'Reserved — effect IDs (future use)'),
     ].join('');
 
     const actionsHTML = `<div class="hexdb-actions">
@@ -3953,6 +3984,9 @@ const HexDB = (() => {
           const h = _data.hexes[_filtered[_selFilt]];
           if (!Array.isArray(h[field]) || !h[field][idx]) return;
           h[field][idx].type = el.value;
+          // Update the icon sibling
+          const iconSpan = el.parentElement.querySelector('.res-icon');
+          if (iconSpan) iconSpan.textContent = _resIcon(el.value);
           _autoSave();
         });
       } else if (el.type === 'number') {
