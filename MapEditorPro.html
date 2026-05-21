@@ -2236,6 +2236,7 @@ const History = (() => {
     settlements = (snap.settlements || []).map(s => Object.assign({}, s));
     settlementSlots = (snap.slots || []).map(s => Object.assign({}, s));
     UI.updateSettlementCount();
+    if (UI.rebuildSlotPanel) UI.rebuildSlotPanel();
   }
 
   function push() {
@@ -2472,6 +2473,7 @@ const UI = (() => {
 
   function _buildSlotRow(slot, idx) {
     const isCustom = !['settlement','outpost','trading_post'].includes(slot.type);
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     const div = document.createElement('div');
     div.className = 'slot-row';
     div.dataset.slotIdx = idx;
@@ -2487,7 +2489,7 @@ const UI = (() => {
             <option${slot.type==='trading_post'?' selected':''}>trading_post</option>
             <option${isCustom?' selected':''} value="__custom__">Custom…</option>
         </select>
-        <input class="hexdb-input slot-type-text${isCustom?' visible':''}" value="${isCustom?slot.type:''}" placeholder="type name">
+        <input class="hexdb-input slot-type-text${isCustom?' visible':''}" value="${isCustom?esc(slot.type):''}" placeholder="type name">
         <button class="slot-remove" data-slot-idx="${idx}">✕</button>`;
     return div;
   }
@@ -2833,6 +2835,7 @@ const IO = (() => {
       mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12);
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = [];
+      if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
       History.clear();
       History.push();
       return;
@@ -2871,6 +2874,7 @@ const IO = (() => {
     mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12);
     settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
     settlementSlots = [];
+    if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
     History.clear();
     History.push();
     UI.updateSettlementCount();
