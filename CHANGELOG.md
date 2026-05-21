@@ -5,6 +5,20 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.6.6 — 2026-05-21
+
+### Fixes — Settlement Placement (Critical feedback 18.05)
+- **Undo/redo covers settlements**: History snapshots now include the `settlements` array, so placing or erasing a settlement is fully undoable with Ctrl+Z.
+- **Settlements autosave on change**: `_placeSettlement` and `_eraseSettlement` now call `scheduleAutoSave()`, so settlement positions survive page reload.
+- **Settlements auto-show on tool activation**: switching to the 📍 Place Settlement or ✕ Erase Settlement tool automatically enables settlement visibility if it was hidden.
+
+### Tools reminder
+- **S** — Place Settlement tool
+- **D** — Erase Settlement tool
+- **Ctrl+S** — Save/Export map (unchanged)
+
+---
+
 ## v0.6.5 — 2026-05-21
 
 ### Fixes

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.6.5</title>
+<title>MapEditorPro v0.6.6</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -989,7 +989,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span style="color:var(--accent)">App: </span><span id="st-app-coords" style="color:var(--accent)">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.5</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.6</div>
   </div>
 
 </div>
@@ -1921,6 +1921,11 @@ const Tools = (() => {
       btn.classList.toggle('active', btn.dataset.tool === name);
     });
     UI.updateStatusTool(TOOL_NAMES[name] || name);
+    // Settlement tools require settlements to be visible
+    if ((name === 'settlement' || name === 'erase') && !settlementsVisible) {
+      settlementsVisible = true;
+      Canvas.render();
+    }
   }
 
   function getActive() { return _active; }
@@ -1994,17 +1999,21 @@ const Tools = (() => {
   // ── Settlements ────────────────────────────────────────────
   function _placeSettlement(col, row) {
     if (settlements.some(s => s.col === col && s.row === row)) return;
+    History.push();
     const type = (col === getCityCol() && row === getCityRow()) ? 'city' : 'settlement';
     settlements.push({ col, row, type });
     UI.updateSettlementCount();
+    IO.scheduleAutoSave();
     Canvas.render();
   }
 
   function _eraseSettlement(col, row) {
     const idx = settlements.findIndex(s => s.col === col && s.row === row && s.type !== 'city');
     if (idx >= 0) {
+      History.push();
       settlements.splice(idx, 1);
       UI.updateSettlementCount();
+      IO.scheduleAutoSave();
       Canvas.render();
     }
   }
@@ -2111,13 +2120,18 @@ const History = (() => {
   const _redo = [];   // stack of Int8Array snapshots (future states)
 
   function _snapshot() {
-    // snapshot both the Int8Array terrain grid AND the custom overlay
-    return { grid: new Int8Array(mapData), overlay: Object.assign({}, customTerrainOverlay) };
+    return {
+      grid:        new Int8Array(mapData),
+      overlay:     Object.assign({}, customTerrainOverlay),
+      settlements: settlements.map(s => Object.assign({}, s))
+    };
   }
 
   function _restore(snap) {
     mapData.set(snap.grid);
     customTerrainOverlay = Object.assign({}, snap.overlay);
+    settlements = snap.settlements.map(s => Object.assign({}, s));
+    UI.updateSettlementCount();
   }
 
   function push() {
