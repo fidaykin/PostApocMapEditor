@@ -2211,7 +2211,7 @@ const History = (() => {
   function _restore(snap) {
     mapData.set(snap.grid);
     customTerrainOverlay = Object.assign({}, snap.overlay);
-    settlements = snap.settlements.map(s => Object.assign({}, s));
+    settlements = (snap.settlements || []).map(s => Object.assign({}, s));
     settlementSlots = (snap.slots || []).map(s => Object.assign({}, s));
     UI.updateSettlementCount();
   }
