@@ -5,6 +5,15 @@ Format: `## v[version] — [date]`
 
 ---
 
+## v0.6.7 — 2026-05-21
+
+### Features — Distance & Zones (Important feedback 18.05)
+- **Dist in status bar**: hovering any tile now shows its hex distance from the city center (odd-q cube-coordinate formula matching Unity's `HexUtils.Distance`).
+- **Zone colour overlay** (`◎` button or **Z** key): toggles a 22%-opacity colour tint over every tile, colour-coded by 10-unit distance band (green → yellow → orange → red → purple). 10 bands total.
+- **Ring distance markers**: while zones are on, numbered badges (10, 20, 30 … 100) appear at the due-East tile of each ring so exact distances are readable on the canvas.
+
+---
+
 ## v0.6.6 — 2026-05-21
 
 ### Fixes — Settlement Placement (Critical feedback 18.05)

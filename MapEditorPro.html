@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.6.6</title>
+<title>MapEditorPro v0.6.7</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -822,6 +822,7 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="tool-btn" data-tool="eye"   onclick="Tools.setActive('eye')">💧<span class="tooltip">Eyedropper (E)</span></button>
       <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (S)</span></button>
       <button class="tool-btn" data-tool="erase" onclick="Tools.setActive('erase')">✕<span class="tooltip">Erase Settlement (D)</span></button>
+      <button class="tool-btn" id="btn-zones" onclick="Canvas.toggleZones()">◎<span class="tooltip">Toggle Zones (Z)</span></button>
     </div>
     <div id="hexdb-tools">
       <button class="hexdb-tool-btn" onclick="HexDB.add()">+ Add Hex</button>
@@ -987,9 +988,10 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Terrain: </span><span id="st-terrain">Plain_1</span></div>
     <div class="status-item"><span>Tile: </span><span id="st-tile">—</span></div>
     <div class="status-item"><span style="color:var(--accent)">App: </span><span id="st-app-coords" style="color:var(--accent)">—</span></div>
+    <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.6</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.6.7</div>
   </div>
 
 </div>
@@ -1381,6 +1383,20 @@ const Canvas = (() => {
   let _onMouseMoveCb = null;
   let _onMouseUpCb   = null;
   let _cursorCol = -1, _cursorRow = -1;  // hover tile for brush preview
+  let _showZones = false;
+
+  // Zone palette: 10 colours for distance bands 0–9, 10–19, …, 90+
+  const ZONE_PALETTE = [
+    [100,220,100],[150,220, 80],[220,220, 50],[240,180, 30],[240,130, 20],
+    [230, 80, 20],[210, 40, 40],[180, 20,120],[140, 10,180],[ 80,  0, 80]
+  ];
+
+  // Hex distance from origin in odd-q offset world coordinates
+  function hexDist(wx, wy) {
+    const q = wx;
+    const r = wy - (wx - (wx & 1)) / 2;
+    return Math.max(Math.abs(q), Math.abs(r), Math.abs(q + r));
+  }
 
   // ── Geometry ────────────────────────────────────────────
   function hexCenterWorld(col, row) {
@@ -1458,6 +1474,8 @@ const Canvas = (() => {
         _drawHexTile(s.x, s.y, radius, mapData[row * MAP_WIDTH + col], customSpr);
       }
     }
+
+    if (_showZones) _drawZoneOverlays(scale, radius);
 
     if (settlementsVisible) {
       settlements.forEach(s => {
@@ -1750,6 +1768,7 @@ const Canvas = (() => {
       const appX = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2); // worldX (from row)
       const appY = col - Math.floor(MAP_WIDTH / 2);                      // worldY (from col)
       document.getElementById('st-app-coords').textContent = `${appX}, ${appY}`;
+      document.getElementById('st-dist').textContent = Canvas.hexDist(appX, appY);
       if (mapData) {
         const t = Terrain.byId(mapData[row * MAP_WIDTH + col]);
         document.getElementById('st-terrain').textContent = t ? t.name : '—';
@@ -1832,11 +1851,71 @@ const Canvas = (() => {
     drawMinimap();
   }
 
+  // ── Zone overlay ─────────────────────────────────────────
+  function _drawZoneOverlays(scale, radius) {
+    const padding = radius * 2;
+    const cityR   = getCityRow();
+    ctx.save();
+
+    for (let row = 0; row < MAP_HEIGHT; row++) {
+      for (let col = 0; col < MAP_WIDTH; col++) {
+        const s = hexScreenPos(col, row);
+        if (s.x + padding < 0 || s.x - padding > canvas.width ||
+            s.y + padding < 0 || s.y - padding > canvas.height) continue;
+
+        const appX = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
+        const appY = col - Math.floor(MAP_WIDTH / 2);
+        const d    = hexDist(appX, appY);
+        const zi   = Math.min(Math.floor(d / 10), ZONE_PALETTE.length - 1);
+        const [r, g, b] = ZONE_PALETTE[zi];
+
+        ctx.globalAlpha = 0.22;
+        ctx.fillStyle = `rgb(${r},${g},${b})`;
+        hexClipPath(s.x, s.y, radius);
+        ctx.fill();
+      }
+    }
+
+    // Ring labels: draw a numbered badge at the due-East tile of each 10-ring
+    ctx.globalAlpha = 1;
+    const fontSize = Math.max(9, Math.round(radius * 0.55));
+    ctx.font = `bold ${fontSize}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+
+    for (let d = 10; d <= 100; d += 10) {
+      // Tile due-East of center at this distance: worldX=d, worldY=0
+      const mRow = MAP_HEIGHT - 1 - (d + Math.floor(MAP_HEIGHT / 2));
+      const mCol = Math.floor(MAP_WIDTH / 2);
+      if (mRow < 0 || mRow >= MAP_HEIGHT) continue;
+      const s = hexScreenPos(mCol, mRow);
+      if (s.x + radius < 0 || s.x - radius > canvas.width ||
+          s.y + radius < 0 || s.y - radius > canvas.height) continue;
+
+      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.beginPath();
+      ctx.arc(s.x, s.y, radius * 0.48, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = '#ffffff';
+      ctx.fillText(String(d), s.x, s.y);
+    }
+
+    ctx.restore();
+  }
+
+  function toggleZones() {
+    _showZones = !_showZones;
+    const btn = document.getElementById('btn-zones');
+    if (btn) btn.classList.toggle('active', _showZones);
+    render();
+  }
+
   return {
     init, render, drawMinimap, forceRedraw,
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
-    setMouseCallbacks, getCtx, getZoom, getCamera
+    setMouseCallbacks, getCtx, getZoom, getCamera,
+    toggleZones, hexDist
   };
 })();
 // ════════════════════════════════════════════════════════════
@@ -2099,12 +2178,13 @@ const Tools = (() => {
       if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
       if (e.ctrlKey || e.metaKey) return;
       switch (e.key.toLowerCase()) {
-        case 'p': setActive('paint');      break;
-        case 'f': setActive('fill');       break;
-        case 'r': setActive('rect');       break;
-        case 'e': setActive('eye');        break;
-        case 's': setActive('settlement'); break;
-        case 'd': setActive('erase');      break;
+        case 'p': setActive('paint');        break;
+        case 'f': setActive('fill');         break;
+        case 'r': setActive('rect');         break;
+        case 'e': setActive('eye');          break;
+        case 's': setActive('settlement');   break;
+        case 'd': setActive('erase');        break;
+        case 'z': Canvas.toggleZones();      break;
       }
     });
   }
