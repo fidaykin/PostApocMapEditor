@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 Format: `## v[version] — [date]`
 
+## v0.7.0 — 2026-05-21
+
+### Features — Settlement Slots
+- **Settlement Slots panel**: collapsible "🏘️ Settlement Slots" section in right panel. Add/edit/delete slots with min distance, max distance, count, and type (settlement / outpost / trading_post / custom text).
+- **Canvas ring visualization**: each slot renders as a coloured distance ring overlay when settlements are visible. Selected slot ring brightens; others dim. Labels show `type×count` at the ring's due-East tile.
+- **Full undo/redo + autosave**: slots are included in History snapshots and persisted via autosave/export.
+- **JSON export**: `settlement_slots` section in map export, backwards compatible (missing = empty).
+- **Unity resolver**: `SettlementSlotResolver` resolves slots into random `CustomSettlementPositions` at import time using the map seed (deterministic).
+
 ---
 
 ## v0.6.8 — 2026-05-21
