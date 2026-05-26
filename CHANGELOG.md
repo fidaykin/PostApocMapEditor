@@ -3,6 +3,14 @@
 All notable changes to this project are documented here.
 Format: `## v[version] — [date]`
 
+## v0.7.1 — 2026-05-26
+
+### Features — HexDB Road Permission
+- **Road Allowed toggle**: new checkbox in HexDB MAIN section — controls whether roads can be placed on this custom terrain type in the Unity game. Defaults to `false` for all existing records (migration runs automatically on load).
+- **hex_database.json**: `roadAllowed` field exported per hex record; Unity reads it at runtime to enforce placement rules.
+
+---
+
 ## v0.7.0 — 2026-05-21
 
 ### Features — Settlement Slots

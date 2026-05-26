@@ -1261,7 +1261,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.6.0";
+const VERSION = "0.7.1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3676,6 +3676,7 @@ const HexDB = (() => {
     return {
       id:'', textId:'', type:'Special', biome:'Summer',
       filterCategory:'FilterTerrain', spriteName:'',
+      roadAllowed:false,
       descriptionIdleId:'', descriptionBuildId:'', baseCostTaps:0,
       canDestroy:false, destroyTransformTo:'Plains_1',
       destroySource:[], canStored:false,
@@ -3918,6 +3919,7 @@ const HexDB = (() => {
            style="width:110px" data-field="baseCostTaps"
            value="${hex.baseCostTaps ?? 0}">`,
         'Taps required to unlock this tile when first revealed on the map'),
+      _checkRow('roadAllowed', hex.roadAllowed ?? false, 'roads can be built on this tile'),
     ].join('');
 
     const canDes = hex.canDestroy ?? false;
@@ -4487,6 +4489,7 @@ const HexDB = (() => {
 
   function _migrateSpecialFields(hexes) {
     hexes.forEach(h => {
+      if (typeof h.roadAllowed !== 'boolean') h.roadAllowed = false;
       if (typeof h.bonusDrop !== 'boolean') {
         h.bonusDrop = !!h.bonusDrop;
       }
