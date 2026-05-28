@@ -2907,6 +2907,7 @@ const IO = (() => {
       MAP_WIDTH  = 450;
       MAP_HEIGHT = 450;
       mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12);
+      customTerrainOverlay = {};
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
@@ -2946,6 +2947,7 @@ const IO = (() => {
     MAP_WIDTH  = w;
     MAP_HEIGHT = h;
     mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12);
+    customTerrainOverlay = {};
     settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
     settlementSlots = [];
     if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
