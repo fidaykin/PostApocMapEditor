@@ -2483,6 +2483,7 @@ const DriveSync = (() => {
   // ── Auth ─────────────────────────────────────────────────
   async function authenticate() {
     if (_token) return;
+    if (!_tokenClient) throw new Error('Google Sign-In not ready — disable ad blocker or reload and try again');
     return new Promise((resolve, reject) => {
       _tokenClient.callback = resp => {
         if (resp.error) { reject(new Error(resp.error_description || resp.error)); return; }
