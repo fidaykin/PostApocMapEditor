@@ -1379,12 +1379,12 @@ const Terrain = (() => {
           img.src = HEX_DIR + h.spriteName + '.png';
         }));
       } else {
-        // Load custom type sprite into separate cache
+        // Load custom type sprite — prefer IndexedDB dataUrl, fall back to file path
         jobs.push(new Promise(resolve => {
           const img = new Image();
           img.onload  = () => { customSprites[h.id] = img; resolve(); };
           img.onerror = () => resolve();
-          img.src = HEX_DIR + h.spriteName + '.png';
+          img.src = _uploadedUrls[h.spriteName] || (HEX_DIR + h.spriteName + '.png');
         }));
       }
     }
@@ -1393,7 +1393,13 @@ const Terrain = (() => {
 
   function getCustomSprite(id) { return customSprites[id] || null; }
 
-  return { load, applyHexDbOverrides, getSprite, getCustomSprite, getCitySprite, color, byId, getAll };
+  // Called at startup with { name → dataUrl } from IndexedDB so that
+  // applyHexDbOverrides can resolve user-uploaded sprites on reload.
+  const _uploadedUrls = {};
+  function registerUploadedUrls(map) { Object.assign(_uploadedUrls, map); }
+
+  return { load, applyHexDbOverrides, getSprite, getCustomSprite, getCitySprite,
+           color, byId, getAll, registerUploadedUrls };
 })();
 // ════════════════════════════════════════════════════════════
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
@@ -5375,6 +5381,15 @@ window.addEventListener('load', async () => {
   History.initKeyboard();
   IO.initFileInput();
   IO.initKeyboard();
+  // Pre-load user-uploaded sprites from IndexedDB so applyHexDbOverrides
+  // can resolve them when it runs inside HexDB.init().
+  try {
+    const uploaded = await SpriteStore.loadAll();
+    const urlMap = {};
+    uploaded.forEach(({ name, dataUrl }) => { urlMap[name] = dataUrl; });
+    Terrain.registerUploadedUrls(urlMap);
+  } catch(e) { /* IndexedDB unavailable — skip */ }
+
   HexDB.init();
   BldDB.init();
   SttDB.init();
