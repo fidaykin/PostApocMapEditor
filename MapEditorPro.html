@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.8.6</title>
+<title>MapEditorPro v0.8.7</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1047,7 +1047,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.8.6</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.8.7</div>
   </div>
 
 </div>
@@ -2803,7 +2803,7 @@ const DriveSync = (() => {
       const file  = byName[fname];
       if (!file) continue;
       try {
-        const dataUrl = await _imgDataUrl(file.id);
+        const dataUrl = await _imgDataUrl(file);
         await SpriteStore.save(name, dataUrl);
         urlMap[name] = dataUrl;
       } catch(e) {
@@ -2858,7 +2858,7 @@ const DriveSync = (() => {
         if (!file) continue;
         UI.toast(`Syncing sprite ${i + 1}/${custom.length}: ${name}`);
         try {
-          const dataUrl = await _imgDataUrl(file.id);
+          const dataUrl = await _imgDataUrl(file);
           await SpriteStore.save(name, dataUrl);
           urlMap[name] = dataUrl;
         } catch(e) { console.warn(`[DriveSync] sync sprite ${name}:`, e.message); }
