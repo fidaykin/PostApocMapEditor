@@ -2466,6 +2466,7 @@ const DriveSync = (() => {
   let _tokenClient = null;
   let _hexFolderId = null;
   let _dbSource    = 'autosave';  // 'autosave' | 'local' | 'drive'
+  let _lastMapName = '';
 
   // ── Init — called by GIS script onload ───────────────────
   function init() {
@@ -2652,12 +2653,17 @@ const DriveSync = (() => {
         }
       } catch(e) { console.warn('[DriveSync] IndexedDB sprites:', e.message); }
 
-      // Current map
+      // Current map — prompt for filename
       const mapJson = IO.getMapJson();
       if (mapJson) {
-        UI.toast('Uploading map…');
-        await _uploadFile(ROOT_FOLDER, 'current_map.json', mapJson, 'application/json', rootByName['current_map.json']);
-        done++;
+        const rawName = prompt('Map filename on Google Drive:', _lastMapName || 'current_map');
+        if (rawName !== null) {
+          const fname = rawName.trim().replace(/\.json$/i, '') || 'current_map';
+          _lastMapName = fname;
+          UI.toast(`Uploading ${fname}.json…`);
+          await _uploadFile(ROOT_FOLDER, fname + '.json', mapJson, 'application/json', rootByName[fname + '.json']);
+          done++;
+        }
       }
 
       setDbSource('drive');
