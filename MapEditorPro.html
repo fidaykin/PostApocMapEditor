@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.8.8</title>
+<title>MapEditorPro v0.8.9</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1047,7 +1047,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.8.8</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.8.9</div>
   </div>
 
 </div>
@@ -2849,8 +2849,8 @@ const DriveSync = (() => {
       const fid    = await _hexFolder();
       const files  = await _listFiles(fid);
       const byName = Object.fromEntries(files.map(f => [f.name, f.id]));
-      console.log('[DriveSync] HEX_DATA files:', files.map(f => f.name));
-      console.log('[DriveSync] custom sprites needed:', custom.map(n => n + '.png'));
+      console.log('[DriveSync] HEX_DATA files:\n  ' + files.map(f => f.name).join('\n  '));
+      console.log('[DriveSync] custom sprites needed:\n  ' + custom.map(n => n.endsWith('.png') ? n : n + '.png').join('\n  '));
 
       const urlMap = {};
       for (let i = 0; i < custom.length; i++) {
