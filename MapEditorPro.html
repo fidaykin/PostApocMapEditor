@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.8.5</title>
+<title>MapEditorPro v0.8.6</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1047,7 +1047,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.8.5</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.8.6</div>
   </div>
 
 </div>
@@ -2590,6 +2590,28 @@ const DriveSync = (() => {
     return resp.blob();
   }
 
+  // Load a public Drive image as a data URL via <img> element.
+  // Avoids Safari's strict CORS-at-every-redirect-hop enforcement for fetch().
+  // The image loader follows 302 chains without checking intermediate CORS headers.
+  function _imgDataUrl(fileId) {
+    const url = `${DRIVE_API}/${fileId}?alt=media&key=${API_KEY}`;
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        try {
+          const c = document.createElement('canvas');
+          c.width  = img.naturalWidth  || 64;
+          c.height = img.naturalHeight || 64;
+          c.getContext('2d').drawImage(img, 0, 0);
+          resolve(c.toDataURL('image/png'));
+        } catch(e) { reject(new Error('canvas: ' + e.message)); }
+      };
+      img.onerror = () => reject(new Error('img load failed'));
+      img.src = url;
+    });
+  }
+
   // ── Load HexDB from Drive (public read, no auth) ─────────
   async function loadHexDb() {
     const fid   = await _hexFolder();
@@ -2781,15 +2803,7 @@ const DriveSync = (() => {
       const file  = byName[fname];
       if (!file) continue;
       try {
-        // Use API key (no Authorization header) to avoid CORS preflight in Safari
-        const resp = await fetch(`${DRIVE_API}/${file.id}?alt=media&key=${API_KEY}`);
-        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-        const blob    = await resp.blob();
-        const dataUrl = await new Promise(res => {
-          const reader = new FileReader();
-          reader.onload = e => res(e.target.result);
-          reader.readAsDataURL(blob);
-        });
+        const dataUrl = await _imgDataUrl(file.id);
         await SpriteStore.save(name, dataUrl);
         urlMap[name] = dataUrl;
       } catch(e) {
@@ -2844,16 +2858,7 @@ const DriveSync = (() => {
         if (!file) continue;
         UI.toast(`Syncing sprite ${i + 1}/${custom.length}: ${name}`);
         try {
-          // Files are now public — use API key (no Authorization header avoids
-          // CORS preflight failures in Safari for the alt=media redirect chain).
-          const resp = await fetch(`${DRIVE_API}/${file.id}?alt=media&key=${API_KEY}`);
-          if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-          const blob    = await resp.blob();
-          const dataUrl = await new Promise(res => {
-            const reader = new FileReader();
-            reader.onload = e => res(e.target.result);
-            reader.readAsDataURL(blob);
-          });
+          const dataUrl = await _imgDataUrl(file.id);
           await SpriteStore.save(name, dataUrl);
           urlMap[name] = dataUrl;
         } catch(e) { console.warn(`[DriveSync] sync sprite ${name}:`, e.message); }
