@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>MapEditorPro v0.9.3</title>
+<title>MapEditorPro v0.9.4</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1048,7 +1048,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.9.3</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.9.4</div>
   </div>
 
 </div>
@@ -3260,9 +3260,11 @@ const UI = (() => {
     _spritePickerCallback = onSelect;
     const grid = document.getElementById('sprite-picker-grid');
     grid.innerHTML = '';
+    const shown = new Set();
 
     // Built-in sprites derived from Terrain data
     [...new Set(Terrain.getAll().map(t => t.file.replace('.png', '')))].forEach(name => {
+      shown.add(name);
       grid.appendChild(_makeThumb(name, `sprites/hex/${name}.png`, false, null));
     });
 
@@ -3270,12 +3272,20 @@ const UI = (() => {
     try {
       const uploaded = await SpriteStore.loadAll();
       uploaded.forEach(({ name, dataUrl }) => {
+        shown.add(name);
         grid.appendChild(_makeThumb(name, dataUrl, true, async n => {
           await SpriteStore.remove(n);
           toast(`Removed "${n}"`);
         }));
       });
     } catch(e) { /* IndexedDB unavailable — skip */ }
+
+    // HexDB custom sprites not already shown — load from sprites/hex/ static path
+    HexDB.getAll().forEach(h => {
+      if (!h.spriteName || shown.has(h.spriteName)) return;
+      shown.add(h.spriteName);
+      grid.appendChild(_makeThumb(h.spriteName, `sprites/hex/${h.spriteName}.png`, false, null));
+    });
 
     document.getElementById('sprite-picker-modal').classList.add('open');
   }
