@@ -1345,10 +1345,10 @@ const Terrain = (() => {
     { id: 20, name: "GoldVein",    cat: "💎 RESOURCES",          file: "GoldVein.png" },
     { id: 21, name: "Oil",         cat: "",                      file: "Rubble_2.png", fallback: true },
     // Barren / Desert (22–23)
-    { id: 22, name: "Barren",      cat: "🏜️ BARREN/DESERT",      file: "Rubble_1.png", fallback: true },
-    { id: 23, name: "Desert",      cat: "",                      file: "Plain_1.png",  fallback: true },
+    { id: 22, name: "Barren",      cat: "🏜️ BARREN/DESERT",      file: "Barren.png"   },
+    { id: 23, name: "Desert",      cat: "",                      file: "Dessert.png"  },
     // Swamp (24–25)
-    { id: 24, name: "Swamp",       cat: "🟫 SWAMP",              file: "Water.png",    fallback: true },
+    { id: 24, name: "Swamp",       cat: "🟫 SWAMP",              file: "Swamp.png"    },
     { id: 25, name: "RockySwamp",  cat: "",                      file: "Hills.png",    fallback: true },
     // Volcanic / Rift (26–28)
     { id: 26, name: "LavaPlain",   cat: "🌋 VOLCANIC/RIFT",      file: "Rift.png",     fallback: true },
@@ -4316,7 +4316,8 @@ const HexDB = (() => {
       if (existing) {
         existing.terrainTypeId = t.id;
         existing.category      = existing.category || currentCat;
-        existing.fallback      = existing.fallback  ?? !!t.fallback;
+        existing.fallback      = !!t.fallback;
+        existing.spriteName    = t.file.replace('.png', '');
       }
     });
   }
