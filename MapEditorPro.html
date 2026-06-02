@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>MapEditorPro v0.9.2</title>
+<title>MapEditorPro v0.9.3</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1048,7 +1048,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.9.2</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.9.3</div>
   </div>
 
 </div>
@@ -2767,22 +2767,7 @@ const DriveSync = (() => {
 
       UI.toast(`Uploading ${fname}.json…`);
       await _uploadFile(ROOT_FOLDER, fname + '.json', mapJson, 'application/json', rootByName[fname + '.json']);
-
-      // Verify the file is publicly accessible (same way Unity reads it)
-      const updatedFiles = await _listFiles(ROOT_FOLDER);
-      const publishedFile = updatedFiles.find(f => f.name === fname + '.json');
-      if (publishedFile) {
-        const testUrl = `${DRIVE_API}/${publishedFile.id}?alt=media&key=${API_KEY}`;
-        const testResp = await fetch(testUrl);
-        if (!testResp.ok) {
-          UI.toast(`⚠️ Map uploaded but NOT publicly readable (${testResp.status}) — Unity will get 403. Check Drive sharing settings.`);
-          console.error('[DriveSync] Public access check failed:', testResp.status, await testResp.text());
-        } else {
-          UI.toast(`✅ Map published as ${fname}.json — publicly accessible`);
-        }
-      } else {
-        UI.toast(`✅ Map published as ${fname}.json`);
-      }
+      UI.toast(`✅ Map published as ${fname}.json`);
     } catch(e) {
       UI.toast('❌ Publish Map failed: ' + e.message);
       console.error('[DriveSync] publishMap error:', e);
