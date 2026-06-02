@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.8.3</title>
+<title>MapEditorPro v0.8.4</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1047,7 +1047,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.8.3</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.8.4</div>
   </div>
 
 </div>
@@ -2742,6 +2742,18 @@ const DriveSync = (() => {
     }
   }
 
+  // ── Make all HEX_DATA files publicly readable (one-time fix) ────
+  async function _makeHexDataPublic() {
+    try {
+      const fid   = await _hexFolder();
+      const files = await _listFiles(fid);
+      await Promise.all(files.map(f => _makePublic(f.id)));
+      console.log(`[DriveSync] Made ${files.length} HEX_DATA file(s) public.`);
+    } catch(e) {
+      console.warn('[DriveSync] _makeHexDataPublic failed:', e.message);
+    }
+  }
+
   // ── Sync custom sprites from Drive into local IndexedDB ───
   // Called after HexDB loads from Drive. Downloads only sprites that are
   // referenced in the HexDB, not in the bundled list, and not yet cached locally.
@@ -2799,6 +2811,9 @@ const DriveSync = (() => {
     try {
       // Authenticate first — private files need OAuth Bearer token
       await authenticate();
+      // Make all existing Drive files publicly readable so API-key access works
+      // for other browsers. Runs best-effort in background.
+      _makeHexDataPublic();
       UI.toast('Syncing HexDB from Drive…');
       const driveData = await loadHexDb();
       HexDB.loadFromObject(driveData);
@@ -5863,19 +5878,8 @@ window.addEventListener('load', async () => {
 
   HexDB.init();
 
-  // After local init: silently pull HexDB from Drive in background.
-  // Drive is source of truth; local autosave is the offline fallback.
-  // Also syncs any custom sprites missing from local IndexedDB.
-  (async () => {
-    try {
-      const driveData = await DriveSync.loadHexDb();
-      HexDB.loadFromObject(driveData);
-      DriveSync.setDbSource('drive');
-      await DriveSync.syncCustomSprites();
-    } catch(e) {
-      console.log('[Startup] Drive HexDB unavailable — using local autosave:', e.message);
-    }
-  })();
+  // Drive HexDB is loaded explicitly via ☁ Sync button.
+  // Autosave (localStorage) is used on startup to avoid 403 noise from private Drive files.
   BldDB.init();
   SttDB.init();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
