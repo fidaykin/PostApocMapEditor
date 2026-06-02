@@ -4282,21 +4282,27 @@ const HexDB = (() => {
     });
   }
 
-  // Seeds the 29 built-in Terrain types into HexDB so the palette shows them
-  // without a separate hard-coded list. Guard: skip if any entry already has terrainTypeId >= 0.
+  // Ensures all 29 built-in Terrain types exist in HexDB with correct terrainTypeId,
+  // category, and fallback. Updates existing entries by name (preserves custom spriteName
+  // overrides like Oil → desert_oil_1). Inserts missing entries. Fully idempotent.
   function _seedBuiltInTiles() {
-    if (_data.hexes.some(h => h.terrainTypeId >= 0)) return;
     let currentCat = '';
     Terrain.getAll().forEach(t => {
       if (t.cat) currentCat = t.cat;
-      if (_data.hexes.some(h => h.id.toLowerCase() === t.name.toLowerCase())) return;
-      _data.hexes.push(Object.assign(_blank(), {
-        id: t.name,
-        spriteName: t.file.replace('.png', ''),
-        category: currentCat,
-        terrainTypeId: t.id,
-        fallback: !!t.fallback,
-      }));
+      const existing = _data.hexes.find(h => h.id.toLowerCase() === t.name.toLowerCase());
+      if (existing) {
+        existing.terrainTypeId = t.id;
+        existing.category      = existing.category || currentCat;
+        existing.fallback      = existing.fallback  ?? !!t.fallback;
+      } else {
+        _data.hexes.push(Object.assign(_blank(), {
+          id: t.name,
+          spriteName: t.file.replace('.png', ''),
+          category: currentCat,
+          terrainTypeId: t.id,
+          fallback: !!t.fallback,
+        }));
+      }
     });
   }
 
