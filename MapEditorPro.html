@@ -4306,10 +4306,9 @@ const HexDB = (() => {
     });
   }
 
-  // Ensures all 29 built-in Terrain types exist in HexDB with correct terrainTypeId,
-  // category, and fallback. Updates existing entries by name (preserves custom spriteName
-  // overrides like Oil → desert_oil_1). Inserts missing entries. Fully idempotent.
-  function _seedBuiltInTiles() {
+  // Stamps terrainTypeId / category / fallback onto existing entries that match
+  // Terrain.DATA by name. Never adds new entries — safe to call on every load.
+  function _stampBuiltInFields() {
     let currentCat = '';
     Terrain.getAll().forEach(t => {
       if (t.cat) currentCat = t.cat;
@@ -4318,7 +4317,23 @@ const HexDB = (() => {
         existing.terrainTypeId = t.id;
         existing.category      = existing.category || currentCat;
         existing.fallback      = existing.fallback  ?? !!t.fallback;
-      } else {
+      }
+    });
+  }
+
+  // Seeds all 29 built-in types AND stamps. Only inserts missing entries when the
+  // DB is empty (first-time setup). After that, respects user deletions.
+  function _seedBuiltInTiles() {
+    const shouldAdd = _data.hexes.length === 0;
+    let currentCat = '';
+    Terrain.getAll().forEach(t => {
+      if (t.cat) currentCat = t.cat;
+      const existing = _data.hexes.find(h => h.id.toLowerCase() === t.name.toLowerCase());
+      if (existing) {
+        existing.terrainTypeId = t.id;
+        existing.category      = existing.category || currentCat;
+        existing.fallback      = existing.fallback  ?? !!t.fallback;
+      } else if (shouldAdd) {
         _data.hexes.push(Object.assign(_blank(), {
           id: t.name,
           spriteName: t.file.replace('.png', ''),
@@ -5143,7 +5158,7 @@ const HexDB = (() => {
     _migrateBuildFields(_data.hexes);
     _migrateIncomeFields(_data.hexes);
     _migrateSpecialFields(_data.hexes);
-    _seedBuiltInTiles();
+    _stampBuiltInFields();
     _migrateCategoryFromType();
     _autoSave();
     _selFilt = -1;
@@ -5168,7 +5183,7 @@ const HexDB = (() => {
       _migrateBuildFields(_data.hexes);
       _migrateIncomeFields(_data.hexes);
       _migrateSpecialFields(_data.hexes);
-      _seedBuiltInTiles();
+      _stampBuiltInFields();
       _migrateCategoryFromType();
       _autoSave();
       _selFilt = -1;
