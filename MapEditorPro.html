@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>MapEditorPro v0.8.1</title>
+<title>MapEditorPro v0.8.2</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1047,7 +1047,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.8.1</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.8.2</div>
   </div>
 
 </div>
@@ -1302,7 +1302,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.8.1";
+const VERSION = "0.8.2";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2541,28 +2541,53 @@ const DriveSync = (() => {
     return d.files || [];
   }
 
+  async function _makePublic(fileId) {
+    try {
+      await _authFetch(`${DRIVE_API}/${fileId}/permissions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+      });
+    } catch(e) { console.warn('[DriveSync] makePublic failed:', e.message); }
+  }
+
   async function _uploadFile(parentId, name, content, mimeType, existingId) {
+    let newId = null;
     if (typeof content === 'string') {
       const bnd  = 'bnd' + Date.now();
       const meta = JSON.stringify(existingId ? { name } : { name, parents: [parentId] });
       const body = `--${bnd}\r\nContent-Type: application/json\r\n\r\n${meta}\r\n--${bnd}\r\nContent-Type: ${mimeType}\r\n\r\n${content}\r\n--${bnd}--`;
       const url  = existingId ? `${UPLOAD_API}/${existingId}?uploadType=multipart` : `${UPLOAD_API}?uploadType=multipart`;
-      await _authFetch(url, { method: existingId ? 'PATCH' : 'POST',
+      const resp = await _authFetch(url, { method: existingId ? 'PATCH' : 'POST',
         headers: { 'Content-Type': `multipart/related; boundary="${bnd}"` }, body });
+      if (!existingId) newId = (await resp.json()).id;
     } else {
-      // Binary blob — create metadata then stream content
       if (existingId) {
         await _authFetch(`${UPLOAD_API}/${existingId}?uploadType=media`, {
           method: 'PATCH', headers: { 'Content-Type': mimeType }, body: content });
       } else {
-        const mr = await _authFetch(DRIVE_API, { method: 'POST',
+        const mr  = await _authFetch(DRIVE_API, { method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name, parents: [parentId] }) });
         const { id } = await mr.json();
+        newId = id;
         await _authFetch(`${UPLOAD_API}/${id}?uploadType=media`, {
           method: 'PATCH', headers: { 'Content-Type': mimeType }, body: content });
       }
     }
+    // Make new files publicly readable so Unity + other browsers can fetch via API key
+    if (newId) await _makePublic(newId);
+  }
+
+  // Download a Drive file — uses OAuth token if available, falls back to API key
+  async function _downloadBlob(fileId) {
+    if (_token) {
+      const resp = await _authFetch(`${DRIVE_API}/${fileId}?alt=media`);
+      return resp.blob();
+    }
+    const resp = await fetch(`${DRIVE_API}/${fileId}?alt=media&key=${API_KEY}`);
+    if (!resp.ok) throw new Error(`Drive ${resp.status}`);
+    return resp.blob();
   }
 
   // ── Load HexDB from Drive (public read, no auth) ─────────
@@ -2571,9 +2596,8 @@ const DriveSync = (() => {
     const files = await _listFiles(fid);
     const dbf   = files.find(f => f.name === 'hex_database.json');
     if (!dbf) throw new Error('hex_database.json not found in HEX_DATA');
-    const resp  = await fetch(`${DRIVE_API}/${dbf.id}?alt=media&key=${API_KEY}`);
-    if (!resp.ok) throw new Error(`Download hex_database.json: ${resp.status}`);
-    return resp.json();
+    const blob = await _downloadBlob(dbf.id);
+    return JSON.parse(await blob.text());
   }
 
   // Menu action: load HexDB from Drive into the editor
@@ -2745,9 +2769,7 @@ const DriveSync = (() => {
       const file  = byName[fname];
       if (!file) continue;
       try {
-        const resp = await fetch(`${DRIVE_API}/${file.id}?alt=media&key=${API_KEY}`);
-        if (!resp.ok) continue;
-        const blob   = await resp.blob();
+        const blob = await _downloadBlob(file.id);
         const dataUrl = await new Promise(res => {
           const reader = new FileReader();
           reader.onload = e => res(e.target.result);
