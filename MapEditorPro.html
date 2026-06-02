@@ -2587,15 +2587,42 @@ const DriveSync = (() => {
     }
   }
 
+  // ── Sprite hash manifest (localStorage) ──────────────────
+  const HASH_KEY = 'drive_sprite_hashes';
+
+  function _loadHashes() {
+    try { return JSON.parse(localStorage.getItem(HASH_KEY) || '{}'); } catch { return {}; }
+  }
+  function _saveHashes(map) {
+    try { localStorage.setItem(HASH_KEY, JSON.stringify(map)); } catch {}
+  }
+
+  async function _sha256hex(blob) {
+    const buf    = await blob.arrayBuffer();
+    const digest = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  // Returns true and uploads if the sprite is new or changed; returns false if skipped.
+  async function _uploadSpriteIfChanged(fid, name, blob, byName, hashes) {
+    const fname = name.endsWith('.png') ? name : name + '.png';
+    const hash  = await _sha256hex(blob);
+    if (hashes[fname] === hash) return false;   // unchanged — skip
+    await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+    hashes[fname] = hash;
+    return true;
+  }
+
   // ── Push single uploaded sprite to Drive ─────────────────
   async function pushSprite(name, blob) {
     if (!_token) return;
     try {
-      const fid   = await _hexFolder();
-      const files = await _listFiles(fid);
-      const fname = name.endsWith('.png') ? name : name + '.png';
-      const exist = files.find(f => f.name === fname);
-      await _uploadFile(fid, fname, blob, 'image/png', exist?.id);
+      const fid    = await _hexFolder();
+      const files  = await _listFiles(fid);
+      const byName = Object.fromEntries(files.map(f => [f.name, f.id]));
+      const hashes = _loadHashes();
+      const changed = await _uploadSpriteIfChanged(fid, name, blob, byName, hashes);
+      if (changed) _saveHashes(hashes);
     } catch(e) {
       console.warn('[DriveSync] pushSprite failed:', e.message);
     }
@@ -2616,42 +2643,42 @@ const DriveSync = (() => {
       const rootFiles  = await _listFiles(ROOT_FOLDER);
       const rootByName = Object.fromEntries(rootFiles.map(f => [f.name, f.id]));
 
-      let done = 0;
+      const hashes = _loadHashes();
+      let done = 0, skipped = 0;
 
-      // hex_database.json
+      // hex_database.json — always upload
       UI.toast('Uploading hex_database.json…');
       const hexDb = HexDB.getData();
       await _uploadFile(fid, 'hex_database.json',
         JSON.stringify(hexDb, null, 2), 'application/json', byName['hex_database.json']);
       done++;
 
-      // Bundled sprites
+      // Bundled sprites — hash check
       const spriteNames = HexDB.getSpriteList();
       for (let i = 0; i < spriteNames.length; i++) {
         const name = spriteNames[i];
-        UI.toast(`Sprite ${i + 1}/${spriteNames.length}: ${name}`);
         try {
           const r = await fetch(`sprites/hex/${name}.png`);
-          if (r.ok) {
-            const blob  = await r.blob();
-            const fname = name + '.png';
-            await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
-            done++;
-          }
+          if (!r.ok) continue;
+          const blob    = await r.blob();
+          const changed = await _uploadSpriteIfChanged(fid, name, blob, byName, hashes);
+          if (changed) { done++; UI.toast(`↑ ${name} (${i+1}/${spriteNames.length})`); }
+          else         { skipped++; }
         } catch(e) { console.warn('[DriveSync] sprite', name, e.message); }
       }
 
-      // User-uploaded sprites from IndexedDB
+      // User-uploaded sprites from IndexedDB — hash check
       try {
         const uploaded = await SpriteStore.loadAll();
         for (const { name, dataUrl } of uploaded) {
-          UI.toast(`Sprite: ${name}`);
-          const blob  = await (await fetch(dataUrl)).blob();
-          const fname = name.endsWith('.png') ? name : name + '.png';
-          await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
-          done++;
+          const blob    = await (await fetch(dataUrl)).blob();
+          const changed = await _uploadSpriteIfChanged(fid, name, blob, byName, hashes);
+          if (changed) { done++; UI.toast(`↑ ${name}`); }
+          else         { skipped++; }
         }
       } catch(e) { console.warn('[DriveSync] IndexedDB sprites:', e.message); }
+
+      _saveHashes(hashes);
 
       // Current map — prompt for filename
       const mapJson = IO.getMapJson();
@@ -2667,7 +2694,7 @@ const DriveSync = (() => {
       }
 
       setDbSource('drive');
-      UI.toast(`✅ Published ${done} files to Google Drive`);
+      UI.toast(`✅ Published ${done} files${skipped ? `, ${skipped} sprites unchanged` : ''} to Google Drive`);
     } catch(e) {
       UI.toast('❌ Publish failed: ' + e.message);
       console.error('[DriveSync] publish error:', e);
