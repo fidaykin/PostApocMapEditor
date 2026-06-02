@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>MapEditorPro v0.9.1</title>
+<title>MapEditorPro v0.9.2</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1048,7 +1048,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.9.1</div>
+    <div class="status-item" style="margin-left:auto;color:var(--muted)">v0.9.2</div>
   </div>
 
 </div>
@@ -2465,6 +2465,7 @@ const DriveSync = (() => {
   const SCOPE       = 'https://www.googleapis.com/auth/drive';
 
   let _token       = null;
+  let _tokenExpiry = 0;
   let _tokenClient = null;
   let _hexFolderId = null;
   let _dbSource    = 'autosave';  // 'autosave' | 'local' | 'drive'
@@ -2482,12 +2483,14 @@ const DriveSync = (() => {
 
   // ── Auth ─────────────────────────────────────────────────
   async function authenticate() {
-    if (_token) return;
+    if (_token && Date.now() < _tokenExpiry) return;
+    _token = null; // clear stale token before re-auth
     if (!_tokenClient) throw new Error('Google Sign-In not ready — disable ad blocker or reload and try again');
     return new Promise((resolve, reject) => {
       _tokenClient.callback = resp => {
         if (resp.error) { reject(new Error(resp.error_description || resp.error)); return; }
         _token = resp.access_token;
+        _tokenExpiry = Date.now() + 55 * 60 * 1000; // 55 min (tokens expire at 60)
         _updateBadge();
         resolve();
       };
