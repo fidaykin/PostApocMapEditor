@@ -1037,6 +1037,13 @@ body.mode-settlements #stt-tools   { display: flex; }
 <div class="modal-overlay" id="sprite-picker-modal">
   <div class="modal-box sprite-picker-box">
     <h3>Pick Sprite</h3>
+    <div style="margin-bottom:8px;display:flex;gap:8px;align-items:center;">
+      <label class="btn btn-primary" style="cursor:pointer;font-size:12px;padding:4px 10px;">
+        + Upload Sprite
+        <input type="file" id="sprite-upload-input" accept="image/png,image/webp,image/jpeg" style="display:none" multiple>
+      </label>
+      <span style="font-size:11px;color:var(--muted)">PNG/WebP — saved in browser</span>
+    </div>
     <div id="sprite-picker-grid"></div>
     <div class="modal-actions">
       <button class="btn btn-cancel" onclick="UI.closeSpritePicker()">Cancel</button>
@@ -2359,6 +2366,53 @@ const History = (() => {
   return { push, undo, redo, clear, undoSize, redoSize, initKeyboard };
 })();
 // ════════════════════════════════════════════════════════════
+// SPRITE STORE — IndexedDB persistence for user-uploaded sprites
+// ════════════════════════════════════════════════════════════
+const SpriteStore = (() => {
+  const DB_NAME = 'MapEditorSprites', STORE = 'sprites', VERSION = 1;
+  let _db = null;
+
+  function _open() {
+    return new Promise((res, rej) => {
+      if (_db) return res(_db);
+      const req = indexedDB.open(DB_NAME, VERSION);
+      req.onupgradeneeded = e => e.target.result.createObjectStore(STORE, { keyPath: 'name' });
+      req.onsuccess = e => { _db = e.target.result; res(_db); };
+      req.onerror   = e => rej(e.target.error);
+    });
+  }
+
+  async function save(name, dataUrl) {
+    const db = await _open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).put({ name, dataUrl });
+      tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
+    });
+  }
+
+  async function loadAll() {
+    const db = await _open();
+    return new Promise((res, rej) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).getAll();
+      req.onsuccess = e => res(e.target.result);
+      req.onerror   = e => rej(e.target.error);
+    });
+  }
+
+  async function remove(name) {
+    const db = await _open();
+    return new Promise((res, rej) => {
+      const tx = db.transaction(STORE, 'readwrite');
+      tx.objectStore(STORE).delete(name);
+      tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
+    });
+  }
+
+  return { save, loadAll, remove };
+})();
+
+// ════════════════════════════════════════════════════════════
 // UI MODULE — palette, terrain selection, confirm modal, toasts
 // ════════════════════════════════════════════════════════════
 const UI = (() => {
@@ -2392,6 +2446,15 @@ const UI = (() => {
     });
 
     updateSettlementCount();
+
+    // Wire sprite upload input
+    const uploadInput = document.getElementById('sprite-upload-input');
+    if (uploadInput) {
+      uploadInput.addEventListener('change', e => {
+        if (e.target.files.length) handleSpriteUpload(Array.from(e.target.files));
+        uploadInput.value = '';
+      });
+    }
   }
 
   function buildPalette() {
@@ -2680,34 +2743,80 @@ const UI = (() => {
     document.getElementById('confirm-modal').classList.remove('open');
   }
 
-  function showSpritePicker(onSelect) {
+  function _makeThumb(name, imgSrc, isCustom, onDelete) {
+    const thumb = document.createElement('div');
+    thumb.className = 'sprite-picker-thumb';
+    if (isCustom) thumb.style.outline = '1px solid var(--accent)';
+    const img = document.createElement('img');
+    img.src = imgSrc;
+    img.alt = name;
+    img.onerror = () => { img.style.opacity = '0.3'; };
+    const lbl = document.createElement('span');
+    lbl.textContent = name;
+    thumb.appendChild(img);
+    thumb.appendChild(lbl);
+    if (isCustom && onDelete) {
+      const del = document.createElement('span');
+      del.textContent = '✕';
+      del.title = 'Remove';
+      del.style.cssText = 'position:absolute;top:2px;right:3px;font-size:10px;color:var(--muted);cursor:pointer;';
+      del.addEventListener('click', e => { e.stopPropagation(); onDelete(name); thumb.remove(); });
+      thumb.style.position = 'relative';
+      thumb.appendChild(del);
+    }
+    thumb.addEventListener('click', () => {
+      const cb = _spritePickerCallback;
+      closeSpritePicker();
+      if (cb) cb(name);
+    });
+    return thumb;
+  }
+
+  async function showSpritePicker(onSelect) {
     _spritePickerCallback = onSelect;
     const grid = document.getElementById('sprite-picker-grid');
     grid.innerHTML = '';
+
+    // Built-in sprites
     HexDB.getSpriteList().forEach(name => {
-      const thumb = document.createElement('div');
-      thumb.className = 'sprite-picker-thumb';
-      const img = document.createElement('img');
-      img.src = `sprites/hex/${name}.png`;
-      img.alt = name;
-      img.onerror = () => { img.style.opacity = '0.3'; };
-      const lbl = document.createElement('span');
-      lbl.textContent = name;
-      thumb.appendChild(img);
-      thumb.appendChild(lbl);
-      thumb.addEventListener('click', () => {
-        const cb = _spritePickerCallback;
-        closeSpritePicker();
-        if (cb) cb(name);
-      });
-      grid.appendChild(thumb);
+      grid.appendChild(_makeThumb(name, `sprites/hex/${name}.png`, false, null));
     });
+
+    // User-uploaded sprites from IndexedDB
+    try {
+      const uploaded = await SpriteStore.loadAll();
+      uploaded.forEach(({ name, dataUrl }) => {
+        grid.appendChild(_makeThumb(name, dataUrl, true, async n => {
+          await SpriteStore.remove(n);
+          toast(`Removed "${n}"`);
+        }));
+      });
+    } catch(e) { /* IndexedDB unavailable — skip */ }
+
     document.getElementById('sprite-picker-modal').classList.add('open');
   }
 
   function closeSpritePicker() {
     document.getElementById('sprite-picker-modal').classList.remove('open');
     _spritePickerCallback = null;
+  }
+
+  async function handleSpriteUpload(files) {
+    for (const file of files) {
+      const name = file.name.replace(/\.[^.]+$/, ''); // strip extension
+      const dataUrl = await new Promise((res, rej) => {
+        const reader = new FileReader();
+        reader.onload = e => res(e.target.result);
+        reader.onerror = rej;
+        reader.readAsDataURL(file);
+      });
+      await SpriteStore.save(name, dataUrl);
+      toast(`Uploaded "${name}"`);
+    }
+    // Refresh grid if picker is open
+    if (document.getElementById('sprite-picker-modal').classList.contains('open')) {
+      showSpritePicker(_spritePickerCallback);
+    }
   }
 
   function toast(msg) {
