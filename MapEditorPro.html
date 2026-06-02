@@ -757,7 +757,35 @@ body.mode-settlements #stt-tools   { display: flex; }
 }
 #buildings-main.dragover,
 #settlements-main.dragover { outline: 2px dashed var(--accent); outline-offset: -4px; }
+
+/* ── Drive badge + Publish ──────────────────────────────── */
+#drive-badge {
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  color: #ccc;
+  background: #444;
+  cursor: default;
+  white-space: nowrap;
+  align-self: center;
+  user-select: none;
+}
+.publish-btn {
+  margin-left: 6px;
+  padding: 2px 10px;
+  border: 1px solid #4a9;
+  border-radius: 4px;
+  background: #1a3a2a;
+  color: #4a9;
+  font-size: 12px;
+  cursor: pointer;
+}
+.publish-btn:hover { background: #2a5a3a; }
+.publish-btn:disabled { opacity: .4; cursor: wait; }
 </style>
+<script src="https://accounts.google.com/gsi/client" async onload="DriveSync.init()"></script>
 </head>
 <body class="mode-map">
 
@@ -805,6 +833,8 @@ body.mode-settlements #stt-tools   { display: flex; }
     </div>
     <div class="menu-item" id="menu-data">Data
       <div class="menu-dropdown">
+        <button onclick="DriveSync.loadHexDbIntoEditor()">☁ Load Hex DB from Drive</button>
+        <div class="separator"></div>
         <button onclick="HexDB.triggerLoad()">Load Hex DB…</button>
         <button onclick="HexDB.save()">Save Hex DB <span class="menu-shortcut">Ctrl+Shift+S</span></button>
         <div class="separator"></div>
@@ -815,6 +845,8 @@ body.mode-settlements #stt-tools   { display: flex; }
         <button onclick="SttDB.save()">Save Settlement DB</button>
       </div>
     </div>
+    <span id="drive-badge">DB: 💾 Autosave</span>
+    <button class="publish-btn" onclick="DriveSync.publish()" title="Upload HexDB + sprites + map to Google Drive">☁ Publish</button>
   </div>
 
   <!-- ── Toolbar ──────────────────────────────────────────── -->
@@ -2419,6 +2451,230 @@ const SpriteStore = (() => {
 })();
 
 // ════════════════════════════════════════════════════════════
+// DRIVE SYNC — Google Drive publish + remote HexDB load
+// ════════════════════════════════════════════════════════════
+const DriveSync = (() => {
+  const CLIENT_ID   = '641405537697-404nirvn1a0nbt4gbrn2dlrbc5j60kpt.apps.googleusercontent.com';
+  const API_KEY     = 'AIzaSyDH1j_eIHu58zawC21D6pPflxOupgojJac';
+  const ROOT_FOLDER = '1740gOYYEbZeTMEm5BQgga4JguOC7Di1Q';
+  const HEX_SUB     = 'HEX_DATA';
+  const DRIVE_API   = 'https://www.googleapis.com/drive/v3/files';
+  const UPLOAD_API  = 'https://www.googleapis.com/upload/drive/v3/files';
+  const SCOPE       = 'https://www.googleapis.com/auth/drive';
+
+  let _token       = null;
+  let _tokenClient = null;
+  let _hexFolderId = null;
+  let _dbSource    = 'autosave';  // 'autosave' | 'local' | 'drive'
+
+  // ── Init — called by GIS script onload ───────────────────
+  function init() {
+    if (typeof google === 'undefined' || !google.accounts?.oauth2) return;
+    _tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: SCOPE,
+      callback: () => {},
+    });
+  }
+
+  // ── Auth ─────────────────────────────────────────────────
+  async function authenticate() {
+    if (_token) return;
+    return new Promise((resolve, reject) => {
+      _tokenClient.callback = resp => {
+        if (resp.error) { reject(new Error(resp.error_description || resp.error)); return; }
+        _token = resp.access_token;
+        _updateBadge();
+        resolve();
+      };
+      _tokenClient.requestAccessToken({ prompt: '' });
+    });
+  }
+
+  function isAuthenticated() { return !!_token; }
+
+  // ── DB source badge ───────────────────────────────────────
+  function setDbSource(src) { _dbSource = src; _updateBadge(); }
+
+  function _updateBadge() {
+    const el = document.getElementById('drive-badge');
+    if (!el) return;
+    const labels = { drive: '☁ Drive', local: '📄 Local', autosave: '💾 Autosave' };
+    const colors  = { drive: '#1a4a2e', local: '#3a3a00', autosave: '#333' };
+    el.textContent = 'DB: ' + (labels[_dbSource] || _dbSource) + (_token ? ' ✓' : '');
+    el.style.background = colors[_dbSource] || '#333';
+  }
+
+  // ── Drive helpers ─────────────────────────────────────────
+  async function _pubFetch(path) {
+    const sep  = path.includes('?') ? '&' : '?';
+    const resp = await fetch(DRIVE_API + path + sep + 'key=' + API_KEY);
+    if (!resp.ok) throw new Error(`Drive ${resp.status}: ${await resp.text()}`);
+    return resp.json();
+  }
+
+  async function _authFetch(url, opts = {}) {
+    const resp = await fetch(url, {
+      ...opts,
+      headers: { 'Authorization': 'Bearer ' + _token, ...opts.headers },
+    });
+    if (!resp.ok) throw new Error(`Drive ${resp.status}: ${await resp.text()}`);
+    return resp;
+  }
+
+  async function _hexFolder() {
+    if (_hexFolderId) return _hexFolderId;
+    const q = `name='${HEX_SUB}' and '${ROOT_FOLDER}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+    const d = await _pubFetch(`?q=${encodeURIComponent(q)}&fields=files(id)`);
+    if (!d.files?.length) throw new Error(`'${HEX_SUB}' subfolder not found in Drive`);
+    _hexFolderId = d.files[0].id;
+    return _hexFolderId;
+  }
+
+  async function _listFiles(folderId) {
+    const q = `'${folderId}' in parents and trashed=false`;
+    const d = await _pubFetch(`?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1000`);
+    return d.files || [];
+  }
+
+  async function _uploadFile(parentId, name, content, mimeType, existingId) {
+    if (typeof content === 'string') {
+      const bnd  = 'bnd' + Date.now();
+      const meta = JSON.stringify(existingId ? { name } : { name, parents: [parentId] });
+      const body = `--${bnd}\r\nContent-Type: application/json\r\n\r\n${meta}\r\n--${bnd}\r\nContent-Type: ${mimeType}\r\n\r\n${content}\r\n--${bnd}--`;
+      const url  = existingId ? `${UPLOAD_API}/${existingId}?uploadType=multipart` : `${UPLOAD_API}?uploadType=multipart`;
+      await _authFetch(url, { method: existingId ? 'PATCH' : 'POST',
+        headers: { 'Content-Type': `multipart/related; boundary="${bnd}"` }, body });
+    } else {
+      // Binary blob — create metadata then stream content
+      if (existingId) {
+        await _authFetch(`${UPLOAD_API}/${existingId}?uploadType=media`, {
+          method: 'PATCH', headers: { 'Content-Type': mimeType }, body: content });
+      } else {
+        const mr = await _authFetch(DRIVE_API, { method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name, parents: [parentId] }) });
+        const { id } = await mr.json();
+        await _authFetch(`${UPLOAD_API}/${id}?uploadType=media`, {
+          method: 'PATCH', headers: { 'Content-Type': mimeType }, body: content });
+      }
+    }
+  }
+
+  // ── Load HexDB from Drive (public read, no auth) ─────────
+  async function loadHexDb() {
+    const fid   = await _hexFolder();
+    const files = await _listFiles(fid);
+    const dbf   = files.find(f => f.name === 'hex_database.json');
+    if (!dbf) throw new Error('hex_database.json not found in HEX_DATA');
+    const resp  = await fetch(`${DRIVE_API}/${dbf.id}?alt=media&key=${API_KEY}`);
+    if (!resp.ok) throw new Error(`Download hex_database.json: ${resp.status}`);
+    return resp.json();
+  }
+
+  // Menu action: load HexDB from Drive into the editor
+  async function loadHexDbIntoEditor() {
+    UI.closeAllMenus();
+    UI.toast('Loading HexDB from Drive…');
+    try {
+      const data = await loadHexDb();
+      HexDB.loadFromObject(data);
+      setDbSource('drive');
+      UI.toast(`✅ Loaded ${data.hexes?.length ?? 0} hexes from Drive`);
+    } catch(e) {
+      UI.toast('❌ ' + e.message);
+    }
+  }
+
+  // ── Push single uploaded sprite to Drive ─────────────────
+  async function pushSprite(name, blob) {
+    if (!_token) return;
+    try {
+      const fid   = await _hexFolder();
+      const files = await _listFiles(fid);
+      const fname = name.endsWith('.png') ? name : name + '.png';
+      const exist = files.find(f => f.name === fname);
+      await _uploadFile(fid, fname, blob, 'image/png', exist?.id);
+    } catch(e) {
+      console.warn('[DriveSync] pushSprite failed:', e.message);
+    }
+  }
+
+  // ── Full Publish ──────────────────────────────────────────
+  async function publish() {
+    const btn = document.querySelector('.publish-btn');
+    if (btn) btn.disabled = true;
+    try {
+      UI.toast('Authenticating with Google…');
+      await authenticate();
+
+      const fid        = await _hexFolder();
+      const hexFiles   = await _listFiles(fid);
+      const byName     = Object.fromEntries(hexFiles.map(f => [f.name, f.id]));
+
+      const rootFiles  = await _listFiles(ROOT_FOLDER);
+      const rootByName = Object.fromEntries(rootFiles.map(f => [f.name, f.id]));
+
+      let done = 0;
+
+      // hex_database.json
+      UI.toast('Uploading hex_database.json…');
+      const hexDb = HexDB.getData();
+      await _uploadFile(fid, 'hex_database.json',
+        JSON.stringify(hexDb, null, 2), 'application/json', byName['hex_database.json']);
+      done++;
+
+      // Bundled sprites
+      const spriteNames = HexDB.getSpriteList();
+      for (let i = 0; i < spriteNames.length; i++) {
+        const name = spriteNames[i];
+        UI.toast(`Sprite ${i + 1}/${spriteNames.length}: ${name}`);
+        try {
+          const r = await fetch(`sprites/hex/${name}.png`);
+          if (r.ok) {
+            const blob  = await r.blob();
+            const fname = name + '.png';
+            await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+            done++;
+          }
+        } catch(e) { console.warn('[DriveSync] sprite', name, e.message); }
+      }
+
+      // User-uploaded sprites from IndexedDB
+      try {
+        const uploaded = await SpriteStore.loadAll();
+        for (const { name, dataUrl } of uploaded) {
+          UI.toast(`Sprite: ${name}`);
+          const blob  = await (await fetch(dataUrl)).blob();
+          const fname = name.endsWith('.png') ? name : name + '.png';
+          await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+          done++;
+        }
+      } catch(e) { console.warn('[DriveSync] IndexedDB sprites:', e.message); }
+
+      // Current map
+      const mapJson = IO.getMapJson();
+      if (mapJson) {
+        UI.toast('Uploading map…');
+        await _uploadFile(ROOT_FOLDER, 'current_map.json', mapJson, 'application/json', rootByName['current_map.json']);
+        done++;
+      }
+
+      setDbSource('drive');
+      UI.toast(`✅ Published ${done} files to Google Drive`);
+    } catch(e) {
+      UI.toast('❌ Publish failed: ' + e.message);
+      console.error('[DriveSync] publish error:', e);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  return { init, authenticate, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
+           pushSprite, publish, setDbSource };
+})();
+
+// ════════════════════════════════════════════════════════════
 // UI MODULE — palette, terrain selection, confirm modal, toasts
 // ════════════════════════════════════════════════════════════
 const UI = (() => {
@@ -2818,6 +3074,8 @@ const UI = (() => {
       });
       await SpriteStore.save(name, dataUrl);
       toast(`Uploaded "${name}"`);
+      // Push to Drive immediately if already authenticated
+      DriveSync.pushSprite(name, file);
     }
     // Refresh grid if picker is open
     if (document.getElementById('sprite-picker-modal').classList.contains('open')) {
@@ -3238,10 +3496,12 @@ const IO = (() => {
     });
   }
 
+  function getMapJson() { return mapData ? _buildJson() : null; }
+
   return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
            autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave,
-           setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir };
+           setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -4621,6 +4881,29 @@ const HexDB = (() => {
     });
   }
 
+  function loadFromObject(parsed) {
+    if (!parsed?.hexes || !Array.isArray(parsed.hexes)) {
+      UI.toast('Invalid HexDB data'); return;
+    }
+    _data = parsed;
+    _migrateHexTypes(_data.hexes);
+    _migrateDestroyFields(_data.hexes);
+    _migrateBuildFields(_data.hexes);
+    _migrateIncomeFields(_data.hexes);
+    _migrateSpecialFields(_data.hexes);
+    _autoSave();
+    _selFilt = -1;
+    _filter = { search: '', biome: '', type: '' };
+    document.getElementById('hexdb-search').value = '';
+    document.getElementById('hexdb-biome-filter').value = '';
+    document.getElementById('hexdb-type-filter').value = '';
+    _applyFilter(); _buildList();
+    Terrain.applyHexDbOverrides(_data.hexes).then(() => {
+      UI.buildPalette();
+      Canvas.render();
+    });
+  }
+
   function load(text) {
     try {
       const parsed = JSON.parse(text);
@@ -4639,6 +4922,7 @@ const HexDB = (() => {
       document.getElementById('hexdb-type-filter').value = '';
       _applyFilter(); _buildList();
       UI.toast(`Loaded ${_data.hexes.length} hexes`);
+      DriveSync.setDbSource('local');
       // Apply any built-in terrain overrides from HexDB, then refresh palette + map
       Terrain.applyHexDbOverrides(_data.hexes).then(() => {
         UI.buildPalette();
@@ -4678,7 +4962,9 @@ const HexDB = (() => {
     });
   }
 
-  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad, getSpriteList, getAll, isCustomType, pickSprite };
+  function getData() { return _data; }
+
+  return { init, add, deleteSelected, copy, paste, load, loadFromObject, getData, save, triggerLoad, getSpriteList, getAll, isCustomType, pickSprite };
 })();
 
 // ── BldDB Module ───────────────────────────────────────────
@@ -5391,6 +5677,18 @@ window.addEventListener('load', async () => {
   } catch(e) { /* IndexedDB unavailable — skip */ }
 
   HexDB.init();
+
+  // After local init: silently pull HexDB from Drive in background.
+  // Drive is source of truth; local autosave is the offline fallback.
+  (async () => {
+    try {
+      const driveData = await DriveSync.loadHexDb();
+      HexDB.loadFromObject(driveData);
+      DriveSync.setDbSource('drive');
+    } catch(e) {
+      console.log('[Startup] Drive HexDB unavailable — using local autosave:', e.message);
+    }
+  })();
   BldDB.init();
   SttDB.init();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
