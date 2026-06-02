@@ -2575,8 +2575,9 @@ const DriveSync = (() => {
           method: 'PATCH', headers: { 'Content-Type': mimeType }, body: content });
       }
     }
-    // Make new files publicly readable so Unity + other browsers can fetch via API key
-    if (newId) await _makePublic(newId);
+    // Make files publicly readable so Unity + other browsers can fetch via API key
+    const idToPublish = newId || existingId;
+    if (idToPublish) await _makePublic(idToPublish);
   }
 
   // Download a Drive file — uses OAuth token if available, falls back to API key
