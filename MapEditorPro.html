@@ -1429,9 +1429,10 @@ const Terrain = (() => {
   // applyHexDbOverrides can resolve user-uploaded sprites on reload.
   const _uploadedUrls = {};
   function registerUploadedUrls(map) { Object.assign(_uploadedUrls, map); }
+  function getUploadedUrl(name) { return _uploadedUrls[name] || null; }
 
   return { load, applyHexDbOverrides, getSprite, getCustomSprite, getCitySprite,
-           color, byId, getAll, registerUploadedUrls };
+           color, byId, getAll, registerUploadedUrls, getUploadedUrl };
 })();
 // ════════════════════════════════════════════════════════════
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
@@ -4472,7 +4473,9 @@ const HexDB = (() => {
       _data.hexes.map(h => `<option value="${_esc(h.id)}">`).join('') +
       '</datalist>';
 
-    const spriteSrc = hex.spriteName ? `sprites/hex/${_esc(hex.spriteName)}.png` : '';
+    const spriteSrc = hex.spriteName
+      ? (Terrain.getUploadedUrl(hex.spriteName) || `sprites/hex/${_esc(hex.spriteName)}.png`)
+      : '';
     const visualHTML = `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0">
       <img src="${spriteSrc}" alt=""
         style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0;
