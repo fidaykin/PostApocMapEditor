@@ -846,7 +846,8 @@ body.mode-settlements #stt-tools   { display: flex; }
       </div>
     </div>
     <span id="drive-badge">DB: 💾 Autosave</span>
-    <button class="publish-btn" onclick="DriveSync.publish()" title="Upload HexDB + sprites + map to Google Drive">☁ Publish</button>
+    <button class="publish-btn" id="btn-publish-db"  onclick="DriveSync.publishDb()"  title="Upload HexDB + sprites to Google Drive">☁ Publish DB</button>
+    <button class="publish-btn" id="btn-publish-map" onclick="DriveSync.publishMap()" title="Upload current map to Google Drive">☁ Publish Map</button>
   </div>
 
   <!-- ── Toolbar ──────────────────────────────────────────── -->
@@ -2629,22 +2630,18 @@ const DriveSync = (() => {
     }
   }
 
-  // ── Full Publish ──────────────────────────────────────────
-  async function publish() {
-    const btn = document.querySelector('.publish-btn');
+  // ── Publish HexDB + sprites ───────────────────────────────
+  async function publishDb() {
+    const btn = document.getElementById('btn-publish-db');
     if (btn) btn.disabled = true;
     try {
       UI.toast('Authenticating with Google…');
       await authenticate();
 
-      const fid        = await _hexFolder();
-      const hexFiles   = await _listFiles(fid);
-      const byName     = Object.fromEntries(hexFiles.map(f => [f.name, f.id]));
-
-      const rootFiles  = await _listFiles(ROOT_FOLDER);
-      const rootByName = Object.fromEntries(rootFiles.map(f => [f.name, f.id]));
-
-      const hashes = _loadHashes();
+      const fid      = await _hexFolder();
+      const hexFiles = await _listFiles(fid);
+      const byName   = Object.fromEntries(hexFiles.map(f => [f.name, f.id]));
+      const hashes   = _loadHashes();
       let done = 0, skipped = 0;
 
       // hex_database.json — always upload
@@ -2680,32 +2677,48 @@ const DriveSync = (() => {
       } catch(e) { console.warn('[DriveSync] IndexedDB sprites:', e.message); }
 
       _saveHashes(hashes);
-
-      // Current map — prompt for filename
-      const mapJson = IO.getMapJson();
-      if (mapJson) {
-        const rawName = prompt('Map filename on Google Drive:', _lastMapName || 'current_map');
-        if (rawName !== null) {
-          const fname = rawName.trim().replace(/\.json$/i, '') || 'current_map';
-          _lastMapName = fname;
-          UI.toast(`Uploading ${fname}.json…`);
-          await _uploadFile(ROOT_FOLDER, fname + '.json', mapJson, 'application/json', rootByName[fname + '.json']);
-          done++;
-        }
-      }
-
       setDbSource('drive');
-      UI.toast(`✅ Published ${done} files${skipped ? `, ${skipped} sprites unchanged` : ''} to Google Drive`);
+      UI.toast(`✅ DB published: ${done} files${skipped ? `, ${skipped} sprites unchanged` : ''}`);
     } catch(e) {
-      UI.toast('❌ Publish failed: ' + e.message);
-      console.error('[DriveSync] publish error:', e);
+      UI.toast('❌ Publish DB failed: ' + e.message);
+      console.error('[DriveSync] publishDb error:', e);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  // ── Publish Map ───────────────────────────────────────────
+  async function publishMap() {
+    const mapJson = IO.getMapJson();
+    if (!mapJson) { UI.toast('No map to publish'); return; }
+
+    const rawName = prompt('Map filename on Google Drive:', _lastMapName || 'current_map');
+    if (rawName === null) return;
+    const fname = rawName.trim().replace(/\.json$/i, '') || 'current_map';
+    _lastMapName = fname;
+
+    const btn = document.getElementById('btn-publish-map');
+    if (btn) btn.disabled = true;
+    try {
+      UI.toast('Authenticating with Google…');
+      await authenticate();
+
+      const rootFiles  = await _listFiles(ROOT_FOLDER);
+      const rootByName = Object.fromEntries(rootFiles.map(f => [f.name, f.id]));
+
+      UI.toast(`Uploading ${fname}.json…`);
+      await _uploadFile(ROOT_FOLDER, fname + '.json', mapJson, 'application/json', rootByName[fname + '.json']);
+      UI.toast(`✅ Map published as ${fname}.json`);
+    } catch(e) {
+      UI.toast('❌ Publish Map failed: ' + e.message);
+      console.error('[DriveSync] publishMap error:', e);
     } finally {
       if (btn) btn.disabled = false;
     }
   }
 
   return { init, authenticate, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
-           pushSprite, publish, setDbSource };
+           pushSprite, publishDb, publishMap, setDbSource };
 })();
 
 // ════════════════════════════════════════════════════════════
