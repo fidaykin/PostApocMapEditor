@@ -2937,7 +2937,16 @@ const UI = (() => {
     let currentCatKey = null;
     let currentCatEl  = null;
 
-    HexDB.getAll().filter(h => h.id).forEach(h => {
+    const sorted = HexDB.getAll().filter(h => h.id).sort((a, b) => {
+      const at = typeof a.terrainTypeId !== 'undefined' ? a.terrainTypeId : -1;
+      const bt = typeof b.terrainTypeId !== 'undefined' ? b.terrainTypeId : -1;
+      if (at >= 0 && bt >= 0) return at - bt;
+      if (at >= 0) return -1;
+      if (bt >= 0) return  1;
+      return a.id.localeCompare(b.id);
+    });
+
+    sorted.forEach(h => {
       const cat = h.category || '☢ CUSTOM';
       const tid = typeof h.terrainTypeId !== 'undefined' ? h.terrainTypeId : -1;
 
