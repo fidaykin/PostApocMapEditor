@@ -2717,8 +2717,60 @@ const DriveSync = (() => {
     }
   }
 
+  // ── Sync custom sprites from Drive into local IndexedDB ───
+  // Called after HexDB loads from Drive. Downloads only sprites that are
+  // referenced in the HexDB, not in the bundled list, and not yet cached locally.
+  async function syncCustomSprites() {
+    const bundled = new Set(HexDB.getSpriteList());
+    const custom  = [...new Set(
+      HexDB.getAll().map(h => h.spriteName).filter(n => n && !bundled.has(n))
+    )];
+    if (!custom.length) return;
+
+    const existing    = await SpriteStore.loadAll().catch(() => []);
+    const existingSet = new Set(existing.map(e => e.name));
+    const toFetch     = custom.filter(n => !existingSet.has(n));
+    if (!toFetch.length) return;
+
+    console.log(`[DriveSync] Fetching ${toFetch.length} custom sprite(s) from Drive…`);
+
+    const fid    = await _hexFolder();
+    const files  = await _listFiles(fid);
+    const byName = Object.fromEntries(files.map(f => [f.name, f.id]));
+
+    const urlMap = {};
+    for (const name of toFetch) {
+      const fname = name.endsWith('.png') ? name : name + '.png';
+      const file  = byName[fname];
+      if (!file) continue;
+      try {
+        const resp = await fetch(`${DRIVE_API}/${file.id}?alt=media&key=${API_KEY}`);
+        if (!resp.ok) continue;
+        const blob   = await resp.blob();
+        const dataUrl = await new Promise(res => {
+          const reader = new FileReader();
+          reader.onload = e => res(e.target.result);
+          reader.readAsDataURL(blob);
+        });
+        await SpriteStore.save(name, dataUrl);
+        urlMap[name] = dataUrl;
+      } catch(e) {
+        console.warn(`[DriveSync] sprite fetch failed: ${name}`, e.message);
+      }
+    }
+
+    if (Object.keys(urlMap).length) {
+      Terrain.registerUploadedUrls(urlMap);
+      Terrain.applyHexDbOverrides(HexDB.getAll()).then(() => {
+        UI.buildPalette();
+        Canvas.render();
+      });
+      console.log(`[DriveSync] Cached ${Object.keys(urlMap).length} sprite(s) locally.`);
+    }
+  }
+
   return { init, authenticate, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
-           pushSprite, publishDb, publishMap, setDbSource };
+           pushSprite, publishDb, publishMap, setDbSource, syncCustomSprites };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -5729,11 +5781,13 @@ window.addEventListener('load', async () => {
 
   // After local init: silently pull HexDB from Drive in background.
   // Drive is source of truth; local autosave is the offline fallback.
+  // Also syncs any custom sprites missing from local IndexedDB.
   (async () => {
     try {
       const driveData = await DriveSync.loadHexDb();
       HexDB.loadFromObject(driveData);
       DriveSync.setDbSource('drive');
+      await DriveSync.syncCustomSprites();
     } catch(e) {
       console.log('[Startup] Drive HexDB unavailable — using local autosave:', e.message);
     }
