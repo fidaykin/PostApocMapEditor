@@ -846,8 +846,9 @@ body.mode-settlements #stt-tools   { display: flex; }
       </div>
     </div>
     <span id="drive-badge">DB: 💾 Autosave</span>
-    <button class="publish-btn" id="btn-publish-db"  onclick="DriveSync.publishDb()"  title="Upload HexDB + sprites to Google Drive">☁ Publish DB</button>
-    <button class="publish-btn" id="btn-publish-map" onclick="DriveSync.publishMap()" title="Upload current map to Google Drive">☁ Publish Map</button>
+    <button class="publish-btn" id="btn-sync-drive"  onclick="DriveSync.syncFromDrive()" title="Force re-download HexDB + all custom sprites from Drive">☁ Sync</button>
+    <button class="publish-btn" id="btn-publish-db"  onclick="DriveSync.publishDb()"     title="Upload HexDB + sprites to Google Drive">☁ Publish DB</button>
+    <button class="publish-btn" id="btn-publish-map" onclick="DriveSync.publishMap()"    title="Upload current map to Google Drive">☁ Publish Map</button>
   </div>
 
   <!-- ── Toolbar ──────────────────────────────────────────── -->
@@ -2769,8 +2770,69 @@ const DriveSync = (() => {
     }
   }
 
+  // ── Force sync everything from Drive (ignores local cache) ──
+  async function syncFromDrive() {
+    const btn = document.getElementById('btn-sync-drive');
+    if (btn) btn.disabled = true;
+    try {
+      UI.toast('Syncing HexDB from Drive…');
+      const driveData = await loadHexDb();
+      HexDB.loadFromObject(driveData);
+      setDbSource('drive');
+
+      const bundled = new Set(HexDB.getSpriteList());
+      const custom  = [...new Set(
+        HexDB.getAll().map(h => h.spriteName).filter(n => n && !bundled.has(n))
+      )];
+
+      if (!custom.length) {
+        UI.toast('✅ Synced from Drive');
+        return;
+      }
+
+      const fid    = await _hexFolder();
+      const files  = await _listFiles(fid);
+      const byName = Object.fromEntries(files.map(f => [f.name, f.id]));
+
+      const urlMap = {};
+      for (let i = 0; i < custom.length; i++) {
+        const name  = custom[i];
+        const fname = name.endsWith('.png') ? name : name + '.png';
+        const file  = byName[fname];
+        if (!file) continue;
+        UI.toast(`Syncing sprite ${i + 1}/${custom.length}: ${name}`);
+        try {
+          const resp   = await fetch(`${DRIVE_API}/${file.id}?alt=media&key=${API_KEY}`);
+          if (!resp.ok) continue;
+          const blob   = await resp.blob();
+          const dataUrl = await new Promise(res => {
+            const reader = new FileReader();
+            reader.onload = e => res(e.target.result);
+            reader.readAsDataURL(blob);
+          });
+          await SpriteStore.save(name, dataUrl);
+          urlMap[name] = dataUrl;
+        } catch(e) { console.warn(`[DriveSync] sync sprite ${name}:`, e.message); }
+      }
+
+      if (Object.keys(urlMap).length) {
+        Terrain.registerUploadedUrls(urlMap);
+        Terrain.applyHexDbOverrides(HexDB.getAll()).then(() => {
+          UI.buildPalette();
+          Canvas.render();
+        });
+      }
+      UI.toast(`✅ Synced: HexDB + ${Object.keys(urlMap).length}/${custom.length} sprite(s)`);
+    } catch(e) {
+      UI.toast('❌ Sync failed: ' + e.message);
+      console.error('[DriveSync] syncFromDrive:', e);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   return { init, authenticate, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
-           pushSprite, publishDb, publishMap, setDbSource, syncCustomSprites };
+           pushSprite, publishDb, publishMap, setDbSource, syncCustomSprites, syncFromDrive };
 })();
 
 // ════════════════════════════════════════════════════════════
