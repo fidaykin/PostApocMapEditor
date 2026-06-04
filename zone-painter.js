@@ -458,21 +458,36 @@ const ZonePainter = (() => {
       el.innerHTML = `
         <div class="zone-swatch" title="Click to change color"
              onclick="ZonePainter._uiPickColor(${z.id}, this)"></div>
-        <span class="zone-name" contenteditable="true"
-              onblur="ZonePainter._uiRenameZone(${z.id}, this.textContent.trim())"></span>
+        <span class="zone-name" title="Double-click to rename"></span>
         <button class="zone-del" onclick="event.stopPropagation(); ZonePainter._uiDeleteZone(${z.id})" title="Delete zone">✕</button>
       `;
       // Set name and swatch color via DOM properties (avoids XSS and CSS injection)
-      el.querySelector('.zone-name').textContent = z.name;
+      const nameSpan = el.querySelector('.zone-name');
+      nameSpan.textContent = z.name;
       const swatch = el.querySelector('.zone-swatch');
       swatch.style.background = _safeColor(z.color);
+      // Single click: select zone
       el.addEventListener('click', e => {
         if (e.target.classList.contains('zone-swatch') || e.target.classList.contains('zone-del')) return;
-        if (e.target.getAttribute('contenteditable')) return;
         _selectedZoneId = z.id;
         _uiRebuildZoneList();
         _uiRebuildZoneConfig();
         if (typeof Tools !== 'undefined') Tools.setActive('zone');
+      });
+      // Double-click on name: rename inline
+      nameSpan.addEventListener('dblclick', e => {
+        e.stopPropagation();
+        nameSpan.contentEditable = 'true';
+        nameSpan.focus();
+        document.execCommand('selectAll', false, null);
+        nameSpan.addEventListener('blur', () => {
+          nameSpan.contentEditable = 'false';
+          ZonePainter._uiRenameZone(z.id, nameSpan.textContent.trim());
+        }, { once: true });
+        nameSpan.addEventListener('keydown', e2 => {
+          if (e2.key === 'Enter') { e2.preventDefault(); nameSpan.blur(); }
+          if (e2.key === 'Escape') { nameSpan.textContent = z.name; nameSpan.blur(); }
+        }, { once: true });
       });
       list.appendChild(el);
     });
