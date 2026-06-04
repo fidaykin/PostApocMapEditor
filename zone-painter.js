@@ -441,6 +441,63 @@ const ZonePainter = (() => {
     Canvas.render();
   }
 
+  function _uiRebuildZoneList() {
+    const list = document.getElementById('zone-list');
+    if (!list) return;
+    list.innerHTML = '';
+    _zones.forEach(z => {
+      const el = document.createElement('div');
+      el.className = 'zone-item' + (z.id === _selectedZoneId ? ' selected' : '');
+      el.dataset.zoneId = z.id;
+      el.innerHTML = `
+        <div class="zone-swatch" style="background:${z.color}" title="Click to change color"
+             onclick="ZonePainter._uiPickColor(${z.id}, this)"></div>
+        <span class="zone-name" contenteditable="true"
+              onblur="ZonePainter._uiRenameZone(${z.id}, this.textContent.trim())">${z.name}</span>
+        <button class="zone-del" onclick="event.stopPropagation(); ZonePainter._uiDeleteZone(${z.id})" title="Delete zone">✕</button>
+      `;
+      el.addEventListener('click', e => {
+        if (e.target.classList.contains('zone-swatch') || e.target.classList.contains('zone-del')) return;
+        if (e.target.getAttribute('contenteditable')) return;
+        _selectedZoneId = z.id;
+        _uiRebuildZoneList();
+        if (typeof Tools !== 'undefined') Tools.setActive('zone');
+      });
+      list.appendChild(el);
+    });
+  }
+
+  function _uiAddZone() {
+    const id = addZone();
+    _selectedZoneId = id;
+    _uiRebuildZoneList();
+  }
+
+  function _uiDeleteZone(id) {
+    if (!confirm('Delete this zone? Zone assignments will be cleared.')) return;
+    removeZone(id);
+    if (_selectedZoneId === id) _selectedZoneId = _zones[0]?.id || 0;
+    _uiRebuildZoneList();
+    if (typeof Canvas !== 'undefined') Canvas.render();
+  }
+
+  function _uiRenameZone(id, name) {
+    const z = _zones.find(z => z.id === id);
+    if (z) z.name = name || `Zone ${id}`;
+  }
+
+  function _uiPickColor(id, swatchEl) {
+    const input = document.createElement('input');
+    input.type = 'color';
+    const zone = _zones.find(z => z.id === id);
+    input.value = zone?.color || '#4a8a4a';
+    input.addEventListener('input', () => {
+      if (zone) { zone.color = input.value; swatchEl.style.background = input.value; }
+      if (typeof Canvas !== 'undefined') Canvas.render();
+    });
+    input.click();
+  }
+
   return {
     init, perlinNoise, _buildPerm,
     getZoneLayer, getZones, getPresets, getPreset,
@@ -451,6 +508,7 @@ const ZonePainter = (() => {
     buildDistanceMap, fillZoneTerrain,
     poissonDiskSample, fillZoneSettlements,
     BUILTIN_PRESETS, DENSITY_FACTORS,
-    _fillAllZones, _toggleOverlayUI, _clearZonesUI
+    _fillAllZones, _toggleOverlayUI, _clearZonesUI,
+    _uiRebuildZoneList, _uiAddZone, _uiDeleteZone, _uiRenameZone, _uiPickColor
   };
 })();

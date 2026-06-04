@@ -144,6 +144,44 @@ html, body {
 .cat-items { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .cat-items.collapsed { display: none; }
 
+/* ── Zone palette ─────────────────────────────────────────── */
+#zone-panel {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  border-top: 1px solid var(--border);
+  padding: 6px;
+  min-height: 80px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.zone-panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: #888; text-transform: uppercase;
+  margin-bottom: 6px; letter-spacing: 0.5px;
+}
+.zone-panel-header button {
+  background: #333; border: none; color: #ccc; cursor: pointer;
+  border-radius: 3px; padding: 1px 7px; font-size: 14px; line-height: 1.4;
+}
+.zone-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px; border-radius: 4px; cursor: pointer;
+  font-size: 12px; margin-bottom: 2px;
+}
+.zone-item.selected { background: #2a3a2a; outline: 1px solid #5a8a5a; }
+.zone-item .zone-swatch {
+  width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; cursor: pointer;
+}
+.zone-item .zone-name {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  outline: none;
+}
+.zone-item .zone-del {
+  background: none; border: none; color: #666; cursor: pointer;
+  font-size: 11px; padding: 0 2px;
+}
+.zone-item .zone-del:hover { color: #c07070; }
+
 .tile-btn {
   width: 52px; height: 52px;
   background: var(--bg); border: 2px solid var(--border);
@@ -908,6 +946,15 @@ body.mode-settlements #stt-tools   { display: flex; }
           <div id="palette-selected-id">ID: 12</div>
         </div>
       </div>
+    </div>
+
+    <!-- Zone palette -->
+    <div id="zone-panel">
+      <div class="zone-panel-header">
+        <span>🗺️ ZONES</span>
+        <button id="btn-add-zone" onclick="ZonePainter._uiAddZone()" title="Add zone">+</button>
+      </div>
+      <div id="zone-list"></div>
     </div>
 
     <!-- Canvas -->
@@ -6002,6 +6049,7 @@ function getCityRow() { return Math.floor((MAP_HEIGHT - 1) / 2); }
 
 window.addEventListener('load', async () => {
   ZonePainter.init();
+  ZonePainter._uiRebuildZoneList();
   await Terrain.load();
   // Restore last session if available, otherwise init a blank map
   const _mapRestored = IO.tryRestoreAutosave();
