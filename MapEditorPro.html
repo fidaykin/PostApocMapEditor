@@ -2403,9 +2403,8 @@ const Canvas = (() => {
     const numCols = _numCols();
     const numRows = _numRows();
     ctx.save();
-    ctx.strokeStyle = 'rgba(38,115,38,0.55)';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([4, 4]);
+    ctx.strokeStyle = 'rgba(80,200,80,0.75)';
+    ctx.lineWidth = 1.5;
     // Vertical lines at column block boundaries (same x-lookup pattern as _drawRulers)
     for (let i = 1; i < numCols; i++) {
       const boundaryRow = MAP_HEIGHT - i * BLOCK_SIZE;
@@ -2422,7 +2421,6 @@ const Canvas = (() => {
       if (screenY < RULER_TOP || screenY > canvas.height) continue;
       ctx.beginPath(); ctx.moveTo(RULER_LEFT, screenY); ctx.lineTo(canvas.width, screenY); ctx.stroke();
     }
-    ctx.setLineDash([]);
     ctx.restore();
   }
 
