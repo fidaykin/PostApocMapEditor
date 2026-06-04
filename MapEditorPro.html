@@ -1703,6 +1703,8 @@ const Canvas = (() => {
       });
       ctx.restore();
     }
+
+    _drawRulers();
   }
 
   function _drawHexTile(cx, cy, radius, terrainId, spriteOverride) {
@@ -2206,6 +2208,69 @@ const Canvas = (() => {
     clampCamera();
     render();
     drawMinimap();
+  }
+
+  function _drawRulers() {
+    if (!canvas || !mapData) return;
+    const numCols = _numCols();
+    const numRows = _numRows();
+    const block   = _currentBlock();
+    const scale   = zoom / 100;
+    const blockPxW = BLOCK_SIZE * COL_PITCH * scale;
+    const blockPxH = BLOCK_SIZE * ROW_PITCH * scale;
+
+    ctx.save();
+
+    // Top strip background (letters)
+    ctx.fillStyle = 'rgba(18,18,18,0.82)';
+    ctx.fillRect(0, 0, canvas.width, RULER_TOP);
+
+    // Left strip background (numbers)
+    ctx.fillStyle = 'rgba(18,18,18,0.82)';
+    ctx.fillRect(0, RULER_TOP, RULER_LEFT, canvas.height - RULER_TOP);
+
+    // Corner
+    ctx.fillStyle = 'rgba(18,18,18,0.95)';
+    ctx.fillRect(0, 0, RULER_LEFT, RULER_TOP);
+
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Top strip: letter labels (A, B, C…)
+    ctx.font = 'bold 10px monospace';
+    for (let i = 0; i < numCols; i++) {
+      const centerRow = MAP_HEIGHT - 10 - i * BLOCK_SIZE;
+      if (centerRow < 0) continue;
+      const screenX = hexScreenPos(0, centerRow).x;
+      if (screenX < RULER_LEFT || screenX > canvas.width) continue;
+      if (i === block.col) {
+        ctx.fillStyle = 'rgba(79,195,247,0.18)';
+        ctx.fillRect(screenX - blockPxW / 2, 0, blockPxW, RULER_TOP);
+        ctx.fillStyle = '#4fc3f7';
+      } else {
+        ctx.fillStyle = '#666';
+      }
+      ctx.fillText(String.fromCharCode(65 + i), screenX, RULER_TOP / 2);
+    }
+
+    // Left strip: number labels (1, 2, 3…)
+    ctx.font = '10px monospace';
+    for (let j = 0; j < numRows; j++) {
+      const centerCol = MAP_WIDTH - 10 - j * BLOCK_SIZE;
+      if (centerCol < 0) continue;
+      const screenY = hexScreenPos(centerCol, 0).y;
+      if (screenY < RULER_TOP || screenY > canvas.height) continue;
+      if (j === block.row) {
+        ctx.fillStyle = 'rgba(79,195,247,0.18)';
+        ctx.fillRect(0, screenY - blockPxH / 2, RULER_LEFT, blockPxH);
+        ctx.fillStyle = '#4fc3f7';
+      } else {
+        ctx.fillStyle = '#666';
+      }
+      ctx.fillText(String(j + 1), RULER_LEFT / 2, screenY);
+    }
+
+    ctx.restore();
   }
 
   return {
