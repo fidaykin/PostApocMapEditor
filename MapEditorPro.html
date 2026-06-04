@@ -1868,6 +1868,65 @@ const Canvas = (() => {
     mCtx.beginPath();
     mCtx.arc(cdotX, cdotY, 3, 0, Math.PI * 2);
     mCtx.fill();
+
+    // Block rulers on minimap
+    const ML = 14, MT = 10;   // ruler strip sizes in minimap px
+    const mapAreaW = mw - ML;
+    const mapAreaH = mh - MT;
+    const nCols = Math.ceil(MAP_HEIGHT / BLOCK_SIZE);
+    const nRows = Math.ceil(MAP_WIDTH  / BLOCK_SIZE);
+    const blk   = _currentBlock();
+
+    // Ruler strip backgrounds
+    mCtx.fillStyle = 'rgba(18,18,18,0.72)';
+    mCtx.fillRect(ML, 0, mapAreaW, MT);    // top (letters)
+    mCtx.fillRect(0, MT, ML, mapAreaH);    // left (numbers)
+    mCtx.fillStyle = 'rgba(18,18,18,0.9)';
+    mCtx.fillRect(0, 0, ML, MT);           // corner
+
+    // Active block highlight in ruler strips
+    const acx = ML + (blk.col / nCols) * mapAreaW;
+    const acy = MT + (blk.row / nRows) * mapAreaH;
+    const bcw = mapAreaW / nCols;
+    const bch = mapAreaH / nRows;
+    mCtx.fillStyle = 'rgba(79,195,247,0.25)';
+    mCtx.fillRect(acx, 0, bcw, MT);        // active column in top strip
+    mCtx.fillRect(0, acy, ML, bch);        // active row in left strip
+
+    // Block grid lines on minimap map area
+    mCtx.strokeStyle = 'rgba(255,255,255,0.12)';
+    mCtx.lineWidth = 0.5;
+    for (let i = 1; i < nCols; i++) {
+      const px = ML + (i / nCols) * mapAreaW;
+      mCtx.beginPath(); mCtx.moveTo(px, MT); mCtx.lineTo(px, mh); mCtx.stroke();
+    }
+    for (let j = 1; j < nRows; j++) {
+      const py = MT + (j / nRows) * mapAreaH;
+      mCtx.beginPath(); mCtx.moveTo(ML, py); mCtx.lineTo(mw, py); mCtx.stroke();
+    }
+
+    // Active block cell outline on minimap map area
+    mCtx.strokeStyle = 'rgba(79,195,247,0.35)';
+    mCtx.lineWidth = 0.75;
+    mCtx.strokeRect(acx, acy, bcw, bch);
+
+    // Sparse labels on top strip: every 4th column (A, E, I, M, Q, U)
+    mCtx.font = '7px monospace';
+    mCtx.textBaseline = 'middle';
+    mCtx.textAlign = 'center';
+    for (let i = 0; i < nCols; i += 4) {
+      const px = ML + (i + 0.5) / nCols * mapAreaW;
+      mCtx.fillStyle = (i === blk.col) ? '#4fc3f7' : '#555';
+      mCtx.fillText(String.fromCharCode(65 + i), px, MT / 2);
+    }
+
+    // Sparse labels on left strip: every 4th row (1, 5, 9, 13, 17, 21)
+    mCtx.textAlign = 'right';
+    for (let j = 0; j < nRows; j += 4) {
+      const py = MT + (j + 0.5) / nRows * mapAreaH;
+      mCtx.fillStyle = (j === blk.row) ? '#4fc3f7' : '#555';
+      mCtx.fillText(String(j + 1), ML - 1, py);
+    }
   }
 
   // ── Minimap click/drag → pan ──────────────────────────────
