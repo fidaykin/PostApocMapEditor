@@ -1556,6 +1556,10 @@ const Canvas = (() => {
   let _showZones = false;
   let _selectedSlotIdx = -1;
 
+  const BLOCK_SIZE  = 20;    // tiles per block (width and height)
+  const RULER_TOP   = 20;    // px — height of letter strip at top
+  const RULER_LEFT  = 28;    // px — width of number strip at left
+
   // Zone palette: 10 colours for distance bands 0–9, 10–19, …, 90+
   const ZONE_PALETTE = [
     [100,220,100],[150,220, 80],[220,220, 50],[240,180, 30],[240,130, 20],
@@ -2176,12 +2180,41 @@ const Canvas = (() => {
 
   function setSelectedSlot(idx) { _selectedSlotIdx = idx; render(); }
 
+  // ── Block rulers ─────────────────────────────────────────
+  function _numCols() { return Math.ceil(MAP_HEIGHT / BLOCK_SIZE); }
+  function _numRows() { return Math.ceil(MAP_WIDTH  / BLOCK_SIZE); }
+
+  function _currentBlock() {
+    if (!canvas || !mapData) return { col: 0, row: 0 };
+    const { col, row } = screenToHex(canvas.width / 2, canvas.height / 2);
+    if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return { col: 0, row: 0 };
+    const colIdx = Math.floor((MAP_HEIGHT - 1 - row) / BLOCK_SIZE);
+    const rowIdx = Math.floor((MAP_WIDTH  - 1 - col) / BLOCK_SIZE);
+    return {
+      col: Math.max(0, Math.min(_numCols() - 1, colIdx)),
+      row: Math.max(0, Math.min(_numRows() - 1, rowIdx))
+    };
+  }
+
+  function jumpToBlock(colIdx, rowIdx) {
+    const centerRow = Math.max(0, Math.min(MAP_HEIGHT - 1, MAP_HEIGHT - 10 - colIdx * BLOCK_SIZE));
+    const centerCol = Math.max(0, Math.min(MAP_WIDTH  - 1, MAP_WIDTH  - 10 - rowIdx * BLOCK_SIZE));
+    const scale = zoom / 100;
+    const w = hexCenterWorld(centerCol, centerRow);
+    cameraX = w.x * scale - canvas.width  / 2;
+    cameraY = w.y * scale - canvas.height / 2;
+    clampCamera();
+    render();
+    drawMinimap();
+  }
+
   return {
     init, render, drawMinimap, forceRedraw,
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
-    toggleZones, hexDist, setSelectedSlot
+    toggleZones, hexDist, setSelectedSlot,
+    jumpToBlock
   };
 })();
 // ════════════════════════════════════════════════════════════
