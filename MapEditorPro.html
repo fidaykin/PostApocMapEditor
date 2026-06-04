@@ -917,6 +917,7 @@ body.mode-settlements #stt-tools   { display: flex; }
       <input id="block-nav-input" type="text" value="A:1"
         style="width:40px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;font-family:monospace;text-align:center"
         title="Type block address (e.g. B:4) and press Enter">
+      <button id="btn-toggle-rulers" class="hexdb-tool-btn" onclick="Canvas.toggleRulers()" title="Show/hide block rulers and grid">⊞ Rulers</button>
     </div>
     <div id="hexdb-tools">
       <button class="hexdb-tool-btn" onclick="HexDB.add()">+ Add Hex</button>
@@ -1566,6 +1567,7 @@ const Canvas = (() => {
   const BLOCK_SIZE  = 20;    // tiles per block (width and height)
   const RULER_TOP   = 20;    // px — height of letter strip at top
   const RULER_LEFT  = 28;    // px — width of number strip at left
+  let _showRulers = true;
 
   // Zone palette: 10 colours for distance bands 0–9, 10–19, …, 90+
   const ZONE_PALETTE = [
@@ -1716,8 +1718,7 @@ const Canvas = (() => {
       const b = _currentBlock();
       _blkInput.value = String.fromCharCode(65 + b.col) + ':' + (b.row + 1);
     }
-    _drawBlockGrid();
-    _drawRulers();
+    if (_showRulers) { _drawBlockGrid(); _drawRulers(); }
   }
 
   function _drawHexTile(cx, cy, radius, terrainId, spriteOverride) {
@@ -2432,7 +2433,13 @@ const Canvas = (() => {
     clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot,
-    jumpToBlock
+    jumpToBlock,
+    toggleRulers: () => {
+      _showRulers = !_showRulers;
+      const btn = document.getElementById('btn-toggle-rulers');
+      if (btn) btn.style.opacity = _showRulers ? '1' : '0.4';
+      render();
+    }
   };
 })();
 // ════════════════════════════════════════════════════════════
