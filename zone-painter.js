@@ -109,7 +109,10 @@ const ZonePainter = (() => {
     const w = typeof MAP_WIDTH  !== 'undefined' ? MAP_WIDTH  : 450;
     const h = typeof MAP_HEIGHT !== 'undefined' ? MAP_HEIGHT : 450;
     _zoneLayer = new Uint8Array(w * h);
-    _presets   = BUILTIN_PRESETS.map(p => Object.assign({}, p));
+    _presets   = BUILTIN_PRESETS.map(p => Object.assign({}, p, {
+      terrainWeights: Object.assign({}, p.terrainWeights),
+      forbiddenTerrain: p.forbiddenTerrain.slice()
+    }));
   }
 
   function getZoneLayer()     { return _zoneLayer; }
@@ -142,6 +145,10 @@ const ZonePainter = (() => {
   }
 
   function savePreset(preset) {
+    if (BUILTIN_PRESETS.find(b => b.id === preset.id)) {
+      console.warn('ZonePainter: cannot overwrite built-in preset, use a different id');
+      return;
+    }
     const existing = _presets.findIndex(p => p.id === preset.id);
     if (existing >= 0) _presets[existing] = Object.assign({}, preset);
     else _presets.push(Object.assign({}, preset));
@@ -168,7 +175,10 @@ const ZonePainter = (() => {
     const h = typeof MAP_HEIGHT !== 'undefined' ? MAP_HEIGHT : 450;
     _zones = obj.zones || [];
     _nextZoneId = obj._nextZoneId || (_zones.reduce((m, z) => Math.max(m, z.id), 0) + 1);
-    _presets = BUILTIN_PRESETS.map(p => Object.assign({}, p));
+    _presets = BUILTIN_PRESETS.map(p => Object.assign({}, p, {
+      terrainWeights: Object.assign({}, p.terrainWeights),
+      forbiddenTerrain: p.forbiddenTerrain.slice()
+    }));
     (obj.biomePresets || []).forEach(p => _presets.push(Object.assign({}, p)));
     if (obj.zoneMap) {
       const bin = atob(obj.zoneMap);
