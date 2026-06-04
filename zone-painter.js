@@ -441,6 +441,10 @@ const ZonePainter = (() => {
     Canvas.render();
   }
 
+  function _safeColor(color) {
+    return /^#[0-9a-fA-F]{3,6}$/.test(color) ? color : '#4a8a4a';
+  }
+
   function _uiRebuildZoneList() {
     const list = document.getElementById('zone-list');
     if (!list) return;
@@ -449,13 +453,18 @@ const ZonePainter = (() => {
       const el = document.createElement('div');
       el.className = 'zone-item' + (z.id === _selectedZoneId ? ' selected' : '');
       el.dataset.zoneId = z.id;
+      // swatch and delete button use integer z.id (safe); name uses textContent (XSS-safe)
       el.innerHTML = `
-        <div class="zone-swatch" style="background:${z.color}" title="Click to change color"
+        <div class="zone-swatch" title="Click to change color"
              onclick="ZonePainter._uiPickColor(${z.id}, this)"></div>
         <span class="zone-name" contenteditable="true"
-              onblur="ZonePainter._uiRenameZone(${z.id}, this.textContent.trim())">${z.name}</span>
+              onblur="ZonePainter._uiRenameZone(${z.id}, this.textContent.trim())"></span>
         <button class="zone-del" onclick="event.stopPropagation(); ZonePainter._uiDeleteZone(${z.id})" title="Delete zone">✕</button>
       `;
+      // Set name and swatch color via DOM properties (avoids XSS and CSS injection)
+      el.querySelector('.zone-name').textContent = z.name;
+      const swatch = el.querySelector('.zone-swatch');
+      swatch.style.background = _safeColor(z.color);
       el.addEventListener('click', e => {
         if (e.target.classList.contains('zone-swatch') || e.target.classList.contains('zone-del')) return;
         if (e.target.getAttribute('contenteditable')) return;
@@ -492,10 +501,15 @@ const ZonePainter = (() => {
     const zone = _zones.find(z => z.id === id);
     input.value = zone?.color || '#4a8a4a';
     input.addEventListener('input', () => {
-      if (zone) { zone.color = input.value; swatchEl.style.background = input.value; }
+      if (zone) { zone.color = input.value; swatchEl.style.background = _safeColor(input.value); }
       if (typeof Canvas !== 'undefined') Canvas.render();
     });
+    document.body.appendChild(input);
+    input.style.position = 'absolute';
+    input.style.opacity = '0';
+    input.style.pointerEvents = 'none';
     input.click();
+    input.addEventListener('change', () => document.body.removeChild(input));
   }
 
   return {
