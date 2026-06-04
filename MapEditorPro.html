@@ -2104,7 +2104,7 @@ const Canvas = (() => {
         const s = hexScreenPos(col, row);
         if (s.x + padding < 0 || s.x - padding > canvas.width ||
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
-        ctx.globalAlpha = 0.35;
+        ctx.globalAlpha = 0.55;
         ctx.fillStyle = zone.color;
         hexClipPath(s.x, s.y, radius);
         ctx.fill();
