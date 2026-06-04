@@ -146,8 +146,6 @@ html, body {
 
 /* ── Zone palette ─────────────────────────────────────────── */
 #zone-panel {
-  background: var(--panel);
-  border-right: 1px solid var(--border);
   border-top: 1px solid var(--border);
   padding: 6px;
   min-height: 80px;
@@ -946,15 +944,14 @@ body.mode-settlements #stt-tools   { display: flex; }
           <div id="palette-selected-id">ID: 12</div>
         </div>
       </div>
-    </div>
-
-    <!-- Zone palette -->
-    <div id="zone-panel">
-      <div class="zone-panel-header">
-        <span>🗺️ ZONES</span>
-        <button id="btn-add-zone" onclick="ZonePainter._uiAddZone()" title="Add zone">+</button>
+      <!-- Zone palette -->
+      <div id="zone-panel">
+        <div class="zone-panel-header">
+          <span>🗺️ ZONES</span>
+          <button id="btn-add-zone" onclick="ZonePainter._uiAddZone()" title="Add zone">+</button>
+        </div>
+        <div id="zone-list"></div>
       </div>
-      <div id="zone-list"></div>
     </div>
 
     <!-- Canvas -->
@@ -3735,6 +3732,11 @@ const IO = (() => {
     settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
     settlementSlots = [];
     if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
+    if (typeof ZonePainter !== 'undefined') {
+      ZonePainter.init();
+      ZonePainter._uiRebuildZoneList();
+      ZonePainter._uiRebuildZoneConfig();
+    }
     History.clear();
     History.push();
     UI.updateSettlementCount();

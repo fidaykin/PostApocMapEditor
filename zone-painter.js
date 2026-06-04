@@ -421,6 +421,7 @@ const ZonePainter = (() => {
   function _fillAllZones() {
     const zones = _zones;
     if (zones.length === 0) { alert('No zones defined.'); return; }
+    if (typeof History !== 'undefined') History.push();
     zones.forEach(z => {
       fillZoneTerrain(z.id, mapData);
       fillZoneSettlements(z.id, mapData, settlements);
@@ -609,6 +610,7 @@ const ZonePainter = (() => {
 
   function _uiFillThisZone() {
     if (!_selectedZoneId) return;
+    if (typeof History !== 'undefined') History.push();
     fillZoneTerrain(_selectedZoneId, mapData);
     fillZoneSettlements(_selectedZoneId, mapData, settlements);
     if (typeof Canvas !== 'undefined') { Canvas.render(); Canvas.drawMinimap(); }
