@@ -388,7 +388,7 @@ const ZonePainter = (() => {
 
     if (valid.length === 0) return;
 
-    const density = ZonePainter.DENSITY_FACTORS[preset.settlementDensity] || 0;
+    const density = DENSITY_FACTORS[preset.settlementDensity] || 0;
     const target  = Math.round(valid.length * density);
     if (target === 0) return;
 
