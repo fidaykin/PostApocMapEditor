@@ -426,6 +426,7 @@ const ZonePainter = (() => {
       fillZoneSettlements(z.id, mapData, settlements);
     });
     Canvas.render();
+    Canvas.drawMinimap();
     IO.scheduleAutoSave();
   }
 

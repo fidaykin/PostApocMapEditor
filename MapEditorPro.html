@@ -1997,12 +1997,13 @@ const Canvas = (() => {
     const zl    = ZonePainter.getZoneLayer();
     if (!zl || zones.length === 0) return;
     const padding = radius * 2;
+    const zoneById = new Map(zones.map(z => [z.id, z]));
     ctx.save();
     for (let row = 0; row < MAP_HEIGHT; row++) {
       for (let col = 0; col < MAP_WIDTH; col++) {
         const zoneId = zl[row * MAP_WIDTH + col];
         if (!zoneId) continue;
-        const zone = zones.find(z => z.id === zoneId);
+        const zone = zoneById.get(zoneId);
         if (!zone) continue;
         const s = hexScreenPos(col, row);
         if (s.x + padding < 0 || s.x - padding > canvas.width ||
@@ -2151,10 +2152,11 @@ const Brush = (() => {
 // TOOLS MODULE — paint, fill, rect, eyedropper, settlement, erase
 // ════════════════════════════════════════════════════════════
 const Tools = (() => {
-  let _active      = 'paint';
-  let _isDown      = false;
-  let _rectStart   = null;    // { col, row } when rect tool held
-  let _lastPainted = null;    // avoid re-painting same tile on mousemove
+  let _active          = 'paint';
+  let _isDown          = false;
+  let _rectStart       = null;    // { col, row } when rect tool held
+  let _lastPainted     = null;    // avoid re-painting same tile on mousemove
+  let _lastZonePainted = null;    // avoid re-painting same tile on mousemove (zone tool)
 
   const TOOL_NAMES = {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
@@ -2205,6 +2207,7 @@ const Tools = (() => {
         zl[r * MAP_WIDTH + c] = zoneId;
     });
     Canvas.render();
+    IO.scheduleAutoSave();
   }
 
   // ── Fill (hex flood fill) ──────────────────────────────────
@@ -2315,6 +2318,7 @@ const Tools = (() => {
         break;
       case 'zone':
         _paintZone(col, row);
+        _lastZonePainted = { col, row };
         break;
     }
   }
@@ -2337,7 +2341,9 @@ const Tools = (() => {
         }
         break;
       case 'zone':
+        if (_lastZonePainted && _lastZonePainted.col === col && _lastZonePainted.row === row) break;
         _paintZone(col, row);
+        _lastZonePainted = { col, row };
         break;
     }
   }
@@ -2357,7 +2363,8 @@ const Tools = (() => {
       _toolsRectPreview = null;
       Canvas.render();
     }
-    _lastPainted = null;
+    _lastPainted     = null;
+    _lastZonePainted = null;
   }
 
   function init() {
