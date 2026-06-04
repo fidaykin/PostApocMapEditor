@@ -144,6 +144,42 @@ html, body {
 .cat-items { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .cat-items.collapsed { display: none; }
 
+/* ── Zone palette ─────────────────────────────────────────── */
+#zone-panel {
+  border-top: 1px solid var(--border);
+  padding: 6px;
+  min-height: 80px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+.zone-panel-header {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 11px; color: #888; text-transform: uppercase;
+  margin-bottom: 6px; letter-spacing: 0.5px;
+}
+.zone-panel-header button {
+  background: #333; border: none; color: #ccc; cursor: pointer;
+  border-radius: 3px; padding: 1px 7px; font-size: 14px; line-height: 1.4;
+}
+.zone-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 6px; border-radius: 4px; cursor: pointer;
+  font-size: 12px; margin-bottom: 2px;
+}
+.zone-item.selected { background: #2a3a2a; outline: 1px solid #5a8a5a; }
+.zone-item .zone-swatch {
+  width: 14px; height: 14px; border-radius: 2px; flex-shrink: 0; cursor: pointer;
+}
+.zone-item .zone-name {
+  flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  outline: none;
+}
+.zone-item .zone-del {
+  background: none; border: none; color: #666; cursor: pointer;
+  font-size: 11px; padding: 0 2px;
+}
+.zone-item .zone-del:hover { color: #c07070; }
+
 .tile-btn {
   width: 52px; height: 52px;
   background: var(--bg); border: 2px solid var(--border);
@@ -787,6 +823,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 .publish-btn:disabled { opacity: .4; cursor: wait; }
 </style>
 <script src="https://accounts.google.com/gsi/client" async onload="DriveSync.init()"></script>
+<script src="zone-painter.js"></script>
 </head>
 <body class="mode-map">
 
@@ -871,7 +908,11 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="tool-btn" data-tool="eye"   onclick="Tools.setActive('eye')">💧<span class="tooltip">Eyedropper (E)</span></button>
       <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (S)</span></button>
       <button class="tool-btn" data-tool="erase" onclick="Tools.setActive('erase')">✕<span class="tooltip">Erase Settlement (D)</span></button>
-      <button class="tool-btn" id="btn-zones" onclick="Canvas.toggleZones()">◎<span class="tooltip">Toggle Zones (Z)</span></button>
+      <button class="tool-btn" id="btn-zones" onclick="Canvas.toggleZones()">◎<span class="tooltip">Toggle Distance Rings</span></button>
+      <button class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')">🗺️<span class="tooltip">Zone Painter (Z)</span></button>
+      <button class="hexdb-tool-btn" onclick="ZonePainter._fillAllZones()" title="Fill all zones with biome terrain">▶ Fill Zones</button>
+      <button class="hexdb-tool-btn" onclick="ZonePainter._toggleOverlayUI()" title="Toggle zone color overlay">👁 Overlay</button>
+      <button class="hexdb-tool-btn" onclick="ZonePainter._clearZonesUI()" title="Clear zone assignments">🗑 Clear Zones</button>
     </div>
     <div id="hexdb-tools">
       <button class="hexdb-tool-btn" onclick="HexDB.add()">+ Add Hex</button>
@@ -902,6 +943,14 @@ body.mode-settlements #stt-tools   { display: flex; }
           <div id="palette-selected-name">Plain_1</div>
           <div id="palette-selected-id">ID: 12</div>
         </div>
+      </div>
+      <!-- Zone palette -->
+      <div id="zone-panel">
+        <div class="zone-panel-header">
+          <span>🗺️ ZONES</span>
+          <button id="btn-add-zone" onclick="ZonePainter._uiAddZone()" title="Add zone">+</button>
+        </div>
+        <div id="zone-list"></div>
       </div>
     </div>
 
@@ -942,6 +991,56 @@ body.mode-settlements #stt-tools   { display: flex; }
         </div>
         <div class="slot-rows" id="slot-rows"></div>
         <button id="slot-add">+ Add Slot</button>
+      </div>
+      <div id="zone-config-panel" style="display:none">
+        <div class="section-title" style="padding:8px 8px 4px">
+          <span>🗺️ Zone Config</span>
+        </div>
+        <div style="padding:0 8px 8px;font-size:12px">
+          <div id="zone-config-name" style="font-weight:bold;color:#7ec87e;margin-bottom:8px"></div>
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Biome Preset</label>
+          <select id="zone-preset-select" style="width:100%;margin-bottom:10px;background:#222;border:1px solid #444;color:#ccc;border-radius:3px;padding:3px"
+                  onchange="ZonePainter._uiPresetChanged(this.value)"></select>
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Patch Size</label>
+          <input type="range" id="zone-patch-scale" min="1" max="20" step="1" style="width:100%;margin-bottom:8px"
+                 oninput="ZonePainter._uiPresetSlider('patchScale', parseInt(this.value)); ZonePainter._uiUpdatePreview()">
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Border Blend (tiles)</label>
+          <input type="range" id="zone-blend-width" min="0" max="20" step="1" style="width:100%;margin-bottom:8px"
+                 oninput="ZonePainter._uiPresetSlider('blendWidth', parseInt(this.value))">
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Blend Mode</label>
+          <select id="zone-blend-mode" style="width:100%;margin-bottom:10px;background:#222;border:1px solid #444;color:#ccc;border-radius:3px;padding:3px"
+                  onchange="ZonePainter._uiPresetSlider('blendMode', this.value)">
+            <option value="smooth">Smooth</option>
+            <option value="noisy">Noisy</option>
+            <option value="hard">Hard</option>
+          </select>
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Settlements</label>
+          <select id="zone-settle-density" style="width:100%;margin-bottom:8px;background:#222;border:1px solid #444;color:#ccc;border-radius:3px;padding:3px"
+                  onchange="ZonePainter._uiPresetSlider('settlementDensity', this.value)">
+            <option value="none">None</option>
+            <option value="sparse">Sparse</option>
+            <option value="medium">Medium</option>
+            <option value="dense">Dense</option>
+          </select>
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Min Spacing</label>
+          <input type="range" id="zone-settle-spacing" min="5" max="50" step="1" style="width:100%;margin-bottom:10px"
+                 oninput="ZonePainter._uiPresetSlider('settlementMinSpacing', parseInt(this.value))">
+
+          <canvas id="zone-preview" width="150" height="80" style="border-radius:4px;display:block;margin:0 auto 10px;border:1px solid #333"></canvas>
+
+          <button onclick="ZonePainter._uiFillThisZone()" style="width:100%;padding:5px;background:#4a6a4a;border:1px solid #7ec87e;color:#7ec87e;border-radius:4px;cursor:pointer;margin-bottom:4px">
+            ▶ Fill This Zone
+          </button>
+          <button onclick="ZonePainter._uiSavePreset()" style="width:100%;padding:5px;background:#333;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer">
+            Save as Preset
+          </button>
+        </div>
       </div>
     </div>
 
@@ -1556,6 +1655,9 @@ const Canvas = (() => {
     }
 
     if (_showZones) _drawZoneOverlays(scale, radius);
+    if (typeof ZonePainter !== 'undefined' && ZonePainter.isOverlayVisible() && ZonePainter.getZones().length > 0) {
+      _drawZonePainterOverlay(scale, radius);
+    }
     if (settlementsVisible) _drawSlotRings(scale, radius);
 
     if (settlementsVisible) {
@@ -1984,6 +2086,32 @@ const Canvas = (() => {
     ctx.restore();
   }
 
+  function _drawZonePainterOverlay(scale, radius) {
+    const zones = ZonePainter.getZones();
+    const zl    = ZonePainter.getZoneLayer();
+    if (!zl || zones.length === 0) return;
+    const padding = radius * 2;
+    const zoneById = new Map(zones.map(z => [z.id, z]));
+    ctx.save();
+    for (let row = 0; row < MAP_HEIGHT; row++) {
+      for (let col = 0; col < MAP_WIDTH; col++) {
+        const zoneId = zl[row * MAP_WIDTH + col];
+        if (!zoneId) continue;
+        const zone = zoneById.get(zoneId);
+        if (!zone) continue;
+        const s = hexScreenPos(col, row);
+        if (s.x + padding < 0 || s.x - padding > canvas.width ||
+            s.y + padding < 0 || s.y - padding > canvas.height) continue;
+        ctx.globalAlpha = 0.35;
+        ctx.fillStyle = zone.color;
+        hexClipPath(s.x, s.y, radius);
+        ctx.fill();
+      }
+    }
+    ctx.globalAlpha = 1;
+    ctx.restore();
+  }
+
   function _drawSlotRings(scale, radius) {
     if (!settlementSlots || settlementSlots.length === 0) return;
     const padding = radius * 2;
@@ -2118,14 +2246,16 @@ const Brush = (() => {
 // TOOLS MODULE — paint, fill, rect, eyedropper, settlement, erase
 // ════════════════════════════════════════════════════════════
 const Tools = (() => {
-  let _active      = 'paint';
-  let _isDown      = false;
-  let _rectStart   = null;    // { col, row } when rect tool held
-  let _lastPainted = null;    // avoid re-painting same tile on mousemove
+  let _active          = 'paint';
+  let _isDown          = false;
+  let _rectStart       = null;    // { col, row } when rect tool held
+  let _lastPainted     = null;    // avoid re-painting same tile on mousemove
+  let _lastZonePainted = null;    // avoid re-painting same tile on mousemove (zone tool)
 
   const TOOL_NAMES = {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
-    eye: 'Eyedropper', settlement: 'Place Settlement', erase: 'Erase Settlement'
+    eye: 'Eyedropper', settlement: 'Place Settlement', erase: 'Erase Settlement',
+    zone: 'Zone Painter'
   };
 
   function setActive(name) {
@@ -2158,6 +2288,20 @@ const Tools = (() => {
       }
     });
     Canvas.render();
+  }
+
+  // ── Zone Paint ────────────────────────────────────────────
+  function _paintZone(col, row) {
+    const zoneId = ZonePainter.getSelectedZoneId();
+    if (!zoneId) return;
+    const tiles = Brush.getAffectedTiles(col, row);
+    const zl = ZonePainter.getZoneLayer();
+    tiles.forEach(({ col: c, row: r }) => {
+      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT)
+        zl[r * MAP_WIDTH + c] = zoneId;
+    });
+    Canvas.render();
+    IO.scheduleAutoSave();
   }
 
   // ── Fill (hex flood fill) ──────────────────────────────────
@@ -2266,6 +2410,10 @@ const Tools = (() => {
       case 'erase':
         _eraseSettlement(col, row);
         break;
+      case 'zone':
+        _paintZone(col, row);
+        _lastZonePainted = { col, row };
+        break;
     }
   }
 
@@ -2286,6 +2434,11 @@ const Tools = (() => {
           Canvas.render();
         }
         break;
+      case 'zone':
+        if (_lastZonePainted && _lastZonePainted.col === col && _lastZonePainted.row === row) break;
+        _paintZone(col, row);
+        _lastZonePainted = { col, row };
+        break;
     }
   }
 
@@ -2304,7 +2457,8 @@ const Tools = (() => {
       _toolsRectPreview = null;
       Canvas.render();
     }
-    _lastPainted = null;
+    _lastPainted     = null;
+    _lastZonePainted = null;
   }
 
   function init() {
@@ -2320,7 +2474,7 @@ const Tools = (() => {
         case 'e': setActive('eye');          break;
         case 's': setActive('settlement');   break;
         case 'd': setActive('erase');        break;
-        case 'z': Canvas.toggleZones();      break;
+        case 'z': setActive('zone');         break;
       }
     });
   }
@@ -3440,6 +3594,13 @@ const IO = (() => {
         minDist: s.minDist, maxDist: s.maxDist,
         count:   s.count,   type:    s.type
       }));
+    const zoneData = ZonePainter.toSaveObject();
+    if (zoneData.zones && zoneData.zones.length > 0) {
+      result.zones        = zoneData.zones;
+      result.zoneMap      = zoneData.zoneMap;
+      result.biomePresets = zoneData.biomePresets;
+      result._zoneNextId  = zoneData._nextZoneId;
+    }
     return JSON.stringify(result);
   }
 
@@ -3499,6 +3660,16 @@ const IO = (() => {
           }))
         : [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
+      if (typeof ZonePainter !== 'undefined') {
+        ZonePainter.fromSaveObject({
+          zones:        json.zones        || [],
+          zoneMap:      json.zoneMap      || null,
+          biomePresets: json.biomePresets || [],
+          _nextZoneId:  json._zoneNextId  || 1,
+        });
+        ZonePainter._uiRebuildZoneList();
+        ZonePainter._uiRebuildZoneConfig();
+      }
       History.clear();
       History.push();
       return true;
@@ -3516,6 +3687,11 @@ const IO = (() => {
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
+      if (typeof ZonePainter !== 'undefined') {
+        ZonePainter.init();
+        ZonePainter._uiRebuildZoneList();
+        ZonePainter._uiRebuildZoneConfig();
+      }
       History.clear();
       History.push();
       return;
@@ -3556,6 +3732,11 @@ const IO = (() => {
     settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
     settlementSlots = [];
     if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
+    if (typeof ZonePainter !== 'undefined') {
+      ZonePainter.init();
+      ZonePainter._uiRebuildZoneList();
+      ZonePainter._uiRebuildZoneConfig();
+    }
     History.clear();
     History.push();
     UI.updateSettlementCount();
@@ -3622,6 +3803,16 @@ const IO = (() => {
           }))
         : [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
+      if (typeof ZonePainter !== 'undefined') {
+        ZonePainter.fromSaveObject({
+          zones:        json.zones        || [],
+          zoneMap:      json.zoneMap      || null,
+          biomePresets: json.biomePresets || [],
+          _nextZoneId:  json._zoneNextId  || 1,
+        });
+        ZonePainter._uiRebuildZoneList();
+        ZonePainter._uiRebuildZoneConfig();
+      }
 
       History.clear();
       History.push();
@@ -5941,6 +6132,8 @@ function getCityCol() { return Math.floor(MAP_WIDTH  / 2); }
 function getCityRow() { return Math.floor((MAP_HEIGHT - 1) / 2); }
 
 window.addEventListener('load', async () => {
+  ZonePainter.init();
+  ZonePainter._uiRebuildZoneList();
   await Terrain.load();
   // Restore last session if available, otherwise init a blank map
   const _mapRestored = IO.tryRestoreAutosave();
