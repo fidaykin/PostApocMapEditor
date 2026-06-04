@@ -314,6 +314,110 @@ const ZonePainter = (() => {
     return ((h ^ (h >>> 16)) >>> 0) / 0x100000000;
   }
 
+  // Bridson's Poisson disk sampling constrained to a set of valid (col, row) tiles.
+  // tileset: Array of [col, row]. minDist: minimum distance in tiles.
+  // Returns array of [col, row] points.
+  function poissonDiskSample(tileset, minDist) {
+    if (tileset.length === 0) return [];
+    const cellSize = minDist / Math.SQRT2;
+    const grid = new Map(); // "col_row" -> [col, row]
+    const result = [];
+    const active = [];
+
+    function gridKey(col, row) {
+      return `${Math.floor(col/cellSize)}_${Math.floor(row/cellSize)}`;
+    }
+    function tooClose(col, row) {
+      const gc = Math.floor(col/cellSize), gr = Math.floor(row/cellSize);
+      for (let dc = -2; dc <= 2; dc++) for (let dr = -2; dr <= 2; dr++) {
+        const p = grid.get(`${gc+dc}_${gr+dr}`);
+        if (p && Math.hypot(p[0]-col, p[1]-row) < minDist) return true;
+      }
+      return false;
+    }
+
+    const tileSet = new Set(tileset.map(([c,r]) => `${c}_${r}`));
+    function isValid(col, row) { return tileSet.has(`${col}_${row}`); }
+
+    // Start with random tile from tileset
+    const start = tileset[Math.floor(Math.random() * tileset.length)];
+    result.push(start); active.push(start); grid.set(gridKey(...start), start);
+
+    while (active.length > 0) {
+      const idx = Math.floor(Math.random() * active.length);
+      const [ac, ar] = active[idx];
+      let found = false;
+      for (let k = 0; k < 30; k++) {
+        const angle = Math.random() * 2 * Math.PI;
+        const r = minDist + Math.random() * minDist;
+        const nc = Math.round(ac + Math.cos(angle) * r);
+        const nr = Math.round(ar + Math.sin(angle) * r);
+        if (isValid(nc, nr) && !tooClose(nc, nr)) {
+          const p = [nc, nr];
+          result.push(p); active.push(p); grid.set(gridKey(nc, nr), p);
+          found = true;
+          break;
+        }
+      }
+      if (!found) active.splice(idx, 1);
+    }
+    return result;
+  }
+
+  // Places settlements in zoneId using Poisson disk sampling.
+  // settlements: the global settlements array (mutated in place).
+  // mapData: current terrain array (used to skip forbidden terrain).
+  function fillZoneSettlements(zoneId, mapData, settlements) {
+    const zone = _zones.find(z => z.id === zoneId);
+    if (!zone) return;
+    const preset = getPreset(zone.presetId);
+    if (!preset || preset.settlementDensity === 'none') return;
+
+    const w = MAP_WIDTH, h = MAP_HEIGHT;
+    const forbidden = new Set(preset.forbiddenTerrain || []);
+
+    // Collect valid tiles: in zone, terrain not forbidden
+    const valid = [];
+    for (let row = 0; row < h; row++)
+      for (let col = 0; col < w; col++) {
+        const i = row * w + col;
+        if (_zoneLayer[i] !== zoneId) continue;
+        if (forbidden.has(mapData[i] & 0xFF)) continue;
+        valid.push([col, row]);
+      }
+
+    if (valid.length === 0) return;
+
+    const density = ZonePainter.DENSITY_FACTORS[preset.settlementDensity] || 0;
+    const target  = Math.round(valid.length * density);
+    if (target === 0) return;
+
+    const minDist = preset.settlementMinSpacing || 15;
+
+    // Remove existing auto-placed settlements inside this zone first
+    // (keep city type settlements)
+    const existingInZone = settlements.filter(s => {
+      const i = s.row * w + s.col;
+      return _zoneLayer[i] === zoneId && s.type !== 'city';
+    });
+    existingInZone.forEach(s => {
+      const idx = settlements.indexOf(s);
+      if (idx >= 0) settlements.splice(idx, 1);
+    });
+
+    // Build occupied set from remaining settlements for spacing check
+    const occupied = settlements.filter(s => s.type !== 'city').map(s => [s.col, s.row]);
+
+    // Filter valid tiles to respect existing settlement spacing
+    const filteredValid = valid.filter(([c,r]) =>
+      !occupied.some(([oc,or]) => Math.hypot(oc-c, or-r) < minDist)
+    );
+
+    const points = poissonDiskSample(filteredValid, minDist);
+    const toAdd = points.slice(0, target);
+    toAdd.forEach(([col, row]) => settlements.push({col, row, type: 'settlement'}));
+  }
+
   return {
     init, perlinNoise, _buildPerm,
     getZoneLayer, getZones, getPresets, getPreset,
@@ -322,6 +426,7 @@ const ZonePainter = (() => {
     addZone, removeZone, clearZoneLayer,
     savePreset, toSaveObject, fromSaveObject,
     buildDistanceMap, fillZoneTerrain,
+    poissonDiskSample, fillZoneSettlements,
     BUILTIN_PRESETS, DENSITY_FACTORS
   };
 })();
