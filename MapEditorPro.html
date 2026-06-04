@@ -995,6 +995,56 @@ body.mode-settlements #stt-tools   { display: flex; }
         <div class="slot-rows" id="slot-rows"></div>
         <button id="slot-add">+ Add Slot</button>
       </div>
+      <div id="zone-config-panel" style="display:none">
+        <div class="section-title" style="padding:8px 8px 4px">
+          <span>🗺️ Zone Config</span>
+        </div>
+        <div style="padding:0 8px 8px;font-size:12px">
+          <div id="zone-config-name" style="font-weight:bold;color:#7ec87e;margin-bottom:8px"></div>
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Biome Preset</label>
+          <select id="zone-preset-select" style="width:100%;margin-bottom:10px;background:#222;border:1px solid #444;color:#ccc;border-radius:3px;padding:3px"
+                  onchange="ZonePainter._uiPresetChanged(this.value)"></select>
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Patch Size</label>
+          <input type="range" id="zone-patch-scale" min="1" max="20" step="1" style="width:100%;margin-bottom:8px"
+                 oninput="ZonePainter._uiPresetSlider('patchScale', parseInt(this.value)); ZonePainter._uiUpdatePreview()">
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Border Blend (tiles)</label>
+          <input type="range" id="zone-blend-width" min="0" max="20" step="1" style="width:100%;margin-bottom:8px"
+                 oninput="ZonePainter._uiPresetSlider('blendWidth', parseInt(this.value))">
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Blend Mode</label>
+          <select id="zone-blend-mode" style="width:100%;margin-bottom:10px;background:#222;border:1px solid #444;color:#ccc;border-radius:3px;padding:3px"
+                  onchange="ZonePainter._uiPresetSlider('blendMode', this.value)">
+            <option value="smooth">Smooth</option>
+            <option value="noisy">Noisy</option>
+            <option value="hard">Hard</option>
+          </select>
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Settlements</label>
+          <select id="zone-settle-density" style="width:100%;margin-bottom:8px;background:#222;border:1px solid #444;color:#ccc;border-radius:3px;padding:3px"
+                  onchange="ZonePainter._uiPresetSlider('settlementDensity', this.value)">
+            <option value="none">None</option>
+            <option value="sparse">Sparse</option>
+            <option value="medium">Medium</option>
+            <option value="dense">Dense</option>
+          </select>
+
+          <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Min Spacing</label>
+          <input type="range" id="zone-settle-spacing" min="5" max="50" step="1" style="width:100%;margin-bottom:10px"
+                 oninput="ZonePainter._uiPresetSlider('settlementMinSpacing', parseInt(this.value))">
+
+          <canvas id="zone-preview" width="150" height="80" style="border-radius:4px;display:block;margin:0 auto 10px;border:1px solid #333"></canvas>
+
+          <button onclick="ZonePainter._uiFillThisZone()" style="width:100%;padding:5px;background:#4a6a4a;border:1px solid #7ec87e;color:#7ec87e;border-radius:4px;cursor:pointer;margin-bottom:4px">
+            ▶ Fill This Zone
+          </button>
+          <button onclick="ZonePainter._uiSavePreset()" style="width:100%;padding:5px;background:#333;border:1px solid #555;color:#aaa;border-radius:4px;cursor:pointer">
+            Save as Preset
+          </button>
+        </div>
+      </div>
     </div>
 
   </div>
@@ -3547,6 +3597,13 @@ const IO = (() => {
         minDist: s.minDist, maxDist: s.maxDist,
         count:   s.count,   type:    s.type
       }));
+    const zoneData = ZonePainter.toSaveObject();
+    if (zoneData.zones && zoneData.zones.length > 0) {
+      result.zones        = zoneData.zones;
+      result.zoneMap      = zoneData.zoneMap;
+      result.biomePresets = zoneData.biomePresets;
+      result._zoneNextId  = zoneData._nextZoneId;
+    }
     return JSON.stringify(result);
   }
 
@@ -3606,6 +3663,16 @@ const IO = (() => {
           }))
         : [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
+      if (typeof ZonePainter !== 'undefined') {
+        ZonePainter.fromSaveObject({
+          zones:        json.zones        || [],
+          zoneMap:      json.zoneMap      || null,
+          biomePresets: json.biomePresets || [],
+          _nextZoneId:  json._zoneNextId  || 1,
+        });
+        ZonePainter._uiRebuildZoneList();
+        ZonePainter._uiRebuildZoneConfig();
+      }
       History.clear();
       History.push();
       return true;
@@ -3623,6 +3690,11 @@ const IO = (() => {
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
+      if (typeof ZonePainter !== 'undefined') {
+        ZonePainter.init();
+        ZonePainter._uiRebuildZoneList();
+        ZonePainter._uiRebuildZoneConfig();
+      }
       History.clear();
       History.push();
       return;
@@ -3729,6 +3801,16 @@ const IO = (() => {
           }))
         : [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
+      if (typeof ZonePainter !== 'undefined') {
+        ZonePainter.fromSaveObject({
+          zones:        json.zones        || [],
+          zoneMap:      json.zoneMap      || null,
+          biomePresets: json.biomePresets || [],
+          _nextZoneId:  json._zoneNextId  || 1,
+        });
+        ZonePainter._uiRebuildZoneList();
+        ZonePainter._uiRebuildZoneConfig();
+      }
 
       History.clear();
       History.push();

@@ -470,6 +470,7 @@ const ZonePainter = (() => {
         if (e.target.getAttribute('contenteditable')) return;
         _selectedZoneId = z.id;
         _uiRebuildZoneList();
+        _uiRebuildZoneConfig();
         if (typeof Tools !== 'undefined') Tools.setActive('zone');
       });
       list.appendChild(el);
@@ -480,6 +481,7 @@ const ZonePainter = (() => {
     const id = addZone();
     _selectedZoneId = id;
     _uiRebuildZoneList();
+    _uiRebuildZoneConfig();
   }
 
   function _uiDeleteZone(id) {
@@ -512,6 +514,120 @@ const ZonePainter = (() => {
     input.addEventListener('change', () => document.body.removeChild(input));
   }
 
+  let _workingPreset = null;
+
+  function _uiRebuildZoneConfig() {
+    const panel = document.getElementById('zone-config-panel');
+    if (!panel) return;
+    const zone = _zones.find(z => z.id === _selectedZoneId);
+    if (!zone) { panel.style.display = 'none'; return; }
+    panel.style.display = 'block';
+
+    document.getElementById('zone-config-name').textContent = zone.name;
+
+    const sel = document.getElementById('zone-preset-select');
+    sel.innerHTML = '';
+    _presets.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.id; opt.textContent = p.name;
+      sel.appendChild(opt);
+    });
+    sel.value = zone.presetId;
+
+    _workingPreset = Object.assign({}, getPreset(zone.presetId) || _presets[0]);
+
+    document.getElementById('zone-patch-scale').value    = _workingPreset.patchScale;
+    document.getElementById('zone-blend-width').value    = _workingPreset.blendWidth;
+    document.getElementById('zone-blend-mode').value     = _workingPreset.blendMode;
+    document.getElementById('zone-settle-density').value = _workingPreset.settlementDensity;
+    document.getElementById('zone-settle-spacing').value = _workingPreset.settlementMinSpacing;
+    _uiUpdatePreview();
+  }
+
+  function _uiPresetChanged(presetId) {
+    const zone = _zones.find(z => z.id === _selectedZoneId);
+    if (zone) zone.presetId = presetId;
+    _workingPreset = Object.assign({}, getPreset(presetId));
+    _uiRebuildZoneConfig();
+  }
+
+  function _uiPresetSlider(field, value) {
+    if (!_workingPreset) return;
+    _workingPreset[field] = value;
+    const zone = _zones.find(z => z.id === _selectedZoneId);
+    if (zone) {
+      const customId = `custom_${_selectedZoneId}`;
+      zone.presetId = customId;
+      _workingPreset.id   = customId;
+      _workingPreset.name = `Custom (Zone ${_selectedZoneId})`;
+      savePreset(_workingPreset);
+      // Update dropdown to show this custom preset
+      const sel = document.getElementById('zone-preset-select');
+      if (sel) {
+        let opt = sel.querySelector(`option[value="${customId}"]`);
+        if (!opt) {
+          opt = document.createElement('option');
+          opt.value = customId;
+          sel.appendChild(opt);
+        }
+        opt.textContent = _workingPreset.name;
+        sel.value = customId;
+      }
+    }
+  }
+
+  function _uiUpdatePreview() {
+    const canvas = document.getElementById('zone-preview');
+    if (!canvas || !_workingPreset) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.width, H = canvas.height;
+    const perm = _buildPerm(Date.now() & 0xFFFF);
+    const contrast = _workingPreset.patchContrast || 1;
+    const TERRAIN_COLORS = {
+      0:'#1a3a5a',1:'#1a3a5a',2:'#1a3a5a',3:'#2a5a8a',4:'#2a5a8a',
+      5:'#2a5a8a',6:'#2a5a8a',7:'#2a5a8a',8:'#2a5a8a',
+      9:'#5a4a3a',10:'#6a5a4a',11:'#7a6a5a',
+      12:'#6a8a4a',13:'#7a9a5a',14:'#5a6a4a',
+      15:'#2a5a2a',16:'#3a7a3a',17:'#4a6a3a',
+      18:'#6a6a7a',19:'#8a8a9a',
+      20:'#c8a820',21:'#8a7a5a',
+      22:'#8a7a5a',23:'#9a8a6a',
+      24:'#3a5a3a',25:'#4a6a5a',
+      26:'#8a3a1a',27:'#9a4a2a',28:'#6a2a1a'
+    };
+    ctx.clearRect(0, 0, W, H);
+    for (let py = 0; py < H; py++) {
+      for (let px = 0; px < W; px++) {
+        const n = perlinNoise(px / _workingPreset.patchScale, py / _workingPreset.patchScale, perm);
+        const nc = Math.max(0, Math.min(1, (n - 0.5) * contrast + 0.5));
+        const tid = _noiseToTerrain(nc, _workingPreset);
+        ctx.fillStyle = TERRAIN_COLORS[tid] || '#444';
+        ctx.fillRect(px, py, 1, 1);
+      }
+    }
+  }
+
+  function _uiFillThisZone() {
+    if (!_selectedZoneId) return;
+    fillZoneTerrain(_selectedZoneId, mapData);
+    fillZoneSettlements(_selectedZoneId, mapData, settlements);
+    if (typeof Canvas !== 'undefined') { Canvas.render(); Canvas.drawMinimap(); }
+    if (typeof IO !== 'undefined') IO.scheduleAutoSave();
+  }
+
+  function _uiSavePreset() {
+    const name = prompt('Preset name:', _workingPreset?.name || 'My Preset');
+    if (!name || !name.trim()) return;
+    const trimmed = name.trim();
+    const p = Object.assign({}, _workingPreset, {
+      id: 'user_' + trimmed.toLowerCase().replace(/\s+/g,'_'),
+      name: trimmed
+    });
+    savePreset(p);
+    _uiRebuildZoneConfig();
+    alert(`Preset "${trimmed}" saved.`);
+  }
+
   return {
     init, perlinNoise, _buildPerm,
     getZoneLayer, getZones, getPresets, getPreset,
@@ -523,6 +639,8 @@ const ZonePainter = (() => {
     poissonDiskSample, fillZoneSettlements,
     BUILTIN_PRESETS, DENSITY_FACTORS,
     _fillAllZones, _toggleOverlayUI, _clearZonesUI,
-    _uiRebuildZoneList, _uiAddZone, _uiDeleteZone, _uiRenameZone, _uiPickColor
+    _uiRebuildZoneList, _uiAddZone, _uiDeleteZone, _uiRenameZone, _uiPickColor,
+    _uiRebuildZoneConfig, _uiPresetChanged, _uiPresetSlider,
+    _uiUpdatePreview, _uiFillThisZone, _uiSavePreset
   };
 })();
