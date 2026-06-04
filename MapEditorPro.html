@@ -1692,7 +1692,7 @@ const Canvas = (() => {
     // Brush cursor preview
     if (_cursorCol >= 0 && _cursorRow >= 0 && Tools && Tools.getActive) {
       const tool = Tools.getActive();
-      const tiles = (tool === 'paint')
+      const tiles = (tool === 'paint' || tool === 'zone')
         ? Brush.getAffectedTiles(_cursorCol, _cursorRow)
         : [{ col: _cursorCol, row: _cursorRow }];
       ctx.save();
