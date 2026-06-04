@@ -787,6 +787,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 .publish-btn:disabled { opacity: .4; cursor: wait; }
 </style>
 <script src="https://accounts.google.com/gsi/client" async onload="DriveSync.init()"></script>
+<script src="zone-painter.js"></script>
 </head>
 <body class="mode-map">
 
@@ -5941,6 +5942,7 @@ function getCityCol() { return Math.floor(MAP_WIDTH  / 2); }
 function getCityRow() { return Math.floor((MAP_HEIGHT - 1) / 2); }
 
 window.addEventListener('load', async () => {
+  ZonePainter.init();
   await Terrain.load();
   // Restore last session if available, otherwise init a blank map
   const _mapRestored = IO.tryRestoreAutosave();
