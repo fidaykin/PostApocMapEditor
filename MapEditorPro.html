@@ -1882,7 +1882,7 @@ const Canvas = (() => {
     const blk   = _currentBlock();
 
     // Ruler strip backgrounds
-    mCtx.fillStyle = 'rgb(255,249,213)';
+    mCtx.fillStyle = 'wheat';
     mCtx.fillRect(ML, 0, mapAreaW, MT);    // top (letters)
     mCtx.fillRect(0, MT, ML, mapAreaH);    // left (numbers)
     mCtx.fillRect(0, 0, ML, MT);           // corner
@@ -1897,7 +1897,7 @@ const Canvas = (() => {
     mCtx.fillRect(0, acy, ML, bch);        // active row in left strip
 
     // Block grid lines on minimap map area
-    mCtx.strokeStyle = 'rgba(255,249,213,0.75)';
+    mCtx.strokeStyle = 'rgba(245,222,179,0.75)';
     mCtx.lineWidth = 1;
     for (let i = 1; i < nCols; i++) {
       const px = ML + (i / nCols) * mapAreaW;
@@ -2351,15 +2351,15 @@ const Canvas = (() => {
     ctx.save();
 
     // Top strip background (letters)
-    ctx.fillStyle = 'rgb(255,249,213)';
+    ctx.fillStyle = 'wheat';
     ctx.fillRect(0, 0, canvas.width, RULER_TOP);
 
     // Left strip background (numbers)
-    ctx.fillStyle = 'rgb(255,249,213)';
+    ctx.fillStyle = 'wheat';
     ctx.fillRect(0, RULER_TOP, RULER_LEFT, canvas.height - RULER_TOP);
 
     // Corner
-    ctx.fillStyle = 'rgb(255,249,213)';
+    ctx.fillStyle = 'wheat';
     ctx.fillRect(0, 0, RULER_LEFT, RULER_TOP);
 
     ctx.textAlign    = 'center';
@@ -2403,7 +2403,7 @@ const Canvas = (() => {
     const numCols = _numCols();
     const numRows = _numRows();
     ctx.save();
-    ctx.strokeStyle = 'rgba(255,249,213,0.80)';
+    ctx.strokeStyle = 'rgba(245,222,179,0.80)';
     ctx.lineWidth = 2;
     ctx.setLineDash([6, 5]);
     // Vertical lines at column block boundaries (same x-lookup pattern as _drawRulers)
