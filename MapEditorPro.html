@@ -1716,6 +1716,7 @@ const Canvas = (() => {
       const b = _currentBlock();
       _blkInput.value = String.fromCharCode(65 + b.col) + ':' + (b.row + 1);
     }
+    _drawBlockGrid();
     _drawRulers();
   }
 
@@ -1881,10 +1882,9 @@ const Canvas = (() => {
     const blk   = _currentBlock();
 
     // Ruler strip backgrounds
-    mCtx.fillStyle = 'rgba(18,18,18,0.88)';
+    mCtx.fillStyle = 'rgb(38,115,38)';
     mCtx.fillRect(ML, 0, mapAreaW, MT);    // top (letters)
     mCtx.fillRect(0, MT, ML, mapAreaH);    // left (numbers)
-    mCtx.fillStyle = 'rgba(18,18,18,0.95)';
     mCtx.fillRect(0, 0, ML, MT);           // corner
 
     // Active block highlight in ruler strips
@@ -1892,13 +1892,13 @@ const Canvas = (() => {
     const acy = MT + (blk.row / nRows) * mapAreaH;
     const bcw = mapAreaW / nCols;
     const bch = mapAreaH / nRows;
-    mCtx.fillStyle = 'rgba(79,195,247,0.40)';
+    mCtx.fillStyle = 'rgba(255,255,255,0.40)';
     mCtx.fillRect(acx, 0, bcw, MT);        // active column in top strip
     mCtx.fillRect(0, acy, ML, bch);        // active row in left strip
 
     // Block grid lines on minimap map area
-    mCtx.strokeStyle = 'rgba(255,255,255,0.22)';
-    mCtx.lineWidth = 0.5;
+    mCtx.strokeStyle = 'rgba(38,115,38,0.85)';
+    mCtx.lineWidth = 1;
     for (let i = 1; i < nCols; i++) {
       const px = ML + (i / nCols) * mapAreaW;
       mCtx.beginPath(); mCtx.moveTo(px, MT); mCtx.lineTo(px, mh); mCtx.stroke();
@@ -1909,8 +1909,8 @@ const Canvas = (() => {
     }
 
     // Active block cell outline on minimap map area
-    mCtx.strokeStyle = 'rgba(79,195,247,0.60)';
-    mCtx.lineWidth = 0.75;
+    mCtx.strokeStyle = 'rgba(255,255,255,0.80)';
+    mCtx.lineWidth = 1;
     mCtx.strokeRect(acx, acy, bcw, bch);
 
     // Sparse labels on top strip: every 4th column (A, E, I, M, Q, U)
@@ -1919,7 +1919,7 @@ const Canvas = (() => {
     mCtx.textAlign = 'center';
     for (let i = 0; i < nCols; i += 4) {
       const px = ML + (i + 0.5) / nCols * mapAreaW;
-      mCtx.fillStyle = (i === blk.col) ? '#4fc3f7' : '#555';
+      mCtx.fillStyle = (i === blk.col) ? '#fff' : '#000';
       mCtx.fillText(String.fromCharCode(65 + i), px, MT / 2);
     }
 
@@ -1927,7 +1927,7 @@ const Canvas = (() => {
     mCtx.textAlign = 'right';
     for (let j = 0; j < nRows; j += 4) {
       const py = MT + (j + 0.5) / nRows * mapAreaH;
-      mCtx.fillStyle = (j === blk.row) ? '#4fc3f7' : '#555';
+      mCtx.fillStyle = (j === blk.row) ? '#fff' : '#000';
       mCtx.fillText(String(j + 1), ML - 1, py);
     }
   }
@@ -2351,15 +2351,15 @@ const Canvas = (() => {
     ctx.save();
 
     // Top strip background (letters)
-    ctx.fillStyle = 'rgba(18,18,18,0.92)';
+    ctx.fillStyle = 'rgb(38,115,38)';
     ctx.fillRect(0, 0, canvas.width, RULER_TOP);
 
     // Left strip background (numbers)
-    ctx.fillStyle = 'rgba(18,18,18,0.92)';
+    ctx.fillStyle = 'rgb(38,115,38)';
     ctx.fillRect(0, RULER_TOP, RULER_LEFT, canvas.height - RULER_TOP);
 
     // Corner
-    ctx.fillStyle = 'rgba(18,18,18,0.95)';
+    ctx.fillStyle = 'rgb(38,115,38)';
     ctx.fillRect(0, 0, RULER_LEFT, RULER_TOP);
 
     ctx.textAlign    = 'center';
@@ -2373,12 +2373,10 @@ const Canvas = (() => {
       const screenX = hexScreenPos(0, centerRow).x;
       if (screenX < RULER_LEFT || screenX > canvas.width) continue;
       if (i === block.col) {
-        ctx.fillStyle = 'rgba(79,195,247,0.30)';
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
         ctx.fillRect(screenX - blockPxW / 2, 0, blockPxW, RULER_TOP);
-        ctx.fillStyle = '#4fc3f7';
-      } else {
-        ctx.fillStyle = '#666';
       }
+      ctx.fillStyle = '#000';
       ctx.fillText(String.fromCharCode(65 + i), screenX, RULER_TOP / 2);
     }
 
@@ -2390,15 +2388,41 @@ const Canvas = (() => {
       const screenY = hexScreenPos(centerCol, 0).y;
       if (screenY < RULER_TOP || screenY > canvas.height) continue;
       if (j === block.row) {
-        ctx.fillStyle = 'rgba(79,195,247,0.30)';
+        ctx.fillStyle = 'rgba(255,255,255,0.35)';
         ctx.fillRect(0, screenY - blockPxH / 2, RULER_LEFT, blockPxH);
-        ctx.fillStyle = '#4fc3f7';
-      } else {
-        ctx.fillStyle = '#666';
       }
+      ctx.fillStyle = '#000';
       ctx.fillText(String(j + 1), RULER_LEFT / 2, screenY);
     }
 
+    ctx.restore();
+  }
+
+  function _drawBlockGrid() {
+    if (!canvas || !mapData) return;
+    const numCols = _numCols();
+    const numRows = _numRows();
+    ctx.save();
+    ctx.strokeStyle = 'rgba(38,115,38,0.55)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    // Vertical lines at column block boundaries (same x-lookup pattern as _drawRulers)
+    for (let i = 1; i < numCols; i++) {
+      const boundaryRow = MAP_HEIGHT - i * BLOCK_SIZE;
+      if (boundaryRow < 0 || boundaryRow >= MAP_HEIGHT) continue;
+      const screenX = hexScreenPos(0, boundaryRow).x;
+      if (screenX < RULER_LEFT || screenX > canvas.width) continue;
+      ctx.beginPath(); ctx.moveTo(screenX, RULER_TOP); ctx.lineTo(screenX, canvas.height); ctx.stroke();
+    }
+    // Horizontal lines at row block boundaries
+    for (let j = 1; j < numRows; j++) {
+      const boundaryCol = MAP_WIDTH - j * BLOCK_SIZE;
+      if (boundaryCol < 0 || boundaryCol >= MAP_WIDTH) continue;
+      const screenY = hexScreenPos(boundaryCol, 0).y;
+      if (screenY < RULER_TOP || screenY > canvas.height) continue;
+      ctx.beginPath(); ctx.moveTo(RULER_LEFT, screenY); ctx.lineTo(canvas.width, screenY); ctx.stroke();
+    }
+    ctx.setLineDash([]);
     ctx.restore();
   }
 
