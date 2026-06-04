@@ -187,6 +187,120 @@ const ZonePainter = (() => {
     }
   }
 
+  // ── Fill Engine ───────────────────────────────────────────────────────────
+
+  // Builds a Float32Array of each tile's distance to the nearest tile NOT in zoneId.
+  // distance = 0 means the tile is at the border; large = deep interior.
+  function buildDistanceMap(zoneId) {
+    const w = MAP_WIDTH, h = MAP_HEIGHT;
+    const dist = new Float32Array(w * h).fill(Infinity);
+    const queue = [];
+    // Seed: find all tiles in zone that have a non-zone neighbour
+    for (let row = 0; row < h; row++) {
+      for (let col = 0; col < w; col++) {
+        const i = row * w + col;
+        if (_zoneLayer[i] !== zoneId) continue;
+        const nbrs = [[col-1,row],[col+1,row],[col,row-1],[col,row+1]];
+        for (const [nc,nr] of nbrs) {
+          if (nc < 0 || nc >= w || nr < 0 || nr >= h) { queue.push(i); dist[i] = 0; break; }
+          if (_zoneLayer[nr * w + nc] !== zoneId) { queue.push(i); dist[i] = 0; break; }
+        }
+      }
+    }
+    // BFS to flood distances inward
+    let qi = 0;
+    while (qi < queue.length) {
+      const i = queue[qi++];
+      const col = i % w, row = Math.floor(i / w);
+      for (const [dc,dr] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+        const nc = col+dc, nr = row+dr, ni = nr*w+nc;
+        if (nc<0||nc>=w||nr<0||nr>=h) continue;
+        if (_zoneLayer[ni] !== zoneId) continue;
+        if (dist[ni] > dist[i] + 1) { dist[ni] = dist[i] + 1; queue.push(ni); }
+      }
+    }
+    return dist;
+  }
+
+  // Maps noise value [0,1] to a terrain ID using preset's terrainWeights.
+  function _noiseToTerrain(noise, preset) {
+    const entries = Object.entries(preset.terrainWeights)
+      .sort((a,b) => parseFloat(a[0]) - parseFloat(b[0]));
+    let cum = 0;
+    for (const [idStr, weight] of entries) {
+      cum += weight;
+      if (noise <= cum) return parseInt(idStr);
+    }
+    return parseInt(entries[entries.length - 1][0]);
+  }
+
+  // Fills terrain for all tiles in zoneId using preset's noise parameters.
+  function fillZoneTerrain(zoneId, mapData) {
+    const zone = _zones.find(z => z.id === zoneId);
+    if (!zone) return;
+    const preset = getPreset(zone.presetId);
+    if (!preset) return;
+
+    const w = MAP_WIDTH, h = MAP_HEIGHT;
+    const perm = _buildPerm(zoneId * 997 + 1);   // deterministic per zone
+    const noisePerm = _buildPerm(zoneId * 997 + 2);
+    const dist = buildDistanceMap(zoneId);
+    const bw = preset.blendWidth;
+
+    // Collect neighbouring zone IDs for border blending
+    const neighbourZones = new Set();
+    for (let i = 0; i < w * h; i++) {
+      if (dist[i] === 0 && _zoneLayer[i] === zoneId) {
+        const col = i % w, row = Math.floor(i / w);
+        for (const [dc,dr] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+          const nc = col+dc, nr = row+dr;
+          if (nc<0||nc>=w||nr<0||nr>=h) continue;
+          const nz = _zoneLayer[nr*w+nc];
+          if (nz !== 0 && nz !== zoneId) neighbourZones.add(nz);
+        }
+      }
+    }
+
+    for (let row = 0; row < h; row++) {
+      for (let col = 0; col < w; col++) {
+        const i = row * w + col;
+        if (_zoneLayer[i] !== zoneId) continue;
+
+        const noise = perlinNoise(col / preset.patchScale, row / preset.patchScale, perm);
+        // Apply contrast: shift noise toward 0 or 1 based on patchContrast
+        const contrast = preset.patchContrast || 1;
+        const n = Math.max(0, Math.min(1, (noise - 0.5) * contrast + 0.5));
+        let terrainId = _noiseToTerrain(n, preset);
+
+        // Border blending
+        if (bw > 0 && dist[i] < bw && neighbourZones.size > 0) {
+          let t = 1 - dist[i] / bw; // 1 = border, 0 = interior
+          if (preset.blendMode === 'noisy') {
+            const jitter = perlinNoise(col / 3, row / 3, noisePerm) - 0.5;
+            t = Math.max(0, Math.min(1, t + jitter * 0.6));
+          } else if (preset.blendMode === 'hard') {
+            t = t > 0.5 ? 1 : 0;
+          }
+          // Blend: t chance to use a neighbour zone's terrain
+          if (Math.random() < t) {
+            const nzId = [...neighbourZones][Math.floor(Math.random() * neighbourZones.size)];
+            const nzone = _zones.find(z => z.id === nzId);
+            if (nzone) {
+              const np = getPreset(nzone.presetId);
+              if (np) {
+                const nn = perlinNoise(col / np.patchScale, row / np.patchScale, perm);
+                const nn2 = Math.max(0, Math.min(1, (nn - 0.5) * (np.patchContrast||1) + 0.5));
+                terrainId = _noiseToTerrain(nn2, np);
+              }
+            }
+          }
+        }
+
+        mapData[i] = terrainId;
+      }
+    }
+  }
+
   return {
     init, perlinNoise, _buildPerm,
     getZoneLayer, getZones, getPresets, getPreset,
@@ -194,6 +308,7 @@ const ZonePainter = (() => {
     isOverlayVisible, toggleOverlay,
     addZone, removeZone, clearZoneLayer,
     savePreset, toSaveObject, fromSaveObject,
+    buildDistanceMap, fillZoneTerrain,
     BUILTIN_PRESETS, DENSITY_FACTORS
   };
 })();
