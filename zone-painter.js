@@ -510,7 +510,10 @@ const ZonePainter = (() => {
 
   function _uiRenameZone(id, name) {
     const z = _zones.find(z => z.id === id);
-    if (z) z.name = name || `Zone ${id}`;
+    if (!z) return;
+    z.name = name.trim() || `Zone ${id}`;
+    _uiRebuildZoneList();
+    if (typeof IO !== 'undefined') IO.scheduleAutoSave();
   }
 
   function _uiPickColor(id, swatchEl) {
@@ -539,7 +542,7 @@ const ZonePainter = (() => {
     if (!zone) { panel.style.display = 'none'; return; }
     panel.style.display = 'block';
 
-    document.getElementById('zone-config-name').textContent = zone.name;
+    document.getElementById('zone-config-name').value = zone.name;
 
     const sel = document.getElementById('zone-preset-select');
     sel.innerHTML = '';
