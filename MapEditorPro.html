@@ -913,6 +913,10 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="hexdb-tool-btn" onclick="ZonePainter._fillAllZones()" title="Fill all zones with biome terrain">▶ Fill Zones</button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._toggleOverlayUI()" title="Toggle zone color overlay">👁 Overlay</button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._clearZonesUI()" title="Clear zone assignments">🗑 Clear Zones</button>
+      <span style="color:#888;font-size:11px;margin-left:8px">Block:</span>
+      <input id="block-nav-input" type="text" value="A:1"
+        style="width:40px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;font-family:monospace;text-align:center"
+        title="Type block address (e.g. B:4) and press Enter">
     </div>
     <div id="hexdb-tools">
       <button class="hexdb-tool-btn" onclick="HexDB.add()">+ Add Hex</button>
@@ -1556,6 +1560,10 @@ const Canvas = (() => {
   let _showZones = false;
   let _selectedSlotIdx = -1;
 
+  const BLOCK_SIZE  = 20;    // tiles per block (width and height)
+  const RULER_TOP   = 20;    // px — height of letter strip at top
+  const RULER_LEFT  = 28;    // px — width of number strip at left
+
   // Zone palette: 10 colours for distance bands 0–9, 10–19, …, 90+
   const ZONE_PALETTE = [
     [100,220,100],[150,220, 80],[220,220, 50],[240,180, 30],[240,130, 20],
@@ -1699,6 +1707,13 @@ const Canvas = (() => {
       });
       ctx.restore();
     }
+
+    const _blkInput = document.getElementById('block-nav-input');
+    if (_blkInput && document.activeElement !== _blkInput) {
+      const b = _currentBlock();
+      _blkInput.value = String.fromCharCode(65 + b.col) + ':' + (b.row + 1);
+    }
+    _drawRulers();
   }
 
   function _drawHexTile(cx, cy, radius, terrainId, spriteOverride) {
@@ -1853,6 +1868,65 @@ const Canvas = (() => {
     mCtx.beginPath();
     mCtx.arc(cdotX, cdotY, 3, 0, Math.PI * 2);
     mCtx.fill();
+
+    // Block rulers on minimap
+    const ML = 14, MT = 10;   // ruler strip sizes in minimap px
+    const mapAreaW = mw - ML;
+    const mapAreaH = mh - MT;
+    const nCols = Math.ceil(MAP_HEIGHT / BLOCK_SIZE);
+    const nRows = Math.ceil(MAP_WIDTH  / BLOCK_SIZE);
+    const blk   = _currentBlock();
+
+    // Ruler strip backgrounds
+    mCtx.fillStyle = 'rgba(18,18,18,0.72)';
+    mCtx.fillRect(ML, 0, mapAreaW, MT);    // top (letters)
+    mCtx.fillRect(0, MT, ML, mapAreaH);    // left (numbers)
+    mCtx.fillStyle = 'rgba(18,18,18,0.9)';
+    mCtx.fillRect(0, 0, ML, MT);           // corner
+
+    // Active block highlight in ruler strips
+    const acx = ML + (blk.col / nCols) * mapAreaW;
+    const acy = MT + (blk.row / nRows) * mapAreaH;
+    const bcw = mapAreaW / nCols;
+    const bch = mapAreaH / nRows;
+    mCtx.fillStyle = 'rgba(79,195,247,0.25)';
+    mCtx.fillRect(acx, 0, bcw, MT);        // active column in top strip
+    mCtx.fillRect(0, acy, ML, bch);        // active row in left strip
+
+    // Block grid lines on minimap map area
+    mCtx.strokeStyle = 'rgba(255,255,255,0.12)';
+    mCtx.lineWidth = 0.5;
+    for (let i = 1; i < nCols; i++) {
+      const px = ML + (i / nCols) * mapAreaW;
+      mCtx.beginPath(); mCtx.moveTo(px, MT); mCtx.lineTo(px, mh); mCtx.stroke();
+    }
+    for (let j = 1; j < nRows; j++) {
+      const py = MT + (j / nRows) * mapAreaH;
+      mCtx.beginPath(); mCtx.moveTo(ML, py); mCtx.lineTo(mw, py); mCtx.stroke();
+    }
+
+    // Active block cell outline on minimap map area
+    mCtx.strokeStyle = 'rgba(79,195,247,0.35)';
+    mCtx.lineWidth = 0.75;
+    mCtx.strokeRect(acx, acy, bcw, bch);
+
+    // Sparse labels on top strip: every 4th column (A, E, I, M, Q, U)
+    mCtx.font = '7px monospace';
+    mCtx.textBaseline = 'middle';
+    mCtx.textAlign = 'center';
+    for (let i = 0; i < nCols; i += 4) {
+      const px = ML + (i + 0.5) / nCols * mapAreaW;
+      mCtx.fillStyle = (i === blk.col) ? '#4fc3f7' : '#555';
+      mCtx.fillText(String.fromCharCode(65 + i), px, MT / 2);
+    }
+
+    // Sparse labels on left strip: every 4th row (1, 5, 9, 13, 17, 21)
+    mCtx.textAlign = 'right';
+    for (let j = 0; j < nRows; j += 4) {
+      const py = MT + (j + 0.5) / nRows * mapAreaH;
+      mCtx.fillStyle = (j === blk.row) ? '#4fc3f7' : '#555';
+      mCtx.fillText(String(j + 1), ML - 1, py);
+    }
   }
 
   // ── Minimap click/drag → pan ──────────────────────────────
@@ -1900,6 +1974,27 @@ const Canvas = (() => {
     const mc = document.getElementById('minimap');
     mc.addEventListener('mousedown', e => { e.preventDefault(); _minimapPan(e); mc.addEventListener('mousemove', _minimapPan); });
     window.addEventListener('mouseup', () => mc.removeEventListener('mousemove', _minimapPan));
+
+    const blockInput = document.getElementById('block-nav-input');
+    if (blockInput) {
+      blockInput.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const m = blockInput.value.trim().toUpperCase().match(/^([A-Z]):(\d+)$/);
+        if (m) {
+          const colIdx = m[1].charCodeAt(0) - 65;
+          const rowIdx = parseInt(m[2], 10) - 1;
+          if (colIdx >= 0 && colIdx < _numCols() && rowIdx >= 0 && rowIdx < _numRows()) {
+            jumpToBlock(colIdx, rowIdx);
+          }
+        }
+        blockInput.blur();
+      });
+      blockInput.addEventListener('blur', () => {
+        const b = _currentBlock();
+        blockInput.value = String.fromCharCode(65 + b.col) + ':' + (b.row + 1);
+      });
+    }
   }
 
   function _onKeyDown(e) {
@@ -1927,6 +2022,17 @@ const Canvas = (() => {
       canvas.style.cursor = 'grabbing';
       e.preventDefault();
       return;
+    }
+    // Ruler strip clicks
+    if (e.button === 0 && mapData) {
+      if (sy < RULER_TOP && sx >= RULER_LEFT) {
+        const colIdx = _rulerColAtScreenX(sx);
+        if (colIdx >= 0) { jumpToBlock(colIdx, _currentBlock().row); return; }
+      }
+      if (sx < RULER_LEFT && sy >= RULER_TOP) {
+        const rowIdx = _rulerRowAtScreenY(sy);
+        if (rowIdx >= 0) { jumpToBlock(_currentBlock().col, rowIdx); return; }
+      }
     }
     if (_onMouseDownCb) _onMouseDownCb(sx, sy, e);
   }
@@ -2176,12 +2282,130 @@ const Canvas = (() => {
 
   function setSelectedSlot(idx) { _selectedSlotIdx = idx; render(); }
 
+  // ── Block rulers ─────────────────────────────────────────
+  function _numCols() { return Math.ceil(MAP_HEIGHT / BLOCK_SIZE); }
+  function _numRows() { return Math.ceil(MAP_WIDTH  / BLOCK_SIZE); }
+
+  function _currentBlock() {
+    if (!canvas || !mapData) return { col: 0, row: 0 };
+    const { col, row } = screenToHex(canvas.width / 2, canvas.height / 2);
+    if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return { col: 0, row: 0 };
+    const colIdx = Math.floor((MAP_HEIGHT - 1 - row) / BLOCK_SIZE);
+    const rowIdx = Math.floor((MAP_WIDTH  - 1 - col) / BLOCK_SIZE);
+    return {
+      col: Math.max(0, Math.min(_numCols() - 1, colIdx)),
+      row: Math.max(0, Math.min(_numRows() - 1, rowIdx))
+    };
+  }
+
+  function jumpToBlock(colIdx, rowIdx) {
+    const centerRow = Math.max(0, Math.min(MAP_HEIGHT - 1, MAP_HEIGHT - 10 - colIdx * BLOCK_SIZE));
+    const centerCol = Math.max(0, Math.min(MAP_WIDTH  - 1, MAP_WIDTH  - 10 - rowIdx * BLOCK_SIZE));
+    const scale = zoom / 100;
+    const w = hexCenterWorld(centerCol, centerRow);
+    cameraX = w.x * scale - canvas.width  / 2;
+    cameraY = w.y * scale - canvas.height / 2;
+    clampCamera();
+    render();
+    drawMinimap();
+  }
+
+  function _rulerColAtScreenX(screenX) {
+    const numCols = _numCols();
+    const scale   = zoom / 100;
+    const halfW   = BLOCK_SIZE * COL_PITCH * scale / 2;
+    for (let i = 0; i < numCols; i++) {
+      const centerRow = MAP_HEIGHT - 10 - i * BLOCK_SIZE;
+      if (centerRow < 0) continue;
+      const cx = hexScreenPos(0, centerRow).x;
+      if (Math.abs(screenX - cx) <= halfW) return i;
+    }
+    return -1;
+  }
+
+  function _rulerRowAtScreenY(screenY) {
+    const numRows = _numRows();
+    const scale   = zoom / 100;
+    const halfH   = BLOCK_SIZE * ROW_PITCH * scale / 2;
+    for (let j = 0; j < numRows; j++) {
+      const centerCol = MAP_WIDTH - 10 - j * BLOCK_SIZE;
+      if (centerCol < 0) continue;
+      const cy = hexScreenPos(centerCol, 0).y;
+      if (Math.abs(screenY - cy) <= halfH) return j;
+    }
+    return -1;
+  }
+
+  function _drawRulers() {
+    if (!canvas || !mapData) return;
+    const numCols = _numCols();
+    const numRows = _numRows();
+    const block   = _currentBlock();
+    const scale   = zoom / 100;
+    const blockPxW = BLOCK_SIZE * COL_PITCH * scale;
+    const blockPxH = BLOCK_SIZE * ROW_PITCH * scale;
+
+    ctx.save();
+
+    // Top strip background (letters)
+    ctx.fillStyle = 'rgba(18,18,18,0.82)';
+    ctx.fillRect(0, 0, canvas.width, RULER_TOP);
+
+    // Left strip background (numbers)
+    ctx.fillStyle = 'rgba(18,18,18,0.82)';
+    ctx.fillRect(0, RULER_TOP, RULER_LEFT, canvas.height - RULER_TOP);
+
+    // Corner
+    ctx.fillStyle = 'rgba(18,18,18,0.95)';
+    ctx.fillRect(0, 0, RULER_LEFT, RULER_TOP);
+
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+
+    // Top strip: letter labels (A, B, C…)
+    ctx.font = 'bold 10px monospace';
+    for (let i = 0; i < numCols; i++) {
+      const centerRow = MAP_HEIGHT - 10 - i * BLOCK_SIZE;
+      if (centerRow < 0) continue;
+      const screenX = hexScreenPos(0, centerRow).x;
+      if (screenX < RULER_LEFT || screenX > canvas.width) continue;
+      if (i === block.col) {
+        ctx.fillStyle = 'rgba(79,195,247,0.18)';
+        ctx.fillRect(screenX - blockPxW / 2, 0, blockPxW, RULER_TOP);
+        ctx.fillStyle = '#4fc3f7';
+      } else {
+        ctx.fillStyle = '#666';
+      }
+      ctx.fillText(String.fromCharCode(65 + i), screenX, RULER_TOP / 2);
+    }
+
+    // Left strip: number labels (1, 2, 3…)
+    ctx.font = '10px monospace';
+    for (let j = 0; j < numRows; j++) {
+      const centerCol = MAP_WIDTH - 10 - j * BLOCK_SIZE;
+      if (centerCol < 0) continue;
+      const screenY = hexScreenPos(centerCol, 0).y;
+      if (screenY < RULER_TOP || screenY > canvas.height) continue;
+      if (j === block.row) {
+        ctx.fillStyle = 'rgba(79,195,247,0.18)';
+        ctx.fillRect(0, screenY - blockPxH / 2, RULER_LEFT, blockPxH);
+        ctx.fillStyle = '#4fc3f7';
+      } else {
+        ctx.fillStyle = '#666';
+      }
+      ctx.fillText(String(j + 1), RULER_LEFT / 2, screenY);
+    }
+
+    ctx.restore();
+  }
+
   return {
     init, render, drawMinimap, forceRedraw,
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
-    toggleZones, hexDist, setSelectedSlot
+    toggleZones, hexDist, setSelectedSlot,
+    jumpToBlock
   };
 })();
 // ════════════════════════════════════════════════════════════
