@@ -418,6 +418,28 @@ const ZonePainter = (() => {
     toAdd.forEach(([col, row]) => settlements.push({col, row, type: 'settlement'}));
   }
 
+  function _fillAllZones() {
+    const zones = _zones;
+    if (zones.length === 0) { alert('No zones defined.'); return; }
+    zones.forEach(z => {
+      fillZoneTerrain(z.id, mapData);
+      fillZoneSettlements(z.id, mapData, settlements);
+    });
+    Canvas.render();
+    IO.scheduleAutoSave();
+  }
+
+  function _toggleOverlayUI() {
+    toggleOverlay();
+    Canvas.render();
+  }
+
+  function _clearZonesUI() {
+    if (!confirm('Clear all zone assignments? Terrain already filled is kept.')) return;
+    clearZoneLayer();
+    Canvas.render();
+  }
+
   return {
     init, perlinNoise, _buildPerm,
     getZoneLayer, getZones, getPresets, getPreset,
@@ -427,6 +449,7 @@ const ZonePainter = (() => {
     savePreset, toSaveObject, fromSaveObject,
     buildDistanceMap, fillZoneTerrain,
     poissonDiskSample, fillZoneSettlements,
-    BUILTIN_PRESETS, DENSITY_FACTORS
+    BUILTIN_PRESETS, DENSITY_FACTORS,
+    _fillAllZones, _toggleOverlayUI, _clearZonesUI
   };
 })();
