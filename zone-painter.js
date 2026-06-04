@@ -547,7 +547,7 @@ const ZonePainter = (() => {
   function _uiPresetChanged(presetId) {
     const zone = _zones.find(z => z.id === _selectedZoneId);
     if (zone) zone.presetId = presetId;
-    _workingPreset = Object.assign({}, getPreset(presetId));
+    _workingPreset = Object.assign({}, getPreset(presetId) || _presets[0]);
     _uiRebuildZoneConfig();
   }
 
