@@ -913,6 +913,10 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="hexdb-tool-btn" onclick="ZonePainter._fillAllZones()" title="Fill all zones with biome terrain">▶ Fill Zones</button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._toggleOverlayUI()" title="Toggle zone color overlay">👁 Overlay</button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._clearZonesUI()" title="Clear zone assignments">🗑 Clear Zones</button>
+      <span style="color:#888;font-size:11px;margin-left:8px">Block:</span>
+      <input id="block-nav-input" type="text" value="A:1"
+        style="width:40px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;font-family:monospace;text-align:center"
+        title="Type block address (e.g. B:4) and press Enter">
     </div>
     <div id="hexdb-tools">
       <button class="hexdb-tool-btn" onclick="HexDB.add()">+ Add Hex</button>
@@ -1704,6 +1708,11 @@ const Canvas = (() => {
       ctx.restore();
     }
 
+    const _blkInput = document.getElementById('block-nav-input');
+    if (_blkInput && document.activeElement !== _blkInput) {
+      const b = _currentBlock();
+      _blkInput.value = String.fromCharCode(65 + b.col) + ':' + (b.row + 1);
+    }
     _drawRulers();
   }
 
@@ -1906,6 +1915,27 @@ const Canvas = (() => {
     const mc = document.getElementById('minimap');
     mc.addEventListener('mousedown', e => { e.preventDefault(); _minimapPan(e); mc.addEventListener('mousemove', _minimapPan); });
     window.addEventListener('mouseup', () => mc.removeEventListener('mousemove', _minimapPan));
+
+    const blockInput = document.getElementById('block-nav-input');
+    if (blockInput) {
+      blockInput.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const m = blockInput.value.trim().toUpperCase().match(/^([A-Z]):(\d+)$/);
+        if (m) {
+          const colIdx = m[1].charCodeAt(0) - 65;
+          const rowIdx = parseInt(m[2], 10) - 1;
+          if (colIdx >= 0 && colIdx < _numCols() && rowIdx >= 0 && rowIdx < _numRows()) {
+            jumpToBlock(colIdx, rowIdx);
+          }
+        }
+        blockInput.blur();
+      });
+      blockInput.addEventListener('blur', () => {
+        const b = _currentBlock();
+        blockInput.value = String.fromCharCode(65 + b.col) + ':' + (b.row + 1);
+      });
+    }
   }
 
   function _onKeyDown(e) {
