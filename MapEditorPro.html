@@ -1002,7 +1002,10 @@ body.mode-settlements #stt-tools   { display: flex; }
           <span>🗺️ Zone Config</span>
         </div>
         <div style="padding:0 8px 8px;font-size:12px">
-          <div id="zone-config-name" style="font-weight:bold;color:#7ec87e;margin-bottom:8px"></div>
+          <input id="zone-config-name" type="text" placeholder="Zone name"
+            style="width:100%;box-sizing:border-box;background:#1a2a1a;border:1px solid #7ec87e;color:#7ec87e;font-weight:bold;font-size:12px;padding:3px 6px;border-radius:3px;margin-bottom:8px"
+            onchange="ZonePainter._uiRenameZone(ZonePainter.getSelectedZoneId(), this.value)"
+            onkeydown="if(event.key==='Enter')this.blur()">
 
           <label style="font-size:11px;color:#888;display:block;margin-bottom:2px">Biome Preset</label>
           <select id="zone-preset-select" style="width:100%;margin-bottom:10px;background:#222;border:1px solid #444;color:#ccc;border-radius:3px;padding:3px"
@@ -1878,10 +1881,10 @@ const Canvas = (() => {
     const blk   = _currentBlock();
 
     // Ruler strip backgrounds
-    mCtx.fillStyle = 'rgba(18,18,18,0.72)';
+    mCtx.fillStyle = 'rgba(18,18,18,0.88)';
     mCtx.fillRect(ML, 0, mapAreaW, MT);    // top (letters)
     mCtx.fillRect(0, MT, ML, mapAreaH);    // left (numbers)
-    mCtx.fillStyle = 'rgba(18,18,18,0.9)';
+    mCtx.fillStyle = 'rgba(18,18,18,0.95)';
     mCtx.fillRect(0, 0, ML, MT);           // corner
 
     // Active block highlight in ruler strips
@@ -1889,12 +1892,12 @@ const Canvas = (() => {
     const acy = MT + (blk.row / nRows) * mapAreaH;
     const bcw = mapAreaW / nCols;
     const bch = mapAreaH / nRows;
-    mCtx.fillStyle = 'rgba(79,195,247,0.25)';
+    mCtx.fillStyle = 'rgba(79,195,247,0.40)';
     mCtx.fillRect(acx, 0, bcw, MT);        // active column in top strip
     mCtx.fillRect(0, acy, ML, bch);        // active row in left strip
 
     // Block grid lines on minimap map area
-    mCtx.strokeStyle = 'rgba(255,255,255,0.12)';
+    mCtx.strokeStyle = 'rgba(255,255,255,0.22)';
     mCtx.lineWidth = 0.5;
     for (let i = 1; i < nCols; i++) {
       const px = ML + (i / nCols) * mapAreaW;
@@ -1906,7 +1909,7 @@ const Canvas = (() => {
     }
 
     // Active block cell outline on minimap map area
-    mCtx.strokeStyle = 'rgba(79,195,247,0.35)';
+    mCtx.strokeStyle = 'rgba(79,195,247,0.60)';
     mCtx.lineWidth = 0.75;
     mCtx.strokeRect(acx, acy, bcw, bch);
 
@@ -2210,7 +2213,7 @@ const Canvas = (() => {
         const s = hexScreenPos(col, row);
         if (s.x + padding < 0 || s.x - padding > canvas.width ||
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
-        ctx.globalAlpha = 0.55;
+        ctx.globalAlpha = 0.70;
         ctx.fillStyle = zone.color;
         hexClipPath(s.x, s.y, radius);
         ctx.fill();
@@ -2348,11 +2351,11 @@ const Canvas = (() => {
     ctx.save();
 
     // Top strip background (letters)
-    ctx.fillStyle = 'rgba(18,18,18,0.82)';
+    ctx.fillStyle = 'rgba(18,18,18,0.92)';
     ctx.fillRect(0, 0, canvas.width, RULER_TOP);
 
     // Left strip background (numbers)
-    ctx.fillStyle = 'rgba(18,18,18,0.82)';
+    ctx.fillStyle = 'rgba(18,18,18,0.92)';
     ctx.fillRect(0, RULER_TOP, RULER_LEFT, canvas.height - RULER_TOP);
 
     // Corner
@@ -2370,7 +2373,7 @@ const Canvas = (() => {
       const screenX = hexScreenPos(0, centerRow).x;
       if (screenX < RULER_LEFT || screenX > canvas.width) continue;
       if (i === block.col) {
-        ctx.fillStyle = 'rgba(79,195,247,0.18)';
+        ctx.fillStyle = 'rgba(79,195,247,0.30)';
         ctx.fillRect(screenX - blockPxW / 2, 0, blockPxW, RULER_TOP);
         ctx.fillStyle = '#4fc3f7';
       } else {
@@ -2387,7 +2390,7 @@ const Canvas = (() => {
       const screenY = hexScreenPos(centerCol, 0).y;
       if (screenY < RULER_TOP || screenY > canvas.height) continue;
       if (j === block.row) {
-        ctx.fillStyle = 'rgba(79,195,247,0.18)';
+        ctx.fillStyle = 'rgba(79,195,247,0.30)';
         ctx.fillRect(0, screenY - blockPxH / 2, RULER_LEFT, blockPxH);
         ctx.fillStyle = '#4fc3f7';
       } else {
