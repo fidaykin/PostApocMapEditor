@@ -1964,6 +1964,17 @@ const Canvas = (() => {
       e.preventDefault();
       return;
     }
+    // Ruler strip clicks
+    if (e.button === 0 && mapData) {
+      if (sy < RULER_TOP && sx >= RULER_LEFT) {
+        const colIdx = _rulerColAtScreenX(sx);
+        if (colIdx >= 0) { jumpToBlock(colIdx, _currentBlock().row); return; }
+      }
+      if (sx < RULER_LEFT && sy >= RULER_TOP) {
+        const rowIdx = _rulerRowAtScreenY(sy);
+        if (rowIdx >= 0) { jumpToBlock(_currentBlock().col, rowIdx); return; }
+      }
+    }
     if (_onMouseDownCb) _onMouseDownCb(sx, sy, e);
   }
 
@@ -2238,6 +2249,32 @@ const Canvas = (() => {
     clampCamera();
     render();
     drawMinimap();
+  }
+
+  function _rulerColAtScreenX(screenX) {
+    const numCols = _numCols();
+    const scale   = zoom / 100;
+    const halfW   = BLOCK_SIZE * COL_PITCH * scale / 2;
+    for (let i = 0; i < numCols; i++) {
+      const centerRow = MAP_HEIGHT - 10 - i * BLOCK_SIZE;
+      if (centerRow < 0) continue;
+      const cx = hexScreenPos(0, centerRow).x;
+      if (Math.abs(screenX - cx) <= halfW) return i;
+    }
+    return -1;
+  }
+
+  function _rulerRowAtScreenY(screenY) {
+    const numRows = _numRows();
+    const scale   = zoom / 100;
+    const halfH   = BLOCK_SIZE * ROW_PITCH * scale / 2;
+    for (let j = 0; j < numRows; j++) {
+      const centerCol = MAP_WIDTH - 10 - j * BLOCK_SIZE;
+      if (centerCol < 0) continue;
+      const cy = hexScreenPos(centerCol, 0).y;
+      if (Math.abs(screenY - cy) <= halfH) return j;
+    }
+    return -1;
   }
 
   function _drawRulers() {
