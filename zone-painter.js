@@ -261,6 +261,11 @@ const ZonePainter = (() => {
       }
     }
 
+    const neighbourPerms = new Map();
+    for (const nzId of neighbourZones) {
+      neighbourPerms.set(nzId, _buildPerm(nzId * 997 + 1));
+    }
+
     for (let row = 0; row < h; row++) {
       for (let col = 0; col < w; col++) {
         const i = row * w + col;
@@ -282,13 +287,14 @@ const ZonePainter = (() => {
             t = t > 0.5 ? 1 : 0;
           }
           // Blend: t chance to use a neighbour zone's terrain
-          if (Math.random() < t) {
-            const nzId = [...neighbourZones][Math.floor(Math.random() * neighbourZones.size)];
+          if (_tileHash(col, row, zoneId) < t) {
+            const nzId = [...neighbourZones][Math.floor(_tileHash(row, col, zoneId + 1) * neighbourZones.size)];
             const nzone = _zones.find(z => z.id === nzId);
             if (nzone) {
               const np = getPreset(nzone.presetId);
               if (np) {
-                const nn = perlinNoise(col / np.patchScale, row / np.patchScale, perm);
+                const nPerm = neighbourPerms.get(nzId) || perm;
+                const nn = perlinNoise(col / np.patchScale, row / np.patchScale, nPerm);
                 const nn2 = Math.max(0, Math.min(1, (nn - 0.5) * (np.patchContrast||1) + 0.5));
                 terrainId = _noiseToTerrain(nn2, np);
               }
@@ -299,6 +305,13 @@ const ZonePainter = (() => {
         mapData[i] = terrainId;
       }
     }
+  }
+
+  function _tileHash(col, row, seed) {
+    let h = ((col * 73856093) ^ (row * 19349663) ^ (seed >>> 0)) >>> 0;
+    h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+    h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+    return ((h ^ (h >>> 16)) >>> 0) / 0x100000000;
   }
 
   return {
