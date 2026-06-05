@@ -1423,7 +1423,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 
 <script>
 const VERSION = "0.9.6";
-const COMMIT  = "60c2b86";
+const COMMIT  = "3edf85b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -1470,10 +1470,12 @@ const Terrain = (() => {
     // Swamp (24–25)
     { id: 24, name: "Swamp",       cat: "🟫 SWAMP",              file: "Swamp.png"    },
     { id: 25, name: "RockySwamp",  cat: "",                      file: "Hills.png",    fallback: true },
-    // Volcanic / Rift (26–28)
-    { id: 26, name: "LavaPlain",   cat: "🌋 VOLCANIC/RIFT",      file: "Rift.png",     fallback: true },
-    { id: 27, name: "LavaRift",    cat: "",                      file: "Rift.png",     fallback: true },
-    { id: 28, name: "Rift",        cat: "",                      file: "Rift.png"     },
+    // Volcanic / Rift (26–30)
+    { id: 26, name: "LavaPlain",   cat: "🌋 VOLCANIC/RIFT",      file: "Rift.png",      fallback: true },
+    { id: 27, name: "LavaRift",    cat: "",                      file: "Rift.png",      fallback: true },
+    { id: 28, name: "Rift",        cat: "",                      file: "Rift.png"      },
+    { id: 29, name: "Lava_Plain_1",cat: "",                      file: "LavaPlain.png" },
+    { id: 30, name: "Lava_rift_1", cat: "",                      file: "LavaRift.png"  },
   ];
 
   // RGB triples for minimap color rendering
@@ -1488,7 +1490,8 @@ const Terrain = (() => {
     20:[200,170,25],21:[50,50,50],
     22:[150,130,95],23:[210,185,120],
     24:[50,80,50],  25:[80,95,75],
-    26:[170,70,20], 27:[130,35,15], 28:[35,25,25]
+    26:[170,70,20], 27:[130,35,15], 28:[35,25,25],
+    29:[190,80,10], 30:[150,40,5]
   };
 
   const sprites       = {};  // int id  → HTMLImageElement
