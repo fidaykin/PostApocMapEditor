@@ -1423,7 +1423,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 
 <script>
 const VERSION = "0.9.6";
-const COMMIT  = "3edf85b";
+const COMMIT  = "0ed3bbc";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -1470,12 +1470,10 @@ const Terrain = (() => {
     // Swamp (24–25)
     { id: 24, name: "Swamp",       cat: "🟫 SWAMP",              file: "Swamp.png"    },
     { id: 25, name: "RockySwamp",  cat: "",                      file: "Hills.png",    fallback: true },
-    // Volcanic / Rift (26–30)
-    { id: 26, name: "LavaPlain",   cat: "🌋 VOLCANIC/RIFT",      file: "Rift.png",      fallback: true },
-    { id: 27, name: "LavaRift",    cat: "",                      file: "Rift.png",      fallback: true },
-    { id: 28, name: "Rift",        cat: "",                      file: "Rift.png"      },
-    { id: 29, name: "Lava_Plain_1",cat: "",                      file: "LavaPlain.png" },
-    { id: 30, name: "Lava_rift_1", cat: "",                      file: "LavaRift.png"  },
+    // Volcanic / Rift (26–28)
+    { id: 26, name: "LavaPlain",   cat: "🌋 VOLCANIC/RIFT",      file: "Rift.png",     fallback: true },
+    { id: 27, name: "LavaRift",    cat: "",                      file: "Rift.png",     fallback: true },
+    { id: 28, name: "Rift",        cat: "",                      file: "Rift.png"     },
   ];
 
   // RGB triples for minimap color rendering
@@ -1490,8 +1488,7 @@ const Terrain = (() => {
     20:[200,170,25],21:[50,50,50],
     22:[150,130,95],23:[210,185,120],
     24:[50,80,50],  25:[80,95,75],
-    26:[170,70,20], 27:[130,35,15], 28:[35,25,25],
-    29:[190,80,10], 30:[150,40,5]
+    26:[170,70,20], 27:[130,35,15], 28:[35,25,25]
   };
 
   const sprites       = {};  // int id  → HTMLImageElement
@@ -4923,6 +4920,21 @@ const HexDB = (() => {
           category: currentCat,
           terrainTypeId: t.id,
           fallback: !!t.fallback,
+        }));
+      }
+    });
+
+    // Custom terrain types: seeded once if missing, never overwritten.
+    // Add new game terrain types here instead of modifying Terrain.DATA.
+    const CUSTOM_SEEDS = [
+      { id: 'Lava_Plain_1', spriteName: 'LavaPlain', category: '🌋 VOLCANIC/RIFT' },
+      { id: 'Lava_rift_1',  spriteName: 'LavaRift',  category: '🌋 VOLCANIC/RIFT' },
+    ];
+    CUSTOM_SEEDS.forEach(seed => {
+      if (!_data.hexes.find(h => h.id.toLowerCase() === seed.id.toLowerCase())) {
+        _data.hexes.push(Object.assign(_blank(), {
+          id: seed.id, spriteName: seed.spriteName,
+          category: seed.category, terrainTypeId: -1,
         }));
       }
     });
