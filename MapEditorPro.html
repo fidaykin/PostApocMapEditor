@@ -1423,7 +1423,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 
 <script>
 const VERSION = "0.9.7";
-const COMMIT  = "b84f290";
+const COMMIT  = "COMMIT_HASH";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4887,11 +4887,19 @@ const HexDB = (() => {
     'Volcanic/Rift':   '🌋 VOLCANIC/RIFT',
   };
 
-  // For entries that have no category yet, derive it from their type field.
-  // Skips entries already assigned a category (including freshly seeded built-ins).
+  // Derive category from type field.
+  // If category is empty → set from type.
+  // If category is one of the known system values but disagrees with type → correct it.
+  // This repairs stale autosaves where category was previously stamped incorrectly.
   function _migrateCategoryFromType() {
+    const knownCategories = new Set(Object.values(TYPE_TO_CATEGORY));
     _data.hexes.forEach(h => {
-      if (!h.category) h.category = TYPE_TO_CATEGORY[h.type] || '';
+      const mapped = TYPE_TO_CATEGORY[h.type];
+      if (!h.category) {
+        if (mapped) h.category = mapped;
+      } else if (mapped && h.category !== mapped && knownCategories.has(h.category)) {
+        h.category = mapped;
+      }
     });
   }
 
