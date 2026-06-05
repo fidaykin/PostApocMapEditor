@@ -3756,6 +3756,19 @@ const UI = (() => {
       grid.appendChild(_makeThumb(h.spriteName, `sprites/hex/${h.spriteName}.png`, false, null));
     });
 
+    // All sprites from manifest — catches sprites not yet in Terrain or HexDB
+    try {
+      const resp = await fetch('sprites/hex/manifest.json');
+      if (resp.ok) {
+        const names = await resp.json();
+        names.forEach(name => {
+          if (shown.has(name)) return;
+          shown.add(name);
+          grid.appendChild(_makeThumb(name, `sprites/hex/${name}.png`, false, null));
+        });
+      }
+    } catch(e) { /* manifest unavailable — skip */ }
+
     document.getElementById('sprite-picker-modal').classList.add('open');
   }
 
