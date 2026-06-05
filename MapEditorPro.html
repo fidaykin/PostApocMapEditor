@@ -809,6 +809,14 @@ body.mode-settlements #stt-tools   { display: flex; }
   align-self: center;
   user-select: none;
 }
+#google-auth-status {
+  padding: 2px 8px;
+  font-size: 11px;
+  white-space: nowrap;
+  align-self: center;
+  user-select: none;
+  color: #a44;
+}
 .publish-btn {
   margin-left: 6px;
   padding: 2px 10px;
@@ -884,6 +892,8 @@ body.mode-settlements #stt-tools   { display: flex; }
       </div>
     </div>
     <span id="drive-badge">DB: 💾 Autosave</span>
+    <span id="google-auth-status" title="Google Drive login status">🔴 Not signed in</span>
+    <button class="publish-btn" id="btn-google-login" onclick="DriveSync.signIn()" title="Sign in to Google to enable Drive sync">Sign in to Google</button>
     <button class="publish-btn" id="btn-sync-drive"  onclick="DriveSync.syncFromDrive()" title="Force re-download HexDB + all custom sprites from Drive">☁ Sync</button>
     <button class="publish-btn" id="btn-publish-db"  onclick="DriveSync.publishDb()"     title="Upload HexDB + sprites to Google Drive">☁ Publish DB</button>
     <button class="publish-btn" id="btn-publish-map" onclick="DriveSync.publishMap()"    title="Upload current map to Google Drive">☁ Publish Map</button>
@@ -2906,6 +2916,7 @@ const DriveSync = (() => {
         _token = resp.access_token;
         _tokenExpiry = Date.now() + 55 * 60 * 1000; // 55 min (tokens expire at 60)
         _updateBadge();
+        setTimeout(_updateBadge, 55 * 60 * 1000 + 500); // revert status when token expires
         resolve();
       };
       _tokenClient.requestAccessToken({ prompt: '' });
@@ -2919,11 +2930,20 @@ const DriveSync = (() => {
 
   function _updateBadge() {
     const el = document.getElementById('drive-badge');
-    if (!el) return;
-    const labels = { drive: '☁ Drive', local: '📄 Local', autosave: '💾 Autosave' };
-    const colors  = { drive: '#1a4a2e', local: '#3a3a00', autosave: '#333' };
-    el.textContent = 'DB: ' + (labels[_dbSource] || _dbSource) + (_token ? ' ✓' : '');
-    el.style.background = colors[_dbSource] || '#333';
+    if (el) {
+      const labels = { drive: '☁ Drive', local: '📄 Local', autosave: '💾 Autosave' };
+      const colors  = { drive: '#1a4a2e', local: '#3a3a00', autosave: '#333' };
+      el.textContent = 'DB: ' + (labels[_dbSource] || _dbSource);
+      el.style.background = colors[_dbSource] || '#333';
+    }
+    const authed     = !!_token && Date.now() < _tokenExpiry;
+    const statusEl   = document.getElementById('google-auth-status');
+    const loginBtn   = document.getElementById('btn-google-login');
+    if (statusEl) {
+      statusEl.textContent = authed ? '🟢 Signed in' : '🔴 Not signed in';
+      statusEl.style.color = authed ? '#4a9' : '#a44';
+    }
+    if (loginBtn) loginBtn.style.display = authed ? 'none' : '';
   }
 
   // ── Drive helpers ─────────────────────────────────────────
@@ -3307,7 +3327,16 @@ const DriveSync = (() => {
     }
   }
 
-  return { init, authenticate, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
+  async function signIn() {
+    try {
+      await authenticate();
+      UI.toast('Signed in to Google ✓');
+    } catch(e) {
+      UI.toast('Sign-in failed: ' + e.message);
+    }
+  }
+
+  return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
            pushSprite, publishDb, publishMap, setDbSource, syncCustomSprites, syncFromDrive };
 })();
 

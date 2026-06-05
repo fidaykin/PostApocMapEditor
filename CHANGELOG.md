@@ -3,6 +3,15 @@
 All notable changes to this project are documented here.
 Format: `## v[version] — [date]`
 
+## v0.7.2 — 2026-06-05
+
+### Features — Google Drive Auth Status
+- **Auth status indicator**: 🔴/🟢 label in the toolbar shows whether you are signed in to Google Drive at a glance.
+- **Sign in to Google button**: explicit login button in the toolbar; disappears once authenticated so it stays out of the way.
+- **Auto-revert**: status reverts to 🔴 automatically when the OAuth token expires (55 min).
+
+---
+
 ## v0.7.1 — 2026-05-26
 
 ### Features — HexDB Road Permission
