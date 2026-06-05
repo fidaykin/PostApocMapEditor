@@ -2895,6 +2895,29 @@ const DriveSync = (() => {
   let _dbSource    = 'autosave';  // 'autosave' | 'local' | 'drive'
   let _lastMapName = '';
 
+  const _SESSION_KEY = 'driveSync_token';
+
+  function _saveSession() {
+    try {
+      sessionStorage.setItem(_SESSION_KEY, JSON.stringify({ token: _token, expiry: _tokenExpiry }));
+    } catch(e) { /* sessionStorage unavailable */ }
+  }
+
+  function _restoreSession() {
+    try {
+      const raw = sessionStorage.getItem(_SESSION_KEY);
+      if (!raw) return;
+      const { token, expiry } = JSON.parse(raw);
+      if (token && Date.now() < expiry) {
+        _token = token;
+        _tokenExpiry = expiry;
+        setTimeout(_updateBadge, expiry - Date.now() + 500); // revert status at expiry
+      } else {
+        sessionStorage.removeItem(_SESSION_KEY);
+      }
+    } catch(e) { /* ignore */ }
+  }
+
   // ── Init — called by GIS script onload ───────────────────
   function init() {
     if (typeof google === 'undefined' || !google.accounts?.oauth2) return;
@@ -2903,20 +2926,23 @@ const DriveSync = (() => {
       scope: SCOPE,
       callback: () => {},
     });
+    _restoreSession();
+    _updateBadge();
   }
 
   // ── Auth ─────────────────────────────────────────────────
   async function authenticate() {
     if (_token && Date.now() < _tokenExpiry) return;
-    _token = null; // clear stale token before re-auth
+    _token = null;
     if (!_tokenClient) throw new Error('Google Sign-In not ready — disable ad blocker or reload and try again');
     return new Promise((resolve, reject) => {
       _tokenClient.callback = resp => {
         if (resp.error) { reject(new Error(resp.error_description || resp.error)); return; }
         _token = resp.access_token;
-        _tokenExpiry = Date.now() + 55 * 60 * 1000; // 55 min (tokens expire at 60)
+        _tokenExpiry = Date.now() + 55 * 60 * 1000;
+        _saveSession();
         _updateBadge();
-        setTimeout(_updateBadge, 55 * 60 * 1000 + 500); // revert status when token expires
+        setTimeout(() => { sessionStorage.removeItem(_SESSION_KEY); _updateBadge(); }, 55 * 60 * 1000 + 500);
         resolve();
       };
       _tokenClient.requestAccessToken({ prompt: '' });
