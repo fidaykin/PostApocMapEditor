@@ -1520,11 +1520,18 @@ const Terrain = (() => {
   // sprites[id]; custom entries update customSprites[h.id]. Called after HexDB loads.
   async function applyHexDbOverrides(hexes) {
     if (!hexes || !hexes.length) return;
+    // Build a canonical map: terrainTypeId → expected entry id (from Terrain DATA).
+    // Only the authoritative entry for a given tid may update sprites[tid]; this
+    // prevents rogue entries with a wrong terrainTypeId from corrupting built-in sprites.
+    const canonicalId = {};
+    DATA.forEach(t => { canonicalId[t.id] = t.name.toLowerCase(); });
+
     const jobs = [];
     for (const h of hexes) {
       if (!h.id || !h.spriteName) continue;
       const tid = typeof h.terrainTypeId !== 'undefined' ? h.terrainTypeId : -1;
       if (tid >= 0) {
+        if (canonicalId[tid] && h.id.toLowerCase() !== canonicalId[tid]) continue;
         jobs.push(new Promise(resolve => {
           const img = new Image();
           img.onload  = () => { sprites[tid] = img; resolve(); };
