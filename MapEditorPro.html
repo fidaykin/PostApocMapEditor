@@ -3073,11 +3073,30 @@ const DriveSync = (() => {
     return resp.blob();
   }
 
-  // Load a public Drive image as a data URL via <img> element.
-  // Avoids Safari's strict CORS-at-every-redirect-hop enforcement for fetch().
-  // The image loader follows 302 chains without checking intermediate CORS headers.
-  function _imgDataUrl(fileId) {
-    const url = `${DRIVE_API}/${fileId}?alt=media&key=${API_KEY}`;
+  // Load a Drive image as a data URL.
+  // Uses OAuth token (CORS-safe) when available; falls back to <img> + API key for public files.
+  async function _imgDataUrl(fileId) {
+    if (_token && Date.now() < _tokenExpiry) {
+      const resp = await _authFetch(`${DRIVE_API}/${fileId}?alt=media`);
+      const blob = await resp.blob();
+      const objUrl = URL.createObjectURL(blob);
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          try {
+            const c = document.createElement('canvas');
+            c.width  = img.naturalWidth  || 64;
+            c.height = img.naturalHeight || 64;
+            c.getContext('2d').drawImage(img, 0, 0);
+            URL.revokeObjectURL(objUrl);
+            resolve(c.toDataURL('image/png'));
+          } catch(e) { URL.revokeObjectURL(objUrl); reject(new Error('canvas: ' + e.message)); }
+        };
+        img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error('img load failed')); };
+        img.src = objUrl;
+      });
+    }
+    // Fallback: public file via API key (no CORS headers from Drive, may fail in browser)
     return new Promise((resolve, reject) => {
       const img = new Image();
       img.crossOrigin = 'anonymous';
@@ -3091,7 +3110,7 @@ const DriveSync = (() => {
         } catch(e) { reject(new Error('canvas: ' + e.message)); }
       };
       img.onerror = () => reject(new Error('img load failed'));
-      img.src = url;
+      img.src = `${DRIVE_API}/${fileId}?alt=media&key=${API_KEY}`;
     });
   }
 
