@@ -1087,7 +1087,7 @@ body.mode-settlements #stt-tools   { display: flex; }
           <span style="width:38px;flex-shrink:0">Type</span>
           <select id="hexdb-type-filter">
             <option value="">All</option>
-            <!-- populated by HexDB.init() from Terrain.getAll() -->
+            <!-- populated by HexDB.init() -->
           </select>
         </div>
       </div>
@@ -1422,8 +1422,8 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.9.6";
-const COMMIT  = "0ed3bbc";
+const VERSION = "0.9.7";
+const COMMIT  = "b84f290";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -1435,48 +1435,9 @@ const COMMIT  = "0ed3bbc";
 const Terrain = (() => {
   const HEX_DIR = 'sprites/hex/';
 
-  const DATA = [
-    // Water / River (0–8)
-    { id:  0, name: "DirtyWater",  cat: "💧 WATER / RIVER",     file: "Water.png"    },
-    { id:  1, name: "DirtyWater_1",cat: "",                      file: "Water.png"    },
-    { id:  2, name: "DirtyWater_2",cat: "",                      file: "Water.png"    },
-    { id:  3, name: "River_1",     cat: "",                      file: "Water.png"    },
-    { id:  4, name: "River_2",     cat: "",                      file: "Water.png"    },
-    { id:  5, name: "River_3",     cat: "",                      file: "Water.png"    },
-    { id:  6, name: "River_4",     cat: "",                      file: "Water.png"    },
-    { id:  7, name: "River_5",     cat: "",                      file: "Water.png"    },
-    { id:  8, name: "River_6",     cat: "",                      file: "Water.png"    },
-    // Rubble / Wasteland (9–11)
-    { id:  9, name: "Rubble_1",    cat: "🏚️ RUBBLE/WASTELAND",   file: "Rubble_1.png" },
-    { id: 10, name: "Rubble_2",    cat: "",                      file: "Rubble_2.png" },
-    { id: 11, name: "Rubble_3",    cat: "",                      file: "Rubble_3.png" },
-    // Plains (12–14)
-    { id: 12, name: "Plain_1",     cat: "🌾 PLAINS",             file: "Plain_1.png"  },
-    { id: 13, name: "Plain_2",     cat: "",                      file: "Plain_2.png"  },
-    { id: 14, name: "BrokenPlain", cat: "",                      file: "Rubble_1.png", fallback: true },
-    // Forest (15–17)
-    { id: 15, name: "Forest_1",    cat: "🌲 FOREST",             file: "Forest_1.png" },
-    { id: 16, name: "Forest_2",    cat: "",                      file: "Forest_2.png" },
-    { id: 17, name: "Forest_3",    cat: "",                      file: "Forest_3.png" },
-    // Rocky / Mountain (18–19)
-    { id: 18, name: "Hills",       cat: "⛰️ ROCKY/MOUNTAIN",     file: "Hills.png"    },
-    { id: 19, name: "Mountain",    cat: "",                      file: "Mountain.png" },
-    // Resources (20–21)
-    { id: 20, name: "GoldVein",    cat: "💎 RESOURCES",          file: "GoldVein.png" },
-    { id: 21, name: "Oil",         cat: "",                      file: "Rubble_2.png", fallback: true },
-    // Barren / Desert (22–23)
-    { id: 22, name: "Barren",      cat: "🏜️ BARREN/DESERT",      file: "Barren.png"   },
-    { id: 23, name: "Desert",      cat: "",                      file: "Dessert.png"  },
-    // Swamp (24–25)
-    { id: 24, name: "Swamp",       cat: "🟫 SWAMP",              file: "Swamp.png"    },
-    { id: 25, name: "RockySwamp",  cat: "",                      file: "Hills.png",    fallback: true },
-    // Volcanic / Rift (26–28)
-    { id: 26, name: "LavaPlain",   cat: "🌋 VOLCANIC/RIFT",      file: "Rift.png",     fallback: true },
-    { id: 27, name: "LavaRift",    cat: "",                      file: "Rift.png",     fallback: true },
-    { id: 28, name: "Rift",        cat: "",                      file: "Rift.png"     },
-  ];
-
-  // RGB triples for minimap color rendering
+  // RGB triples for minimap/generator color rendering (keyed by terrainTypeId integer).
+  // HexDB is the single source of truth for tile data; COLORS is a lightweight
+  // lookup used only for pixel-level canvas rendering where speed matters.
   const COLORS = {
      0:[42,70,100],  1:[50,80,120],  2:[35,60,95],
      3:[60,100,160], 4:[60,100,160], 5:[60,100,160],
@@ -1491,48 +1452,45 @@ const Terrain = (() => {
     26:[170,70,20], 27:[130,35,15], 28:[35,25,25]
   };
 
-  const sprites       = {};  // int id  → HTMLImageElement
-  const customSprites = {};  // string id → HTMLImageElement  (HexDB custom types)
+  const sprites       = {};  // terrainTypeId → HTMLImageElement  (populated by applyHexDbOverrides)
+  const customSprites = {};  // string id → HTMLImageElement
   let   citySprite = null;
 
-  async function load() {
-    const jobs = DATA.map(t => new Promise(resolve => {
-      const img = new Image();
-      img.onload  = () => { sprites[t.id] = img; resolve(); };
-      img.onerror = () => resolve();
-      img.src = HEX_DIR + t.file;
-    }));
-    const cityJob = new Promise(resolve => {
-      const img = new Image();
-      img.onload  = () => { citySprite = img; resolve(); };
-      img.onerror = () => resolve();
-      img.src = HEX_DIR + 'Settlements_1.png';
-    });
-    await Promise.all([...jobs, cityJob]);
-  }
+  // City sprite is always bundled — load it once at startup.
+  (() => {
+    const img = new Image();
+    img.onload = () => { citySprite = img; };
+    img.src = HEX_DIR + 'Settlements_1.png';
+  })();
 
   function getSprite(id) { return sprites[id] || null; }
   function getCitySprite() { return citySprite; }
   function color(id) { return COLORS[id] || [120,155,85]; }
-  function byId(id)  { return DATA.find(t => t.id === id) || DATA[12]; }
-  function getAll()  { return DATA; }
 
-  // Loads sprites from HexDB entries. Built-in entries (terrainTypeId >= 0) update
-  // sprites[id]; custom entries update customSprites[h.id]. Called after HexDB loads.
+  // Look up by terrainTypeId integer. HexDB is the authority — DATA is gone.
+  function byId(id) {
+    if (typeof HexDB !== 'undefined') {
+      const h = HexDB.getAll().find(e => e.terrainTypeId === id);
+      if (h) return { ...h, name: h.id };
+    }
+    return { name: `terrain_${id}`, id: `terrain_${id}`, terrainTypeId: id };
+  }
+
+  // Returns all HexDB entries — replaces the old hardcoded DATA array.
+  function getAll() {
+    return typeof HexDB !== 'undefined' ? HexDB.getAll() : [];
+  }
+
+  // Loads sprites from HexDB entries into sprites / customSprites caches.
+  // Built-in entries (terrainTypeId >= 0) populate sprites[tid];
+  // custom entries populate customSprites[h.id].
   async function applyHexDbOverrides(hexes) {
     if (!hexes || !hexes.length) return;
-    // Build a canonical map: terrainTypeId → expected entry id (from Terrain DATA).
-    // Only the authoritative entry for a given tid may update sprites[tid]; this
-    // prevents rogue entries with a wrong terrainTypeId from corrupting built-in sprites.
-    const canonicalId = {};
-    DATA.forEach(t => { canonicalId[t.id] = t.name.toLowerCase(); });
-
     const jobs = [];
     for (const h of hexes) {
       if (!h.id || !h.spriteName) continue;
       const tid = typeof h.terrainTypeId !== 'undefined' ? h.terrainTypeId : -1;
       if (tid >= 0) {
-        if (canonicalId[tid] && h.id.toLowerCase() !== canonicalId[tid]) continue;
         jobs.push(new Promise(resolve => {
           const img = new Image();
           img.onload  = () => { sprites[tid] = img; resolve(); };
@@ -1559,7 +1517,7 @@ const Terrain = (() => {
   function registerUploadedUrls(map) { Object.assign(_uploadedUrls, map); }
   function getUploadedUrl(name) { return _uploadedUrls[name] || null; }
 
-  return { load, applyHexDbOverrides, getSprite, getCustomSprite, getCitySprite,
+  return { applyHexDbOverrides, getSprite, getCustomSprite, getCitySprite,
            color, byId, getAll, registerUploadedUrls, getUploadedUrl };
 })();
 // ════════════════════════════════════════════════════════════
@@ -3208,8 +3166,8 @@ const DriveSync = (() => {
         JSON.stringify(hexDb, null, 2), 'application/json', byName['hex_database.json']);
       done++;
 
-      // Bundled sprites — hash check
-      const spriteNames = [...new Set(Terrain.getAll().map(t => t.file.replace('.png', '')))];
+      // Bundled sprites from HexDB — hash check
+      const spriteNames = [...new Set(HexDB.getAll().map(h => h.spriteName).filter(Boolean))];
       for (let i = 0; i < spriteNames.length; i++) {
         const name = spriteNames[i];
         try {
@@ -3290,9 +3248,13 @@ const DriveSync = (() => {
   // Called after HexDB loads from Drive. Downloads only sprites that are
   // referenced in the HexDB, not in the bundled list, and not yet cached locally.
   async function syncCustomSprites() {
-    const bundled = new Set(Terrain.getAll().map(t => t.file.replace('.png', '')));
+    // "Bundled" = sprites for entries with a terrainTypeId (locally shipped in sprites/hex/).
+    const bundled = new Set(
+      HexDB.getAll().filter(h => typeof h.terrainTypeId !== 'undefined' && h.terrainTypeId >= 0)
+                    .map(h => h.spriteName).filter(Boolean)
+    );
     const custom  = [...new Set(
-      HexDB.getAll().filter(h => h.terrainTypeId < 0 || typeof h.terrainTypeId === 'undefined')
+      HexDB.getAll().filter(h => !(typeof h.terrainTypeId !== 'undefined' && h.terrainTypeId >= 0))
                     .map(h => h.spriteName).filter(n => n && !bundled.has(n))
     )];
     if (!custom.length) return;
@@ -3347,9 +3309,12 @@ const DriveSync = (() => {
       HexDB.loadFromObject(driveData);
       setDbSource('drive');
 
-      const bundled = new Set(Terrain.getAll().map(t => t.file.replace('.png', '')));
+      const bundled = new Set(
+        HexDB.getAll().filter(h => typeof h.terrainTypeId !== 'undefined' && h.terrainTypeId >= 0)
+                      .map(h => h.spriteName).filter(Boolean)
+      );
       const custom  = [...new Set(
-        HexDB.getAll().filter(h => h.terrainTypeId < 0 || typeof h.terrainTypeId === 'undefined')
+        HexDB.getAll().filter(h => !(typeof h.terrainTypeId !== 'undefined' && h.terrainTypeId >= 0))
                       .map(h => h.spriteName).filter(n => n && !bundled.has(n))
       )];
 
@@ -3508,8 +3473,7 @@ const UI = (() => {
       const img = document.createElement('img');
       if (tid >= 0) {
         btn.dataset.tid = tid;
-        const sprite = Terrain.getSprite(tid);
-        if (sprite) img.src = sprite.src;
+        img.src = h.spriteName ? `sprites/hex/${h.spriteName}.png` : '';
         btn.addEventListener('click', () => selectTerrain(tid));
       } else {
         btn.dataset.customId = h.id;
@@ -3547,15 +3511,14 @@ const UI = (() => {
     });
 
     // Palette bottom display
-    const sprite = Terrain.getSprite(id);
     const selImg = document.getElementById('palette-sel-img');
-    if (sprite) selImg.src = sprite.src;
+    if (t.spriteName) selImg.src = `sprites/hex/${t.spriteName}.png`;
     document.getElementById('palette-selected-name').textContent = t.name;
     document.getElementById('palette-selected-id').textContent   = `ID: ${id}`;
 
     // Right panel active terrain
     const rtImg = document.getElementById('right-terrain-img');
-    if (sprite) rtImg.src = sprite.src;
+    if (t.spriteName) rtImg.src = `sprites/hex/${t.spriteName}.png`;
     document.getElementById('right-terrain-name').textContent = t.name;
     document.getElementById('right-terrain-id').textContent   = `ID: ${id}`;
 
@@ -3769,8 +3732,8 @@ const UI = (() => {
     grid.innerHTML = '';
     const shown = new Set();
 
-    // Built-in sprites derived from Terrain data
-    [...new Set(Terrain.getAll().map(t => t.file.replace('.png', '')))].forEach(name => {
+    // All sprites referenced in HexDB
+    [...new Set(HexDB.getAll().map(h => h.spriteName).filter(Boolean))].forEach(name => {
       shown.add(name);
       grid.appendChild(_makeThumb(name, `sprites/hex/${name}.png`, false, null));
     });
@@ -4885,59 +4848,29 @@ const HexDB = (() => {
     });
   }
 
-  // Stamps terrainTypeId / category / fallback onto existing entries that match
-  // Terrain.DATA by name. Never adds new entries — safe to call on every load.
-  function _stampBuiltInFields() {
-    let currentCat = '';
-    Terrain.getAll().forEach(t => {
-      if (t.cat) currentCat = t.cat;
-      const existing = _data.hexes.find(h => h.id.toLowerCase() === t.name.toLowerCase());
-      if (existing) {
-        existing.terrainTypeId = t.id;
-        existing.category      = existing.category || currentCat;
-        existing.fallback      = !!t.fallback;
-        existing.spriteName    = t.file.replace('.png', '');
-      }
-    });
-  }
-
-  // Seeds all 29 built-in types AND stamps. Only inserts missing entries when the
-  // DB is empty (first-time setup). After that, respects user deletions.
-  function _seedBuiltInTiles() {
-    const shouldAdd = _data.hexes.length === 0;
-    let currentCat = '';
-    Terrain.getAll().forEach(t => {
-      if (t.cat) currentCat = t.cat;
-      const existing = _data.hexes.find(h => h.id.toLowerCase() === t.name.toLowerCase());
-      if (existing) {
-        existing.terrainTypeId = t.id;
-        existing.category      = existing.category || currentCat;
-        existing.fallback      = existing.fallback  ?? !!t.fallback;
-      } else if (shouldAdd) {
-        _data.hexes.push(Object.assign(_blank(), {
-          id: t.name,
-          spriteName: t.file.replace('.png', ''),
-          category: currentCat,
-          terrainTypeId: t.id,
-          fallback: !!t.fallback,
-        }));
-      }
-    });
-
-    // Custom terrain types: seeded once if missing, never overwritten.
-    // Add new game terrain types here instead of modifying Terrain.DATA.
-    const CUSTOM_SEEDS = [
-      { id: 'Lava_Plain_1', spriteName: 'LavaPlain', category: '🌋 VOLCANIC/RIFT' },
-      { id: 'Lava_rift_1',  spriteName: 'LavaRift',  category: '🌋 VOLCANIC/RIFT' },
-    ];
-    CUSTOM_SEEDS.forEach(seed => {
-      if (!_data.hexes.find(h => h.id.toLowerCase() === seed.id.toLowerCase())) {
-        _data.hexes.push(Object.assign(_blank(), {
-          id: seed.id, spriteName: seed.spriteName,
-          category: seed.category, terrainTypeId: -1,
-        }));
-      }
-    });
+  // Auto-loads hex_database.json from the same directory when the DB is empty.
+  // Best-effort background load — does not block init.
+  async function _tryAutoLoadDefaultDb() {
+    if (_data.hexes.length > 0) return;
+    try {
+      const r = await fetch('./hex_database.json');
+      if (!r.ok) return;
+      const parsed = await r.json();
+      if (!parsed?.hexes?.length) return;
+      _data = parsed;
+      _migrateHexTypes(_data.hexes);
+      _migrateDestroyFields(_data.hexes);
+      _migrateBuildFields(_data.hexes);
+      _migrateIncomeFields(_data.hexes);
+      _migrateSpecialFields(_data.hexes);
+      _migrateCategoryFromType();
+      _autoSave();
+      _applyFilter(); _buildList();
+      Terrain.applyHexDbOverrides(_data.hexes).then(() => {
+        UI.buildPalette();
+        Canvas.render();
+      });
+    } catch(e) { /* hex_database.json unavailable — user loads manually */ }
   }
 
   // Maps HexDB type group → palette category label. Used to back-fill category on
@@ -5537,7 +5470,6 @@ const HexDB = (() => {
           _migrateBuildFields(_data.hexes);
           _migrateIncomeFields(_data.hexes);
           _migrateSpecialFields(_data.hexes);
-          _seedBuiltInTiles();
           _migrateCategoryFromType();
           _autoSave();
           // Re-apply terrain overrides from autosaved HexDB after page load
@@ -5600,7 +5532,7 @@ const HexDB = (() => {
       if (e.ctrlKey && e.shiftKey && e.key === 'S') { e.preventDefault(); save(); }
     });
 
-    _seedBuiltInTiles();
+    _tryAutoLoadDefaultDb();
     _migrateCategoryFromType();
     _autoSave();
     _applyFilter();
@@ -5753,7 +5685,6 @@ const HexDB = (() => {
     _migrateBuildFields(_data.hexes);
     _migrateIncomeFields(_data.hexes);
     _migrateSpecialFields(_data.hexes);
-    _stampBuiltInFields();
     _migrateCategoryFromType();
     _autoSave();
     _selFilt = -1;
@@ -5778,7 +5709,6 @@ const HexDB = (() => {
       _migrateBuildFields(_data.hexes);
       _migrateIncomeFields(_data.hexes);
       _migrateSpecialFields(_data.hexes);
-      _stampBuiltInFields();
       _migrateCategoryFromType();
       _autoSave();
       _selFilt = -1;
@@ -6515,15 +6445,11 @@ function getCityRow() { return Math.floor((MAP_HEIGHT - 1) / 2); }
 window.addEventListener('load', async () => {
   ZonePainter.init();
   ZonePainter._uiRebuildZoneList();
-  await Terrain.load();
   // Restore last session if available, otherwise init a blank map
   const _mapRestored = IO.tryRestoreAutosave();
   if (!_mapRestored) IO.newMap(true);
   Canvas.init();
   UI.init();
-  UI.buildPalette();
-  UI.rebuildSlotPanel();
-  UI.selectTerrain(12);
   Tools.init();
   History.initKeyboard();
   IO.initFileInput();
@@ -6537,7 +6463,13 @@ window.addEventListener('load', async () => {
     Terrain.registerUploadedUrls(urlMap);
   } catch(e) { /* IndexedDB unavailable — skip */ }
 
+  // HexDB is now the single source of truth for all terrain types.
+  // init() loads autosave (or auto-fetches hex_database.json on first run),
+  // then triggers applyHexDbOverrides → buildPalette → render internally.
   HexDB.init();
+  UI.buildPalette();
+  UI.rebuildSlotPanel();
+  UI.selectTerrain(12);
 
   // Drive HexDB is loaded explicitly via ☁ Sync button.
   // Autosave (localStorage) is used on startup to avoid 403 noise from private Drive files.

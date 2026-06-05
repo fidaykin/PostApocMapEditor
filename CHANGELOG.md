@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 Format: `## v[version] — [date]`
 
+## v0.9.7 — 2026-06-05
+
+### Refactor — HexDB as Single Source of Truth
+- **Removed `Terrain.DATA`**: the 29-entry hardcoded terrain array is gone. `hex_database.json` (loaded via HexDB) is now the only terrain registry.
+- **Removed `Terrain.load()`**: sprite loading is driven exclusively by `Terrain.applyHexDbOverrides()` called from HexDB.
+- **Auto-load on first run**: if no autosave exists, HexDB auto-fetches `./hex_database.json` from disk so the palette populates without manual loading.
+- **Removed `_seedBuiltInTiles` / `_stampBuiltInFields`**: no more syncing between two parallel systems.
+- **DriveSync + sprite picker** now derive the sprite list from HexDB entries, not from the former DATA array.
+
+---
+
 ## v0.7.2 — 2026-06-05
 
 ### Features — Google Drive Auth Status
