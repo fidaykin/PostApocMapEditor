@@ -1306,7 +1306,7 @@
       "effects": "",
       "roadAllowed": false,
       "terrainTypeId": 26,
-      "category": "🌾 PLAINS",
+      "category": "🌋 VOLCANIC/RIFT",
       "fallback": false
     },
     {
@@ -1348,7 +1348,7 @@
       "effects": "",
       "roadAllowed": false,
       "terrainTypeId": 27,
-      "category": "🌾 PLAINS",
+      "category": "🌋 VOLCANIC/RIFT",
       "fallback": false
     },
     {
