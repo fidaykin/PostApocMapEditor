@@ -2989,10 +2989,21 @@ const DriveSync = (() => {
     return resp;
   }
 
+  async function _fetch(path) {
+    const sep = path.includes('?') ? '&' : '?';
+    const url = DRIVE_API + path;
+    if (_token && Date.now() < _tokenExpiry) {
+      const resp = await fetch(url, { headers: { 'Authorization': 'Bearer ' + _token } });
+      if (!resp.ok) throw new Error(`Drive ${resp.status}: ${await resp.text()}`);
+      return resp.json();
+    }
+    return _pubFetch(path);
+  }
+
   async function _hexFolder() {
     if (_hexFolderId) return _hexFolderId;
     const q = `name='${HEX_SUB}' and '${ROOT_FOLDER}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
-    const d = await _pubFetch(`?q=${encodeURIComponent(q)}&fields=files(id)`);
+    const d = await _fetch(`?q=${encodeURIComponent(q)}&fields=files(id)`);
     if (!d.files?.length) throw new Error(`'${HEX_SUB}' subfolder not found in Drive`);
     _hexFolderId = d.files[0].id;
     return _hexFolderId;
@@ -3000,7 +3011,7 @@ const DriveSync = (() => {
 
   async function _listFiles(folderId) {
     const q = `'${folderId}' in parents and trashed=false`;
-    const d = await _pubFetch(`?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1000`);
+    const d = await _fetch(`?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1000`);
     return d.files || [];
   }
 
