@@ -223,6 +223,9 @@ const ZonePainter = (() => {
     if (!obj) return;
     const w = typeof MAP_WIDTH !== 'undefined' ? MAP_WIDTH : 450;
     const h = typeof MAP_HEIGHT !== 'undefined' ? MAP_HEIGHT : 450;
+    // Ensure zoneLayer matches current map dimensions and is cleared
+    if (!_zoneLayer || _zoneLayer.length !== w * h) _zoneLayer = new Uint8Array(w * h);
+    else _zoneLayer.fill(0);
     _zones = obj.zones || [];
     _nextZoneId = obj._nextZoneId || (_zones.reduce((m, z) => Math.max(m, z.id), 0) + 1);
     _presets = BUILTIN_PRESETS.map(p => Object.assign({}, p, {
