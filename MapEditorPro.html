@@ -1423,7 +1423,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 
 <script>
 const VERSION = "0.9.7";
-const COMMIT  = "COMMIT_HASH";
+const COMMIT  = "";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6560,7 +6560,7 @@ window.addEventListener('load', async () => {
   // Show new-map prompt only when there is nothing to restore
   if (!_mapRestored) IO.showNewMapPrompt();
   const _vLabel = document.getElementById('version-label');
-  if (_vLabel) _vLabel.textContent = `v${VERSION}.${COMMIT}`;
+  if (_vLabel) _vLabel.textContent = COMMIT ? `v${VERSION}.${COMMIT}` : `v${VERSION}`;
   console.log('[MapEditorPro] Ready.');
 });
 </script>
