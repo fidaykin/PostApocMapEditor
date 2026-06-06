@@ -1167,7 +1167,8 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
-    <div class="status-item" id="version-label" style="margin-left:auto;color:var(--muted)">v0.9.6</div>
+    <div class="status-item" id="map-file-label" style="margin-left:auto;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
+    <div class="status-item" id="version-label" style="color:var(--muted)">v0.9.6</div>
   </div>
 
 </div>
@@ -3833,6 +3834,13 @@ const IO = (() => {
   let _newMapCanCancel  = false;
   let _autoSaveTimer    = null;
   let _fsDirHandle      = null;   // FileSystemDirectoryHandle for saved_maps/
+  let _currentFileName  = '';
+
+  function _setFileName(name) {
+    _currentFileName = name;
+    const el = document.getElementById('map-file-label');
+    if (el) el.textContent = name || '';
+  }
 
   // ── IndexedDB helper (stores FileSystemDirectoryHandle across sessions) ──
   const _idb = (() => {
@@ -4074,6 +4082,7 @@ const IO = (() => {
     Canvas.render();
     Canvas.drawMinimap();
     Canvas.centerOnCity();
+    _setFileName('');
     UI.toast(`Map created: ${w} × ${h}`);
     _autoSave();
   }
@@ -4157,6 +4166,8 @@ const IO = (() => {
     }
   }
 
+  function _setFileNameFromHandle(name) { _setFileName(name ? name.replace(/\.json$/i, '') : ''); }
+
   function saveMap() {
     UI.closeAllMenus();
     if (!mapData) return;
@@ -4228,7 +4239,10 @@ const IO = (() => {
       if (!file) return;
       const reader = new FileReader();
       reader.onload = ev => {
-        try { _loadFromJSON(JSON.parse(ev.target.result)); }
+        try {
+          _loadFromJSON(JSON.parse(ev.target.result));
+          _setFileNameFromHandle(file.name);
+        }
         catch(err) { alert('Failed to parse JSON: ' + err.message); }
       };
       reader.readAsText(file);
@@ -5517,6 +5531,28 @@ const HexDB = (() => {
     if (el) el.classList.toggle('error', !h.id || _isDuplicate(h.id, realIdx));
   }
 
+  // Ensures built-in entries loaded from localStorage have terrainTypeId populated.
+  // Old autosaves predating the terrainTypeId field will be missing it; we patch
+  // them by cross-referencing hex_database.json (authoritative source for built-ins).
+  async function _ensureTerrainTypeIds() {
+    if (!_data.hexes.some(h => h.id && !(h.terrainTypeId >= 0))) return;  // nothing to repair
+    try {
+      const r = await fetch('./hex_database.json');
+      if (!r.ok) return;
+      const parsed = await r.json();
+      if (!parsed?.hexes?.length) return;
+      const tidMap = new Map(parsed.hexes.filter(h => h.id && h.terrainTypeId >= 0).map(h => [h.id, h.terrainTypeId]));
+      let changed = false;
+      _data.hexes.forEach(h => {
+        if (h.id && !(h.terrainTypeId >= 0) && tidMap.has(h.id)) {
+          h.terrainTypeId = tidMap.get(h.id);
+          changed = true;
+        }
+      });
+      if (changed) _autoSave();
+    } catch(e) {}
+  }
+
   // ── Public API ────────────────────────────────────────────
   function init() {
     _loadSecState();
@@ -5594,6 +5630,7 @@ const HexDB = (() => {
     });
 
     _tryAutoLoadDefaultDb();
+    _ensureTerrainTypeIds();  // async: patches missing terrainTypeIds in stale localStorage data
     _migrateCategoryFromType();
     _autoSave();
     _applyFilter();
