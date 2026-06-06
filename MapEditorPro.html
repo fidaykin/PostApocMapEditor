@@ -877,6 +877,11 @@ body.mode-settlements #stt-tools   { display: flex; }
         <button onclick="Satellite.open()">Satellite Import…</button>
       </div>
     </div>
+    <div class="menu-item" id="menu-dev">Dev
+      <div class="menu-dropdown">
+        <button onclick="Dev.qaPlaceAllTiles()">🔬 Place All Tiles Near City</button>
+      </div>
+    </div>
     <div class="menu-item" id="menu-data">Data
       <div class="menu-dropdown">
         <button onclick="DriveSync.loadHexDbIntoEditor()">☁ Load Hex DB from Drive</button>
@@ -6505,6 +6510,63 @@ const SttDB = (() => {
   }
 
   return { init, add, deleteSelected, copy, paste, load, save, triggerLoad };
+})();
+
+// ── Dev / QA utilities ─────────────────────────────────────
+const Dev = (() => {
+  const CAT_ORDER = {
+    '🌊 WATER': 1, '🌾 PLAINS': 2, '🌲 FOREST': 3, '⛰️ ROCKY/MOUNTAIN': 4,
+    '💎 RESOURCES': 5, '🏜️ BARREN/DESERT': 6, '🟫 SWAMP': 7, '🌋 VOLCANIC/RIFT': 8,
+  };
+
+  function _paletteSort(a, b) {
+    const oA = CAT_ORDER[a.category] ?? 99, oB = CAT_ORDER[b.category] ?? 99;
+    if (oA !== oB) return oA - oB;
+    const at = a.terrainTypeId >= 0 ? a.terrainTypeId : -1;
+    const bt = b.terrainTypeId >= 0 ? b.terrainTypeId : -1;
+    if (at >= 0 && bt >= 0) return at - bt;
+    if (at >= 0) return -1;
+    if (bt >= 0) return  1;
+    return a.id.localeCompare(b.id);
+  }
+
+  function qaPlaceAllTiles() {
+    if (!mapData) return;
+    const entries = HexDB.getAll().filter(h => h.id).sort(_paletteSort);
+    if (!entries.length) { UI.toast('No tiles in HexDB'); return; }
+
+    const cc = getCityCol(), cr = getCityRow();
+
+    // All positions except city center, sorted by distance (closest first)
+    const positions = [];
+    for (let r = 0; r < MAP_HEIGHT; r++) {
+      for (let c = 0; c < MAP_WIDTH; c++) {
+        if (c === cc && r === cr) continue;
+        const dc = c - cc, dr = r - cr;
+        positions.push({ c, r, d: dc * dc + dr * dr });
+      }
+    }
+    positions.sort((a, b) => a.d - b.d);
+
+    if (entries.length > positions.length) {
+      UI.toast(`Map too small — need ${entries.length} cells`);
+      return;
+    }
+
+    History.push();
+    entries.forEach((entry, i) => {
+      const { c, r } = positions[i];
+      mapData[r * MAP_WIDTH + c] = entry.id;
+    });
+
+    Canvas.render();
+    Canvas.drawMinimap();
+    Canvas.centerOnCity();
+    IO.scheduleAutoSave();
+    UI.toast(`QA: placed ${entries.length} tile types around city`);
+  }
+
+  return { qaPlaceAllTiles };
 })();
 
 // ── Shared state (visible to all modules) ──────────────────
