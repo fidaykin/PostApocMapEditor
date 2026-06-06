@@ -4532,6 +4532,30 @@ const Satellite = (() => {
   let _classified = null;  // Int8Array [MAP_WIDTH * MAP_HEIGHT]
   let _satDebounce = null;
 
+  // Lazy terrain ID table — resolved from HexDB on first _classify() call.
+  // WATER_DARK/LIGHT are sentinels (no HexDB terrainTypeId); clearWater converts them to PLAIN_1.
+  let _T = null;
+  function _getT() {
+    if (_T) return _T;
+    const tid = hexId => {
+      const e = typeof HexDB !== 'undefined' ? HexDB.getAll().find(h => h.id === hexId) : null;
+      return (e && e.terrainTypeId >= 0) ? e.terrainTypeId : 12;
+    };
+    _T = {
+      WATER_DARK:   0, WATER_LIGHT: 1,   // satellite-only sentinels, no HexDB terrainTypeId
+      RUBBLE_1:     tid('Rubble_1'),   RUBBLE_2:    tid('Rubble_2'),
+      PLAIN_1:      tid('Plain_1'),    PLAIN_2:     tid('Plain_2'),
+      BROKEN_PLAIN: tid('BrokenPlane_1'),
+      FOREST_1:     tid('Forest_1'),   FOREST_2:    tid('Forest_2'),
+      SWAMP:        tid('Swamp_1'),    HILLS:       tid('Hills_1'),
+      MOUNTAIN:     tid('Mountain_1'),
+      BARREN:       tid('Barren_1'),   DESERT:      tid('Desert_1'),
+      LAVA:         tid('Lava_Plain_1'), LAVA_RIFT: tid('Lava_Rift_1'),
+      RIFT:         tid('Rift_1'),
+    };
+    return _T;
+  }
+
   function _rgbToHsl(r, g, b) {
     r /= 255; g /= 255; b /= 255;
     const max = Math.max(r,g,b), min = Math.min(r,g,b);
@@ -4568,44 +4592,45 @@ const Satellite = (() => {
 
   function _classifyColor(r, g, b, sens) {
     const [h, s, l] = _rgbToHsl(r, g, b);
+    const T = _getT();
 
-    if (l < 0.09) return 28;
-    if ((h < 25 || h > 335) && s > 0.50 && l > 0.12 && l < 0.55) return 26;
+    if (l < 0.09) return T.RIFT;
+    if ((h < 25 || h > 335) && s > 0.50 && l > 0.12 && l < 0.55) return T.LAVA;
 
     const wSatMin = 0.42 - sens * 0.32;
-    if (h >= 170 && h <= 268 && s > wSatMin && l < 0.70) return l < 0.32 ? 0 : 1;
+    if (h >= 170 && h <= 268 && s > wSatMin && l < 0.70) return l < 0.32 ? T.WATER_DARK : T.WATER_LIGHT;
 
-    if (s < 0.18 && l > 0.74 - (1 - sens) * 0.12) return 19;
+    if (s < 0.18 && l > 0.74 - (1 - sens) * 0.12) return T.MOUNTAIN;
     if (s < 0.20) {
-      if (l > 0.56) return 18;
-      if (l > 0.30) return 9;
-      return 28;
+      if (l > 0.56) return T.HILLS;
+      if (l > 0.30) return T.RUBBLE_1;
+      return T.RIFT;
     }
 
     const fSatMin = 0.28 - sens * 0.20;
     if (h >= 78 && h <= 168) {
       if (s > fSatMin) {
-        if (l < 0.22) return 24;
-        if (l < 0.37) return 16;
-        if (l < 0.53) return 15;
-        return 12;
+        if (l < 0.22) return T.SWAMP;
+        if (l < 0.37) return T.FOREST_2;
+        if (l < 0.53) return T.FOREST_1;
+        return T.PLAIN_1;
       }
-      if (l < 0.30) return 24;
-      if (l < 0.50) return 13;
-      return 12;
+      if (l < 0.30) return T.SWAMP;
+      if (l < 0.50) return T.PLAIN_2;
+      return T.PLAIN_1;
     }
     if (h >= 50 && h < 78) {
-      if (s > 0.30 && l > 0.52) return 12;
-      if (s > 0.22 && l > 0.38) return 13;
-      return 22;
+      if (s > 0.30 && l > 0.52) return T.PLAIN_1;
+      if (s > 0.22 && l > 0.38) return T.PLAIN_2;
+      return T.BARREN;
     }
-    if (h >= 30 && h < 60 && s > 0.28 && l > 0.56) return 23;
+    if (h >= 30 && h < 60 && s > 0.28 && l > 0.56) return T.DESERT;
     if (h >= 12 && h < 50) {
-      if (l > 0.52 && s > 0.22) return 22;
-      if (l > 0.36 && s > 0.18) return 9;
-      return 10;
+      if (l > 0.52 && s > 0.22) return T.BARREN;
+      if (l > 0.36 && s > 0.18) return T.RUBBLE_1;
+      return T.RUBBLE_2;
     }
-    return 12;
+    return T.PLAIN_1;
   }
 
   function _classify() {
@@ -4710,15 +4735,17 @@ const Satellite = (() => {
     const clearWater = document.getElementById('sat-clearWater').checked;
     if (keepCity || clearWater) {
       const clearR   = 3;
-      const impassableIds = new Set([0,1,2,3,4,5,6,7,8,19,26,27,28]);
+      const T2 = _getT();
+      // Water sentinels 0-8 (satellite-only IDs) + impassable land types from HexDB
+      const impassableIds = new Set([0,1,2,3,4,5,6,7,8, T2.MOUNTAIN, T2.LAVA, T2.LAVA_RIFT, T2.RIFT]);
       for (let dr = -clearR; dr <= clearR; dr++) {
         for (let dc = -clearR; dc <= clearR; dc++) {
           if (dc * dc + dr * dr > clearR * clearR) continue;
           const r = cityR + dr, c = cityC + dc;
           if (r < 0 || r >= MAP_HEIGHT || c < 0 || c >= MAP_WIDTH) continue;
           const idx = r * MAP_WIDTH + c;
-          if (clearWater && impassableIds.has(mapData[idx])) mapData[idx] = 12;
-          if (keepCity && dr === 0 && dc === 0) mapData[idx] = 12;
+          if (clearWater && impassableIds.has(mapData[idx])) mapData[idx] = T2.PLAIN_1;
+          if (keepCity && dr === 0 && dc === 0) mapData[idx] = T2.PLAIN_1;
         }
       }
     }
