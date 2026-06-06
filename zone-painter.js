@@ -491,6 +491,8 @@ const ZonePainter = (() => {
 
   function _toggleOverlayUI() {
     toggleOverlay();
+    const btn = document.getElementById('btn-zone-overlay');
+    if (btn) btn.style.opacity = _showOverlay ? '1' : '0.4';
     Canvas.render();
   }
 

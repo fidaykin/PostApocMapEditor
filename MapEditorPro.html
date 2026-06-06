@@ -921,7 +921,7 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="tool-btn" id="btn-zones" onclick="Canvas.toggleZones()">◎<span class="tooltip">Toggle Distance Rings</span></button>
       <button class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')">🗺️<span class="tooltip">Zone Painter (Z)</span></button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._fillAllZones()" title="Fill all zones with biome terrain">▶ Fill Zones</button>
-      <button class="hexdb-tool-btn" onclick="ZonePainter._toggleOverlayUI()" title="Toggle zone color overlay">👁 Overlay</button>
+      <button id="btn-zone-overlay" class="hexdb-tool-btn" onclick="ZonePainter._toggleOverlayUI()" title="Toggle zone color overlay">👁 Overlay</button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._clearZonesUI()" title="Clear zone assignments">🗑 Clear Zones</button>
       <span style="color:#888;font-size:11px;margin-left:8px">Block:</span>
       <input id="block-nav-input" type="text" value="A:1"
