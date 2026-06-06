@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>MapEditorPro v0.9.6</title>
+<title>MapEditorPro v0.9.8</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1168,7 +1168,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
     <div class="status-item" id="map-file-label" style="margin-left:auto;color:var(--muted);max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></div>
-    <div class="status-item" id="version-label" style="color:var(--muted)">v0.9.6</div>
+    <div class="status-item" id="version-label" style="color:var(--muted)">v0.9.8</div>
   </div>
 
 </div>
@@ -1423,7 +1423,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.9.7";
+const VERSION = "0.9.8";
 const COMMIT  = "";
 
 // ════════════════════════════════════════════════════════════
@@ -1436,25 +1436,20 @@ const COMMIT  = "";
 const Terrain = (() => {
   const HEX_DIR = 'sprites/hex/';
 
-  // RGB triples for minimap/generator color rendering (keyed by terrainTypeId integer).
-  // HexDB is the single source of truth for tile data; COLORS is a lightweight
-  // lookup used only for pixel-level canvas rendering where speed matters.
+  // RGB triples keyed by lowercase hex ID for pixel-level canvas rendering.
   const COLORS = {
-     0:[42,70,100],  1:[50,80,120],  2:[35,60,95],
-     3:[60,100,160], 4:[60,100,160], 5:[60,100,160],
-     6:[60,100,160], 7:[60,100,160], 8:[60,100,160],
-     9:[100,85,65], 10:[85,70,50],  11:[65,50,35],
-    12:[120,155,85],13:[100,135,65],14:[130,130,75],
-    15:[50,115,50], 16:[35,95,35],  17:[65,130,65],
-    18:[100,120,90],19:[150,150,150],
-    20:[200,170,25],21:[50,50,50],
-    22:[150,130,95],23:[210,185,120],
-    24:[50,80,50],  25:[80,95,75],
-    26:[170,70,20], 27:[130,35,15], 28:[35,25,25]
+    'water_dark':[42,70,100],   'water_light':[50,80,120],   'water_rock':[35,60,95],
+    'rubble_1':[100,85,65],     'rubble_2':[85,70,50],       'rubble_3':[65,50,35],
+    'plain_1':[120,155,85],     'plain_2':[100,135,65],      'brokenplane_1':[130,130,75],
+    'forest_1':[50,115,50],     'forest_2':[35,95,35],       'forest_3':[65,130,65],
+    'hills_1':[100,120,90],     'mountain_1':[150,150,150],
+    'goldvein_1':[200,170,25],  'oil_1':[50,50,50],
+    'barren_1':[150,130,95],    'desert_1':[210,185,120],
+    'swamp_1':[50,80,50],       'wetlands_1':[80,95,75],
+    'lava_plain_1':[170,70,20], 'lava_rift_1':[130,35,15],   'rift_1':[35,25,25],
   };
 
-  const sprites       = {};  // terrainTypeId → HTMLImageElement  (populated by applyHexDbOverrides)
-  const customSprites = {};  // string id → HTMLImageElement
+  const sprites = {};  // hexId (lowercase) → HTMLImageElement (all terrain types, unified)
   let   citySprite = null;
 
   // City sprite is always bundled — load it once at startup.
@@ -1464,12 +1459,34 @@ const Terrain = (() => {
     img.src = HEX_DIR + 'Settlements_1.png';
   })();
 
-  function getSprite(id) { return sprites[id] || null; }
+  function getSprite(id) {
+    if (typeof id !== 'string') return null;
+    return sprites[id.toLowerCase()] || null;
+  }
+  function getCustomSprite(id) { return getSprite(id); }  // unified — all sprites in sprites{}
   function getCitySprite() { return citySprite; }
-  function color(id) { return COLORS[id] || [120,155,85]; }
 
-  // Look up by terrainTypeId integer. HexDB is the authority — DATA is gone.
+  // Case-insensitive color lookup by hex ID string.
+  function color(id) {
+    if (typeof id !== 'string') return [120,155,85];
+    return COLORS[id.toLowerCase()] || [120,155,85];
+  }
+
+  // Case-insensitive HexDB lookup by hex ID string.
+  function byHexId(hexId) {
+    if (!hexId || typeof hexId !== 'string') return null;
+    const lo = hexId.toLowerCase();
+    if (typeof HexDB !== 'undefined') {
+      const h = HexDB.getAll().find(e => e.id && e.id.toLowerCase() === lo);
+      if (h) return { ...h, name: h.id };
+    }
+    return null;
+  }
+
+  // Kept for callers that still pass integer terrainTypeId (e.g. legacy code).
+  // New code should use byHexId().
   function byId(id) {
+    if (typeof id === 'string') return byHexId(id);
     if (typeof HexDB !== 'undefined') {
       const h = HexDB.getAll().find(e => e.terrainTypeId === id);
       if (h) return { ...h, name: h.id };
@@ -1482,35 +1499,23 @@ const Terrain = (() => {
     return typeof HexDB !== 'undefined' ? HexDB.getAll() : [];
   }
 
-  // Loads sprites from HexDB entries into sprites / customSprites caches.
-  // Built-in entries (terrainTypeId >= 0) populate sprites[tid];
-  // custom entries populate customSprites[h.id].
+  // Loads sprites from all HexDB entries into the unified sprites{} dict (keyed by lowercase hex ID).
   async function applyHexDbOverrides(hexes) {
     if (!hexes || !hexes.length) return;
     const jobs = [];
     for (const h of hexes) {
       if (!h.id || !h.spriteName) continue;
-      const tid = typeof h.terrainTypeId !== 'undefined' ? h.terrainTypeId : -1;
-      if (tid >= 0) {
-        jobs.push(new Promise(resolve => {
-          const img = new Image();
-          img.onload  = () => { sprites[tid] = img; resolve(); };
-          img.onerror = () => resolve();
-          img.src = HEX_DIR + h.spriteName + '.png';
-        }));
-      } else {
-        jobs.push(new Promise(resolve => {
-          const img = new Image();
-          img.onload  = () => { customSprites[h.id] = img; resolve(); };
-          img.onerror = () => resolve();
-          img.src = _uploadedUrls[h.spriteName] || (HEX_DIR + h.spriteName + '.png');
-        }));
-      }
+      const key = h.id.toLowerCase();
+      const src = _uploadedUrls[h.spriteName] || (HEX_DIR + h.spriteName + '.png');
+      jobs.push(new Promise(resolve => {
+        const img = new Image();
+        img.onload  = () => { sprites[key] = img; resolve(); };
+        img.onerror = () => resolve();
+        img.src = src;
+      }));
     }
     await Promise.all(jobs);
   }
-
-  function getCustomSprite(id) { return customSprites[id] || null; }
 
   // Called at startup with { name → dataUrl } from IndexedDB so that
   // applyHexDbOverrides can resolve user-uploaded sprites on reload.
@@ -1640,9 +1645,7 @@ const Canvas = (() => {
         const s = hexScreenPos(col, row);
         if (s.x + padding < 0 || s.x - padding > canvas.width  ||
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
-        const customId = customTerrainOverlay[`${row}_${col}`];
-        const customSpr = customId ? Terrain.getCustomSprite(customId) : null;
-        _drawHexTile(s.x, s.y, radius, mapData[row * MAP_WIDTH + col], customSpr);
+        _drawHexTile(s.x, s.y, radius, mapData[row * MAP_WIDTH + col]);
       }
     }
 
@@ -1698,8 +1701,8 @@ const Canvas = (() => {
     if (_showRulers) { _drawBlockGrid(); _drawRulers(); }
   }
 
-  function _drawHexTile(cx, cy, radius, terrainId, spriteOverride) {
-    const sprite = spriteOverride || Terrain.getSprite(terrainId);
+  function _drawHexTile(cx, cy, radius, hexId) {
+    const sprite = Terrain.getSprite(hexId);
     ctx.save();
     hexClipPath(cx, cy, radius);
     if (sprite && sprite.complete && sprite.naturalWidth > 0) {
@@ -2042,8 +2045,7 @@ const Canvas = (() => {
       document.getElementById('st-app-coords').textContent = `${appX}, ${appY}`;
       document.getElementById('st-dist').textContent = Canvas.hexDist(appX, appY);
       if (mapData) {
-        const t = Terrain.byId(mapData[row * MAP_WIDTH + col]);
-        document.getElementById('st-terrain').textContent = t ? t.name : '—';
+        document.getElementById('st-terrain').textContent = mapData[row * MAP_WIDTH + col] || '—';
       }
       if (_cursorCol !== col || _cursorRow !== row) {
         _cursorCol = col; _cursorRow = row;
@@ -2060,9 +2062,7 @@ const Canvas = (() => {
         const rect = canvas.getBoundingClientRect();
         const { col, row } = screenToHex(e.clientX - rect.left, e.clientY - rect.top);
         if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
-          const _pickCustomId = customTerrainOverlay[`${row}_${col}`];
-          if (_pickCustomId) UI.selectCustomTerrain(mapData[row * MAP_WIDTH + col], _pickCustomId);
-          else               UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
+          UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
         }
       }
     }
@@ -2515,14 +2515,10 @@ const Tools = (() => {
   // ── Paint ──────────────────────────────────────────────────
   function _paint(col, row) {
     const tiles = Brush.getAffectedTiles(col, row);
+    const hexId = UI.getSelectedTerrain();
     tiles.forEach(({ col: c, row: r }) => {
-      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT) {
-        mapData[r * MAP_WIDTH + c] = UI.getSelectedTerrain();
-        const _customId = UI.getSelectedCustomId();
-        const _paintKey = `${r}_${c}`;
-        if (_customId) customTerrainOverlay[_paintKey] = _customId;
-        else           delete customTerrainOverlay[_paintKey];
-      }
+      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT)
+        mapData[r * MAP_WIDTH + c] = hexId;
     });
     Canvas.render();
   }
@@ -2552,13 +2548,9 @@ const Tools = (() => {
     const key = (c, r) => c * 10000 + r;
     visited.add(key(col, row));
 
-    const _fillCustomId = UI.getSelectedCustomId();
     while (queue.length) {
       const [c, r] = queue.shift();
       mapData[r * MAP_WIDTH + c] = fillId;
-      const _paintKey = `${r}_${c}`;
-      if (_fillCustomId) customTerrainOverlay[_paintKey] = _fillCustomId;
-      else               delete customTerrainOverlay[_paintKey];
       const even = c % 2 === 0;
       const nbrs = [
         [c, r-1], [c+1, even ? r-1 : r], [c+1, even ? r : r+1],
@@ -2581,14 +2573,9 @@ const Tools = (() => {
     const minC = Math.max(0, Math.min(c1, c2)), maxC = Math.min(MAP_WIDTH - 1, Math.max(c1, c2));
     const minR = Math.max(0, Math.min(r1, r2)), maxR = Math.min(MAP_HEIGHT - 1, Math.max(r1, r2));
     const fillId = UI.getSelectedTerrain();
-    const _rectCustomId = UI.getSelectedCustomId();
     for (let c = minC; c <= maxC; c++)
-      for (let r = minR; r <= maxR; r++) {
+      for (let r = minR; r <= maxR; r++)
         mapData[r * MAP_WIDTH + c] = fillId;
-        const _paintKey = `${r}_${c}`;
-        if (_rectCustomId) customTerrainOverlay[_paintKey] = _rectCustomId;
-        else               delete customTerrainOverlay[_paintKey];
-      }
     Canvas.render();
   }
 
@@ -2719,25 +2706,23 @@ const Tools = (() => {
   return { init, setActive, getActive };
 })();
 // ════════════════════════════════════════════════════════════
-// HISTORY MODULE — 50-step Int8Array undo/redo
+// HISTORY MODULE — 50-step string-array undo/redo
 // ════════════════════════════════════════════════════════════
 const History = (() => {
   const MAX = 50;
-  const _undo = [];   // stack of Int8Array snapshots (past states)
-  const _redo = [];   // stack of Int8Array snapshots (future states)
+  const _undo = [];   // stack of string[] snapshots (past states)
+  const _redo = [];   // stack of string[] snapshots (future states)
 
   function _snapshot() {
     return {
-      grid:        new Int8Array(mapData),
-      overlay:     Object.assign({}, customTerrainOverlay),
+      grid:        mapData.slice(),
       settlements: settlements.map(s => Object.assign({}, s)),
       slots:       settlementSlots.map(s => Object.assign({}, s))
     };
   }
 
   function _restore(snap) {
-    mapData.set(snap.grid);
-    customTerrainOverlay = Object.assign({}, snap.overlay);
+    for (let i = 0; i < snap.grid.length; i++) mapData[i] = snap.grid[i];
     settlements = (snap.settlements || []).map(s => Object.assign({}, s));
     settlementSlots = (snap.slots || []).map(s => Object.assign({}, s));
     UI.updateSettlementCount();
@@ -3374,8 +3359,7 @@ const DriveSync = (() => {
 // UI MODULE — palette, terrain selection, confirm modal, toasts
 // ════════════════════════════════════════════════════════════
 const UI = (() => {
-  let _selectedId = 12;
-  let _selectedCustomId = '';
+  let _selectedId = 'Plain_1';  // string hex ID
   let _confirmCallback = null;
   let _spritePickerCallback = null;
 
@@ -3470,19 +3454,13 @@ const UI = (() => {
 
       const btn = document.createElement('button');
       btn.className = 'tile-btn';
+      btn.dataset.hexId = h.id;
 
       const img = document.createElement('img');
-      if (tid >= 0) {
-        btn.dataset.tid = tid;
-        img.src = h.spriteName ? `sprites/hex/${h.spriteName}.png` : '';
-        btn.addEventListener('click', () => selectTerrain(tid));
-      } else {
-        btn.dataset.customId = h.id;
-        const cSprite = Terrain.getCustomSprite(h.id);
-        img.src = cSprite ? cSprite.src : (h.spriteName ? `sprites/hex/${h.spriteName}.png` : '');
-        btn.addEventListener('click', () => selectCustomTerrain(12, h.id));
-      }
+      const spr = Terrain.getSprite(h.id);
+      img.src = spr ? spr.src : (h.spriteName ? `sprites/hex/${h.spriteName}.png` : '');
       img.alt = h.id;
+      btn.addEventListener('click', () => selectTerrain(h.id));
       btn.appendChild(img);
 
       if (h.fallback) {
@@ -3500,56 +3478,45 @@ const UI = (() => {
     });
   }
 
-  function selectTerrain(id) {
-    _selectedId = id;
-    _selectedCustomId = '';
-    const t = Terrain.byId(id);
+  function selectTerrain(hexId) {
+    if (!hexId || typeof hexId !== 'string') hexId = 'Plain_1';
+    _selectedId = hexId;
+    const t = Terrain.byHexId(hexId) || { id: hexId, name: hexId };
 
-    // Highlight in palette — built-in tile, clear any custom selection
+    // Highlight in palette
     document.querySelectorAll('.tile-btn').forEach(btn => {
       btn.classList.toggle('selected',
-        !btn.dataset.customId && parseInt(btn.dataset.tid) === id);
+        btn.dataset.hexId && btn.dataset.hexId.toLowerCase() === hexId.toLowerCase());
     });
 
     // Palette bottom display
     const selImg = document.getElementById('palette-sel-img');
-    if (t.spriteName) selImg.src = `sprites/hex/${t.spriteName}.png`;
-    document.getElementById('palette-selected-name').textContent = t.name;
-    document.getElementById('palette-selected-id').textContent   = `ID: ${id}`;
+    const spr = Terrain.getSprite(hexId);
+    if (spr) selImg.src = spr.src;
+    else if (t.spriteName) selImg.src = `sprites/hex/${t.spriteName}.png`;
+    document.getElementById('palette-selected-name').textContent = t.name || hexId;
+    document.getElementById('palette-selected-id').textContent   = hexId;
 
     // Right panel active terrain
     const rtImg = document.getElementById('right-terrain-img');
-    if (t.spriteName) rtImg.src = `sprites/hex/${t.spriteName}.png`;
-    document.getElementById('right-terrain-name').textContent = t.name;
-    document.getElementById('right-terrain-id').textContent   = `ID: ${id}`;
+    if (spr) rtImg.src = spr.src;
+    else if (t.spriteName) rtImg.src = `sprites/hex/${t.spriteName}.png`;
+    document.getElementById('right-terrain-name').textContent = t.name || hexId;
+    document.getElementById('right-terrain-id').textContent   = hexId;
 
     // Status bar
-    document.getElementById('st-terrain').textContent = t.name;
+    document.getElementById('st-terrain').textContent = hexId;
   }
 
   function getSelectedTerrain() { return _selectedId; }
 
-  function selectCustomTerrain(baseInt, customId) {
-    _selectedId = baseInt;
-    _selectedCustomId = customId;
-
-    // Highlight in palette
-    document.querySelectorAll('.tile-btn').forEach(btn => {
-      btn.classList.toggle('selected', btn.dataset.customId === customId);
-    });
-
-    // Palette bottom display
-    const sprite = Terrain.getCustomSprite(customId);
-    const selImg = document.getElementById('palette-sel-img');
-    if (sprite) selImg.src = sprite.src;
-    document.getElementById('palette-selected-name').textContent = customId;
-    document.getElementById('palette-selected-id').textContent   = `Custom`;
-
-    // Status bar
-    document.getElementById('st-terrain').textContent = customId;
+  // Kept for backward compatibility — now just delegates to selectTerrain.
+  function selectCustomTerrain(baseIntOrHexId, customId) {
+    selectTerrain(customId || baseIntOrHexId);
   }
 
-  function getSelectedCustomId() { return _selectedCustomId; }
+  // Returns empty string — all terrain types are now unified in getSelectedTerrain().
+  function getSelectedCustomId() { return ''; }
 
   function updateSettlementCount() {
     document.getElementById('settlement-count').textContent =
@@ -3909,23 +3876,37 @@ const IO = (() => {
     } catch(e) {}
   }
 
+  // Migration helper: integer terrainTypeId → hex ID string.
+  // Used when loading old (pre-string-ID) map files.
+  function _migrateTid(val) {
+    if (typeof val === 'string') return val || 'Plain_1';
+    if (typeof HexDB !== 'undefined' && HexDB.getAll().length > 0) {
+      const e = HexDB.getAll().find(h => h.terrainTypeId === val);
+      if (e) return e.id;
+    }
+    const F = {
+      0:'Water_Dark', 1:'Water_Light', 2:'Water_Rock',
+      9:'Rubble_1',  10:'Rubble_2',   11:'Rubble_3',
+      12:'Plain_1',  13:'Plain_2',    14:'BrokenPlane_1',
+      15:'Forest_1', 16:'Forest_2',   17:'Forest_3',
+      18:'Hills_1',  19:'Mountain_1',
+      20:'GoldVein_1',21:'Oil_1',
+      22:'Barren_1', 23:'Desert_1',   24:'Swamp_1',  25:'Wetlands_1',
+      26:'Lava_Plain_1',27:'Lava_Rift_1',28:'Rift_1'
+    };
+    return F[val] || 'Plain_1';
+  }
+
   function _buildJson() {
     const data2d = [];
     for (let r = 0; r < MAP_HEIGHT; r++)
-      data2d.push(Array.from(mapData.subarray(r * MAP_WIDTH, (r+1) * MAP_WIDTH)));
-
-    const customTerrain = Object.entries(customTerrainOverlay).map(([key, id]) => {
-      const [row, col] = key.split('_').map(Number);
-      return { x: col, y: row, id };
-    });
+      data2d.push(mapData.slice(r * MAP_WIDTH, (r+1) * MAP_WIDTH));
 
     const result = {
       width: MAP_WIDTH, height: MAP_HEIGHT,
       data: data2d,
       settlements: settlements.map(s => ({ col: s.col, row: s.row, type: s.type }))
     };
-    if (customTerrain.length > 0)
-      result.custom_terrain = customTerrain;
     if (settlementSlots.length > 0)
       result.settlement_slots = settlementSlots.map(s => ({
         minDist: s.minDist, maxDist: s.maxDist,
@@ -3972,19 +3953,20 @@ const IO = (() => {
       if (!json.width || !json.height || !Array.isArray(json.data)) return false;
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
-      mapData = new Int8Array(MAP_WIDTH * MAP_HEIGHT);
+      mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+      // Detect old integer format: data[0][0] is a number → migrate to hex ID strings
+      const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
         const srcRow = json.data[r];
         if (!srcRow) continue;
         for (let c = 0; c < MAP_WIDTH; c++)
-          mapData[r * MAP_WIDTH + c] = srcRow[c] ?? 12;
+          mapData[r * MAP_WIDTH + c] = needsMigration ? _migrateTid(srcRow[c]) : (srcRow[c] || 'Plain_1');
       }
-      // Restore custom terrain overlay
-      customTerrainOverlay = {};
-      if (json.custom_terrain && Array.isArray(json.custom_terrain)) {
+      // Migrate old custom_terrain overlay into mapData (overwrite the integer-migrated values)
+      if (needsMigration && json.custom_terrain && Array.isArray(json.custom_terrain)) {
         json.custom_terrain.forEach(ct => {
           if (ct.x >= 0 && ct.y >= 0 && ct.id)
-            customTerrainOverlay[`${ct.y}_${ct.x}`] = ct.id;
+            mapData[ct.y * MAP_WIDTH + ct.x] = ct.id;
         });
       }
       settlements = json.settlements && json.settlements.length
@@ -4019,8 +4001,7 @@ const IO = (() => {
     if (silent) {
       MAP_WIDTH  = 450;
       MAP_HEIGHT = 450;
-      mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12);
-      customTerrainOverlay = {};
+      mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
@@ -4064,8 +4045,7 @@ const IO = (() => {
     const h = Math.max(20, Math.min(450, parseInt(document.getElementById('newmap-h').value, 10) || 450));
     MAP_WIDTH  = w;
     MAP_HEIGHT = h;
-    mapData    = new Int8Array(MAP_WIDTH * MAP_HEIGHT).fill(12);
-    customTerrainOverlay = {};
+    mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
     settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
     settlementSlots = [];
     if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
@@ -4100,22 +4080,20 @@ const IO = (() => {
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
 
-      // Convert 2D array to flat Int8Array
-      mapData = new Int8Array(MAP_WIDTH * MAP_HEIGHT);
+      mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+      // Detect old integer format and migrate to hex ID strings
+      const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
         const srcRow = json.data[r];
         if (!srcRow) continue;
-        for (let c = 0; c < MAP_WIDTH; c++) {
-          mapData[r * MAP_WIDTH + c] = srcRow[c] ?? 12;
-        }
+        for (let c = 0; c < MAP_WIDTH; c++)
+          mapData[r * MAP_WIDTH + c] = needsMigration ? _migrateTid(srcRow[c]) : (srcRow[c] || 'Plain_1');
       }
-
-      // Restore custom terrain overlay
-      customTerrainOverlay = {};
-      if (json.custom_terrain && Array.isArray(json.custom_terrain)) {
+      // Migrate old custom_terrain overlay positions into mapData
+      if (needsMigration && json.custom_terrain && Array.isArray(json.custom_terrain)) {
         json.custom_terrain.forEach(ct => {
           if (ct.x >= 0 && ct.y >= 0 && ct.id)
-            customTerrainOverlay[`${ct.y}_${ct.x}`] = ct.id;
+            mapData[ct.y * MAP_WIDTH + ct.x] = ct.id;
         });
       }
 
@@ -4185,7 +4163,7 @@ const IO = (() => {
     if (!mapData) return;
     const rows = [];
     for (let r = 0; r < MAP_HEIGHT; r++) {
-      rows.push(Array.from(mapData.subarray(r * MAP_WIDTH, (r+1) * MAP_WIDTH)).join(','));
+      rows.push(mapData.slice(r * MAP_WIDTH, (r+1) * MAP_WIDTH).join(','));
     }
     const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
     const a    = document.createElement('a');
@@ -4200,8 +4178,7 @@ const IO = (() => {
     UI.closeAllMenus();
     UI.showConfirm('Clear Map', 'Clear all terrain? City settlement will be preserved.', () => {
       History.push();
-      mapData.fill(12);
-      customTerrainOverlay = {};
+      mapData.fill('Plain_1');
       settlements = settlements.filter(s => s.type === 'city');
       if (settlements.length === 0) settlements.push({ col: getCityCol(), row: getCityRow(), type: 'city' });
       UI.updateSettlementCount();
@@ -4214,20 +4191,13 @@ const IO = (() => {
 
   function fillMap() {
     UI.closeAllMenus();
-    const t = Terrain.byId(UI.getSelectedTerrain());
-    UI.showConfirm('Fill Map', `Fill entire map with ${t.name}?`, () => {
+    const hexId = UI.getSelectedTerrain();
+    UI.showConfirm('Fill Map', `Fill entire map with ${hexId}?`, () => {
       History.push();
-      mapData.fill(UI.getSelectedTerrain());
-      const _fillCustomId = UI.getSelectedCustomId();
-      customTerrainOverlay = {};
-      if (_fillCustomId) {
-        for (let r = 0; r < MAP_HEIGHT; r++)
-          for (let c = 0; c < MAP_WIDTH; c++)
-            customTerrainOverlay[`${r}_${c}`] = _fillCustomId;
-      }
+      mapData.fill(hexId);
       Canvas.render();
       Canvas.drawMinimap();
-      UI.toast(`Map filled with ${t.name}`);
+      UI.toast(`Map filled with ${hexId}`);
       _autoSave();
     });
   }
@@ -4312,17 +4282,21 @@ const Generator = (() => {
     return () => { s=(Math.imul(s,1664525)+1013904223)>>>0; return s/4294967296.0; };
   }
 
-  // Lazy terrain ID table resolved from HexDB — reset to null if HexDB reloads.
+  // Lazy terrain ID table resolved from HexDB as string hex IDs.
   let _genT = null;
   function _getGenT() {
     if (_genT) return _genT;
+    // find() returns the canonical hex ID string if the entry is in HexDB,
+    // or the raw string as-is (which still works as a key in mapData).
     const find = hexId => {
-      const e = typeof HexDB !== 'undefined' ? HexDB.getAll().find(h => h.id === hexId) : null;
-      return (e && e.terrainTypeId >= 0) ? e.terrainTypeId : 12; // 12=Plain_1 if HexDB not ready
+      if (typeof HexDB !== 'undefined') {
+        const e = HexDB.getAll().find(h => h.id && h.id.toLowerCase() === hexId.toLowerCase());
+        if (e) return e.id;
+      }
+      return hexId;  // pass through as-is — unknown IDs render as fallback color
     };
     _genT = {
-      // Internal water/river sentinels — no HexDB terrainTypeId
-      W0: 0, W1: 1, W2: 2,
+      WATER_DARK: 'Water_Dark', WATER_LIGHT: 'Water_Light', WATER_ROCK: 'Water_Rock',
       RUBBLE_1:     find('Rubble_1'),     RUBBLE_2:  find('Rubble_2'),   RUBBLE_3: find('Rubble_3'),
       PLAIN_1:      find('Plain_1'),      PLAIN_2:   find('Plain_2'),
       BROKEN_PLAIN: find('BrokenPlane_1'),
@@ -4351,8 +4325,9 @@ const Generator = (() => {
     }
     if (e < wThr) {
       const depth = (wThr - e) / wThr;
-      if (depth > 0.55) return Math.floor(b * 3) % 3;  // W0/W1/W2 water sentinels
-      return m > 0.55 ? T.SWAMP : (b > 0.50 ? T.W1 : T.W0);
+      const waterV = [T.WATER_DARK, T.WATER_LIGHT, T.WATER_ROCK];
+      if (depth > 0.55) return waterV[Math.floor(b * 3) % 3];
+      return m > 0.55 ? T.SWAMP : (b > 0.50 ? T.WATER_LIGHT : T.WATER_DARK);
     }
     const norm = (e - wThr) / Math.max(hThr - wThr, 0.001);
     if (m < 0.28) {
@@ -4361,7 +4336,7 @@ const Generator = (() => {
       return norm > 0.60 ? T.HILLS : T.RUBBLE_3;
     }
     if (m > 0.70) {
-      if (b < 0.30) return norm > 0.45 ? T.SWAMP : T.W0;
+      if (b < 0.30) return norm > 0.45 ? T.SWAMP : T.WATER_DARK;
       if (b < 0.60) return norm > 0.50 ? T.FOREST_2 : T.FOREST_1;
       return norm > 0.55 ? T.FOREST_3 : T.SWAMP;
     }
@@ -4431,6 +4406,8 @@ const Generator = (() => {
     if (p.rivers > 0) {
       const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
       const cr2  = infR * infR;
+      const _riverT = _getGenT();
+      const _riverV = [_riverT.WATER_DARK, _riverT.WATER_LIGHT, _riverT.WATER_ROCK];
       let carved = 0, tries = 0;
       while (carved < p.rivers && tries < 400) {
         tries++;
@@ -4447,7 +4424,7 @@ const Generator = (() => {
           visited.add(key);
           const dx = cc - halfW, dy = cr - halfH;
           if (dx * dx + dy * dy <= cr2) break;
-          dest[cr * W + cc] = 3 + Math.floor(rng() * 6);
+          dest[cr * W + cc] = _riverV[Math.floor(rng() * 3)];
           let bc = cc, br = cr, be = elev[cr * W + cc];
           const jitter = (rng() - 0.5) * 0.04;
           for (const [dc, dr] of dirs) {
@@ -4496,7 +4473,7 @@ const Generator = (() => {
 
   function _renderPreview() {
     const W = MAP_WIDTH, H = MAP_HEIGHT;
-    const tmp = new Int8Array(W * H);
+    const tmp = new Array(W * H).fill('Plain_1');
     _generateInto(tmp, _getParams());
     const cv = document.getElementById('gen-preview');
     if (!cv) return;
@@ -4570,26 +4547,28 @@ const Satellite = (() => {
   let _classified = null;  // Int8Array [MAP_WIDTH * MAP_HEIGHT]
   let _satDebounce = null;
 
-  // Lazy terrain ID table — resolved from HexDB on first _classify() call.
-  // WATER_DARK/LIGHT are sentinels (no HexDB terrainTypeId); clearWater converts them to PLAIN_1.
+  // Lazy terrain ID table — resolved from HexDB as string hex IDs.
   let _T = null;
   function _getT() {
     if (_T) return _T;
-    const tid = hexId => {
-      const e = typeof HexDB !== 'undefined' ? HexDB.getAll().find(h => h.id === hexId) : null;
-      return (e && e.terrainTypeId >= 0) ? e.terrainTypeId : 12;
+    const find = hexId => {
+      if (typeof HexDB !== 'undefined') {
+        const e = HexDB.getAll().find(h => h.id && h.id.toLowerCase() === hexId.toLowerCase());
+        if (e) return e.id;
+      }
+      return hexId;
     };
     _T = {
-      WATER_DARK:   0, WATER_LIGHT: 1, WATER_ROCK: 2,  // sentinel IDs, no HexDB terrainTypeId
-      RUBBLE_1:     tid('Rubble_1'),   RUBBLE_2:    tid('Rubble_2'),
-      PLAIN_1:      tid('Plain_1'),    PLAIN_2:     tid('Plain_2'),
-      BROKEN_PLAIN: tid('BrokenPlane_1'),
-      FOREST_1:     tid('Forest_1'),   FOREST_2:    tid('Forest_2'),
-      SWAMP:        tid('Swamp_1'),    HILLS:       tid('Hills_1'),
-      MOUNTAIN:     tid('Mountain_1'),
-      BARREN:       tid('Barren_1'),   DESERT:      tid('Desert_1'),
-      LAVA:         tid('Lava_Plain_1'), LAVA_RIFT: tid('Lava_Rift_1'),
-      RIFT:         tid('Rift_1'),
+      WATER_DARK: 'Water_Dark', WATER_LIGHT: 'Water_Light', WATER_ROCK: 'Water_Rock',
+      RUBBLE_1:     find('Rubble_1'),   RUBBLE_2:    find('Rubble_2'),
+      PLAIN_1:      find('Plain_1'),    PLAIN_2:     find('Plain_2'),
+      BROKEN_PLAIN: find('BrokenPlane_1'),
+      FOREST_1:     find('Forest_1'),   FOREST_2:    find('Forest_2'),
+      SWAMP:        find('Swamp_1'),    HILLS:       find('Hills_1'),
+      MOUNTAIN:     find('Mountain_1'),
+      BARREN:       find('Barren_1'),   DESERT:      find('Desert_1'),
+      LAVA:         find('Lava_Plain_1'), LAVA_RIFT: find('Lava_Rift_1'),
+      RIFT:         find('Rift_1'),
     };
     return _T;
   }
@@ -4678,7 +4657,7 @@ const Satellite = (() => {
     const sens    = parseInt(document.getElementById('sat-sens').value, 10) / 100;
     const flipY   = document.getElementById('sat-flipY').checked;
 
-    _classified = new Int8Array(W * H);
+    _classified = new Array(W * H).fill('Plain_1');
     for (let row = 0; row < H; row++) {
       for (let col = 0; col < W; col++) {
         const srcRow = flipY ? H - 1 - row : row;
@@ -4774,10 +4753,7 @@ const Satellite = (() => {
     if (keepCity || clearWater) {
       const clearR   = 3;
       const T2 = _getT();
-      // Water sentinels (T2.WATER_DARK=0, WATER_LIGHT=1, WATER_ROCK=2) +
-      // Generator river sentinel range 3-8 (from 3 + Math.floor(rng()*6)) +
-      // impassable land types from HexDB
-      const impassableIds = new Set([T2.WATER_DARK, T2.WATER_LIGHT, T2.WATER_ROCK, 3,4,5,6,7,8, T2.MOUNTAIN, T2.LAVA, T2.LAVA_RIFT, T2.RIFT]);
+      const impassableIds = new Set([T2.WATER_DARK, T2.WATER_LIGHT, T2.WATER_ROCK, T2.MOUNTAIN, T2.LAVA, T2.LAVA_RIFT, T2.RIFT]);
       for (let dr = -clearR; dr <= clearR; dr++) {
         for (let dc = -clearR; dc <= clearR; dc++) {
           if (dc * dc + dr * dr > clearR * clearR) continue;
@@ -6524,8 +6500,7 @@ const SttDB = (() => {
 // Task 8: menu wiring verified
 let MAP_WIDTH  = 450;
 let MAP_HEIGHT = 450;
-let mapData    = null;  // Int8Array (filled by IO.newMap / load)
-let customTerrainOverlay = {}; // "row_col" → HexDB string id  (sparse, only custom types)
+let mapData    = null;  // string[] hex IDs (filled by IO.newMap / load)
 let settlements = [];
 let settlementSlots = []; // [{minDist,maxDist,count,type}]
 let settlementsVisible = true;
@@ -6567,7 +6542,7 @@ window.addEventListener('load', async () => {
   HexDB.init();
   UI.buildPalette();
   UI.rebuildSlotPanel();
-  UI.selectTerrain(12);
+  UI.selectTerrain('Plain_1');
 
   // Drive HexDB is loaded explicitly via ☁ Sync button.
   // Autosave (localStorage) is used on startup to avoid 403 noise from private Drive files.
