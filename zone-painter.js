@@ -36,66 +36,85 @@ const ZonePainter = (() => {
   }
 
   // ── Built-in biome presets ────────────────────────────────────────────────
+  // terrainWeights keys and forbiddenTerrain values are HexDB hex IDs (strings).
+  const _WATER_TYPES = ['Water_1','Water_Dirty_1','Water_Rock_1'];
+  const _IMPASSABLE  = [..._WATER_TYPES, 'Hills_1','Mountain_1','Lava_Plain_1','Lava_Rift_1','Rift_1'];
+
   const BUILTIN_PRESETS = [
     {
       id: 'forest_edge', name: 'Forest Edge',
-      terrainWeights: {15: 0.40, 16: 0.20, 12: 0.30, 13: 0.10},
+      terrainWeights: {'Forest_1': 0.40, 'Forest_2': 0.20, 'Plain_1': 0.30, 'Plain_2': 0.10},
       patchScale: 8, patchContrast: 1.5,
       blendWidth: 8, blendMode: 'noisy',
       settlementDensity: 'medium', settlementMinSpacing: 15,
-      forbiddenTerrain: [0,1,2,3,4,5,6,7,8,18,19,26,27,28]
+      forbiddenTerrain: [..._IMPASSABLE, 'Rubble_1','Rubble_2','Rubble_3']
     },
     {
       id: 'deep_wasteland', name: 'Deep Wasteland',
-      terrainWeights: {9: 0.40, 22: 0.40, 12: 0.20},
+      terrainWeights: {'Rubble_1': 0.40, 'Barren_1': 0.40, 'Plain_1': 0.20},
       patchScale: 12, patchContrast: 2.0,
       blendWidth: 6, blendMode: 'hard',
       settlementDensity: 'sparse', settlementMinSpacing: 25,
-      forbiddenTerrain: [0,1,2,3,4,5,6,7,8,18,19,26,27,28]
+      forbiddenTerrain: [..._IMPASSABLE, 'Rubble_1','Rubble_2','Rubble_3']
     },
     {
       id: 'river_valley', name: 'River Valley',
-      terrainWeights: {12: 0.50, 3: 0.10, 0: 0.20, 24: 0.20},
+      terrainWeights: {'Plain_1': 0.50, 'BrokenPlane_1': 0.10, 'Swamp_1': 0.20, 'Plain_2': 0.20},
       patchScale: 6, patchContrast: 1.2,
       blendWidth: 10, blendMode: 'smooth',
       settlementDensity: 'dense', settlementMinSpacing: 10,
-      forbiddenTerrain: [0,1,2,3,4,5,6,7,8,18,19,26,27,28]
+      forbiddenTerrain: [..._IMPASSABLE, 'Rubble_1','Rubble_2','Rubble_3']
     },
     {
       id: 'mountain_rim', name: 'Mountain Rim',
-      terrainWeights: {19: 0.50, 18: 0.30, 9: 0.20},
+      terrainWeights: {'Mountain_1': 0.50, 'Hills_1': 0.30, 'Rubble_1': 0.20},
       patchScale: 10, patchContrast: 2.0,
       blendWidth: 5, blendMode: 'hard',
       settlementDensity: 'none', settlementMinSpacing: 30,
-      forbiddenTerrain: [0,1,2,3,4,5,6,7,8,18,19,26,27,28]
+      forbiddenTerrain: [..._WATER_TYPES, 'Lava_Plain_1','Lava_Rift_1','Rift_1']
     },
     {
       id: 'ash_plains', name: 'Ash Plains',
-      terrainWeights: {22: 0.50, 28: 0.30, 9: 0.20},
+      terrainWeights: {'Barren_1': 0.50, 'Rift_1': 0.30, 'Rubble_1': 0.20},
       patchScale: 5, patchContrast: 1.8,
       blendWidth: 7, blendMode: 'noisy',
       settlementDensity: 'none', settlementMinSpacing: 30,
-      forbiddenTerrain: [0,1,2,3,4,5,6,7,8,15,16,17,18,19,26,27,28]
+      forbiddenTerrain: [..._WATER_TYPES, 'Forest_1','Forest_2','Forest_3','Hills_1','Mountain_1','Lava_Plain_1','Lava_Rift_1']
     },
     {
       id: 'marshland', name: 'Marshland',
-      terrainWeights: {24: 0.50, 0: 0.30, 12: 0.20},
+      terrainWeights: {'Swamp_1': 0.50, 'BrokenPlane_1': 0.30, 'Plain_1': 0.20},
       patchScale: 9, patchContrast: 1.3,
       blendWidth: 9, blendMode: 'smooth',
       settlementDensity: 'sparse', settlementMinSpacing: 20,
-      forbiddenTerrain: [0,1,2,3,4,5,6,7,8,18,19,26,27,28]
+      forbiddenTerrain: [..._IMPASSABLE, 'Rubble_1','Rubble_2','Rubble_3']
     },
     {
       id: 'ruined_district', name: 'Ruined District',
-      terrainWeights: {9: 0.30, 10: 0.20, 12: 0.30, 22: 0.20},
+      terrainWeights: {'Rubble_1': 0.30, 'Rubble_2': 0.20, 'Plain_1': 0.30, 'Barren_1': 0.20},
       patchScale: 4, patchContrast: 1.6,
       blendWidth: 6, blendMode: 'noisy',
       settlementDensity: 'dense', settlementMinSpacing: 8,
-      forbiddenTerrain: [0,1,2,3,4,5,6,7,8,18,19,26,27,28]
+      forbiddenTerrain: [..._IMPASSABLE, 'Rubble_1','Rubble_2','Rubble_3']
     }
   ];
 
   const DENSITY_FACTORS = {none: 0, sparse: 0.002, medium: 0.005, dense: 0.010};
+
+  // ── HexDB resolvers ───────────────────────────────────────────────────────
+  // Returns terrainTypeId (integer) for a hex ID string, or -1 if not found.
+  function _hexIdToTid(hexId) {
+    if (typeof HexDB === 'undefined') return -1;
+    const e = HexDB.getAll().find(h => h.id === hexId);
+    return (e && typeof e.terrainTypeId !== 'undefined') ? e.terrainTypeId : -1;
+  }
+
+  // Returns hex ID string for a terrainTypeId integer, or null if not found.
+  function _tidToHexId(tid) {
+    if (typeof HexDB === 'undefined') return null;
+    const e = HexDB.getAll().find(h => h.terrainTypeId === tid);
+    return e ? e.id : null;
+  }
 
   // ── Zone state ────────────────────────────────────────────────────────────
   let _zoneLayer    = null; // Uint8Array(MAP_WIDTH * MAP_HEIGHT), 0 = no zone
@@ -222,16 +241,16 @@ const ZonePainter = (() => {
     return dist;
   }
 
-  // Maps noise value [0,1] to a terrain ID using preset's terrainWeights.
+  // Maps noise value [0,1] to a HexDB hex ID string using preset's terrainWeights.
   function _noiseToTerrain(noise, preset) {
     const entries = Object.entries(preset.terrainWeights)
-      .sort((a,b) => parseFloat(a[0]) - parseFloat(b[0]));
+      .sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
     let cum = 0;
-    for (const [idStr, weight] of entries) {
+    for (const [hexId, weight] of entries) {
       cum += weight;
-      if (noise <= cum) return parseInt(idStr);
+      if (noise <= cum) return hexId;
     }
-    return parseInt(entries[entries.length - 1][0]);
+    return entries[entries.length - 1][0];
   }
 
   // Fills terrain for all tiles in zoneId using preset's noise parameters.
@@ -302,7 +321,8 @@ const ZonePainter = (() => {
           }
         }
 
-        mapData[i] = terrainId;
+        const tid = _hexIdToTid(terrainId);
+        if (tid >= 0) mapData[i] = tid;
       }
     }
   }
@@ -382,7 +402,13 @@ const ZonePainter = (() => {
       for (let col = 0; col < w; col++) {
         const i = row * w + col;
         if (_zoneLayer[i] !== zoneId) continue;
-        if (forbidden.has(mapData[i] & 0xFF)) continue;
+        // Check base terrain via HexDB id
+        const baseHexId = _tidToHexId(mapData[i] & 0xFF);
+        if (baseHexId && forbidden.has(baseHexId)) continue;
+        // Also check custom overlay (e.g. water types stored there)
+        const customHexId = (typeof customTerrainOverlay !== 'undefined')
+          ? customTerrainOverlay[`${row}_${col}`] : null;
+        if (customHexId && forbidden.has(customHexId)) continue;
         valid.push([col, row]);
       }
 
@@ -602,25 +628,19 @@ const ZonePainter = (() => {
     const W = canvas.width, H = canvas.height;
     const perm = _buildPerm(Date.now() & 0xFFFF);
     const contrast = _workingPreset.patchContrast || 1;
-    const TERRAIN_COLORS = {
-      0:'#1a3a5a',1:'#1a3a5a',2:'#1a3a5a',3:'#2a5a8a',4:'#2a5a8a',
-      5:'#2a5a8a',6:'#2a5a8a',7:'#2a5a8a',8:'#2a5a8a',
-      9:'#5a4a3a',10:'#6a5a4a',11:'#7a6a5a',
-      12:'#6a8a4a',13:'#7a9a5a',14:'#5a6a4a',
-      15:'#2a5a2a',16:'#3a7a3a',17:'#4a6a3a',
-      18:'#6a6a7a',19:'#8a8a9a',
-      20:'#c8a820',21:'#8a7a5a',
-      22:'#8a7a5a',23:'#9a8a6a',
-      24:'#3a5a3a',25:'#4a6a5a',
-      26:'#8a3a1a',27:'#9a4a2a',28:'#6a2a1a'
-    };
     ctx.clearRect(0, 0, W, H);
     for (let py = 0; py < H; py++) {
       for (let px = 0; px < W; px++) {
         const n = perlinNoise(px / _workingPreset.patchScale, py / _workingPreset.patchScale, perm);
         const nc = Math.max(0, Math.min(1, (n - 0.5) * contrast + 0.5));
-        const tid = _noiseToTerrain(nc, _workingPreset);
-        ctx.fillStyle = TERRAIN_COLORS[tid] || '#444';
+        const hexId = _noiseToTerrain(nc, _workingPreset);
+        const tid = _hexIdToTid(hexId);
+        if (tid >= 0 && typeof Terrain !== 'undefined') {
+          const [r, g, b] = Terrain.color(tid);
+          ctx.fillStyle = `rgb(${r},${g},${b})`;
+        } else {
+          ctx.fillStyle = '#444';
+        }
         ctx.fillRect(px, py, 1, 1);
       }
     }
