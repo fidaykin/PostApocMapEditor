@@ -2635,6 +2635,7 @@ const Tools = (() => {
         _eraseSettlement(col, row);
         break;
       case 'zone':
+        History.push();
         _paintZone(col, row);
         _lastZonePainted = { col, row };
         break;
@@ -2714,10 +2715,12 @@ const History = (() => {
   const _redo = [];   // stack of string[] snapshots (future states)
 
   function _snapshot() {
+    const zl = typeof ZonePainter !== 'undefined' ? ZonePainter.getZoneLayer() : null;
     return {
       grid:        mapData.slice(),
       settlements: settlements.map(s => Object.assign({}, s)),
-      slots:       settlementSlots.map(s => Object.assign({}, s))
+      slots:       settlementSlots.map(s => Object.assign({}, s)),
+      zoneLayer:   zl ? zl.slice() : null
     };
   }
 
@@ -2725,6 +2728,10 @@ const History = (() => {
     for (let i = 0; i < snap.grid.length; i++) mapData[i] = snap.grid[i];
     settlements = (snap.settlements || []).map(s => Object.assign({}, s));
     settlementSlots = (snap.slots || []).map(s => Object.assign({}, s));
+    if (snap.zoneLayer && typeof ZonePainter !== 'undefined') {
+      const zl = ZonePainter.getZoneLayer();
+      if (zl && zl.length === snap.zoneLayer.length) zl.set(snap.zoneLayer);
+    }
     UI.updateSettlementCount();
     if (UI.rebuildSlotPanel) UI.rebuildSlotPanel();
   }
@@ -4121,6 +4128,7 @@ const IO = (() => {
         : [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
       if (typeof ZonePainter !== 'undefined') {
+        ZonePainter.init();  // resize zoneLayer to match new MAP_WIDTH/MAP_HEIGHT
         ZonePainter.fromSaveObject({
           zones:        json.zones        || [],
           zoneMap:      json.zoneMap      || null,
