@@ -353,8 +353,7 @@ const ZonePainter = (() => {
           }
         }
 
-        const tid = _hexIdToTid(terrainId);
-        if (tid >= 0) mapData[i] = tid;
+        mapData[i] = terrainId;  // write hex ID string directly
       }
     }
   }
@@ -434,13 +433,7 @@ const ZonePainter = (() => {
       for (let col = 0; col < w; col++) {
         const i = row * w + col;
         if (_zoneLayer[i] !== zoneId) continue;
-        // Check base terrain via HexDB id
-        const baseHexId = _tidToHexId(mapData[i] & 0xFF);
-        if (baseHexId && forbidden.has(baseHexId)) continue;
-        // Also check custom overlay (e.g. water types stored there)
-        const customHexId = (typeof customTerrainOverlay !== 'undefined')
-          ? customTerrainOverlay[`${row}_${col}`] : null;
-        if (customHexId && forbidden.has(customHexId)) continue;
+        if (forbidden.has(mapData[i])) continue;
         valid.push([col, row]);
       }
 
@@ -666,9 +659,8 @@ const ZonePainter = (() => {
         const n = perlinNoise(px / _workingPreset.patchScale, py / _workingPreset.patchScale, perm);
         const nc = Math.max(0, Math.min(1, (n - 0.5) * contrast + 0.5));
         const hexId = _noiseToTerrain(nc, _workingPreset);
-        const tid = _hexIdToTid(hexId);
-        if (tid >= 0 && typeof Terrain !== 'undefined') {
-          const [r, g, b] = Terrain.color(tid);
+        if (typeof Terrain !== 'undefined') {
+          const [r, g, b] = Terrain.color(hexId);
           ctx.fillStyle = `rgb(${r},${g},${b})`;
         } else {
           ctx.fillStyle = '#444';
