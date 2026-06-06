@@ -230,6 +230,13 @@ const ZonePainter = (() => {
       forbiddenTerrain: p.forbiddenTerrain.slice()
     }));
     (obj.biomePresets || []).forEach(p => _presets.push(_migratePreset(Object.assign({}, p))));
+    if (_zones.length === 0) {
+      BUILTIN_PRESETS.forEach(p => {
+        const id = _nextZoneId++;
+        _zones.push({id, name: p.name, color: _defaultColor(id), presetId: p.id});
+      });
+      _selectedZoneId = _zones[0].id;
+    }
     if (obj.zoneMap) {
       const bin = atob(obj.zoneMap);
       for (let i = 0; i < Math.min(bin.length, w * h); i++)
