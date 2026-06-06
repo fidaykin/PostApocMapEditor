@@ -102,18 +102,42 @@ const ZonePainter = (() => {
   const DENSITY_FACTORS = {none: 0, sparse: 0.002, medium: 0.005, dense: 0.010};
 
   // ── HexDB resolvers ───────────────────────────────────────────────────────
+  // Static fallback: built-in hex id → terrainTypeId (matches TerrainType C# enum).
+  // Used when HexDB hasn't loaded yet and for old autosaved custom presets.
+  const _STATIC_TID = {
+    'Rubble_1':9,  'Rubble_2':10, 'Rubble_3':11,
+    'Plain_1':12,  'Plain_2':13,  'BrokenPlane_1':14,
+    'Forest_1':15, 'Forest_2':16, 'Forest_3':17,
+    'Hills_1':18,  'Mountain_1':19,
+    'GoldVein_1':20,'Oil_1':21,
+    'Barren_1':22, 'Desert_1':23,
+    'Swamp_1':24,
+    'Lava_Plain_1':26,'Lava_Rift_1':27,'Rift_1':28
+  };
+
   // Returns terrainTypeId (integer) for a hex ID string, or -1 if not found.
   function _hexIdToTid(hexId) {
-    if (typeof HexDB === 'undefined') return -1;
-    const e = HexDB.getAll().find(h => h.id === hexId);
-    return (e && typeof e.terrainTypeId !== 'undefined') ? e.terrainTypeId : -1;
+    // Try HexDB first (covers custom types too)
+    if (typeof HexDB !== 'undefined') {
+      const e = HexDB.getAll().find(h => h.id === hexId);
+      if (e && typeof e.terrainTypeId !== 'undefined' && e.terrainTypeId >= 0)
+        return e.terrainTypeId;
+    }
+    // Static fallback for built-in types (works before HexDB loads)
+    if (hexId in _STATIC_TID) return _STATIC_TID[hexId];
+    // Legacy: old autosaved preset stored numeric string key (e.g. '15')
+    const n = parseInt(hexId, 10);
+    return (!isNaN(n) && String(n) === String(hexId)) ? n : -1;
   }
 
   // Returns hex ID string for a terrainTypeId integer, or null if not found.
   function _tidToHexId(tid) {
-    if (typeof HexDB === 'undefined') return null;
-    const e = HexDB.getAll().find(h => h.terrainTypeId === tid);
-    return e ? e.id : null;
+    if (typeof HexDB !== 'undefined') {
+      const e = HexDB.getAll().find(h => h.terrainTypeId === tid);
+      if (e) return e.id;
+    }
+    // Static fallback
+    return Object.keys(_STATIC_TID).find(k => _STATIC_TID[k] === tid) || null;
   }
 
   // ── Zone state ────────────────────────────────────────────────────────────
