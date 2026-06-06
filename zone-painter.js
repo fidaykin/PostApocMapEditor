@@ -102,29 +102,16 @@ const ZonePainter = (() => {
   const DENSITY_FACTORS = {none: 0, sparse: 0.002, medium: 0.005, dense: 0.010};
 
   // ── HexDB resolvers ───────────────────────────────────────────────────────
-  // Static fallback: built-in hex id → terrainTypeId (matches TerrainType C# enum).
-  // Used when HexDB hasn't loaded yet and for old autosaved custom presets.
-  const _STATIC_TID = {
-    'Rubble_1':9,  'Rubble_2':10, 'Rubble_3':11,
-    'Plain_1':12,  'Plain_2':13,  'BrokenPlane_1':14,
-    'Forest_1':15, 'Forest_2':16, 'Forest_3':17,
-    'Hills_1':18,  'Mountain_1':19,
-    'GoldVein_1':20,'Oil_1':21,
-    'Barren_1':22, 'Desert_1':23,
-    'Swamp_1':24,
-    'Lava_Plain_1':26,'Lava_Rift_1':27,'Rift_1':28
-  };
+  // HexDB is the single source of truth. No static ID tables — new tile types
+  // added to HexDB automatically become available here.
 
   // Returns terrainTypeId (integer) for a hex ID string, or -1 if not found.
   function _hexIdToTid(hexId) {
-    // Try HexDB first (covers custom types too)
     if (typeof HexDB !== 'undefined') {
       const e = HexDB.getAll().find(h => h.id === hexId);
       if (e && typeof e.terrainTypeId !== 'undefined' && e.terrainTypeId >= 0)
         return e.terrainTypeId;
     }
-    // Static fallback for built-in types (works before HexDB loads)
-    if (hexId in _STATIC_TID) return _STATIC_TID[hexId];
     // Legacy: old autosaved preset stored numeric string key (e.g. '15')
     const n = parseInt(hexId, 10);
     return (!isNaN(n) && String(n) === String(hexId)) ? n : -1;
@@ -136,8 +123,28 @@ const ZonePainter = (() => {
       const e = HexDB.getAll().find(h => h.terrainTypeId === tid);
       if (e) return e.id;
     }
-    // Static fallback
-    return Object.keys(_STATIC_TID).find(k => _STATIC_TID[k] === tid) || null;
+    return null;
+  }
+
+  // Upgrades presets saved before the string-ID migration.
+  // Old format stored integer keys in terrainWeights (e.g. {'15': 0.4}).
+  function _migratePreset(preset) {
+    if (!preset.terrainWeights) return preset;
+    const hasIntKeys = Object.keys(preset.terrainWeights).some(k => /^\d+$/.test(k));
+    if (!hasIntKeys) return preset;
+    const newWeights = {};
+    for (const [key, w] of Object.entries(preset.terrainWeights)) {
+      const hexId = /^\d+$/.test(key) ? (_tidToHexId(parseInt(key, 10)) || key) : key;
+      newWeights[hexId] = (newWeights[hexId] || 0) + w;
+    }
+    const migrated = Object.assign({}, preset, { terrainWeights: newWeights });
+    if (preset.forbiddenTerrain) {
+      migrated.forbiddenTerrain = preset.forbiddenTerrain.map(f => {
+        const s = String(f);
+        return /^\d+$/.test(s) ? (_tidToHexId(parseInt(s, 10)) || s) : f;
+      });
+    }
+    return migrated;
   }
 
   // ── Zone state ────────────────────────────────────────────────────────────
@@ -222,7 +229,7 @@ const ZonePainter = (() => {
       terrainWeights: Object.assign({}, p.terrainWeights),
       forbiddenTerrain: p.forbiddenTerrain.slice()
     }));
-    (obj.biomePresets || []).forEach(p => _presets.push(Object.assign({}, p)));
+    (obj.biomePresets || []).forEach(p => _presets.push(_migratePreset(Object.assign({}, p))));
     if (obj.zoneMap) {
       const bin = atob(obj.zoneMap);
       for (let i = 0; i < Math.min(bin.length, w * h); i++)
@@ -279,6 +286,7 @@ const ZonePainter = (() => {
 
   // Fills terrain for all tiles in zoneId using preset's noise parameters.
   function fillZoneTerrain(zoneId, mapData) {
+    if (typeof HexDB === 'undefined') { console.warn('ZonePainter: HexDB not loaded, fill skipped'); return; }
     const zone = _zones.find(z => z.id === zoneId);
     if (!zone) return;
     const preset = getPreset(zone.presetId);
