@@ -1455,13 +1455,17 @@ const Terrain = (() => {
   };
 
   const sprites = {};  // hexId (lowercase) → HTMLImageElement (all terrain types, unified)
-  let   citySprite = null;
+  let   citySprite       = null;
+  let   settlementSprite = null;
 
-  // City sprite is always bundled — load it once at startup.
+  // City and settlement sprites are always bundled — load them once at startup.
   (() => {
-    const img = new Image();
-    img.onload = () => { citySprite = img; };
-    img.src = HEX_DIR + 'Settlements_1.png';
+    const img1 = new Image();
+    img1.onload = () => { citySprite = img1; };
+    img1.src = HEX_DIR + 'Settlements_1.png';
+    const img2 = new Image();
+    img2.onload = () => { settlementSprite = img2; };
+    img2.src = HEX_DIR + 'Settlements_2.png';
   })();
 
   function getSprite(id) {
@@ -1469,7 +1473,8 @@ const Terrain = (() => {
     return sprites[id.toLowerCase()] || null;
   }
   function getCustomSprite(id) { return getSprite(id); }  // unified — all sprites in sprites{}
-  function getCitySprite() { return citySprite; }
+  function getCitySprite()       { return citySprite; }
+  function getSettlementSprite() { return settlementSprite; }
 
   // Case-insensitive color lookup by hex ID string.
   function color(id) {
@@ -1528,7 +1533,7 @@ const Terrain = (() => {
   function registerUploadedUrls(map) { Object.assign(_uploadedUrls, map); }
   function getUploadedUrl(name) { return _uploadedUrls[name] || null; }
 
-  return { applyHexDbOverrides, getSprite, getCustomSprite, getCitySprite,
+  return { applyHexDbOverrides, getSprite, getCustomSprite, getCitySprite, getSettlementSprite,
            color, byId, getAll, registerUploadedUrls, getUploadedUrl };
 })();
 // ════════════════════════════════════════════════════════════
@@ -1736,6 +1741,12 @@ const Canvas = (() => {
       ctx.lineWidth = Math.max(2, radius * 0.08);
       ctx.stroke();
     } else {
+      const sttImg = Terrain.getSettlementSprite();
+      if (sttImg && sttImg.complete) {
+        ctx.clip();
+        ctx.drawImage(sttImg, cx - radius, cy - radius, radius * 2, radius * 2);
+        hexClipPath(cx, cy, radius);
+      }
       ctx.strokeStyle = '#4fc3f7';
       ctx.lineWidth = Math.max(2, radius * 0.08);
       ctx.stroke();
@@ -4861,7 +4872,7 @@ const HexDB = (() => {
   // ── Blank record ─────────────────────────────────────────
   function _blank() {
     return {
-      id:'', textId:'', type:'Special', biome:'Summer',
+      id:'', textId:'', type:'New', biome:'Summer',
       filterCategory:'FilterTerrain', spriteName:'',
       category:'', terrainTypeId:-1, fallback:false,
       roadAllowed:false,
@@ -5057,8 +5068,8 @@ const HexDB = (() => {
   function _numInput(field, val) {
     return `<input class="hexdb-input" type="number" step="1" data-field="${field}" value="${val}">`;
   }
-  function _textInput(field, val) {
-    return `<input class="hexdb-input" data-field="${field}" value="${_esc(val)}">`;
+  function _textInput(field, val, extraAttr = '') {
+    return `<input class="hexdb-input" data-field="${field}" value="${_esc(val)}"${extraAttr}>`;
   }
   function _costRow(fields, vals) {
     return `<div class="hexdb-cost-row">${fields.map((f,i) =>
@@ -5093,7 +5104,7 @@ const HexDB = (() => {
 
   // ── Dynamic resource block helper ────────────────────────
   const DESTROY_RES_TYPES = ['Gold','Gems','Food','Lumber','Stone',
-    'Steel','Oil','Chips','Clay','Ore'];
+    'Steel','Oil','Chips','Clay','Ore','Pollution'];
   const SPEND_RES_TYPES = ['Pollution','Energy','Gold','Gems','Food',
     'Lumber','Stone','Steel','Oil','Chips','Clay'];
 
@@ -5180,7 +5191,7 @@ const HexDB = (() => {
       _checkRow('canStored', hex.canStored ?? false, 'hex moves to storage on destroy'),
       _checkRow('destroyIncomeEnabled', hex.destroyIncomeEnabled ?? false,
         'resources awarded on destroy'),
-      _row('Resources', _resourceBlockHTML(
+      _row('Destroy Income', _resourceBlockHTML(
         'destroyIncome', hex.destroyIncome ?? [],
         !canDes || !(hex.destroyIncomeEnabled ?? false)),
         'Resources awarded to the player when this tile is destroyed'),
@@ -5213,7 +5224,7 @@ const HexDB = (() => {
            style="width:110px" data-field="buildPremiumPrice"
            value="${hex.buildPremiumPrice ?? 0}"${bdis}>`,
         'Gem cost — if > 0 this is shown instead of the regular Price'),
-      _row('Placement Rule', _textInput('buildPlacementRule', hex.buildPlacementRule ?? ''),
+      _row('Placement Rule', _textInput('buildPlacementRule', hex.buildPlacementRule ?? '', bdis),
         'Rule ID for special placement constraints (configured in app data)'),
     ].join('');
 
