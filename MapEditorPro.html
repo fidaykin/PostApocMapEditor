@@ -3488,12 +3488,19 @@ const UI = (() => {
 
       (currentCatEl || scroll).appendChild(btn);
     });
+
+    // Re-apply the current selection to the freshly-created buttons.
+    // buildPalette() is called asynchronously (HexDB.init setTimeout, Drive sync,
+    // DB edits), so it always runs after selectTerrain() — leaving no button
+    // marked .selected and the bottom display stale. Calling selectTerrain here
+    // makes every rebuild self-healing regardless of call order.
+    selectTerrain(_selectedId);
   }
 
   function selectTerrain(hexId) {
     if (!hexId || typeof hexId !== 'string') hexId = 'Plain_1';
     _selectedId = hexId;
-    const t = Terrain.byHexId(hexId) || { id: hexId, name: hexId };
+    const t = Terrain.byId(hexId) || { id: hexId, name: hexId };
 
     // Highlight in palette
     document.querySelectorAll('.tile-btn').forEach(btn => {
