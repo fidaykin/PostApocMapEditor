@@ -547,11 +547,18 @@ const ZonePainter = (() => {
 
   // Randomizes zone territories then immediately fills terrain for all zones.
   function _randomizeFillUI() {
-    if (_zones.length === 0) {
-      alert('No zones defined.\nAdd zones in the Zone Painter panel first.');
-      return;
-    }
     if (typeof mapData === 'undefined' || !mapData) { alert('No map loaded.'); return; }
+
+    // Build one zone per available preset (builtins + any user presets).
+    // This replaces the current zone list so the panel reflects what was used.
+    _zones = [];
+    _nextZoneId = 1;
+    _presets.forEach(p => {
+      _zones.push({ id: _nextZoneId, name: p.name,
+                    color: _defaultColor(_nextZoneId), presetId: p.id });
+      _nextZoneId++;
+    });
+    _selectedZoneId = _zones[0]?.id || 0;
 
     const seed = (Date.now() ^ (Math.random() * 0x7FFFFFFF | 0)) & 0x7FFFFFFF;
     _randomizeZoneLayer(seed);
@@ -562,15 +569,16 @@ const ZonePainter = (() => {
       fillZoneSettlements(z.id, mapData, settlements);
     });
 
-    // Make sure overlay is visible so the result is evident
     _showOverlay = true;
     const btn = document.getElementById('btn-zone-overlay');
     if (btn) btn.style.opacity = '1';
+    _uiRebuildZoneList();
+    _uiRebuildZoneConfig();
 
     Canvas.render();
     Canvas.drawMinimap();
     if (typeof IO !== 'undefined') IO.scheduleAutoSave();
-    if (typeof UI !== 'undefined') UI.toast(`Zones randomized & filled — ${_zones.length} zones`);
+    if (typeof UI !== 'undefined') UI.toast(`Randomized with all ${_zones.length} presets`);
   }
 
   function _toggleOverlayUI() {
