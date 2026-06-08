@@ -942,6 +942,7 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="tool-btn" data-tool="erase" onclick="Tools.setActive('erase')">✕<span class="tooltip">Erase Settlement (D)</span></button>
       <button class="tool-btn" id="btn-zones" onclick="Canvas.toggleZones()">◎<span class="tooltip">Toggle Distance Rings</span></button>
       <button class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')">🗺️<span class="tooltip">Zone Painter (Z)</span></button>
+      <button class="hexdb-tool-btn" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize & Fill</button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._fillAllZones()" title="Fill all zones with biome terrain">▶ Fill Zones</button>
       <button id="btn-zone-overlay" class="hexdb-tool-btn" onclick="ZonePainter._toggleOverlayUI()" title="Toggle zone color overlay">👁 Overlay</button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._clearZonesUI()" title="Clear zone assignments">🗑 Clear Zones</button>

@@ -492,6 +492,87 @@ const ZonePainter = (() => {
     IO.scheduleAutoSave();
   }
 
+  // ── Zone layer randomizer ─────────────────────────────────────────────────
+
+  // Assigns every tile to one of the defined zones using Voronoi + noise jitter
+  // so zones form natural contiguous territories with organic borders.
+  function _randomizeZoneLayer(seed) {
+    const w = MAP_WIDTH, h = MAP_HEIGHT;
+    const N = _zones.length;
+    if (N === 0) return;
+
+    // Seeded LCG for deterministic placement
+    let s = seed >>> 0;
+    const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
+
+    // Spread N seeds across the map on a jittered grid so no zone is missing
+    const gcols = Math.max(1, Math.round(Math.sqrt(N * w / h)));
+    const grows = Math.max(1, Math.ceil(N / gcols));
+    const cellW = w / gcols, cellH = h / grows;
+
+    // Shuffle zone IDs so grid placement is random
+    const zoneIds = _zones.map(z => z.id);
+    for (let i = zoneIds.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      [zoneIds[i], zoneIds[j]] = [zoneIds[j], zoneIds[i]];
+    }
+
+    const seeds = zoneIds.map((id, gi) => ({
+      id,
+      col: Math.floor((gi % gcols  + 0.15 + rng() * 0.70) * cellW),
+      row: Math.floor((Math.floor(gi / gcols) + 0.15 + rng() * 0.70) * cellH),
+    }));
+
+    // Perlin noise for organic borders between zones
+    const perm = _buildPerm(seed);
+    const jitter    = Math.min(w, h) * 0.10;  // border irregularity
+    const noiseScale = 3.5 / Math.min(w, h);
+
+    for (let row = 0; row < h; row++) {
+      for (let col = 0; col < w; col++) {
+        const nx = (perlinNoise(col * noiseScale,        row * noiseScale,        perm) - 0.5) * jitter;
+        const ny = (perlinNoise(col * noiseScale + 19.3, row * noiseScale + 37.1, perm) - 0.5) * jitter;
+        const jc = col + nx, jr = row + ny;
+
+        let minD = Infinity, bestId = seeds[0].id;
+        for (const sd of seeds) {
+          const dc = jc - sd.col, dr = jr - sd.row;
+          const d = dc * dc + dr * dr;
+          if (d < minD) { minD = d; bestId = sd.id; }
+        }
+        _zoneLayer[row * w + col] = bestId;
+      }
+    }
+  }
+
+  // Randomizes zone territories then immediately fills terrain for all zones.
+  function _randomizeFillUI() {
+    if (_zones.length === 0) {
+      alert('No zones defined.\nAdd zones in the Zone Painter panel first.');
+      return;
+    }
+    if (typeof mapData === 'undefined' || !mapData) { alert('No map loaded.'); return; }
+
+    const seed = (Date.now() ^ (Math.random() * 0x7FFFFFFF | 0)) & 0x7FFFFFFF;
+    _randomizeZoneLayer(seed);
+
+    if (typeof History !== 'undefined') History.push();
+    _zones.forEach(z => {
+      fillZoneTerrain(z.id, mapData);
+      fillZoneSettlements(z.id, mapData, settlements);
+    });
+
+    // Make sure overlay is visible so the result is evident
+    _showOverlay = true;
+    const btn = document.getElementById('btn-zone-overlay');
+    if (btn) btn.style.opacity = '1';
+
+    Canvas.render();
+    Canvas.drawMinimap();
+    if (typeof IO !== 'undefined') IO.scheduleAutoSave();
+    if (typeof UI !== 'undefined') UI.toast(`Zones randomized & filled — ${_zones.length} zones`);
+  }
+
   function _toggleOverlayUI() {
     toggleOverlay();
     const btn = document.getElementById('btn-zone-overlay');
@@ -714,7 +795,7 @@ const ZonePainter = (() => {
     buildDistanceMap, fillZoneTerrain,
     poissonDiskSample, fillZoneSettlements,
     BUILTIN_PRESETS, DENSITY_FACTORS,
-    _fillAllZones, _toggleOverlayUI, _clearZonesUI,
+    _fillAllZones, _randomizeFillUI, _toggleOverlayUI, _clearZonesUI,
     _uiRebuildZoneList, _uiAddZone, _uiDeleteZone, _uiRenameZone, _uiPickColor,
     _uiRebuildZoneConfig, _uiPresetChanged, _uiPresetSlider,
     _uiUpdatePreview, _uiFillThisZone, _uiSavePreset
