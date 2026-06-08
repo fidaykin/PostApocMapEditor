@@ -512,38 +512,54 @@ const ZonePainter = (() => {
 
   // Assigns every tile to one of the defined zones using Voronoi + noise jitter
   // so zones form natural contiguous territories with organic borders.
-  // scale: noise frequency — smaller = bigger patches, larger = smaller patches
+  // scale: noise frequency — smaller = bigger regions, larger = smaller regions
   function _randomizeZoneLayer(seed, scale) {
     const w = MAP_WIDTH, h = MAP_HEIGHT;
-    const N = _zones.length;
-    if (N === 0) return;
+    const zones = _zones;
+    if (zones.length === 0) return;
     scale = scale || 0.04;
 
-    // Each zone gets its own independent noise field.
-    const perms  = _zones.map((_, i) => _buildPerm((seed + i * 1337) & 0x7FFFFFFF));
-    const zoneIds = _zones.map(z => z.id);
+    // Two-layer terrain generation:
+    //   Layer 1 (elevation) — divides map into low / mid / high bands
+    //   Layer 2 (biome)     — selects which zone within each band
+    // This mirrors real geography: water at low elevation, forests/plains
+    // in the middle, mountains and lava at high elevation.
+    // Domain warping on both layers prevents geometric shapes.
 
-    // Domain warp: two separate noise tables warp the sample coordinates
-    // before per-zone lookup, breaking up any axis-aligned or geometric shapes.
-    const permWX = _buildPerm((seed + 7919) & 0x7FFFFFFF);
-    const permWY = _buildPerm((seed + 6271) & 0x7FFFFFFF);
-    const warpAmp = 1.8; // displacement in noise-space units (~2 patch widths)
+    const permElev = _buildPerm(seed);
+    const permBiom = _buildPerm((seed + 3571) & 0x7FFFFFFF);
+    const permWX   = _buildPerm((seed + 7919) & 0x7FFFFFFF);
+    const permWY   = _buildPerm((seed + 6271) & 0x7FFFFFFF);
+    const warpAmp  = 1.5;
+
+    // Bucket zones by elevation band based on their preset type
+    const LOW_IDS  = new Set(['coastal_waters', 'marshland', 'river_valley']);
+    const HIGH_IDS = new Set(['mountain_rim', 'lava_fields', 'ash_plains']);
+
+    const lowBand  = zones.filter(z => LOW_IDS.has(z.presetId));
+    const highBand = zones.filter(z => HIGH_IDS.has(z.presetId));
+    const midBand  = zones.filter(z => !LOW_IDS.has(z.presetId) && !HIGH_IDS.has(z.presetId));
+
+    // Fallback: if a band is empty use all zones so nothing breaks
+    const lo = lowBand.length  ? lowBand  : zones;
+    const hi = highBand.length ? highBand : zones;
+    const mi = midBand.length  ? midBand  : zones;
 
     for (let row = 0; row < h; row++) {
       for (let col = 0; col < w; col++) {
         const sx = col * scale;
         const sy = row * scale;
 
-        // Warp the sample point so shapes become organic and non-geometric
+        // Domain warp — breaks up geometric shapes in both noise layers
         const wx = (perlinNoise(sx + 1.7, sy + 9.2, permWX) - 0.5) * 2 * warpAmp;
         const wy = (perlinNoise(sx + 8.3, sy + 2.8, permWY) - 0.5) * 2 * warpAmp;
 
-        let maxN = -1, bestId = zoneIds[0];
-        for (let zi = 0; zi < N; zi++) {
-          const n = perlinNoise(sx + wx, sy + wy, perms[zi]);
-          if (n > maxN) { maxN = n; bestId = zoneIds[zi]; }
-        }
-        _zoneLayer[row * w + col] = bestId;
+        const elev = perlinNoise(sx + wx,        sy + wy,        permElev);
+        const biom = perlinNoise(sx + wx + 33.1, sy + wy + 17.9, permBiom);
+
+        const band = elev < 0.30 ? lo : elev > 0.70 ? hi : mi;
+        const idx  = Math.min(Math.floor(biom * band.length), band.length - 1);
+        _zoneLayer[row * w + col] = band[idx].id;
       }
     }
   }
