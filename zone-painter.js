@@ -501,16 +501,16 @@ const ZonePainter = (() => {
     const N = _zones.length;
     if (N === 0) return;
 
-    // Seeded LCG for deterministic placement
+    // Seeded LCG
     let s = seed >>> 0;
     const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
 
-    // Spread N seeds across the map on a jittered grid so no zone is missing
+    // Spread N seeds on a jittered grid so every zone gets a territory
     const gcols = Math.max(1, Math.round(Math.sqrt(N * w / h)));
     const grows = Math.max(1, Math.ceil(N / gcols));
     const cellW = w / gcols, cellH = h / grows;
 
-    // Shuffle zone IDs so grid placement is random
+    // Shuffle which zone goes to which grid cell
     const zoneIds = _zones.map(z => z.id);
     for (let i = zoneIds.length - 1; i > 0; i--) {
       const j = Math.floor(rng() * (i + 1));
@@ -519,24 +519,17 @@ const ZonePainter = (() => {
 
     const seeds = zoneIds.map((id, gi) => ({
       id,
-      col: Math.floor((gi % gcols  + 0.15 + rng() * 0.70) * cellW),
-      row: Math.floor((Math.floor(gi / gcols) + 0.15 + rng() * 0.70) * cellH),
+      col: Math.floor((gi % gcols               + 0.2 + rng() * 0.6) * cellW),
+      row: Math.floor((Math.floor(gi / gcols)    + 0.2 + rng() * 0.6) * cellH),
     }));
 
-    // Perlin noise for organic borders between zones
-    const perm = _buildPerm(seed);
-    const jitter    = Math.min(w, h) * 0.10;  // border irregularity
-    const noiseScale = 3.5 / Math.min(w, h);
-
+    // Pure Voronoi — no noise jitter here; each zone's preset blendWidth/blendMode
+    // already handles organic borders inside fillZoneTerrain.
     for (let row = 0; row < h; row++) {
       for (let col = 0; col < w; col++) {
-        const nx = (perlinNoise(col * noiseScale,        row * noiseScale,        perm) - 0.5) * jitter;
-        const ny = (perlinNoise(col * noiseScale + 19.3, row * noiseScale + 37.1, perm) - 0.5) * jitter;
-        const jc = col + nx, jr = row + ny;
-
         let minD = Infinity, bestId = seeds[0].id;
         for (const sd of seeds) {
-          const dc = jc - sd.col, dr = jr - sd.row;
+          const dc = col - sd.col, dr = row - sd.row;
           const d = dc * dc + dr * dr;
           if (d < minD) { minD = d; bestId = sd.id; }
         }
