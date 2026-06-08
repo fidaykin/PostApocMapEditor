@@ -96,6 +96,22 @@ const ZonePainter = (() => {
       blendWidth: 6, blendMode: 'noisy',
       settlementDensity: 'dense', settlementMinSpacing: 8,
       forbiddenTerrain: [..._IMPASSABLE, 'Rubble_1','Rubble_2','Rubble_3']
+    },
+    {
+      id: 'coastal_waters', name: 'Coastal Waters',
+      terrainWeights: {'Water_1': 0.50, 'Water_Dirty_1': 0.30, 'Water_Rock_1': 0.20},
+      patchScale: 10, patchContrast: 1.2,
+      blendWidth: 10, blendMode: 'smooth',
+      settlementDensity: 'none', settlementMinSpacing: 30,
+      forbiddenTerrain: ['Mountain_1', 'Hills_1', 'Lava_Plain_1', 'Lava_Rift_1', 'Rift_1']
+    },
+    {
+      id: 'lava_fields', name: 'Lava Fields',
+      terrainWeights: {'Lava_Plain_1': 0.50, 'Lava_Rift_1': 0.30, 'Rift_1': 0.20},
+      patchScale: 7, patchContrast: 2.0,
+      blendWidth: 5, blendMode: 'hard',
+      settlementDensity: 'none', settlementMinSpacing: 30,
+      forbiddenTerrain: [..._WATER_TYPES, 'Forest_1','Forest_2','Forest_3','Plain_1','Plain_2','Swamp_1']
     }
   ];
 
