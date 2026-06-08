@@ -504,16 +504,27 @@ const ZonePainter = (() => {
     scale = scale || 0.04;
 
     // Each zone gets its own independent noise field.
-    // For every tile the zone with the highest noise value wins → fully mixed,
-    // no sequential banding, all zones compete everywhere on the map.
-    const perms = _zones.map((_, i) => _buildPerm((seed + i * 1337) & 0x7FFFFFFF));
+    const perms  = _zones.map((_, i) => _buildPerm((seed + i * 1337) & 0x7FFFFFFF));
     const zoneIds = _zones.map(z => z.id);
+
+    // Domain warp: two separate noise tables warp the sample coordinates
+    // before per-zone lookup, breaking up any axis-aligned or geometric shapes.
+    const permWX = _buildPerm((seed + 7919) & 0x7FFFFFFF);
+    const permWY = _buildPerm((seed + 6271) & 0x7FFFFFFF);
+    const warpAmp = 1.8; // displacement in noise-space units (~2 patch widths)
 
     for (let row = 0; row < h; row++) {
       for (let col = 0; col < w; col++) {
+        const sx = col * scale;
+        const sy = row * scale;
+
+        // Warp the sample point so shapes become organic and non-geometric
+        const wx = (perlinNoise(sx + 1.7, sy + 9.2, permWX) - 0.5) * 2 * warpAmp;
+        const wy = (perlinNoise(sx + 8.3, sy + 2.8, permWY) - 0.5) * 2 * warpAmp;
+
         let maxN = -1, bestId = zoneIds[0];
         for (let zi = 0; zi < N; zi++) {
-          const n = perlinNoise(col * scale, row * scale, perms[zi]);
+          const n = perlinNoise(sx + wx, sy + wy, perms[zi]);
           if (n > maxN) { maxN = n; bestId = zoneIds[zi]; }
         }
         _zoneLayer[row * w + col] = bestId;
