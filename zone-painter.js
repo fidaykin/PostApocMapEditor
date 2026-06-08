@@ -503,17 +503,20 @@ const ZonePainter = (() => {
     if (N === 0) return;
     scale = scale || 0.04;
 
-    // Two octaves of Perlin noise for varied, organic patch shapes
-    const perm1 = _buildPerm(seed);
-    const perm2 = _buildPerm(seed + 999);
+    // Each zone gets its own independent noise field.
+    // For every tile the zone with the highest noise value wins → fully mixed,
+    // no sequential banding, all zones compete everywhere on the map.
+    const perms = _zones.map((_, i) => _buildPerm((seed + i * 1337) & 0x7FFFFFFF));
     const zoneIds = _zones.map(z => z.id);
 
     for (let row = 0; row < h; row++) {
       for (let col = 0; col < w; col++) {
-        const n = perlinNoise(col * scale,       row * scale,       perm1) * 0.65
-                + perlinNoise(col * scale * 2.1, row * scale * 2.1, perm2) * 0.35;
-        const idx = Math.min(Math.floor(n * N), N - 1);
-        _zoneLayer[row * w + col] = zoneIds[idx];
+        let maxN = -1, bestId = zoneIds[0];
+        for (let zi = 0; zi < N; zi++) {
+          const n = perlinNoise(col * scale, row * scale, perms[zi]);
+          if (n > maxN) { maxN = n; bestId = zoneIds[zi]; }
+        }
+        _zoneLayer[row * w + col] = bestId;
       }
     }
   }
