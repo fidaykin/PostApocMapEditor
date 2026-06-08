@@ -496,44 +496,24 @@ const ZonePainter = (() => {
 
   // Assigns every tile to one of the defined zones using Voronoi + noise jitter
   // so zones form natural contiguous territories with organic borders.
-  function _randomizeZoneLayer(seed) {
+  // scale: noise frequency — smaller = bigger patches, larger = smaller patches
+  function _randomizeZoneLayer(seed, scale) {
     const w = MAP_WIDTH, h = MAP_HEIGHT;
     const N = _zones.length;
     if (N === 0) return;
+    scale = scale || 0.04;
 
-    // Seeded LCG
-    let s = seed >>> 0;
-    const rng = () => { s = (Math.imul(s, 1664525) + 1013904223) >>> 0; return s / 4294967296; };
-
-    // Spread N seeds on a jittered grid so every zone gets a territory
-    const gcols = Math.max(1, Math.round(Math.sqrt(N * w / h)));
-    const grows = Math.max(1, Math.ceil(N / gcols));
-    const cellW = w / gcols, cellH = h / grows;
-
-    // Shuffle which zone goes to which grid cell
+    // Two octaves of Perlin noise for varied, organic patch shapes
+    const perm1 = _buildPerm(seed);
+    const perm2 = _buildPerm(seed + 999);
     const zoneIds = _zones.map(z => z.id);
-    for (let i = zoneIds.length - 1; i > 0; i--) {
-      const j = Math.floor(rng() * (i + 1));
-      [zoneIds[i], zoneIds[j]] = [zoneIds[j], zoneIds[i]];
-    }
 
-    const seeds = zoneIds.map((id, gi) => ({
-      id,
-      col: Math.floor((gi % gcols               + 0.2 + rng() * 0.6) * cellW),
-      row: Math.floor((Math.floor(gi / gcols)    + 0.2 + rng() * 0.6) * cellH),
-    }));
-
-    // Pure Voronoi — no noise jitter here; each zone's preset blendWidth/blendMode
-    // already handles organic borders inside fillZoneTerrain.
     for (let row = 0; row < h; row++) {
       for (let col = 0; col < w; col++) {
-        let minD = Infinity, bestId = seeds[0].id;
-        for (const sd of seeds) {
-          const dc = col - sd.col, dr = row - sd.row;
-          const d = dc * dc + dr * dr;
-          if (d < minD) { minD = d; bestId = sd.id; }
-        }
-        _zoneLayer[row * w + col] = bestId;
+        const n = perlinNoise(col * scale,       row * scale,       perm1) * 0.65
+                + perlinNoise(col * scale * 2.1, row * scale * 2.1, perm2) * 0.35;
+        const idx = Math.min(Math.floor(n * N), N - 1);
+        _zoneLayer[row * w + col] = zoneIds[idx];
       }
     }
   }
@@ -553,8 +533,10 @@ const ZonePainter = (() => {
     });
     _selectedZoneId = _zones[0]?.id || 0;
 
-    const seed = (Date.now() ^ (Math.random() * 0x7FFFFFFF | 0)) & 0x7FFFFFFF;
-    _randomizeZoneLayer(seed);
+    const seed  = (Date.now() ^ (Math.random() * 0x7FFFFFFF | 0)) & 0x7FFFFFFF;
+    const scaleEl = document.getElementById('rnd-zone-scale');
+    const scale = scaleEl ? parseFloat(scaleEl.value) || 0.04 : 0.04;
+    _randomizeZoneLayer(seed, scale);
 
     if (typeof History !== 'undefined') History.push();
     _zones.forEach(z => {
