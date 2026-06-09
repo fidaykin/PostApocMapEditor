@@ -2173,7 +2173,7 @@ const Canvas = (() => {
         const d    = hexDist(appX, appY);
         const zi   = Math.min(Math.floor(d / interval), ZONE_PALETTE.length - 1);
         const [r, g, b] = ZONE_PALETTE[zi];
-        ctx.globalAlpha = 0.15;
+        ctx.globalAlpha = 0.1;
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         hexClipPath(s.x, s.y, radius);
         ctx.fill();
