@@ -927,7 +927,7 @@ body.mode-settlements #stt-tools   { display: flex; }
       <input id="ring-interval" type="number" min="5" max="100" step="5" value="10"
              title="Ring interval in tiles (default 10)"
              style="width:42px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center;vertical-align:middle"
-             onchange="Canvas.render()">
+             oninput="Canvas.render()">
       <button class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')">🗺️<span class="tooltip">Zone Painter (Z)</span></button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize & Fill</button>
       <input id="rnd-zone-scale" type="range" min="0.01" max="0.12" step="0.005" value="0.04"
@@ -2155,54 +2155,67 @@ const Canvas = (() => {
 
   // ── Zone overlay ─────────────────────────────────────────
   function _drawZoneOverlays(scale, radius) {
-    const padding  = radius * 2;
     const interval = Math.max(1, parseInt(document.getElementById('ring-interval')?.value) || 10);
+    const cityPos  = hexScreenPos(getCityCol(), getCityRow());
+    const rxUnit   = COL_PITCH * scale;   // px per hex-distance East
+    const ryUnit   = ROW_PITCH * scale;   // px per hex-distance North
     ctx.save();
 
+    // ── Faint zone-fill tint so each ring band has a distinct background ──
+    const padding = radius * 2;
     for (let row = 0; row < MAP_HEIGHT; row++) {
       for (let col = 0; col < MAP_WIDTH; col++) {
         const s = hexScreenPos(col, row);
         if (s.x + padding < 0 || s.x - padding > canvas.width ||
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
-
         const appX = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
         const appY = col - Math.floor(MAP_WIDTH / 2);
         const d    = hexDist(appX, appY);
         const zi   = Math.min(Math.floor(d / interval), ZONE_PALETTE.length - 1);
         const [r, g, b] = ZONE_PALETTE[zi];
-
-        // Ring border tiles (exactly on the boundary) drawn brighter
-        const onBorder = (d % interval === 0);
-        ctx.globalAlpha = onBorder ? 0.72 : 0.38;
+        ctx.globalAlpha = 0.15;
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         hexClipPath(s.x, s.y, radius);
         ctx.fill();
       }
     }
 
-    // Ring labels: numbered badge at due-East tile of each ring boundary
-    ctx.globalAlpha = 1;
+    // ── Ellipse ring boundary lines ───────────────────────────────────────
+    ctx.lineWidth  = Math.max(1.5, radius * 0.12);
+    ctx.setLineDash([Math.round(radius * 0.5), Math.round(radius * 0.25)]);
     const fontSize = Math.max(9, Math.round(radius * 0.55));
     ctx.font = `bold ${fontSize}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    for (let d = interval; d <= Math.max(MAP_WIDTH, MAP_HEIGHT); d += interval) {
-      const mRow = MAP_HEIGHT - 1 - (d + Math.floor(MAP_HEIGHT / 2));
-      const mCol = Math.floor(MAP_WIDTH / 2);
-      if (mRow < 0 || mRow >= MAP_HEIGHT) continue;
-      const s = hexScreenPos(mCol, mRow);
-      if (s.x + radius < 0 || s.x - radius > canvas.width ||
-          s.y + radius < 0 || s.y - radius > canvas.height) continue;
+    for (let i = 0; i < ZONE_PALETTE.length; i++) {
+      const d  = (i + 1) * interval;
+      const rx = d * rxUnit;
+      const ry = d * ryUnit;
+      if (cityPos.x + rx < 0 || cityPos.x - rx > canvas.width) continue;
 
-      ctx.fillStyle = 'rgba(0,0,0,0.70)';
+      const [r, g, b] = ZONE_PALETTE[i];
+      ctx.globalAlpha = 0.85;
+      ctx.strokeStyle = `rgb(${r},${g},${b})`;
       ctx.beginPath();
-      ctx.arc(s.x, s.y, radius * 0.52, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.fillStyle = '#ffffff';
-      ctx.fillText(String(d), s.x, s.y);
+      ctx.ellipse(cityPos.x, cityPos.y, rx, ry, 0, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Distance label badge at the due-East point of the ellipse
+      const lx = cityPos.x + rx;
+      const ly = cityPos.y;
+      if (lx > 0 && lx < canvas.width) {
+        ctx.globalAlpha = 1;
+        ctx.fillStyle = 'rgba(0,0,0,0.70)';
+        ctx.beginPath();
+        ctx.arc(lx, ly, radius * 0.52, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#ffffff';
+        ctx.fillText(String(d), lx, ly);
+      }
     }
 
+    ctx.setLineDash([]);
     ctx.restore();
   }
 
