@@ -924,6 +924,10 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (S)</span></button>
       <button class="tool-btn" data-tool="erase" onclick="Tools.setActive('erase')">✕<span class="tooltip">Erase Settlement (D)</span></button>
       <button class="tool-btn" id="btn-zones" onclick="Canvas.toggleZones()">◎<span class="tooltip">Toggle Distance Rings</span></button>
+      <input id="ring-interval" type="number" min="5" max="100" step="5" value="10"
+             title="Ring interval in tiles (default 10)"
+             style="width:42px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center;vertical-align:middle"
+             onchange="Canvas.render()">
       <button class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')">🗺️<span class="tooltip">Zone Painter (Z)</span></button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize & Fill</button>
       <input id="rnd-zone-scale" type="range" min="0.01" max="0.12" step="0.005" value="0.04"
@@ -942,6 +946,12 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="hexdb-tool-btn" onclick="HexDB.add()">+ Add Hex</button>
       <button class="hexdb-tool-btn" onclick="HexDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="HexDB.save()">💾 Save DB</button>
+      <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
+      <label style="font-size:11px;color:#aaa;margin-left:4px" title="Gold cost per physical tap (applies to all tiles)">💰/tap</label>
+      <input id="common-gold-per-tap" type="number" min="1" max="10000" step="1" value="10"
+             title="Gold cost per tap (common.goldPerTap) — saved to hex_database.json"
+             style="width:52px;background:#111;border:1px solid #444;color:#e8cc10;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center"
+             oninput="HexDB.setCommonGoldPerTap(parseInt(this.value)||10)">
     </div>
     <div id="bld-tools">
       <button class="hexdb-tool-btn" onclick="BldDB.add()">+ Add Building</button>
@@ -2145,8 +2155,8 @@ const Canvas = (() => {
 
   // ── Zone overlay ─────────────────────────────────────────
   function _drawZoneOverlays(scale, radius) {
-    const padding = radius * 2;
-    const cityR   = getCityRow();
+    const padding  = radius * 2;
+    const interval = Math.max(1, parseInt(document.getElementById('ring-interval')?.value) || 10);
     ctx.save();
 
     for (let row = 0; row < MAP_HEIGHT; row++) {
@@ -2158,25 +2168,26 @@ const Canvas = (() => {
         const appX = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
         const appY = col - Math.floor(MAP_WIDTH / 2);
         const d    = hexDist(appX, appY);
-        const zi   = Math.min(Math.floor(d / 10), ZONE_PALETTE.length - 1);
+        const zi   = Math.min(Math.floor(d / interval), ZONE_PALETTE.length - 1);
         const [r, g, b] = ZONE_PALETTE[zi];
 
-        ctx.globalAlpha = 0.22;
+        // Ring border tiles (exactly on the boundary) drawn brighter
+        const onBorder = (d % interval === 0);
+        ctx.globalAlpha = onBorder ? 0.72 : 0.38;
         ctx.fillStyle = `rgb(${r},${g},${b})`;
         hexClipPath(s.x, s.y, radius);
         ctx.fill();
       }
     }
 
-    // Ring labels: draw a numbered badge at the due-East tile of each 10-ring
+    // Ring labels: numbered badge at due-East tile of each ring boundary
     ctx.globalAlpha = 1;
     const fontSize = Math.max(9, Math.round(radius * 0.55));
     ctx.font = `bold ${fontSize}px monospace`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    for (let d = 10; d <= 100; d += 10) {
-      // Tile due-East of center at this distance: worldX=d, worldY=0
+    for (let d = interval; d <= Math.max(MAP_WIDTH, MAP_HEIGHT); d += interval) {
       const mRow = MAP_HEIGHT - 1 - (d + Math.floor(MAP_HEIGHT / 2));
       const mCol = Math.floor(MAP_WIDTH / 2);
       if (mRow < 0 || mRow >= MAP_HEIGHT) continue;
@@ -2184,9 +2195,9 @@ const Canvas = (() => {
       if (s.x + radius < 0 || s.x - radius > canvas.width ||
           s.y + radius < 0 || s.y - radius > canvas.height) continue;
 
-      ctx.fillStyle = 'rgba(0,0,0,0.6)';
+      ctx.fillStyle = 'rgba(0,0,0,0.70)';
       ctx.beginPath();
-      ctx.arc(s.x, s.y, radius * 0.48, 0, Math.PI * 2);
+      ctx.arc(s.x, s.y, radius * 0.52, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = '#ffffff';
       ctx.fillText(String(d), s.x, s.y);
@@ -4845,7 +4856,7 @@ const HexDB = (() => {
   const FILTER_CATS = ['FilterTerrain','FilterResource','FilterWater','FilterSettlement','FilterHazard'];
   const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, special: true };
 
-  let _data        = { version: 1, hexes: [] };
+  let _data        = { version: 1, common: { goldPerTap: 10 }, hexes: [] };
   let _clipboard   = null;
   let _selFilt     = -1;    // selected index in _filtered
   let _filter      = { search: '', biome: '', type: '' };
@@ -4939,12 +4950,14 @@ const HexDB = (() => {
       const parsed = await r.json();
       if (!parsed?.hexes?.length) return;
       _data = parsed;
+      if (!_data.common) _data.common = { goldPerTap: 10 };
       _migrateHexTypes(_data.hexes);
       _migrateDestroyFields(_data.hexes);
       _migrateBuildFields(_data.hexes);
       _migrateIncomeFields(_data.hexes);
       _migrateSpecialFields(_data.hexes);
       _migrateCategoryFromType();
+      _syncCommonUI();
       _autoSave();
       _applyFilter(); _buildList();
       Terrain.applyHexDbOverrides(_data.hexes).then(() => {
@@ -5576,12 +5589,14 @@ const HexDB = (() => {
         const parsed = JSON.parse(saved);
         if (parsed && Array.isArray(parsed.hexes)) {
           _data = parsed;
+          if (!_data.common) _data.common = { goldPerTap: 10 };
           _migrateHexTypes(_data.hexes);
           _migrateDestroyFields(_data.hexes);
           _migrateBuildFields(_data.hexes);
           _migrateIncomeFields(_data.hexes);
           _migrateSpecialFields(_data.hexes);
           _migrateCategoryFromType();
+          _syncCommonUI();
           _autoSave();
           // Re-apply terrain overrides from autosaved HexDB after page load
           setTimeout(() => {
@@ -5865,7 +5880,18 @@ const HexDB = (() => {
 
   function getData() { return _data; }
 
-  return { init, add, deleteSelected, copy, paste, load, loadFromObject, getData, save, triggerLoad, getAll, pickSprite };
+  function setCommonGoldPerTap(v) {
+    if (!_data.common) _data.common = {};
+    _data.common.goldPerTap = Math.max(1, v || 10);
+    _autoSave();
+  }
+
+  function _syncCommonUI() {
+    const el = document.getElementById('common-gold-per-tap');
+    if (el && _data.common?.goldPerTap) el.value = _data.common.goldPerTap;
+  }
+
+  return { init, add, deleteSelected, copy, paste, load, loadFromObject, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap };
 })();
 
 // ── BldDB Module ───────────────────────────────────────────
