@@ -3,6 +3,16 @@
 All notable changes to this project are documented here.
 Format: `## v[version] — [date]`
 
+## v0.9.8 — 2026-06-10
+
+### Feature — Settlement Slot tap multiplier
+- **tapMultiplier field** added to each Settlement Slot row: a second line below the main row shows `tap × [value]  (1 = no change)`.
+- Accepts decimal values (e.g. 1.5 = 50 % more taps). Minimum 0.1. Defaults to 1.
+- Serialized as `tapMultiplier` in `settlement_slots` JSON; existing maps without the field default to 1 on load.
+- The Unity runtime applies this as a linear near→far gradient within the ring: tiles at the inner boundary keep their base tap cost, tiles at the outer boundary are scaled by the multiplier.
+
+---
+
 ## v0.9.7 — 2026-06-05
 
 ### Refactor — HexDB as Single Source of Truth

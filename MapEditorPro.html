@@ -291,6 +291,9 @@ html, body {
 #slot-add { margin-top: 4px; width: 100%; background: none; border: 1px dashed var(--border); color: var(--muted); padding: 4px; cursor: pointer; border-radius: 3px; font-size: 11px; }
 #slot-add:hover { border-color: var(--accent); color: var(--accent); }
 #slot-panel.collapsed .slot-rows, #slot-panel.collapsed #slot-add { display: none; }
+.slot-mult-row { flex: 0 0 100%; display: flex; gap: 4px; align-items: center; padding-left: 2px; margin-top: 2px; }
+.slot-mult { width: 44px !important; }
+.slot-mult-hint { font-size: 10px; color: var(--muted); }
 
 /* ── Status bar ───────────────────────────────────────────── */
 #statusbar {
@@ -3606,7 +3609,14 @@ const UI = (() => {
             <option${isCustom?' selected':''} value="__custom__">Custom…</option>
         </select>
         <input class="hexdb-input slot-type-text${isCustom?' visible':''}" value="${isCustom?esc(slot.type):''}" placeholder="type name">
-        <button class="slot-remove" data-slot-idx="${idx}">✕</button>`;
+        <button class="slot-remove" data-slot-idx="${idx}">✕</button>
+        <div class="slot-mult-row">
+          <span style="color:var(--muted);font-size:10px">tap ×</span>
+          <input type="number" class="hexdb-input slot-mult" min="0.1" max="10" step="0.1"
+            value="${(slot.tapMultiplier ?? 1).toFixed(1)}"
+            title="Tap cost multiplier for this ring (1 = no change, 1.5 = 50% more taps)">
+          <span class="slot-mult-hint">(1 = no change)</span>
+        </div>`;
     return div;
   }
 
@@ -3664,6 +3674,13 @@ const UI = (() => {
         IO.scheduleAutoSave(); Canvas.render();
       });
     });
+    document.querySelectorAll('.slot-mult').forEach(el => {
+      el.addEventListener('change', () => {
+        const idx = parseInt(el.closest('.slot-row').dataset.slotIdx);
+        settlementSlots[idx].tapMultiplier = Math.max(0.1, parseFloat(el.value) || 1);
+        IO.scheduleAutoSave();
+      });
+    });
     document.querySelectorAll('.slot-remove').forEach(btn => {
       btn.addEventListener('click', () => {
         History.push();
@@ -3677,7 +3694,7 @@ const UI = (() => {
       addBtn.replaceWith(addBtn.cloneNode(true)); // remove old listener
       document.getElementById('slot-add').addEventListener('click', () => {
         History.push();
-        settlementSlots.push({ minDist: 10, maxDist: 20, count: 1, type: 'settlement' });
+        settlementSlots.push({ minDist: 10, maxDist: 20, count: 1, type: 'settlement', tapMultiplier: 1 });
         rebuildSlotPanel(); IO.scheduleAutoSave(); Canvas.render();
       });
     }
@@ -3967,8 +3984,11 @@ const IO = (() => {
     };
     if (settlementSlots.length > 0)
       result.settlement_slots = settlementSlots.map(s => ({
-        minDist: s.minDist, maxDist: s.maxDist,
-        count:   s.count,   type:    s.type
+        minDist:       s.minDist,
+        maxDist:       s.maxDist,
+        count:         s.count,
+        type:          s.type,
+        tapMultiplier: s.tapMultiplier ?? 1
       }));
     const zoneData = ZonePainter.toSaveObject();
     if (zoneData.zones && zoneData.zones.length > 0) {
@@ -4032,8 +4052,11 @@ const IO = (() => {
         : [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = (json.settlement_slots && Array.isArray(json.settlement_slots))
         ? json.settlement_slots.map(s => ({
-            minDist: s.minDist ?? 10, maxDist: s.maxDist ?? 20,
-            count:   s.count   ?? 1,  type:    s.type    ?? 'settlement'
+            minDist:       s.minDist       ?? 10,
+            maxDist:       s.maxDist       ?? 20,
+            count:         s.count         ?? 1,
+            type:          s.type          ?? 'settlement',
+            tapMultiplier: s.tapMultiplier ?? 1
           }))
         : [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
@@ -4173,8 +4196,11 @@ const IO = (() => {
       }
       settlementSlots = (json.settlement_slots && Array.isArray(json.settlement_slots))
         ? json.settlement_slots.map(s => ({
-            minDist: s.minDist ?? 10, maxDist: s.maxDist ?? 20,
-            count:   s.count   ?? 1,  type:    s.type    ?? 'settlement'
+            minDist:       s.minDist       ?? 10,
+            maxDist:       s.maxDist       ?? 20,
+            count:         s.count         ?? 1,
+            type:          s.type          ?? 'settlement',
+            tapMultiplier: s.tapMultiplier ?? 1
           }))
         : [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
