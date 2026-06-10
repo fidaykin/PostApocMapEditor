@@ -3674,6 +3674,13 @@ const UI = (() => {
         IO.scheduleAutoSave(); Canvas.render();
       });
     });
+    document.querySelectorAll('.slot-mult').forEach(el => {
+      el.addEventListener('change', () => {
+        const idx = parseInt(el.closest('.slot-row').dataset.slotIdx);
+        settlementSlots[idx].tapMultiplier = Math.max(0.1, parseFloat(el.value) || 1);
+        IO.scheduleAutoSave();
+      });
+    });
     document.querySelectorAll('.slot-remove').forEach(btn => {
       btn.addEventListener('click', () => {
         History.push();
@@ -3687,7 +3694,7 @@ const UI = (() => {
       addBtn.replaceWith(addBtn.cloneNode(true)); // remove old listener
       document.getElementById('slot-add').addEventListener('click', () => {
         History.push();
-        settlementSlots.push({ minDist: 10, maxDist: 20, count: 1, type: 'settlement' });
+        settlementSlots.push({ minDist: 10, maxDist: 20, count: 1, type: 'settlement', tapMultiplier: 1 });
         rebuildSlotPanel(); IO.scheduleAutoSave(); Canvas.render();
       });
     }
