@@ -3984,8 +3984,11 @@ const IO = (() => {
     };
     if (settlementSlots.length > 0)
       result.settlement_slots = settlementSlots.map(s => ({
-        minDist: s.minDist, maxDist: s.maxDist,
-        count:   s.count,   type:    s.type
+        minDist:       s.minDist,
+        maxDist:       s.maxDist,
+        count:         s.count,
+        type:          s.type,
+        tapMultiplier: s.tapMultiplier ?? 1
       }));
     const zoneData = ZonePainter.toSaveObject();
     if (zoneData.zones && zoneData.zones.length > 0) {
@@ -4049,8 +4052,11 @@ const IO = (() => {
         : [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = (json.settlement_slots && Array.isArray(json.settlement_slots))
         ? json.settlement_slots.map(s => ({
-            minDist: s.minDist ?? 10, maxDist: s.maxDist ?? 20,
-            count:   s.count   ?? 1,  type:    s.type    ?? 'settlement'
+            minDist:       s.minDist       ?? 10,
+            maxDist:       s.maxDist       ?? 20,
+            count:         s.count         ?? 1,
+            type:          s.type          ?? 'settlement',
+            tapMultiplier: s.tapMultiplier ?? 1
           }))
         : [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
@@ -4190,8 +4196,11 @@ const IO = (() => {
       }
       settlementSlots = (json.settlement_slots && Array.isArray(json.settlement_slots))
         ? json.settlement_slots.map(s => ({
-            minDist: s.minDist ?? 10, maxDist: s.maxDist ?? 20,
-            count:   s.count   ?? 1,  type:    s.type    ?? 'settlement'
+            minDist:       s.minDist       ?? 10,
+            maxDist:       s.maxDist       ?? 20,
+            count:         s.count         ?? 1,
+            type:          s.type          ?? 'settlement',
+            tapMultiplier: s.tapMultiplier ?? 1
           }))
         : [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
