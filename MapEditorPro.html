@@ -1752,18 +1752,20 @@ const Canvas = (() => {
     const sprite   = Terrain.getSprite(hexId);
     ctx.save();
     hexClipPath(cx, cy, radius);
+    ctx.clip();   // always clip to hex first — ensures bg fill and object sprite stay inside
     if (hexEntry && Terrain.isLayeredHex(hexEntry)) {
+      // Layered tile: draw terrain background, then object sprite on top
       const terrainSprite = Terrain.getTerrainSpriteForType(hexEntry.type);
       if (terrainSprite && terrainSprite.complete && terrainSprite.naturalWidth > 0) {
-        ctx.clip();
         ctx.drawImage(terrainSprite, cx - radius, cy - radius, radius * 2, radius * 2);
       } else {
-        ctx.fillStyle = '#444'; ctx.fill();
+        // Fallback color while terrain sprite loads (or if unavailable)
+        ctx.fillStyle = _terrainTypeFallbackColor(hexEntry.type);
+        ctx.fill();
       }
       if (sprite && sprite.complete && sprite.naturalWidth > 0)
         ctx.drawImage(sprite, cx - radius, cy - radius, radius * 2, radius * 2);
     } else if (sprite && sprite.complete && sprite.naturalWidth > 0) {
-      ctx.clip();
       ctx.drawImage(sprite, cx - radius, cy - radius, radius * 2, radius * 2);
     } else {
       ctx.fillStyle = '#444'; ctx.fill();
@@ -1772,6 +1774,17 @@ const Canvas = (() => {
     ctx.lineWidth = 1;
     ctx.stroke();
     ctx.restore();
+  }
+
+  function _terrainTypeFallbackColor(type) {
+    if (!type) return '#444';
+    switch (type.toLowerCase()) {
+      case 'water':  return '#2a6fad';
+      case 'forests': case 'forest': return '#2d6a2d';
+      case 'plains': case 'plain':   return '#7a9a4a';
+      case 'swamp':  return '#4a6a3a';
+      default:       return '#555';
+    }
   }
 
   function _drawSettlement(cx, cy, radius, type) {
