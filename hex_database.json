@@ -41,7 +41,8 @@
       "roadAllowed": false,
       "terrainTypeId": 12,
       "category": "🌾 PLAINS",
-      "fallback": false
+      "fallback": false,
+      "isLayered": false
     },
     {
       "id": "Plain_2",
@@ -83,7 +84,8 @@
       "roadAllowed": false,
       "terrainTypeId": 13,
       "category": "🌾 PLAINS",
-      "fallback": false
+      "fallback": false,
+      "isLayered": false
     },
     {
       "id": "Forest_1",
@@ -147,7 +149,8 @@
       "roadAllowed": false,
       "terrainTypeId": 15,
       "category": "🌲 FOREST",
-      "fallback": false
+      "fallback": false,
+      "isLayered": false
     },
     {
       "id": "Forest_2",
@@ -211,7 +214,8 @@
       "roadAllowed": false,
       "terrainTypeId": 16,
       "category": "🌲 FOREST",
-      "fallback": false
+      "fallback": false,
+      "isLayered": false
     },
     {
       "id": "Forest_3",
@@ -275,7 +279,8 @@
       "roadAllowed": false,
       "terrainTypeId": 17,
       "category": "🌲 FOREST",
-      "fallback": false
+      "fallback": false,
+      "isLayered": false
     },
     {
       "id": "Forest_4_Test",
@@ -341,7 +346,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "🌲 FOREST"
+      "category": "🌲 FOREST",
+      "isLayered": false
     },
     {
       "id": "Forest_5_Test",
@@ -416,7 +422,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "🌲 FOREST"
+      "category": "🌲 FOREST",
+      "isLayered": false
     },
     {
       "id": "Hills_1",
@@ -461,7 +468,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "⛰️ ROCKY/MOUNTAIN",
-      "terrainTypeId": 18
+      "terrainTypeId": 18,
+      "isLayered": false
     },
     {
       "id": "Mountain_1",
@@ -506,7 +514,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "⛰️ ROCKY/MOUNTAIN",
-      "terrainTypeId": 19
+      "terrainTypeId": 19,
+      "isLayered": false
     },
     {
       "id": "Rubble_1",
@@ -547,7 +556,8 @@
       "roadAllowed": false,
       "terrainTypeId": 9,
       "category": "🏚️ RUBBLE/WASTELAND",
-      "fallback": false
+      "fallback": false,
+      "isLayered": false
     },
     {
       "id": "Rubble_2",
@@ -588,7 +598,8 @@
       "roadAllowed": false,
       "terrainTypeId": 10,
       "category": "🏚️ RUBBLE/WASTELAND",
-      "fallback": false
+      "fallback": false,
+      "isLayered": false
     },
     {
       "id": "Rubble_3",
@@ -629,7 +640,8 @@
       "roadAllowed": false,
       "terrainTypeId": 11,
       "category": "🏚️ RUBBLE/WASTELAND",
-      "fallback": false
+      "fallback": false,
+      "isLayered": false
     },
     {
       "id": "Water_1",
@@ -668,7 +680,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💧 WATER / RIVER"
+      "category": "💧 WATER / RIVER",
+      "isLayered": false
     },
     {
       "id": "Water_Dirty_1",
@@ -716,7 +729,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💧 WATER / RIVER"
+      "category": "💧 WATER / RIVER",
+      "isLayered": false
     },
     {
       "id": "GoldVein_1",
@@ -756,7 +770,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💎 RESOURCES",
-      "terrainTypeId": 20
+      "terrainTypeId": 20,
+      "isLayered": false
     },
     {
       "id": "Rift_1",
@@ -801,7 +816,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "🌋 VOLCANIC/RIFT",
-      "terrainTypeId": 28
+      "terrainTypeId": 28,
+      "isLayered": false
     },
     {
       "id": "GemField_1",
@@ -840,7 +856,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💎 RESOURCES"
+      "category": "💎 RESOURCES",
+      "isLayered": false
     },
     {
       "id": "Desert_1",
@@ -881,7 +898,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "🏜️ BARREN/DESERT",
-      "terrainTypeId": 23
+      "terrainTypeId": 23,
+      "isLayered": false
     },
     {
       "id": "Barren_1",
@@ -922,7 +940,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "🏜️ BARREN/DESERT",
-      "terrainTypeId": 22
+      "terrainTypeId": 22,
+      "isLayered": false
     },
     {
       "id": "Oil_1",
@@ -972,7 +991,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💎 RESOURCES",
-      "terrainTypeId": 21
+      "terrainTypeId": 21,
+      "isLayered": false
     },
     {
       "id": "Swamp_1",
@@ -1013,7 +1033,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "🟫 SWAMP",
-      "terrainTypeId": 24
+      "terrainTypeId": 24,
+      "isLayered": false
     },
     {
       "id": "Grain_1",
@@ -1063,7 +1084,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💎 RESOURCES"
+      "category": "💎 RESOURCES",
+      "isLayered": false
     },
     {
       "id": "BrokenPlane_1",
@@ -1122,7 +1144,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "",
-      "terrainTypeId": 14
+      "terrainTypeId": 14,
+      "isLayered": false
     },
     {
       "id": "BrokenRails_1",
@@ -1171,7 +1194,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": ""
+      "category": "",
+      "isLayered": false
     },
     {
       "id": "DestroyedBuilding_1",
@@ -1221,7 +1245,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "🌾 PLAINS"
+      "category": "🌾 PLAINS",
+      "isLayered": false
     },
     {
       "id": "Water_Rock_1",
@@ -1265,7 +1290,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💧 WATER / RIVER"
+      "category": "💧 WATER / RIVER",
+      "isLayered": true
     },
     {
       "id": "Lava_Plain_1",
@@ -1307,7 +1333,8 @@
       "roadAllowed": false,
       "terrainTypeId": 26,
       "category": "🌋 VOLCANIC/RIFT",
-      "fallback": false
+      "fallback": false,
+      "isLayered": false
     },
     {
       "id": "Lava_Rift_1",
@@ -1349,7 +1376,8 @@
       "roadAllowed": false,
       "terrainTypeId": 27,
       "category": "🌋 VOLCANIC/RIFT",
-      "fallback": false
+      "fallback": false,
+      "isLayered": false
     },
     {
       "id": "Old_Generator_1",
@@ -1404,7 +1432,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💎 RESOURCES"
+      "category": "💎 RESOURCES",
+      "isLayered": false
     },
     {
       "id": "Fish_1",
@@ -1457,7 +1486,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💧 WATER / RIVER"
+      "category": "💧 WATER / RIVER",
+      "isLayered": true
     },
     {
       "id": "Artefact_Test_1",
@@ -1511,7 +1541,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": ""
+      "category": "",
+      "isLayered": false
     },
     {
       "id": "Farm_Test_1",
@@ -1574,7 +1605,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💎 RESOURCES"
+      "category": "💎 RESOURCES",
+      "isLayered": false
     },
     {
       "id": "GoldMine_Test_1",
@@ -1637,7 +1669,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💎 RESOURCES"
+      "category": "💎 RESOURCES",
+      "isLayered": false
     },
     {
       "id": "IronMine_Test_1",
@@ -1700,7 +1733,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💎 RESOURCES"
+      "category": "💎 RESOURCES",
+      "isLayered": false
     },
     {
       "id": "StoneMine_Test_1",
@@ -1763,7 +1797,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💎 RESOURCES"
+      "category": "💎 RESOURCES",
+      "isLayered": false
     },
     {
       "id": "StoneConveyor_Test_1",
@@ -1826,7 +1861,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💎 RESOURCES"
+      "category": "💎 RESOURCES",
+      "isLayered": false
     },
     {
       "id": "LumberMill_Test_1",
@@ -1889,7 +1925,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💎 RESOURCES"
+      "category": "💎 RESOURCES",
+      "isLayered": false
     },
     {
       "id": "ScoutTower_Test_1",
@@ -1934,7 +1971,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": ""
+      "category": "",
+      "isLayered": false
     },
     {
       "id": "Water_Ship_Test_1",
@@ -1987,7 +2025,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💧 WATER / RIVER"
+      "category": "💧 WATER / RIVER",
+      "isLayered": true
     },
     {
       "id": "Water_SmallShipyard_Test_1",
@@ -2044,7 +2083,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💧 WATER / RIVER"
+      "category": "💧 WATER / RIVER",
+      "isLayered": true
     },
     {
       "id": "Water_BrokenBoat_1",
@@ -2088,7 +2128,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💧 WATER / RIVER"
+      "category": "💧 WATER / RIVER",
+      "isLayered": true
     },
     {
       "id": "Water_OilSpill_1",
@@ -2132,7 +2173,8 @@
       "booster": "",
       "effects": "",
       "roadAllowed": false,
-      "category": "💧 WATER / RIVER"
+      "category": "💧 WATER / RIVER",
+      "isLayered": true
     }
   ]
 }

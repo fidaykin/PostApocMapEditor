@@ -1506,9 +1506,9 @@ const Terrain = (() => {
 
   // Returns true when the tile should be drawn as two stacked layers:
   // the terrain derived from type underneath, spriteName on top.
+  // Driven by the explicit isLayered field in hex_database.json.
   function isLayeredHex(hexEntry) {
-    if (!hexEntry || !hexEntry.type || !hexEntry.spriteName) return false;
-    return !hexEntry.spriteName.toLowerCase().startsWith(hexEntry.type.toLowerCase());
+    return !!(hexEntry && hexEntry.isLayered);
   }
 
   // Case-insensitive color lookup by hex ID string.
