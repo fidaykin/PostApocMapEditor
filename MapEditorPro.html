@@ -5039,26 +5039,28 @@ const HexDB = (() => {
     });
   }
 
-  // Loads hex_database.json and merges any entries missing from the current DB.
-  // Runs on every init so new tiles added to the file appear automatically.
+  // Bump this whenever new tiles are added to hex_database.json.
+  // Any autosave whose dbVersion is lower (or absent) will be fully replaced.
+  const _DB_VERSION = 2;
+
+  // Loads hex_database.json when autosave is absent or at an older version.
   async function _tryAutoLoadDefaultDb() {
+    const upToDate = _data.hexes.length > 0 && _data.dbVersion === _DB_VERSION;
+    if (upToDate) return;
     try {
       const r = await fetch('./hex_database.json');
       if (!r.ok) return;
       const parsed = await r.json();
       if (!parsed?.hexes?.length) return;
 
-      if (_data.hexes.length === 0) {
-        // DB is empty — load everything from file
-        _data = parsed;
-        if (!_data.common) _data.common = { goldPerTap: 10 };
-      } else {
-        // DB has data — merge entries that are missing by id
-        const existingIds = new Set(_data.hexes.map(h => (h.id || '').toLowerCase()));
-        const newEntries  = parsed.hexes.filter(h => h.id && !existingIds.has(h.id.toLowerCase()));
-        if (newEntries.length === 0) return;  // nothing new — skip
-        _data.hexes.push(...newEntries);
-      }
+      // Preserve user-edited entries (e.g. custom income rules) by merging into fresh data.
+      // Fresh file entries win for any ID that already exists in the file;
+      // user-created IDs that aren't in the file are appended.
+      const fileIds  = new Set(parsed.hexes.map(h => (h.id || '').toLowerCase()));
+      const userOnly = _data.hexes.filter(h => h.id && !fileIds.has(h.id.toLowerCase()));
+      _data = { ...parsed, hexes: [...parsed.hexes, ...userOnly] };
+      if (!_data.common) _data.common = { goldPerTap: 10 };
+      _data.dbVersion = _DB_VERSION;
 
       _migrateHexTypes(_data.hexes);
       _migrateDestroyFields(_data.hexes);
