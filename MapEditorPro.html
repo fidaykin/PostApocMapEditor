@@ -3561,6 +3561,15 @@ const UI = (() => {
       btn.className = 'tile-btn';
       btn.dataset.hexId = h.id;
 
+      // Layered tiles have transparent-bg sprites — tint button with terrain colour
+      if (Terrain.isLayeredHex(h) && h.type) {
+        const t = h.type.toLowerCase();
+        btn.style.backgroundColor =
+          t === 'water'              ? '#2a6fad' :
+          t === 'forests' || t === 'forest' ? '#2d6a2d' :
+          t === 'plains'  || t === 'plain'  ? '#7a9a4a' : '#555';
+      }
+
       const img = document.createElement('img');
       const spr = Terrain.getSprite(h.id);
       img.src = spr ? spr.src : (h.spriteName ? `sprites/hex/${h.spriteName}.png` : '');
@@ -5030,17 +5039,27 @@ const HexDB = (() => {
     });
   }
 
-  // Auto-loads hex_database.json from the same directory when the DB is empty.
-  // Best-effort background load — does not block init.
+  // Loads hex_database.json and merges any entries missing from the current DB.
+  // Runs on every init so new tiles added to the file appear automatically.
   async function _tryAutoLoadDefaultDb() {
-    if (_data.hexes.length > 0) return;
     try {
       const r = await fetch('./hex_database.json');
       if (!r.ok) return;
       const parsed = await r.json();
       if (!parsed?.hexes?.length) return;
-      _data = parsed;
-      if (!_data.common) _data.common = { goldPerTap: 10 };
+
+      if (_data.hexes.length === 0) {
+        // DB is empty — load everything from file
+        _data = parsed;
+        if (!_data.common) _data.common = { goldPerTap: 10 };
+      } else {
+        // DB has data — merge entries that are missing by id
+        const existingIds = new Set(_data.hexes.map(h => (h.id || '').toLowerCase()));
+        const newEntries  = parsed.hexes.filter(h => h.id && !existingIds.has(h.id.toLowerCase()));
+        if (newEntries.length === 0) return;  // nothing new — skip
+        _data.hexes.push(...newEntries);
+      }
+
       _migrateHexTypes(_data.hexes);
       _migrateDestroyFields(_data.hexes);
       _migrateBuildFields(_data.hexes);
