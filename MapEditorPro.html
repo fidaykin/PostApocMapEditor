@@ -1493,6 +1493,24 @@ const Terrain = (() => {
   function getCitySprite()       { return citySprite; }
   function getSettlementSprite() { return settlementSprite; }
 
+  // Returns the base terrain sprite for a given type string (e.g. "Water" → Water image).
+  // Finds the simplest tile whose spriteName starts with type (i.e. it is a plain terrain tile).
+  function getTerrainSpriteForType(type) {
+    if (!type) return null;
+    const lo = type.toLowerCase();
+    const entry = (typeof HexDB !== 'undefined' ? HexDB.getAll() : [])
+      .find(h => h.type && h.type.toLowerCase() === lo &&
+                 h.spriteName && h.spriteName.toLowerCase().startsWith(lo));
+    return entry ? (sprites[entry.id.toLowerCase()] || null) : null;
+  }
+
+  // Returns true when the tile should be drawn as two stacked layers:
+  // the terrain derived from type underneath, spriteName on top.
+  function isLayeredHex(hexEntry) {
+    if (!hexEntry || !hexEntry.type || !hexEntry.spriteName) return false;
+    return !hexEntry.spriteName.toLowerCase().startsWith(hexEntry.type.toLowerCase());
+  }
+
   // Case-insensitive color lookup by hex ID string.
   function color(id) {
     if (typeof id !== 'string') return [120,155,85];
@@ -1551,7 +1569,8 @@ const Terrain = (() => {
   function getUploadedUrl(name) { return _uploadedUrls[name] || null; }
 
   return { applyHexDbOverrides, getSprite, getCustomSprite, getCitySprite, getSettlementSprite,
-           color, byId, getAll, registerUploadedUrls, getUploadedUrl };
+           color, byId, byHexId, getAll, registerUploadedUrls, getUploadedUrl,
+           getTerrainSpriteForType, isLayeredHex };
 })();
 // ════════════════════════════════════════════════════════════
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
@@ -1729,10 +1748,21 @@ const Canvas = (() => {
   }
 
   function _drawHexTile(cx, cy, radius, hexId) {
-    const sprite = Terrain.getSprite(hexId);
+    const hexEntry = Terrain.byHexId(hexId);
+    const sprite   = Terrain.getSprite(hexId);
     ctx.save();
     hexClipPath(cx, cy, radius);
-    if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+    if (hexEntry && Terrain.isLayeredHex(hexEntry)) {
+      const terrainSprite = Terrain.getTerrainSpriteForType(hexEntry.type);
+      if (terrainSprite && terrainSprite.complete && terrainSprite.naturalWidth > 0) {
+        ctx.clip();
+        ctx.drawImage(terrainSprite, cx - radius, cy - radius, radius * 2, radius * 2);
+      } else {
+        ctx.fillStyle = '#444'; ctx.fill();
+      }
+      if (sprite && sprite.complete && sprite.naturalWidth > 0)
+        ctx.drawImage(sprite, cx - radius, cy - radius, radius * 2, radius * 2);
+    } else if (sprite && sprite.complete && sprite.naturalWidth > 0) {
       ctx.clip();
       ctx.drawImage(sprite, cx - radius, cy - radius, radius * 2, radius * 2);
     } else {
