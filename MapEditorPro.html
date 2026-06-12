@@ -1504,11 +1504,19 @@ const Terrain = (() => {
     return entry ? (sprites[entry.id.toLowerCase()] || null) : null;
   }
 
+  // Hardcoded set — mirrors RuntimeDatabaseSync._layeredHexIds in C#.
+  // Works even when the autosaved hexdb predates the isLayered field.
+  const _LAYERED_HEX_IDS = new Set([
+    'water_rock_1', 'fish_1', 'water_ship_test_1',
+    'water_smallshipyard_test_1', 'water_brokenboat_1', 'water_oilspill_1',
+  ]);
+
   // Returns true when the tile should be drawn as two stacked layers:
   // the terrain derived from type underneath, spriteName on top.
-  // Driven by the explicit isLayered field in hex_database.json.
   function isLayeredHex(hexEntry) {
-    return !!(hexEntry && hexEntry.isLayered);
+    if (!hexEntry) return false;
+    if (hexEntry.isLayered) return true;
+    return _LAYERED_HEX_IDS.has((hexEntry.id || '').toLowerCase());
   }
 
   // Case-insensitive color lookup by hex ID string.
