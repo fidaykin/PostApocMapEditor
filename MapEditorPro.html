@@ -3194,7 +3194,9 @@ const DriveSync = (() => {
       _renderMapList(_mapListCache);
     } catch(e) {
       list.innerHTML = '<li class="drive-maps-error">Failed to load: ' + e.message +
-        ' <button onclick="document.getElementById(\'drive-maps-refresh\').click()">Retry</button></li>';
+        ' <button class="drive-maps-retry">Retry</button></li>';
+      const retryBtn = list.querySelector('.drive-maps-retry');
+      if (retryBtn) retryBtn.onclick = () => { _mapListCache = null; _fetchAndRender(); };
     }
   }
 
