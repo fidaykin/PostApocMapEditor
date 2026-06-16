@@ -904,6 +904,7 @@ body.mode-settlements #stt-tools   { display: flex; }
   cursor: pointer;
 }
 .drive-map-load-btn:hover { background: #2a5a3a; }
+.drive-map-load-btn:disabled { opacity: .5; cursor: default; color: #4a9; }
 .drive-maps-empty, .drive-maps-error {
   color: #888;
   padding: 12px 10px;
@@ -3095,7 +3096,7 @@ const DriveSync = (() => {
   let _tokenClient = null;
   let _hexFolderId = null;
   let _dbSource    = 'autosave';  // 'autosave' | 'local' | 'drive'
-  let _lastMapName = '';
+  let _lastMapName = localStorage.getItem('driveLastMapName') || '';
   let _mapListCache = null;
   let _popoverOpen  = false;
 
@@ -3171,13 +3172,17 @@ const DriveSync = (() => {
       list.innerHTML = '<li class="drive-maps-empty">No maps found in Drive folder</li>';
       return;
     }
-    list.innerHTML = files.map((f, i) =>
-      '<li class="drive-map-row" data-idx="' + i + '">' +
-        '<span class="drive-map-name">' + f.name.replace(/\.json$/i, '') + '</span>' +
-        '<button class="drive-map-load-btn" data-idx="' + i + '">↓ Load</button>' +
-      '</li>'
-    ).join('');
-    list.querySelectorAll('.drive-map-load-btn').forEach(btn => {
+    list.innerHTML = files.map((f, i) => {
+      const name = f.name.replace(/\.json$/i, '');
+      const loaded = name === _lastMapName;
+      return '<li class="drive-map-row" data-idx="' + i + '">' +
+        '<span class="drive-map-name">' + name + '</span>' +
+        '<button class="drive-map-load-btn" data-idx="' + i + '"' + (loaded ? ' disabled' : '') + '>' +
+          (loaded ? '✓ Loaded' : '↓ Load') +
+        '</button>' +
+      '</li>';
+    }).join('');
+    list.querySelectorAll('.drive-map-load-btn:not([disabled])').forEach(btn => {
       const f = files[+btn.dataset.idx];
       btn.onclick = () => loadMapFromDrive(f.id, f.name);
     });
@@ -3229,6 +3234,7 @@ const DriveSync = (() => {
     pop.style.display = 'flex';
     _popoverOpen = true;
     if (!_mapListCache) _fetchAndRender();
+    else _renderMapList(_mapListCache);
   }
 
   async function loadMapFromDrive(fileId, fileName) {
@@ -3243,6 +3249,7 @@ const DriveSync = (() => {
       const text = await resp.text();
       IO.loadFromJSON(JSON.parse(text));
       _lastMapName = fileName.replace(/\.json$/i, '');
+      localStorage.setItem('driveLastMapName', _lastMapName);
       UI.toast('✅ Loaded ' + _lastMapName);
     } catch(e) {
       UI.toast('❌ Load failed: ' + e.message);
@@ -3576,6 +3583,7 @@ const DriveSync = (() => {
     if (rawName === null) return;
     const fname = rawName.trim().replace(/\.json$/i, '') || 'current_map';
     _lastMapName = fname;
+    localStorage.setItem('driveLastMapName', _lastMapName);
 
     const btn = document.getElementById('btn-publish-map');
     if (btn) btn.disabled = true;
