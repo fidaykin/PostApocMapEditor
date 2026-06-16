@@ -7044,6 +7044,10 @@ window.addEventListener('load', async () => {
   // Restore last session if available, otherwise init a blank map
   const _mapRestored = IO.tryRestoreAutosave();
   if (!_mapRestored) IO.newMap(true);
+  // If the last session loaded a map from Drive, restore its name in the status bar
+  // (tryRestoreAutosave overwrites the label with "(autosave)" — we correct it here)
+  const _driveMapName = localStorage.getItem('driveLastMapName');
+  if (_mapRestored && _driveMapName) IO.setFileName(_driveMapName);
   Canvas.init();
   UI.init();
   Tools.init();
