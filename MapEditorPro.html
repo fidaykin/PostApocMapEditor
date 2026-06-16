@@ -3242,7 +3242,8 @@ const DriveSync = (() => {
       const resp = await _authFetch(DRIVE_API + '/' + fileId + '?alt=media');
       const text = await resp.text();
       IO.loadFromJSON(JSON.parse(text));
-      UI.toast('✅ Loaded ' + fileName.replace(/\.json$/i, ''));
+      _lastMapName = fileName.replace(/\.json$/i, '');
+      UI.toast('✅ Loaded ' + _lastMapName);
     } catch(e) {
       UI.toast('❌ Load failed: ' + e.message);
     }
