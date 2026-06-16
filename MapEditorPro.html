@@ -3146,6 +3146,89 @@ const DriveSync = (() => {
     });
   }
 
+  // ── Drive Maps Popover ────────────────────────────────────
+  function _closeMapsPopover() {
+    const pop = document.getElementById('drive-maps-popover');
+    if (pop) pop.style.display = 'none';
+    _popoverOpen = false;
+  }
+
+  function _outsideClickHandler(e) {
+    const pop = document.getElementById('drive-maps-popover');
+    const btn = document.getElementById('btn-drive-maps');
+    if (_popoverOpen && pop && !pop.contains(e.target) && e.target !== btn)
+      _closeMapsPopover();
+  }
+
+  function _escHandler(e) {
+    if (e.key === 'Escape' && _popoverOpen) _closeMapsPopover();
+  }
+
+  function _renderMapList(files) {
+    const list = document.getElementById('drive-maps-list');
+    if (!list) return;
+    if (!files.length) {
+      list.innerHTML = '<li class="drive-maps-empty">No maps found in Drive folder</li>';
+      return;
+    }
+    list.innerHTML = files.map((f, i) =>
+      '<li class="drive-map-row" data-idx="' + i + '">' +
+        '<span class="drive-map-name">' + f.name.replace(/\.json$/i, '') + '</span>' +
+        '<button class="drive-map-load-btn" data-idx="' + i + '">↓ Load</button>' +
+      '</li>'
+    ).join('');
+    list.querySelectorAll('.drive-map-load-btn').forEach(btn => {
+      const f = files[+btn.dataset.idx];
+      btn.onclick = () => loadMapFromDrive(f.id, f.name);
+    });
+  }
+
+  async function _fetchAndRender() {
+    const list = document.getElementById('drive-maps-list');
+    if (!list) return;
+    list.innerHTML = '<li class="drive-maps-empty">Loading…</li>';
+    try {
+      await authenticate();
+      const all = await _listFiles(ROOT_FOLDER);
+      _mapListCache = all.filter(f => f.name.endsWith('.json'));
+      _renderMapList(_mapListCache);
+    } catch(e) {
+      list.innerHTML = '<li class="drive-maps-error">Failed to load: ' + e.message +
+        ' <button onclick="document.getElementById(\'drive-maps-refresh\').click()">Retry</button></li>';
+    }
+  }
+
+  function openMapsPopover() {
+    let pop = document.getElementById('drive-maps-popover');
+    if (!pop) {
+      pop = document.createElement('div');
+      pop.id = 'drive-maps-popover';
+      pop.innerHTML =
+        '<div id="drive-maps-header">' +
+          '<span>☁ Drive Maps</span>' +
+          '<div>' +
+            '<button id="drive-maps-refresh">↻ Refresh</button>' +
+            '<button id="drive-maps-close">✕</button>' +
+          '</div>' +
+        '</div>' +
+        '<ul id="drive-maps-list"></ul>' +
+        '<div id="drive-maps-footer">' +
+          '<button id="drive-maps-publish-btn">↑ Publish Current Map</button>' +
+        '</div>';
+      document.body.appendChild(pop);
+      document.getElementById('drive-maps-close').onclick   = () => _closeMapsPopover();
+      document.getElementById('drive-maps-refresh').onclick = () => { _mapListCache = null; _fetchAndRender(); };
+      document.getElementById('drive-maps-publish-btn').onclick = () => { _closeMapsPopover(); publishMap(); };
+      document.addEventListener('click', _outsideClickHandler);
+      document.addEventListener('keydown', _escHandler);
+    }
+
+    if (_popoverOpen) { _closeMapsPopover(); return; }
+    pop.style.display = 'flex';
+    _popoverOpen = true;
+    if (!_mapListCache) _fetchAndRender();
+  }
+
   // ── Init — called by GIS script onload ───────────────────
   function init() {
     if (typeof google === 'undefined' || !google.accounts?.oauth2) return;
@@ -3628,7 +3711,8 @@ const DriveSync = (() => {
   }
 
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
-           pushSprite, publishDb, publishMap, setDbSource, syncCustomSprites, syncFromDrive };
+           pushSprite, publishDb, publishMap, setDbSource, syncCustomSprites, syncFromDrive,
+           openMapsPopover };
 })();
 
 // ════════════════════════════════════════════════════════════
