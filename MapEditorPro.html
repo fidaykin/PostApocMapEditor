@@ -832,6 +832,150 @@ body.mode-settlements #stt-tools   { display: flex; }
 }
 .publish-btn:hover { background: #2a5a3a; }
 .publish-btn:disabled { opacity: .4; cursor: wait; }
+
+/* ── Drive Maps Popover ──────────────────────────────── */
+#drive-maps-popover {
+  display: none;
+  flex-direction: column;
+  position: fixed;
+  top: 38px;
+  right: 8px;
+  width: 290px;
+  max-height: 420px;
+  background: #1a2332;
+  border: 1px solid #2a4a6a;
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.6);
+  z-index: 1000;
+  font-size: 12px;
+}
+#drive-maps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 10px;
+  border-bottom: 1px solid #2a3a4a;
+  color: #7af;
+  font-weight: bold;
+}
+#drive-maps-header div { display: flex; gap: 5px; }
+#drive-maps-refresh, #drive-maps-close {
+  background: none;
+  border: 1px solid #2a4a6a;
+  border-radius: 3px;
+  color: #7af;
+  font-size: 11px;
+  padding: 1px 6px;
+  cursor: pointer;
+}
+#drive-maps-refresh:hover, #drive-maps-close:hover { background: #1e2d3a; }
+#drive-maps-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.drive-map-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid #1e2a38;
+  cursor: default;
+}
+.drive-map-row:hover { background: #1e2d3a; }
+.drive-map-name {
+  color: #ccc;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  margin-right: 8px;
+}
+.drive-map-load-btn {
+  flex-shrink: 0;
+  background: #1a3a2a;
+  border: 1px solid #4a9;
+  border-radius: 3px;
+  color: #4a9;
+  font-size: 11px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.drive-map-load-btn:hover { background: #2a5a3a; }
+.drive-maps-empty, .drive-maps-error {
+  color: #888;
+  padding: 12px 10px;
+  text-align: center;
+}
+.drive-maps-error { color: #e66; }
+#drive-maps-footer {
+  padding: 7px 10px;
+  border-top: 1px solid #2a3a4a;
+  display: flex;
+  justify-content: flex-end;
+}
+#drive-maps-publish-btn {
+  padding: 3px 12px;
+  border: 1px solid #4a9;
+  border-radius: 4px;
+  background: #1a3a2a;
+  color: #4a9;
+  font-size: 12px;
+  cursor: pointer;
+}
+#drive-maps-publish-btn:hover { background: #2a5a3a; }
+
+/* ── Drive Overwrite / Unsaved-Changes Confirm ───────── */
+#drive-overwrite-confirm {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.55);
+  z-index: 1100;
+  align-items: center;
+  justify-content: center;
+}
+#drive-overwrite-box {
+  background: #1a2332;
+  border: 1px solid #a74;
+  border-radius: 6px;
+  padding: 20px;
+  width: 300px;
+  box-shadow: 0 4px 20px rgba(0,0,0,.7);
+}
+#drive-overwrite-msg {
+  color: #ccc;
+  font-size: 13px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+#drive-overwrite-btns {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+#drive-overwrite-cancel {
+  padding: 4px 14px;
+  background: #1e2d3a;
+  border: 1px solid #3a4a5a;
+  border-radius: 4px;
+  color: #aaa;
+  font-size: 12px;
+  cursor: pointer;
+}
+#drive-overwrite-ok {
+  padding: 4px 14px;
+  background: #3a2010;
+  border: 1px solid #a74;
+  border-radius: 4px;
+  color: #fa6;
+  font-size: 12px;
+  cursor: pointer;
+}
+#drive-overwrite-cancel:hover { background: #263545; }
+#drive-overwrite-ok:hover { background: #4a2818; }
 </style>
 <script src="https://accounts.google.com/gsi/client" async onload="DriveSync.init()"></script>
 <script src="zone-painter.js?v=8"></script>
@@ -905,6 +1049,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <button class="publish-btn" id="btn-sync-drive"  onclick="DriveSync.syncFromDrive()" title="Force re-download HexDB + all custom sprites from Drive">☁ Sync</button>
     <button class="publish-btn" id="btn-publish-db"  onclick="DriveSync.publishDb()"     title="Upload HexDB + sprites to Google Drive">☁ Publish DB</button>
     <button class="publish-btn" id="btn-publish-map" onclick="DriveSync.publishMap()"    title="Upload current map to Google Drive">☁ Publish Map</button>
+    <button class="publish-btn" id="btn-drive-maps"  onclick="DriveSync.openMapsPopover()" title="Browse and load maps from Google Drive">☁ Maps ▾</button>
   </div>
 
   <!-- ── Toolbar ──────────────────────────────────────────── -->
@@ -2951,6 +3096,8 @@ const DriveSync = (() => {
   let _hexFolderId = null;
   let _dbSource    = 'autosave';  // 'autosave' | 'local' | 'drive'
   let _lastMapName = '';
+  let _mapListCache = null;
+  let _popoverOpen  = false;
 
   const _SESSION_KEY = 'driveSync_token';
 
@@ -2973,6 +3120,132 @@ const DriveSync = (() => {
         sessionStorage.removeItem(_SESSION_KEY);
       }
     } catch(e) { /* ignore */ }
+  }
+
+  // ── Confirm dialog (overwrite / unsaved-changes) ─────────
+  function _showConfirm(message) {
+    return new Promise(resolve => {
+      let el = document.getElementById('drive-overwrite-confirm');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'drive-overwrite-confirm';
+        el.innerHTML =
+          '<div id="drive-overwrite-box">' +
+            '<div id="drive-overwrite-msg"></div>' +
+            '<div id="drive-overwrite-btns">' +
+              '<button id="drive-overwrite-cancel">Cancel</button>' +
+              '<button id="drive-overwrite-ok">Confirm</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(el);
+      }
+      document.getElementById('drive-overwrite-msg').textContent = message;
+      el.style.display = 'flex';
+      document.getElementById('drive-overwrite-cancel').onclick = () => { el.style.display = 'none'; resolve(false); };
+      document.getElementById('drive-overwrite-ok').onclick     = () => { el.style.display = 'none'; resolve(true);  };
+    });
+  }
+
+  // ── Drive Maps Popover ────────────────────────────────────
+  function _closeMapsPopover() {
+    const pop = document.getElementById('drive-maps-popover');
+    if (pop) pop.style.display = 'none';
+    _popoverOpen = false;
+  }
+
+  function _outsideClickHandler(e) {
+    const pop = document.getElementById('drive-maps-popover');
+    const btn = document.getElementById('btn-drive-maps');
+    if (_popoverOpen && pop && !pop.contains(e.target) && e.target !== btn)
+      _closeMapsPopover();
+  }
+
+  function _escHandler(e) {
+    if (e.key === 'Escape' && _popoverOpen) _closeMapsPopover();
+  }
+
+  function _renderMapList(files) {
+    const list = document.getElementById('drive-maps-list');
+    if (!list) return;
+    if (!files.length) {
+      list.innerHTML = '<li class="drive-maps-empty">No maps found in Drive folder</li>';
+      return;
+    }
+    list.innerHTML = files.map((f, i) =>
+      '<li class="drive-map-row" data-idx="' + i + '">' +
+        '<span class="drive-map-name">' + f.name.replace(/\.json$/i, '') + '</span>' +
+        '<button class="drive-map-load-btn" data-idx="' + i + '">↓ Load</button>' +
+      '</li>'
+    ).join('');
+    list.querySelectorAll('.drive-map-load-btn').forEach(btn => {
+      const f = files[+btn.dataset.idx];
+      btn.onclick = () => loadMapFromDrive(f.id, f.name);
+    });
+  }
+
+  async function _fetchAndRender() {
+    const list = document.getElementById('drive-maps-list');
+    if (!list) return;
+    list.innerHTML = '<li class="drive-maps-empty">Loading…</li>';
+    try {
+      await authenticate();
+      const all = await _listFiles(ROOT_FOLDER);
+      _mapListCache = all.filter(f => f.name.endsWith('.json'));
+      _renderMapList(_mapListCache);
+    } catch(e) {
+      list.innerHTML = '<li class="drive-maps-error">Failed to load: ' + e.message +
+        ' <button class="drive-maps-retry">Retry</button></li>';
+      const retryBtn = list.querySelector('.drive-maps-retry');
+      if (retryBtn) retryBtn.onclick = () => { _mapListCache = null; _fetchAndRender(); };
+    }
+  }
+
+  function openMapsPopover() {
+    let pop = document.getElementById('drive-maps-popover');
+    if (!pop) {
+      pop = document.createElement('div');
+      pop.id = 'drive-maps-popover';
+      pop.innerHTML =
+        '<div id="drive-maps-header">' +
+          '<span>☁ Drive Maps</span>' +
+          '<div>' +
+            '<button id="drive-maps-refresh">↻ Refresh</button>' +
+            '<button id="drive-maps-close">✕</button>' +
+          '</div>' +
+        '</div>' +
+        '<ul id="drive-maps-list"></ul>' +
+        '<div id="drive-maps-footer">' +
+          '<button id="drive-maps-publish-btn">↑ Publish Current Map</button>' +
+        '</div>';
+      document.body.appendChild(pop);
+      document.getElementById('drive-maps-close').onclick   = () => _closeMapsPopover();
+      document.getElementById('drive-maps-refresh').onclick = () => { _mapListCache = null; _fetchAndRender(); };
+      document.getElementById('drive-maps-publish-btn').onclick = () => { _closeMapsPopover(); publishMap(); };
+      document.addEventListener('click', _outsideClickHandler);
+      document.addEventListener('keydown', _escHandler);
+    }
+
+    if (_popoverOpen) { _closeMapsPopover(); return; }
+    pop.style.display = 'flex';
+    _popoverOpen = true;
+    if (!_mapListCache) _fetchAndRender();
+  }
+
+  async function loadMapFromDrive(fileId, fileName) {
+    if (History.undoSize() > 1) {
+      const ok = await _showConfirm('You have unsaved changes.\nLoad "' + fileName.replace(/\.json$/i, '') + '" from Drive anyway?');
+      if (!ok) return;
+    }
+    _closeMapsPopover();
+    try {
+      UI.toast('Downloading ' + fileName + '…');
+      const resp = await _authFetch(DRIVE_API + '/' + fileId + '?alt=media');
+      const text = await resp.text();
+      IO.loadFromJSON(JSON.parse(text));
+      UI.toast('✅ Loaded ' + fileName.replace(/\.json$/i, ''));
+    } catch(e) {
+      UI.toast('❌ Load failed: ' + e.message);
+    }
   }
 
   // ── Init — called by GIS script onload ───────────────────
@@ -3312,9 +3585,15 @@ const DriveSync = (() => {
       const rootFiles  = await _listFiles(ROOT_FOLDER);
       const rootByName = Object.fromEntries(rootFiles.map(f => [f.name, f.id]));
 
-      UI.toast(`Uploading ${fname}.json…`);
+      if (rootByName[fname + '.json']) {
+        const ok = await _showConfirm('"' + fname + '.json" already exists in Drive.\nOverwrite it with the current map?');
+        if (!ok) { if (btn) btn.disabled = false; return; }
+      }
+
+      UI.toast('Uploading ' + fname + '.json…');
       await _uploadFile(ROOT_FOLDER, fname + '.json', mapJson, 'application/json', rootByName[fname + '.json']);
-      UI.toast(`✅ Map published as ${fname}.json`);
+      _mapListCache = null;
+      UI.toast('✅ Map published as ' + fname + '.json');
     } catch(e) {
       UI.toast('❌ Publish Map failed: ' + e.message);
       console.error('[DriveSync] publishMap error:', e);
@@ -3457,7 +3736,8 @@ const DriveSync = (() => {
   }
 
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
-           pushSprite, publishDb, publishMap, setDbSource, syncCustomSprites, syncFromDrive };
+           pushSprite, publishDb, publishMap, setDbSource, syncCustomSprites, syncFromDrive,
+           openMapsPopover, loadMapFromDrive };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -4385,7 +4665,8 @@ const IO = (() => {
   return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
            autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave,
-           setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson };
+           setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson,
+           loadFromJSON: _loadFromJSON };
 })();
 
 // ════════════════════════════════════════════════════════════
