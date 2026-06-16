@@ -3096,6 +3096,8 @@ const DriveSync = (() => {
   let _hexFolderId = null;
   let _dbSource    = 'autosave';  // 'autosave' | 'local' | 'drive'
   let _lastMapName = '';
+  let _mapListCache = null;
+  let _popoverOpen  = false;
 
   const _SESSION_KEY = 'driveSync_token';
 
@@ -3118,6 +3120,30 @@ const DriveSync = (() => {
         sessionStorage.removeItem(_SESSION_KEY);
       }
     } catch(e) { /* ignore */ }
+  }
+
+  // ── Confirm dialog (overwrite / unsaved-changes) ─────────
+  function _showConfirm(message) {
+    return new Promise(resolve => {
+      let el = document.getElementById('drive-overwrite-confirm');
+      if (!el) {
+        el = document.createElement('div');
+        el.id = 'drive-overwrite-confirm';
+        el.innerHTML =
+          '<div id="drive-overwrite-box">' +
+            '<div id="drive-overwrite-msg"></div>' +
+            '<div id="drive-overwrite-btns">' +
+              '<button id="drive-overwrite-cancel">Cancel</button>' +
+              '<button id="drive-overwrite-ok">Confirm</button>' +
+            '</div>' +
+          '</div>';
+        document.body.appendChild(el);
+      }
+      document.getElementById('drive-overwrite-msg').textContent = message;
+      el.style.display = 'flex';
+      document.getElementById('drive-overwrite-cancel').onclick = () => { el.style.display = 'none'; resolve(false); };
+      document.getElementById('drive-overwrite-ok').onclick     = () => { el.style.display = 'none'; resolve(true);  };
+    });
   }
 
   // ── Init — called by GIS script onload ───────────────────
