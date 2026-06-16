@@ -3250,6 +3250,7 @@ const DriveSync = (() => {
       IO.loadFromJSON(JSON.parse(text));
       _lastMapName = fileName.replace(/\.json$/i, '');
       localStorage.setItem('driveLastMapName', _lastMapName);
+      IO.setFileName(_lastMapName);
       UI.toast('✅ Loaded ' + _lastMapName);
     } catch(e) {
       UI.toast('❌ Load failed: ' + e.message);
@@ -4675,7 +4676,7 @@ const IO = (() => {
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
            autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave,
            setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson,
-           loadFromJSON: _loadFromJSON };
+           loadFromJSON: _loadFromJSON, setFileName: _setFileName };
 })();
 
 // ════════════════════════════════════════════════════════════
