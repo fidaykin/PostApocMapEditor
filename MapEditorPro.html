@@ -1915,8 +1915,8 @@ const Canvas = (() => {
     hexClipPath(cx, cy, radius);
     ctx.clip();
     if (spr && spr.complete && spr.naturalWidth > 0) {
-      if (axis === 2) {
-        // Mirror axis 2 sprite horizontally (matches Unity rendering)
+      if (axis === 1) {
+        // NE↔SW sprite is mirrored in source — flip horizontally
         ctx.translate(cx, cy);
         ctx.scale(-1, 1);
         ctx.drawImage(spr, -radius, -radius, radius * 2, radius * 2);
