@@ -1864,6 +1864,14 @@ const Canvas = (() => {
       });
     }
 
+    // Bridge overlays
+    bridgesData.forEach(b => {
+      const pos = hexScreenPos(b.col, b.row);
+      if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
+          pos.y + radius < 0 || pos.y - radius > canvas.height) return;
+      _drawBridgeOverlay(pos.x, pos.y, radius, b.axis);
+    });
+
     // Rect preview overlay drawn by Tools if needed
     if (_toolsRectPreview) {
       _drawRectPreview(_toolsRectPreview, radius);
@@ -1899,6 +1907,27 @@ const Canvas = (() => {
       _blkInput.value = String.fromCharCode(65 + b.col) + ':' + (b.row + 1);
     }
     if (_showRulers) { _drawBlockGrid(); _drawRulers(); }
+  }
+
+  function _drawBridgeOverlay(cx, cy, radius, axis) {
+    const spr = UI._bridgeSprites && UI._bridgeSprites[axis];
+    ctx.save();
+    hexClipPath(cx, cy, radius);
+    ctx.clip();
+    if (spr && spr.complete && spr.naturalWidth > 0) {
+      if (axis === 2) {
+        // Mirror axis 2 sprite horizontally (matches Unity rendering)
+        ctx.translate(cx, cy);
+        ctx.scale(-1, 1);
+        ctx.drawImage(spr, -radius, -radius, radius * 2, radius * 2);
+      } else {
+        ctx.drawImage(spr, cx - radius, cy - radius, radius * 2, radius * 2);
+      }
+    } else {
+      ctx.fillStyle = 'rgba(160, 110, 60, 0.75)';
+      ctx.fill();
+    }
+    ctx.restore();
   }
 
   function _drawHexTile(cx, cy, radius, hexId) {
@@ -2758,6 +2787,20 @@ const Tools = (() => {
 
   // ── Paint ──────────────────────────────────────────────────
   function _paint(col, row) {
+    const bridgeAxis = UI.getSelectedBridgeAxis();
+    if (bridgeAxis >= 0) {
+      // Bridge mode: single-tile toggle (brush size ignored)
+      const idx = bridgesData.findIndex(b => b.col === col && b.row === row);
+      if (idx >= 0 && bridgesData[idx].axis === bridgeAxis) {
+        bridgesData.splice(idx, 1);       // same axis → remove
+      } else if (idx >= 0) {
+        bridgesData[idx].axis = bridgeAxis; // different axis → update
+      } else {
+        bridgesData.push({ col, row, axis: bridgeAxis });
+      }
+      Canvas.render();
+      return;
+    }
     const tiles = Brush.getAffectedTiles(col, row);
     const hexId = UI.getSelectedTerrain();
     tiles.forEach(({ col: c, row: r }) => {
@@ -3755,6 +3798,14 @@ const DriveSync = (() => {
 // ════════════════════════════════════════════════════════════
 const UI = (() => {
   let _selectedId = 'Plain_1';  // string hex ID
+  let _selectedBridgeAxis = -1; // -1 = no bridge selected, 0/1/2 = axis
+
+  // Bridge sprite preloads
+  const _bridgeSprites = [new Image(), new Image(), new Image()];
+  _bridgeSprites[0].src = 'sprites/hex/River_bridge_1.png';
+  _bridgeSprites[1].src = 'sprites/hex/River_bridge_2.png';
+  _bridgeSprites[2].src = 'sprites/hex/River_bridge_3.png';
+  _bridgeSprites.forEach(s => { s.onload = () => { if (typeof Canvas !== 'undefined') Canvas.render(); }; });
   let _confirmCallback = null;
   let _spritePickerCallback = null;
 
@@ -3881,16 +3932,48 @@ const UI = (() => {
       (currentCatEl || scroll).appendChild(btn);
     });
 
+    // ── Bridges section (hardcoded — not from HexDB) ──────────
+    const bridgeHdr = document.createElement('button');
+    bridgeHdr.className = 'cat-header collapsed';
+    bridgeHdr.textContent = '🌉 BRIDGES';
+    const bridgeItems = document.createElement('div');
+    bridgeItems.className = 'cat-items collapsed';
+    bridgeHdr.addEventListener('click', () => {
+      bridgeHdr.classList.toggle('collapsed');
+      bridgeItems.classList.toggle('collapsed');
+    });
+    scroll.appendChild(bridgeHdr);
+    scroll.appendChild(bridgeItems);
+
+    const BRIDGE_LABELS = ['N↔S', 'NE↔SW', 'NW↔SE'];
+    for (let axis = 0; axis < 3; axis++) {
+      const btn = document.createElement('button');
+      btn.className = 'tile-btn';
+      btn.dataset.bridgeAxis = String(axis);
+      const img = document.createElement('img');
+      img.src = `sprites/hex/River_bridge_${axis + 1}.png`;
+      img.alt = `Bridge ${BRIDGE_LABELS[axis]}`;
+      btn.appendChild(img);
+      const tt = document.createElement('span');
+      tt.className = 'tile-tooltip';
+      tt.textContent = `Bridge ${BRIDGE_LABELS[axis]}`;
+      btn.appendChild(tt);
+      btn.addEventListener('click', () => selectBridge(axis));
+      bridgeItems.appendChild(btn);
+    }
+
     // Re-apply the current selection to the freshly-created buttons.
     // buildPalette() is called asynchronously (HexDB.init setTimeout, Drive sync,
     // DB edits), so it always runs after selectTerrain() — leaving no button
     // marked .selected and the bottom display stale. Calling selectTerrain here
     // makes every rebuild self-healing regardless of call order.
-    selectTerrain(_selectedId);
+    if (_selectedBridgeAxis >= 0) selectBridge(_selectedBridgeAxis);
+    else selectTerrain(_selectedId);
   }
 
   function selectTerrain(hexId) {
     if (!hexId || typeof hexId !== 'string') hexId = 'Plain_1';
+    _selectedBridgeAxis = -1;
     _selectedId = hexId;
     const t = Terrain.byId(hexId) || { id: hexId, name: hexId };
 
@@ -3920,6 +4003,24 @@ const UI = (() => {
   }
 
   function getSelectedTerrain() { return _selectedId; }
+
+  function selectBridge(axis) {
+    _selectedBridgeAxis = axis;
+    // Clear terrain tile highlight
+    document.querySelectorAll('.tile-btn[data-hex-id]').forEach(b => b.classList.remove('selected'));
+    // Highlight the bridge button
+    document.querySelectorAll('.tile-btn[data-bridge-axis]').forEach(b => {
+      b.classList.toggle('selected', Number(b.dataset.bridgeAxis) === axis);
+    });
+    // Update palette display
+    const selImg = document.getElementById('palette-sel-img');
+    selImg.src = `sprites/hex/River_bridge_${axis + 1}.png`;
+    const BRIDGE_LABELS = ['N↔S', 'NE↔SW', 'NW↔SE'];
+    document.getElementById('palette-selected-name').textContent = `Bridge ${BRIDGE_LABELS[axis]}`;
+    document.getElementById('palette-selected-id').textContent   = `bridge_axis_${axis}`;
+  }
+
+  function getSelectedBridgeAxis() { return _selectedBridgeAxis; }
 
   // Kept for backward compatibility — now just delegates to selectTerrain.
   function selectCustomTerrain(baseIntOrHexId, customId) {
@@ -4210,6 +4311,7 @@ const UI = (() => {
 
   return {
     init, buildPalette, selectTerrain, getSelectedTerrain,
+    selectBridge, getSelectedBridgeAxis, _bridgeSprites,
     selectCustomTerrain, getSelectedCustomId,
     updateSettlementCount, updateMenuHistoryState,
     toggleSettlements, closeAllMenus,
@@ -4332,6 +4434,8 @@ const IO = (() => {
       data: data2d,
       settlements: settlements.map(s => ({ col: s.col, row: s.row, type: s.type }))
     };
+    if (bridgesData.length > 0)
+      result.bridges = bridgesData.map(b => ({ col: b.col, row: b.row, axis: b.axis }));
     if (settlementSlots.length > 0)
       result.settlement_slots = settlementSlots.map(s => ({
         minDist:       s.minDist,
@@ -4382,6 +4486,9 @@ const IO = (() => {
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
       mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+      bridgesData = Array.isArray(json.bridges)
+        ? json.bridges.filter(b => typeof b.col === 'number' && typeof b.row === 'number' && typeof b.axis === 'number')
+        : [];
       // Detect old integer format: data[0][0] is a number → migrate to hex ID strings
       const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -4434,6 +4541,7 @@ const IO = (() => {
       MAP_WIDTH  = 450;
       MAP_HEIGHT = 450;
       mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+      bridgesData = [];
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = [];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
@@ -4478,6 +4586,7 @@ const IO = (() => {
     MAP_WIDTH  = w;
     MAP_HEIGHT = h;
     mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+    bridgesData = [];
     settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
     settlementSlots = [];
     if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
@@ -4513,6 +4622,9 @@ const IO = (() => {
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
 
       mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+      bridgesData = Array.isArray(json.bridges)
+        ? json.bridges.filter(b => typeof b.col === 'number' && typeof b.row === 'number' && typeof b.axis === 'number')
+        : [];
       // Detect old integer format and migrate to hex ID strings
       const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -4617,6 +4729,7 @@ const IO = (() => {
     UI.showConfirm('Clear Map', 'Clear all terrain? City settlement will be preserved.', () => {
       History.push();
       mapData.fill('Plain_1');
+      bridgesData = [];
       settlements = settlements.filter(s => s.type === 'city');
       if (settlements.length === 0) settlements.push({ col: getCityCol(), row: getCityRow(), type: 'city' });
       UI.updateSettlementCount();
@@ -7024,6 +7137,7 @@ const Dev = (() => {
 let MAP_WIDTH  = 450;
 let MAP_HEIGHT = 450;
 let mapData    = null;  // string[] hex IDs (filled by IO.newMap / load)
+let bridgesData = [];   // [{col, row, axis}] — pre-placed bridges
 let settlements = [];
 let settlementSlots = []; // [{minDist,maxDist,count,type}]
 let settlementsVisible = true;
