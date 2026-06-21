@@ -1915,8 +1915,8 @@ const Canvas = (() => {
     hexClipPath(cx, cy, radius);
     ctx.clip();
     if (spr && spr.complete && spr.naturalWidth > 0) {
-      if (axis === 2) {
-        // Mirror axis 2 sprite horizontally (matches Unity rendering)
+      if (axis === 1) {
+        // NE↔SW sprite is mirrored in source — flip horizontally
         ctx.translate(cx, cy);
         ctx.scale(-1, 1);
         ctx.drawImage(spr, -radius, -radius, radius * 2, radius * 2);
@@ -3953,6 +3953,7 @@ const UI = (() => {
       const img = document.createElement('img');
       img.src = `sprites/hex/River_bridge_${axis + 1}.png`;
       img.alt = `Bridge ${BRIDGE_LABELS[axis]}`;
+      if (axis === 1) img.style.transform = 'scaleX(-1)';
       btn.appendChild(img);
       const tt = document.createElement('span');
       tt.className = 'tile-tooltip';
@@ -4015,6 +4016,7 @@ const UI = (() => {
     // Update palette display
     const selImg = document.getElementById('palette-sel-img');
     selImg.src = `sprites/hex/River_bridge_${axis + 1}.png`;
+    selImg.style.transform = (axis === 1) ? 'scaleX(-1)' : '';
     const BRIDGE_LABELS = ['N↔S', 'NE↔SW', 'NW↔SE'];
     document.getElementById('palette-selected-name').textContent = `Bridge ${BRIDGE_LABELS[axis]}`;
     document.getElementById('palette-selected-id').textContent   = `bridge_axis_${axis}`;
