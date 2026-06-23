@@ -663,6 +663,31 @@ body.mode-settlements #stt-tools   { display: flex; }
 }
 .hexdb-section-hdr:hover { color: var(--text); }
 .hexdb-section-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; }
+
+/* ── Hex direction rosette ─────────────────────────────── */
+.hex-rosette {
+  display: grid;
+  grid-template-columns: repeat(3, 32px);
+  grid-template-rows: repeat(2, 28px);
+  gap: 2px;
+  width: fit-content;
+  margin: 4px 0;
+}
+.hex-rosette button {
+  width: 32px; height: 28px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--muted);
+  font-size: 10px; cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.hex-rosette button:hover { background: var(--hover); color: var(--text); }
+.hex-rosette button.active {
+  background: rgba(79,195,247,0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: bold;
+}
+
 .hexdb-section.collapsed .hexdb-section-body { display: none; }
 .hexdb-row { display: flex; align-items: center; gap: 8px; }
 .hexdb-label {
@@ -5358,7 +5383,7 @@ const HexDB = (() => {
   };
   const BIOMES      = ['Summer', 'Winter', 'Desert', 'Radioactive'];
   const FILTER_CATS = ['FilterTerrain','FilterResource','FilterWater','FilterSettlement','FilterHazard'];
-  const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, special: true };
+  const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, special: true, waterfaces: false };
 
   let _data        = { version: 1, common: { goldPerTap: 10 }, hexes: [] };
   let _clipboard   = null;
@@ -5410,6 +5435,7 @@ const HexDB = (() => {
       spendConstant:[{type:'Pollution',amount:1}],
       bonusDrop:false, bonusTrigger:'Destroy', bonuses:[],
       booster:'', effects:'',
+      waterFaces:[],
     };
   }
 
@@ -5676,6 +5702,32 @@ const HexDB = (() => {
     </div>`;
   }
 
+  const WATER_DIRS = [
+    { key:'NW', label:'NW' }, { key:'N',  label:'N'  }, { key:'NE', label:'NE' },
+    { key:'SW', label:'SW' }, { key:'S',  label:'S'  }, { key:'SE', label:'SE' },
+  ];
+
+  function _waterFacesHTML(hex) {
+    if (hex.type !== 'Rivers') return '';
+    const faces = Array.isArray(hex.waterFaces) ? hex.waterFaces : [];
+    const btns = WATER_DIRS.map(d => {
+      const active = faces.includes(d.key) ? ' class="active"' : '';
+      return `<button${active} data-wf="${d.key}" title="${d.key} — water exits this direction">${d.label}</button>`;
+    }).join('');
+    return `
+    <div class="hexdb-row" style="align-items:flex-start">
+      <span class="hexdb-label" style="padding-top:6px">Water Exits</span>
+      <div>
+        <div class="hex-rosette" id="hex-rosette">${btns}</div>
+        <small style="color:var(--muted);font-size:0.8em">
+          Toggle directions where water channel exits this tile.<br>
+          Empty = no exits (coastline on all sides).<br>
+          Absent from DB = suppress all (backward compat).
+        </small>
+      </div>
+    </div>`;
+  }
+
   function _renderRecord(hex) {
     const mainBody = [
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
@@ -5867,7 +5919,8 @@ const HexDB = (() => {
       _sectionHTML('destroy', 'DESTROY (10–17)',destroyBody) +
       _sectionHTML('build',   'BUILD (18–24)',  buildBody)   +
       _sectionHTML('income',  'INCOME',         incomeBody)  +
-      _sectionHTML('special', 'SPECIAL',        specialBody) +
+      _sectionHTML('special',    'SPECIAL',      specialBody)    +
+      (hex.type === 'Rivers' ? _sectionHTML('waterfaces', 'WATER EXITS', _waterFacesHTML(hex)) : '') +
       actionsHTML + hexIdDatalist;
 
     // Wire section toggles
@@ -6029,6 +6082,23 @@ const HexDB = (() => {
         _renderRecord(h);
       });
     });
+
+    // ── Wire water-exit rosette ───────────────────────────────
+    const rosette = document.getElementById('hex-rosette');
+    if (rosette) {
+      rosette.addEventListener('click', e => {
+        const btn = e.target.closest('[data-wf]');
+        if (!btn || _selFilt < 0) return;
+        const dir = btn.dataset.wf;
+        const h = _data.hexes[_filtered[_selFilt]];
+        if (!Array.isArray(h.waterFaces)) h.waterFaces = [];
+        const idx = h.waterFaces.indexOf(dir);
+        if (idx >= 0) h.waterFaces.splice(idx, 1);
+        else h.waterFaces.push(dir);
+        btn.classList.toggle('active', idx < 0);
+        _autoSave();
+      });
+    }
 
     _validateId();
   }
@@ -6315,6 +6385,8 @@ const HexDB = (() => {
       delete h.storageCapacity;
       delete h.energyConsumption;
       delete h.pollutionConstant;
+      // waterFaces migration
+      if (!Array.isArray(h.waterFaces)) h.waterFaces = [];
     });
   }
 

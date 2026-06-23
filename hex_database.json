@@ -681,7 +681,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Water_Dirty_1",
@@ -730,7 +731,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "GoldVein_1",
@@ -1291,7 +1293,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "isLayered": true
+      "isLayered": true,
+      "waterFaces": []
     },
     {
       "id": "Lava_Plain_1",
@@ -1487,7 +1490,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "isLayered": true
+      "isLayered": true,
+      "waterFaces": []
     },
     {
       "id": "Artefact_Test_1",
@@ -2026,7 +2030,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "isLayered": true
+      "isLayered": true,
+      "waterFaces": []
     },
     {
       "id": "Water_SmallShipyard_Test_1",
@@ -2084,7 +2089,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "isLayered": true
+      "isLayered": true,
+      "waterFaces": []
     },
     {
       "id": "Water_BrokenBoat_1",
@@ -2129,7 +2135,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "isLayered": true
+      "isLayered": true,
+      "waterFaces": []
     },
     {
       "id": "Water_OilSpill_1",
@@ -2174,7 +2181,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "isLayered": true
+      "isLayered": true,
+      "waterFaces": []
     }
   ],
   "dbVersion": 2
