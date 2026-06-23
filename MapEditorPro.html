@@ -6195,6 +6195,28 @@ const HexDB = (() => {
       }
     } catch(e) {}
 
+    // Merge new tiles from bundled hex_database.json into localStorage data.
+    // Runs after localStorage restore: adds tiles present in the static file but
+    // missing from the saved session, preserving any user edits on existing tiles.
+    fetch('./hex_database.json').then(r => r.ok ? r.json() : null).then(static_ => {
+      if (!static_?.hexes?.length) return;
+      const savedVersion  = _data.dbVersion || 0;
+      const staticVersion = static_.dbVersion || 0;
+      if (staticVersion <= savedVersion && _data.hexes.length >= static_.hexes.length) return;
+      const existingIds = new Set(_data.hexes.map(h => h.id));
+      const newTiles = static_.hexes.filter(h => h.id && !existingIds.has(h.id));
+      if (!newTiles.length && staticVersion <= savedVersion) return;
+      newTiles.forEach(h => _data.hexes.push(h));
+      _data.dbVersion = Math.max(savedVersion, staticVersion);
+      _migrateSpecialFields(_data.hexes);
+      _autoSave();
+      _applyFilter(); _buildList();
+      Terrain.applyHexDbOverrides(newTiles).then(() => {
+        UI.buildPalette();
+        Canvas.render();
+      });
+    }).catch(() => {});
+
     // Search
     document.getElementById('hexdb-search').addEventListener('input', e => {
       _filter.search = e.target.value;
