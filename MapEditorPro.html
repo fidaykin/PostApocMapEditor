@@ -5410,6 +5410,7 @@ const HexDB = (() => {
       spendConstant:[{type:'Pollution',amount:1}],
       bonusDrop:false, bonusTrigger:'Destroy', bonuses:[],
       booster:'', effects:'',
+      waterFaces:[],
     };
   }
 
@@ -6315,6 +6316,8 @@ const HexDB = (() => {
       delete h.storageCapacity;
       delete h.energyConsumption;
       delete h.pollutionConstant;
+      // waterFaces migration
+      if (!Array.isArray(h.waterFaces)) h.waterFaces = [];
     });
   }
 
