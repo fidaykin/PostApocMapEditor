@@ -663,6 +663,31 @@ body.mode-settlements #stt-tools   { display: flex; }
 }
 .hexdb-section-hdr:hover { color: var(--text); }
 .hexdb-section-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; }
+
+/* ── Hex direction rosette ─────────────────────────────── */
+.hex-rosette {
+  display: grid;
+  grid-template-columns: repeat(3, 32px);
+  grid-template-rows: repeat(2, 28px);
+  gap: 2px;
+  width: fit-content;
+  margin: 4px 0;
+}
+.hex-rosette button {
+  width: 32px; height: 28px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--muted);
+  font-size: 10px; cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.hex-rosette button:hover { background: var(--hover); color: var(--text); }
+.hex-rosette button.active {
+  background: rgba(79,195,247,0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: bold;
+}
+
 .hexdb-section.collapsed .hexdb-section-body { display: none; }
 .hexdb-row { display: flex; align-items: center; gap: 8px; }
 .hexdb-label {
