@@ -3419,7 +3419,7 @@ const DriveSync = (() => {
 
   async function _listFiles(folderId) {
     const q = `'${folderId}' in parents and trashed=false`;
-    const d = await _fetch(`?q=${encodeURIComponent(q)}&fields=files(id,name)&pageSize=1000`);
+    const d = await _fetch(`?q=${encodeURIComponent(q)}&fields=files(id,name,md5Checksum)&pageSize=1000`);
     return d.files || [];
   }
 
@@ -3554,6 +3554,14 @@ const DriveSync = (() => {
   }
   function _saveHashes(map) {
     try { localStorage.setItem(HASH_KEY, JSON.stringify(map)); } catch {}
+  }
+
+  const BUNDLED_MD5_KEY = 'drive_bundled_md5s';
+  function _loadBundledMd5s() {
+    try { return JSON.parse(localStorage.getItem(BUNDLED_MD5_KEY) || '{}'); } catch { return {}; }
+  }
+  function _saveBundledMd5s(map) {
+    try { localStorage.setItem(BUNDLED_MD5_KEY, JSON.stringify(map)); } catch {}
   }
 
   async function _sha256hex(blob) {
@@ -3767,14 +3775,12 @@ const DriveSync = (() => {
                       .map(h => h.spriteName).filter(n => n && !bundled.has(n))
       )];
 
-      if (!custom.length) {
-        UI.toast('✅ Synced from Drive');
-        return;
-      }
-
+      // Always fetch Drive file list so both custom and bundled sprite sync can use it.
       const fid    = await _hexFolder();
       const files  = await _listFiles(fid);
-      const byName = Object.fromEntries(files.map(f => [f.name, f.id]));
+      const byName = Object.fromEntries(files.map(f => [f.name, f]));
+
+      // ── Custom sprites ──────────────────────────────────────────────────────
       const urlMap = {};
       for (let i = 0; i < custom.length; i++) {
         const name  = custom[i];
@@ -3783,11 +3789,39 @@ const DriveSync = (() => {
         if (!file) continue;
         UI.toast(`Syncing sprite ${i + 1}/${custom.length}: ${name}`);
         try {
-          const dataUrl = await _imgDataUrl(file);
+          const dataUrl = await _imgDataUrl(file.id);
           await SpriteStore.save(name, dataUrl);
           urlMap[name] = dataUrl;
         } catch(e) { console.warn(`[DriveSync] sync sprite ${name}:`, e.message); }
       }
+
+      // ── Bundled sprites — download when Drive MD5 differs from stored ───────
+      const bundledMd5s    = _loadBundledMd5s();
+      const bundledNames   = [...bundled];
+      const bundledChanged = bundledNames.filter(name => {
+        const fname    = name.endsWith('.png') ? name : name + '.png';
+        const driveFile = byName[fname];
+        if (!driveFile) return false;
+        const driveMd5 = driveFile.md5Checksum;
+        if (!driveMd5) return true;
+        return bundledMd5s[fname] !== driveMd5;
+      });
+      if (bundledChanged.length) {
+        UI.toast(`Syncing ${bundledChanged.length} updated bundled sprite(s)…`);
+      }
+      for (let i = 0; i < bundledChanged.length; i++) {
+        const name  = bundledChanged[i];
+        const fname = name.endsWith('.png') ? name : name + '.png';
+        const file  = byName[fname];
+        UI.toast(`Syncing bundled ${i + 1}/${bundledChanged.length}: ${name}`);
+        try {
+          const dataUrl = await _imgDataUrl(file.id);
+          await SpriteStore.save(name, dataUrl);
+          urlMap[name]        = dataUrl;
+          if (file.md5Checksum) bundledMd5s[fname] = file.md5Checksum;
+        } catch(e) { console.warn(`[DriveSync] bundled sprite ${name}:`, e.message); }
+      }
+      if (bundledChanged.length) _saveBundledMd5s(bundledMd5s);
 
       if (Object.keys(urlMap).length) {
         Terrain.registerUploadedUrls(urlMap);
@@ -3796,7 +3830,12 @@ const DriveSync = (() => {
           Canvas.render();
         });
       }
-      UI.toast(`✅ Synced: HexDB + ${Object.keys(urlMap).length}/${custom.length} sprite(s)`);
+      const bundledSynced = bundledChanged.filter(n => urlMap[n]);
+      const customSynced  = Object.keys(urlMap).length - bundledSynced.length;
+      const parts = [];
+      if (custom.length)        parts.push(`${customSynced}/${custom.length} custom`);
+      if (bundledSynced.length) parts.push(`${bundledSynced.length} bundled`);
+      UI.toast(`✅ Synced: HexDB${parts.length ? ' + ' + parts.join(', ') + ' sprite(s)' : ''}`);
     } catch(e) {
       UI.toast('❌ Sync failed: ' + e.message);
       console.error('[DriveSync] syncFromDrive:', e);
