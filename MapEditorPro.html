@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>MapEditorPro v0.9.8</title>
+<title>MapEditorPro v0.9.9</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1283,6 +1283,10 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div id="bld-left">
       <div id="bld-filters">
         <input id="bld-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
+        <select id="bld-filter-biome" title="Filter by Biome">
+          <option value="">All Biomes</option>
+          <option>Summer</option><option>Winter</option><option>Desert</option><option>Radioactive</option>
+        </select>
       </div>
       <div id="bld-list"></div>
       <div class="hexdb-list-footer">
@@ -1308,6 +1312,10 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div id="stt-left">
       <div id="stt-filters">
         <input id="stt-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
+        <select id="stt-filter-biome" title="Filter by Biome">
+          <option value="">All Biomes</option>
+          <option>Summer</option><option>Winter</option><option>Desert</option><option>Radioactive</option>
+        </select>
       </div>
       <div id="stt-list"></div>
       <div class="hexdb-list-footer">
@@ -1336,7 +1344,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
     <div class="status-item" style="margin-left:auto;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span>File: </span><span id="map-file-label">—</span></div>
-    <div class="status-item" id="version-label" style="color:var(--muted)">v0.9.8</div>
+    <div class="status-item" id="version-label" style="color:var(--muted)">v0.9.9</div>
   </div>
 
 </div>
@@ -6404,12 +6412,12 @@ const HexDB = (() => {
 
 // ── BldDB Module ───────────────────────────────────────────
 const BldDB = (() => {
-  const SECTION_DEFAULTS = { main: false, build: true, levels: false };
+  const SECTION_DEFAULTS = { main: false, build: true, production: false, levels: false };
 
   let _data      = { version: 1, buildings: [] };
   let _clipboard = null;
   let _selFilt   = -1;
-  let _filter    = { search: '' };
+  let _filter    = { search: '', biome: '' };
   let _filtered  = [];
   let _secState  = {};
 
@@ -6418,9 +6426,12 @@ const BldDB = (() => {
       id: '', textId: '', spriteName: '', buildingType: '',
       biome: 'Summer', filterCategory: 'FilterBuilding',
       startLevel: 1, maxLevel: 1,
+      requiredTownLevel: 1, constructionTimeSeconds: 0,
       buildCostGold: 0, buildCostGems: 0, buildCostEvent: 0,
       buildRequiresRoad: false, buildPlacementRule: '',
       buildMaxPerMap: 0,
+      productionGold: 0, productionFood: 0, productionLumber: 0, productionStone: 0,
+      storageGold: 0, storageFood: 0, storageLumber: 0, storageStone: 0,
       levels: [_blankLevel(1)],
     };
   }
@@ -6455,8 +6466,10 @@ const BldDB = (() => {
 
   function _applyFilter() {
     const s = _filter.search.toLowerCase();
+    const b = _filter.biome;
     _filtered = _data.buildings.map((h, i) => i)
-      .filter(i => !s || _data.buildings[i].id.toLowerCase().includes(s));
+      .filter(i => (!s || _data.buildings[i].id.toLowerCase().includes(s)) &&
+                   (!b || _data.buildings[i].biome === b));
   }
 
   function _buildList() {
@@ -6548,6 +6561,29 @@ const BldDB = (() => {
           <input id="bld-f-buildPlacementRule" type="text" value="${_esc(bld.buildPlacementRule)}"></div>
         <div class="hexdb-field-row"><label>Max Per Map</label>
           <input id="bld-f-buildMaxPerMap" type="number" step="1" value="${_esc(bld.buildMaxPerMap)}"></div>
+        <div class="hexdb-field-row"><label>Required Town Lvl</label>
+          <input id="bld-f-requiredTownLevel" type="number" step="1" min="0" value="${_esc(bld.requiredTownLevel ?? 1)}"></div>
+        <div class="hexdb-field-row"><label>Build Time (sec)</label>
+          <input id="bld-f-constructionTimeSeconds" type="number" step="1" min="0" value="${_esc(bld.constructionTimeSeconds ?? 0)}"></div>
+      </div>
+      <div class="hexdb-section-hdr" data-sec="production">${collapsed('production')} PRODUCTION</div>
+      <div class="hexdb-section-body" data-sec="production" style="display:${bodyDisplay('production')}">
+        <div class="hexdb-field-row"><label>Gold / hr</label>
+          <input id="bld-f-productionGold" type="number" step="1" value="${_esc(bld.productionGold ?? 0)}"></div>
+        <div class="hexdb-field-row"><label>Food / hr</label>
+          <input id="bld-f-productionFood" type="number" step="1" value="${_esc(bld.productionFood ?? 0)}"></div>
+        <div class="hexdb-field-row"><label>Lumber / hr</label>
+          <input id="bld-f-productionLumber" type="number" step="1" value="${_esc(bld.productionLumber ?? 0)}"></div>
+        <div class="hexdb-field-row"><label>Stone / hr</label>
+          <input id="bld-f-productionStone" type="number" step="1" value="${_esc(bld.productionStone ?? 0)}"></div>
+        <div class="hexdb-field-row" style="margin-top:8px"><label>Storage Gold</label>
+          <input id="bld-f-storageGold" type="number" step="1" value="${_esc(bld.storageGold ?? 0)}"></div>
+        <div class="hexdb-field-row"><label>Storage Food</label>
+          <input id="bld-f-storageFood" type="number" step="1" value="${_esc(bld.storageFood ?? 0)}"></div>
+        <div class="hexdb-field-row"><label>Storage Lumber</label>
+          <input id="bld-f-storageLumber" type="number" step="1" value="${_esc(bld.storageLumber ?? 0)}"></div>
+        <div class="hexdb-field-row"><label>Storage Stone</label>
+          <input id="bld-f-storageStone" type="number" step="1" value="${_esc(bld.storageStone ?? 0)}"></div>
       </div>
       <div class="hexdb-section-hdr" data-sec="levels">${collapsed('levels')} LEVELS</div>
       <div class="hexdb-section-body" data-sec="levels" style="display:${bodyDisplay('levels')}">${levelCards()}</div>
@@ -6600,9 +6636,19 @@ const BldDB = (() => {
     bld.buildCostGold   = nv('bld-f-buildCostGold');
     bld.buildCostGems   = nv('bld-f-buildCostGems');
     bld.buildCostEvent  = nv('bld-f-buildCostEvent');
-    bld.buildRequiresRoad   = bv('bld-f-buildRequiresRoad');
-    bld.buildPlacementRule  = iv('bld-f-buildPlacementRule');
-    bld.buildMaxPerMap      = nv('bld-f-buildMaxPerMap');
+    bld.buildRequiresRoad        = bv('bld-f-buildRequiresRoad');
+    bld.buildPlacementRule       = iv('bld-f-buildPlacementRule');
+    bld.buildMaxPerMap           = nv('bld-f-buildMaxPerMap');
+    bld.requiredTownLevel        = nv('bld-f-requiredTownLevel');
+    bld.constructionTimeSeconds  = nv('bld-f-constructionTimeSeconds');
+    bld.productionGold           = nv('bld-f-productionGold');
+    bld.productionFood           = nv('bld-f-productionFood');
+    bld.productionLumber         = nv('bld-f-productionLumber');
+    bld.productionStone          = nv('bld-f-productionStone');
+    bld.storageGold              = nv('bld-f-storageGold');
+    bld.storageFood              = nv('bld-f-storageFood');
+    bld.storageLumber            = nv('bld-f-storageLumber');
+    bld.storageStone             = nv('bld-f-storageStone');
 
     const n = Math.min(9999, Math.max(1, bld.maxLevel || 1));
     while (bld.levels.length < n) bld.levels.push(_blankLevel(bld.levels.length + 1));
@@ -6720,6 +6766,12 @@ const BldDB = (() => {
       if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
     });
 
+    document.getElementById('bld-filter-biome').addEventListener('change', e => {
+      _filter.biome = e.target.value;
+      _applyFilter(); _buildList();
+      if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+    });
+
     const main = document.getElementById('buildings-main');
     main.addEventListener('dragover', e => { e.preventDefault(); main.classList.add('dragover'); });
     main.addEventListener('dragleave', () => main.classList.remove('dragover'));
@@ -6748,7 +6800,7 @@ const SttDB = (() => {
   let _data      = { version: 1, settlements: [] };
   let _clipboard = null;
   let _selFilt   = -1;
-  let _filter    = { search: '' };
+  let _filter    = { search: '', biome: '' };
   let _filtered  = [];
   let _secState  = {};
 
@@ -6793,8 +6845,10 @@ const SttDB = (() => {
 
   function _applyFilter() {
     const s = _filter.search.toLowerCase();
+    const b = _filter.biome;
     _filtered = _data.settlements.map((h, i) => i)
-      .filter(i => !s || _data.settlements[i].id.toLowerCase().includes(s));
+      .filter(i => (!s || _data.settlements[i].id.toLowerCase().includes(s)) &&
+                   (!b || _data.settlements[i].biome === b));
   }
 
   function _buildList() {
@@ -7043,6 +7097,12 @@ const SttDB = (() => {
 
     document.getElementById('stt-search').addEventListener('input', e => {
       _filter.search = e.target.value;
+      _applyFilter(); _buildList();
+      if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+    });
+
+    document.getElementById('stt-filter-biome').addEventListener('change', e => {
+      _filter.biome = e.target.value;
       _applyFilter(); _buildList();
       if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
     });

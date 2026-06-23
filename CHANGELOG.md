@@ -3,6 +3,17 @@
 All notable changes to this project are documented here.
 Format: `## v[version] — [date]`
 
+## v0.9.9 — 2026-06-23
+
+### Feature — Buildings & Settlements editor improvements
+- **Biome filter** added to both Buildings and Settlements left panels (dropdown: All / Summer / Winter / Desert / Radioactive)
+- **Buildings — PRODUCTION section** added: Gold/hr, Food/hr, Lumber/hr, Stone/hr production rates; Storage Gold/Food/Lumber/Stone bonus fields
+- **Buildings — BUILD section** extended: `Required Town Level` (Main Settlement level needed to unlock building) and `Build Time (sec)` (construction duration, 0 = instant)
+- All new fields persist to `localStorage` autosave and are included in JSON export/import
+- Backward-compatible: existing `building_database.json` files load without changes (new fields default to `0`)
+
+---
+
 ## v0.9.8 — 2026-06-10
 
 ### Feature — Settlement Slot tap multiplier
