@@ -2004,22 +2004,33 @@ const Canvas = (() => {
           ctx.restore();
         };
 
+        // DIR table: maps occupiedOffsets direction name → [dCol, dRow] delta.
+        // col+1=N(up), row+1=NW-side(left), row-1=NE-side(right); stagger flips
+        // which of the two left/right neighbours is upper vs lower.
         const dc = _cursorRow % 2 === 0 ? -1 : +1;
-        [
-          [_cursorCol + 1,  _cursorRow    ],
-          [_cursorCol - 1,  _cursorRow    ],
-          [_cursorCol,      _cursorRow + 1],
-          [_cursorCol + dc, _cursorRow + 1],
-          [_cursorCol,      _cursorRow - 1],
-          [_cursorCol + dc, _cursorRow - 1],
-        ].filter(([c, r]) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT)
-         .forEach(([c, r]) => drawClusterHex(c, r, 'rgba(79,195,247,0.18)', 'rgba(79,195,247,0.9)'));
+        const DIR = {
+          N:  [ 1,  0],
+          S:  [-1,  0],
+          NW: [Math.max(0, dc), +1],   // even→[0,+1]  odd→[+1,+1]
+          SW: [Math.min(0, dc), +1],   // even→[-1,+1] odd→[0,+1]
+          NE: [Math.max(0, dc), -1],   // even→[0,-1]  odd→[+1,-1]
+          SE: [Math.min(0, dc), -1],   // even→[-1,-1] odd→[0,-1]
+        };
+
+        // Only draw satellites for directions declared in occupiedOffsets
+        const clusterTiles = fpOffsets
+          .map(d => DIR[String(d).toUpperCase()])
+          .filter(Boolean)
+          .map(([dCol, dRow]) => [_cursorCol + dCol, _cursorRow + dRow])
+          .filter(([c, r]) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT);
+
+        clusterTiles.forEach(([c, r]) =>
+          drawClusterHex(c, r, 'rgba(79,195,247,0.18)', 'rgba(79,195,247,0.9)'));
 
         // Anchor last so its amber outline renders on top
         drawClusterHex(_cursorCol, _cursorRow, 'rgba(217,119,6,0.25)', 'rgba(217,119,6,0.95)');
 
         // ── DEBUG OVERLAY ─────────────────────────────────────────────
-        // Sprite bounding box (white dashed rect)
         ctx.save();
         ctx.strokeStyle = 'rgba(255,255,255,0.85)';
         ctx.lineWidth   = 1.5;
@@ -2028,24 +2039,13 @@ const Canvas = (() => {
         ctx.setLineDash([]);
         ctx.restore();
 
-        // Dots at each computed center: yellow = anchor, magenta = satellite
-        const debugTiles = [
-          { c: _cursorCol, r: _cursorRow, color: '#ffff00' },
-          ...[
-            [_cursorCol + 1,  _cursorRow    ],
-            [_cursorCol - 1,  _cursorRow    ],
-            [_cursorCol,      _cursorRow + 1],
-            [_cursorCol + dc, _cursorRow + 1],
-            [_cursorCol,      _cursorRow - 1],
-            [_cursorCol + dc, _cursorRow - 1],
-          ].filter(([c,r]) => c>=0 && c<MAP_WIDTH && r>=0 && r<MAP_HEIGHT)
-           .map(([c, r]) => ({ c, r, color: '#ff00ff' })),
-        ];
+        const debugSats = clusterTiles.map(([c, r]) => ({ c, r, color: '#ff00ff' }));
+        const debugAll  = [{ c: _cursorCol, r: _cursorRow, color: '#ffff00' }, ...debugSats];
         ctx.save();
         ctx.font = `bold ${Math.max(9, Math.round(radius * 0.35))}px monospace`;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
-        debugTiles.forEach(({ c, r, color }) => {
+        debugAll.forEach(({ c, r, color }) => {
           const s = hexScreenPos(c, r);
           ctx.fillStyle = color;
           ctx.beginPath();
@@ -2054,11 +2054,13 @@ const Canvas = (() => {
           ctx.fillStyle = '#000';
           ctx.fillText(`${c},${r}`, s.x, s.y + Math.max(10, radius * 0.4));
         });
-        // cW/cH values in corner of bounding box
         ctx.fillStyle = '#fff';
         ctx.textAlign = 'left';
         ctx.textBaseline = 'top';
-        ctx.fillText(`cW=${Math.round(cW)} cH=${Math.round(cH)} r=${Math.round(radius)}`, as.x - cW/2 + 2, as.y - cH/2 + 2);
+        ctx.fillText(
+          `cW=${Math.round(cW)} cH=${Math.round(cH)} r=${Math.round(radius)} dirs:[${fpOffsets.join(',')}]`,
+          as.x - cW/2 + 2, as.y - cH/2 + 2
+        );
         ctx.restore();
         // ── END DEBUG ─────────────────────────────────────────────────
       } else {
