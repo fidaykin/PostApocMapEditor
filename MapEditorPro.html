@@ -1981,7 +1981,7 @@ const Canvas = (() => {
         if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
           const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
           const cH = 3 * ROW_PITCH * scale;
-          ctx.globalAlpha = 0.92;
+          ctx.globalAlpha = 0.75;
           ctx.drawImage(selSprite, as.x - cW / 2, as.y - cH / 2, cW, cH);
           ctx.globalAlpha = 1;
         }
