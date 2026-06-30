@@ -1948,25 +1948,65 @@ const Canvas = (() => {
     // Brush cursor preview
     if (_cursorCol >= 0 && _cursorRow >= 0 && Tools && Tools.getActive) {
       const tool = Tools.getActive();
-      const tiles = (tool === 'paint' || tool === 'zone')
-        ? Brush.getAffectedTiles(_cursorCol, _cursorRow)
-        : [{ col: _cursorCol, row: _cursorRow }];
-      ctx.save();
-      ctx.strokeStyle = 'rgba(79,195,247,0.9)';
-      ctx.lineWidth = Math.max(1.5, radius * 0.06);
-      tiles.forEach(({ col: tc, row: tr }) => {
-        const s = hexScreenPos(tc, tr);
-        hexClipPath(s.x, s.y, radius);
-        ctx.stroke();
-      });
-      // semi-transparent fill on affected tiles
-      ctx.fillStyle = 'rgba(79,195,247,0.12)';
-      tiles.forEach(({ col: tc, row: tr }) => {
-        const s = hexScreenPos(tc, tr);
-        hexClipPath(s.x, s.y, radius);
-        ctx.fill();
-      });
-      ctx.restore();
+      const lw   = Math.max(1.5, radius * 0.06);
+
+      // Check if selected tile is a multi-tile anchor with a footprint
+      const selEntry    = UI && UI.getSelectedTerrain ? Terrain.byId(UI.getSelectedTerrain()) : null;
+      const fpOffsets   = Array.isArray(selEntry?.occupiedOffsets) ? selEntry.occupiedOffsets : [];
+      const isMultiTile = (tool === 'paint') && fpOffsets.length > 0 && Brush.getSize() === 0;
+
+      if (isMultiTile) {
+        // Compute footprint tiles in odd-q flat-top offset coordinates
+        const even = _cursorCol % 2 === 0;
+        const DIR = {
+          'N':  [0, -1], 'NE': [+1, even ? -1 : 0], 'SE': [+1, even ? 0 : +1],
+          'S':  [0, +1], 'SW': [-1, even ?  0 : +1], 'NW': [-1, even ? -1 : 0],
+        };
+        const fpTiles = fpOffsets
+          .map(d => { const o = DIR[d]; return o ? { col: _cursorCol + o[0], row: _cursorRow + o[1] } : null; })
+          .filter(t => t && t.col >= 0 && t.col < MAP_WIDTH && t.row >= 0 && t.row < MAP_HEIGHT);
+
+        ctx.save();
+        ctx.lineWidth = lw;
+
+        // Occupied tiles — blue
+        ctx.strokeStyle = 'rgba(79,195,247,0.9)';
+        ctx.fillStyle   = 'rgba(79,195,247,0.18)';
+        fpTiles.forEach(({ col: tc, row: tr }) => {
+          const s = hexScreenPos(tc, tr);
+          hexClipPath(s.x, s.y, radius);
+          ctx.fill(); ctx.stroke();
+        });
+
+        // Anchor tile — amber
+        ctx.strokeStyle = 'rgba(217,119,6,0.95)';
+        ctx.fillStyle   = 'rgba(217,119,6,0.25)';
+        const as = hexScreenPos(_cursorCol, _cursorRow);
+        hexClipPath(as.x, as.y, radius);
+        ctx.fill(); ctx.stroke();
+
+        ctx.restore();
+      } else {
+        // Standard brush preview (ring brush or non-multi-tile tile)
+        const tiles = (tool === 'paint' || tool === 'zone')
+          ? Brush.getAffectedTiles(_cursorCol, _cursorRow)
+          : [{ col: _cursorCol, row: _cursorRow }];
+        ctx.save();
+        ctx.strokeStyle = 'rgba(79,195,247,0.9)';
+        ctx.lineWidth = lw;
+        tiles.forEach(({ col: tc, row: tr }) => {
+          const s = hexScreenPos(tc, tr);
+          hexClipPath(s.x, s.y, radius);
+          ctx.stroke();
+        });
+        ctx.fillStyle = 'rgba(79,195,247,0.12)';
+        tiles.forEach(({ col: tc, row: tr }) => {
+          const s = hexScreenPos(tc, tr);
+          hexClipPath(s.x, s.y, radius);
+          ctx.fill();
+        });
+        ctx.restore();
+      }
     }
 
     const _blkInput = document.getElementById('block-nav-input');
@@ -4100,6 +4140,13 @@ const UI = (() => {
 
     // Status bar
     document.getElementById('st-terrain').textContent = hexId;
+
+    // Multi-tile objects must be stamped one at a time — snap brush to single-tile
+    if (typeof Brush !== 'undefined' && Brush.getSize() > 0) {
+      const entry = Terrain.byId(hexId);
+      if (Array.isArray(entry?.occupiedOffsets) && entry.occupiedOffsets.length > 0)
+        Brush.setSize(0);
+    }
   }
 
   function getSelectedTerrain() { return _selectedId; }
