@@ -1908,14 +1908,50 @@ const Canvas = (() => {
     const radius  = HEX_SIZE * scale;
     const padding = radius * 2;
 
+    const _anchorPass = [];   // multi-tile anchors: drawn again in second pass
+
     for (let row = 0; row < MAP_HEIGHT; row++) {
       for (let col = 0; col < MAP_WIDTH; col++) {
         const s = hexScreenPos(col, row);
         if (s.x + padding < 0 || s.x - padding > canvas.width  ||
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
-        _drawHexTile(s.x, s.y, radius, mapData[row * MAP_WIDTH + col]);
+        const _hid = mapData[row * MAP_WIDTH + col];
+        _drawHexTile(s.x, s.y, radius, _hid);
+        const _he = Terrain.byHexId(_hid);
+        if (Array.isArray(_he?.occupiedOffsets) && _he.occupiedOffsets.length > 0)
+          _anchorPass.push({ cx: s.x, cy: s.y, col, row, entry: _he });
       }
     }
+
+    // Second pass: draw multi-tile anchor sprites spanning the full 7-tile cluster.
+    // Each satellite hex gets a clipped slice of the same image — sprite "grows out"
+    // of the anchor into surrounding tiles instead of being squished into one.
+    _anchorPass.forEach(({ cx, cy, col: ac, row: ar, entry }) => {
+      const spr = Terrain.getSprite(entry.id);
+      if (!spr || !spr.complete || !spr.naturalWidth) return;
+      const evenRow = ar % 2 === 0;
+      const DIRS = {
+        N:  [+1,  0], S:  [-1,  0],
+        NE: [evenRow ? 0 : +1, +1], SE: [evenRow ? -1 : 0, +1],
+        NW: [evenRow ? 0 : +1, -1], SW: [evenRow ? -1 : 0, -1],
+      };
+      const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
+      const cH = 3 * ROW_PITCH * scale;
+      const sL = cx - cW / 2, sT = cy - cH / 2;
+      const hexes = [[cx, cy]];
+      (entry.occupiedOffsets || []).forEach(d => {
+        const o = DIRS[d]; if (!o) return;
+        const sc = ac + o[0], sr = ar + o[1];
+        if (sc < 0 || sc >= MAP_WIDTH || sr < 0 || sr >= MAP_HEIGHT) return;
+        const p = hexScreenPos(sc, sr); hexes.push([p.x, p.y]);
+      });
+      hexes.forEach(([hx, hy]) => {
+        ctx.save();
+        hexClipPath(hx, hy, radius); ctx.clip();
+        ctx.drawImage(spr, sL, sT, cW, cH);
+        ctx.restore();
+      });
+    });
 
     if (_showZones) _drawZoneOverlays(scale, radius);
     if (typeof ZonePainter !== 'undefined' && ZonePainter.isOverlayVisible() && ZonePainter.getZones().length > 0) {
@@ -1977,16 +2013,21 @@ const Canvas = (() => {
         ctx.save();
         ctx.lineWidth = lw;
 
-        // Draw the object sprite spanning the full 7-tile cluster (unclipped).
-        // Cluster bounding box: ±(COL_PITCH+HEX_SIZE)*scale wide, ±1.5*ROW_PITCH*scale tall.
+        // Draw the object sprite clipped per hex — spans the full cluster footprint
+        // but stays within the hex shapes (no rectangular overflow).
         const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
         if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
-          const clusterW = 2 * (COL_PITCH + HEX_SIZE) * scale;
-          const clusterH = 3 * ROW_PITCH * scale;
-          ctx.globalAlpha = 0.72;
-          ctx.drawImage(selSprite,
-            as.x - clusterW / 2, as.y - clusterH / 2,
-            clusterW, clusterH);
+          const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
+          const cH = 3 * ROW_PITCH * scale;
+          const sL = as.x - cW / 2, sT = as.y - cH / 2;
+          ctx.globalAlpha = 0.82;
+          [{ x: as.x, y: as.y }, ...fpTiles.map(t => hexScreenPos(t.col, t.row))]
+            .forEach(({ x: hx, y: hy }) => {
+              ctx.save();
+              hexClipPath(hx, hy, radius); ctx.clip();
+              ctx.drawImage(selSprite, sL, sT, cW, cH);
+              ctx.restore();
+            });
           ctx.globalAlpha = 1;
         }
 
