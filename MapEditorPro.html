@@ -1982,15 +1982,18 @@ const Canvas = (() => {
         const cH = 3 * ROW_PITCH * scale;
 
         // DIR table: maps occupiedOffsets direction name → [dCol, dRow] delta.
-        // col+1=N(up), row+1=left-screen, row-1=right-screen; stagger parity per row%2.
+        // Game axis: col=game-Y (N=col+), row=game-X mirrored (game-East=row+1=screen-LEFT).
+        // Therefore NW (game-N+game-W) = screen UP+RIGHT = row-1 side, not row+1 side.
+        // NE (game-N+game-E) = screen UP+LEFT = row+1 side.
+        // Stagger: ODD rows have worldX odd (224-row odd) → upper neighbors shift to col+1.
         const dc = _cursorRow % 2 === 0 ? -1 : +1;
         const DIR = {
           N:  [ 1,  0],
           S:  [-1,  0],
-          NW: [Math.max(0, dc), +1],
-          SW: [Math.min(0, dc), +1],
-          NE: [Math.max(0, dc), -1],
-          SE: [Math.min(0, dc), -1],
+          NW: [Math.max(0, dc), -1],   // game-NW = screen upper-RIGHT (row-1)
+          NE: [Math.max(0, dc), +1],   // game-NE = screen upper-LEFT  (row+1)
+          SW: [Math.min(0, dc), -1],   // game-SW = screen lower-RIGHT (row-1)
+          SE: [Math.min(0, dc), +1],   // game-SE = screen lower-LEFT  (row+1)
         };
 
         // Only draw satellites for directions declared in occupiedOffsets
@@ -2033,17 +2036,30 @@ const Canvas = (() => {
         ctx.setLineDash([4, 4]);
         ctx.strokeRect(as.x - cW / 2, as.y - cH / 2, cW, cH);
         ctx.setLineDash([]);
+        // Build direction name for each satellite dot
+        const dirNames = {};
+        fpOffsets.forEach(d => {
+          const key = String(d).toUpperCase();
+          const delta = DIR[key];
+          if (delta) {
+            const tc = _cursorCol + delta[0];
+            const tr = _cursorRow + delta[1];
+            if (tc >= 0 && tc < MAP_WIDTH && tr >= 0 && tr < MAP_HEIGHT)
+              dirNames[`${tc},${tr}`] = key;
+          }
+        });
         const debugAll = [
-          { c: _cursorCol, r: _cursorRow, color: '#ffff00' },
-          ...clusterTiles.map(([c, r]) => ({ c, r, color: '#ff00ff' })),
+          { c: _cursorCol, r: _cursorRow, color: '#ffff00', label: 'A' },
+          ...clusterTiles.map(([c, r]) => ({ c, r, color: '#ff00ff', label: dirNames[`${c},${r}`] || '?' })),
         ];
         ctx.font = `bold ${Math.max(9, Math.round(radius * 0.35))}px monospace`;
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        debugAll.forEach(({ c, r, color }) => {
+        debugAll.forEach(({ c, r, color, label }) => {
           const s = hexScreenPos(c, r);
           ctx.fillStyle = color;
           ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(3, radius * 0.12), 0, Math.PI * 2); ctx.fill();
           ctx.fillStyle = '#fff';
+          ctx.fillText(label, s.x, s.y);
           ctx.fillText(`${c},${r}`, s.x, s.y + Math.max(10, radius * 0.45));
         });
         ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
