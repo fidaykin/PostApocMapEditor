@@ -1970,7 +1970,8 @@ const Canvas = (() => {
       // Check if selected tile is a multi-tile anchor with a footprint
       const selEntry    = UI && UI.getSelectedTerrain ? Terrain.byId(UI.getSelectedTerrain()) : null;
       const fpOffsets   = Array.isArray(selEntry?.occupiedOffsets) ? selEntry.occupiedOffsets : [];
-      const isMultiTile = (tool === 'paint') && fpOffsets.length > 0 && Brush.getSize() === 0;
+      // Multi-tile objects always use footprint preview; brush size is ignored.
+      const isMultiTile = (tool === 'paint') && fpOffsets.length > 0;
 
       if (isMultiTile) {
         // Compute footprint tiles in odd-q flat-top offset coordinates
