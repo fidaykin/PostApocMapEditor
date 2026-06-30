@@ -2025,6 +2025,22 @@ const Canvas = (() => {
         ctx.fillStyle   = 'rgba(217,119,6,0.30)';
         hexClipPath(as.x, as.y, radius);
         ctx.fill(); ctx.stroke();
+        // DEBUG: direction labels on each outline
+        ctx.font = `bold ${Math.max(8, Math.round(radius * 0.32))}px monospace`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        const dirLabel = {};
+        fpOffsets.forEach(d => {
+          const key = String(d).toUpperCase();
+          const delta = DIR[key];
+          if (delta) dirLabel[`${_cursorCol+delta[0]},${_cursorRow+delta[1]}`] = key;
+        });
+        clusterTiles.forEach(([c, r]) => {
+          const s = hexScreenPos(c, r);
+          ctx.fillStyle = '#000'; ctx.fillText(dirLabel[`${c},${r}`]||'?', s.x+1, s.y+1);
+          ctx.fillStyle = '#fff'; ctx.fillText(dirLabel[`${c},${r}`]||'?', s.x, s.y);
+        });
+        ctx.fillStyle = '#000'; ctx.fillText('A', as.x+1, as.y+1);
+        ctx.fillStyle = '#fa0'; ctx.fillText('A', as.x, as.y);
         ctx.restore();
 
       } else {
