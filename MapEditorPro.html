@@ -1977,24 +1977,9 @@ const Canvas = (() => {
         // Compute footprint tiles in odd-q flat-top offset coordinates
         // Editor: col drives vertical (col+1=up/N), row drives horizontal (row+1=left).
         // Stagger is per-row: odd rows (worldX odd) shift UP — same parity as row%2.
-        // Even-row anchor: diagonals offset dcol by 0 or -1.
-        // Odd-row anchor:  diagonals offset dcol by +1 or 0.
-        const evenRow = _cursorRow % 2 === 0;
-        // The rosette UI labels NW at top-left and NE at top-right (screen space).
-        // Swap game-compass NE/NW and SE/SW so labels match the editor screen positions.
-        const DIR = {
-          'N':  [+1,  0],
-          'NW': [evenRow ? 0 : +1, +1],  'SW': [evenRow ? -1 : 0, +1],
-          'S':  [-1,  0],
-          'SE': [evenRow ? -1 : 0, -1],  'NE': [evenRow ? 0 : +1, -1],
-        };
-        const fpTiles = fpOffsets
-          .map(d => { const o = DIR[d]; return o ? { col: _cursorCol + o[0], row: _cursorRow + o[1] } : null; })
-          .filter(t => t && t.col >= 0 && t.col < MAP_WIDTH && t.row >= 0 && t.row < MAP_HEIGHT);
-
         const as = hexScreenPos(_cursorCol, _cursorRow);
 
-        // Sprite only — no outlines in brush preview
+        // Sprite at cluster scale (semi-transparent hover preview)
         const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
         if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
           const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
@@ -2003,6 +1988,33 @@ const Canvas = (() => {
           ctx.drawImage(selSprite, as.x - cW / 2, as.y - cH / 2, cW, cH);
           ctx.globalAlpha = 1;
         }
+
+        // Outlines: use the actual 6 neighbour positions (matches _neighbors parity
+        // logic), so outlines are guaranteed to align with the cluster sprite.
+        const dc = _cursorRow % 2 === 0 ? -1 : +1;
+        const clusterTiles = [
+          [_cursorCol + 1,  _cursorRow    ],
+          [_cursorCol - 1,  _cursorRow    ],
+          [_cursorCol,      _cursorRow + 1],
+          [_cursorCol + dc, _cursorRow + 1],
+          [_cursorCol,      _cursorRow - 1],
+          [_cursorCol + dc, _cursorRow - 1],
+        ].filter(([c, r]) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT);
+
+        ctx.save();
+        ctx.lineWidth = lw;
+        ctx.strokeStyle = 'rgba(79,195,247,0.9)';
+        ctx.fillStyle   = 'rgba(79,195,247,0.18)';
+        clusterTiles.forEach(([c, r]) => {
+          const s = hexScreenPos(c, r);
+          hexClipPath(s.x, s.y, radius);
+          ctx.fill(); ctx.stroke();
+        });
+        ctx.strokeStyle = 'rgba(217,119,6,0.95)';
+        ctx.fillStyle   = 'rgba(217,119,6,0.25)';
+        hexClipPath(as.x, as.y, radius);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
       } else {
         // Standard brush preview (ring brush or non-multi-tile tile)
         const tiles = (tool === 'paint' || tool === 'zone')
