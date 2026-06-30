@@ -1997,18 +1997,6 @@ const Canvas = (() => {
         ctx.save();
         ctx.lineWidth = lw;
 
-        // Draw the object sprite unclipped at cluster scale — the sprite PNG has
-        // transparent background outside its 7-hex shape, so it naturally fits
-        // the footprint without per-hex clipping.
-        const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
-        if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
-          const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
-          const cH = 3 * ROW_PITCH * scale;
-          ctx.globalAlpha = 0.82;
-          ctx.drawImage(selSprite, as.x - cW / 2, as.y - cH / 2, cW, cH);
-          ctx.globalAlpha = 1;
-        }
-
         // Occupied tiles — blue outline + subtle fill
         ctx.strokeStyle = 'rgba(79,195,247,0.9)';
         ctx.fillStyle   = 'rgba(79,195,247,0.18)';
