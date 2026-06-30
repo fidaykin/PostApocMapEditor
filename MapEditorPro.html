@@ -2029,44 +2029,6 @@ const Canvas = (() => {
         ctx.fill(); ctx.stroke();
         ctx.restore();
 
-        // ── DEBUG OVERLAY ─────────────────────────────────────────────
-        ctx.save();
-        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
-        ctx.lineWidth   = 1;
-        ctx.setLineDash([4, 4]);
-        ctx.strokeRect(as.x - cW / 2, as.y - cH / 2, cW, cH);
-        ctx.setLineDash([]);
-        // Build direction name for each satellite dot
-        const dirNames = {};
-        fpOffsets.forEach(d => {
-          const key = String(d).toUpperCase();
-          const delta = DIR[key];
-          if (delta) {
-            const tc = _cursorCol + delta[0];
-            const tr = _cursorRow + delta[1];
-            if (tc >= 0 && tc < MAP_WIDTH && tr >= 0 && tr < MAP_HEIGHT)
-              dirNames[`${tc},${tr}`] = key;
-          }
-        });
-        const debugAll = [
-          { c: _cursorCol, r: _cursorRow, color: '#ffff00', label: 'A' },
-          ...clusterTiles.map(([c, r]) => ({ c, r, color: '#ff00ff', label: dirNames[`${c},${r}`] || '?' })),
-        ];
-        ctx.font = `bold ${Math.max(9, Math.round(radius * 0.35))}px monospace`;
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        debugAll.forEach(({ c, r, color, label }) => {
-          const s = hexScreenPos(c, r);
-          ctx.fillStyle = color;
-          ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(3, radius * 0.12), 0, Math.PI * 2); ctx.fill();
-          ctx.fillStyle = '#fff';
-          ctx.fillText(label, s.x, s.y);
-          ctx.fillText(`${c},${r}`, s.x, s.y + Math.max(10, radius * 0.45));
-        });
-        ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-        ctx.fillText(`r=${Math.round(radius)} cW=${Math.round(cW)} cH=${Math.round(cH)} dirs:[${fpOffsets.join(',')}]`,
-          as.x - cW/2 + 2, as.y - cH/2 + 2);
-        ctx.restore();
-        // ── END DEBUG ─────────────────────────────────────────────────
       } else {
         // Standard brush preview (ring brush or non-multi-tile tile)
         const tiles = (tool === 'paint' || tool === 'zone')
