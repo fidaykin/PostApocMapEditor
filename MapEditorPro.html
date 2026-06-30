@@ -1924,18 +1924,14 @@ const Canvas = (() => {
     }
 
     // Second pass: draw multi-tile anchor sprites spanning the full 7-tile cluster.
-    // The editor mirrors the map horizontally (game East = screen Left), so the
-    // sprite must be drawn flipped to align with the hex-outline positions.
+    // The sprite PNG has transparent background outside the 7-hex shape, so drawing
+    // it unclipped at cluster scale naturally produces the correct footprint.
     _anchorPass.forEach(({ cx, cy, entry }) => {
       const spr = Terrain.getSprite(entry.id);
       if (!spr || !spr.complete || !spr.naturalWidth) return;
       const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
       const cH = 3 * ROW_PITCH * scale;
-      ctx.save();
-      ctx.translate(cx, cy);
-      ctx.scale(-1, 1);
-      ctx.drawImage(spr, -cW / 2, -cH / 2, cW, cH);
-      ctx.restore();
+      ctx.drawImage(spr, cx - cW / 2, cy - cH / 2, cW, cH);
     });
 
     if (_showZones) _drawZoneOverlays(scale, radius);
@@ -1984,11 +1980,13 @@ const Canvas = (() => {
         // Even-row anchor: diagonals offset dcol by 0 or -1.
         // Odd-row anchor:  diagonals offset dcol by +1 or 0.
         const evenRow = _cursorRow % 2 === 0;
+        // The rosette UI labels NW at top-left and NE at top-right (screen space).
+        // Swap game-compass NE/NW and SE/SW so labels match the editor screen positions.
         const DIR = {
           'N':  [+1,  0],
-          'NE': [evenRow ? 0 : +1, +1],  'SE': [evenRow ? -1 : 0, +1],
+          'NW': [evenRow ? 0 : +1, +1],  'SW': [evenRow ? -1 : 0, +1],
           'S':  [-1,  0],
-          'SW': [evenRow ? -1 : 0, -1],  'NW': [evenRow ? 0 : +1, -1],
+          'SE': [evenRow ? -1 : 0, -1],  'NE': [evenRow ? 0 : +1, -1],
         };
         const fpTiles = fpOffsets
           .map(d => { const o = DIR[d]; return o ? { col: _cursorCol + o[0], row: _cursorRow + o[1] } : null; })
@@ -1999,20 +1997,16 @@ const Canvas = (() => {
         ctx.save();
         ctx.lineWidth = lw;
 
-        // Draw the object sprite flipped horizontally — the editor mirrors the map
-        // (game East = screen Left) so the sprite must be flipped to align with
-        // the hex-outline positions which use game-direction coordinates.
+        // Draw the object sprite unclipped at cluster scale — the sprite PNG has
+        // transparent background outside its 7-hex shape, so it naturally fits
+        // the footprint without per-hex clipping.
         const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
         if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
           const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
           const cH = 3 * ROW_PITCH * scale;
-          ctx.save();
-          ctx.translate(as.x, as.y);
-          ctx.scale(-1, 1);
           ctx.globalAlpha = 0.82;
-          ctx.drawImage(selSprite, -cW / 2, -cH / 2, cW, cH);
+          ctx.drawImage(selSprite, as.x - cW / 2, as.y - cH / 2, cW, cH);
           ctx.globalAlpha = 1;
-          ctx.restore();
         }
 
         // Occupied tiles — blue outline + subtle fill
