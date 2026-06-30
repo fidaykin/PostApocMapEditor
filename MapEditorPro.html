@@ -1924,33 +1924,14 @@ const Canvas = (() => {
     }
 
     // Second pass: draw multi-tile anchor sprites spanning the full 7-tile cluster.
-    // Each satellite hex gets a clipped slice of the same image — sprite "grows out"
-    // of the anchor into surrounding tiles instead of being squished into one.
-    _anchorPass.forEach(({ cx, cy, col: ac, row: ar, entry }) => {
+    // The sprite PNG has transparent background outside the 7-hex shape, so drawing
+    // it unclipped at cluster scale naturally produces the correct footprint.
+    _anchorPass.forEach(({ cx, cy, entry }) => {
       const spr = Terrain.getSprite(entry.id);
       if (!spr || !spr.complete || !spr.naturalWidth) return;
-      const evenRow = ar % 2 === 0;
-      const DIRS = {
-        N:  [+1,  0], S:  [-1,  0],
-        NE: [evenRow ? 0 : +1, +1], SE: [evenRow ? -1 : 0, +1],
-        NW: [evenRow ? 0 : +1, -1], SW: [evenRow ? -1 : 0, -1],
-      };
       const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
       const cH = 3 * ROW_PITCH * scale;
-      const sL = cx - cW / 2, sT = cy - cH / 2;
-      const hexes = [[cx, cy]];
-      (entry.occupiedOffsets || []).forEach(d => {
-        const o = DIRS[d]; if (!o) return;
-        const sc = ac + o[0], sr = ar + o[1];
-        if (sc < 0 || sc >= MAP_WIDTH || sr < 0 || sr >= MAP_HEIGHT) return;
-        const p = hexScreenPos(sc, sr); hexes.push([p.x, p.y]);
-      });
-      hexes.forEach(([hx, hy]) => {
-        ctx.save();
-        hexClipPath(hx, hy, radius); ctx.clip();
-        ctx.drawImage(spr, sL, sT, cW, cH);
-        ctx.restore();
-      });
+      ctx.drawImage(spr, cx - cW / 2, cy - cH / 2, cW, cH);
     });
 
     if (_showZones) _drawZoneOverlays(scale, radius);
@@ -2013,21 +1994,15 @@ const Canvas = (() => {
         ctx.save();
         ctx.lineWidth = lw;
 
-        // Draw the object sprite clipped per hex — spans the full cluster footprint
-        // but stays within the hex shapes (no rectangular overflow).
+        // Draw the object sprite unclipped at cluster scale — the sprite PNG has
+        // transparent background outside its 7-hex shape, so it naturally fits
+        // the footprint without per-hex clipping.
         const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
         if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
           const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
           const cH = 3 * ROW_PITCH * scale;
-          const sL = as.x - cW / 2, sT = as.y - cH / 2;
           ctx.globalAlpha = 0.82;
-          [{ x: as.x, y: as.y }, ...fpTiles.map(t => hexScreenPos(t.col, t.row))]
-            .forEach(({ x: hx, y: hy }) => {
-              ctx.save();
-              hexClipPath(hx, hy, radius); ctx.clip();
-              ctx.drawImage(selSprite, sL, sT, cW, cH);
-              ctx.restore();
-            });
+          ctx.drawImage(selSprite, as.x - cW / 2, as.y - cH / 2, cW, cH);
           ctx.globalAlpha = 1;
         }
 
@@ -2098,13 +2073,18 @@ const Canvas = (() => {
     ctx.save();
     hexClipPath(cx, cy, radius);
     ctx.clip();   // always clip to hex first — ensures bg fill and object sprite stay inside
-    if (hexEntry && Terrain.isLayeredHex(hexEntry)) {
+    // Multi-tile anchor: draw terrain background only — the cluster sprite is drawn
+    // unclipped at full 7-tile scale in the second render pass.
+    if (Array.isArray(hexEntry?.occupiedOffsets) && hexEntry.occupiedOffsets.length > 0) {
+      const [r, g, b] = Terrain.color(hexId);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fill();
+    } else if (hexEntry && Terrain.isLayeredHex(hexEntry)) {
       // Layered tile: draw terrain background, then object sprite on top
       const terrainSprite = Terrain.getTerrainSpriteForType(hexEntry.type);
       if (terrainSprite && terrainSprite.complete && terrainSprite.naturalWidth > 0) {
         ctx.drawImage(terrainSprite, cx - radius, cy - radius, radius * 2, radius * 2);
       } else {
-        // Fallback color while terrain sprite loads (or if unavailable)
         ctx.fillStyle = _terrainTypeFallbackColor(hexEntry.type);
         ctx.fill();
       }
