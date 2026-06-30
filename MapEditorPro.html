@@ -1981,40 +1981,16 @@ const Canvas = (() => {
         const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
         const cH = 3 * ROW_PITCH * scale;
 
-        const drawClusterHex = (c, r, fillStyle, strokeStyle) => {
-          const s = hexScreenPos(c, r);
-          // 1. Clip to hex, draw the sprite portion + colour tint
-          ctx.save();
-          hexClipPath(s.x, s.y, radius);
-          ctx.clip();
-          if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
-            ctx.globalAlpha = 0.75;
-            ctx.drawImage(selSprite, as.x - cW / 2, as.y - cH / 2, cW, cH);
-            ctx.globalAlpha = 1;
-          }
-          ctx.fillStyle = fillStyle;
-          ctx.fill();           // fill hex path (already set by hexClipPath)
-          ctx.restore();
-          // 2. Stroke the hex outline (no clip — stroke rides the path boundary)
-          ctx.save();
-          hexClipPath(s.x, s.y, radius);
-          ctx.lineWidth   = Math.max(2, radius * 0.08);
-          ctx.strokeStyle = strokeStyle;
-          ctx.stroke();
-          ctx.restore();
-        };
-
         // DIR table: maps occupiedOffsets direction name → [dCol, dRow] delta.
-        // col+1=N(up), row+1=NW-side(left), row-1=NE-side(right); stagger flips
-        // which of the two left/right neighbours is upper vs lower.
+        // col+1=N(up), row+1=left-screen, row-1=right-screen; stagger parity per row%2.
         const dc = _cursorRow % 2 === 0 ? -1 : +1;
         const DIR = {
           N:  [ 1,  0],
           S:  [-1,  0],
-          NW: [Math.max(0, dc), +1],   // even→[0,+1]  odd→[+1,+1]
-          SW: [Math.min(0, dc), +1],   // even→[-1,+1] odd→[0,+1]
-          NE: [Math.max(0, dc), -1],   // even→[0,-1]  odd→[+1,-1]
-          SE: [Math.min(0, dc), -1],   // even→[-1,-1] odd→[0,-1]
+          NW: [Math.max(0, dc), +1],
+          SW: [Math.min(0, dc), +1],
+          NE: [Math.max(0, dc), -1],
+          SE: [Math.min(0, dc), -1],
         };
 
         // Only draw satellites for directions declared in occupiedOffsets
@@ -2024,43 +2000,55 @@ const Canvas = (() => {
           .map(([dCol, dRow]) => [_cursorCol + dCol, _cursorRow + dRow])
           .filter(([c, r]) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT);
 
-        clusterTiles.forEach(([c, r]) =>
-          drawClusterHex(c, r, 'rgba(79,195,247,0.18)', 'rgba(79,195,247,0.9)'));
+        // 1. Sprite at cluster scale (unclipped, semi-transparent)
+        if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
+          ctx.globalAlpha = 0.75;
+          ctx.drawImage(selSprite, as.x - cW / 2, as.y - cH / 2, cW, cH);
+          ctx.globalAlpha = 1;
+        }
 
-        // Anchor last so its amber outline renders on top
-        drawClusterHex(_cursorCol, _cursorRow, 'rgba(217,119,6,0.25)', 'rgba(217,119,6,0.95)');
+        // 2. Hex outlines on top: stroke + translucent fill, no sprite clipping
+        ctx.save();
+        const olw = Math.max(2, radius * 0.08);
+        ctx.lineWidth = olw;
+        // Blue satellites
+        ctx.strokeStyle = 'rgba(79,195,247,0.9)';
+        ctx.fillStyle   = 'rgba(79,195,247,0.22)';
+        clusterTiles.forEach(([c, r]) => {
+          const s = hexScreenPos(c, r);
+          hexClipPath(s.x, s.y, radius);
+          ctx.fill(); ctx.stroke();
+        });
+        // Amber anchor (drawn last → on top)
+        ctx.strokeStyle = 'rgba(217,119,6,0.95)';
+        ctx.fillStyle   = 'rgba(217,119,6,0.30)';
+        hexClipPath(as.x, as.y, radius);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
 
         // ── DEBUG OVERLAY ─────────────────────────────────────────────
         ctx.save();
-        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-        ctx.lineWidth   = 1.5;
+        ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+        ctx.lineWidth   = 1;
         ctx.setLineDash([4, 4]);
         ctx.strokeRect(as.x - cW / 2, as.y - cH / 2, cW, cH);
         ctx.setLineDash([]);
-        ctx.restore();
-
-        const debugSats = clusterTiles.map(([c, r]) => ({ c, r, color: '#ff00ff' }));
-        const debugAll  = [{ c: _cursorCol, r: _cursorRow, color: '#ffff00' }, ...debugSats];
-        ctx.save();
+        const debugAll = [
+          { c: _cursorCol, r: _cursorRow, color: '#ffff00' },
+          ...clusterTiles.map(([c, r]) => ({ c, r, color: '#ff00ff' })),
+        ];
         ctx.font = `bold ${Math.max(9, Math.round(radius * 0.35))}px monospace`;
-        ctx.textAlign = 'center';
-        ctx.textBaseline = 'middle';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         debugAll.forEach(({ c, r, color }) => {
           const s = hexScreenPos(c, r);
           ctx.fillStyle = color;
-          ctx.beginPath();
-          ctx.arc(s.x, s.y, Math.max(3, radius * 0.12), 0, Math.PI * 2);
-          ctx.fill();
-          ctx.fillStyle = '#000';
-          ctx.fillText(`${c},${r}`, s.x, s.y + Math.max(10, radius * 0.4));
+          ctx.beginPath(); ctx.arc(s.x, s.y, Math.max(3, radius * 0.12), 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = '#fff';
+          ctx.fillText(`${c},${r}`, s.x, s.y + Math.max(10, radius * 0.45));
         });
-        ctx.fillStyle = '#fff';
-        ctx.textAlign = 'left';
-        ctx.textBaseline = 'top';
-        ctx.fillText(
-          `cW=${Math.round(cW)} cH=${Math.round(cH)} r=${Math.round(radius)} dirs:[${fpOffsets.join(',')}]`,
-          as.x - cW/2 + 2, as.y - cH/2 + 2
-        );
+        ctx.fillStyle = '#fff'; ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+        ctx.fillText(`r=${Math.round(radius)} cW=${Math.round(cW)} cH=${Math.round(cH)} dirs:[${fpOffsets.join(',')}]`,
+          as.x - cW/2 + 2, as.y - cH/2 + 2);
         ctx.restore();
         // ── END DEBUG ─────────────────────────────────────────────────
       } else {
