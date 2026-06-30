@@ -2017,6 +2017,50 @@ const Canvas = (() => {
 
         // Anchor last so its amber outline renders on top
         drawClusterHex(_cursorCol, _cursorRow, 'rgba(217,119,6,0.25)', 'rgba(217,119,6,0.95)');
+
+        // ── DEBUG OVERLAY ─────────────────────────────────────────────
+        // Sprite bounding box (white dashed rect)
+        ctx.save();
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.lineWidth   = 1.5;
+        ctx.setLineDash([4, 4]);
+        ctx.strokeRect(as.x - cW / 2, as.y - cH / 2, cW, cH);
+        ctx.setLineDash([]);
+        ctx.restore();
+
+        // Dots at each computed center: yellow = anchor, magenta = satellite
+        const debugTiles = [
+          { c: _cursorCol, r: _cursorRow, color: '#ffff00' },
+          ...[
+            [_cursorCol + 1,  _cursorRow    ],
+            [_cursorCol - 1,  _cursorRow    ],
+            [_cursorCol,      _cursorRow + 1],
+            [_cursorCol + dc, _cursorRow + 1],
+            [_cursorCol,      _cursorRow - 1],
+            [_cursorCol + dc, _cursorRow - 1],
+          ].filter(([c,r]) => c>=0 && c<MAP_WIDTH && r>=0 && r<MAP_HEIGHT)
+           .map(([c, r]) => ({ c, r, color: '#ff00ff' })),
+        ];
+        ctx.save();
+        ctx.font = `bold ${Math.max(9, Math.round(radius * 0.35))}px monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        debugTiles.forEach(({ c, r, color }) => {
+          const s = hexScreenPos(c, r);
+          ctx.fillStyle = color;
+          ctx.beginPath();
+          ctx.arc(s.x, s.y, Math.max(3, radius * 0.12), 0, Math.PI * 2);
+          ctx.fill();
+          ctx.fillStyle = '#000';
+          ctx.fillText(`${c},${r}`, s.x, s.y + Math.max(10, radius * 0.4));
+        });
+        // cW/cH values in corner of bounding box
+        ctx.fillStyle = '#fff';
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
+        ctx.fillText(`cW=${Math.round(cW)} cH=${Math.round(cH)} r=${Math.round(radius)}`, as.x - cW/2 + 2, as.y - cH/2 + 2);
+        ctx.restore();
+        // ── END DEBUG ─────────────────────────────────────────────────
       } else {
         // Standard brush preview (ring brush or non-multi-tile tile)
         const tiles = (tool === 'paint' || tool === 'zone')
