@@ -2805,16 +2805,18 @@ const Canvas = (() => {
 const Brush = (() => {
   let _size = 0;   // 0=single, 1=r1, 2=r2, 3=r3
 
-  // 6 neighbors for flat-top odd-q offset
+  // 6 neighbors: stagger is per-row (odd worldX = odd row shifts tile up).
+  // Even row: diagonals at (col-1, row±1) and (col, row±1).
+  // Odd  row: diagonals at (col+1, row±1) and (col, row±1).
   function _neighbors(col, row) {
-    const even = col % 2 === 0;
+    const dc = row % 2 === 0 ? -1 : +1;
     return [
-      [col,   row - 1],                         // N
-      [col+1, even ? row-1 : row],               // NE
-      [col+1, even ? row   : row+1],             // SE
-      [col,   row + 1],                          // S
-      [col-1, even ? row   : row+1],             // SW
-      [col-1, even ? row-1 : row],               // NW
+      [col,    row - 1],
+      [col+dc, row - 1],
+      [col+1,  row    ],
+      [col-1,  row    ],
+      [col,    row + 1],
+      [col+dc, row + 1],
     ].filter(([c, r]) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT);
   }
 
