@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>MapEditorPro v0.9.9</title>
+<title>MapEditorPro 2026.06</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1369,7 +1369,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
     <div class="status-item" style="margin-left:auto;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span>File: </span><span id="map-file-label">—</span></div>
-    <div class="status-item" id="version-label" style="color:var(--muted)">v0.9.9</div>
+    <div class="status-item" id="version-label" style="color:var(--muted)">2026.06</div>
   </div>
 
 </div>
@@ -1624,7 +1624,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.9.8";
+const VERSION = "2026.06";
 const COMMIT  = "";
 
 // ════════════════════════════════════════════════════════════
@@ -5422,7 +5422,7 @@ const HexDB = (() => {
   };
   const BIOMES      = ['Summer', 'Winter', 'Desert', 'Radioactive'];
   const FILTER_CATS = ['FilterTerrain','FilterResource','FilterWater','FilterSettlement','FilterHazard'];
-  const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, special: true, waterfaces: false };
+  const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, special: true, waterfaces: false, footprint: false };
 
   let _data        = { version: 1, common: { goldPerTap: 10 }, hexes: [] };
   let _clipboard   = null;
@@ -5767,6 +5767,35 @@ const HexDB = (() => {
     </div>`;
   }
 
+  function _footprintHTML(hex) {
+    const offsets = Array.isArray(hex.occupiedOffsets) ? hex.occupiedOffsets : [];
+    const btns = WATER_DIRS.map(d => {
+      const active = offsets.includes(d.key) ? ' class="active"' : '';
+      return `<button${active} data-fp="${d.key}" title="${d.key} — occupied tile in this direction">${d.label}</button>`;
+    }).join('');
+    const summary = offsets.length === 0
+      ? '<span style="color:var(--muted)">Single tile (no multi-tile footprint)</span>'
+      : `<span style="color:var(--accent)">Anchor + ${offsets.length} occupied tile${offsets.length > 1 ? 's' : ''}: ${offsets.join(', ')}</span>`;
+    return `
+    <div class="hexdb-row" style="align-items:flex-start">
+      <span class="hexdb-label" style="padding-top:6px">Footprint</span>
+      <div>
+        <div class="hex-rosette" id="hex-footprint-rosette">${btns}</div>
+        <div style="margin-top:4px;font-size:0.85em">${summary}</div>
+        <small style="color:var(--muted);font-size:0.8em;margin-top:2px;display:block">
+          Toggle neighbour directions occupied by this multi-tile object.<br>
+          This tile is the anchor (data owner); toggled tiles reference it.<br>
+          Saved as <code>occupiedOffsets</code> — DB version bumps to 2.
+        </small>
+      </div>
+    </div>`;
+  }
+
+  function _updateDbVersion() {
+    const hasMultiTile = _data.hexes.some(h => Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length > 0);
+    _data.version = hasMultiTile ? 2 : 1;
+  }
+
   function _renderRecord(hex) {
     const mainBody = [
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
@@ -5960,6 +5989,7 @@ const HexDB = (() => {
       _sectionHTML('income',  'INCOME',         incomeBody)  +
       _sectionHTML('special',    'SPECIAL',      specialBody)    +
       (hex.type === 'Rivers' ? _sectionHTML('waterfaces', 'WATER EXITS', _waterFacesHTML(hex)) : '') +
+      _sectionHTML('footprint', 'FOOTPRINT', _footprintHTML(hex)) +
       actionsHTML + hexIdDatalist;
 
     // Wire section toggles
@@ -6136,6 +6166,33 @@ const HexDB = (() => {
         else h.waterFaces.push(dir);
         btn.classList.toggle('active', idx < 0);
         _autoSave();
+      });
+    }
+
+    // ── Wire footprint rosette ────────────────────────────────
+    const footprintRosette = document.getElementById('hex-footprint-rosette');
+    if (footprintRosette) {
+      footprintRosette.addEventListener('click', e => {
+        const btn = e.target.closest('[data-fp]');
+        if (!btn || _selFilt < 0) return;
+        const dir = btn.dataset.fp;
+        const h = _data.hexes[_filtered[_selFilt]];
+        if (!Array.isArray(h.occupiedOffsets)) h.occupiedOffsets = [];
+        const idx = h.occupiedOffsets.indexOf(dir);
+        if (idx >= 0) h.occupiedOffsets.splice(idx, 1);
+        else h.occupiedOffsets.push(dir);
+        if (h.occupiedOffsets.length === 0) delete h.occupiedOffsets;
+        btn.classList.toggle('active', idx < 0);
+        _updateDbVersion();
+        _autoSave();
+        // Refresh the summary line without full re-render
+        const summary = footprintRosette.parentElement.querySelector('div[style*="margin-top:4px"]');
+        if (summary) {
+          const offs = Array.isArray(h.occupiedOffsets) ? h.occupiedOffsets : [];
+          summary.innerHTML = offs.length === 0
+            ? '<span style="color:var(--muted)">Single tile (no multi-tile footprint)</span>'
+            : `<span style="color:var(--accent)">Anchor + ${offs.length} occupied tile${offs.length > 1 ? 's' : ''}: ${offs.join(', ')}</span>`;
+        }
       });
     }
 
@@ -7399,7 +7456,7 @@ window.addEventListener('load', async () => {
   // Show new-map prompt only when there is nothing to restore
   if (!_mapRestored) IO.showNewMapPrompt();
   const _vLabel = document.getElementById('version-label');
-  if (_vLabel) _vLabel.textContent = COMMIT ? `v${VERSION}.${COMMIT}` : `v${VERSION}`;
+  if (_vLabel) _vLabel.textContent = COMMIT ? `${VERSION}.${COMMIT}` : VERSION;
   console.log('[MapEditorPro] Ready.');
 });
 </script>
