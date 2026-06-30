@@ -1974,58 +1974,17 @@ const Canvas = (() => {
       const isMultiTile = (tool === 'paint') && fpOffsets.length > 0;
 
       if (isMultiTile) {
-        // Clip the sprite into each hex tile so that the outline and sprite content
-        // share the same clip path — they cannot visually misalign.
         const as = hexScreenPos(_cursorCol, _cursorRow);
+
+        // Sprite at cluster scale, semi-transparent
         const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
-        const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
-        const cH = 3 * ROW_PITCH * scale;
-
-        // DIR table: maps occupiedOffsets direction name → [dCol, dRow] delta.
-        // Standard convention: N=up, S=down, NW=upper-left, NE=upper-right.
-        // col+1=N(up), row+1=screen-left, row-1=screen-right; dc corrects stagger parity.
-        const dc = _cursorRow % 2 === 0 ? -1 : +1;
-        const DIR = {
-          N:  [ 1,  0],
-          S:  [-1,  0],
-          NW: [Math.max(0, dc), +1],   // upper-left  (row+1 = screen-left)
-          NE: [Math.max(0, dc), -1],   // upper-right (row-1 = screen-right)
-          SW: [Math.min(0, dc), +1],   // lower-left
-          SE: [Math.min(0, dc), -1],   // lower-right
-        };
-
-        // Only draw satellites for directions declared in occupiedOffsets
-        const clusterTiles = fpOffsets
-          .map(d => DIR[String(d).toUpperCase()])
-          .filter(Boolean)
-          .map(([dCol, dRow]) => [_cursorCol + dCol, _cursorRow + dRow])
-          .filter(([c, r]) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT);
-
-        // 1. Sprite at cluster scale (unclipped, semi-transparent)
         if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
-          ctx.globalAlpha = 0.75;
+          const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
+          const cH = 3 * ROW_PITCH * scale;
+          ctx.globalAlpha = 0.3;
           ctx.drawImage(selSprite, as.x - cW / 2, as.y - cH / 2, cW, cH);
           ctx.globalAlpha = 1;
         }
-
-        // 2. Hex outlines on top: stroke + translucent fill, no sprite clipping
-        ctx.save();
-        const olw = Math.max(2, radius * 0.08);
-        ctx.lineWidth = olw;
-        // Blue satellites
-        ctx.strokeStyle = 'rgba(79,195,247,0.9)';
-        ctx.fillStyle   = 'rgba(79,195,247,0.22)';
-        clusterTiles.forEach(([c, r]) => {
-          const s = hexScreenPos(c, r);
-          hexClipPath(s.x, s.y, radius);
-          ctx.fill(); ctx.stroke();
-        });
-        // Amber anchor (drawn last → on top)
-        ctx.strokeStyle = 'rgba(217,119,6,0.95)';
-        ctx.fillStyle   = 'rgba(217,119,6,0.30)';
-        hexClipPath(as.x, as.y, radius);
-        ctx.fill(); ctx.stroke();
-        ctx.restore();
 
       } else {
         // Standard brush preview (ring brush or non-multi-tile tile)
