@@ -1,7 +1,21 @@
 # Changelog — Map Editor Pro
 
 All notable changes to this project are documented here.
-Format: `## v[version] — [date]`
+Format: `## [version] — [date]`
+
+## 2026.06 — 2026-06-30
+
+### Versioning — switched to calendar versioning (year.month)
+- Version label in the status bar now shows `2026.06` instead of `0.9.x` — immediately readable as a release date rather than an arbitrary semver progress marker.
+
+### Feature — Multi-tile object footprint rosette
+- New **FOOTPRINT** section in the Hex DB editor panel (collapsed by default, visible for all hex types).
+- 6-direction rosette — same layout as the Water Exits picker — to select which neighbour tiles this hex occupies as an anchor.
+- Saved as `occupiedOffsets: ["NE", "N"]` in the hex entry. Empty array is stripped from the entry on clear.
+- DB `version` field auto-bumps to `2` when any entry carries a non-empty footprint; drops back to `1` when all footprints are cleared.
+- Backward-compatible: game at schema v1 ignores the new field.
+
+---
 
 ## v0.9.9 — 2026-06-23
 

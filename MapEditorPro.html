@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>MapEditorPro v0.9.9</title>
+<title>MapEditorPro 2026.06</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1369,7 +1369,7 @@ body.mode-settlements #stt-tools   { display: flex; }
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
     <div class="status-item" style="margin-left:auto;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span>File: </span><span id="map-file-label">—</span></div>
-    <div class="status-item" id="version-label" style="color:var(--muted)">v0.9.9</div>
+    <div class="status-item" id="version-label" style="color:var(--muted)">2026.06</div>
   </div>
 
 </div>
@@ -1624,7 +1624,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 </div>
 
 <script>
-const VERSION = "0.9.8";
+const VERSION = "2026.06";
 const COMMIT  = "";
 
 // ════════════════════════════════════════════════════════════
@@ -7456,7 +7456,7 @@ window.addEventListener('load', async () => {
   // Show new-map prompt only when there is nothing to restore
   if (!_mapRestored) IO.showNewMapPrompt();
   const _vLabel = document.getElementById('version-label');
-  if (_vLabel) _vLabel.textContent = COMMIT ? `v${VERSION}.${COMMIT}` : `v${VERSION}`;
+  if (_vLabel) _vLabel.textContent = COMMIT ? `${VERSION}.${COMMIT}` : VERSION;
   console.log('[MapEditorPro] Ready.');
 });
 </script>
