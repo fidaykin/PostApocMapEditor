@@ -1982,18 +1982,16 @@ const Canvas = (() => {
         const cH = 3 * ROW_PITCH * scale;
 
         // DIR table: maps occupiedOffsets direction name → [dCol, dRow] delta.
-        // Game axis: col=game-Y (N=col+), row=game-X mirrored (game-East=row+1=screen-LEFT).
-        // Therefore NW (game-N+game-W) = screen UP+RIGHT = row-1 side, not row+1 side.
-        // NE (game-N+game-E) = screen UP+LEFT = row+1 side.
-        // Stagger: ODD rows have worldX odd (224-row odd) → upper neighbors shift to col+1.
+        // Standard convention: N=up, S=down, NW=upper-left, NE=upper-right.
+        // col+1=N(up), row+1=screen-left, row-1=screen-right; dc corrects stagger parity.
         const dc = _cursorRow % 2 === 0 ? -1 : +1;
         const DIR = {
           N:  [ 1,  0],
           S:  [-1,  0],
-          NW: [Math.max(0, dc), -1],   // game-NW = screen upper-RIGHT (row-1)
-          NE: [Math.max(0, dc), +1],   // game-NE = screen upper-LEFT  (row+1)
-          SW: [Math.min(0, dc), -1],   // game-SW = screen lower-RIGHT (row-1)
-          SE: [Math.min(0, dc), +1],   // game-SE = screen lower-LEFT  (row+1)
+          NW: [Math.max(0, dc), +1],   // upper-left  (row+1 = screen-left)
+          NE: [Math.max(0, dc), -1],   // upper-right (row-1 = screen-right)
+          SW: [Math.min(0, dc), +1],   // lower-left
+          SE: [Math.min(0, dc), -1],   // lower-right
         };
 
         // Only draw satellites for directions declared in occupiedOffsets
