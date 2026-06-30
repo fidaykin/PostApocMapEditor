@@ -1972,10 +1972,25 @@ const Canvas = (() => {
           .map(d => { const o = DIR[d]; return o ? { col: _cursorCol + o[0], row: _cursorRow + o[1] } : null; })
           .filter(t => t && t.col >= 0 && t.col < MAP_WIDTH && t.row >= 0 && t.row < MAP_HEIGHT);
 
+        const as = hexScreenPos(_cursorCol, _cursorRow);
+
         ctx.save();
         ctx.lineWidth = lw;
 
-        // Occupied tiles — blue
+        // Draw the object sprite spanning the full 7-tile cluster (unclipped).
+        // Cluster bounding box: ±(COL_PITCH+HEX_SIZE)*scale wide, ±1.5*ROW_PITCH*scale tall.
+        const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
+        if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
+          const clusterW = 2 * (COL_PITCH + HEX_SIZE) * scale;
+          const clusterH = 3 * ROW_PITCH * scale;
+          ctx.globalAlpha = 0.72;
+          ctx.drawImage(selSprite,
+            as.x - clusterW / 2, as.y - clusterH / 2,
+            clusterW, clusterH);
+          ctx.globalAlpha = 1;
+        }
+
+        // Occupied tiles — blue outline + subtle fill
         ctx.strokeStyle = 'rgba(79,195,247,0.9)';
         ctx.fillStyle   = 'rgba(79,195,247,0.18)';
         fpTiles.forEach(({ col: tc, row: tr }) => {
@@ -1984,10 +1999,9 @@ const Canvas = (() => {
           ctx.fill(); ctx.stroke();
         });
 
-        // Anchor tile — amber
+        // Anchor tile — amber outline + subtle fill
         ctx.strokeStyle = 'rgba(217,119,6,0.95)';
         ctx.fillStyle   = 'rgba(217,119,6,0.25)';
-        const as = hexScreenPos(_cursorCol, _cursorRow);
         hexClipPath(as.x, as.y, radius);
         ctx.fill(); ctx.stroke();
 
