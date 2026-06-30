@@ -664,7 +664,7 @@ body.mode-settlements #stt-tools   { display: flex; }
 .hexdb-section-hdr:hover { color: var(--text); }
 .hexdb-section-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; }
 
-/* ── Hex direction rosette ─────────────────────────────── */
+/* ── Hex direction rosette (water exits — 3×2) ─────────── */
 .hex-rosette {
   display: grid;
   grid-template-columns: repeat(3, 32px);
@@ -687,6 +687,41 @@ body.mode-settlements #stt-tools   { display: flex; }
   color: var(--accent);
   font-weight: bold;
 }
+
+/* ── Footprint rosette (7-cell hex cluster — 3×3) ─────── */
+.hex-fp-rosette {
+  display: grid;
+  grid-template-columns: repeat(3, 36px);
+  grid-template-rows: repeat(3, 32px);
+  gap: 3px;
+  width: fit-content;
+  margin: 4px 0;
+}
+.hex-fp-rosette button {
+  width: 36px; height: 32px;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--muted);
+  font-size: 10px; cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+.hex-fp-rosette button:hover { background: var(--hover); color: var(--text); }
+.hex-fp-rosette button.active {
+  background: rgba(79,195,247,0.18);
+  border-color: var(--accent);
+  color: var(--accent);
+  font-weight: bold;
+}
+.fp-anchor {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 32px;
+  background: rgba(180,83,9,0.30);
+  border: 1px solid rgba(217,119,6,0.7);
+  border-radius: 4px;
+  color: #d97706;
+  font-size: 11px; font-weight: bold;
+  user-select: none;
+}
+.fp-empty { /* invisible grid placeholder */ }
 
 .hexdb-section.collapsed .hexdb-section-body { display: none; }
 .hexdb-row { display: flex; align-items: center; gap: 8px; }
@@ -5769,9 +5804,17 @@ const HexDB = (() => {
 
   function _footprintHTML(hex) {
     const offsets = Array.isArray(hex.occupiedOffsets) ? hex.occupiedOffsets : [];
-    const btns = WATER_DIRS.map(d => {
-      const active = offsets.includes(d.key) ? ' class="active"' : '';
-      return `<button${active} data-fp="${d.key}" title="${d.key} — occupied tile in this direction">${d.label}</button>`;
+    // 3×3 grid: [NW][N][NE] / [SW][A][SE] / [_][S][_]
+    const FP_CELLS = [
+      { key:'NW' }, { key:'N'  }, { key:'NE' },
+      { key:'SW' }, { key:null }, { key:'SE' },   // null = anchor
+      { key:null, empty:true }, { key:'S' }, { key:null, empty:true },
+    ];
+    const cells = FP_CELLS.map(c => {
+      if (c.empty) return `<div class="fp-empty"></div>`;
+      if (c.key === null) return `<span class="fp-anchor" title="Anchor tile (this hex)">A</span>`;
+      const active = offsets.includes(c.key) ? ' class="active"' : '';
+      return `<button${active} data-fp="${c.key}" title="${c.key} — occupied by this object">${c.key}</button>`;
     }).join('');
     const summary = offsets.length === 0
       ? '<span style="color:var(--muted)">Single tile (no multi-tile footprint)</span>'
@@ -5780,12 +5823,11 @@ const HexDB = (() => {
     <div class="hexdb-row" style="align-items:flex-start">
       <span class="hexdb-label" style="padding-top:6px">Footprint</span>
       <div>
-        <div class="hex-rosette" id="hex-footprint-rosette">${btns}</div>
+        <div class="hex-fp-rosette" id="hex-footprint-rosette">${cells}</div>
         <div style="margin-top:4px;font-size:0.85em">${summary}</div>
         <small style="color:var(--muted);font-size:0.8em;margin-top:2px;display:block">
-          Toggle neighbour directions occupied by this multi-tile object.<br>
-          This tile is the anchor (data owner); toggled tiles reference it.<br>
-          Saved as <code>occupiedOffsets</code> — DB version bumps to 2.
+          Toggle neighbours occupied by this multi-tile object.<br>
+          Orange centre = anchor (data owner). Saved as <code>occupiedOffsets</code>.
         </small>
       </div>
     </div>`;
