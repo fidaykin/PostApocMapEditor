@@ -4040,8 +4040,6 @@ const UI = (() => {
       const cat = h.category || '⚙️ SPECIAL';
       const tid = typeof h.terrainTypeId !== 'undefined' ? h.terrainTypeId : -1;
 
-      if (cat === '🏜️ BARREN/DESERT') console.log('[PALETTE BARREN]', { id: h.id, spriteName: h.spriteName, type: h.type, category: h.category });
-
       if (cat !== currentCatKey) {
         currentCatKey = cat;
         const hdr = document.createElement('button');
@@ -5615,7 +5613,8 @@ const HexDB = (() => {
 
   // Bump this whenever new tiles are added to hex_database.json.
   // Any autosave whose dbVersion is lower (or absent) will be fully replaced.
-  const _DB_VERSION = 2;
+  // v3: purge stale bridge entries that were incorrectly stored in autosave as BARREN/DESERT.
+  const _DB_VERSION = 3;
 
   // Loads hex_database.json when autosave is absent or at an older version.
   async function _tryAutoLoadDefaultDb() {
@@ -5630,8 +5629,9 @@ const HexDB = (() => {
       // Preserve user-edited entries (e.g. custom income rules) by merging into fresh data.
       // Fresh file entries win for any ID that already exists in the file;
       // user-created IDs that aren't in the file are appended.
+      // Bridge-sprite entries are excluded — bridges are handled by the hardcoded palette section.
       const fileIds  = new Set(parsed.hexes.map(h => (h.id || '').toLowerCase()));
-      const userOnly = _data.hexes.filter(h => h.id && !fileIds.has(h.id.toLowerCase()));
+      const userOnly = _data.hexes.filter(h => h.id && !fileIds.has(h.id.toLowerCase()) && !/^River_bridge_/i.test(h.spriteName || ''));
       _data = { ...parsed, hexes: [...parsed.hexes, ...userOnly] };
       if (!_data.common) _data.common = { goldPerTap: 10 };
       _data.dbVersion = _DB_VERSION;
