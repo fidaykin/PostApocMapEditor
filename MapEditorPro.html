@@ -4040,6 +4040,8 @@ const UI = (() => {
       const cat = h.category || '⚙️ SPECIAL';
       const tid = typeof h.terrainTypeId !== 'undefined' ? h.terrainTypeId : -1;
 
+      if (cat === '🏜️ BARREN/DESERT') console.log('[PALETTE BARREN]', { id: h.id, spriteName: h.spriteName, type: h.type, category: h.category });
+
       if (cat !== currentCatKey) {
         currentCatKey = cat;
         const hdr = document.createElement('button');
