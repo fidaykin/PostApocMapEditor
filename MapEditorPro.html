@@ -2410,7 +2410,10 @@ const Canvas = (() => {
       document.getElementById('st-app-coords').textContent = `${appX}, ${appY}`;
       document.getElementById('st-dist').textContent = Canvas.hexDist(appX, appY);
       if (mapData) {
-        document.getElementById('st-terrain').textContent = mapData[row * MAP_WIDTH + col] || '—';
+        let stCol = col, stRow = row;
+        const stAnc = getSatelliteAnchor(col, row);
+        if (stAnc) { stCol = stAnc.col; stRow = stAnc.row; }
+        document.getElementById('st-terrain').textContent = mapData[stRow * MAP_WIDTH + stCol] || '—';
       }
       if (_cursorCol !== col || _cursorRow !== row) {
         _cursorCol = col; _cursorRow = row;
@@ -2425,8 +2428,11 @@ const Canvas = (() => {
       if (moved < 5) {
         // Right-click without move → eyedropper (picks custom terrain too)
         const rect = canvas.getBoundingClientRect();
-        const { col, row } = screenToHex(e.clientX - rect.left, e.clientY - rect.top);
+        let { col, row } = screenToHex(e.clientX - rect.left, e.clientY - rect.top);
         if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
+          // If this is a satellite, pick the anchor's terrain ID instead
+          const anc = getSatelliteAnchor(col, row);
+          if (anc) { col = anc.col; row = anc.row; }
           UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
         }
       }
@@ -2915,6 +2921,7 @@ const Tools = (() => {
       if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT)
         mapData[r * MAP_WIDTH + c] = hexId;
     });
+    invalidateSatelliteMap();
     Canvas.render();
   }
 
@@ -2960,6 +2967,7 @@ const Tools = (() => {
         queue.push([nc, nr]);
       });
     }
+    invalidateSatelliteMap();
     Canvas.render();
   }
 
@@ -2971,6 +2979,7 @@ const Tools = (() => {
     for (let c = minC; c <= maxC; c++)
       for (let r = minR; r <= maxR; r++)
         mapData[r * MAP_WIDTH + c] = fillId;
+    invalidateSatelliteMap();
     Canvas.render();
   }
 
@@ -3019,10 +3028,14 @@ const Tools = (() => {
         _rectStart = { col, row };
         _toolsRectPreview = { c1: col, r1: row, c2: col, r2: row };
         break;
-      case 'eye':
-        UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
+      case 'eye': {
+        let eCol = col, eRow = row;
+        const eAnc = getSatelliteAnchor(col, row);
+        if (eAnc) { eCol = eAnc.col; eRow = eAnc.row; }
+        UI.selectTerrain(mapData[eRow * MAP_WIDTH + eCol]);
         _isDown = false;
         break;
+      }
       case 'settlement':
         _placeSettlement(col, row);
         break;
@@ -7477,6 +7490,43 @@ let MAP_WIDTH  = 450;
 let MAP_HEIGHT = 450;
 let mapData    = null;  // string[] hex IDs (filled by IO.newMap / load)
 let bridgesData = [];   // [{col, row, axis}] — pre-placed bridges
+
+// Satellite→anchor lookup: maps "col_row" → {col, row} of the owning anchor tile.
+// Rebuilt lazily whenever mapData changes. Satellite tiles are the 6 neighbours that
+// a multi-tile anchor (occupiedOffsets in HexDB) marks as part of its footprint.
+let _satelliteMap = null;
+
+// Direction offsets in editor (col, row) coords, split by anchor row parity.
+// Odd row ↔ odd worldX (worldX = MAP_HEIGHT-1-row - MAP_HEIGHT/2, even MAP_HEIGHT).
+const _DIRS_EVEN = { N:[+1,0], S:[-1,0], NE:[0,-1], SE:[-1,-1], NW:[0,+1], SW:[-1,+1] };
+const _DIRS_ODD  = { N:[+1,0], S:[-1,0], NE:[+1,-1], SE:[0,-1], NW:[+1,+1], SW:[0,+1] };
+
+function _buildSatelliteMap() {
+  _satelliteMap = {};
+  if (!mapData) return;
+  for (let r = 0; r < MAP_HEIGHT; r++) {
+    const dirs = (r % 2 !== 0) ? _DIRS_ODD : _DIRS_EVEN;
+    for (let c = 0; c < MAP_WIDTH; c++) {
+      const id = mapData[r * MAP_WIDTH + c];
+      const entry = id ? Terrain.byHexId(id) : null;
+      if (!entry || !Array.isArray(entry.occupiedOffsets) || !entry.occupiedOffsets.length) continue;
+      for (const dir of entry.occupiedOffsets) {
+        const off = dirs[dir]; if (!off) continue;
+        const [dCol, dRow] = off;
+        const sc = c + dCol, sr = r + dRow;
+        if (sc >= 0 && sc < MAP_WIDTH && sr >= 0 && sr < MAP_HEIGHT)
+          _satelliteMap[sc + '_' + sr] = { col: c, row: r };
+      }
+    }
+  }
+}
+
+function getSatelliteAnchor(col, row) {
+  if (_satelliteMap === null) _buildSatelliteMap();
+  return _satelliteMap[col + '_' + row] || null;
+}
+
+function invalidateSatelliteMap() { _satelliteMap = null; }
 let settlements = [];
 let settlementSlots = []; // [{minDist,maxDist,count,type}]
 let settlementsVisible = true;
