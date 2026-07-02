@@ -1305,11 +1305,9 @@ body.mode-settlements #stt-tools   { display: flex; }
           <span style="width:38px;flex-shrink:0">Biome</span>
           <select id="hexdb-biome-filter">
             <option value="">All</option>
-            <option>Summer</option>
-            <option>Winter</option>
-            <option>Desert</option>
-            <option>Radioactive</option>
+            <!-- populated by BiomeManager.refreshAllDropdowns() -->
           </select>
+          <button onclick="BiomeManager.openManager()" title="Manage biomes" style="padding:2px 6px;font-size:12px;cursor:pointer;flex-shrink:0">⚙</button>
         </div>
         <div class="hexdb-filter-row">
           <span style="width:38px;flex-shrink:0">Type</span>
@@ -1345,7 +1343,7 @@ body.mode-settlements #stt-tools   { display: flex; }
         <input id="bld-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
         <select id="bld-filter-biome" title="Filter by Biome">
           <option value="">All Biomes</option>
-          <option>Summer</option><option>Winter</option><option>Desert</option><option>Radioactive</option>
+          <!-- populated by BiomeManager.refreshAllDropdowns() -->
         </select>
       </div>
       <div id="bld-list"></div>
@@ -1374,7 +1372,7 @@ body.mode-settlements #stt-tools   { display: flex; }
         <input id="stt-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
         <select id="stt-filter-biome" title="Filter by Biome">
           <option value="">All Biomes</option>
-          <option>Summer</option><option>Winter</option><option>Desert</option><option>Radioactive</option>
+          <!-- populated by BiomeManager.refreshAllDropdowns() -->
         </select>
       </div>
       <div id="stt-list"></div>
@@ -1908,14 +1906,31 @@ const Canvas = (() => {
     const radius  = HEX_SIZE * scale;
     const padding = radius * 2;
 
+    const _anchorPass = [];   // multi-tile anchors: drawn again in second pass
+
     for (let row = 0; row < MAP_HEIGHT; row++) {
       for (let col = 0; col < MAP_WIDTH; col++) {
         const s = hexScreenPos(col, row);
         if (s.x + padding < 0 || s.x - padding > canvas.width  ||
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
-        _drawHexTile(s.x, s.y, radius, mapData[row * MAP_WIDTH + col]);
+        const _hid = mapData[row * MAP_WIDTH + col];
+        _drawHexTile(s.x, s.y, radius, _hid);
+        const _he = Terrain.byHexId(_hid);
+        if (Array.isArray(_he?.occupiedOffsets) && _he.occupiedOffsets.length > 0)
+          _anchorPass.push({ cx: s.x, cy: s.y, col, row, entry: _he });
       }
     }
+
+    // Second pass: draw multi-tile anchor sprites spanning the full 7-tile cluster.
+    // The sprite PNG has transparent background outside the 7-hex shape, so drawing
+    // it unclipped at cluster scale naturally produces the correct footprint.
+    _anchorPass.forEach(({ cx, cy, entry }) => {
+      const spr = Terrain.getSprite(entry.id);
+      if (!spr || !spr.complete || !spr.naturalWidth) return;
+      const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
+      const cH = 3 * ROW_PITCH * scale;
+      ctx.drawImage(spr, cx - cW / 2, cy - cH / 2, cW, cH);
+    });
 
     if (_showZones) _drawZoneOverlays(scale, radius);
     if (typeof ZonePainter !== 'undefined' && ZonePainter.isOverlayVisible() && ZonePainter.getZones().length > 0) {
@@ -1953,45 +1968,22 @@ const Canvas = (() => {
       // Check if selected tile is a multi-tile anchor with a footprint
       const selEntry    = UI && UI.getSelectedTerrain ? Terrain.byId(UI.getSelectedTerrain()) : null;
       const fpOffsets   = Array.isArray(selEntry?.occupiedOffsets) ? selEntry.occupiedOffsets : [];
-      const isMultiTile = (tool === 'paint') && fpOffsets.length > 0 && Brush.getSize() === 0;
+      // Multi-tile objects always use footprint preview; brush size is ignored.
+      const isMultiTile = (tool === 'paint') && fpOffsets.length > 0;
 
       if (isMultiTile) {
-        // Compute footprint tiles in odd-q flat-top offset coordinates
-        // Editor: col drives vertical (col+1=up/N), row drives horizontal (row+1=left).
-        // Stagger is per-row: odd rows (worldX odd) shift UP — same parity as row%2.
-        // Even-row anchor: diagonals offset dcol by 0 or -1.
-        // Odd-row anchor:  diagonals offset dcol by +1 or 0.
-        const evenRow = _cursorRow % 2 === 0;
-        const DIR = {
-          'N':  [+1,  0],
-          'NE': [evenRow ? 0 : +1, +1],  'SE': [evenRow ? -1 : 0, +1],
-          'S':  [-1,  0],
-          'SW': [evenRow ? -1 : 0, -1],  'NW': [evenRow ? 0 : +1, -1],
-        };
-        const fpTiles = fpOffsets
-          .map(d => { const o = DIR[d]; return o ? { col: _cursorCol + o[0], row: _cursorRow + o[1] } : null; })
-          .filter(t => t && t.col >= 0 && t.col < MAP_WIDTH && t.row >= 0 && t.row < MAP_HEIGHT);
-
-        ctx.save();
-        ctx.lineWidth = lw;
-
-        // Occupied tiles — blue
-        ctx.strokeStyle = 'rgba(79,195,247,0.9)';
-        ctx.fillStyle   = 'rgba(79,195,247,0.18)';
-        fpTiles.forEach(({ col: tc, row: tr }) => {
-          const s = hexScreenPos(tc, tr);
-          hexClipPath(s.x, s.y, radius);
-          ctx.fill(); ctx.stroke();
-        });
-
-        // Anchor tile — amber
-        ctx.strokeStyle = 'rgba(217,119,6,0.95)';
-        ctx.fillStyle   = 'rgba(217,119,6,0.25)';
         const as = hexScreenPos(_cursorCol, _cursorRow);
-        hexClipPath(as.x, as.y, radius);
-        ctx.fill(); ctx.stroke();
 
-        ctx.restore();
+        // Sprite at cluster scale, semi-transparent
+        const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
+        if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
+          const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
+          const cH = 3 * ROW_PITCH * scale;
+          ctx.globalAlpha = 0.75;
+          ctx.drawImage(selSprite, as.x - cW / 2, as.y - cH / 2, cW, cH);
+          ctx.globalAlpha = 1;
+        }
+
       } else {
         // Standard brush preview (ring brush or non-multi-tile tile)
         const tiles = (tool === 'paint' || tool === 'zone')
@@ -2043,13 +2035,18 @@ const Canvas = (() => {
     ctx.save();
     hexClipPath(cx, cy, radius);
     ctx.clip();   // always clip to hex first — ensures bg fill and object sprite stay inside
-    if (hexEntry && Terrain.isLayeredHex(hexEntry)) {
+    // Multi-tile anchor: draw terrain background only — the cluster sprite is drawn
+    // unclipped at full 7-tile scale in the second render pass.
+    if (Array.isArray(hexEntry?.occupiedOffsets) && hexEntry.occupiedOffsets.length > 0) {
+      const [r, g, b] = Terrain.color(hexId);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fill();
+    } else if (hexEntry && Terrain.isLayeredHex(hexEntry)) {
       // Layered tile: draw terrain background, then object sprite on top
       const terrainSprite = Terrain.getTerrainSpriteForType(hexEntry.type);
       if (terrainSprite && terrainSprite.complete && terrainSprite.naturalWidth > 0) {
         ctx.drawImage(terrainSprite, cx - radius, cy - radius, radius * 2, radius * 2);
       } else {
-        // Fallback color while terrain sprite loads (or if unavailable)
         ctx.fillStyle = _terrainTypeFallbackColor(hexEntry.type);
         ctx.fill();
       }
@@ -2411,7 +2408,10 @@ const Canvas = (() => {
       document.getElementById('st-app-coords').textContent = `${appX}, ${appY}`;
       document.getElementById('st-dist').textContent = Canvas.hexDist(appX, appY);
       if (mapData) {
-        document.getElementById('st-terrain').textContent = mapData[row * MAP_WIDTH + col] || '—';
+        let stCol = col, stRow = row;
+        const stAnc = getSatelliteAnchor(col, row);
+        if (stAnc) { stCol = stAnc.col; stRow = stAnc.row; }
+        document.getElementById('st-terrain').textContent = mapData[stRow * MAP_WIDTH + stCol] || '—';
       }
       if (_cursorCol !== col || _cursorRow !== row) {
         _cursorCol = col; _cursorRow = row;
@@ -2426,8 +2426,11 @@ const Canvas = (() => {
       if (moved < 5) {
         // Right-click without move → eyedropper (picks custom terrain too)
         const rect = canvas.getBoundingClientRect();
-        const { col, row } = screenToHex(e.clientX - rect.left, e.clientY - rect.top);
+        let { col, row } = screenToHex(e.clientX - rect.left, e.clientY - rect.top);
         if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
+          // If this is a satellite, pick the anchor's terrain ID instead
+          const anc = getSatelliteAnchor(col, row);
+          if (anc) { col = anc.col; row = anc.row; }
           UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
         }
       }
@@ -2805,16 +2808,18 @@ const Canvas = (() => {
 const Brush = (() => {
   let _size = 0;   // 0=single, 1=r1, 2=r2, 3=r3
 
-  // 6 neighbors for flat-top odd-q offset
+  // 6 neighbors: stagger is per-row (odd worldX = odd row shifts tile up).
+  // Even row: diagonals at (col-1, row±1) and (col, row±1).
+  // Odd  row: diagonals at (col+1, row±1) and (col, row±1).
   function _neighbors(col, row) {
-    const even = col % 2 === 0;
+    const dc = row % 2 === 0 ? -1 : +1;
     return [
-      [col,   row - 1],                         // N
-      [col+1, even ? row-1 : row],               // NE
-      [col+1, even ? row   : row+1],             // SE
-      [col,   row + 1],                          // S
-      [col-1, even ? row   : row+1],             // SW
-      [col-1, even ? row-1 : row],               // NW
+      [col,    row - 1],
+      [col+dc, row - 1],
+      [col+1,  row    ],
+      [col-1,  row    ],
+      [col,    row + 1],
+      [col+dc, row + 1],
     ].filter(([c, r]) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT);
   }
 
@@ -2911,9 +2916,13 @@ const Tools = (() => {
     const tiles = Brush.getAffectedTiles(col, row);
     const hexId = UI.getSelectedTerrain();
     tiles.forEach(({ col: c, row: r }) => {
-      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT)
+      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT) {
         mapData[r * MAP_WIDTH + c] = hexId;
+        const bi = bridgesData.findIndex(b => b.col === c && b.row === r);
+        if (bi >= 0) bridgesData.splice(bi, 1);
+      }
     });
+    invalidateSatelliteMap();
     Canvas.render();
   }
 
@@ -2959,6 +2968,7 @@ const Tools = (() => {
         queue.push([nc, nr]);
       });
     }
+    invalidateSatelliteMap();
     Canvas.render();
   }
 
@@ -2970,6 +2980,7 @@ const Tools = (() => {
     for (let c = minC; c <= maxC; c++)
       for (let r = minR; r <= maxR; r++)
         mapData[r * MAP_WIDTH + c] = fillId;
+    invalidateSatelliteMap();
     Canvas.render();
   }
 
@@ -3018,10 +3029,14 @@ const Tools = (() => {
         _rectStart = { col, row };
         _toolsRectPreview = { c1: col, r1: row, c2: col, r2: row };
         break;
-      case 'eye':
-        UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
+      case 'eye': {
+        let eCol = col, eRow = row;
+        const eAnc = getSatelliteAnchor(col, row);
+        if (eAnc) { eCol = eAnc.col; eRow = eAnc.row; }
+        UI.selectTerrain(mapData[eRow * MAP_WIDTH + eCol]);
         _isDown = false;
         break;
+      }
       case 'settlement':
         _placeSettlement(col, row);
         break;
@@ -3114,7 +3129,8 @@ const History = (() => {
       grid:        mapData.slice(),
       settlements: settlements.map(s => Object.assign({}, s)),
       slots:       settlementSlots.map(s => Object.assign({}, s)),
-      zoneLayer:   zl ? zl.slice() : null
+      zoneLayer:   zl ? zl.slice() : null,
+      bridges:     bridgesData.map(b => Object.assign({}, b)),
     };
   }
 
@@ -3126,6 +3142,7 @@ const History = (() => {
       const zl = ZonePainter.getZoneLayer();
       if (zl && zl.length === snap.zoneLayer.length) zl.set(snap.zoneLayer);
     }
+    if (snap.bridges) bridgesData = snap.bridges.map(b => Object.assign({}, b));
     UI.updateSettlementCount();
     if (UI.rebuildSlotPanel) UI.rebuildSlotPanel();
   }
@@ -4010,7 +4027,7 @@ const UI = (() => {
       '🟫 SWAMP':            7,
       '🌋 VOLCANIC/RIFT':    8,
     };
-    const sorted = HexDB.getAll().filter(h => h.id).sort((a, b) => {
+    const sorted = HexDB.getAll().filter(h => h.id && !/^River_bridge_/i.test(h.spriteName || '')).sort((a, b) => {
       const oA = CAT_ORDER[a.category] ?? 99;
       const oB = CAT_ORDER[b.category] ?? 99;
       if (oA !== oB) return oA - oB;
@@ -5502,13 +5519,109 @@ const App = {
   }
 };
 
+// ── BiomeManager ───────────────────────────────────────────
+const BiomeManager = (() => {
+  const LS_KEY = 'biome_defs';
+  const DEFAULTS = [
+    { name: 'Summer',      color: '#4caf50' },
+    { name: 'Winter',      color: '#90caf9' },
+    { name: 'Desert',      color: '#ffd54f' },
+    { name: 'Radioactive', color: '#ce93d8' },
+  ];
+  let _biomes = [];
+
+  function _load() {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      _biomes = saved ? JSON.parse(saved) : DEFAULTS.map(b => ({ ...b }));
+    } catch(e) { _biomes = DEFAULTS.map(b => ({ ...b })); }
+  }
+  function _save() { localStorage.setItem(LS_KEY, JSON.stringify(_biomes)); }
+
+  function getNames() { return _biomes.map(b => b.name); }
+  function getColor(name) {
+    const b = _biomes.find(b => b.name === name);
+    return b ? b.color : '#888888';
+  }
+
+  function add(name, color) {
+    name = (name || '').trim();
+    if (!name || _biomes.some(b => b.name === name)) return;
+    _biomes.push({ name, color: color || '#888888' });
+    _save(); refreshAllDropdowns(); _renderList();
+  }
+
+  function remove(name) {
+    _biomes = _biomes.filter(b => b.name !== name);
+    _save(); refreshAllDropdowns(); _renderList();
+  }
+
+  function updateColor(name, color) {
+    const b = _biomes.find(b => b.name === name);
+    if (!b) return;
+    b.color = color;
+    _save(); refreshAllDropdowns(); _renderList();
+  }
+
+  function refreshAllDropdowns() {
+    const names = _biomes.map(b => b.name);
+    [
+      { id: 'hexdb-biome-filter', all: 'All' },
+      { id: 'bld-filter-biome',   all: 'All Biomes' },
+      { id: 'stt-filter-biome',   all: 'All Biomes' },
+    ].forEach(({ id, all }) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const cur = el.value;
+      el.innerHTML = `<option value="">${all}</option>` +
+        names.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
+    });
+    // Editor selects (if a record is currently open)
+    const hexSel = document.querySelector('select.hexdb-select[data-field="biome"]');
+    if (hexSel) {
+      const cur = hexSel.value;
+      hexSel.innerHTML = names.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
+    }
+    ['bld-f-biome', 'stt-f-biome'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const cur = el.value;
+      el.innerHTML = names.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
+    });
+  }
+
+  function _renderList() {
+    const el = document.getElementById('biome-mgr-list');
+    if (!el) return;
+    el.innerHTML = _biomes.map(b => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="width:18px;height:18px;border-radius:3px;background:${b.color};display:inline-block;flex-shrink:0;border:1px solid #555"></span>
+        <span style="flex:1;color:#ddd">${b.name}</span>
+        <input type="color" value="${b.color}"
+          onchange="BiomeManager.updateColor('${b.name}',this.value)"
+          style="width:32px;height:24px;padding:0;border:none;cursor:pointer;background:none">
+        <button onclick="BiomeManager.remove('${b.name}')"
+          style="background:#c62828;border:none;color:#fff;padding:1px 7px;border-radius:3px;cursor:pointer;font-size:13px">🗑</button>
+      </div>`).join('');
+  }
+
+  function openManager() {
+    _renderList();
+    const modal = document.getElementById('biome-mgr-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  function closeManager() {
+    const modal = document.getElementById('biome-mgr-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  _load();
+  return { getNames, getColor, add, remove, updateColor, refreshAllDropdowns, openManager, closeManager };
+})();
+
 // ── HexDB Module ───────────────────────────────────────────
 const HexDB = (() => {
-  const BIOME_COLORS = {
-    Summer: '#4caf50', Winter: '#90caf9',
-    Desert: '#ffd54f', Radioactive: '#ce93d8'
-  };
-  const BIOMES      = ['Summer', 'Winter', 'Desert', 'Radioactive'];
   const FILTER_CATS = ['FilterTerrain','FilterResource','FilterWater','FilterSettlement','FilterHazard'];
   const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, special: true, waterfaces: false, footprint: false };
 
@@ -5599,7 +5712,8 @@ const HexDB = (() => {
 
   // Bump this whenever new tiles are added to hex_database.json.
   // Any autosave whose dbVersion is lower (or absent) will be fully replaced.
-  const _DB_VERSION = 2;
+  // v3: purge stale bridge entries that were incorrectly stored in autosave as BARREN/DESERT.
+  const _DB_VERSION = 3;
 
   // Loads hex_database.json when autosave is absent or at an older version.
   async function _tryAutoLoadDefaultDb() {
@@ -5614,8 +5728,9 @@ const HexDB = (() => {
       // Preserve user-edited entries (e.g. custom income rules) by merging into fresh data.
       // Fresh file entries win for any ID that already exists in the file;
       // user-created IDs that aren't in the file are appended.
+      // Bridge-sprite entries are excluded — bridges are handled by the hardcoded palette section.
       const fileIds  = new Set(parsed.hexes.map(h => (h.id || '').toLowerCase()));
-      const userOnly = _data.hexes.filter(h => h.id && !fileIds.has(h.id.toLowerCase()));
+      const userOnly = _data.hexes.filter(h => h.id && !fileIds.has(h.id.toLowerCase()) && !/^River_bridge_/i.test(h.spriteName || ''));
       _data = { ...parsed, hexes: [...parsed.hexes, ...userOnly] };
       if (!_data.common) _data.common = { goldPerTap: 10 };
       _data.dbVersion = _DB_VERSION;
@@ -5701,7 +5816,7 @@ const HexDB = (() => {
 
       const badge = document.createElement('span');
       badge.className = 'hexdb-biome-badge';
-      badge.style.background = BIOME_COLORS[h.biome] || '#888';
+      badge.style.background = BiomeManager.getColor(h.biome);
 
       const lbl = document.createElement('span');
       lbl.textContent = h.id || '(unnamed)';
@@ -5904,7 +6019,7 @@ const HexDB = (() => {
         'Localisation key for description shown when a building is available'),
       _row('Type', `<select class="hexdb-select" data-field="type">${_typeGroupOptions(hex.type)}</select>`,
         'Terrain group used for tile filtering and build placement rules'),
-      _row('Biome',  _selectInput('biome', BIOMES, hex.biome),
+      _row('Biome',  _selectInput('biome', BiomeManager.getNames(), hex.biome),
         'Season / biome context — affects which tiles appear in this category'),
       _row('Filter', _selectInput('filterCategory', FILTER_CATS, hex.filterCategory),
         'Category key used in the app UI filter panel'),
@@ -6322,7 +6437,7 @@ const HexDB = (() => {
         lbl.style.color = (!h.id || _isDuplicate(h.id, realIdx)) ? '#e55' : '';
       }
       const badge = row.querySelector('.hexdb-biome-badge');
-      if (badge) badge.style.background = BIOME_COLORS[h.biome] || '#888';
+      if (badge) badge.style.background = BiomeManager.getColor(h.biome);
     }
   }
 
@@ -6824,7 +6939,7 @@ const BldDB = (() => {
         <div class="hexdb-field-row"><label>BuildingType</label>
           <input id="bld-f-buildingType" type="text" value="${_esc(bld.buildingType)}"></div>
         <div class="hexdb-field-row"><label>Biome</label>
-          <select id="bld-f-biome">${['Summer','Winter','Desert','Radioactive'].map(b=>`<option${bld.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
+          <select id="bld-f-biome">${BiomeManager.getNames().map(b=>`<option${bld.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
         <div class="hexdb-field-row"><label>Filter</label>
           <input id="bld-f-filterCategory" type="text" value="${_esc(bld.filterCategory)}"></div>
         <div class="hexdb-field-row"><label>Start Level</label>
@@ -7205,7 +7320,7 @@ const SttDB = (() => {
         <div class="hexdb-field-row"><label>SettlementType</label>
           <input id="stt-f-settlementType" type="text" value="${_esc(stt.settlementType)}"></div>
         <div class="hexdb-field-row"><label>Biome</label>
-          <select id="stt-f-biome">${['Summer','Winter','Desert','Radioactive'].map(b=>`<option${stt.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
+          <select id="stt-f-biome">${BiomeManager.getNames().map(b=>`<option${stt.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
         <div class="hexdb-field-row"><label>Filter</label>
           <input id="stt-f-filterCategory" type="text" value="${_esc(stt.filterCategory)}"></div>
         <div class="hexdb-field-row"><label>Start Level</label>
@@ -7476,6 +7591,43 @@ let MAP_WIDTH  = 450;
 let MAP_HEIGHT = 450;
 let mapData    = null;  // string[] hex IDs (filled by IO.newMap / load)
 let bridgesData = [];   // [{col, row, axis}] — pre-placed bridges
+
+// Satellite→anchor lookup: maps "col_row" → {col, row} of the owning anchor tile.
+// Rebuilt lazily whenever mapData changes. Satellite tiles are the 6 neighbours that
+// a multi-tile anchor (occupiedOffsets in HexDB) marks as part of its footprint.
+let _satelliteMap = null;
+
+// Direction offsets in editor (col, row) coords, split by anchor row parity.
+// Odd row ↔ odd worldX (worldX = MAP_HEIGHT-1-row - MAP_HEIGHT/2, even MAP_HEIGHT).
+const _DIRS_EVEN = { N:[+1,0], S:[-1,0], NE:[0,-1], SE:[-1,-1], NW:[0,+1], SW:[-1,+1] };
+const _DIRS_ODD  = { N:[+1,0], S:[-1,0], NE:[+1,-1], SE:[0,-1], NW:[+1,+1], SW:[0,+1] };
+
+function _buildSatelliteMap() {
+  _satelliteMap = {};
+  if (!mapData) return;
+  for (let r = 0; r < MAP_HEIGHT; r++) {
+    const dirs = (r % 2 !== 0) ? _DIRS_ODD : _DIRS_EVEN;
+    for (let c = 0; c < MAP_WIDTH; c++) {
+      const id = mapData[r * MAP_WIDTH + c];
+      const entry = id ? Terrain.byHexId(id) : null;
+      if (!entry || !Array.isArray(entry.occupiedOffsets) || !entry.occupiedOffsets.length) continue;
+      for (const dir of entry.occupiedOffsets) {
+        const off = dirs[dir]; if (!off) continue;
+        const [dCol, dRow] = off;
+        const sc = c + dCol, sr = r + dRow;
+        if (sc >= 0 && sc < MAP_WIDTH && sr >= 0 && sr < MAP_HEIGHT)
+          _satelliteMap[sc + '_' + sr] = { col: c, row: r };
+      }
+    }
+  }
+}
+
+function getSatelliteAnchor(col, row) {
+  if (_satelliteMap === null) _buildSatelliteMap();
+  return _satelliteMap[col + '_' + row] || null;
+}
+
+function invalidateSatelliteMap() { _satelliteMap = null; }
 let settlements = [];
 let settlementSlots = []; // [{minDist,maxDist,count,type}]
 let settlementsVisible = true;
@@ -7519,6 +7671,7 @@ window.addEventListener('load', async () => {
   // init() loads autosave (or auto-fetches hex_database.json on first run),
   // then triggers applyHexDbOverrides → buildPalette → render internally.
   HexDB.init();
+  BiomeManager.refreshAllDropdowns();
   UI.buildPalette();
   UI.rebuildSlotPanel();
   UI.selectTerrain('Plain_1');
@@ -7556,5 +7709,24 @@ window.addEventListener('load', async () => {
 });
 </script>
 
+<!-- Biome Manager Modal -->
+<div id="biome-mgr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#252525;border:1px solid #555;border-radius:8px;padding:20px;min-width:300px;max-width:380px;width:90%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <strong style="color:#fff;font-size:15px">Manage Biomes</strong>
+      <button onclick="BiomeManager.closeManager()" style="background:none;border:none;color:#aaa;font-size:18px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div id="biome-mgr-list"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center;border-top:1px solid #444;padding-top:12px">
+      <input id="biome-mgr-name" type="text" placeholder="Biome name…"
+        style="flex:1;background:#333;border:1px solid #555;color:#eee;padding:4px 8px;border-radius:4px"
+        onkeydown="if(event.key==='Enter'){BiomeManager.add(this.value,document.getElementById('biome-mgr-color').value);this.value=''}">
+      <input id="biome-mgr-color" type="color" value="#888888"
+        style="width:36px;height:28px;padding:0;border:none;cursor:pointer">
+      <button onclick="BiomeManager.add(document.getElementById('biome-mgr-name').value,document.getElementById('biome-mgr-color').value);document.getElementById('biome-mgr-name').value=''"
+        style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer">Add</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
