@@ -1305,11 +1305,9 @@ body.mode-settlements #stt-tools   { display: flex; }
           <span style="width:38px;flex-shrink:0">Biome</span>
           <select id="hexdb-biome-filter">
             <option value="">All</option>
-            <option>Summer</option>
-            <option>Winter</option>
-            <option>Desert</option>
-            <option>Radioactive</option>
+            <!-- populated by BiomeManager.refreshAllDropdowns() -->
           </select>
+          <button onclick="BiomeManager.openManager()" title="Manage biomes" style="padding:2px 6px;font-size:12px;cursor:pointer;flex-shrink:0">⚙</button>
         </div>
         <div class="hexdb-filter-row">
           <span style="width:38px;flex-shrink:0">Type</span>
@@ -1345,7 +1343,7 @@ body.mode-settlements #stt-tools   { display: flex; }
         <input id="bld-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
         <select id="bld-filter-biome" title="Filter by Biome">
           <option value="">All Biomes</option>
-          <option>Summer</option><option>Winter</option><option>Desert</option><option>Radioactive</option>
+          <!-- populated by BiomeManager.refreshAllDropdowns() -->
         </select>
       </div>
       <div id="bld-list"></div>
@@ -1374,7 +1372,7 @@ body.mode-settlements #stt-tools   { display: flex; }
         <input id="stt-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
         <select id="stt-filter-biome" title="Filter by Biome">
           <option value="">All Biomes</option>
-          <option>Summer</option><option>Winter</option><option>Desert</option><option>Radioactive</option>
+          <!-- populated by BiomeManager.refreshAllDropdowns() -->
         </select>
       </div>
       <div id="stt-list"></div>
@@ -5516,13 +5514,109 @@ const App = {
   }
 };
 
+// ── BiomeManager ───────────────────────────────────────────
+const BiomeManager = (() => {
+  const LS_KEY = 'biome_defs';
+  const DEFAULTS = [
+    { name: 'Summer',      color: '#4caf50' },
+    { name: 'Winter',      color: '#90caf9' },
+    { name: 'Desert',      color: '#ffd54f' },
+    { name: 'Radioactive', color: '#ce93d8' },
+  ];
+  let _biomes = [];
+
+  function _load() {
+    try {
+      const saved = localStorage.getItem(LS_KEY);
+      _biomes = saved ? JSON.parse(saved) : DEFAULTS.map(b => ({ ...b }));
+    } catch(e) { _biomes = DEFAULTS.map(b => ({ ...b })); }
+  }
+  function _save() { localStorage.setItem(LS_KEY, JSON.stringify(_biomes)); }
+
+  function getNames() { return _biomes.map(b => b.name); }
+  function getColor(name) {
+    const b = _biomes.find(b => b.name === name);
+    return b ? b.color : '#888888';
+  }
+
+  function add(name, color) {
+    name = (name || '').trim();
+    if (!name || _biomes.some(b => b.name === name)) return;
+    _biomes.push({ name, color: color || '#888888' });
+    _save(); refreshAllDropdowns(); _renderList();
+  }
+
+  function remove(name) {
+    _biomes = _biomes.filter(b => b.name !== name);
+    _save(); refreshAllDropdowns(); _renderList();
+  }
+
+  function updateColor(name, color) {
+    const b = _biomes.find(b => b.name === name);
+    if (!b) return;
+    b.color = color;
+    _save(); refreshAllDropdowns(); _renderList();
+  }
+
+  function refreshAllDropdowns() {
+    const names = _biomes.map(b => b.name);
+    [
+      { id: 'hexdb-biome-filter', all: 'All' },
+      { id: 'bld-filter-biome',   all: 'All Biomes' },
+      { id: 'stt-filter-biome',   all: 'All Biomes' },
+    ].forEach(({ id, all }) => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const cur = el.value;
+      el.innerHTML = `<option value="">${all}</option>` +
+        names.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
+    });
+    // Editor selects (if a record is currently open)
+    const hexSel = document.querySelector('select.hexdb-select[data-field="biome"]');
+    if (hexSel) {
+      const cur = hexSel.value;
+      hexSel.innerHTML = names.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
+    }
+    ['bld-f-biome', 'stt-f-biome'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const cur = el.value;
+      el.innerHTML = names.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
+    });
+  }
+
+  function _renderList() {
+    const el = document.getElementById('biome-mgr-list');
+    if (!el) return;
+    el.innerHTML = _biomes.map(b => `
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="width:18px;height:18px;border-radius:3px;background:${b.color};display:inline-block;flex-shrink:0;border:1px solid #555"></span>
+        <span style="flex:1;color:#ddd">${b.name}</span>
+        <input type="color" value="${b.color}"
+          onchange="BiomeManager.updateColor('${b.name}',this.value)"
+          style="width:32px;height:24px;padding:0;border:none;cursor:pointer;background:none">
+        <button onclick="BiomeManager.remove('${b.name}')"
+          style="background:#c62828;border:none;color:#fff;padding:1px 7px;border-radius:3px;cursor:pointer;font-size:13px">🗑</button>
+      </div>`).join('');
+  }
+
+  function openManager() {
+    _renderList();
+    const modal = document.getElementById('biome-mgr-modal');
+    if (modal) modal.style.display = 'flex';
+  }
+
+  function closeManager() {
+    const modal = document.getElementById('biome-mgr-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  _load();
+  return { getNames, getColor, add, remove, updateColor, refreshAllDropdowns, openManager, closeManager };
+})();
+
 // ── HexDB Module ───────────────────────────────────────────
 const HexDB = (() => {
-  const BIOME_COLORS = {
-    Summer: '#4caf50', Winter: '#90caf9',
-    Desert: '#ffd54f', Radioactive: '#ce93d8'
-  };
-  const BIOMES      = ['Summer', 'Winter', 'Desert', 'Radioactive'];
   const FILTER_CATS = ['FilterTerrain','FilterResource','FilterWater','FilterSettlement','FilterHazard'];
   const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, special: true, waterfaces: false, footprint: false };
 
@@ -5717,7 +5811,7 @@ const HexDB = (() => {
 
       const badge = document.createElement('span');
       badge.className = 'hexdb-biome-badge';
-      badge.style.background = BIOME_COLORS[h.biome] || '#888';
+      badge.style.background = BiomeManager.getColor(h.biome);
 
       const lbl = document.createElement('span');
       lbl.textContent = h.id || '(unnamed)';
@@ -5920,7 +6014,7 @@ const HexDB = (() => {
         'Localisation key for description shown when a building is available'),
       _row('Type', `<select class="hexdb-select" data-field="type">${_typeGroupOptions(hex.type)}</select>`,
         'Terrain group used for tile filtering and build placement rules'),
-      _row('Biome',  _selectInput('biome', BIOMES, hex.biome),
+      _row('Biome',  _selectInput('biome', BiomeManager.getNames(), hex.biome),
         'Season / biome context — affects which tiles appear in this category'),
       _row('Filter', _selectInput('filterCategory', FILTER_CATS, hex.filterCategory),
         'Category key used in the app UI filter panel'),
@@ -6338,7 +6432,7 @@ const HexDB = (() => {
         lbl.style.color = (!h.id || _isDuplicate(h.id, realIdx)) ? '#e55' : '';
       }
       const badge = row.querySelector('.hexdb-biome-badge');
-      if (badge) badge.style.background = BIOME_COLORS[h.biome] || '#888';
+      if (badge) badge.style.background = BiomeManager.getColor(h.biome);
     }
   }
 
@@ -6840,7 +6934,7 @@ const BldDB = (() => {
         <div class="hexdb-field-row"><label>BuildingType</label>
           <input id="bld-f-buildingType" type="text" value="${_esc(bld.buildingType)}"></div>
         <div class="hexdb-field-row"><label>Biome</label>
-          <select id="bld-f-biome">${['Summer','Winter','Desert','Radioactive'].map(b=>`<option${bld.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
+          <select id="bld-f-biome">${BiomeManager.getNames().map(b=>`<option${bld.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
         <div class="hexdb-field-row"><label>Filter</label>
           <input id="bld-f-filterCategory" type="text" value="${_esc(bld.filterCategory)}"></div>
         <div class="hexdb-field-row"><label>Start Level</label>
@@ -7221,7 +7315,7 @@ const SttDB = (() => {
         <div class="hexdb-field-row"><label>SettlementType</label>
           <input id="stt-f-settlementType" type="text" value="${_esc(stt.settlementType)}"></div>
         <div class="hexdb-field-row"><label>Biome</label>
-          <select id="stt-f-biome">${['Summer','Winter','Desert','Radioactive'].map(b=>`<option${stt.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
+          <select id="stt-f-biome">${BiomeManager.getNames().map(b=>`<option${stt.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
         <div class="hexdb-field-row"><label>Filter</label>
           <input id="stt-f-filterCategory" type="text" value="${_esc(stt.filterCategory)}"></div>
         <div class="hexdb-field-row"><label>Start Level</label>
@@ -7572,6 +7666,7 @@ window.addEventListener('load', async () => {
   // init() loads autosave (or auto-fetches hex_database.json on first run),
   // then triggers applyHexDbOverrides → buildPalette → render internally.
   HexDB.init();
+  BiomeManager.refreshAllDropdowns();
   UI.buildPalette();
   UI.rebuildSlotPanel();
   UI.selectTerrain('Plain_1');
@@ -7609,5 +7704,24 @@ window.addEventListener('load', async () => {
 });
 </script>
 
+<!-- Biome Manager Modal -->
+<div id="biome-mgr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#252525;border:1px solid #555;border-radius:8px;padding:20px;min-width:300px;max-width:380px;width:90%">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <strong style="color:#fff;font-size:15px">Manage Biomes</strong>
+      <button onclick="BiomeManager.closeManager()" style="background:none;border:none;color:#aaa;font-size:18px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div id="biome-mgr-list"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;align-items:center;border-top:1px solid #444;padding-top:12px">
+      <input id="biome-mgr-name" type="text" placeholder="Biome name…"
+        style="flex:1;background:#333;border:1px solid #555;color:#eee;padding:4px 8px;border-radius:4px"
+        onkeydown="if(event.key==='Enter'){BiomeManager.add(this.value,document.getElementById('biome-mgr-color').value);this.value=''}">
+      <input id="biome-mgr-color" type="color" value="#888888"
+        style="width:36px;height:28px;padding:0;border:none;cursor:pointer">
+      <button onclick="BiomeManager.add(document.getElementById('biome-mgr-name').value,document.getElementById('biome-mgr-color').value);document.getElementById('biome-mgr-name').value=''"
+        style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer">Add</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
