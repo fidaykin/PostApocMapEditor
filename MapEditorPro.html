@@ -5519,6 +5519,33 @@ const App = {
   }
 };
 
+// ── LocalizationKeys ───────────────────────────────────────
+const LocalizationKeys = (() => {
+  let _keys = [];
+
+  async function load() {
+    try {
+      const res = await fetch('localization.json');
+      if (!res.ok) return;
+      const data = await res.json();
+      _keys = (data.entries || []).map(e => e.key).filter(Boolean);
+      _populateDatalist();
+    } catch(e) {
+      console.warn('[LocalizationKeys] Could not load localization.json:', e);
+    }
+  }
+
+  function _populateDatalist() {
+    const dl = document.getElementById('loc-keys-datalist');
+    if (!dl) return;
+    dl.innerHTML = _keys.map(k => `<option value="${k}">`).join('');
+  }
+
+  function getKeys() { return _keys; }
+
+  return { load, getKeys };
+})();
+
 // ── BiomeManager ───────────────────────────────────────────
 const BiomeManager = (() => {
   const LS_KEY = 'biome_defs';
@@ -6011,7 +6038,7 @@ const HexDB = (() => {
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
        <input class="hexdb-input" id="hexdb-id" data-field="id" value="${_esc(hex.id)}" placeholder="e.g. Plain_1">
        <small style="color:#888;font-size:0.8em;display:block;margin-top:2px">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small></div>`,
-      _row('TextId',    _textInput('textId', hex.textId),
+      _row('TextId',    _textInput('textId', hex.textId, ' list="loc-keys-datalist"'),
         'Localisation key for the display name shown in-app'),
       _row('Desc Idle', _textInput('descriptionIdleId',  hex.descriptionIdleId  ?? ''),
         'Localisation key for description when tile is idle / not yet built'),
@@ -6933,7 +6960,7 @@ const BldDB = (() => {
           <input id="bld-f-id" type="text" value="${_esc(bld.id)}"
             style="border-color:${!bld.id || _data.buildings.some((b,i)=>b.id===bld.id&&i!==_filtered[_selFilt])?'#e57373':''}"></div>
         <div class="hexdb-field-row"><label>TextId</label>
-          <input id="bld-f-textId" type="text" value="${_esc(bld.textId)}"></div>
+          <input id="bld-f-textId" type="text" value="${_esc(bld.textId)}" list="loc-keys-datalist"></div>
         <div class="hexdb-field-row"><label>SpriteName</label>
           <input id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}"></div>
         <div class="hexdb-field-row"><label>BuildingType</label>
@@ -7314,7 +7341,7 @@ const SttDB = (() => {
           <input id="stt-f-id" type="text" value="${_esc(stt.id)}"
             style="border-color:${!stt.id || _data.settlements.some((b,i)=>b.id===stt.id&&i!==_filtered[_selFilt])?'#e57373':''}"></div>
         <div class="hexdb-field-row"><label>TextId</label>
-          <input id="stt-f-textId" type="text" value="${_esc(stt.textId)}"></div>
+          <input id="stt-f-textId" type="text" value="${_esc(stt.textId)}" list="loc-keys-datalist"></div>
         <div class="hexdb-field-row"><label>SpriteName</label>
           <input id="stt-f-spriteName" type="text" value="${_esc(stt.spriteName)}"></div>
         <div class="hexdb-field-row"><label>SettlementType</label>
@@ -7670,6 +7697,7 @@ window.addEventListener('load', async () => {
   // HexDB is now the single source of truth for all terrain types.
   // init() loads autosave (or auto-fetches hex_database.json on first run),
   // then triggers applyHexDbOverrides → buildPalette → render internally.
+  LocalizationKeys.load();
   HexDB.init();
   BiomeManager.refreshAllDropdowns();
   UI.buildPalette();
@@ -7708,6 +7736,8 @@ window.addEventListener('load', async () => {
   console.log('[MapEditorPro] Ready.');
 });
 </script>
+
+<datalist id="loc-keys-datalist"></datalist>
 
 <!-- Biome Manager Modal -->
 <div id="biome-mgr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center">
