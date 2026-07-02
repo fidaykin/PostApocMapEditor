@@ -2916,8 +2916,11 @@ const Tools = (() => {
     const tiles = Brush.getAffectedTiles(col, row);
     const hexId = UI.getSelectedTerrain();
     tiles.forEach(({ col: c, row: r }) => {
-      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT)
+      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT) {
         mapData[r * MAP_WIDTH + c] = hexId;
+        const bi = bridgesData.findIndex(b => b.col === c && b.row === r);
+        if (bi >= 0) bridgesData.splice(bi, 1);
+      }
     });
     invalidateSatelliteMap();
     Canvas.render();
@@ -3126,7 +3129,8 @@ const History = (() => {
       grid:        mapData.slice(),
       settlements: settlements.map(s => Object.assign({}, s)),
       slots:       settlementSlots.map(s => Object.assign({}, s)),
-      zoneLayer:   zl ? zl.slice() : null
+      zoneLayer:   zl ? zl.slice() : null,
+      bridges:     bridgesData.map(b => Object.assign({}, b)),
     };
   }
 
@@ -3138,6 +3142,7 @@ const History = (() => {
       const zl = ZonePainter.getZoneLayer();
       if (zl && zl.length === snap.zoneLayer.length) zl.set(snap.zoneLayer);
     }
+    if (snap.bridges) bridgesData = snap.bridges.map(b => Object.assign({}, b));
     UI.updateSettlementCount();
     if (UI.rebuildSlotPanel) UI.rebuildSlotPanel();
   }
