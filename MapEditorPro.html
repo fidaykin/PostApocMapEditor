@@ -558,6 +558,7 @@ body.mode-settlements #settlements-main { display: grid; }
 #hexdb-tools { display: none; align-items: center; gap: 6px; }
 #bld-tools   { display: none; align-items: center; gap: 6px; }
 #stt-tools   { display: none; align-items: center; gap: 6px; }
+#keys-tools  { display: none; align-items: center; gap: 6px; }
 body.mode-hexdb       #map-tools   { display: none; }
 body.mode-hexdb       #map-io      { display: none; }
 body.mode-hexdb       #hexdb-tools { display: flex; }
@@ -567,6 +568,9 @@ body.mode-buildings   #bld-tools   { display: flex; }
 body.mode-settlements #map-tools   { display: none; }
 body.mode-settlements #map-io      { display: none; }
 body.mode-settlements #stt-tools   { display: flex; }
+body.mode-keys        #map-tools   { display: none; }
+body.mode-keys        #map-io      { display: none; }
+body.mode-keys        #keys-tools  { display: flex; }
 .hexdb-tool-btn {
   height: 30px; padding: 0 12px;
   background: var(--bg); border: 1px solid var(--border);
@@ -1120,6 +1124,7 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="mode-tab"        id="tab-hexdb"       onclick="App.setMode('hexdb')">HEX DB</button>
       <button class="mode-tab"        id="tab-buildings"   onclick="App.setMode('buildings')">BUILDINGS</button>
       <button class="mode-tab"        id="tab-settlements" onclick="App.setMode('settlements')">SETTLEMENTS</button>
+      <button class="mode-tab"        id="tab-keys"        onclick="App.setMode('keys')">KEYS</button>
     </div>
     <div id="map-io">
       <button class="hexdb-tool-btn" onclick="IO.openMap()">📂 Open</button>
@@ -1171,6 +1176,12 @@ body.mode-settlements #stt-tools   { display: flex; }
       <button class="hexdb-tool-btn" onclick="SttDB.add()">+ Add Settlement</button>
       <button class="hexdb-tool-btn" onclick="SttDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="SttDB.save()">💾 Save DB</button>
+    </div>
+    <div id="keys-tools">
+      <button class="hexdb-tool-btn" onclick="LocalizationKeys.openManager()">⚙ Manage Keys</button>
+      <button class="hexdb-tool-btn" onclick="LocalizationKeys.pullFromDrive()">☁ Pull</button>
+      <button class="hexdb-tool-btn" onclick="LocalizationKeys.pushToDrive()">☁ Push</button>
+      <button class="hexdb-tool-btn" onclick="LocalizationKeys.downloadJson()">⬇ Download JSON</button>
     </div>
   </div>
 
@@ -1315,10 +1326,6 @@ body.mode-settlements #stt-tools   { display: flex; }
             <option value="">All</option>
             <!-- populated by HexDB.init() -->
           </select>
-        </div>
-        <div class="hexdb-filter-row">
-          <span style="width:38px;flex-shrink:0">Keys</span>
-          <button onclick="LocalizationKeys.openManager()" style="padding:2px 10px;font-size:12px;cursor:pointer;flex-shrink:0">⚙ Manage</button>
         </div>
       </div>
       <div id="hexdb-list"></div>
@@ -5537,7 +5544,7 @@ const Satellite = (() => {
 // ── App: mode switching ────────────────────────────────────
 const App = {
   setMode(mode) {
-    const MODES = ['map', 'hexdb', 'buildings', 'settlements'];
+    const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys'];
     MODES.forEach(m => {
       document.body.classList.toggle('mode-' + m, m === mode);
       const tab = document.getElementById('tab-' + m);
@@ -7893,7 +7900,7 @@ window.addEventListener('load', async () => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Tab' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
       e.preventDefault();
-      const MODES = ['map', 'hexdb', 'buildings', 'settlements'];
+      const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys'];
       const cur = MODES.findIndex(m => document.body.classList.contains('mode-' + m));
       App.setMode(MODES[(cur + 1) % MODES.length]);
     }
