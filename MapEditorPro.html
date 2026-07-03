@@ -2991,8 +2991,10 @@ const Tools = (() => {
     const minR = Math.max(0, Math.min(r1, r2)), maxR = Math.min(MAP_HEIGHT - 1, Math.max(r1, r2));
     const fillId = UI.getSelectedTerrain();
     for (let c = minC; c <= maxC; c++)
-      for (let r = minR; r <= maxR; r++)
+      for (let r = minR; r <= maxR; r++) {
+        if (getSatelliteAnchor(c, r)) continue;
         mapData[r * MAP_WIDTH + c] = fillId;
+      }
     invalidateSatelliteMap();
     Canvas.render();
   }
