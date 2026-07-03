@@ -1316,6 +1316,10 @@ body.mode-settlements #stt-tools   { display: flex; }
             <!-- populated by HexDB.init() -->
           </select>
         </div>
+        <div class="hexdb-filter-row">
+          <span style="width:38px;flex-shrink:0">Keys</span>
+          <button onclick="LocalizationKeys.openManager()" style="padding:2px 10px;font-size:12px;cursor:pointer;flex-shrink:0">⚙ Manage</button>
+        </div>
       </div>
       <div id="hexdb-list"></div>
       <div class="hexdb-list-footer">
@@ -5521,29 +5525,145 @@ const App = {
 
 // ── LocalizationKeys ───────────────────────────────────────
 const LocalizationKeys = (() => {
-  let _keys = [];
+  const LS_KEY = 'loc_entries';
+  let _entries = []; // [{key, en, uk}]
+  let _filterText = '';
+
+  // ── Load ──────────────────────────────────────────────────
 
   async function load() {
+    let fetched = [];
     try {
       const res = await fetch('localization.json');
-      if (!res.ok) return;
-      const data = await res.json();
-      _keys = (data.entries || []).map(e => e.key).filter(Boolean);
-      _populateDatalist();
+      if (res.ok) {
+        const data = await res.json();
+        fetched = (data.entries || []).filter(e => e.key);
+      }
     } catch(e) {
       console.warn('[LocalizationKeys] Could not load localization.json:', e);
     }
+
+    let stored = [];
+    try {
+      const raw = localStorage.getItem(LS_KEY);
+      if (raw) stored = JSON.parse(raw);
+    } catch(e) {}
+
+    if (stored.length > 0) {
+      const storedMap = Object.fromEntries(stored.map(e => [e.key, e]));
+      const fetchedKeys = new Set(fetched.map(e => e.key));
+      const merged = fetched.map(e => storedMap[e.key] || e);
+      const extra = stored.filter(e => !fetchedKeys.has(e.key));
+      _entries = [...merged, ...extra];
+    } else {
+      _entries = fetched;
+      _save();
+    }
+
+    _populateDatalist();
+  }
+
+  // ── Persistence ───────────────────────────────────────────
+
+  function _save() {
+    localStorage.setItem(LS_KEY, JSON.stringify(_entries));
   }
 
   function _populateDatalist() {
     const dl = document.getElementById('loc-keys-datalist');
     if (!dl) return;
-    dl.innerHTML = _keys.map(k => `<option value="${k}">`).join('');
+    dl.innerHTML = _entries.map(e => `<option value="${e.key}">`).join('');
   }
 
-  function getKeys() { return _keys; }
+  // ── CRUD ──────────────────────────────────────────────────
 
-  return { load, getKeys };
+  function add(key, en, uk) {
+    key = (key || '').trim();
+    if (!key) return;
+    if (_entries.find(e => e.key === key)) { alert(`Key "${key}" already exists.`); return; }
+    _entries.push({ key, en: en || '', uk: uk || '' });
+    _save();
+    _populateDatalist();
+    _renderList();
+  }
+
+  function remove(key) {
+    if (!confirm(`Delete key "${key}"?`)) return;
+    _entries = _entries.filter(e => e.key !== key);
+    _save();
+    _populateDatalist();
+    _renderList();
+  }
+
+  function _updateField(key, field, value) {
+    const e = _entries.find(e => e.key === key);
+    if (!e) return;
+    e[field] = value;
+    _save();
+  }
+
+  // ── Download ──────────────────────────────────────────────
+
+  function downloadJson() {
+    const obj = { version: 1, locales: ['en', 'uk'], entries: _entries.map(({key,en,uk}) => ({key,en,uk})) };
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'localization.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // ── Modal ─────────────────────────────────────────────────
+
+  function openManager() {
+    const modal = document.getElementById('loc-keys-modal');
+    if (!modal) return;
+    _filterText = '';
+    document.getElementById('loc-keys-search').value = '';
+    modal.style.display = 'flex';
+    _renderList();
+  }
+
+  function closeManager() {
+    const modal = document.getElementById('loc-keys-modal');
+    if (modal) modal.style.display = 'none';
+  }
+
+  function filterList(val) {
+    _filterText = val.toLowerCase();
+    _renderList();
+  }
+
+  function _renderList() {
+    const container = document.getElementById('loc-keys-list');
+    if (!container) return;
+    const visible = _filterText
+      ? _entries.filter(e => e.key.toLowerCase().includes(_filterText) || e.en.toLowerCase().includes(_filterText))
+      : _entries;
+    container.innerHTML = visible.map(e => `
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:4px;align-items:center;padding:3px 0;border-bottom:1px solid #333">
+        <span style="color:#aaa;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_ea(e.key)}">${_ex(e.key)}</span>
+        <input type="text" value="${_ea(e.en)}" placeholder="EN"
+          style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px;width:100%"
+          onchange="LocalizationKeys._updateField('${_ea(e.key)}','en',this.value)">
+        <input type="text" value="${_ea(e.uk)}" placeholder="UK"
+          style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px;width:100%"
+          onchange="LocalizationKeys._updateField('${_ea(e.key)}','uk',this.value)">
+        <button onclick="LocalizationKeys.remove('${_ea(e.key)}')"
+          style="background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;padding:0 4px;line-height:1">✕</button>
+      </div>`).join('');
+  }
+
+  function _ex(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _ea(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── Public ────────────────────────────────────────────────
+
+  function getKeys() { return _entries.map(e => e.key); }
+  function getEntries() { return _entries; }
+
+  return { load, getKeys, getEntries, add, remove, downloadJson, openManager, closeManager, filterList, _updateField };
 })();
 
 // ── BiomeManager ───────────────────────────────────────────
@@ -7738,6 +7858,49 @@ window.addEventListener('load', async () => {
 </script>
 
 <datalist id="loc-keys-datalist"></datalist>
+
+<!-- Localization Keys Manager Modal -->
+<div id="loc-keys-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center">
+  <div style="background:#252525;border:1px solid #555;border-radius:8px;padding:20px;width:min(820px,95vw);max-height:85vh;display:flex;flex-direction:column;gap:10px">
+    <!-- Header -->
+    <div style="display:flex;align-items:center;justify-content:space-between">
+      <strong style="color:#fff;font-size:15px">Localization Keys</strong>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button onclick="LocalizationKeys.downloadJson()"
+          style="background:#2e7d32;border:none;color:#fff;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px">⬇ Download JSON</button>
+        <button onclick="LocalizationKeys.closeManager()"
+          style="background:none;border:none;color:#aaa;font-size:18px;cursor:pointer;line-height:1">✕</button>
+      </div>
+    </div>
+    <!-- Search -->
+    <input id="loc-keys-search" type="text" placeholder="🔍 Filter by key or EN text…"
+      oninput="LocalizationKeys.filterList(this.value)"
+      style="background:#333;border:1px solid #555;color:#eee;padding:5px 10px;border-radius:4px;font-size:13px;width:100%;box-sizing:border-box">
+    <!-- Column headers -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:4px;padding:2px 0;border-bottom:1px solid #555">
+      <span style="color:#888;font-size:11px;text-transform:uppercase">Key</span>
+      <span style="color:#888;font-size:11px;text-transform:uppercase">EN</span>
+      <span style="color:#888;font-size:11px;text-transform:uppercase">UK</span>
+      <span></span>
+    </div>
+    <!-- Rows -->
+    <div id="loc-keys-list" style="overflow-y:auto;flex:1;min-height:0;max-height:55vh"></div>
+    <!-- Add new key -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:4px;align-items:center;border-top:1px solid #444;padding-top:10px">
+      <input id="loc-new-key" type="text" placeholder="new_key"
+        style="background:#333;border:1px solid #555;color:#eee;padding:4px 8px;border-radius:4px;font-size:12px"
+        onkeydown="if(event.key==='Enter')document.getElementById('loc-add-btn').click()">
+      <input id="loc-new-en" type="text" placeholder="English text"
+        style="background:#333;border:1px solid #555;color:#eee;padding:4px 8px;border-radius:4px;font-size:12px"
+        onkeydown="if(event.key==='Enter')document.getElementById('loc-add-btn').click()">
+      <input id="loc-new-uk" type="text" placeholder="Ukrainian text"
+        style="background:#333;border:1px solid #555;color:#eee;padding:4px 8px;border-radius:4px;font-size:12px"
+        onkeydown="if(event.key==='Enter')document.getElementById('loc-add-btn').click()">
+      <button id="loc-add-btn" onclick="LocalizationKeys.add(document.getElementById('loc-new-key').value,document.getElementById('loc-new-en').value,document.getElementById('loc-new-uk').value);document.getElementById('loc-new-key').value='';document.getElementById('loc-new-en').value='';document.getElementById('loc-new-uk').value=''"
+        style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;white-space:nowrap">+ Add</button>
+    </div>
+  </div>
+</div>
 
 <!-- Biome Manager Modal -->
 <div id="biome-mgr-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center">
