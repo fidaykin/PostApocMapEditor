@@ -3679,10 +3679,10 @@ const DriveSync = (() => {
     return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
-  async function _sha256hexStr(str) {
-    const buf    = new TextEncoder().encode(str);
-    const digest = await crypto.subtle.digest('SHA-256', buf);
-    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  function _strHash(str) {
+    let h = 0x811c9dc5;
+    for (let i = 0; i < str.length; i++) { h ^= str.charCodeAt(i); h = (h * 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, '0') + ':' + str.length;
   }
 
   // Returns true and uploads if the sprite is new or changed; returns false if skipped.
@@ -3727,7 +3727,7 @@ const DriveSync = (() => {
       // hex_database.json — upload only if content changed
       const hexDb      = HexDB.getData();
       const hexContent = JSON.stringify(hexDb, null, 2);
-      const hexHash    = await _sha256hexStr(hexContent);
+      const hexHash    = _strHash(hexContent);
       if (hashes['hex_database.json'] !== hexHash) {
         UI.toast('Uploading hex_database.json…');
         await _uploadFile(fid, 'hex_database.json', hexContent, 'application/json', byName['hex_database.json']);
@@ -3762,9 +3762,9 @@ const DriveSync = (() => {
         }
       } catch(e) { console.warn('[DriveSync] IndexedDB sprites:', e.message); }
 
-      _saveHashes(hashes);
+      _saveHashes(hashes);  // always save — sprite hashes must persist even if earlier steps failed
       setDbSource('drive');
-      UI.toast(`✅ DB published: ${done} files${skipped ? `, ${skipped} sprites unchanged` : ''}`);
+      UI.toast(`✅ DB published: ${done} files${skipped ? `, ${skipped} unchanged` : ''}`);
     } catch(e) {
       UI.toast('❌ Publish DB failed: ' + e.message);
       console.error('[DriveSync] publishDb error:', e);
@@ -3986,7 +3986,7 @@ const DriveSync = (() => {
         entries: LocalizationKeys.getEntries().map(({key,en,uk}) => ({key,en,uk})) },
       null, 2);
     const hashes  = _loadHashes();
-    const hash    = await _sha256hexStr(content);
+    const hash    = _strHash(content);
     if (hashes['localization.json'] === hash) {
       UI.toast('ℹ️ localization.json unchanged — skipped');
       return;
