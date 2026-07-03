@@ -10,7 +10,7 @@ DATE=$(date +%Y.%m.%d)
 SHA=$(git rev-parse --short HEAD)
 BUILD="${DATE}.${SHA}"
 
-if [ -n "$(git status --porcelain)" ]; then
+if [ -n "$(git status --porcelain | grep -v '^??')" ]; then
   echo "ERROR: uncommitted changes — commit or stash before deploying."
   exit 1
 fi
