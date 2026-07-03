@@ -3955,9 +3955,32 @@ const DriveSync = (() => {
     }
   }
 
+  // ── Localization JSON — upload / download ─────────────────
+
+  async function publishLoc() {
+    await authenticate();
+    const fid   = await _hexFolder();
+    const files = await _listFiles(fid);
+    const byName = Object.fromEntries(files.map(f => [f.name, f.id]));
+    const content = JSON.stringify(
+      { version: 1, locales: ['en', 'uk'],
+        entries: LocalizationKeys.getEntries().map(({key,en,uk}) => ({key,en,uk})) },
+      null, 2);
+    await _uploadFile(fid, 'localization.json', content, 'application/json', byName['localization.json']);
+  }
+
+  async function loadLocFromDrive() {
+    const fid   = await _hexFolder();
+    const files = await _listFiles(fid);
+    const f     = files.find(f => f.name === 'localization.json');
+    if (!f) throw new Error('localization.json not found in HEX_DATA folder');
+    const blob  = await _downloadBlob(f.id);
+    return JSON.parse(await blob.text());
+  }
+
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
-           pushSprite, publishDb, publishMap, setDbSource, syncCustomSprites, syncFromDrive,
-           openMapsPopover, loadMapFromDrive };
+           pushSprite, publishDb, publishLoc, loadLocFromDrive, publishMap, setDbSource,
+           syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -5660,10 +5683,48 @@ const LocalizationKeys = (() => {
 
   // ── Public ────────────────────────────────────────────────
 
+  async function pushToDrive() {
+    const btn = document.getElementById('loc-btn-push');
+    if (btn) btn.disabled = true;
+    try {
+      UI.toast('Uploading localization.json to Drive…');
+      await DriveSync.publishLoc();
+      UI.toast('✅ localization.json published to Drive');
+    } catch(e) {
+      UI.toast('❌ Push failed: ' + e.message);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function pullFromDrive() {
+    const btn = document.getElementById('loc-btn-pull');
+    if (btn) btn.disabled = true;
+    try {
+      UI.toast('Downloading localization.json from Drive…');
+      const data = await DriveSync.loadLocFromDrive();
+      const incoming = (data.entries || []).filter(e => e.key);
+      // Merge: incoming wins for existing keys, new keys are appended
+      const map = Object.fromEntries(_entries.map(e => [e.key, e]));
+      for (const e of incoming) map[e.key] = e;
+      const existingKeys = new Set(_entries.map(e => e.key));
+      const extra = incoming.filter(e => !existingKeys.has(e.key));
+      _entries = _entries.map(e => map[e.key]).concat(extra);
+      _save();
+      _populateDatalist();
+      _renderList();
+      UI.toast(`✅ Pulled ${incoming.length} keys from Drive`);
+    } catch(e) {
+      UI.toast('❌ Pull failed: ' + e.message);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   function getKeys() { return _entries.map(e => e.key); }
   function getEntries() { return _entries; }
 
-  return { load, getKeys, getEntries, add, remove, downloadJson, openManager, closeManager, filterList, _updateField };
+  return { load, getKeys, getEntries, add, remove, downloadJson, pushToDrive, pullFromDrive, openManager, closeManager, filterList, _updateField };
 })();
 
 // ── BiomeManager ───────────────────────────────────────────
@@ -7865,9 +7926,13 @@ window.addEventListener('load', async () => {
     <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between">
       <strong style="color:#fff;font-size:15px">Localization Keys</strong>
-      <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;gap:6px;align-items:center">
+        <button id="loc-btn-pull" onclick="LocalizationKeys.pullFromDrive()"
+          style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">☁ Pull</button>
+        <button id="loc-btn-push" onclick="LocalizationKeys.pushToDrive()"
+          style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">☁ Push</button>
         <button onclick="LocalizationKeys.downloadJson()"
-          style="background:#2e7d32;border:none;color:#fff;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px">⬇ Download JSON</button>
+          style="background:#2e7d32;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">⬇ JSON</button>
         <button onclick="LocalizationKeys.closeManager()"
           style="background:none;border:none;color:#aaa;font-size:18px;cursor:pointer;line-height:1">✕</button>
       </div>
