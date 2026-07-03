@@ -20,10 +20,10 @@ echo "Deploying $BUILD from $BRANCH → gh-pages…"
 git checkout gh-pages
 git merge "$BRANCH" --no-edit
 
-# Stamp VERSION and COMMIT in-place (macOS-compatible sed)
-sed -i '' "s/const VERSION = \"DEV\"/const VERSION = \"${DATE}\"/" MapEditorPro.html
-sed -i '' "s/const COMMIT  = \"\"/const COMMIT  = \"${SHA}\"/" MapEditorPro.html
-sed -i '' "s|<title>Post Apo Map Editor</title>|<title>Post Apo Map Editor ${BUILD}</title>|" MapEditorPro.html
+# Stamp VERSION and COMMIT in-place — matches any existing value, not just "DEV"
+sed -i '' "s/const VERSION = \"[^\"]*\"/const VERSION = \"${DATE}\"/" MapEditorPro.html
+sed -i '' "s/const COMMIT  = \"[^\"]*\"/const COMMIT  = \"${SHA}\"/" MapEditorPro.html
+sed -i '' "s|<title>Post Apo Map Editor[^<]*</title>|<title>Post Apo Map Editor ${BUILD}</title>|" MapEditorPro.html
 
 git add MapEditorPro.html
 git commit -m "deploy: ${BUILD}"
