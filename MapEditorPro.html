@@ -4061,7 +4061,7 @@ const UI = (() => {
       '🟫 SWAMP':            7,
       '🌋 VOLCANIC/RIFT':    8,
     };
-    const sorted = HexDB.getAll().filter(h => h.id && !/^River_bridge_/i.test(h.spriteName || '')).sort((a, b) => {
+    const sorted = HexDB.getAll().filter(h => h.id && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || '')).sort((a, b) => {
       const oA = CAT_ORDER[a.category] ?? 99;
       const oB = CAT_ORDER[b.category] ?? 99;
       if (oA !== oB) return oA - oB;
@@ -5927,8 +5927,8 @@ const HexDB = (() => {
 
   // Bump this whenever new tiles are added to hex_database.json.
   // Any autosave whose dbVersion is lower (or absent) will be fully replaced.
-  // v3: purge stale bridge entries that were incorrectly stored in autosave as BARREN/DESERT.
-  const _DB_VERSION = 3;
+  // v4: purge stale bridge entries by ID as well as spriteName (v3 only filtered by spriteName).
+  const _DB_VERSION = 4;
 
   // Loads hex_database.json when autosave is absent or at an older version.
   async function _tryAutoLoadDefaultDb() {
@@ -5945,7 +5945,7 @@ const HexDB = (() => {
       // user-created IDs that aren't in the file are appended.
       // Bridge-sprite entries are excluded — bridges are handled by the hardcoded palette section.
       const fileIds  = new Set(parsed.hexes.map(h => (h.id || '').toLowerCase()));
-      const userOnly = _data.hexes.filter(h => h.id && !fileIds.has(h.id.toLowerCase()) && !/^River_bridge_/i.test(h.spriteName || ''));
+      const userOnly = _data.hexes.filter(h => h.id && !fileIds.has(h.id.toLowerCase()) && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || ''));
       _data = { ...parsed, hexes: [...parsed.hexes, ...userOnly] };
       if (!_data.common) _data.common = { goldPerTap: 10 };
       _data.dbVersion = _DB_VERSION;
