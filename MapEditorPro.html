@@ -3581,6 +3581,7 @@ const DriveSync = (() => {
     // Make files publicly readable so Unity + other browsers can fetch via API key
     const idToPublish = newId || existingId;
     if (idToPublish) await _makePublic(idToPublish);
+    return idToPublish || null;
   }
 
   // Download a Drive file — uses OAuth token if available, falls back to API key
@@ -3660,13 +3661,32 @@ const DriveSync = (() => {
   }
 
   // ── Sprite hash manifest (localStorage) ──────────────────
-  const HASH_KEY = 'drive_sprite_hashes';
+  const HASH_KEY        = 'drive_sprite_hashes';
+  const SPRITE_IDS_KEY  = 'drive_sprite_ids';   // spriteName → Drive file ID for public URL fallback
 
   function _loadHashes() {
     try { return JSON.parse(localStorage.getItem(HASH_KEY) || '{}'); } catch { return {}; }
   }
   function _saveHashes(map) {
     try { localStorage.setItem(HASH_KEY, JSON.stringify(map)); } catch {}
+  }
+
+  function _loadSpriteIds() {
+    try { return JSON.parse(localStorage.getItem(SPRITE_IDS_KEY) || '{}'); } catch { return {}; }
+  }
+  function _saveSpriteIds(map) {
+    try { localStorage.setItem(SPRITE_IDS_KEY, JSON.stringify(map)); } catch {}
+  }
+  // Pre-register Drive public URLs with Terrain so applyHexDbOverrides can load them
+  // without auth. Called at startup before IndexedDB data URLs are registered so that
+  // IndexedDB (higher quality, already local) always wins when both are available.
+  function loadStoredSpriteUrls() {
+    const ids = _loadSpriteIds();
+    if (!Object.keys(ids).length) return;
+    const urlMap = {};
+    for (const [name, fileId] of Object.entries(ids))
+      urlMap[name] = `${DRIVE_API}/${fileId}?alt=media&key=${API_KEY}`;
+    Terrain.registerUploadedUrls(urlMap);
   }
 
   const BUNDLED_MD5_KEY = 'drive_bundled_md5s';
@@ -3743,6 +3763,7 @@ const DriveSync = (() => {
 
       // Bundled sprites from HexDB — always upload
       const spriteNames = [...new Set(HexDB.getAll().map(h => h.spriteName).filter(Boolean))];
+      const spriteIds = _loadSpriteIds();
       for (let i = 0; i < spriteNames.length; i++) {
         const name = spriteNames[i];
         try {
@@ -3750,7 +3771,8 @@ const DriveSync = (() => {
           if (!r.ok) continue;
           const blob  = await r.blob();
           const fname = name.endsWith('.png') ? name : name + '.png';
-          await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+          const fileId = await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+          if (fileId) spriteIds[name] = fileId;
           hashes[fname] = await _sha256hex(blob);
           done++; UI.toast(`↑ ${name} (${i+1}/${spriteNames.length})`);
         } catch(e) { console.warn('[DriveSync] sprite', name, e.message); }
@@ -3762,13 +3784,15 @@ const DriveSync = (() => {
         for (const { name, dataUrl } of uploaded) {
           const blob  = await (await fetch(dataUrl)).blob();
           const fname = name.endsWith('.png') ? name : name + '.png';
-          await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+          const fileId = await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+          if (fileId) spriteIds[name] = fileId;
           hashes[fname] = await _sha256hex(blob);
           done++; UI.toast(`↑ ${name}`);
         }
       } catch(e) { console.warn('[DriveSync] IndexedDB sprites:', e.message); }
 
       _saveHashes(hashes);  // always save — sprite hashes must persist even if earlier steps failed
+      _saveSpriteIds(spriteIds);
       setDbSource('drive');
       UI.toast(`✅ DB published: ${done} files${skipped ? `, ${skipped} unchanged` : ''}`);
     } catch(e) {
@@ -4013,7 +4037,8 @@ const DriveSync = (() => {
 
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
            pushSprite, publishDb, publishLoc, loadLocFromDrive, publishMap, setDbSource,
-           syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive };
+           syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
+           loadStoredSpriteUrls };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -7921,6 +7946,10 @@ window.addEventListener('load', async () => {
   History.initKeyboard();
   IO.initFileInput();
   IO.initKeyboard();
+  // Register Drive public URLs (stored by publishDb) as a low-priority fallback so
+  // sprites missing from sprites/hex load without auth. Must run BEFORE IndexedDB so
+  // that IndexedDB data URLs override Drive URLs when both are available.
+  DriveSync.loadStoredSpriteUrls();
   // Pre-load user-uploaded sprites from IndexedDB so applyHexDbOverrides
   // can resolve them when it runs inside HexDB.init().
   try {
