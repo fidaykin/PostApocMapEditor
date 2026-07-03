@@ -324,6 +324,26 @@ body:not(.mode-map) #statusbar { display: none; }
 }
 .toast.fade-out { opacity: 0; }
 
+/* ── Progress bar ───────────────────────────────────────────── */
+#progress-wrap {
+  display: none; position: fixed; top: 0; left: 0; right: 0;
+  z-index: 1100; height: 32px;
+  background: var(--panel); border-bottom: 1px solid var(--border);
+  align-items: center; gap: 10px; padding: 0 14px;
+}
+#progress-wrap.active { display: flex; }
+#progress-track {
+  flex: 1; height: 5px; background: var(--hover); border-radius: 3px; overflow: hidden;
+}
+#progress-fill {
+  height: 100%; width: 0%; background: #3a9; border-radius: 3px;
+  transition: width 0.18s ease;
+}
+#progress-label {
+  font-size: 12px; color: var(--text-muted, #aaa);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;
+}
+
 /* ── Modals (confirm / new-map) ─────────────────────────────── */
 .modal-overlay {
   display: none; position: fixed; inset: 0;
@@ -1420,6 +1440,11 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <!-- Toast container -->
 <div id="toast-container"></div>
+
+<div id="progress-wrap">
+  <div id="progress-track"><div id="progress-fill"></div></div>
+  <span id="progress-label"></span>
+</div>
 
 <!-- Confirm modal (New Map / Clear) -->
 <div class="modal-overlay" id="confirm-modal">
@@ -3651,12 +3676,15 @@ const DriveSync = (() => {
     UI.closeAllMenus();
     UI.toast('Loading HexDB from Drive…');
     try {
+      UI.progress(30, 'Loading HexDB from Drive…');
       const data = await loadHexDb();
       HexDB.loadFromObject(data);
       setDbSource('drive');
       UI.toast(`✅ Loaded ${data.hexes?.length ?? 0} hexes from Drive`);
+      UI.progressDone('✅ Loaded');
     } catch(e) {
       UI.toast('❌ ' + e.message);
+      UI.progressDone('❌ Failed');
     }
   }
 
@@ -3741,6 +3769,7 @@ const DriveSync = (() => {
     try {
       UI.toast('Authenticating with Google…');
       await authenticate();
+      UI.progress(5, 'Preparing…');
 
       const fid      = await _hexFolder();
       const hexFiles = await _listFiles(fid);
@@ -3753,6 +3782,7 @@ const DriveSync = (() => {
       const hexContent = JSON.stringify(hexDb, null, 2);
       const hexHash    = _strHash(hexContent);
       if (hashes['hex_database.json'] !== hexHash) {
+        UI.progress(10, 'Uploading hex_database.json…');
         UI.toast('Uploading hex_database.json…');
         await _uploadFile(fid, 'hex_database.json', hexContent, 'application/json', byName['hex_database.json']);
         hashes['hex_database.json'] = hexHash;
@@ -3774,7 +3804,7 @@ const DriveSync = (() => {
           const fileId = await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
           if (fileId) spriteIds[name] = fileId;
           hashes[fname] = await _sha256hex(blob);
-          done++; UI.toast(`↑ ${name} (${i+1}/${spriteNames.length})`);
+          done++; UI.progress(10 + Math.round(80 * (i+1) / Math.max(spriteNames.length,1)), '↑ ' + name + ' (' + (i+1) + '/' + spriteNames.length + ')'); UI.toast(`↑ ${name} (${i+1}/${spriteNames.length})`);
         } catch(e) { console.warn('[DriveSync] sprite', name, e.message); }
       }
 
@@ -3787,15 +3817,17 @@ const DriveSync = (() => {
           const fileId = await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
           if (fileId) spriteIds[name] = fileId;
           hashes[fname] = await _sha256hex(blob);
-          done++; UI.toast(`↑ ${name}`);
+          done++; UI.progress(92, '↑ ' + name); UI.toast(`↑ ${name}`);
         }
       } catch(e) { console.warn('[DriveSync] IndexedDB sprites:', e.message); }
 
       _saveHashes(hashes);  // always save — sprite hashes must persist even if earlier steps failed
       _saveSpriteIds(spriteIds);
       setDbSource('drive');
+      UI.progressDone('✅ DB published');
       UI.toast(`✅ DB published: ${done} files${skipped ? `, ${skipped} unchanged` : ''}`);
     } catch(e) {
+      UI.progressDone('❌ Failed');
       UI.toast('❌ Publish DB failed: ' + e.message);
       console.error('[DriveSync] publishDb error:', e);
     } finally {
@@ -3819,6 +3851,7 @@ const DriveSync = (() => {
     try {
       UI.toast('Authenticating with Google…');
       await authenticate();
+      UI.progress(20, 'Uploading map…');
 
       const rootFiles  = await _listFiles(ROOT_FOLDER);
       const rootByName = Object.fromEntries(rootFiles.map(f => [f.name, f.id]));
@@ -3831,8 +3864,10 @@ const DriveSync = (() => {
       UI.toast('Uploading ' + fname + '.json…');
       await _uploadFile(ROOT_FOLDER, fname + '.json', mapJson, 'application/json', rootByName[fname + '.json']);
       _mapListCache = null;
+      UI.progressDone('✅ Map published');
       UI.toast('✅ Map published as ' + fname + '.json');
     } catch(e) {
+      UI.progressDone('❌ Failed');
       UI.toast('❌ Publish Map failed: ' + e.message);
       console.error('[DriveSync] publishMap error:', e);
     } finally {
@@ -3910,12 +3945,15 @@ const DriveSync = (() => {
       // Authenticate first, then make all HEX_DATA files public so API-key
       // download (no Authorization header, no CORS preflight) works in all browsers.
       await authenticate();
+      UI.progress(5, 'Making files public…');
       UI.toast('Making Drive files public…');
       await _makeHexDataPublic();
+      UI.progress(15, 'Syncing HexDB…');
       UI.toast('Syncing HexDB from Drive…');
       const driveData = await loadHexDb();
       HexDB.loadFromObject(driveData);
       setDbSource('drive');
+      UI.progress(25, 'Syncing sprites…');
 
       const bundled = new Set(
         HexDB.getAll().filter(h => typeof h.terrainTypeId !== 'undefined' && h.terrainTypeId >= 0)
@@ -3938,6 +3976,7 @@ const DriveSync = (() => {
         const fname = name.endsWith('.png') ? name : name + '.png';
         const file  = byName[fname];
         if (!file) continue;
+        UI.progress(25 + Math.round(55 * (i+1) / Math.max(custom.length,1)), 'Sprite ' + (i+1) + '/' + custom.length + ': ' + name);
         UI.toast(`Syncing sprite ${i + 1}/${custom.length}: ${name}`);
         try {
           const dataUrl = await _imgDataUrl(file.id);
@@ -3945,6 +3984,7 @@ const DriveSync = (() => {
           urlMap[name] = dataUrl;
         } catch(e) { console.warn(`[DriveSync] sync sprite ${name}:`, e.message); }
       }
+      UI.progress(80, 'Syncing bundled sprites…');
 
       // ── Bundled sprites — download when Drive MD5 differs from stored ───────
       const bundledMd5s    = _loadBundledMd5s();
@@ -3964,6 +4004,7 @@ const DriveSync = (() => {
         const name  = bundledChanged[i];
         const fname = name.endsWith('.png') ? name : name + '.png';
         const file  = byName[fname];
+        UI.progress(80 + Math.round(18 * (i+1) / Math.max(bundledChanged.length,1)), 'Bundled ' + (i+1) + '/' + bundledChanged.length + ': ' + name);
         UI.toast(`Syncing bundled ${i + 1}/${bundledChanged.length}: ${name}`);
         try {
           const dataUrl = await _imgDataUrl(file.id);
@@ -3986,8 +4027,10 @@ const DriveSync = (() => {
       const parts = [];
       if (custom.length)        parts.push(`${customSynced}/${custom.length} custom`);
       if (bundledSynced.length) parts.push(`${bundledSynced.length} bundled`);
+      UI.progressDone('✅ Synced');
       UI.toast(`✅ Synced: HexDB${parts.length ? ' + ' + parts.join(', ') + ' sprite(s)' : ''}`);
     } catch(e) {
+      UI.progressDone('❌ Sync failed');
       UI.toast('❌ Sync failed: ' + e.message);
       console.error('[DriveSync] syncFromDrive:', e);
     } finally {
@@ -4007,23 +4050,31 @@ const DriveSync = (() => {
   // ── Localization JSON — upload / download ─────────────────
 
   async function publishLoc() {
-    await authenticate();
-    const fid     = await _hexFolder();
-    const files   = await _listFiles(fid);
-    const byName  = Object.fromEntries(files.map(f => [f.name, f.id]));
-    const content = JSON.stringify(
-      { version: 1, locales: ['en', 'uk'],
-        entries: LocalizationKeys.getEntries().map(({key,en,uk}) => ({key,en,uk})) },
-      null, 2);
-    const hashes  = _loadHashes();
-    const hash    = _strHash(content);
-    if (hashes['localization.json'] === hash) {
-      UI.toast('ℹ️ localization.json unchanged — skipped');
-      return;
+    try {
+      await authenticate();
+      UI.progress(20, 'Uploading localization.json…');
+      const fid     = await _hexFolder();
+      const files   = await _listFiles(fid);
+      const byName  = Object.fromEntries(files.map(f => [f.name, f.id]));
+      const content = JSON.stringify(
+        { version: 1, locales: ['en', 'uk'],
+          entries: LocalizationKeys.getEntries().map(({key,en,uk}) => ({key,en,uk})) },
+        null, 2);
+      const hashes  = _loadHashes();
+      const hash    = _strHash(content);
+      if (hashes['localization.json'] === hash) {
+        UI.progressDone('ℹ️ Unchanged');
+        UI.toast('ℹ️ localization.json unchanged — skipped');
+        return;
+      }
+      await _uploadFile(fid, 'localization.json', content, 'application/json', byName['localization.json']);
+      hashes['localization.json'] = hash;
+      _saveHashes(hashes);
+      UI.progressDone('✅ localization.json published');
+    } catch(e) {
+      UI.progressDone('❌ Failed');
+      throw e;
     }
-    await _uploadFile(fid, 'localization.json', content, 'application/json', byName['localization.json']);
-    hashes['localization.json'] = hash;
-    _saveHashes(hashes);
   }
 
   async function loadLocFromDrive() {
@@ -4564,6 +4615,25 @@ const UI = (() => {
     document.getElementById('st-size').textContent = `${MAP_WIDTH} × ${MAP_HEIGHT}`;
   }
 
+  let _progressTimer = null;
+  function progress(pct, label) {
+    const wrap = document.getElementById('progress-wrap');
+    const fill = document.getElementById('progress-fill');
+    const lbl  = document.getElementById('progress-label');
+    if (!wrap) return;
+    clearTimeout(_progressTimer);
+    wrap.classList.add('active');
+    fill.style.width = Math.min(100, Math.max(0, pct)) + '%';
+    if (label !== undefined) lbl.textContent = label;
+  }
+  function progressDone(label) {
+    progress(100, label ?? '');
+    _progressTimer = setTimeout(() => {
+      const wrap = document.getElementById('progress-wrap');
+      if (wrap) wrap.classList.remove('active');
+    }, 600);
+  }
+
   return {
     init, buildPalette, selectTerrain, getSelectedTerrain,
     selectBridge, getSelectedBridgeAxis, _bridgeSprites,
@@ -4573,7 +4643,8 @@ const UI = (() => {
     showConfirm, closeConfirm, toast,
     showSpritePicker, closeSpritePicker,
     updateStatusTool, updateStatusSize,
-    rebuildSlotPanel
+    rebuildSlotPanel,
+    progress, progressDone
   };
 })();
 // ════════════════════════════════════════════════════════════
