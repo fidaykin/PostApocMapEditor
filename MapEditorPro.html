@@ -2928,6 +2928,7 @@ const Tools = (() => {
     const hexId = UI.getSelectedTerrain();
     tiles.forEach(({ col: c, row: r }) => {
       if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT) {
+        if (getSatelliteAnchor(c, r)) return; // block painting under multi-tile footprint
         mapData[r * MAP_WIDTH + c] = hexId;
         const bi = bridgesData.findIndex(b => b.col === c && b.row === r);
         if (bi >= 0) bridgesData.splice(bi, 1);
@@ -2964,6 +2965,7 @@ const Tools = (() => {
 
     while (queue.length) {
       const [c, r] = queue.shift();
+      if (getSatelliteAnchor(c, r)) continue; // skip tiles under multi-tile footprint
       mapData[r * MAP_WIDTH + c] = fillId;
       const even = c % 2 === 0;
       const nbrs = [
