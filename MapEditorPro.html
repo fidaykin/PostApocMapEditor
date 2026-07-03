@@ -3741,28 +3741,30 @@ const DriveSync = (() => {
         skipped++;
       }
 
-      // Bundled sprites from HexDB — hash check
+      // Bundled sprites from HexDB — always upload
       const spriteNames = [...new Set(HexDB.getAll().map(h => h.spriteName).filter(Boolean))];
       for (let i = 0; i < spriteNames.length; i++) {
         const name = spriteNames[i];
         try {
           const r = await fetch(`sprites/hex/${name}.png`);
           if (!r.ok) continue;
-          const blob    = await r.blob();
-          const changed = await _uploadSpriteIfChanged(fid, name, blob, byName, hashes);
-          if (changed) { done++; UI.toast(`↑ ${name} (${i+1}/${spriteNames.length})`); }
-          else         { skipped++; }
+          const blob  = await r.blob();
+          const fname = name.endsWith('.png') ? name : name + '.png';
+          await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+          hashes[fname] = await _sha256hex(blob);
+          done++; UI.toast(`↑ ${name} (${i+1}/${spriteNames.length})`);
         } catch(e) { console.warn('[DriveSync] sprite', name, e.message); }
       }
 
-      // User-uploaded sprites from IndexedDB — hash check
+      // User-uploaded sprites from IndexedDB — always upload
       try {
         const uploaded = await SpriteStore.loadAll();
         for (const { name, dataUrl } of uploaded) {
-          const blob    = await (await fetch(dataUrl)).blob();
-          const changed = await _uploadSpriteIfChanged(fid, name, blob, byName, hashes);
-          if (changed) { done++; UI.toast(`↑ ${name}`); }
-          else         { skipped++; }
+          const blob  = await (await fetch(dataUrl)).blob();
+          const fname = name.endsWith('.png') ? name : name + '.png';
+          await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+          hashes[fname] = await _sha256hex(blob);
+          done++; UI.toast(`↑ ${name}`);
         }
       } catch(e) { console.warn('[DriveSync] IndexedDB sprites:', e.message); }
 
