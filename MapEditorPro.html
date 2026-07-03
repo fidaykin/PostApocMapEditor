@@ -5591,6 +5591,28 @@ const LocalizationKeys = (() => {
     }
 
     _populateDatalist();
+    // Attempt Drive sync in background — localization.json is public so no auth needed.
+    // Silently ignored if Drive is unreachable or file not yet published.
+    _tryLoadFromDrive();
+  }
+
+  async function _tryLoadFromDrive() {
+    try {
+      const data = await DriveSync.loadLocFromDrive();
+      const incoming = (data.entries || []).filter(e => e.key);
+      if (!incoming.length) return;
+      const map = Object.fromEntries(_entries.map(e => [e.key, e]));
+      for (const e of incoming) map[e.key] = e;
+      const existingKeys = new Set(_entries.map(e => e.key));
+      const extra = incoming.filter(e => !existingKeys.has(e.key));
+      _entries = _entries.map(e => map[e.key]).concat(extra);
+      _save();
+      _populateDatalist();
+      if (document.getElementById('loc-keys-modal')?.style.display === 'flex') _renderList();
+      console.log(`[LocalizationKeys] Auto-synced ${incoming.length} keys from Drive`);
+    } catch(e) {
+      console.log('[LocalizationKeys] Drive auto-sync skipped:', e.message);
+    }
   }
 
   // ── Persistence ───────────────────────────────────────────
