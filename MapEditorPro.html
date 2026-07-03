@@ -3679,6 +3679,12 @@ const DriveSync = (() => {
     return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
   }
 
+  async function _sha256hexStr(str) {
+    const buf    = new TextEncoder().encode(str);
+    const digest = await crypto.subtle.digest('SHA-256', buf);
+    return Array.from(new Uint8Array(digest)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
   // Returns true and uploads if the sprite is new or changed; returns false if skipped.
   async function _uploadSpriteIfChanged(fid, name, blob, byName, hashes) {
     const fname = name.endsWith('.png') ? name : name + '.png';
@@ -3718,12 +3724,18 @@ const DriveSync = (() => {
       const hashes   = _loadHashes();
       let done = 0, skipped = 0;
 
-      // hex_database.json — always upload
-      UI.toast('Uploading hex_database.json…');
-      const hexDb = HexDB.getData();
-      await _uploadFile(fid, 'hex_database.json',
-        JSON.stringify(hexDb, null, 2), 'application/json', byName['hex_database.json']);
-      done++;
+      // hex_database.json — upload only if content changed
+      const hexDb      = HexDB.getData();
+      const hexContent = JSON.stringify(hexDb, null, 2);
+      const hexHash    = await _sha256hexStr(hexContent);
+      if (hashes['hex_database.json'] !== hexHash) {
+        UI.toast('Uploading hex_database.json…');
+        await _uploadFile(fid, 'hex_database.json', hexContent, 'application/json', byName['hex_database.json']);
+        hashes['hex_database.json'] = hexHash;
+        done++;
+      } else {
+        skipped++;
+      }
 
       // Bundled sprites from HexDB — hash check
       const spriteNames = [...new Set(HexDB.getAll().map(h => h.spriteName).filter(Boolean))];
@@ -3966,14 +3978,22 @@ const DriveSync = (() => {
 
   async function publishLoc() {
     await authenticate();
-    const fid   = await _hexFolder();
-    const files = await _listFiles(fid);
-    const byName = Object.fromEntries(files.map(f => [f.name, f.id]));
+    const fid     = await _hexFolder();
+    const files   = await _listFiles(fid);
+    const byName  = Object.fromEntries(files.map(f => [f.name, f.id]));
     const content = JSON.stringify(
       { version: 1, locales: ['en', 'uk'],
         entries: LocalizationKeys.getEntries().map(({key,en,uk}) => ({key,en,uk})) },
       null, 2);
+    const hashes  = _loadHashes();
+    const hash    = await _sha256hexStr(content);
+    if (hashes['localization.json'] === hash) {
+      UI.toast('ℹ️ localization.json unchanged — skipped');
+      return;
+    }
     await _uploadFile(fid, 'localization.json', content, 'application/json', byName['localization.json']);
+    hashes['localization.json'] = hash;
+    _saveHashes(hashes);
   }
 
   async function loadLocFromDrive() {
