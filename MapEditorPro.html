@@ -7464,7 +7464,7 @@ const BldDB = (() => {
           ${_resBlockHTML('price', bld.price, !canBld)}</div>
         <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Premium Price <span class="hexdb-info" title="Gem price. 0 = disabled.">ⓘ</span></label>
           <input id="bld-f-premiumPrice" type="number" step="1" min="0"
-            value="${bld.premiumPrice ?? 0}"></div>
+            value="${_esc(bld.premiumPrice ?? 0)}"></div>
         <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Additional Build Condition <span class="hexdb-info" title="Requires a specific nearby tile type">ⓘ</span></label>
           <input id="bld-f-additionalBuildCondition" type="checkbox"${addCond ? ' checked' : ''}></div>
         ${addCond && canBld ? `
@@ -7481,7 +7481,7 @@ const BldDB = (() => {
           </div></div>
         <div class="hexdb-field-row"><label>Radius <span class="hexdb-info" title="0=must be on top; 1=adjacent; N=within N hexes">ⓘ</span></label>
           <input id="bld-f-radius" type="number" step="1" min="0"
-            value="${bld.radius ?? 0}"></div>` : ''}
+            value="${_esc(bld.radius ?? 0)}"></div>` : ''}
       </div>
     </div>`;
 
@@ -7696,9 +7696,11 @@ const BldDB = (() => {
     bld.minLevel                 = Math.max(1, nv('bld-f-minLevel'));
     bld.premiumPrice             = nv('bld-f-premiumPrice');
     bld.additionalBuildCondition = bv('bld-f-additionalBuildCondition');
-    bld.tilesTypeMode            = iv('bld-f-tilesTypeMode');
-    bld.tilesTypeValue           = iv('bld-f-tilesTypeValue');
-    bld.radius                   = Math.max(0, nv('bld-f-radius'));
+    if (g('bld-f-tilesTypeMode')) {
+      bld.tilesTypeMode  = iv('bld-f-tilesTypeMode');
+      bld.tilesTypeValue = iv('bld-f-tilesTypeValue');
+      bld.radius         = Math.max(0, nv('bld-f-radius'));
+    }
 
     // INCOME
     bld.hexEarnsOnTap         = bv('bld-f-hexEarnsOnTap');
