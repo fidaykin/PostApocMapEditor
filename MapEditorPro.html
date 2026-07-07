@@ -608,6 +608,8 @@ body.mode-hexdb       #hexdb-tools { display: flex; }
 body.mode-buildings   #map-tools   { display: none; }
 body.mode-buildings   #map-io      { display: none; }
 body.mode-buildings   #bld-tools   { display: flex; }
+body.mode-upgrades    #map-tools   { display: none; }
+body.mode-upgrades    #map-io      { display: none; }
 body.mode-upgrades    #upg-tools   { display: flex; }
 body.mode-settlements #map-tools   { display: none; }
 body.mode-settlements #map-io      { display: none; }
@@ -8511,6 +8513,7 @@ const UpgDB = (() => {
     if (u.typeIco === undefined)       u.typeIco        = '';
     if (u.upgradeIco === undefined)    u.upgradeIco     = '';
     if (!u.upgradeLevels || u.upgradeLevels < 1) u.upgradeLevels = 1;
+    if (u.upgradeLevels > 999) u.upgradeLevels = 999;
     if (!u.priceType)                  u.priceType      = 'Resource';
     if (!Array.isArray(u.levels) || !u.levels.length)
       u.levels = [{ target: '', price: [{ type: 'Gold', amount: 100 }] }];
@@ -8965,22 +8968,28 @@ const UpgDB = (() => {
     const search = document.getElementById('upg-search');
     if (search) search.addEventListener('input', e => {
       _filter.search = e.target.value;
-      _applyFilter(); _buildList();
+      _applyFilter();
       if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+      _buildList();
+      if (_selFilt >= 0) _selectIdx(_selFilt);
     });
 
     const filterType = document.getElementById('upg-filter-type');
     if (filterType) filterType.addEventListener('change', e => {
       _filter.type = e.target.value;
-      _applyFilter(); _buildList();
+      _applyFilter();
       if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+      _buildList();
+      if (_selFilt >= 0) _selectIdx(_selFilt);
     });
 
     const filterParams = document.getElementById('upg-filter-params');
     if (filterParams) filterParams.addEventListener('change', e => {
       _filter.params = e.target.value;
-      _applyFilter(); _buildList();
+      _applyFilter();
       if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+      _buildList();
+      if (_selFilt >= 0) _selectIdx(_selFilt);
     });
 
     const main = document.getElementById('upgrades-main');
