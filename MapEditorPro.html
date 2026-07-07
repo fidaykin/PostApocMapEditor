@@ -4607,16 +4607,19 @@ const UI = (() => {
     return thumb;
   }
 
-  async function showSpritePicker(onSelect) {
+  async function showSpritePicker(onSelect, opts = {}) {
+    const folder     = opts.folder     || 'sprites/hex';
+    const dbSprites  = opts.getSprites ? opts.getSprites() : HexDB.getAll().map(h => h.spriteName).filter(Boolean);
+
     _spritePickerCallback = onSelect;
     const grid = document.getElementById('sprite-picker-grid');
     grid.innerHTML = '';
     const shown = new Set();
 
-    // All sprites referenced in HexDB
-    [...new Set(HexDB.getAll().map(h => h.spriteName).filter(Boolean))].forEach(name => {
+    // All sprites referenced in the active DB
+    [...new Set(dbSprites)].forEach(name => {
       shown.add(name);
-      grid.appendChild(_makeThumb(name, `sprites/hex/${name}.png`, false, null));
+      grid.appendChild(_makeThumb(name, `${folder}/${name}.png`, false, null));
     });
 
     // User-uploaded sprites from IndexedDB
@@ -4631,22 +4634,15 @@ const UI = (() => {
       });
     } catch(e) { /* IndexedDB unavailable — skip */ }
 
-    // HexDB custom sprites not already shown — load from sprites/hex/ static path
-    HexDB.getAll().forEach(h => {
-      if (!h.spriteName || shown.has(h.spriteName)) return;
-      shown.add(h.spriteName);
-      grid.appendChild(_makeThumb(h.spriteName, `sprites/hex/${h.spriteName}.png`, false, null));
-    });
-
-    // All sprites from manifest — catches sprites not yet in Terrain or HexDB
+    // All sprites from folder manifest — catches sprites not yet referenced in any DB
     try {
-      const resp = await fetch('sprites/hex/manifest.json');
+      const resp = await fetch(`${folder}/manifest.json`);
       if (resp.ok) {
         const names = await resp.json();
         names.forEach(name => {
           if (shown.has(name)) return;
           shown.add(name);
-          grid.appendChild(_makeThumb(name, `sprites/hex/${name}.png`, false, null));
+          grid.appendChild(_makeThumb(name, `${folder}/${name}.png`, false, null));
         });
       }
     } catch(e) { /* manifest unavailable — skip */ }
@@ -7444,6 +7440,16 @@ const BldDB = (() => {
 
   function _resIcon(type) { return BLD_RES_ICONS[type] || '◆'; }
 
+  function _keyHint(val) {
+    if (!val) return '';
+    if (val !== val.trim()) return '<span style="color:#f90">⚠ Leading/trailing spaces</span>';
+    const keys = LocalizationKeys.getKeys();
+    if (!keys.length) return '<span style="color:#888">⚠ Keys file unavailable</span>';
+    return keys.includes(val)
+      ? '<span style="color:#4caf50">✓ Key found</span>'
+      : '<span style="color:#f90">⚠ Key not found</span>';
+  }
+
   function _tagsHTML(fieldName, values, disabled) {
     const dis = disabled ? ' disabled' : '';
     const tags = (values || []).map(v =>
@@ -7505,11 +7511,20 @@ const BldDB = (() => {
             <small style="color:#888;font-size:0.8em">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small>
           </div></div>
         <div class="hexdb-field-row"><label>TextId <span class="hexdb-info" title="Localisation key for display name. No leading/trailing spaces.">ⓘ</span></label>
-          <input id="bld-f-textId" type="text" value="${_esc(bld.textId)}" list="loc-keys-datalist"></div>
+          <div style="flex:1;min-width:0">
+            <input id="bld-f-textId" type="text" value="${_esc(bld.textId)}" list="loc-keys-datalist" style="width:100%;box-sizing:border-box">
+            <div id="bld-hint-textId" style="font-size:10px;margin-top:2px">${_keyHint(bld.textId)}</div>
+          </div></div>
         <div class="hexdb-field-row"><label>Desc Idle <span class="hexdb-info" title="Key shown when building is placed on map">ⓘ</span></label>
-          <input id="bld-f-descIdleId" type="text" value="${_esc(bld.descIdleId)}" list="loc-keys-datalist"></div>
+          <div style="flex:1;min-width:0">
+            <input id="bld-f-descIdleId" type="text" value="${_esc(bld.descIdleId)}" list="loc-keys-datalist" style="width:100%;box-sizing:border-box">
+            <div id="bld-hint-descIdleId" style="font-size:10px;margin-top:2px">${_keyHint(bld.descIdleId)}</div>
+          </div></div>
         <div class="hexdb-field-row"><label>Desc Build <span class="hexdb-info" title="Key shown when building can be built">ⓘ</span></label>
-          <input id="bld-f-descBuildId" type="text" value="${_esc(bld.descBuildId)}" list="loc-keys-datalist"></div>
+          <div style="flex:1;min-width:0">
+            <input id="bld-f-descBuildId" type="text" value="${_esc(bld.descBuildId)}" list="loc-keys-datalist" style="width:100%;box-sizing:border-box">
+            <div id="bld-hint-descBuildId" style="font-size:10px;margin-top:2px">${_keyHint(bld.descBuildId)}</div>
+          </div></div>
         <div class="hexdb-field-row"><label>Type <span class="hexdb-info" title="Ground Building or Water Building">ⓘ</span></label>
           <select id="bld-f-type">
             <option${bld.type === 'Ground Building' ? ' selected' : ''}>Ground Building</option>
@@ -7522,7 +7537,11 @@ const BldDB = (() => {
           <input id="bld-f-filter" type="text" value="${_esc(bld.filter)}"></div>
         <div class="hexdb-field-row"><label>SpriteName</label>
           <div style="flex:1;min-width:0">
-            <input id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}">
+            <div style="display:flex;gap:4px">
+              <input id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}" style="flex:1;min-width:0">
+              <button type="button" onclick="BldDB.pickSprite()" title="Pick sprite from buildings folder"
+                style="padding:2px 7px;font-size:13px;cursor:pointer;flex-shrink:0">🖼</button>
+            </div>
             <small style="color:#888;font-size:0.8em">Web: sprites/buildings/&lt;name&gt;.png | Unity: Resources/Buildings/&lt;name&gt;</small>
           </div></div>
         <div class="hexdb-field-row"><label>Base Cost Taps <span class="hexdb-info" title="Taps to unlock. Min 1.">ⓘ</span></label>
@@ -7690,6 +7709,14 @@ const BldDB = (() => {
     right.querySelectorAll('input:not(.hexdb-tag-input):not([data-res-field]),select:not([data-res-field])').forEach(el => {
       el.addEventListener('input',  _readRecord);
       el.addEventListener('change', _readRecord);
+    });
+
+    // ── Wire text-key validation hints ───────────────────────
+    [['bld-f-textId','bld-hint-textId'],['bld-f-descIdleId','bld-hint-descIdleId'],['bld-f-descBuildId','bld-hint-descBuildId']].forEach(([inId, hintId]) => {
+      const inp  = g(inId);
+      const hint = g(hintId);
+      if (!inp || !hint) return;
+      inp.addEventListener('input', () => { hint.innerHTML = _keyHint(inp.value); });
     });
 
     // ── Wire toggles that trigger full re-render ──────────────
@@ -7979,7 +8006,18 @@ const BldDB = (() => {
   }
 
   function getJson() { return JSON.stringify(_data, null, 2); }
-  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad, getJson };
+
+  function pickSprite() {
+    UI.showSpritePicker(name => {
+      const el = document.getElementById('bld-f-spriteName');
+      if (el) { el.value = name; el.dispatchEvent(new Event('input', { bubbles: true })); }
+    }, {
+      folder: 'sprites/buildings',
+      getSprites: () => _data.buildings.map(b => b.spriteName).filter(Boolean),
+    });
+  }
+
+  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad, getJson, pickSprite };
 })();
 
 // ── SttDB Module ───────────────────────────────────────────
