@@ -1411,14 +1411,20 @@ body.mode-keys        #keys-tools  { display: flex; }
     <div id="bld-left">
       <div id="bld-filters">
         <input id="bld-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
-        <select id="bld-filter-biome" title="Filter by Biome">
-          <option value="">All Biomes</option>
-        </select>
-        <select id="bld-filter-type" title="Filter by Type">
-          <option value="">All Types</option>
-          <option>Ground Building</option>
-          <option>Water Building</option>
-        </select>
+        <div class="hexdb-filter-row">
+          <span style="width:38px;flex-shrink:0">Biome</span>
+          <select id="bld-filter-biome">
+            <option value="">All</option>
+          </select>
+        </div>
+        <div class="hexdb-filter-row">
+          <span style="width:38px;flex-shrink:0">Type</span>
+          <select id="bld-filter-type">
+            <option value="">All</option>
+            <option>Ground Building</option>
+            <option>Water Building</option>
+          </select>
+        </div>
       </div>
       <div id="bld-list"></div>
       <div class="hexdb-list-footer">
@@ -1451,10 +1457,13 @@ body.mode-keys        #keys-tools  { display: flex; }
     <div id="stt-left">
       <div id="stt-filters">
         <input id="stt-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
-        <select id="stt-filter-biome" title="Filter by Biome">
-          <option value="">All Biomes</option>
-          <!-- populated by BiomeManager.refreshAllDropdowns() -->
-        </select>
+        <div class="hexdb-filter-row">
+          <span style="width:38px;flex-shrink:0">Biome</span>
+          <select id="stt-filter-biome">
+            <option value="">All</option>
+            <!-- populated by BiomeManager.refreshAllDropdowns() -->
+          </select>
+        </div>
       </div>
       <div id="stt-list"></div>
       <div class="hexdb-list-footer">
