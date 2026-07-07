@@ -7266,11 +7266,6 @@ const BldDB = (() => {
     return bld;
   }
 
-  function _blankLevel(n) {
-    return { level: n, upgradePriceGold: 0, upgradePriceGems: 0,
-             upgradeCondition: '', transformTo: '', unlockList: '' };
-  }
-
   function _esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
                           .replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -7371,173 +7366,358 @@ const BldDB = (() => {
 
   function _renderRecord(bld) {
     const right = document.getElementById('bld-right');
-    const collapsed = s => _secState[s] ? '▶' : '▼';
-    const bodyDisplay = s => _secState[s] ? 'none' : 'block';
+    const g = id => document.getElementById(id);
+    const col = s => _secState[s] ? '▶' : '▼';
+    const bod = s => _secState[s] ? 'none' : 'block';
+    const _isDupe = id => _data.buildings.some((b, i) => b.id === id && i !== _filtered[_selFilt]);
 
-    function levelCards() {
-      const n = Math.min(9999, Math.max(1, bld.maxLevel || 1));
-      let html = '<div class="level-cards">';
-      for (let i = 0; i < n; i++) {
-        const lv = bld.levels[i] || _blankLevel(i + 1);
-        html += `<div class="level-card">
-          <div class="level-hdr">Level ${i + 1}</div>
-          <div class="level-body">
-            <div class="level-row"><label>Upgrade Gold</label>
-              <input type="number" step="1" data-lv="${i}" data-f="upgradePriceGold" value="${_esc(lv.upgradePriceGold)}"></div>
-            <div class="level-row"><label>Upgrade Gems</label>
-              <input type="number" step="1" data-lv="${i}" data-f="upgradePriceGems" value="${_esc(lv.upgradePriceGems)}"></div>
-            <div class="level-row"><label>Upgrade Condition</label>
-              <input type="text" data-lv="${i}" data-f="upgradeCondition" value="${_esc(lv.upgradeCondition)}"></div>
-            <div class="level-row"><label>Transform To</label>
-              <input type="text" data-lv="${i}" data-f="transformTo" value="${_esc(lv.transformTo)}"></div>
-            <div class="level-row"><label>Unlock List</label>
-              <input type="text" data-lv="${i}" data-f="unlockList" value="${_esc(lv.unlockList)}"></div>
-          </div></div>`;
-      }
-      return html + '</div>';
-    }
+    const canDes    = bld.canDestroy ?? true;
+    const resOnDes  = bld.resourceAwardedOnDestroy ?? true;
+    const canBld    = bld.canBuild ?? true;
+    const hasTap    = bld.hexEarnsOnTap ?? false;
+    const hasTapDes = bld.destroyableByTap ?? false;
+    const addCond   = bld.additionalBuildCondition ?? false;
+    const bldRad    = bld.buildingRadius ?? 0;
+    const hasProd   = Array.isArray(bld.canProduce) && bld.canProduce.length > 0;
 
-    right.innerHTML = `<div class="hexdb-form">
-      <div class="hexdb-section-hdr" data-sec="main">${collapsed('main')} MAIN</div>
-      <div class="hexdb-section-body" data-sec="main" style="display:${bodyDisplay('main')}">
+    // ── MAIN section ─────────────────────────────────────────
+    const mainHTML = `
+    <div class="hexdb-section">
+      <div class="hexdb-section-hdr" data-sec="main">${col('main')} MAIN (0–9)</div>
+      <div class="hexdb-section-body" data-sec="main" style="display:${bod('main')}">
         <div class="hexdb-field-row"><label>Id *</label>
-          <input id="bld-f-id" type="text" value="${_esc(bld.id)}"
-            style="border-color:${!bld.id || _data.buildings.some((b,i)=>b.id===bld.id&&i!==_filtered[_selFilt])?'#e57373':''}"></div>
-        <div class="hexdb-field-row"><label>TextId</label>
+          <div style="flex:1;min-width:0">
+            <input id="bld-f-id" type="text" value="${_esc(bld.id)}"
+              style="border-color:${!bld.id || _isDupe(bld.id) ? '#e57373' : ''}">
+            <small style="color:#888;font-size:0.8em">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small>
+          </div></div>
+        <div class="hexdb-field-row"><label>TextId <span class="hexdb-info" title="Localisation key for display name. No leading/trailing spaces.">ⓘ</span></label>
           <input id="bld-f-textId" type="text" value="${_esc(bld.textId)}" list="loc-keys-datalist"></div>
+        <div class="hexdb-field-row"><label>Desc Idle <span class="hexdb-info" title="Key shown when building is placed on map">ⓘ</span></label>
+          <input id="bld-f-descIdleId" type="text" value="${_esc(bld.descIdleId)}" list="loc-keys-datalist"></div>
+        <div class="hexdb-field-row"><label>Desc Build <span class="hexdb-info" title="Key shown when building can be built">ⓘ</span></label>
+          <input id="bld-f-descBuildId" type="text" value="${_esc(bld.descBuildId)}" list="loc-keys-datalist"></div>
+        <div class="hexdb-field-row"><label>Type <span class="hexdb-info" title="Ground Building or Water Building">ⓘ</span></label>
+          <select id="bld-f-type">
+            <option${bld.type === 'Ground Building' ? ' selected' : ''}>Ground Building</option>
+            <option${bld.type === 'Water Building'  ? ' selected' : ''}>Water Building</option>
+          </select></div>
+        <div class="hexdb-field-row"><label>Biome <span class="hexdb-info" title="Season/biome context">ⓘ</span></label>
+          <select id="bld-f-biome">${BiomeManager.getNames().map(b =>
+            `<option${bld.biome === b ? ' selected' : ''}>${b}</option>`).join('')}</select></div>
+        <div class="hexdb-field-row"><label>Filter <span class="hexdb-info" title="UI filter category tag">ⓘ</span></label>
+          <input id="bld-f-filter" type="text" value="${_esc(bld.filter)}"></div>
         <div class="hexdb-field-row"><label>SpriteName</label>
-          <input id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}"></div>
-        <div class="hexdb-field-row"><label>BuildingType</label>
-          <input id="bld-f-buildingType" type="text" value="${_esc(bld.buildingType)}"></div>
-        <div class="hexdb-field-row"><label>Biome</label>
-          <select id="bld-f-biome">${BiomeManager.getNames().map(b=>`<option${bld.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
-        <div class="hexdb-field-row"><label>Filter</label>
-          <input id="bld-f-filterCategory" type="text" value="${_esc(bld.filterCategory)}"></div>
-        <div class="hexdb-field-row"><label>Start Level</label>
-          <input id="bld-f-startLevel" type="number" step="1" min="1" max="8" value="${_esc(bld.startLevel)}"></div>
-        <div class="hexdb-field-row"><label>Max Level</label>
-          <input id="bld-f-maxLevel" type="number" step="1" min="1" max="9999" style="width:110px" value="${_esc(bld.maxLevel)}"></div>
-      </div>
-      <div class="hexdb-section-hdr" data-sec="build">${collapsed('build')} BUILD</div>
-      <div class="hexdb-section-body" data-sec="build" style="display:${bodyDisplay('build')}">
-        <div class="hexdb-field-row"><label>Cost Gold</label>
-          <input id="bld-f-buildCostGold" type="number" step="1" value="${_esc(bld.buildCostGold)}"></div>
-        <div class="hexdb-field-row"><label>Cost Gems</label>
-          <input id="bld-f-buildCostGems" type="number" step="1" value="${_esc(bld.buildCostGems)}"></div>
-        <div class="hexdb-field-row"><label>Cost Event</label>
-          <input id="bld-f-buildCostEvent" type="number" step="1" value="${_esc(bld.buildCostEvent)}"></div>
-        <div class="hexdb-field-row"><label>Requires Road</label>
-          <input id="bld-f-buildRequiresRoad" type="checkbox"${bld.buildRequiresRoad?' checked':''}></div>
-        <div class="hexdb-field-row"><label>Placement Rule</label>
-          <input id="bld-f-buildPlacementRule" type="text" value="${_esc(bld.buildPlacementRule)}"></div>
-        <div class="hexdb-field-row"><label>Max Per Map</label>
-          <input id="bld-f-buildMaxPerMap" type="number" step="1" value="${_esc(bld.buildMaxPerMap)}"></div>
-        <div class="hexdb-field-row"><label>Required Town Lvl</label>
-          <input id="bld-f-requiredTownLevel" type="number" step="1" min="0" value="${_esc(bld.requiredTownLevel ?? 1)}"></div>
-        <div class="hexdb-field-row"><label>Build Time (sec)</label>
-          <input id="bld-f-constructionTimeSeconds" type="number" step="1" min="0" value="${_esc(bld.constructionTimeSeconds ?? 0)}"></div>
-      </div>
-      <div class="hexdb-section-hdr" data-sec="production">${collapsed('production')} PRODUCTION</div>
-      <div class="hexdb-section-body" data-sec="production" style="display:${bodyDisplay('production')}">
-        <div class="hexdb-field-row"><label>Gold / hr</label>
-          <input id="bld-f-productionGold" type="number" step="1" value="${_esc(bld.productionGold ?? 0)}"></div>
-        <div class="hexdb-field-row"><label>Food / hr</label>
-          <input id="bld-f-productionFood" type="number" step="1" value="${_esc(bld.productionFood ?? 0)}"></div>
-        <div class="hexdb-field-row"><label>Lumber / hr</label>
-          <input id="bld-f-productionLumber" type="number" step="1" value="${_esc(bld.productionLumber ?? 0)}"></div>
-        <div class="hexdb-field-row"><label>Stone / hr</label>
-          <input id="bld-f-productionStone" type="number" step="1" value="${_esc(bld.productionStone ?? 0)}"></div>
-        <div class="hexdb-field-row" style="margin-top:8px"><label>Storage Gold</label>
-          <input id="bld-f-storageGold" type="number" step="1" value="${_esc(bld.storageGold ?? 0)}"></div>
-        <div class="hexdb-field-row"><label>Storage Food</label>
-          <input id="bld-f-storageFood" type="number" step="1" value="${_esc(bld.storageFood ?? 0)}"></div>
-        <div class="hexdb-field-row"><label>Storage Lumber</label>
-          <input id="bld-f-storageLumber" type="number" step="1" value="${_esc(bld.storageLumber ?? 0)}"></div>
-        <div class="hexdb-field-row"><label>Storage Stone</label>
-          <input id="bld-f-storageStone" type="number" step="1" value="${_esc(bld.storageStone ?? 0)}"></div>
-      </div>
-      <div class="hexdb-section-hdr" data-sec="levels">${collapsed('levels')} LEVELS</div>
-      <div class="hexdb-section-body" data-sec="levels" style="display:${bodyDisplay('levels')}">${levelCards()}</div>
-      <div class="hexdb-actions">
-        <button onclick="BldDB.copy()">Copy</button>
-        <button onclick="BldDB.paste()">Paste</button>
+          <div style="flex:1;min-width:0">
+            <input id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}">
+            <small style="color:#888;font-size:0.8em">Web: sprites/buildings/&lt;name&gt;.png | Unity: Resources/Buildings/&lt;name&gt;</small>
+          </div></div>
+        <div class="hexdb-field-row"><label>Base Cost Taps <span class="hexdb-info" title="Taps to unlock. Min 1.">ⓘ</span></label>
+          <input id="bld-f-baseCostTaps" type="number" step="1" min="1"
+            value="${Math.max(1, bld.baseCostTaps ?? 1)}"></div>
       </div>
     </div>`;
 
+    // ── DESTROY section ───────────────────────────────────────
+    const destroyHTML = `
+    <div class="hexdb-section">
+      <div class="hexdb-section-hdr" data-sec="destroy">${col('destroy')} DESTROY (10–17)</div>
+      <div class="hexdb-section-body" data-sec="destroy" style="display:${bod('destroy')}">
+        <div class="hexdb-field-row"><label>Hex Can be Destroyed</label>
+          <input id="bld-f-canDestroy" type="checkbox"${canDes ? ' checked' : ''}></div>
+        <div class="hexdb-field-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Transform to <span class="hexdb-info" title="Parents = tile under the building">ⓘ</span></label>
+          <div style="display:flex;gap:6px;flex:1">
+            <select id="bld-f-destroyTransformToMode">
+              <option${bld.destroyTransformToMode === 'Parents' ? ' selected' : ''}>Parents</option>
+              <option${bld.destroyTransformToMode === 'HexID'   ? ' selected' : ''}>HexID</option>
+            </select>
+            <input id="bld-f-destroyTransformTo" type="text" placeholder="Tile ID"
+              value="${_esc(bld.destroyTransformTo)}"
+              style="flex:1${bld.destroyTransformToMode === 'Parents' ? ';display:none' : ''}">
+          </div></div>
+        <div class="hexdb-field-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Source <span class="hexdb-info" title="Action IDs that can destroy this. Configure in Actions Editor.">ⓘ</span></label>
+          ${_tagsHTML('destroySources', bld.destroySources, !canDes)}</div>
+        <div class="hexdb-field-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Move to Storage on Destroy <span class="hexdb-info" title="YES: goes to Hex Storage; cost not charged, no income.">ⓘ</span></label>
+          <input id="bld-f-moveToStorageOnDestroy" type="checkbox"${bld.moveToStorageOnDestroy ? ' checked' : ''}></div>
+        <div class="hexdb-field-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Resources Awarded on Destroy</label>
+          <input id="bld-f-resourceAwardedOnDestroy" type="checkbox"${resOnDes ? ' checked' : ''}></div>
+        <div class="hexdb-field-row"${!canDes || !resOnDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Destroy Income</label>
+          ${_resBlockHTML('destroyIncome', bld.destroyIncome, !canDes || !resOnDes)}</div>
+      </div>
+    </div>`;
+
+    // ── BUILD section ─────────────────────────────────────────
+    const buildHTML = `
+    <div class="hexdb-section">
+      <div class="hexdb-section-hdr" data-sec="build">${col('build')} BUILD (18–24)</div>
+      <div class="hexdb-section-body" data-sec="build" style="display:${bod('build')}">
+        <div class="hexdb-field-row"><label>Hex Can be Built</label>
+          <input id="bld-f-canBuild" type="checkbox"${canBld ? ' checked' : ''}></div>
+        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Need Road <span class="hexdb-info" title="Ground: Roads required. Water: sea adjacency check.">ⓘ</span></label>
+          <input id="bld-f-needRoad" type="checkbox"${bld.needRoad ? ' checked' : ''}></div>
+        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Available Tiles <span class="hexdb-info" title="Tile Type IDs where building can be placed">ⓘ</span></label>
+          ${_tagsHTML('availableTiles', bld.availableTiles, !canBld)}</div>
+        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Min Level <span class="hexdb-info" title="Min Settlement level. Integer ≥ 1.">ⓘ</span></label>
+          <input id="bld-f-minLevel" type="number" step="1" min="1"
+            value="${Math.max(1, bld.minLevel ?? 1)}"></div>
+        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Price</label>
+          ${_resBlockHTML('price', bld.price, !canBld)}</div>
+        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Premium Price <span class="hexdb-info" title="Gem price. 0 = disabled.">ⓘ</span></label>
+          <input id="bld-f-premiumPrice" type="number" step="1" min="0"
+            value="${bld.premiumPrice ?? 0}"></div>
+        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Additional Build Condition <span class="hexdb-info" title="Requires a specific nearby tile type">ⓘ</span></label>
+          <input id="bld-f-additionalBuildCondition" type="checkbox"${addCond ? ' checked' : ''}></div>
+        ${addCond && canBld ? `
+        <div class="hexdb-field-row"><label>Tiles Type <span class="hexdb-info" title="Parents = copies Available Tiles. HexID/Type = specific nearby tile.">ⓘ</span></label>
+          <div style="display:flex;gap:6px;flex:1">
+            <select id="bld-f-tilesTypeMode">
+              <option${bld.tilesTypeMode === 'Parents' ? ' selected' : ''}>Parents</option>
+              <option${bld.tilesTypeMode === 'HexID'   ? ' selected' : ''}>HexID</option>
+              <option${bld.tilesTypeMode === 'Type'    ? ' selected' : ''}>Type</option>
+            </select>
+            <input id="bld-f-tilesTypeValue" type="text" placeholder="ID or Type"
+              value="${_esc(bld.tilesTypeValue)}"
+              style="flex:1${bld.tilesTypeMode === 'Parents' ? ';display:none' : ''}">
+          </div></div>
+        <div class="hexdb-field-row"><label>Radius <span class="hexdb-info" title="0=must be on top; 1=adjacent; N=within N hexes">ⓘ</span></label>
+          <input id="bld-f-radius" type="number" step="1" min="0"
+            value="${bld.radius ?? 0}"></div>` : ''}
+      </div>
+    </div>`;
+
+    // ── INCOME section ────────────────────────────────────────
+    const incomeHTML = `
+    <div class="hexdb-section">
+      <div class="hexdb-section-hdr" data-sec="income">${col('income')} INCOME</div>
+      <div class="hexdb-section-body" data-sec="income" style="display:${bod('income')}">
+        <div class="hexdb-field-row"><label>Hex Earns on Tap</label>
+          <input id="bld-f-hexEarnsOnTap" type="checkbox"${hasTap ? ' checked' : ''}></div>
+        <div class="hexdb-field-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Destroyable <span class="hexdb-info" title="Destroyed after Capacity taps">ⓘ</span></label>
+          <input id="bld-f-destroyableByTap" type="checkbox"${hasTapDes ? ' checked' : ''}></div>
+        <div class="hexdb-field-row"${!hasTap || !hasTapDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Transform to <span class="hexdb-info" title="Parents = tile under building">ⓘ</span></label>
+          <div style="display:flex;gap:6px;flex:1">
+            <select id="bld-f-incomeTransformToMode">
+              <option${bld.incomeTransformToMode === 'Parents' ? ' selected' : ''}>Parents</option>
+              <option${bld.incomeTransformToMode === 'HexID'   ? ' selected' : ''}>HexID</option>
+            </select>
+            <input id="bld-f-incomeTransformTo" type="text" placeholder="Tile ID"
+              value="${_esc(bld.incomeTransformTo)}"
+              style="flex:1${bld.incomeTransformToMode === 'Parents' ? ';display:none' : ''}">
+          </div></div>
+        <div class="hexdb-field-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Capacity <span class="hexdb-info" title="Taps until destroyed (0 = unlimited)">ⓘ</span></label>
+          <input id="bld-f-capacity" type="number" step="1" min="0"
+            value="${bld.capacity ?? 0}"></div>
+        <div class="hexdb-field-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Get per Tap</label>
+          ${_resBlockHTML('getPerTap', bld.getPerTap, !hasTap)}</div>
+        <div class="hexdb-field-row"><label>Per Turn <span class="hexdb-info" title="Idle income per turn (9s) while on map">ⓘ</span></label>
+          ${_resBlockHTML('incomePerTurn', bld.incomePerTurn, false)}</div>
+        <div class="hexdb-field-row"><label>Income Constant <span class="hexdb-info" title="Constant income while on map">ⓘ</span></label>
+          ${_resBlockHTML('incomeConstant', bld.incomeConstant, false, BLD_SPEND_RES)}</div>
+        <div class="hexdb-field-row"><label>Spend Constant <span class="hexdb-info" title="Constant drain while on map">ⓘ</span></label>
+          ${_resBlockHTML('spendConstant', bld.spendConstant, false, BLD_SPEND_RES)}</div>
+      </div>
+    </div>`;
+
+    // ── SETTINGS section ──────────────────────────────────────
+    const settingsHTML = `
+    <div class="hexdb-section">
+      <div class="hexdb-section-hdr" data-sec="settings">${col('settings')} BUILDINGS SETTINGS</div>
+      <div class="hexdb-section-body" data-sec="settings" style="display:${bod('settings')}">
+        <div class="hexdb-field-row"><label>Building Radius <span class="hexdb-info" title="Action radius. 0 = no area effect.">ⓘ</span></label>
+          <input id="bld-f-buildingRadius" type="number" step="1" min="0"
+            value="${bldRad}"></div>
+        ${bldRad >= 1 ? `
+        <div class="hexdb-field-row"><label>Can Produce <span class="hexdb-info" title="IDs auto-constructed each turn in radius at 0 cost">ⓘ</span></label>
+          ${_tagsHTML('canProduce', bld.canProduce, false)}</div>
+        <div class="hexdb-field-row"${!hasProd ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Available Tiles for Produce <span class="hexdb-info" title="Tile types where production deposits new tiles">ⓘ</span></label>
+          ${_tagsHTML('availableTilesForProduce', bld.availableTilesForProduce, !hasProd)}</div>
+        <div class="hexdb-field-row"><label>Production Facilities <span class="hexdb-info" title="Tile IDs/Types in radius that boost productivity">ⓘ</span></label>
+          ${_tagsHTML('productionFacilities', bld.productionFacilities, false)}</div>` : ''}
+        <div class="hexdb-field-row"><label>Stores <span class="hexdb-info" title="Storage capacity this building provides per resource">ⓘ</span></label>
+          ${_resBlockHTML('stores', bld.stores, false)}</div>
+      </div>
+    </div>`;
+
+    // ── Actions ───────────────────────────────────────────────
+    const actionsHTML = `
+    <div class="hexdb-actions">
+      <button onclick="BldDB.copy()">Copy</button>
+      <button onclick="BldDB.paste()">Paste</button>
+    </div>`;
+
+    right.innerHTML = `<div class="hexdb-form">
+      ${mainHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${actionsHTML}
+    </div>`;
+
+    // ── Wire section headers ──────────────────────────────────
     right.querySelectorAll('.hexdb-section-hdr').forEach(hdr => {
       hdr.addEventListener('click', () => {
         const s = hdr.dataset.sec;
         _secState[s] = !_secState[s];
         _saveSecState();
-        right.querySelector(`.hexdb-section-body[data-sec="${s}"]`).style.display = _secState[s] ? 'none' : 'block';
+        right.querySelector(`.hexdb-section-body[data-sec="${s}"]`).style.display =
+          _secState[s] ? 'none' : 'block';
         hdr.textContent = (_secState[s] ? '▶ ' : '▼ ') + hdr.textContent.slice(2);
       });
     });
 
-    right.querySelectorAll('input,select').forEach(el => {
-      el.addEventListener('input',  () => _readRecord());
-      el.addEventListener('change', () => _readRecord());
+    // ── Wire simple inputs → _readRecord ─────────────────────
+    right.querySelectorAll('input:not(.hexdb-tag-input):not([data-res-field]),select:not([data-res-field])').forEach(el => {
+      el.addEventListener('input',  _readRecord);
+      el.addEventListener('change', _readRecord);
     });
 
-    const maxLvlEl = document.getElementById('bld-f-maxLevel');
-    if (maxLvlEl) {
-      maxLvlEl.addEventListener('change', () => {
+    // ── Wire toggles that trigger full re-render ──────────────
+    const reRenderIds = [
+      'bld-f-canDestroy', 'bld-f-resourceAwardedOnDestroy',
+      'bld-f-destroyTransformToMode',
+      'bld-f-canBuild', 'bld-f-additionalBuildCondition', 'bld-f-tilesTypeMode',
+      'bld-f-hexEarnsOnTap', 'bld-f-destroyableByTap', 'bld-f-incomeTransformToMode',
+      'bld-f-buildingRadius',
+    ];
+    reRenderIds.forEach(id => {
+      const el = g(id);
+      if (!el) return;
+      el.addEventListener('change', () => {
+        if (_selFilt < 0) return;
         _readRecord();
         _renderRecord(_data.buildings[_filtered[_selFilt]]);
       });
-    }
+    });
+
+    // ── Wire tags (destroySources, availableTiles, canProduce, etc.) ──
+    right.querySelectorAll('.hexdb-tag-input').forEach(input => {
+      input.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const val = input.value.trim();
+        if (!val || _selFilt < 0) return;
+        const bldObj = _data.buildings[_filtered[_selFilt]];
+        const field  = input.dataset.tagsField;
+        if (!Array.isArray(bldObj[field])) bldObj[field] = [];
+        if (!bldObj[field].includes(val)) bldObj[field].push(val);
+        input.value = '';
+        _autoSave();
+        _renderRecord(bldObj);
+      });
+    });
+    right.querySelectorAll('.hexdb-tag-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (_selFilt < 0) return;
+        const bldObj = _data.buildings[_filtered[_selFilt]];
+        const field  = btn.dataset.tagsField;
+        const val    = btn.dataset.value;
+        if (Array.isArray(bldObj[field])) {
+          bldObj[field] = bldObj[field].filter(v => v !== val);
+          _autoSave();
+          _renderRecord(bldObj);
+        }
+      });
+    });
+
+    // ── Wire resource blocks ──────────────────────────────────
+    right.querySelectorAll('[data-res-field]').forEach(el => {
+      const field = el.dataset.resField;
+      const idx   = parseInt(el.dataset.resIndex, 10);
+      if (el.classList.contains('hexdb-res-remove')) {
+        el.addEventListener('click', () => {
+          if (_selFilt < 0) return;
+          const bldObj = _data.buildings[_filtered[_selFilt]];
+          if (Array.isArray(bldObj[field])) {
+            bldObj[field].splice(idx, 1);
+            _autoSave();
+            _renderRecord(bldObj);
+          }
+        });
+      } else if (el.tagName === 'SELECT') {
+        el.addEventListener('change', () => {
+          if (_selFilt < 0) return;
+          const bldObj = _data.buildings[_filtered[_selFilt]];
+          if (Array.isArray(bldObj[field]) && bldObj[field][idx]) {
+            bldObj[field][idx].type = el.value;
+            const icon = el.parentElement.querySelector('.res-icon');
+            if (icon) icon.textContent = _resIcon(el.value);
+            _autoSave();
+          }
+        });
+      } else if (el.type === 'number') {
+        el.addEventListener('input', () => {
+          if (_selFilt < 0) return;
+          const bldObj = _data.buildings[_filtered[_selFilt]];
+          if (Array.isArray(bldObj[field]) && bldObj[field][idx]) {
+            bldObj[field][idx].amount = Math.round(parseFloat(el.value) || 0);
+            _autoSave();
+          }
+        });
+      }
+    });
+    right.querySelectorAll('.hexdb-res-add').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (_selFilt < 0) return;
+        const bldObj = _data.buildings[_filtered[_selFilt]];
+        const field  = btn.dataset.resField;
+        if (!Array.isArray(bldObj[field])) bldObj[field] = [];
+        bldObj[field].push({ type: 'Gold', amount: 0 });
+        _autoSave();
+        _renderRecord(bldObj);
+      });
+    });
   }
 
   function _readRecord() {
     if (_selFilt < 0 || _selFilt >= _filtered.length) return;
     const bld = _data.buildings[_filtered[_selFilt]];
-    const g = id => document.getElementById(id);
+    const g  = id => document.getElementById(id);
     const iv = id => { const el = g(id); return el ? el.value : ''; };
-    const nv = id => { const el = g(id); return el ? (parseInt(el.value,10)||0) : 0; };
+    const nv = id => { const el = g(id); return el ? (parseInt(el.value, 10) || 0) : 0; };
     const bv = id => { const el = g(id); return el ? el.checked : false; };
 
-    bld.id              = iv('bld-f-id');
-    bld.textId          = iv('bld-f-textId');
-    bld.spriteName      = iv('bld-f-spriteName');
-    bld.buildingType    = iv('bld-f-buildingType');
-    bld.biome           = iv('bld-f-biome');
-    bld.filterCategory  = iv('bld-f-filterCategory');
-    bld.startLevel      = nv('bld-f-startLevel');
-    bld.maxLevel        = Math.min(9999, Math.max(1, nv('bld-f-maxLevel') || 1));
-    bld.buildCostGold   = nv('bld-f-buildCostGold');
-    bld.buildCostGems   = nv('bld-f-buildCostGems');
-    bld.buildCostEvent  = nv('bld-f-buildCostEvent');
-    bld.buildRequiresRoad        = bv('bld-f-buildRequiresRoad');
-    bld.buildPlacementRule       = iv('bld-f-buildPlacementRule');
-    bld.buildMaxPerMap           = nv('bld-f-buildMaxPerMap');
-    bld.requiredTownLevel        = nv('bld-f-requiredTownLevel');
-    bld.constructionTimeSeconds  = nv('bld-f-constructionTimeSeconds');
-    bld.productionGold           = nv('bld-f-productionGold');
-    bld.productionFood           = nv('bld-f-productionFood');
-    bld.productionLumber         = nv('bld-f-productionLumber');
-    bld.productionStone          = nv('bld-f-productionStone');
-    bld.storageGold              = nv('bld-f-storageGold');
-    bld.storageFood              = nv('bld-f-storageFood');
-    bld.storageLumber            = nv('bld-f-storageLumber');
-    bld.storageStone             = nv('bld-f-storageStone');
+    // MAIN
+    bld.id           = iv('bld-f-id');
+    bld.textId       = iv('bld-f-textId').trim();
+    bld.descIdleId   = iv('bld-f-descIdleId').trim();
+    bld.descBuildId  = iv('bld-f-descBuildId').trim();
+    bld.type         = iv('bld-f-type');
+    bld.biome        = iv('bld-f-biome');
+    bld.filter       = iv('bld-f-filter');
+    bld.spriteName   = iv('bld-f-spriteName');
+    bld.baseCostTaps = Math.max(1, nv('bld-f-baseCostTaps'));
 
-    const n = Math.min(9999, Math.max(1, bld.maxLevel || 1));
-    while (bld.levels.length < n) bld.levels.push(_blankLevel(bld.levels.length + 1));
-    if (bld.levels.length > n) bld.levels.length = n;
+    // DESTROY
+    bld.canDestroy               = bv('bld-f-canDestroy');
+    bld.destroyTransformToMode   = iv('bld-f-destroyTransformToMode');
+    bld.destroyTransformTo       = iv('bld-f-destroyTransformTo');
+    bld.moveToStorageOnDestroy   = bv('bld-f-moveToStorageOnDestroy');
+    bld.resourceAwardedOnDestroy = bv('bld-f-resourceAwardedOnDestroy');
 
-    document.getElementById('bld-right').querySelectorAll('[data-lv]').forEach(el => {
-      const lv = parseInt(el.dataset.lv, 10);
-      const f  = el.dataset.f;
-      if (!bld.levels[lv]) return;
-      bld.levels[lv][f] = el.type === 'number' ? (parseInt(el.value,10)||0) : el.value;
-    });
+    // BUILD
+    bld.canBuild                 = bv('bld-f-canBuild');
+    bld.needRoad                 = bv('bld-f-needRoad');
+    bld.minLevel                 = Math.max(1, nv('bld-f-minLevel'));
+    bld.premiumPrice             = nv('bld-f-premiumPrice');
+    bld.additionalBuildCondition = bv('bld-f-additionalBuildCondition');
+    bld.tilesTypeMode            = iv('bld-f-tilesTypeMode');
+    bld.tilesTypeValue           = iv('bld-f-tilesTypeValue');
+    bld.radius                   = Math.max(0, nv('bld-f-radius'));
 
+    // INCOME
+    bld.hexEarnsOnTap         = bv('bld-f-hexEarnsOnTap');
+    bld.destroyableByTap      = bv('bld-f-destroyableByTap');
+    bld.incomeTransformToMode = iv('bld-f-incomeTransformToMode');
+    bld.incomeTransformTo     = iv('bld-f-incomeTransformTo');
+    bld.capacity              = Math.max(0, nv('bld-f-capacity'));
+
+    // SETTINGS
+    bld.buildingRadius = Math.max(0, nv('bld-f-buildingRadius'));
+
+    // Update list row label
     const row = document.querySelector(`#bld-list .hexdb-list-row[data-filt-idx="${_selFilt}"]`);
     if (row) row.querySelector('.hexdb-list-id').textContent = bld.id || '(no id)';
 
+    // ID uniqueness border
     const idEl = g('bld-f-id');
     if (idEl) {
-      const isDupe = _data.buildings.some((b,i) => b.id===bld.id && i!==_filtered[_selFilt]);
+      const isDupe = _data.buildings.some((b, i) => b.id === bld.id && i !== _filtered[_selFilt]);
       idEl.style.borderColor = (!bld.id || isDupe) ? '#e57373' : '';
     }
     _autoSave();
