@@ -552,6 +552,13 @@ body.mode-hexdb       #hexdb-main       { display: grid; }
 body.mode-buildings   #main             { display: none; }
 body.mode-buildings   #hexdb-main       { display: none; }
 body.mode-buildings   #buildings-main   { display: grid; }
+body.mode-slots       #main { display: none; } body.mode-slots       #slots-main    { display: flex; }
+body.mode-actions     #main { display: none; } body.mode-actions     #actions-main  { display: flex; }
+body.mode-upgrades    #main { display: none; } body.mode-upgrades    #upgrades-main { display: flex; }
+body.mode-monsters    #main { display: none; } body.mode-monsters    #monsters-main { display: flex; }
+body.mode-quests      #main { display: none; } body.mode-quests      #quests-main   { display: flex; }
+.stub-editor { display: none; align-items: center; justify-content: center; height: 100%; }
+.stub-msg    { color: var(--muted); font-size: 18px; }
 body.mode-settlements #main             { display: none; }
 body.mode-settlements #hexdb-main       { display: none; }
 body.mode-settlements #settlements-main { display: grid; }
@@ -1133,6 +1140,7 @@ body.mode-keys        #keys-tools  { display: flex; }
     <button class="publish-btn" id="btn-google-login" onclick="DriveSync.signIn()" title="Sign in to Google to enable Drive sync">Sign in to Google</button>
     <button class="publish-btn" id="btn-sync-drive"  onclick="DriveSync.syncFromDrive()" title="Force re-download HexDB + all custom sprites from Drive">☁ Sync</button>
     <button class="publish-btn" id="btn-publish-db"  onclick="DriveSync.publishDb()"     title="Upload HexDB + sprites to Google Drive">☁ Publish DB</button>
+    <button class="publish-btn" id="btn-publish-bld" onclick="DriveSync.publishBuildingsDb()" title="Upload building_database.json to Google Drive">☁ Publish Buildings DB</button>
     <button class="publish-btn" id="btn-publish-map" onclick="DriveSync.publishMap()"    title="Upload current map to Google Drive">☁ Publish Map</button>
     <button class="publish-btn" id="btn-drive-maps"  onclick="DriveSync.openMapsPopover()" title="Browse and load maps from Google Drive">☁ Maps ▾</button>
   </div>
@@ -1145,6 +1153,11 @@ body.mode-keys        #keys-tools  { display: flex; }
       <button class="mode-tab"        id="tab-buildings"   onclick="App.setMode('buildings')">BUILDINGS</button>
       <button class="mode-tab"        id="tab-settlements" onclick="App.setMode('settlements')">SETTLEMENTS</button>
       <button class="mode-tab"        id="tab-keys"        onclick="App.setMode('keys')">KEYS</button>
+      <button class="mode-tab"        id="tab-slots"       onclick="App.setMode('slots')">SLOTS</button>
+      <button class="mode-tab"        id="tab-actions"     onclick="App.setMode('actions')">ACTIONS</button>
+      <button class="mode-tab"        id="tab-upgrades"    onclick="App.setMode('upgrades')">UPGRADES</button>
+      <button class="mode-tab"        id="tab-monsters"    onclick="App.setMode('monsters')">MONSTERS</button>
+      <button class="mode-tab"        id="tab-quests"      onclick="App.setMode('quests')">QUESTS</button>
     </div>
     <div id="map-io">
       <button class="hexdb-tool-btn" onclick="IO.openMap()">📂 Open</button>
@@ -1397,6 +1410,13 @@ body.mode-keys        #keys-tools  { display: flex; }
     </div>
 
   </div>
+
+  <!-- ── Stub editors (SLOTS / ACTIONS / UPGRADES / MONSTERS / QUESTS) ── -->
+  <div id="slots-main"    class="stub-editor"><div class="stub-msg">SLOTS Editor — coming soon</div></div>
+  <div id="actions-main"  class="stub-editor"><div class="stub-msg">ACTIONS Editor — coming soon</div></div>
+  <div id="upgrades-main" class="stub-editor"><div class="stub-msg">UPGRADES Editor — coming soon</div></div>
+  <div id="monsters-main" class="stub-editor"><div class="stub-msg">MONSTERS Editor — coming soon</div></div>
+  <div id="quests-main"   class="stub-editor"><div class="stub-msg">QUESTS Editor — coming soon</div></div>
 
   <!-- ── Settlements Main ───────────────────────────────────────── -->
   <div id="settlements-main">
@@ -4090,10 +4110,32 @@ const DriveSync = (() => {
     return JSON.parse(await blob.text());
   }
 
+  async function publishBuildingsDb() {
+    const btn = document.getElementById('btn-publish-bld');
+    if (btn) btn.disabled = true;
+    try {
+      UI.toast('Authenticating…');
+      await authenticate();
+      UI.progress(30, 'Uploading building_database.json…');
+      const rootFiles = await _listFiles(ROOT_FOLDER);
+      const byName    = Object.fromEntries(rootFiles.map(f => [f.name, f.id]));
+      const content   = BldDB.getJson();
+      await _uploadFile(ROOT_FOLDER, 'building_database.json', content,
+        'application/json', byName['building_database.json']);
+      UI.progressDone('✅ Buildings DB published');
+      UI.toast('✅ building_database.json published to Drive');
+    } catch(e) {
+      UI.progressDone('❌ Failed');
+      UI.toast('❌ Publish Buildings DB failed: ' + e.message);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
            pushSprite, publishDb, publishLoc, loadLocFromDrive, publishMap, setDbSource,
            syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
-           loadStoredSpriteUrls };
+           loadStoredSpriteUrls, publishBuildingsDb };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -5670,7 +5712,8 @@ const Satellite = (() => {
 // ── App: mode switching ────────────────────────────────────
 const App = {
   setMode(mode) {
-    const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys'];
+    const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys',
+                   'slots', 'actions', 'upgrades', 'monsters', 'quests'];
     MODES.forEach(m => {
       document.body.classList.toggle('mode-' + m, m === mode);
       const tab = document.getElementById('tab-' + m);
