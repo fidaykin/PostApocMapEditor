@@ -1352,13 +1352,15 @@ body.mode-keys        #keys-tools  { display: flex; }
           <span id="slot-chevron">▶</span>
         </div>
         <div class="slot-rows" id="slot-rows"></div>
-        <button id="slot-add">+ Add Slot</button>
-        <button id="slot-autogen" onclick="autoPlaceSettlements()">⚡ Auto-Place All Slots</button>
+        <button id="slot-add" title="Add a new slot — each slot places settlements of one type within its own distance range">+ Add Slot</button>
+        <button id="slot-autogen" onclick="autoPlaceSettlements()" title="Remove all non-city settlements and re-place them from scratch using every defined slot and the priority hex lists below">⚡ Auto-Place All Slots</button>
         <div id="priority-config">
-          <label>Priority 1 hexes (preferred, comma-separated IDs)</label>
-          <input id="priority-p1" type="text" placeholder="Plain_1, Plain_2, Rubble_1, Rubble_2, Rubble_3">
-          <label>Priority 2 hexes (fallback, comma-separated IDs)</label>
-          <input id="priority-p2" type="text" placeholder="Forest_1, Barren_1, Hills_1, Swamp_1">
+          <label title="Terrain IDs tried first when scanning hexes for placement. Comma-separated. Example: Plain_1, Rubble_2">Priority 1 hexes (preferred)</label>
+          <input id="priority-p1" type="text" placeholder="Plain_1, Plain_2, Rubble_1, Rubble_2, Rubble_3"
+            title="Preferred terrain IDs for auto-placement. The generator picks these hexes first before falling back to Priority 2. Use exact IDs as shown in the hex inspector (e.g. Plain_1, Rubble_3).">
+          <label title="Fallback terrain IDs used when no Priority 1 hexes remain in a band. Comma-separated.">Priority 2 hexes (fallback)</label>
+          <input id="priority-p2" type="text" placeholder="Forest_1, Barren_1, Hills_1, Swamp_1"
+            title="Fallback terrain IDs. Used only when a distance band has no Priority 1 hexes left to fill the requested count.">
         </div>
       </div>
       <div id="zone-config-panel" style="display:none">
@@ -1856,7 +1858,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.03";
-const COMMIT  = "042a1cc";
+const COMMIT  = "44c88b3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4563,64 +4565,75 @@ const UI = (() => {
         r.style.outline = i === idx ? '1px solid var(--accent)' : '';
       });
     });
+    div.title = 'Click to highlight this slot\'s distance ring on the map';
     div.innerHTML = `
         <div class="slot-header">
-          <select class="hexdb-select slot-type-select">
+          <select class="hexdb-select slot-type-select"
+            title="Settlement type written into the map JSON. Determines the in-game sprite and data (settlement, outpost, or trading_post). Choose Custom… to enter any type ID.">
             <option${slot.type==='settlement'?' selected':''}>settlement</option>
             <option${slot.type==='outpost'?' selected':''}>outpost</option>
             <option${slot.type==='trading_post'?' selected':''}>trading_post</option>
             <option${isCustom?' selected':''} value="__custom__">Custom…</option>
           </select>
-          <input class="hexdb-input slot-type-text${isCustom?' visible':''}" value="${isCustom?esc(slot.type):''}" placeholder="type name">
-          <button class="slot-remove" data-slot-idx="${idx}" title="Remove slot">✕</button>
+          <input class="hexdb-input slot-type-text${isCustom?' visible':''}" value="${isCustom?esc(slot.type):''}" placeholder="type name"
+            title="Custom settlement type ID — must match a valid type recognized by the game">
+          <button class="slot-remove" data-slot-idx="${idx}" title="Delete this slot (does not remove already-placed settlements)">✕</button>
         </div>
         <div class="slot-grid3">
           <div class="slot-field">
-            <label>Min dist</label>
-            <input type="number" class="hexdb-input slot-min" min="0" value="${slot.minDist}" title="Min distance from city">
+            <label title="Closest hex distance from city center where this slot may place settlements">Min dist</label>
+            <input type="number" class="hexdb-input slot-min" min="0" value="${slot.minDist}"
+              title="Minimum hex distance from city (0 = city tile itself). Settlements are only placed at distance ≥ this value.">
           </div>
           <div class="slot-field">
-            <label>Max dist</label>
-            <input type="number" class="hexdb-input slot-max" min="0" value="${slot.maxDist}" title="Max distance from city">
+            <label title="Farthest hex distance from city center for this slot">Max dist</label>
+            <input type="number" class="hexdb-input slot-max" min="0" value="${slot.maxDist}"
+              title="Maximum hex distance from city. Settlements are only placed at distance ≤ this value. Must be ≥ Min dist.">
           </div>
           <div class="slot-field">
-            <label>Count</label>
-            <input type="number" class="hexdb-input slot-count" min="1" max="99" value="${slot.count}" title="Number of settlements to place">
+            <label title="Total number of settlements to place for this slot across all distance bands">Count</label>
+            <input type="number" class="hexdb-input slot-count" min="1" max="99" value="${slot.count}"
+              title="How many settlements to place in total for this slot. Distributed across near/mid/far bands according to the percentages below.">
           </div>
         </div>
         <div class="slot-grid3">
           <div class="slot-field">
-            <label>Near %</label>
+            <label title="Share of Count placed in the near third of the distance range (Min dist → Min+⅓ span)">Near %</label>
             <input type="number" class="hexdb-input slot-near" min="0" max="100" step="1"
-              value="${slot.nearPct ?? 20}" title="% placed in the near third of the range">
+              value="${slot.nearPct ?? 20}"
+              title="% of Count placed in the near band (first third of Min→Max range). Remaining Count after Near+Far is assigned to Mid.">
           </div>
           <div class="slot-field">
-            <label>Mid %</label>
+            <label title="Share of Count placed in the middle third of the distance range">Mid %</label>
             <input type="number" class="hexdb-input slot-mid" min="0" max="100" step="1"
-              value="${slot.midPct ?? 30}" title="% placed in the middle third">
+              value="${slot.midPct ?? 30}"
+              title="% of Count placed in the mid band (middle third). If Near+Far already account for 100%, Mid receives 0 regardless of this value.">
           </div>
           <div class="slot-field">
-            <label>Far %</label>
+            <label title="Share of Count placed in the far third of the distance range (Max−⅓ span → Max dist)">Far %</label>
             <input type="number" class="hexdb-input slot-far" min="0" max="100" step="1"
-              value="${slot.farPct ?? 50}" title="% placed in the far third">
+              value="${slot.farPct ?? 50}"
+              title="% of Count placed in the far band (last third of Min→Max range). Near + Mid + Far should sum to 100.">
           </div>
         </div>
         <div class="slot-grid3">
           <div class="slot-field">
-            <label>Level</label>
+            <label title="Starting level assigned to each settlement placed by this slot">Level</label>
             <input type="number" class="hexdb-input slot-level" min="1" max="99" step="1"
-              value="${slot.level ?? 1}" title="Starting level">
+              value="${slot.level ?? 1}"
+              title="Initial level for every settlement placed by this slot (1–99). Higher levels start with more resources or unlock different game content.">
           </div>
           <div class="slot-field">
-            <label>Spacing</label>
+            <label title="Minimum hex distance required between any two settlements placed by this slot (and from already-placed ones)">Spacing</label>
             <input type="number" class="hexdb-input slot-spacing" min="1" max="20" step="1"
-              value="${slot.minSpacing ?? 2}" title="Min hexes between placed settlements">
+              value="${slot.minSpacing ?? 2}"
+              title="Minimum hexes between placed settlements. Increase to spread settlements further apart. Applied globally across all slots.">
           </div>
           <div class="slot-field">
-            <label>Tap ×</label>
+            <label title="Tap cost multiplier applied to settlements placed by this slot (1 = default cost)">Tap ×</label>
             <input type="number" class="hexdb-input slot-mult" min="0.1" max="10" step="0.1"
               value="${(slot.tapMultiplier ?? 1).toFixed(1)}"
-              title="Tap cost multiplier (1 = default, 1.5 = 50% more taps)">
+              title="Multiplier for the number of taps required to capture this settlement. 1 = default, 2 = double taps, 0.5 = half taps.">
           </div>
         </div>`;
     return div;
