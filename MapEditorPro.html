@@ -7325,6 +7325,50 @@ const BldDB = (() => {
     }
   }
 
+  // ── Resource / Tags helpers ───────────────────────────────
+  const BLD_DESTROY_RES = ['Gold','Gems','Food','Lumber','Stone','Steel','Oil','Chips','Clay','Ore','Pollution'];
+  const BLD_SPEND_RES   = ['Pollution','Energy','Gold','Gems','Food','Lumber','Stone','Steel','Oil','Chips','Clay'];
+  const BLD_RES_ICONS   = {
+    Gold:'🪙', Gems:'💎', Food:'🌾', Lumber:'🪵', Stone:'🪨',
+    Steel:'⚙️', Oil:'🛢️', Chips:'💻', Clay:'🏺', Ore:'⛏️',
+    Pollution:'☣️', Energy:'⚡'
+  };
+
+  function _resIcon(type) { return BLD_RES_ICONS[type] || '◆'; }
+
+  function _tagsHTML(fieldName, values, disabled) {
+    const dis = disabled ? ' disabled' : '';
+    const tags = (values || []).map(v =>
+      `<span class="hexdb-tag">${_esc(v)}<button class="hexdb-tag-remove"
+         data-tags-field="${fieldName}" data-value="${_esc(v)}"${dis}>✕</button></span>`
+    ).join('');
+    return `<div class="hexdb-tags" data-tags-field="${fieldName}">
+      ${tags}
+      <input class="hexdb-tag-input" data-tags-field="${fieldName}"
+        placeholder="type ID + Enter"${dis}></div>`;
+  }
+
+  function _resBlockHTML(fieldName, rows, disabled, resTypes) {
+    const types = resTypes || BLD_DESTROY_RES;
+    const dis = disabled ? ' disabled' : '';
+    const rowsHTML = (rows || []).map((r, i) => {
+      const opts = types.map(t => `<option${t === r.type ? ' selected' : ''}>${t}</option>`).join('');
+      const customOpt = types.includes(r.type) ? '' : `<option selected>${_esc(r.type)}</option>`;
+      return `<div class="hexdb-res-row">
+        <span class="res-icon" style="font-size:16px;width:20px;text-align:center;flex-shrink:0">${_resIcon(r.type)}</span>
+        <select class="hexdb-select" style="width:110px"
+          data-res-field="${fieldName}" data-res-index="${i}"${dis}>${opts}${customOpt}</select>
+        <input class="hexdb-input" type="number" step="1" min="0" style="width:90px"
+          data-res-field="${fieldName}" data-res-index="${i}" data-res-key="amount"
+          value="${r.amount ?? 0}"${dis}>
+        <button class="hexdb-res-remove"
+          data-res-field="${fieldName}" data-res-index="${i}"${dis}>✕</button>
+      </div>`;
+    }).join('');
+    return `<div>${rowsHTML}
+      <button class="hexdb-res-add" data-res-field="${fieldName}"${dis}>+ Add Resource</button></div>`;
+  }
+
   function _renderRecord(bld) {
     const right = document.getElementById('bld-right');
     const collapsed = s => _secState[s] ? '▶' : '▼';
