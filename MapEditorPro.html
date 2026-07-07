@@ -5165,6 +5165,8 @@ const IO = (() => {
       bridgesData = [];
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = [];
+      settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
+      settlementPriority2 = ['Forest_1', 'Barren_1', 'Hills_1', 'Swamp_1'];
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
       if (typeof ZonePainter !== 'undefined') {
         ZonePainter.init();
@@ -5210,6 +5212,8 @@ const IO = (() => {
     bridgesData = [];
     settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
     settlementSlots = [];
+    settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
+    settlementPriority2 = ['Forest_1', 'Barren_1', 'Hills_1', 'Swamp_1'];
     if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
     if (typeof ZonePainter !== 'undefined') {
       ZonePainter.init();
