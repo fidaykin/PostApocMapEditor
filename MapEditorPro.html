@@ -7266,6 +7266,11 @@ const BldDB = (() => {
     return bld;
   }
 
+  function _blankLevel(n) {
+    return { level: n, upgradePriceGold: 0, upgradePriceGems: 0,
+             upgradeCondition: '', transformTo: '', unlockList: '' };
+  }
+
   function _esc(s) {
     return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
                           .replace(/</g,'&lt;').replace(/>/g,'&gt;');
