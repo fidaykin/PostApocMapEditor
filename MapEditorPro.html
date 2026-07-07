@@ -1224,6 +1224,12 @@ body.mode-keys        #keys-tools  { display: flex; }
       <button class="hexdb-tool-btn" onclick="BldDB.add()">+ Add Building</button>
       <button class="hexdb-tool-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="BldDB.save()">💾 Save DB</button>
+      <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
+      <label style="font-size:11px;color:#aaa;margin-left:4px" title="Gold cost per physical tap (applies to all tiles)">💰/tap</label>
+      <input id="bld-common-gold-per-tap" type="number" min="1" max="10000" step="1" value="10"
+             title="Gold cost per tap (common.goldPerTap) — saved to hex_database.json"
+             style="width:52px;background:#111;border:1px solid #444;color:#e8cc10;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center"
+             oninput="HexDB.setCommonGoldPerTap(parseInt(this.value)||10)">
     </div>
     <div id="stt-tools">
       <button class="hexdb-tool-btn" onclick="SttDB.add()">+ Add Settlement</button>
@@ -7241,6 +7247,10 @@ const HexDB = (() => {
     if (!_data.common) _data.common = {};
     _data.common.goldPerTap = Math.max(1, v || 10);
     _autoSave();
+    ['common-gold-per-tap', 'bld-common-gold-per-tap'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.value = _data.common.goldPerTap;
+    });
   }
 
   function _syncCommonUI() {
@@ -7639,7 +7649,19 @@ const BldDB = (() => {
       <button onclick="BldDB.paste()">Paste</button>
     </div>`;
 
-    right.innerHTML = `<div class="hexdb-form">
+    const spriteSrc = bld.spriteName ? `sprites/buildings/${_esc(bld.spriteName)}.png` : '';
+    const visualHTML = `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
+      <img src="${spriteSrc}" alt=""
+        style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0;object-fit:contain;border:1px solid var(--border);border-radius:4px"
+        onerror="this.style.opacity='0.2'">
+      <div style="min-width:0">
+        <div style="font-size:13px;font-weight:bold;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(bld.id) || '(unnamed)'}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${spriteSrc || '—'}</div>
+      </div>
+    </div>`;
+
+    right.innerHTML = visualHTML + `<div class="hexdb-form">
       ${mainHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${actionsHTML}
     </div>`;
 
