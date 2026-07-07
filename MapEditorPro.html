@@ -294,6 +294,16 @@ html, body {
 .slot-mult-row { flex: 0 0 100%; display: flex; gap: 4px; align-items: center; padding-left: 2px; margin-top: 2px; }
 .slot-mult { width: 44px !important; }
 .slot-mult-hint { font-size: 10px; color: var(--muted); }
+.slot-extra-row { flex: 0 0 100%; display: flex; gap: 4px; align-items: center; padding-left: 2px; margin-top: 2px; }
+.slot-extra-row .hexdb-input { width: 40px !important; }
+.slot-extra-label { font-size: 10px; color: var(--muted); }
+#priority-config { padding: 6px 0 2px; border-top: 1px solid var(--border); margin-top: 4px; }
+#priority-config label { display: block; font-size: 10px; color: var(--muted); margin-bottom: 2px; }
+#priority-config input { width: 100%; box-sizing: border-box; font-size: 11px; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 3px 5px; border-radius: 3px; margin-bottom: 4px; }
+#slot-autogen { margin-top: 4px; width: 100%; background: none; border: 1px solid var(--accent); color: var(--accent); padding: 4px; cursor: pointer; border-radius: 3px; font-size: 11px; }
+#slot-autogen:hover { background: var(--accent); color: #000; }
+#slot-panel.collapsed #slot-autogen,
+#slot-panel.collapsed #priority-config { display: none; }
 
 /* ── Status bar ───────────────────────────────────────────── */
 #statusbar {
@@ -1343,6 +1353,13 @@ body.mode-keys        #keys-tools  { display: flex; }
         </div>
         <div class="slot-rows" id="slot-rows"></div>
         <button id="slot-add">+ Add Slot</button>
+        <button id="slot-autogen" onclick="autoPlaceSettlements()">⚡ Auto-Place All Slots</button>
+        <div id="priority-config">
+          <label>Priority 1 hexes (preferred, comma-separated IDs)</label>
+          <input id="priority-p1" type="text" placeholder="Plain_1, Plain_2, Rubble_1, Rubble_2, Rubble_3">
+          <label>Priority 2 hexes (fallback, comma-separated IDs)</label>
+          <input id="priority-p2" type="text" placeholder="Forest_1, Barren_1, Hills_1, Swamp_1">
+        </div>
       </div>
       <div id="zone-config-panel" style="display:none">
         <div class="section-title" style="padding:8px 8px 4px">
@@ -4566,6 +4583,27 @@ const UI = (() => {
             value="${(slot.tapMultiplier ?? 1).toFixed(1)}"
             title="Tap cost multiplier for this ring (1 = no change, 1.5 = 50% more taps)">
           <span class="slot-mult-hint">(1 = no change)</span>
+        </div>
+        <div class="slot-extra-row">
+          <span class="slot-extra-label">Lv:</span>
+          <input type="number" class="hexdb-input slot-level" min="1" max="99" step="1"
+            value="${slot.level ?? 1}" title="Settlement starting level">
+          <span class="slot-extra-label">spacing:</span>
+          <input type="number" class="hexdb-input slot-spacing" min="1" max="20" step="1"
+            value="${slot.minSpacing ?? 2}" title="Min hexes between auto-placed settlements">
+          <span class="slot-extra-label">hex</span>
+        </div>
+        <div class="slot-extra-row">
+          <span class="slot-extra-label">near</span>
+          <input type="number" class="hexdb-input slot-near" min="0" max="100" step="1"
+            value="${slot.nearPct ?? 20}" title="% placed in near zone">
+          <span class="slot-extra-label">% mid</span>
+          <input type="number" class="hexdb-input slot-mid" min="0" max="100" step="1"
+            value="${slot.midPct ?? 30}" title="% placed in middle zone">
+          <span class="slot-extra-label">% far</span>
+          <input type="number" class="hexdb-input slot-far" min="0" max="100" step="1"
+            value="${slot.farPct ?? 50}" title="% placed in far zone">
+          <span class="slot-extra-label">%</span>
         </div>`;
     return div;
   }
@@ -4631,6 +4669,30 @@ const UI = (() => {
         IO.scheduleAutoSave();
       });
     });
+    document.querySelectorAll('.slot-level').forEach(el => {
+      el.addEventListener('change', () => {
+        const idx = parseInt(el.closest('.slot-row').dataset.slotIdx);
+        settlementSlots[idx].level = Math.max(1, parseInt(el.value) || 1);
+        IO.scheduleAutoSave();
+      });
+    });
+    document.querySelectorAll('.slot-spacing').forEach(el => {
+      el.addEventListener('change', () => {
+        const idx = parseInt(el.closest('.slot-row').dataset.slotIdx);
+        settlementSlots[idx].minSpacing = Math.max(1, parseInt(el.value) || 2);
+        IO.scheduleAutoSave();
+      });
+    });
+    document.querySelectorAll('.slot-near, .slot-mid, .slot-far').forEach(el => {
+      el.addEventListener('change', () => {
+        const idx  = parseInt(el.closest('.slot-row').dataset.slotIdx);
+        const row  = el.closest('.slot-row');
+        settlementSlots[idx].nearPct = parseInt(row.querySelector('.slot-near').value) || 0;
+        settlementSlots[idx].midPct  = parseInt(row.querySelector('.slot-mid').value)  || 0;
+        settlementSlots[idx].farPct  = parseInt(row.querySelector('.slot-far').value)  || 0;
+        IO.scheduleAutoSave();
+      });
+    });
     document.querySelectorAll('.slot-remove').forEach(btn => {
       btn.addEventListener('click', () => {
         History.push();
@@ -4658,6 +4720,29 @@ const UI = (() => {
         chevron.textContent = panel.classList.contains('collapsed') ? '▶' : '▼';
       });
     }
+    function _wirePriorityInputs() {
+      const p1El = document.getElementById('priority-p1');
+      if (p1El) {
+        p1El.value = settlementPriority1.join(', ');
+        const p1New = p1El.cloneNode(true);
+        p1El.replaceWith(p1New);
+        p1New.addEventListener('change', e => {
+          settlementPriority1 = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+          IO.scheduleAutoSave();
+        });
+      }
+      const p2El = document.getElementById('priority-p2');
+      if (p2El) {
+        p2El.value = settlementPriority2.join(', ');
+        const p2New = p2El.cloneNode(true);
+        p2El.replaceWith(p2New);
+        p2New.addEventListener('change', e => {
+          settlementPriority2 = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
+          IO.scheduleAutoSave();
+        });
+      }
+    }
+    _wirePriorityInputs();
   }
 
   function updateMenuHistoryState() {
