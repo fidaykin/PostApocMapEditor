@@ -578,6 +578,21 @@ body.mode-settlements #settlements-main { display: grid; }
 }
 .mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .mode-tab:hover:not(.active) { color: var(--text); }
+.mode-more-wrap { position: relative; display: flex; align-items: stretch; }
+#more-dropdown {
+  display: none; position: absolute; top: 100%; left: 0; z-index: 200;
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 0 0 4px 4px; min-width: 130px; padding: 4px 0;
+  box-shadow: 0 4px 12px rgba(0,0,0,.4);
+}
+#more-dropdown.open { display: flex; flex-direction: column; }
+.more-item {
+  padding: 7px 16px; cursor: pointer; font-size: 12px; font-weight: 600;
+  border: none; background: none; color: var(--muted);
+  letter-spacing: .05em; text-align: left; white-space: nowrap;
+}
+.more-item.active { color: var(--accent); }
+.more-item:hover:not(.active) { color: var(--text); background: rgba(255,255,255,.05); }
 
 /* Toolbar sections */
 #map-tools   { display: flex; align-items: center; gap: 4px; }
@@ -1153,11 +1168,16 @@ body.mode-keys        #keys-tools  { display: flex; }
       <button class="mode-tab"        id="tab-buildings"   onclick="App.setMode('buildings')">BUILDINGS</button>
       <button class="mode-tab"        id="tab-settlements" onclick="App.setMode('settlements')">SETTLEMENTS</button>
       <button class="mode-tab"        id="tab-keys"        onclick="App.setMode('keys')">KEYS</button>
-      <button class="mode-tab"        id="tab-slots"       onclick="App.setMode('slots')">SLOTS</button>
-      <button class="mode-tab"        id="tab-actions"     onclick="App.setMode('actions')">ACTIONS</button>
-      <button class="mode-tab"        id="tab-upgrades"    onclick="App.setMode('upgrades')">UPGRADES</button>
-      <button class="mode-tab"        id="tab-monsters"    onclick="App.setMode('monsters')">MONSTERS</button>
-      <button class="mode-tab"        id="tab-quests"      onclick="App.setMode('quests')">QUESTS</button>
+      <div class="mode-more-wrap">
+        <button class="mode-tab" id="tab-more" onclick="App.toggleMore(event)">MORE ▾</button>
+        <div id="more-dropdown">
+          <button class="more-item" id="tab-slots"    onclick="App.setMode('slots');App.closeMore()">SLOTS</button>
+          <button class="more-item" id="tab-actions"  onclick="App.setMode('actions');App.closeMore()">ACTIONS</button>
+          <button class="more-item" id="tab-upgrades" onclick="App.setMode('upgrades');App.closeMore()">UPGRADES</button>
+          <button class="more-item" id="tab-monsters" onclick="App.setMode('monsters');App.closeMore()">MONSTERS</button>
+          <button class="more-item" id="tab-quests"   onclick="App.setMode('quests');App.closeMore()">QUESTS</button>
+        </div>
+      </div>
     </div>
     <div id="map-io">
       <button class="hexdb-tool-btn" onclick="IO.openMap()">📂 Open</button>
@@ -5719,7 +5739,22 @@ const App = {
       const tab = document.getElementById('tab-' + m);
       if (tab) tab.classList.toggle('active', m === mode);
     });
-  }
+    const moreBtn = document.getElementById('tab-more');
+    if (moreBtn) moreBtn.classList.toggle('active', ['slots','actions','upgrades','monsters','quests'].includes(mode));
+  },
+  toggleMore(e) {
+    e.stopPropagation();
+    const dd = document.getElementById('more-dropdown');
+    const opening = !dd.classList.contains('open');
+    dd.classList.toggle('open');
+    if (opening) {
+      const close = () => { dd.classList.remove('open'); document.removeEventListener('click', close); };
+      document.addEventListener('click', close);
+    }
+  },
+  closeMore() {
+    document.getElementById('more-dropdown').classList.remove('open');
+  },
 };
 
 // ── LocalizationKeys ───────────────────────────────────────
