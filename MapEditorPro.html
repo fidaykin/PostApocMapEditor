@@ -7504,48 +7504,48 @@ const BldDB = (() => {
     <div class="hexdb-section">
       <div class="hexdb-section-hdr" data-sec="main">${col('main')} MAIN (0–9)</div>
       <div class="hexdb-section-body" data-sec="main" style="display:${bod('main')}">
-        <div class="hexdb-field-row"><label>Id *</label>
+        <div class="hexdb-row"><span class="hexdb-label">Id *</span>
           <div style="flex:1;min-width:0">
-            <input id="bld-f-id" type="text" value="${_esc(bld.id)}"
+            <input class="hexdb-input" id="bld-f-id" type="text" value="${_esc(bld.id)}"
               style="border-color:${!bld.id || _isDupe(bld.id) ? '#e57373' : ''}">
             <small style="color:#888;font-size:0.8em">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small>
           </div></div>
-        <div class="hexdb-field-row"><label>TextId <span class="hexdb-info" title="Localisation key for display name. No leading/trailing spaces.">ⓘ</span></label>
+        <div class="hexdb-row"><span class="hexdb-label">TextId <span class="hexdb-info" title="Localisation key for display name. No leading/trailing spaces.">ⓘ</span></span>
           <div style="flex:1;min-width:0">
-            <input id="bld-f-textId" type="text" value="${_esc(bld.textId)}" list="loc-keys-datalist" style="width:100%;box-sizing:border-box">
+            <input class="hexdb-input" id="bld-f-textId" type="text" value="${_esc(bld.textId)}" list="loc-keys-datalist">
             <div id="bld-hint-textId" style="font-size:10px;margin-top:2px">${_keyHint(bld.textId)}</div>
           </div></div>
-        <div class="hexdb-field-row"><label>Desc Idle <span class="hexdb-info" title="Key shown when building is placed on map">ⓘ</span></label>
+        <div class="hexdb-row"><span class="hexdb-label">Desc Idle <span class="hexdb-info" title="Key shown when building is placed on map">ⓘ</span></span>
           <div style="flex:1;min-width:0">
-            <input id="bld-f-descIdleId" type="text" value="${_esc(bld.descIdleId)}" list="loc-keys-datalist" style="width:100%;box-sizing:border-box">
+            <input class="hexdb-input" id="bld-f-descIdleId" type="text" value="${_esc(bld.descIdleId)}" list="loc-keys-datalist">
             <div id="bld-hint-descIdleId" style="font-size:10px;margin-top:2px">${_keyHint(bld.descIdleId)}</div>
           </div></div>
-        <div class="hexdb-field-row"><label>Desc Build <span class="hexdb-info" title="Key shown when building can be built">ⓘ</span></label>
+        <div class="hexdb-row"><span class="hexdb-label">Desc Build <span class="hexdb-info" title="Key shown when building can be built">ⓘ</span></span>
           <div style="flex:1;min-width:0">
-            <input id="bld-f-descBuildId" type="text" value="${_esc(bld.descBuildId)}" list="loc-keys-datalist" style="width:100%;box-sizing:border-box">
+            <input class="hexdb-input" id="bld-f-descBuildId" type="text" value="${_esc(bld.descBuildId)}" list="loc-keys-datalist">
             <div id="bld-hint-descBuildId" style="font-size:10px;margin-top:2px">${_keyHint(bld.descBuildId)}</div>
           </div></div>
-        <div class="hexdb-field-row"><label>Type <span class="hexdb-info" title="Ground Building or Water Building">ⓘ</span></label>
-          <select id="bld-f-type">
+        <div class="hexdb-row"><span class="hexdb-label">Type <span class="hexdb-info" title="Ground Building or Water Building">ⓘ</span></span>
+          <select class="hexdb-select" id="bld-f-type">
             <option${bld.type === 'Ground Building' ? ' selected' : ''}>Ground Building</option>
             <option${bld.type === 'Water Building'  ? ' selected' : ''}>Water Building</option>
           </select></div>
-        <div class="hexdb-field-row"><label>Biome <span class="hexdb-info" title="Season/biome context">ⓘ</span></label>
-          <select id="bld-f-biome">${BiomeManager.getNames().map(b =>
+        <div class="hexdb-row"><span class="hexdb-label">Biome <span class="hexdb-info" title="Season/biome context">ⓘ</span></span>
+          <select class="hexdb-select" id="bld-f-biome">${BiomeManager.getNames().map(b =>
             `<option${bld.biome === b ? ' selected' : ''}>${b}</option>`).join('')}</select></div>
-        <div class="hexdb-field-row"><label>Filter <span class="hexdb-info" title="UI filter category tag">ⓘ</span></label>
-          <input id="bld-f-filter" type="text" value="${_esc(bld.filter)}"></div>
-        <div class="hexdb-field-row"><label>SpriteName</label>
+        <div class="hexdb-row"><span class="hexdb-label">Filter <span class="hexdb-info" title="UI filter category tag">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-filter" type="text" value="${_esc(bld.filter)}"></div>
+        <div class="hexdb-row"><span class="hexdb-label">SpriteName</span>
           <div style="flex:1;min-width:0">
             <div style="display:flex;gap:4px">
-              <input id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}" style="flex:1;min-width:0">
+              <input class="hexdb-input" id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}" style="flex:1;min-width:0">
               <button type="button" onclick="BldDB.pickSprite()" title="Pick sprite from buildings folder"
                 style="padding:2px 7px;font-size:13px;cursor:pointer;flex-shrink:0">🖼</button>
             </div>
             <small style="color:#888;font-size:0.8em">Web: sprites/buildings/&lt;name&gt;.png | Unity: Resources/Buildings/&lt;name&gt;</small>
           </div></div>
-        <div class="hexdb-field-row"><label>Base Cost Taps <span class="hexdb-info" title="Taps to unlock. Min 1.">ⓘ</span></label>
-          <input id="bld-f-baseCostTaps" type="number" step="1" min="1"
+        <div class="hexdb-row"><span class="hexdb-label">Base Cost Taps <span class="hexdb-info" title="Taps to unlock. Min 1.">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-baseCostTaps" type="number" step="1" min="1"
             value="${Math.max(1, bld.baseCostTaps ?? 1)}"></div>
       </div>
     </div>`;
@@ -7555,25 +7555,25 @@ const BldDB = (() => {
     <div class="hexdb-section">
       <div class="hexdb-section-hdr" data-sec="destroy">${col('destroy')} DESTROY (10–17)</div>
       <div class="hexdb-section-body" data-sec="destroy" style="display:${bod('destroy')}">
-        <div class="hexdb-field-row"><label>Hex Can be Destroyed</label>
+        <div class="hexdb-row"><span class="hexdb-label">Hex Can be Destroyed</span>
           <input id="bld-f-canDestroy" type="checkbox"${canDes ? ' checked' : ''}></div>
-        <div class="hexdb-field-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Transform to <span class="hexdb-info" title="Parents = tile under the building">ⓘ</span></label>
+        <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Transform to <span class="hexdb-info" title="Parents = tile under the building">ⓘ</span></span>
           <div style="display:flex;gap:6px;flex:1">
-            <select id="bld-f-destroyTransformToMode">
+            <select class="hexdb-select" id="bld-f-destroyTransformToMode">
               <option${bld.destroyTransformToMode === 'Parents' ? ' selected' : ''}>Parents</option>
               <option${bld.destroyTransformToMode === 'HexID'   ? ' selected' : ''}>HexID</option>
             </select>
-            <input id="bld-f-destroyTransformTo" type="text" placeholder="Tile ID"
+            <input class="hexdb-input" id="bld-f-destroyTransformTo" type="text" placeholder="Tile ID"
               value="${_esc(bld.destroyTransformTo)}"
               style="flex:1${bld.destroyTransformToMode === 'Parents' ? ';display:none' : ''}">
           </div></div>
-        <div class="hexdb-field-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Source <span class="hexdb-info" title="Action IDs that can destroy this. Configure in Actions Editor.">ⓘ</span></label>
+        <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Source <span class="hexdb-info" title="Action IDs that can destroy this. Configure in Actions Editor.">ⓘ</span></span>
           ${_tagsHTML('destroySources', bld.destroySources, !canDes)}</div>
-        <div class="hexdb-field-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Move to Storage on Destroy <span class="hexdb-info" title="YES: goes to Hex Storage; cost not charged, no income.">ⓘ</span></label>
+        <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Move to Storage on Destroy <span class="hexdb-info" title="YES: goes to Hex Storage; cost not charged, no income.">ⓘ</span></span>
           <input id="bld-f-moveToStorageOnDestroy" type="checkbox"${bld.moveToStorageOnDestroy ? ' checked' : ''}></div>
-        <div class="hexdb-field-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Resources Awarded on Destroy</label>
+        <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Resources Awarded on Destroy</span>
           <input id="bld-f-resourceAwardedOnDestroy" type="checkbox"${resOnDes ? ' checked' : ''}></div>
-        <div class="hexdb-field-row"${!canDes || !resOnDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Destroy Income</label>
+        <div class="hexdb-row"${!canDes || !resOnDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Destroy Income</span>
           ${_resBlockHTML('destroyIncome', bld.destroyIncome, !canDes || !resOnDes)}</div>
       </div>
     </div>`;
@@ -7583,37 +7583,37 @@ const BldDB = (() => {
     <div class="hexdb-section">
       <div class="hexdb-section-hdr" data-sec="build">${col('build')} BUILD (18–24)</div>
       <div class="hexdb-section-body" data-sec="build" style="display:${bod('build')}">
-        <div class="hexdb-field-row"><label>Hex Can be Built</label>
+        <div class="hexdb-row"><span class="hexdb-label">Hex Can be Built</span>
           <input id="bld-f-canBuild" type="checkbox"${canBld ? ' checked' : ''}></div>
-        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Need Road <span class="hexdb-info" title="Ground: Roads required. Water: sea adjacency check.">ⓘ</span></label>
+        <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Need Road <span class="hexdb-info" title="Ground: Roads required. Water: sea adjacency check.">ⓘ</span></span>
           <input id="bld-f-needRoad" type="checkbox"${bld.needRoad ? ' checked' : ''}></div>
-        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Available Tiles <span class="hexdb-info" title="Tile Type IDs where building can be placed">ⓘ</span></label>
+        <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Available Tiles <span class="hexdb-info" title="Tile Type IDs where building can be placed">ⓘ</span></span>
           ${_tagsHTML('availableTiles', bld.availableTiles, !canBld)}</div>
-        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Min Level <span class="hexdb-info" title="Min Settlement level. Integer ≥ 1.">ⓘ</span></label>
-          <input id="bld-f-minLevel" type="number" step="1" min="1"
-            value="${Math.max(1, bld.minLevel ?? 1)}"></div>
-        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Price</label>
+        <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Min Level <span class="hexdb-info" title="Min Settlement level. Integer ≥ 1.">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-minLevel" type="number" step="1" min="1"
+            value="${Math.max(1, bld.minLevel ?? 1)}" style="width:110px"></div>
+        <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Price</span>
           ${_resBlockHTML('price', bld.price, !canBld)}</div>
-        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Premium Price <span class="hexdb-info" title="Gem price. 0 = disabled.">ⓘ</span></label>
-          <input id="bld-f-premiumPrice" type="number" step="1" min="0"
-            value="${_esc(bld.premiumPrice ?? 0)}"></div>
-        <div class="hexdb-field-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Additional Build Condition <span class="hexdb-info" title="Requires a specific nearby tile type">ⓘ</span></label>
+        <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Premium Price <span class="hexdb-info" title="Gem price. 0 = disabled.">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-premiumPrice" type="number" step="1" min="0"
+            value="${_esc(bld.premiumPrice ?? 0)}" style="width:110px"></div>
+        <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Additional Build Condition <span class="hexdb-info" title="Requires a specific nearby tile type">ⓘ</span></span>
           <input id="bld-f-additionalBuildCondition" type="checkbox"${addCond ? ' checked' : ''}></div>
         ${addCond && canBld ? `
-        <div class="hexdb-field-row"><label>Tiles Type <span class="hexdb-info" title="Parents = copies Available Tiles. HexID/Type = specific nearby tile.">ⓘ</span></label>
+        <div class="hexdb-row"><span class="hexdb-label">Tiles Type <span class="hexdb-info" title="Parents = copies Available Tiles. HexID/Type = specific nearby tile.">ⓘ</span></span>
           <div style="display:flex;gap:6px;flex:1">
-            <select id="bld-f-tilesTypeMode">
+            <select class="hexdb-select" id="bld-f-tilesTypeMode">
               <option${bld.tilesTypeMode === 'Parents' ? ' selected' : ''}>Parents</option>
               <option${bld.tilesTypeMode === 'HexID'   ? ' selected' : ''}>HexID</option>
               <option${bld.tilesTypeMode === 'Type'    ? ' selected' : ''}>Type</option>
             </select>
-            <input id="bld-f-tilesTypeValue" type="text" placeholder="ID or Type"
+            <input class="hexdb-input" id="bld-f-tilesTypeValue" type="text" placeholder="ID or Type"
               value="${_esc(bld.tilesTypeValue)}"
               style="flex:1${bld.tilesTypeMode === 'Parents' ? ';display:none' : ''}">
           </div></div>
-        <div class="hexdb-field-row"><label>Radius <span class="hexdb-info" title="0=must be on top; 1=adjacent; N=within N hexes">ⓘ</span></label>
-          <input id="bld-f-radius" type="number" step="1" min="0"
-            value="${_esc(bld.radius ?? 0)}"></div>` : ''}
+        <div class="hexdb-row"><span class="hexdb-label">Radius <span class="hexdb-info" title="0=must be on top; 1=adjacent; N=within N hexes">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-radius" type="number" step="1" min="0"
+            value="${_esc(bld.radius ?? 0)}" style="width:110px"></div>` : ''}
       </div>
     </div>`;
 
@@ -7622,30 +7622,30 @@ const BldDB = (() => {
     <div class="hexdb-section">
       <div class="hexdb-section-hdr" data-sec="income">${col('income')} INCOME</div>
       <div class="hexdb-section-body" data-sec="income" style="display:${bod('income')}">
-        <div class="hexdb-field-row"><label>Hex Earns on Tap</label>
+        <div class="hexdb-row"><span class="hexdb-label">Hex Earns on Tap</span>
           <input id="bld-f-hexEarnsOnTap" type="checkbox"${hasTap ? ' checked' : ''}></div>
-        <div class="hexdb-field-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Destroyable <span class="hexdb-info" title="Destroyed after Capacity taps">ⓘ</span></label>
+        <div class="hexdb-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Destroyable <span class="hexdb-info" title="Destroyed after Capacity taps">ⓘ</span></span>
           <input id="bld-f-destroyableByTap" type="checkbox"${hasTapDes ? ' checked' : ''}></div>
-        <div class="hexdb-field-row"${!hasTap || !hasTapDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Transform to <span class="hexdb-info" title="Parents = tile under building">ⓘ</span></label>
+        <div class="hexdb-row"${!hasTap || !hasTapDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Transform to <span class="hexdb-info" title="Parents = tile under building">ⓘ</span></span>
           <div style="display:flex;gap:6px;flex:1">
-            <select id="bld-f-incomeTransformToMode">
+            <select class="hexdb-select" id="bld-f-incomeTransformToMode">
               <option${bld.incomeTransformToMode === 'Parents' ? ' selected' : ''}>Parents</option>
               <option${bld.incomeTransformToMode === 'HexID'   ? ' selected' : ''}>HexID</option>
             </select>
-            <input id="bld-f-incomeTransformTo" type="text" placeholder="Tile ID"
+            <input class="hexdb-input" id="bld-f-incomeTransformTo" type="text" placeholder="Tile ID"
               value="${_esc(bld.incomeTransformTo)}"
               style="flex:1${bld.incomeTransformToMode === 'Parents' ? ';display:none' : ''}">
           </div></div>
-        <div class="hexdb-field-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Capacity <span class="hexdb-info" title="Taps until destroyed (0 = unlimited)">ⓘ</span></label>
-          <input id="bld-f-capacity" type="number" step="1" min="0"
-            value="${bld.capacity ?? 0}"></div>
-        <div class="hexdb-field-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Get per Tap</label>
+        <div class="hexdb-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Capacity <span class="hexdb-info" title="Taps until destroyed (0 = unlimited)">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-capacity" type="number" step="1" min="0"
+            value="${bld.capacity ?? 0}" style="width:110px"></div>
+        <div class="hexdb-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Get per Tap</span>
           ${_resBlockHTML('getPerTap', bld.getPerTap, !hasTap)}</div>
-        <div class="hexdb-field-row"><label>Per Turn <span class="hexdb-info" title="Idle income per turn (9s) while on map">ⓘ</span></label>
+        <div class="hexdb-row"><span class="hexdb-label">Per Turn <span class="hexdb-info" title="Idle income per turn (9s) while on map">ⓘ</span></span>
           ${_resBlockHTML('incomePerTurn', bld.incomePerTurn, false)}</div>
-        <div class="hexdb-field-row"><label>Income Constant <span class="hexdb-info" title="Constant income while on map">ⓘ</span></label>
+        <div class="hexdb-row"><span class="hexdb-label">Income Constant <span class="hexdb-info" title="Constant income while on map">ⓘ</span></span>
           ${_resBlockHTML('incomeConstant', bld.incomeConstant, false, BLD_SPEND_RES)}</div>
-        <div class="hexdb-field-row"><label>Spend Constant <span class="hexdb-info" title="Constant drain while on map">ⓘ</span></label>
+        <div class="hexdb-row"><span class="hexdb-label">Spend Constant <span class="hexdb-info" title="Constant drain while on map">ⓘ</span></span>
           ${_resBlockHTML('spendConstant', bld.spendConstant, false, BLD_SPEND_RES)}</div>
       </div>
     </div>`;
@@ -7655,17 +7655,17 @@ const BldDB = (() => {
     <div class="hexdb-section">
       <div class="hexdb-section-hdr" data-sec="settings">${col('settings')} BUILDINGS SETTINGS</div>
       <div class="hexdb-section-body" data-sec="settings" style="display:${bod('settings')}">
-        <div class="hexdb-field-row"><label>Building Radius <span class="hexdb-info" title="Action radius. 0 = no area effect.">ⓘ</span></label>
-          <input id="bld-f-buildingRadius" type="number" step="1" min="0"
-            value="${bldRad}"></div>
+        <div class="hexdb-row"><span class="hexdb-label">Building Radius <span class="hexdb-info" title="Action radius. 0 = no area effect.">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-buildingRadius" type="number" step="1" min="0"
+            value="${bldRad}" style="width:110px"></div>
         ${bldRad >= 1 ? `
-        <div class="hexdb-field-row"><label>Can Produce <span class="hexdb-info" title="IDs auto-constructed each turn in radius at 0 cost">ⓘ</span></label>
+        <div class="hexdb-row"><span class="hexdb-label">Can Produce <span class="hexdb-info" title="IDs auto-constructed each turn in radius at 0 cost">ⓘ</span></span>
           ${_tagsHTML('canProduce', bld.canProduce, false)}</div>
-        <div class="hexdb-field-row"${!hasProd ? ' style="opacity:0.4;pointer-events:none"' : ''}><label>Available Tiles for Produce <span class="hexdb-info" title="Tile types where production deposits new tiles">ⓘ</span></label>
+        <div class="hexdb-row"${!hasProd ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Available Tiles for Produce <span class="hexdb-info" title="Tile types where production deposits new tiles">ⓘ</span></span>
           ${_tagsHTML('availableTilesForProduce', bld.availableTilesForProduce, !hasProd)}</div>
-        <div class="hexdb-field-row"><label>Production Facilities <span class="hexdb-info" title="Tile IDs/Types in radius that boost productivity">ⓘ</span></label>
+        <div class="hexdb-row"><span class="hexdb-label">Production Facilities <span class="hexdb-info" title="Tile IDs/Types in radius that boost productivity">ⓘ</span></span>
           ${_tagsHTML('productionFacilities', bld.productionFacilities, false)}</div>` : ''}
-        <div class="hexdb-field-row"><label>Stores <span class="hexdb-info" title="Storage capacity this building provides per resource">ⓘ</span></label>
+        <div class="hexdb-row"><span class="hexdb-label">Stores <span class="hexdb-info" title="Storage capacity this building provides per resource">ⓘ</span></span>
           ${_resBlockHTML('stores', bld.stores, false)}</div>
       </div>
     </div>`;
@@ -8137,29 +8137,29 @@ const SttDB = (() => {
     right.innerHTML = `<div class="hexdb-form">
       <div class="hexdb-section-hdr" data-sec="main">${collapsed('main')} MAIN</div>
       <div class="hexdb-section-body" data-sec="main" style="display:${bodyDisplay('main')}">
-        <div class="hexdb-field-row"><label>Id *</label>
+        <div class="hexdb-row"><label>Id *</label>
           <input id="stt-f-id" type="text" value="${_esc(stt.id)}"
             style="border-color:${!stt.id || _data.settlements.some((b,i)=>b.id===stt.id&&i!==_filtered[_selFilt])?'#e57373':''}"></div>
-        <div class="hexdb-field-row"><label>TextId</label>
+        <div class="hexdb-row"><label>TextId</label>
           <input id="stt-f-textId" type="text" value="${_esc(stt.textId)}" list="loc-keys-datalist"></div>
-        <div class="hexdb-field-row"><label>SpriteName</label>
+        <div class="hexdb-row"><label>SpriteName</label>
           <input id="stt-f-spriteName" type="text" value="${_esc(stt.spriteName)}"></div>
-        <div class="hexdb-field-row"><label>SettlementType</label>
+        <div class="hexdb-row"><label>SettlementType</label>
           <input id="stt-f-settlementType" type="text" value="${_esc(stt.settlementType)}"></div>
-        <div class="hexdb-field-row"><label>Biome</label>
+        <div class="hexdb-row"><label>Biome</label>
           <select id="stt-f-biome">${BiomeManager.getNames().map(b=>`<option${stt.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
-        <div class="hexdb-field-row"><label>Filter</label>
+        <div class="hexdb-row"><label>Filter</label>
           <input id="stt-f-filterCategory" type="text" value="${_esc(stt.filterCategory)}"></div>
-        <div class="hexdb-field-row"><label>Start Level</label>
+        <div class="hexdb-row"><label>Start Level</label>
           <input id="stt-f-startLevel" type="number" step="1" min="1" max="8" value="${_esc(stt.startLevel)}"></div>
-        <div class="hexdb-field-row"><label>Max Level</label>
+        <div class="hexdb-row"><label>Max Level</label>
           <input id="stt-f-maxLevel" type="number" step="1" min="1" max="9999" style="width:110px" value="${_esc(stt.maxLevel)}"></div>
       </div>
       <div class="hexdb-section-hdr" data-sec="build">${collapsed('build')} BUILD</div>
       <div class="hexdb-section-body" data-sec="build" style="display:${bodyDisplay('build')}">
-        <div class="hexdb-field-row"><label>Cost Gold</label>
+        <div class="hexdb-row"><label>Cost Gold</label>
           <input id="stt-f-buildCostGold" type="number" step="1" value="${_esc(stt.buildCostGold)}"></div>
-        <div class="hexdb-field-row"><label>Cost Gems</label>
+        <div class="hexdb-row"><label>Cost Gems</label>
           <input id="stt-f-buildCostGems" type="number" step="1" value="${_esc(stt.buildCostGems)}"></div>
       </div>
       <div class="hexdb-section-hdr" data-sec="levels">${collapsed('levels')} LEVELS</div>
