@@ -280,23 +280,23 @@ html, body {
 
 #slot-panel { padding: 8px; border-top: 1px solid var(--border); }
 #slot-panel .section-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-.slot-row { display: flex; gap: 4px; align-items: center; margin-bottom: 4px; flex-wrap: wrap; }
-.slot-row input[type=number] { width: 52px; }
-.slot-count { width: 36px; }
-.slot-type-select { width: 100px; }
-.slot-type-text   { width: 90px; display: none; }
-.slot-type-text.visible { display: inline-block; }
-.slot-remove { background: none; border: 1px solid var(--border); color: var(--muted); padding: 2px 6px; cursor: pointer; border-radius: 3px; }
+/* Slot card */
+.slot-row { background: rgba(0,0,0,0.22); border: 1px solid var(--border); border-radius: 5px; padding: 6px; margin-bottom: 6px; }
+/* Header: type selector + remove */
+.slot-header { display: flex; gap: 4px; align-items: center; margin-bottom: 5px; }
+.slot-type-select { flex: 1; min-width: 0; }
+.slot-type-text { flex: 1; min-width: 0; display: none; }
+.slot-type-text.visible { display: block; }
+.slot-remove { background: none; border: 1px solid var(--border); color: var(--muted); padding: 2px 6px; cursor: pointer; border-radius: 3px; flex-shrink: 0; }
 .slot-remove:hover { border-color: var(--danger); color: var(--danger); }
+/* 3-column labeled grid */
+.slot-grid3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 4px; margin-bottom: 4px; }
+.slot-field { display: flex; flex-direction: column; gap: 2px; }
+.slot-field label { font-size: 10px; color: var(--muted); }
+.slot-field input { width: 100%; box-sizing: border-box; }
 #slot-add { margin-top: 4px; width: 100%; background: none; border: 1px dashed var(--border); color: var(--muted); padding: 4px; cursor: pointer; border-radius: 3px; font-size: 11px; }
 #slot-add:hover { border-color: var(--accent); color: var(--accent); }
 #slot-panel.collapsed .slot-rows, #slot-panel.collapsed #slot-add { display: none; }
-.slot-mult-row { flex: 0 0 100%; display: flex; gap: 4px; align-items: center; padding-left: 2px; margin-top: 2px; }
-.slot-mult { width: 44px !important; }
-.slot-mult-hint { font-size: 10px; color: var(--muted); }
-.slot-extra-row { flex: 0 0 100%; display: flex; gap: 4px; align-items: center; padding-left: 2px; margin-top: 2px; }
-.slot-extra-row .hexdb-input { width: 40px !important; }
-.slot-extra-label { font-size: 10px; color: var(--muted); }
 #priority-config { padding: 6px 0 2px; border-top: 1px solid var(--border); margin-top: 4px; }
 #priority-config label { display: block; font-size: 10px; color: var(--muted); margin-bottom: 2px; }
 #priority-config input { width: 100%; box-sizing: border-box; font-size: 11px; background: var(--bg); border: 1px solid var(--border); color: var(--text); padding: 3px 5px; border-radius: 3px; margin-bottom: 4px; }
@@ -1856,7 +1856,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.03";
-const COMMIT  = "ffaa457";
+const COMMIT  = "ceeb72f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4564,46 +4564,64 @@ const UI = (() => {
       });
     });
     div.innerHTML = `
-        <input type="number" class="hexdb-input slot-min" min="0" value="${slot.minDist}" title="Min distance">
-        <span style="color:var(--muted)">→</span>
-        <input type="number" class="hexdb-input slot-max" min="0" value="${slot.maxDist}" title="Max distance">
-        <span style="color:var(--muted)">×</span>
-        <input type="number" class="hexdb-input slot-count" min="1" max="99" value="${slot.count}" title="Count">
-        <select class="hexdb-select slot-type-select">
+        <div class="slot-header">
+          <select class="hexdb-select slot-type-select">
             <option${slot.type==='settlement'?' selected':''}>settlement</option>
             <option${slot.type==='outpost'?' selected':''}>outpost</option>
             <option${slot.type==='trading_post'?' selected':''}>trading_post</option>
             <option${isCustom?' selected':''} value="__custom__">Custom…</option>
-        </select>
-        <input class="hexdb-input slot-type-text${isCustom?' visible':''}" value="${isCustom?esc(slot.type):''}" placeholder="type name">
-        <button class="slot-remove" data-slot-idx="${idx}">✕</button>
-        <div class="slot-mult-row">
-          <span style="color:var(--muted);font-size:10px">tap ×</span>
-          <input type="number" class="hexdb-input slot-mult" min="0.1" max="10" step="0.1"
-            value="${(slot.tapMultiplier ?? 1).toFixed(1)}"
-            title="Tap cost multiplier for this ring (1 = no change, 1.5 = 50% more taps)">
-          <span class="slot-mult-hint">(1 = no change)</span>
+          </select>
+          <input class="hexdb-input slot-type-text${isCustom?' visible':''}" value="${isCustom?esc(slot.type):''}" placeholder="type name">
+          <button class="slot-remove" data-slot-idx="${idx}" title="Remove slot">✕</button>
         </div>
-        <div class="slot-extra-row">
-          <span class="slot-extra-label">Lv:</span>
-          <input type="number" class="hexdb-input slot-level" min="1" max="99" step="1"
-            value="${slot.level ?? 1}" title="Settlement starting level">
-          <span class="slot-extra-label">spacing:</span>
-          <input type="number" class="hexdb-input slot-spacing" min="1" max="20" step="1"
-            value="${slot.minSpacing ?? 2}" title="Min hexes between auto-placed settlements">
-          <span class="slot-extra-label">hex</span>
+        <div class="slot-grid3">
+          <div class="slot-field">
+            <label>Min dist</label>
+            <input type="number" class="hexdb-input slot-min" min="0" value="${slot.minDist}" title="Min distance from city">
+          </div>
+          <div class="slot-field">
+            <label>Max dist</label>
+            <input type="number" class="hexdb-input slot-max" min="0" value="${slot.maxDist}" title="Max distance from city">
+          </div>
+          <div class="slot-field">
+            <label>Count</label>
+            <input type="number" class="hexdb-input slot-count" min="1" max="99" value="${slot.count}" title="Number of settlements to place">
+          </div>
         </div>
-        <div class="slot-extra-row">
-          <span class="slot-extra-label">near</span>
-          <input type="number" class="hexdb-input slot-near" min="0" max="100" step="1"
-            value="${slot.nearPct ?? 20}" title="% placed in near zone">
-          <span class="slot-extra-label">% mid</span>
-          <input type="number" class="hexdb-input slot-mid" min="0" max="100" step="1"
-            value="${slot.midPct ?? 30}" title="% placed in middle zone">
-          <span class="slot-extra-label">% far</span>
-          <input type="number" class="hexdb-input slot-far" min="0" max="100" step="1"
-            value="${slot.farPct ?? 50}" title="% placed in far zone">
-          <span class="slot-extra-label">%</span>
+        <div class="slot-grid3">
+          <div class="slot-field">
+            <label>Near %</label>
+            <input type="number" class="hexdb-input slot-near" min="0" max="100" step="1"
+              value="${slot.nearPct ?? 20}" title="% placed in the near third of the range">
+          </div>
+          <div class="slot-field">
+            <label>Mid %</label>
+            <input type="number" class="hexdb-input slot-mid" min="0" max="100" step="1"
+              value="${slot.midPct ?? 30}" title="% placed in the middle third">
+          </div>
+          <div class="slot-field">
+            <label>Far %</label>
+            <input type="number" class="hexdb-input slot-far" min="0" max="100" step="1"
+              value="${slot.farPct ?? 50}" title="% placed in the far third">
+          </div>
+        </div>
+        <div class="slot-grid3">
+          <div class="slot-field">
+            <label>Level</label>
+            <input type="number" class="hexdb-input slot-level" min="1" max="99" step="1"
+              value="${slot.level ?? 1}" title="Starting level">
+          </div>
+          <div class="slot-field">
+            <label>Spacing</label>
+            <input type="number" class="hexdb-input slot-spacing" min="1" max="20" step="1"
+              value="${slot.minSpacing ?? 2}" title="Min hexes between placed settlements">
+          </div>
+          <div class="slot-field">
+            <label>Tap ×</label>
+            <input type="number" class="hexdb-input slot-mult" min="0.1" max="10" step="0.1"
+              value="${(slot.tapMultiplier ?? 1).toFixed(1)}"
+              title="Tap cost multiplier (1 = default, 1.5 = 50% more taps)">
+          </div>
         </div>`;
     return div;
   }
