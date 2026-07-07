@@ -9270,7 +9270,7 @@ function autoPlaceSettlements() {
     // Allocate target counts per band, guarantee they sum to `count`
     const nCount = Math.round(count * nearPct);
     const fCount = Math.round(count * farPct);
-    const mCount = count - nCount - fCount;
+    const mCount = Math.max(0, count - nCount - fCount);
 
     [[0, nCount], [1, mCount], [2, fCount]].forEach(([bi, needed]) => {
       let placed = 0;
