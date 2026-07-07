@@ -1374,7 +1374,11 @@ body.mode-keys        #keys-tools  { display: flex; }
         <input id="bld-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
         <select id="bld-filter-biome" title="Filter by Biome">
           <option value="">All Biomes</option>
-          <!-- populated by BiomeManager.refreshAllDropdowns() -->
+        </select>
+        <select id="bld-filter-type" title="Filter by Type">
+          <option value="">All Types</option>
+          <option>Ground Building</option>
+          <option>Water Building</option>
         </select>
       </div>
       <div id="bld-list"></div>
@@ -7176,7 +7180,7 @@ const BldDB = (() => {
   let _data      = { version: 1, buildings: [] };
   let _clipboard = null;
   let _selFilt   = -1;
-  let _filter    = { search: '', biome: '' };
+  let _filter    = { search: '', biome: '', type: '' };
   let _filtered  = [];
   let _secState  = {};
 
@@ -7289,25 +7293,37 @@ const BldDB = (() => {
   function _applyFilter() {
     const s = _filter.search.toLowerCase();
     const b = _filter.biome;
+    const t = _filter.type;
     _filtered = _data.buildings.map((h, i) => i)
-      .filter(i => (!s || _data.buildings[i].id.toLowerCase().includes(s)) &&
-                   (!b || _data.buildings[i].biome === b));
+      .filter(i => {
+        const bld = _data.buildings[i];
+        return (!s || bld.id.toLowerCase().includes(s)) &&
+               (!b || bld.biome === b) &&
+               (!t || bld.type === t);
+      });
+    _filtered.sort((a, b) => (_data.buildings[a].id || '').localeCompare(_data.buildings[b].id || ''));
   }
 
   function _buildList() {
-    const list = document.getElementById('bld-list');
+    const list  = document.getElementById('bld-list');
     const count = document.getElementById('bld-count');
     list.innerHTML = '';
     _filtered.forEach((dataIdx, filtIdx) => {
-      const h = _data.buildings[dataIdx];
-      const row = document.createElement('div');
+      const bld   = _data.buildings[dataIdx];
+      const color = BiomeManager.getColor(bld.biome) || '#888';
+      const row   = document.createElement('div');
       row.className = 'hexdb-list-row' + (_selFilt === filtIdx ? ' selected' : '');
       row.dataset.filtIdx = filtIdx;
-      row.innerHTML = `<span class="hexdb-list-id">${_esc(h.id) || '(no id)'}</span>`;
+      row.innerHTML =
+        `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;` +
+        `background:${color};flex-shrink:0;margin-right:5px;vertical-align:middle"></span>` +
+        `<span class="hexdb-list-id">${_esc(bld.id) || '(no id)'}</span>`;
       row.addEventListener('click', () => _selectIdx(filtIdx));
       list.appendChild(row);
     });
-    count.textContent = `${_filtered.length} shown / ${_data.buildings.length}`;
+    const total  = _data.buildings.length;
+    const shown  = _filtered.length;
+    count.textContent = `${shown} shown / ${total}`;
   }
 
   function _selectIdx(filtIdx) {
@@ -7825,6 +7841,12 @@ const BldDB = (() => {
 
     document.getElementById('bld-filter-biome').addEventListener('change', e => {
       _filter.biome = e.target.value;
+      _applyFilter(); _buildList();
+      if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+    });
+
+    document.getElementById('bld-filter-type').addEventListener('change', e => {
+      _filter.type = e.target.value;
       _applyFilter(); _buildList();
       if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
     });
