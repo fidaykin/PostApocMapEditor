@@ -7171,7 +7171,7 @@ const HexDB = (() => {
 
 // ── BldDB Module ───────────────────────────────────────────
 const BldDB = (() => {
-  const SECTION_DEFAULTS = { main: false, build: true, production: false, levels: false };
+  const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, settings: true };
 
   let _data      = { version: 1, buildings: [] };
   let _clipboard = null;
@@ -7181,26 +7181,89 @@ const BldDB = (() => {
   let _secState  = {};
 
   function _blank() {
+    const n = _data.buildings.length + 1;
     return {
-      id: '', textId: '', spriteName: '', buildingType: '',
-      biome: 'Summer', filterCategory: 'FilterBuilding',
-      startLevel: 1, maxLevel: 1,
-      requiredTownLevel: 1, constructionTimeSeconds: 0,
-      buildCostGold: 0, buildCostGems: 0, buildCostEvent: 0,
-      buildRequiresRoad: false, buildPlacementRule: '',
-      buildMaxPerMap: 0,
-      productionGold: 0, productionFood: 0, productionLumber: 0, productionStone: 0,
-      storageGold: 0, storageFood: 0, storageLumber: 0, storageStone: 0,
-      levels: [_blankLevel(1)],
+      id: `NewBuild_${n}`,
+      textId: '', descIdleId: '', descBuildId: '',
+      type: 'Ground Building',
+      biome: 'Summer', filter: 'FilterBuilding', spriteName: '',
+      baseCostTaps: 1,
+      // Destroy
+      canDestroy: true,
+      destroyTransformToMode: 'Parents', destroyTransformTo: '',
+      destroySources: [],
+      moveToStorageOnDestroy: true,
+      resourceAwardedOnDestroy: true,
+      destroyIncome: [],
+      // Build
+      canBuild: true, needRoad: true,
+      availableTiles: [],
+      minLevel: 1,
+      price: [{ type: 'Gold', amount: 1000 }],
+      premiumPrice: 0,
+      additionalBuildCondition: false,
+      tilesTypeMode: 'Parents', tilesTypeValue: '',
+      radius: 0,
+      // Income
+      hexEarnsOnTap: false, destroyableByTap: false,
+      incomeTransformToMode: 'Parents', incomeTransformTo: '',
+      capacity: 0,
+      getPerTap: [],
+      incomePerTurn: [{ type: 'Gold', amount: 1 }],
+      incomeConstant: [],
+      spendConstant: [{ type: 'Pollution', amount: 1 }],
+      // Settings
+      buildingRadius: 0,
+      canProduce: [], availableTilesForProduce: [],
+      productionFacilities: [],
+      stores: [],
     };
   }
 
-  function _blankLevel(n) {
-    return {
-      level: n,
-      upgradePriceGold: 0, upgradePriceGems: 0,
-      upgradeCondition: '', transformTo: '', unlockList: '',
-    };
+  function _migrate(bld) {
+    if (bld.type === undefined)                   bld.type = 'Ground Building';
+    if (bld.filter === undefined)                 bld.filter = bld.filterCategory ?? 'FilterBuilding';
+    if (bld.baseCostTaps === undefined)           bld.baseCostTaps = 1;
+    if (bld.descIdleId === undefined)             bld.descIdleId = '';
+    if (bld.descBuildId === undefined)            bld.descBuildId = '';
+    if (bld.canDestroy === undefined)             bld.canDestroy = true;
+    if (bld.destroyTransformToMode === undefined) bld.destroyTransformToMode = 'Parents';
+    if (bld.destroyTransformTo === undefined)     bld.destroyTransformTo = '';
+    if (!Array.isArray(bld.destroySources))       bld.destroySources = [];
+    if (bld.moveToStorageOnDestroy === undefined) bld.moveToStorageOnDestroy = true;
+    if (bld.resourceAwardedOnDestroy === undefined) bld.resourceAwardedOnDestroy = true;
+    if (!Array.isArray(bld.destroyIncome))        bld.destroyIncome = [];
+    if (bld.canBuild === undefined)               bld.canBuild = true;
+    if (bld.needRoad === undefined)               bld.needRoad = true;
+    if (!Array.isArray(bld.availableTiles))       bld.availableTiles = [];
+    if (bld.minLevel === undefined)               bld.minLevel = bld.requiredTownLevel ?? 1;
+    if (!Array.isArray(bld.price)) {
+      const g = bld.buildCostGold ?? 0;
+      bld.price = g > 0 ? [{ type: 'Gold', amount: g }] : [{ type: 'Gold', amount: 1000 }];
+    }
+    if (bld.premiumPrice === undefined)           bld.premiumPrice = bld.buildCostGems ?? 0;
+    if (bld.additionalBuildCondition === undefined) bld.additionalBuildCondition = false;
+    if (bld.tilesTypeMode === undefined)          bld.tilesTypeMode = 'Parents';
+    if (bld.tilesTypeValue === undefined)         bld.tilesTypeValue = '';
+    if (bld.radius === undefined)                 bld.radius = 0;
+    if (bld.hexEarnsOnTap === undefined)          bld.hexEarnsOnTap = false;
+    if (bld.destroyableByTap === undefined)       bld.destroyableByTap = false;
+    if (bld.incomeTransformToMode === undefined)  bld.incomeTransformToMode = 'Parents';
+    if (bld.incomeTransformTo === undefined)      bld.incomeTransformTo = '';
+    if (bld.capacity === undefined)               bld.capacity = 0;
+    if (!Array.isArray(bld.getPerTap))            bld.getPerTap = [];
+    if (!Array.isArray(bld.incomePerTurn)) {
+      const g = bld.productionGold ?? 0;
+      bld.incomePerTurn = g > 0 ? [{ type: 'Gold', amount: g }] : [];
+    }
+    if (!Array.isArray(bld.incomeConstant))       bld.incomeConstant = [];
+    if (!Array.isArray(bld.spendConstant))        bld.spendConstant = [];
+    if (bld.buildingRadius === undefined)         bld.buildingRadius = 0;
+    if (!Array.isArray(bld.canProduce))           bld.canProduce = [];
+    if (!Array.isArray(bld.availableTilesForProduce)) bld.availableTilesForProduce = [];
+    if (!Array.isArray(bld.productionFacilities)) bld.productionFacilities = [];
+    if (!Array.isArray(bld.stores))               bld.stores = [];
+    return bld;
   }
 
   function _esc(s) {
@@ -7475,6 +7538,7 @@ const BldDB = (() => {
     try {
       const parsed = JSON.parse(json);
       if (!parsed.buildings || !Array.isArray(parsed.buildings)) throw new Error('No "buildings" array');
+      parsed.buildings.forEach(_migrate);
       _data = parsed;
       _autoSave();
       _selFilt = -1;
@@ -7506,7 +7570,10 @@ const BldDB = (() => {
       const saved = localStorage.getItem('blddb_autosave');
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed && Array.isArray(parsed.buildings)) _data = parsed;
+        if (parsed && Array.isArray(parsed.buildings)) {
+          parsed.buildings.forEach(_migrate);
+          _data = parsed;
+        }
       }
     } catch(e) {}
     _applyFilter(); _buildList();
@@ -7549,7 +7616,8 @@ const BldDB = (() => {
     });
   }
 
-  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad };
+  function getJson() { return JSON.stringify(_data, null, 2); }
+  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad, getJson };
 })();
 
 // ── SttDB Module ───────────────────────────────────────────
