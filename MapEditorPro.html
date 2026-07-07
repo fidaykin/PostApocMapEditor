@@ -1856,7 +1856,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.03";
-const COMMIT  = "e65c265";
+const COMMIT  = "bf463f3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9286,7 +9286,7 @@ function getCityRow() { return Math.floor((MAP_HEIGHT - 1) / 2); }
 function _hexDistFromCity(col, row) {
   const wx = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
   const wy = col - Math.floor(MAP_WIDTH  / 2);
-  return hexDist(wx, wy);
+  return Canvas.hexDist(wx, wy);
 }
 
 // Hex distance between two arbitrary grid cells (cube-coordinate formula).
