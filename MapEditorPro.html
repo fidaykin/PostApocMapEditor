@@ -3314,6 +3314,8 @@ const History = (() => {
       grid:        mapData.slice(),
       settlements: settlements.map(s => Object.assign({}, s)),
       slots:       settlementSlots.map(s => Object.assign({}, s)),
+      p1:          [...settlementPriority1],
+      p2:          [...settlementPriority2],
       zoneLayer:   zl ? zl.slice() : null,
       bridges:     bridgesData.map(b => Object.assign({}, b)),
     };
@@ -3323,6 +3325,8 @@ const History = (() => {
     for (let i = 0; i < snap.grid.length; i++) mapData[i] = snap.grid[i];
     settlements = (snap.settlements || []).map(s => Object.assign({}, s));
     settlementSlots = (snap.slots || []).map(s => Object.assign({}, s));
+    if (snap.p1) settlementPriority1 = [...snap.p1];
+    if (snap.p2) settlementPriority2 = [...snap.p2];
     if (snap.zoneLayer && typeof ZonePainter !== 'undefined') {
       const zl = ZonePainter.getZoneLayer();
       if (zl && zl.length === snap.zoneLayer.length) zl.set(snap.zoneLayer);
@@ -4640,7 +4644,7 @@ const UI = (() => {
       addBtn.replaceWith(addBtn.cloneNode(true)); // remove old listener
       document.getElementById('slot-add').addEventListener('click', () => {
         History.push();
-        settlementSlots.push({ minDist: 10, maxDist: 20, count: 1, type: 'settlement', tapMultiplier: 1 });
+        settlementSlots.push({ minDist: 10, maxDist: 20, count: 1, type: 'settlement', tapMultiplier: 1, level: 1, minSpacing: 2, nearPct: 20, midPct: 30, farPct: 50 });
         rebuildSlotPanel(); IO.scheduleAutoSave(); Canvas.render();
       });
     }
@@ -4953,8 +4957,17 @@ const IO = (() => {
         maxDist:       s.maxDist,
         count:         s.count,
         type:          s.type,
-        tapMultiplier: s.tapMultiplier ?? 1
+        tapMultiplier: s.tapMultiplier ?? 1,
+        level:         s.level         ?? 1,
+        minSpacing:    s.minSpacing    ?? 2,
+        nearPct:       s.nearPct       ?? 20,
+        midPct:        s.midPct        ?? 30,
+        farPct:        s.farPct        ?? 50
       }));
+    result.settlement_priorities = {
+      p1: [...settlementPriority1],
+      p2: [...settlementPriority2]
+    };
     const zoneData = ZonePainter.toSaveObject();
     if (zoneData.zones && zoneData.zones.length > 0) {
       result.zones        = zoneData.zones;
@@ -5024,9 +5037,21 @@ const IO = (() => {
             maxDist:       s.maxDist       ?? 20,
             count:         s.count         ?? 1,
             type:          s.type          ?? 'settlement',
-            tapMultiplier: s.tapMultiplier ?? 1
+            tapMultiplier: s.tapMultiplier ?? 1,
+            level:         s.level         ?? 1,
+            minSpacing:    s.minSpacing    ?? 2,
+            nearPct:       s.nearPct       ?? 20,
+            midPct:        s.midPct        ?? 30,
+            farPct:        s.farPct        ?? 50
           }))
         : [];
+      if (json.settlement_priorities) {
+        if (Array.isArray(json.settlement_priorities.p1)) settlementPriority1 = [...json.settlement_priorities.p1];
+        if (Array.isArray(json.settlement_priorities.p2)) settlementPriority2 = [...json.settlement_priorities.p2];
+      } else {
+        settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
+        settlementPriority2 = ['Forest_1', 'Barren_1', 'Hills_1', 'Swamp_1'];
+      }
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
       if (typeof ZonePainter !== 'undefined') {
         ZonePainter.fromSaveObject({
@@ -5173,9 +5198,21 @@ const IO = (() => {
             maxDist:       s.maxDist       ?? 20,
             count:         s.count         ?? 1,
             type:          s.type          ?? 'settlement',
-            tapMultiplier: s.tapMultiplier ?? 1
+            tapMultiplier: s.tapMultiplier ?? 1,
+            level:         s.level         ?? 1,
+            minSpacing:    s.minSpacing    ?? 2,
+            nearPct:       s.nearPct       ?? 20,
+            midPct:        s.midPct        ?? 30,
+            farPct:        s.farPct        ?? 50
           }))
         : [];
+      if (json.settlement_priorities) {
+        if (Array.isArray(json.settlement_priorities.p1)) settlementPriority1 = [...json.settlement_priorities.p1];
+        if (Array.isArray(json.settlement_priorities.p2)) settlementPriority2 = [...json.settlement_priorities.p2];
+      } else {
+        settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
+        settlementPriority2 = ['Forest_1', 'Barren_1', 'Hills_1', 'Swamp_1'];
+      }
       if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
       if (typeof ZonePainter !== 'undefined') {
         ZonePainter.init();  // resize zoneLayer to match new MAP_WIDTH/MAP_HEIGHT
@@ -9140,7 +9177,9 @@ function getSatelliteAnchor(col, row) {
 
 function invalidateSatelliteMap() { _satelliteMap = null; }
 let settlements = [];
-let settlementSlots = []; // [{minDist,maxDist,count,type}]
+let settlementSlots = []; // [{minDist,maxDist,count,type,tapMultiplier,level,minSpacing,nearPct,midPct,farPct}]
+let settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
+let settlementPriority2 = ['Forest_1', 'Barren_1', 'Hills_1', 'Swamp_1'];
 let settlementsVisible = true;
 let _toolsRectPreview = null;
 
@@ -9152,6 +9191,105 @@ const STAGGER   = ROW_PITCH / 2;
 
 function getCityCol() { return Math.floor(MAP_WIDTH  / 2); }
 function getCityRow() { return Math.floor((MAP_HEIGHT - 1) / 2); }
+
+// Convert map grid (col,row) to hex distance from city center.
+// Uses the same coordinate transform as the ring-overlay renderer.
+function _hexDistFromCity(col, row) {
+  const wx = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
+  const wy = col - Math.floor(MAP_WIDTH  / 2);
+  return hexDist(wx, wy);
+}
+
+// Hex distance between two arbitrary grid cells (cube-coordinate formula).
+function _hexDistBetween(col1, row1, col2, row2) {
+  function toAxial(c, r) {
+    const wx = (MAP_HEIGHT - 1 - r) - Math.floor(MAP_HEIGHT / 2);
+    const wy = c - Math.floor(MAP_WIDTH  / 2);
+    return { q: wx, r: wy - (wx - (wx & 1)) / 2 };
+  }
+  const a = toAxial(col1, row1), b = toAxial(col2, row2);
+  const dq = a.q - b.q, dr = a.r - b.r;
+  return Math.max(Math.abs(dq), Math.abs(dr), Math.abs(dq + dr));
+}
+
+function _fisherYates(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function autoPlaceSettlements() {
+  if (!settlementSlots.length) { UI.toast('No settlement slots defined.'); return; }
+  History.push();
+
+  // Remove all non-city settlements, keep city marker
+  settlements = settlements.filter(s => s.type === 'city');
+
+  let totalPlaced = 0;
+  // occupied grows across slots so spacing is enforced globally
+  const occupied = settlements.map(s => ({ col: s.col, row: s.row }));
+
+  settlementSlots.forEach(slot => {
+    const minD    = slot.minDist    ?? 0;
+    const maxD    = slot.maxDist    ?? 20;
+    const count   = Math.max(1, slot.count ?? 1);
+    const type    = slot.type       || 'settlement';
+    const level   = slot.level      ?? 1;
+    const minSp   = slot.minSpacing ?? 2;
+    const nearPct = (slot.nearPct   ?? 20) / 100;
+    const midPct  = (slot.midPct    ?? 30) / 100;
+    const farPct  = (slot.farPct    ?? 50) / 100;
+
+    // Divide the distance range into 3 equal bands
+    const span = Math.max(1, maxD - minD);
+    const t1   = minD + span / 3;
+    const t2   = minD + span * 2 / 3;
+    const bands = [[], [], []]; // [near, mid, far]
+
+    for (let row = 0; row < MAP_HEIGHT; row++) {
+      for (let col = 0; col < MAP_WIDTH; col++) {
+        const d = _hexDistFromCity(col, row);
+        if (d < minD || d > maxD) continue;
+        const hexId = mapData[row * MAP_WIDTH + col];
+        const isP1  = settlementPriority1.includes(hexId);
+        const isP2  = !isP1 && settlementPriority2.includes(hexId);
+        if (!isP1 && !isP2) continue;
+        bands[d < t1 ? 0 : d < t2 ? 1 : 2].push({ col, row, pri: isP1 ? 1 : 2 });
+      }
+    }
+
+    // Within each band: P1 first (shuffled), then P2 (shuffled)
+    bands.forEach(b => {
+      const p1 = _fisherYates(b.filter(h => h.pri === 1));
+      const p2 = _fisherYates(b.filter(h => h.pri === 2));
+      b.length = 0; b.push(...p1, ...p2);
+    });
+
+    // Allocate target counts per band, guarantee they sum to `count`
+    const nCount = Math.round(count * nearPct);
+    const fCount = Math.round(count * farPct);
+    const mCount = count - nCount - fCount;
+
+    [[0, nCount], [1, mCount], [2, fCount]].forEach(([bi, needed]) => {
+      let placed = 0;
+      for (const hex of bands[bi]) {
+        if (placed >= needed) break;
+        if (occupied.some(o => _hexDistBetween(hex.col, hex.row, o.col, o.row) < minSp)) continue;
+        settlements.push({ col: hex.col, row: hex.row, type, level });
+        occupied.push({ col: hex.col, row: hex.row });
+        placed++;
+        totalPlaced++;
+      }
+    });
+  });
+
+  UI.updateSettlementCount();
+  IO.scheduleAutoSave();
+  Canvas.render();
+  UI.toast(`Auto-placed ${totalPlaced} settlements`);
+}
 
 window.addEventListener('load', async () => {
   ZonePainter.init();
