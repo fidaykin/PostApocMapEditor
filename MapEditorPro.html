@@ -8691,7 +8691,7 @@ const UpgDB = (() => {
             </div>
             <div class="hexdb-row"><span class="hexdb-label">Type Ico</span>
               <input class="hexdb-input" id="upg-f-typeIco"
-                value="${_esc(upg.typeIco)}" placeholder="icon path (auto from type)" style="flex:1">
+                value="${_esc(upg.typeIco)}" placeholder="icon path" style="flex:1">
             </div>
             <div class="hexdb-row"><span class="hexdb-label">Upgrade Ico</span>
               <input class="hexdb-input" id="upg-f-upgradeIco"
@@ -8967,29 +8967,53 @@ const UpgDB = (() => {
 
     const search = document.getElementById('upg-search');
     if (search) search.addEventListener('input', e => {
+      const prevDataIdx = _selFilt >= 0 ? _filtered[_selFilt] : -1;
       _filter.search = e.target.value;
       _applyFilter();
-      if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+      _selFilt = prevDataIdx >= 0 ? _filtered.indexOf(prevDataIdx) : -1;
       _buildList();
-      if (_selFilt >= 0) _selectIdx(_selFilt);
+      if (_selFilt >= 0) {
+        _selectIdx(_selFilt);
+      } else {
+        const right = document.getElementById('upg-right');
+        if (right) right.innerHTML =
+          '<div class="hexdb-empty"><div>Drop upgrade_database.json here</div>' +
+          '<div>or use <button class="hexdb-empty-btn" onclick="UpgDB.triggerLoad()">📂 Load DB</button></div></div>';
+      }
     });
 
     const filterType = document.getElementById('upg-filter-type');
     if (filterType) filterType.addEventListener('change', e => {
+      const prevDataIdx = _selFilt >= 0 ? _filtered[_selFilt] : -1;
       _filter.type = e.target.value;
       _applyFilter();
-      if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+      _selFilt = prevDataIdx >= 0 ? _filtered.indexOf(prevDataIdx) : -1;
       _buildList();
-      if (_selFilt >= 0) _selectIdx(_selFilt);
+      if (_selFilt >= 0) {
+        _selectIdx(_selFilt);
+      } else {
+        const right = document.getElementById('upg-right');
+        if (right) right.innerHTML =
+          '<div class="hexdb-empty"><div>Drop upgrade_database.json here</div>' +
+          '<div>or use <button class="hexdb-empty-btn" onclick="UpgDB.triggerLoad()">📂 Load DB</button></div></div>';
+      }
     });
 
     const filterParams = document.getElementById('upg-filter-params');
     if (filterParams) filterParams.addEventListener('change', e => {
+      const prevDataIdx = _selFilt >= 0 ? _filtered[_selFilt] : -1;
       _filter.params = e.target.value;
       _applyFilter();
-      if (_selFilt >= _filtered.length) _selFilt = _filtered.length - 1;
+      _selFilt = prevDataIdx >= 0 ? _filtered.indexOf(prevDataIdx) : -1;
       _buildList();
-      if (_selFilt >= 0) _selectIdx(_selFilt);
+      if (_selFilt >= 0) {
+        _selectIdx(_selFilt);
+      } else {
+        const right = document.getElementById('upg-right');
+        if (right) right.innerHTML =
+          '<div class="hexdb-empty"><div>Drop upgrade_database.json here</div>' +
+          '<div>or use <button class="hexdb-empty-btn" onclick="UpgDB.triggerLoad()">📂 Load DB</button></div></div>';
+      }
     });
 
     const main = document.getElementById('upgrades-main');
