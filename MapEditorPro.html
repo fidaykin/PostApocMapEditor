@@ -1856,7 +1856,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.03";
-const COMMIT  = "def4eca";
+const COMMIT  = "e65c265";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9312,6 +9312,7 @@ function _fisherYates(arr) {
 function autoPlaceSettlements() {
   if (!settlementSlots.length) { UI.toast('No settlement slots defined.'); return; }
   History.push();
+  settlementsVisible = true;
 
   // Remove all non-city settlements, keep city marker
   settlements = settlements.filter(s => s.type === 'city');
