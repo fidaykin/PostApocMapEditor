@@ -7557,8 +7557,8 @@ const BldDB = (() => {
       <div class="hexdb-section-body" data-sec="destroy" style="display:${bod('destroy')}">
         <div class="hexdb-row"><span class="hexdb-label">Hex Can be Destroyed</span>
           <input id="bld-f-canDestroy" type="checkbox"${canDes ? ' checked' : ''}></div>
-        <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Transform to <span class="hexdb-info" title="Parents = tile under the building">ⓘ</span></span>
-          <div style="display:flex;gap:6px;flex:1">
+        <div class="hexdb-row"><span class="hexdb-label">Transform to <span class="hexdb-info" title="Parents = tile under the building">ⓘ</span></span>
+          ${canDes ? `<div style="display:flex;gap:6px;flex:1">
             <select class="hexdb-select" id="bld-f-destroyTransformToMode">
               <option${bld.destroyTransformToMode === 'Parents' ? ' selected' : ''}>Parents</option>
               <option${bld.destroyTransformToMode === 'HexID'   ? ' selected' : ''}>HexID</option>
@@ -7566,7 +7566,7 @@ const BldDB = (() => {
             <input class="hexdb-input" id="bld-f-destroyTransformTo" type="text" placeholder="Tile ID"
               value="${_esc(bld.destroyTransformTo)}"
               style="flex:1${bld.destroyTransformToMode === 'Parents' ? ';display:none' : ''}">
-          </div></div>
+          </div>` : `<input class="hexdb-input" value="Unbreakable" style="width:160px" disabled>`}</div>
         <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Source <span class="hexdb-info" title="Action IDs that can destroy this. Configure in Actions Editor.">ⓘ</span></span>
           ${_tagsHTML('destroySources', bld.destroySources, !canDes)}</div>
         <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Move to Storage on Destroy <span class="hexdb-info" title="YES: goes to Hex Storage; cost not charged, no income.">ⓘ</span></span>
