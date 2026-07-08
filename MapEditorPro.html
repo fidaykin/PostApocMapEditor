@@ -978,6 +978,39 @@ body.mode-keys        #keys-tools  { display: flex; }
 .publish-btn:hover { background: #2a5a3a; }
 .publish-btn:disabled { opacity: .4; cursor: wait; }
 
+/* ── Publish dropdown ───────────────────────────────────── */
+.pub-drop-wrap {
+  position: relative;
+  margin-left: 6px;
+}
+.pub-drop-wrap > .publish-btn { margin-left: 0; }
+.pub-drop {
+  display: none;
+  position: absolute;
+  top: calc(100% + 3px);
+  right: 0;
+  background: #1a2332;
+  border: 1px solid #4a9;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0,0,0,.6);
+  z-index: 500;
+  min-width: 190px;
+  padding: 3px 0;
+}
+.pub-drop-wrap.open .pub-drop { display: block; }
+.pub-drop button {
+  display: block; width: 100%;
+  padding: 6px 12px;
+  background: none; border: none;
+  color: #4a9; font-size: 12px;
+  text-align: left; cursor: pointer;
+  white-space: nowrap;
+}
+.pub-drop button:hover { background: #1a3a2a; }
+.pub-drop button:disabled { opacity: .4; cursor: wait; }
+.pub-drop-sep { border-top: 1px solid #2a4a3a; margin: 3px 0; }
+.pub-drop-sub { font-size: 10px; color: #678; margin-left: 6px; }
+
 /* ── Drive Maps Popover ──────────────────────────────── */
 #drive-maps-popover {
   display: none;
@@ -1196,10 +1229,16 @@ body.mode-keys        #keys-tools  { display: flex; }
     <span id="google-auth-status" title="Google Drive login status">🔴 Not signed in</span>
     <button class="publish-btn" id="btn-google-login" onclick="DriveSync.signIn()" title="Sign in to Google to enable Drive sync">Sign in to Google</button>
     <button class="publish-btn" id="btn-sync-drive"  onclick="DriveSync.syncFromDrive()" title="Force re-download HexDB + all custom sprites from Drive">☁ Sync</button>
-    <button class="publish-btn" id="btn-publish-db"  onclick="DriveSync.publishDb()"     title="Upload HexDB + sprites to Google Drive">☁ Publish DB</button>
-    <button class="publish-btn" id="btn-publish-bld" onclick="DriveSync.publishBuildingsDb()" title="Upload building_database.json to Google Drive">☁ Publish Buildings DB</button>
-    <button class="publish-btn" id="btn-publish-upg" onclick="DriveSync.publishUpgradeDb()" title="Upload upgrade_database.json to Google Drive">☁ Publish Upgrade DB</button>
-    <button class="publish-btn" id="btn-publish-map" onclick="DriveSync.publishMap()"    title="Upload current map to Google Drive">☁ Publish Map</button>
+    <div class="pub-drop-wrap" id="pub-drop-wrap">
+      <button class="publish-btn" id="btn-publish-all" onclick="DriveSync.togglePublishDropdown(event)" title="Publish to Google Drive">☁ Publish ▾</button>
+      <div class="pub-drop" id="pub-drop">
+        <button onclick="DriveSync.publishDb()">☁ Publish DB<span class="pub-drop-sub">HexDB + sprites</span></button>
+        <button onclick="DriveSync.publishBuildingsDb()">☁ Publish Buildings DB</button>
+        <button onclick="DriveSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
+        <div class="pub-drop-sep"></div>
+        <button onclick="DriveSync.publishMap()">☁ Publish Map</button>
+      </div>
+    </div>
     <button class="publish-btn" id="btn-drive-maps"  onclick="DriveSync.openMapsPopover()" title="Browse and load maps from Google Drive">☁ Maps ▾</button>
   </div>
 
@@ -1858,7 +1897,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.03";
-const COMMIT  = "75d1411";
+const COMMIT  = "ab37615";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3931,8 +3970,18 @@ const DriveSync = (() => {
   }
 
   // ── Publish HexDB + sprites ───────────────────────────────
+  function togglePublishDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('pub-drop-wrap').classList.toggle('open');
+  }
+
+  function _closePublishDropdown() {
+    document.getElementById('pub-drop-wrap')?.classList.remove('open');
+  }
+
   async function publishDb() {
-    const btn = document.getElementById('btn-publish-db');
+    _closePublishDropdown();
+    const btn = document.getElementById('btn-publish-all');
     if (btn) btn.disabled = true;
     try {
       UI.toast('Authenticating with Google…');
@@ -4005,6 +4054,7 @@ const DriveSync = (() => {
 
   // ── Publish Map ───────────────────────────────────────────
   async function publishMap() {
+    _closePublishDropdown();
     const mapJson = IO.getMapJson();
     if (!mapJson) { UI.toast('No map to publish'); return; }
 
@@ -4014,7 +4064,7 @@ const DriveSync = (() => {
     _lastMapName = fname;
     localStorage.setItem('driveLastMapName', _lastMapName);
 
-    const btn = document.getElementById('btn-publish-map');
+    const btn = document.getElementById('btn-publish-all');
     if (btn) btn.disabled = true;
     try {
       UI.toast('Authenticating with Google…');
@@ -4255,7 +4305,8 @@ const DriveSync = (() => {
   }
 
   async function publishBuildingsDb() {
-    const btn = document.getElementById('btn-publish-bld');
+    _closePublishDropdown();
+    const btn = document.getElementById('btn-publish-all');
     if (btn) btn.disabled = true;
     try {
       UI.toast('Authenticating…');
@@ -4277,7 +4328,8 @@ const DriveSync = (() => {
   }
 
   async function publishUpgradeDb() {
-    const btn = document.getElementById('btn-publish-upg');
+    _closePublishDropdown();
+    const btn = document.getElementById('btn-publish-all');
     if (btn) btn.disabled = true;
     try {
       UI.toast('Authenticating…');
@@ -4301,7 +4353,8 @@ const DriveSync = (() => {
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
            pushSprite, publishDb, publishLoc, loadLocFromDrive, publishMap, setDbSource,
            syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
-           loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb };
+           loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb,
+           togglePublishDropdown };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -4333,6 +4386,8 @@ const UI = (() => {
     // Click outside menu closes menus
     document.addEventListener('click', e => {
       if (!e.target.closest('.menu-item')) closeAllMenus();
+      if (!e.target.closest('.pub-drop-wrap'))
+        document.getElementById('pub-drop-wrap')?.classList.remove('open');
     });
     // Menu item toggle
     document.querySelectorAll('.menu-item').forEach(item => {
@@ -4793,6 +4848,7 @@ const UI = (() => {
 
   function closeAllMenus() {
     document.querySelectorAll('.menu-item.open').forEach(m => m.classList.remove('open'));
+    document.getElementById('pub-drop-wrap')?.classList.remove('open');
   }
 
   function showConfirm(title, msg, onOk) {
