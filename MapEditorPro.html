@@ -1898,7 +1898,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.03";
-const COMMIT  = "ad1a54f";
+const COMMIT  = "5bc661d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6135,6 +6135,7 @@ const LocalizationKeys = (() => {
   const LS_KEY = 'loc_entries';
   let _entries = []; // [{key, en, uk}]
   let _filterText = '';
+  let _driveKeysSet = null; // Set of keys fetched from Drive; non-null = compare mode active
 
   // ── Load ──────────────────────────────────────────────────
 
@@ -6245,10 +6246,75 @@ const LocalizationKeys = (() => {
 
   // ── Modal ─────────────────────────────────────────────────
 
+  // ── Import JSON ───────────────────────────────────────────
+
+  function importJson() {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json,application/json';
+    input.onchange = async () => {
+      const file = input.files[0];
+      if (!file) return;
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        const incoming = (data.entries || []).filter(e => e.key);
+        if (!incoming.length) { UI.toast('No entries found in imported file'); return; }
+        const existingKeys = new Set(_entries.map(e => e.key));
+        const newEntries = incoming.filter(e => !existingKeys.has(e.key));
+        _entries = [..._entries, ...newEntries];
+        _save();
+        _populateDatalist();
+        _renderList();
+        UI.toast(`✅ Imported: ${newEntries.length} new keys added (${incoming.length - newEntries.length} already existed)`);
+      } catch(e) {
+        UI.toast('❌ Import failed: ' + e.message);
+      }
+    };
+    input.click();
+  }
+
+  // ── Compare with Drive ────────────────────────────────────
+
+  async function compareWithDrive() {
+    const btn = document.getElementById('loc-btn-compare');
+    // Toggle off
+    if (_driveKeysSet) {
+      _driveKeysSet = null;
+      if (btn) { btn.textContent = '🔍 Compare'; btn.style.background = '#5c6bc0'; }
+      _renderList();
+      return;
+    }
+    if (btn) btn.disabled = true;
+    try {
+      UI.toast('Fetching Drive localization for comparison…');
+      const data = await DriveSync.loadLocFromDrive();
+      const driveKeys = new Set((data.entries || []).filter(e => e.key).map(e => e.key));
+      _driveKeysSet = driveKeys;
+      const missingCount = _entries.filter(e => !driveKeys.has(e.key)).length;
+      _renderList();
+      if (btn) {
+        btn.textContent = `⚠ ${missingCount} missing · ✕`;
+        btn.style.background = missingCount > 0 ? '#c62828' : '#2e7d32';
+      }
+      UI.toast(missingCount > 0
+        ? `⚠ ${missingCount} local keys not on Drive`
+        : '✅ All local keys exist on Drive');
+    } catch(e) {
+      UI.toast('❌ Compare failed: ' + e.message);
+      _driveKeysSet = null;
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   function openManager() {
     const modal = document.getElementById('loc-keys-modal');
     if (!modal) return;
     _filterText = '';
+    _driveKeysSet = null;
+    const btn = document.getElementById('loc-btn-compare');
+    if (btn) { btn.textContent = '🔍 Compare'; btn.style.background = '#5c6bc0'; }
     document.getElementById('loc-keys-search').value = '';
     modal.style.display = 'flex';
     _renderList();
@@ -6267,11 +6333,13 @@ const LocalizationKeys = (() => {
   function _renderList() {
     const container = document.getElementById('loc-keys-list');
     if (!container) return;
-    const visible = _filterText
-      ? _entries.filter(e => e.key.toLowerCase().includes(_filterText) || e.en.toLowerCase().includes(_filterText))
+    let visible = _filterText
+      ? _entries.filter(e => e.key.toLowerCase().includes(_filterText) || (e.en||'').toLowerCase().includes(_filterText))
       : _entries;
+    // Compare mode: show only keys absent from Drive
+    if (_driveKeysSet) visible = visible.filter(e => !_driveKeysSet.has(e.key));
     container.innerHTML = visible.map(e => `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:4px;align-items:center;padding:3px 0;border-bottom:1px solid #333">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:4px;align-items:center;padding:3px 0 3px 5px;border-bottom:1px solid #333${_driveKeysSet ? ';border-left:3px solid #ef5350' : ''}">
         <span style="color:#aaa;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_ea(e.key)}">${_ex(e.key)}</span>
         <input type="text" value="${_ea(e.en)}" placeholder="EN"
           style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px;width:100%"
@@ -6316,6 +6384,9 @@ const LocalizationKeys = (() => {
       const existingKeys = new Set(_entries.map(e => e.key));
       const extra = incoming.filter(e => !existingKeys.has(e.key));
       _entries = _entries.map(e => map[e.key]).concat(extra);
+      _driveKeysSet = null;
+      const cmpBtn = document.getElementById('loc-btn-compare');
+      if (cmpBtn) { cmpBtn.textContent = '🔍 Compare'; cmpBtn.style.background = '#5c6bc0'; }
       _save();
       _populateDatalist();
       _renderList();
@@ -6330,7 +6401,8 @@ const LocalizationKeys = (() => {
   function getKeys() { return _entries.map(e => e.key); }
   function getEntries() { return _entries; }
 
-  return { load, getKeys, getEntries, add, remove, downloadJson, pushToDrive, pullFromDrive, openManager, closeManager, filterList, _updateField };
+  return { load, getKeys, getEntries, add, remove, downloadJson, importJson, compareWithDrive,
+           pushToDrive, pullFromDrive, openManager, closeManager, filterList, _updateField };
 })();
 
 // ── BiomeManager ───────────────────────────────────────────
@@ -9595,6 +9667,10 @@ window.addEventListener('load', async () => {
           style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">☁ Pull</button>
         <button id="loc-btn-push" onclick="LocalizationKeys.pushToDrive()"
           style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">☁ Push</button>
+        <button onclick="LocalizationKeys.importJson()"
+          style="background:#37474f;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Import a local localization.json — adds new keys only">⬆ Import</button>
+        <button id="loc-btn-compare" onclick="LocalizationKeys.compareWithDrive()"
+          style="background:#5c6bc0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Show keys present locally but missing from Drive">🔍 Compare</button>
         <button onclick="LocalizationKeys.downloadJson()"
           style="background:#2e7d32;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">⬇ JSON</button>
         <button onclick="LocalizationKeys.closeManager()"
