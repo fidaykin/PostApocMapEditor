@@ -1233,6 +1233,7 @@ body.mode-keys        #keys-tools  { display: flex; }
       <button class="publish-btn" id="btn-publish-all" onclick="DriveSync.togglePublishDropdown(event)" title="Publish to Google Drive">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
         <button onclick="DriveSync.publishDb()">☁ Publish DB<span class="pub-drop-sub">HexDB + sprites</span></button>
+        <button onclick="DriveSync.publishHexDbOnly()">☁ Publish HexDB only<span class="pub-drop-sub">no sprites</span></button>
         <button onclick="DriveSync.publishBuildingsDb()">☁ Publish Buildings DB</button>
         <button onclick="DriveSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
         <div class="pub-drop-sep"></div>
@@ -1897,7 +1898,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.03";
-const COMMIT  = "ab37615";
+const COMMIT  = "ad1a54f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4350,9 +4351,49 @@ const DriveSync = (() => {
     }
   }
 
+  // ── Publish HexDB only (no sprites) ──────────────────────────
+  async function publishHexDbOnly() {
+    _closePublishDropdown();
+    const btn = document.getElementById('btn-publish-all');
+    if (btn) btn.disabled = true;
+    try {
+      UI.toast('Authenticating with Google…');
+      await authenticate();
+      UI.progress(10, 'Preparing…');
+
+      const fid      = await _hexFolder();
+      const hexFiles = await _listFiles(fid);
+      const byName   = Object.fromEntries(hexFiles.map(f => [f.name, f.id]));
+      const hashes   = _loadHashes();
+
+      const hexDb      = HexDB.getData();
+      const hexContent = JSON.stringify(hexDb, null, 2);
+      const hexHash    = _strHash(hexContent);
+      if (hashes['hex_database.json'] !== hexHash) {
+        UI.progress(50, 'Uploading hex_database.json…');
+        UI.toast('Uploading hex_database.json…');
+        await _uploadFile(fid, 'hex_database.json', hexContent, 'application/json', byName['hex_database.json']);
+        hashes['hex_database.json'] = hexHash;
+        _saveHashes(hashes);
+        setDbSource('drive');
+        UI.progressDone('✅ HexDB published');
+        UI.toast('✅ hex_database.json published');
+      } else {
+        UI.progressDone('✅ HexDB unchanged');
+        UI.toast('✅ hex_database.json unchanged — skipped');
+      }
+    } catch(e) {
+      UI.progressDone('❌ Failed');
+      UI.toast('❌ Publish HexDB failed: ' + e.message);
+      console.error('[DriveSync] publishHexDbOnly error:', e);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
-           pushSprite, publishDb, publishLoc, loadLocFromDrive, publishMap, setDbSource,
-           syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
+           pushSprite, publishDb, publishHexDbOnly, publishLoc, loadLocFromDrive, publishMap,
+           setDbSource, syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
            loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb,
            togglePublishDropdown };
 })();
