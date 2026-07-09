@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.09.5c3bf3a</title>
+<title>Post Apo Map Editor 2026.07.09.ec18f59</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1898,7 +1898,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "5c3bf3a";
+const COMMIT  = "ec18f59";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7057,6 +7057,7 @@ const HexDB = (() => {
     const actionsHTML = `<div class="hexdb-actions">
   <button onclick="HexDB.copy()">Copy</button>
   <button onclick="HexDB.paste()">Paste</button>
+  <button onclick="HexDB.migrateToBuilding()" title="Move this hex record to Buildings DB">Migrate →🏗</button>
 </div>`;
 
     const hexIdDatalist = '<datalist id="hexdb-id-list">' +
@@ -7697,7 +7698,105 @@ const HexDB = (() => {
     if (el && _data.common?.goldPerTap) el.value = _data.common.goldPerTap;
   }
 
-  return { init, add, deleteSelected, copy, paste, load, loadFromObject, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap };
+  function migrateToBuilding() {
+    if (_selFilt < 0 || _selFilt >= _filtered.length) return;
+    const realIdx = _filtered[_selFilt];
+    const hex = _data.hexes[realIdx];
+    const label = hex.id || '(unnamed)';
+
+    UI.showConfirm('Migrate to Buildings DB',
+      `Move "${label}" from HexDB → BldDB and remove from HexDB?`,
+      () => {
+        // Derive category from hex id
+        const lid = (hex.id || '').toLowerCase();
+        let buildingCategory = 'Standard';
+        if (/bridge/.test(lid))       buildingCategory = 'Bridge';
+        else if (/road/.test(lid))    buildingCategory = 'Road';
+        else if (/ship|boat/.test(lid)) buildingCategory = 'Ship';
+
+        // Derive building type from hex group
+        const bldType = (hex.type || '') === 'Water' ? 'Water Building' : 'Ground Building';
+
+        const newBld = {
+          id: hex.id || '',
+          textId: hex.textId || '',
+          descIdleId: hex.descriptionIdleId || '',
+          descBuildId: hex.descriptionBuildId || '',
+          type: bldType,
+          buildingCategory,
+          biome: hex.biome || 'Summer',
+          filter: 'FilterBuilding',
+          spriteName: hex.spriteName || '',
+          baseCostTaps: hex.baseCostTaps ?? 0,
+          // Destroy
+          canDestroy: hex.canDestroy ?? false,
+          destroyTransformToMode: hex.destroyTransformTo ? 'Direct' : 'Parents',
+          destroyTransformTo: hex.destroyTransformTo || '',
+          destroySources: Array.isArray(hex.destroySource) ? structuredClone(hex.destroySource) : [],
+          moveToStorageOnDestroy: true,
+          resourceAwardedOnDestroy: true,
+          destroyIncome: Array.isArray(hex.destroyIncome) ? structuredClone(hex.destroyIncome) : [],
+          // Build
+          canBuild: hex.canBuild ?? false,
+          needRoad: hex.buildRequiresRoad ?? false,
+          availableTiles: Array.isArray(hex.buildAvailableTiles) ? structuredClone(hex.buildAvailableTiles) : [],
+          minLevel: hex.buildMinLevel ?? 1,
+          price: Array.isArray(hex.buildPrice) ? structuredClone(hex.buildPrice) : [],
+          premiumPrice: hex.buildPremiumPrice ?? 0,
+          additionalBuildCondition: false,
+          tilesTypeMode: 'Parents',
+          tilesTypeValue: '',
+          radius: 0,
+          // Income
+          hexEarnsOnTap: hex.tapIncomeEnabled ?? false,
+          destroyableByTap: hex.destroyable ?? false,
+          incomeTransformToMode: hex.incomeTransformTo ? 'Direct' : 'Parents',
+          incomeTransformTo: hex.incomeTransformTo || '',
+          capacity: hex.incomeCapacity ?? 0,
+          getPerTap: Array.isArray(hex.incomeGetPerTap) ? structuredClone(hex.incomeGetPerTap) : [],
+          incomePerTurn: Array.isArray(hex.incomePerTurn) ? structuredClone(hex.incomePerTurn) : [],
+          incomeConstant: Array.isArray(hex.incomeConstant) ? structuredClone(hex.incomeConstant) : [],
+          spendConstant: Array.isArray(hex.spendConstant) ? structuredClone(hex.spendConstant) : [],
+          // Settings
+          buildingRadius: 0,
+          canProduceEnabled: false,
+          canProduce: [],
+          availableTilesForProduce: [],
+          canProductionFacilities: false,
+          facilityBonusType: '',
+          facilityBonusSize: 0,
+          facilityBonusTarget: 'Income Per Turn',
+          facilityBonusResources: [],
+          facilityBonusInfluenceType: 'Add',
+          productionFacilities: [],
+          canStore: false,
+          stores: [],
+          // Special
+          bonusDrop: hex.bonusDrop ?? false,
+          bonusTrigger: hex.bonusTrigger || 'Destroy',
+          bonuses: Array.isArray(hex.bonuses) ? structuredClone(hex.bonuses) : [],
+          booster: hex.booster || '',
+          effects: hex.effects || '',
+        };
+
+        // Push to BldDB and select it
+        BldDB.pushRecord(newBld);
+
+        // Remove from HexDB
+        _data.hexes.splice(realIdx, 1);
+        _autoSave();
+        _selFilt = -1;
+        _applyFilter();
+        _buildList();
+
+        // Switch to Buildings tab
+        App.setMode('buildings');
+        UI.toast(`"${label}" migrated to Buildings DB`);
+      }
+    );
+  }
+
+  return { init, add, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap };
 })();
 
 // ── BldDB Module ───────────────────────────────────────────
@@ -8498,6 +8597,14 @@ const BldDB = (() => {
     _selectIdx(_filtered.indexOf(_data.buildings.length - 1));
   }
 
+  function pushRecord(bld) {
+    _data.buildings.push(bld);
+    _autoSave();
+    _applyFilter();
+    _buildList();
+    _selectIdx(_filtered.indexOf(_data.buildings.length - 1));
+  }
+
   function deleteSelected() {
     if (_selFilt < 0) return;
     const dataIdx = _filtered[_selFilt];
@@ -8630,7 +8737,7 @@ const BldDB = (() => {
     });
   }
 
-  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad, getJson, pickSprite };
+  return { init, add, pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, pickSprite };
 })();
 
 // ── SttDB Module ───────────────────────────────────────────
