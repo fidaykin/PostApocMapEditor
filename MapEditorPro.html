@@ -1898,7 +1898,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.03";
-const COMMIT  = "5bc661d";
+const COMMIT  = "605aa6c";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7702,7 +7702,7 @@ const HexDB = (() => {
 
 // ── BldDB Module ───────────────────────────────────────────
 const BldDB = (() => {
-  const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, settings: true };
+  const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, settings: true, special: true };
 
   let _data      = { version: 1, buildings: [] };
   let _clipboard = null;
@@ -7748,6 +7748,8 @@ const BldDB = (() => {
       canProduce: [], availableTilesForProduce: [],
       productionFacilities: [],
       stores: [],
+      // Special
+      bonusDrop: false, bonusTrigger: 'Destroy', bonuses: [], booster: '', effects: '',
     };
   }
 
@@ -7794,6 +7796,11 @@ const BldDB = (() => {
     if (!Array.isArray(bld.availableTilesForProduce)) bld.availableTilesForProduce = [];
     if (!Array.isArray(bld.productionFacilities)) bld.productionFacilities = [];
     if (!Array.isArray(bld.stores))               bld.stores = [];
+    if (bld.bonusDrop === undefined)              bld.bonusDrop = false;
+    if (bld.bonusTrigger === undefined)           bld.bonusTrigger = 'Destroy';
+    if (!Array.isArray(bld.bonuses))              bld.bonuses = [];
+    if (bld.booster === undefined)                bld.booster = '';
+    if (bld.effects === undefined)                bld.effects = '';
     return bld;
   }
 
@@ -8104,6 +8111,42 @@ const BldDB = (() => {
       </div>
     </div>`;
 
+    // ── SPECIAL section ───────────────────────────────────────
+    const bdOn  = bld.bonusDrop ?? false;
+    const bdDis = bdOn ? '' : ' disabled';
+    const specialHTML = `
+    <div class="hexdb-section">
+      <div class="hexdb-section-hdr" data-sec="special">${col('special')} SPECIAL</div>
+      <div class="hexdb-section-body" data-sec="special" style="display:${bod('special')}">
+        <div class="hexdb-row">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)">
+            <input type="checkbox" id="bld-f-bonusDrop"${bdOn ? ' checked' : ''}>
+            <span>Has Bonus Drop on trigger</span>
+          </label>
+        </div>
+        <div class="hexdb-row"${!bdOn ? ' style="opacity:0.4;pointer-events:none"' : ''}>
+          <span class="hexdb-label">Triggers <span class="hexdb-info" title="Game event that triggers the bonus drop (Destroy / Reveal / Build)">ⓘ</span></span>
+          <select class="hexdb-select" id="bld-f-bonusTrigger" style="width:130px"${bdDis}>
+            <option${!bld.bonusTrigger || bld.bonusTrigger === 'Destroy' ? ' selected' : ''}>Destroy</option>
+            <option${bld.bonusTrigger === 'Reveal' ? ' selected' : ''}>Reveal</option>
+            <option${bld.bonusTrigger === 'Build'  ? ' selected' : ''}>Build</option>
+          </select>
+        </div>
+        <div class="hexdb-row"${!bdOn ? ' style="opacity:0.4;pointer-events:none"' : ''}>
+          <span class="hexdb-label">Bonuses <span class="hexdb-info" title="Resources dropped when the trigger event fires">ⓘ</span></span>
+          ${_resBlockHTML('bonuses', bld.bonuses ?? [], !bdOn)}
+        </div>
+        <div class="hexdb-row" style="opacity:0.4;pointer-events:none">
+          <span class="hexdb-label">Boosters <span class="hexdb-info" title="Reserved — future use">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-booster" style="width:200px" value="${_esc(bld.booster ?? '')}" disabled>
+        </div>
+        <div class="hexdb-row" style="opacity:0.4;pointer-events:none">
+          <span class="hexdb-label">Effects <span class="hexdb-info" title="Reserved — future use">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-effects" style="width:200px" value="${_esc(bld.effects ?? '')}" disabled>
+        </div>
+      </div>
+    </div>`;
+
     // ── Actions ───────────────────────────────────────────────
     const actionsHTML = `
     <div class="hexdb-actions">
@@ -8124,7 +8167,7 @@ const BldDB = (() => {
     </div>`;
 
     right.innerHTML = visualHTML + `<div class="hexdb-form">
-      ${mainHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${actionsHTML}
+      ${mainHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${specialHTML}${actionsHTML}
     </div>`;
 
     // ── Wire section headers ──────────────────────────────────
@@ -8160,6 +8203,7 @@ const BldDB = (() => {
       'bld-f-canBuild', 'bld-f-additionalBuildCondition', 'bld-f-tilesTypeMode',
       'bld-f-hexEarnsOnTap', 'bld-f-destroyableByTap', 'bld-f-incomeTransformToMode',
       'bld-f-buildingRadius',
+      'bld-f-bonusDrop',
     ];
     reRenderIds.forEach(id => {
       const el = g(id);
@@ -8297,6 +8341,12 @@ const BldDB = (() => {
 
     // SETTINGS
     bld.buildingRadius = Math.max(0, nv('bld-f-buildingRadius'));
+
+    // SPECIAL
+    bld.bonusDrop    = bv('bld-f-bonusDrop');
+    bld.bonusTrigger = iv('bld-f-bonusTrigger') || 'Destroy';
+    bld.booster      = iv('bld-f-booster');
+    bld.effects      = iv('bld-f-effects');
 
     // Update list row label
     const row = document.querySelector(`#bld-list .hexdb-list-row[data-filt-idx="${_selFilt}"]`);
