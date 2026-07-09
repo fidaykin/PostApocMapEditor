@@ -1898,7 +1898,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "b3aca22";
+const COMMIT  = "b59f07d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7717,6 +7717,7 @@ const BldDB = (() => {
       id: `NewBuild_${n}`,
       textId: '', descIdleId: '', descBuildId: '',
       type: 'Ground Building',
+      buildingCategory: 'Standard',
       biome: 'Summer', filter: 'FilterBuilding', spriteName: '',
       baseCostTaps: 1,
       // Destroy
@@ -7763,6 +7764,7 @@ const BldDB = (() => {
 
   function _migrate(bld) {
     if (bld.type === undefined)                   bld.type = 'Ground Building';
+    if (bld.buildingCategory === undefined)       bld.buildingCategory = 'Standard';
     if (bld.filter === undefined)                 bld.filter = bld.filterCategory ?? 'FilterBuilding';
     if (bld.baseCostTaps === undefined)           bld.baseCostTaps = 1;
     if (bld.descIdleId === undefined)             bld.descIdleId = '';
@@ -7990,6 +7992,13 @@ const BldDB = (() => {
           <select class="hexdb-select" id="bld-f-type">
             <option${bld.type === 'Ground Building' ? ' selected' : ''}>Ground Building</option>
             <option${bld.type === 'Water Building'  ? ' selected' : ''}>Water Building</option>
+          </select></div>
+        <div class="hexdb-row"><span class="hexdb-label">Category <span class="hexdb-info" title="Standard · Road · Bridge · Ship — used for Hex→Building migration">ⓘ</span></span>
+          <select class="hexdb-select" id="bld-f-buildingCategory">
+            <option${bld.buildingCategory === 'Standard' ? ' selected' : ''}>Standard</option>
+            <option${bld.buildingCategory === 'Road'     ? ' selected' : ''}>Road</option>
+            <option${bld.buildingCategory === 'Bridge'   ? ' selected' : ''}>Bridge</option>
+            <option${bld.buildingCategory === 'Ship'     ? ' selected' : ''}>Ship</option>
           </select></div>
         <div class="hexdb-row"><span class="hexdb-label">Biome <span class="hexdb-info" title="Season/biome context">ⓘ</span></span>
           <select class="hexdb-select" id="bld-f-biome">${BiomeManager.getNames().map(b =>
@@ -8416,8 +8425,9 @@ const BldDB = (() => {
     bld.textId       = iv('bld-f-textId').trim();
     bld.descIdleId   = iv('bld-f-descIdleId').trim();
     bld.descBuildId  = iv('bld-f-descBuildId').trim();
-    bld.type         = iv('bld-f-type');
-    bld.biome        = iv('bld-f-biome');
+    bld.type             = iv('bld-f-type');
+    bld.buildingCategory = iv('bld-f-buildingCategory');
+    bld.biome            = iv('bld-f-biome');
     bld.filter       = iv('bld-f-filter');
     bld.spriteName   = iv('bld-f-spriteName');
     bld.baseCostTaps = Math.max(1, nv('bld-f-baseCostTaps'));
