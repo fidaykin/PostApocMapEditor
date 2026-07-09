@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.09.ce37012</title>
+<title>Post Apo Map Editor 2026.07.09.b3aca22</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1898,7 +1898,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "ce37012";
+const COMMIT  = "b3aca22";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7741,8 +7741,8 @@ const BldDB = (() => {
       capacity: 0,
       getPerTap: [],
       incomePerTurn: [{ type: 'Gold', amount: 1 }],
-      incomeConstant: [],
-      spendConstant: [{ type: 'Pollution', amount: 1 }],
+      incomeConstant: [{ type: 'Pollution', amount: 1 }],
+      spendConstant: [],
       // Settings
       buildingRadius: 0,
       canProduceEnabled: false,
@@ -8083,10 +8083,13 @@ const BldDB = (() => {
     <div class="hexdb-section">
       <div class="hexdb-section-hdr" data-sec="income">${col('income')} INCOME</div>
       <div class="hexdb-section-body" data-sec="income" style="display:${bod('income')}">
-        <div class="hexdb-row"><span class="hexdb-label">Hex Earns on Tap</span>
-          <input id="bld-f-hexEarnsOnTap" type="checkbox"${hasTap ? ' checked' : ''}></div>
-        <div class="hexdb-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Destroyable <span class="hexdb-info" title="Destroyed after Capacity taps">ⓘ</span></span>
-          <input id="bld-f-destroyableByTap" type="checkbox"${hasTapDes ? ' checked' : ''}></div>
+        <div class="hexdb-row hexdb-checkbox-row">
+          <span class="hexdb-label"></span>
+          <input id="bld-f-hexEarnsOnTap" type="checkbox"${hasTap ? ' checked' : ''}>
+          <label>Hex Earns on Tap</label>
+          <input id="bld-f-destroyableByTap" type="checkbox"${hasTapDes ? ' checked' : ''}${!hasTap ? ' disabled' : ''}>
+          <label style="${hasTap ? '' : 'color:var(--muted)'}">Destroyable <span class="hexdb-info" title="Destroyed after Capacity taps">ⓘ</span></label>
+        </div>
         <div class="hexdb-row"${!hasTap || !hasTapDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Transform to <span class="hexdb-info" title="Parents = tile under building">ⓘ</span></span>
           <div style="display:flex;gap:6px;flex:1">
             <select class="hexdb-select" id="bld-f-incomeTransformToMode">
