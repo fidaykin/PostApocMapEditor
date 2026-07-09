@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.09.ee0a2b8</title>
+<title>Post Apo Map Editor 2026.07.09.c72ffd6</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1898,7 +1898,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "ee0a2b8";
+const COMMIT  = "c72ffd6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7745,8 +7745,16 @@ const BldDB = (() => {
       spendConstant: [{ type: 'Pollution', amount: 1 }],
       // Settings
       buildingRadius: 0,
+      canProduceEnabled: false,
       canProduce: [], availableTilesForProduce: [],
+      canProductionFacilities: false,
+      facilityBonusType: '',
+      facilityBonusSize: 0,
+      facilityBonusTarget: 'Income Per Turn',
+      facilityBonusResources: [],
+      facilityBonusInfluenceType: 'Add',
       productionFacilities: [],
+      canStore: false,
       stores: [],
       // Special
       bonusDrop: false, bonusTrigger: 'Destroy', bonuses: [], booster: '', effects: '',
@@ -7796,6 +7804,14 @@ const BldDB = (() => {
     if (!Array.isArray(bld.availableTilesForProduce)) bld.availableTilesForProduce = [];
     if (!Array.isArray(bld.productionFacilities)) bld.productionFacilities = [];
     if (!Array.isArray(bld.stores))               bld.stores = [];
+    if (bld.canProduceEnabled === undefined)       bld.canProduceEnabled = Array.isArray(bld.canProduce) && bld.canProduce.length > 0;
+    if (bld.canProductionFacilities === undefined) bld.canProductionFacilities = false;
+    if (bld.facilityBonusType === undefined)       bld.facilityBonusType = '';
+    if (bld.facilityBonusSize === undefined)       bld.facilityBonusSize = 0;
+    if (bld.facilityBonusTarget === undefined)     bld.facilityBonusTarget = 'Income Per Turn';
+    if (!Array.isArray(bld.facilityBonusResources)) bld.facilityBonusResources = [];
+    if (bld.facilityBonusInfluenceType === undefined) bld.facilityBonusInfluenceType = 'Add';
+    if (bld.canStore === undefined)                bld.canStore = Array.isArray(bld.stores) && bld.stores.length > 0;
     if (bld.bonusDrop === undefined)              bld.bonusDrop = false;
     if (bld.bonusTrigger === undefined)           bld.bonusTrigger = 'Destroy';
     if (!Array.isArray(bld.bonuses))              bld.bonuses = [];
@@ -7873,6 +7889,7 @@ const BldDB = (() => {
   // ── Resource / Tags helpers ───────────────────────────────
   const BLD_DESTROY_RES = ['Gold','Gems','Food','Lumber','Stone','Steel','Oil','Chips','Clay','Ore','Pollution'];
   const BLD_SPEND_RES   = ['Pollution','Energy','Gold','Gems','Food','Lumber','Stone','Steel','Oil','Chips','Clay'];
+  const BLD_STORE_RES   = ['Food','Lumber','Stone','Steel','Chips','Oil'];
   const BLD_RES_ICONS   = {
     Gold:'🪙', Gems:'💎', Food:'🌾', Lumber:'🪵', Stone:'🪨',
     Steel:'⚙️', Oil:'🛢️', Chips:'💻', Clay:'🏺', Ore:'⛏️',
@@ -7938,7 +7955,10 @@ const BldDB = (() => {
     const hasTapDes = bld.destroyableByTap ?? false;
     const addCond   = bld.additionalBuildCondition ?? false;
     const bldRad    = bld.buildingRadius ?? 0;
-    const hasProd   = Array.isArray(bld.canProduce) && bld.canProduce.length > 0;
+    const canProd   = bld.canProduceEnabled ?? false;
+    const canPF     = bld.canProductionFacilities ?? false;
+    const bonusType = bld.facilityBonusType ?? '';
+    const canSt     = bld.canStore ?? false;
 
     // ── MAIN section ─────────────────────────────────────────
     const mainHTML = `
@@ -8092,22 +8112,106 @@ const BldDB = (() => {
     </div>`;
 
     // ── SETTINGS section ──────────────────────────────────────
+    const bonusSizeHTML = !canPF || !bonusType ? '' : bonusType === 'Give' ? `
+        <div class="hexdb-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <span class="hexdb-label">Bonus Size</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <label style="color:var(--muted);font-size:12px">Size&nbsp;%
+              <input class="hexdb-input" id="bld-f-facilityBonusSize" type="number" step="1" min="0"
+                value="${bld.facilityBonusSize ?? 0}" style="width:70px;margin-left:4px"></label>
+            <label style="color:var(--muted);font-size:12px">Target
+              <select class="hexdb-select" id="bld-f-facilityBonusTarget" style="width:170px;margin-left:4px">
+                <option${(bld.facilityBonusTarget??'Income Per Turn')==='Income Per Turn'?' selected':''}>Income Per Turn</option>
+                <option${(bld.facilityBonusTarget??'')==='Income Spend Constant'?' selected':''}>Income Spend Constant</option>
+                <option${(bld.facilityBonusTarget??'')==='Store Size'?' selected':''}>Store Size</option>
+              </select></label>
+            <label style="color:var(--muted);font-size:12px">Influence
+              <select class="hexdb-select" id="bld-f-facilityBonusInfluenceType" style="width:110px;margin-left:4px">
+                <option${(bld.facilityBonusInfluenceType??'Add')==='Add'?' selected':''}>Add</option>
+                <option${(bld.facilityBonusInfluenceType??'')==='Multiply'?' selected':''}>Multiply</option>
+                <option${(bld.facilityBonusInfluenceType??'')==='Decrease'?' selected':''}>Decrease</option>
+              </select></label>
+          </div>
+          <div style="margin-top:2px">
+            <span style="color:var(--muted);font-size:11px">Resources</span>
+            ${_resBlockHTML('facilityBonusResources', bld.facilityBonusResources ?? [], false)}
+          </div>
+        </div>` : `
+        <div class="hexdb-row" style="flex-direction:column;align-items:flex-start;gap:6px">
+          <span class="hexdb-label">Bonus Size</span>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <label style="color:var(--muted);font-size:12px">Amount per tile
+              <input class="hexdb-input" id="bld-f-facilityBonusSize" type="number" step="1" min="0"
+                value="${bld.facilityBonusSize ?? 0}" style="width:80px;margin-left:4px"></label>
+            <label style="color:var(--muted);font-size:12px">Target
+              <select class="hexdb-select" id="bld-f-facilityBonusTarget" style="width:170px;margin-left:4px" disabled>
+                <option selected>Income Per Turn</option>
+              </select></label>
+            <label style="color:var(--muted);font-size:12px">Influence
+              <select class="hexdb-select" id="bld-f-facilityBonusInfluenceType" style="width:110px;margin-left:4px" disabled>
+                <option selected>Add</option>
+              </select></label>
+          </div>
+          <div style="margin-top:2px">
+            <span style="color:var(--muted);font-size:11px">Resources</span>
+            ${_resBlockHTML('facilityBonusResources', bld.facilityBonusResources ?? [], false)}
+          </div>
+        </div>`;
+
     const settingsHTML = `
     <div class="hexdb-section">
       <div class="hexdb-section-hdr" data-sec="settings">${col('settings')} BUILDINGS SETTINGS</div>
       <div class="hexdb-section-body" data-sec="settings" style="display:${bod('settings')}">
-        <div class="hexdb-row"><span class="hexdb-label">Building Radius <span class="hexdb-info" title="Action radius. 0 = no area effect.">ⓘ</span></span>
+
+        <div class="hexdb-row"><span class="hexdb-label">Building Radius <span class="hexdb-info" title="Action radius in tiles. 0 = own tile only.">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-buildingRadius" type="number" step="1" min="0"
             value="${bldRad}" style="width:110px"></div>
-        ${bldRad >= 1 ? `
-        <div class="hexdb-row"><span class="hexdb-label">Can Produce <span class="hexdb-info" title="IDs auto-constructed each turn in radius at 0 cost">ⓘ</span></span>
-          ${_tagsHTML('canProduce', bld.canProduce, false)}</div>
-        <div class="hexdb-row"${!hasProd ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Available Tiles for Produce <span class="hexdb-info" title="Tile types where production deposits new tiles">ⓘ</span></span>
-          ${_tagsHTML('availableTilesForProduce', bld.availableTilesForProduce, !hasProd)}</div>
-        <div class="hexdb-row"><span class="hexdb-label">Production Facilities <span class="hexdb-info" title="Tile IDs/Types in radius that boost productivity">ⓘ</span></span>
-          ${_tagsHTML('productionFacilities', bld.productionFacilities, false)}</div>` : ''}
-        <div class="hexdb-row"><span class="hexdb-label">Stores <span class="hexdb-info" title="Storage capacity this building provides per resource">ⓘ</span></span>
-          ${_resBlockHTML('stores', bld.stores, false)}</div>
+
+        <div class="hexdb-row" style="margin-top:6px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)">
+            <input type="checkbox" id="bld-f-canProduceEnabled"${canProd?' checked':''}>
+            <span>Can Produce</span>
+            <span class="hexdb-info" title="Building auto-constructs +1 tile/building per turn in radius">ⓘ</span>
+          </label>
+        </div>
+        <div class="hexdb-row"${!canProd?' style="opacity:0.4;pointer-events:none"':''}>
+          <span class="hexdb-label">Produce <span class="hexdb-info" title="IDs auto-constructed each turn in radius at 0 cost">ⓘ</span></span>
+          ${_tagsHTML('canProduce', bld.canProduce, !canProd)}</div>
+        <div class="hexdb-row"${!canProd?' style="opacity:0.4;pointer-events:none"':''}>
+          <span class="hexdb-label">Available Tiles for Produce <span class="hexdb-info" title="Tile types where production deposits new tiles">ⓘ</span></span>
+          ${_tagsHTML('availableTilesForProduce', bld.availableTilesForProduce, !canProd)}</div>
+
+        <div class="hexdb-row" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)">
+            <input type="checkbox" id="bld-f-canProductionFacilities"${canPF?' checked':''}>
+            <span>Can Production Facilities</span>
+            <span class="hexdb-info" title="Building interacts with nearby tiles/buildings in radius">ⓘ</span>
+          </label>
+        </div>
+        <div class="hexdb-row"${!canPF?' style="opacity:0.4;pointer-events:none"':''}>
+          <span class="hexdb-label">Bonus <span class="hexdb-info" title="Give: adds bonus to nearby targets. Get: receives resources from nearby targets.">ⓘ</span></span>
+          <select class="hexdb-select" id="bld-f-facilityBonusType" style="width:140px"${!canPF?' disabled':''}>
+            <option value=""${!bonusType?' selected':''} disabled>Select bonus type</option>
+            <option${bonusType==='Give'?' selected':''}>Give</option>
+            <option${bonusType==='Get'?' selected':''}>Get</option>
+          </select>
+        </div>
+        <div class="hexdb-row"${!canPF?' style="opacity:0.4;pointer-events:none"':''}>
+          <span class="hexdb-label">Production Facilities <span class="hexdb-info" title="IDs of tiles/buildings that interact with this building in radius">ⓘ</span></span>
+          ${_tagsHTML('productionFacilities', bld.productionFacilities, !canPF)}</div>
+        ${bonusSizeHTML}
+
+        <div class="hexdb-row" style="margin-top:8px;border-top:1px solid var(--border);padding-top:8px">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;color:var(--text)">
+            <input type="checkbox" id="bld-f-canStore"${canSt?' checked':''}>
+            <span>Can Store</span>
+            <span class="hexdb-info" title="Building adds capacity to resource storage">ⓘ</span>
+          </label>
+        </div>
+        <div class="hexdb-row"${!canSt?' style="opacity:0.4;pointer-events:none"':''}>
+          <span class="hexdb-label">Resource Store <span class="hexdb-info" title="Storage capacity added per resource type">ⓘ</span></span>
+          ${_resBlockHTML('stores', bld.stores, !canSt, BLD_STORE_RES)}</div>
+
       </div>
     </div>`;
 
@@ -8203,6 +8307,8 @@ const BldDB = (() => {
       'bld-f-canBuild', 'bld-f-additionalBuildCondition', 'bld-f-tilesTypeMode',
       'bld-f-hexEarnsOnTap', 'bld-f-destroyableByTap', 'bld-f-incomeTransformToMode',
       'bld-f-buildingRadius',
+      'bld-f-canProduceEnabled', 'bld-f-canProductionFacilities',
+      'bld-f-facilityBonusType', 'bld-f-canStore',
       'bld-f-bonusDrop',
     ];
     reRenderIds.forEach(id => {
@@ -8340,7 +8446,17 @@ const BldDB = (() => {
     bld.capacity              = Math.max(0, nv('bld-f-capacity'));
 
     // SETTINGS
-    bld.buildingRadius = Math.max(0, nv('bld-f-buildingRadius'));
+    bld.buildingRadius           = Math.max(0, nv('bld-f-buildingRadius'));
+    bld.canProduceEnabled        = bv('bld-f-canProduceEnabled');
+    bld.canProductionFacilities  = bv('bld-f-canProductionFacilities');
+    bld.facilityBonusType        = iv('bld-f-facilityBonusType');
+    bld.canStore                 = bv('bld-f-canStore');
+    if (g('bld-f-facilityBonusSize'))
+      bld.facilityBonusSize      = Math.max(0, nv('bld-f-facilityBonusSize'));
+    if (g('bld-f-facilityBonusTarget'))
+      bld.facilityBonusTarget    = iv('bld-f-facilityBonusTarget');
+    if (g('bld-f-facilityBonusInfluenceType'))
+      bld.facilityBonusInfluenceType = iv('bld-f-facilityBonusInfluenceType');
 
     // SPECIAL
     bld.bonusDrop    = bv('bld-f-bonusDrop');
