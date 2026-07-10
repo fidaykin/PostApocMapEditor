@@ -1899,7 +1899,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "5ed24e0";
+const COMMIT  = "cc20d4f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3515,7 +3515,8 @@ const DriveSync = (() => {
   let _token       = null;
   let _tokenExpiry = 0;
   let _tokenClient = null;
-  let _hexFolderId = null;
+  let _hexFolderId     = null;
+  let _spriteFolderIds = {}; // { 'hex': id, 'buildings': id }
   let _dbSource    = 'autosave';  // 'autosave' | 'local' | 'drive'
   let _lastMapName = localStorage.getItem('driveLastMapName') || '';
   let _mapListCache = null;
@@ -3769,6 +3770,44 @@ const DriveSync = (() => {
     return _hexFolderId;
   }
 
+  // Get (or create) HEX_DATA/<category>/ subfolder for sprites
+  async function _spriteFolder(category) {
+    if (_spriteFolderIds[category]) return _spriteFolderIds[category];
+    const hexDataId = await _hexFolder();
+    const q = `name='${category}' and '${hexDataId}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`;
+    const d = await _fetch(`?q=${encodeURIComponent(q)}&fields=files(id)`);
+    if (d.files?.length) {
+      _spriteFolderIds[category] = d.files[0].id;
+      return _spriteFolderIds[category];
+    }
+    // Create the subfolder — requires auth
+    const resp = await _authFetch(DRIVE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: category, parents: [hexDataId], mimeType: 'application/vnd.google-apps.folder' }),
+    });
+    const { id } = await resp.json();
+    _spriteFolderIds[category] = id;
+    return id;
+  }
+
+  // List sprite files in HEX_DATA/<category>/ — returns [{name, id}] (extension stripped)
+  async function listSpriteFiles(category) {
+    try {
+      const fid   = await _spriteFolder(category);
+      const files = await _listFiles(fid);
+      return files
+        .filter(f => /\.(png|webp|jpg|jpeg)$/i.test(f.name))
+        .map(f => ({ name: f.name.replace(/\.[^.]+$/, ''), id: f.id }));
+    } catch(e) {
+      console.warn('[DriveSync] listSpriteFiles failed:', e.message);
+      return [];
+    }
+  }
+
+  // Fetch a Drive sprite as a data URL (wraps internal _imgDataUrl)
+  function fetchSpriteDataUrl(fileId) { return _imgDataUrl(fileId); }
+
   async function _listFiles(folderId) {
     const q = `'${folderId}' in parents and trashed=false`;
     const d = await _fetch(`?q=${encodeURIComponent(q)}&fields=files(id,name,md5Checksum)&pageSize=1000`);
@@ -3962,10 +4001,10 @@ const DriveSync = (() => {
   }
 
   // ── Push single uploaded sprite to Drive ─────────────────
-  async function pushSprite(name, blob) {
+  async function pushSprite(name, blob, category = 'hex') {
     if (!_token) return;
     try {
-      const fid    = await _hexFolder();
+      const fid    = await _spriteFolder(category);
       const files  = await _listFiles(fid);
       const byName = Object.fromEntries(files.map(f => [f.name, f.id]));
       const hashes = _loadHashes();
@@ -4001,7 +4040,7 @@ const DriveSync = (() => {
       const hashes   = _loadHashes();
       let done = 0, skipped = 0;
 
-      // hex_database.json — upload only if content changed
+      // hex_database.json — stays in HEX_DATA root, upload only if changed
       const hexDb      = HexDB.getData();
       const hexContent = JSON.stringify(hexDb, null, 2);
       const hexHash    = _strHash(hexContent);
@@ -4015,7 +4054,15 @@ const DriveSync = (() => {
         skipped++;
       }
 
-      // Bundled sprites from HexDB — always upload
+      // Resolve sprite subfolders
+      const hexSpriteFid  = await _spriteFolder('hex');
+      const bldSpriteFid  = await _spriteFolder('buildings');
+      const hexSpriteFiles = await _listFiles(hexSpriteFid);
+      const bldSpriteFiles = await _listFiles(bldSpriteFid);
+      const hexSpriteByName = Object.fromEntries(hexSpriteFiles.map(f => [f.name, f.id]));
+      const bldSpriteByName = Object.fromEntries(bldSpriteFiles.map(f => [f.name, f.id]));
+
+      // Bundled hex sprites from server → HEX_DATA/hex/
       const spriteNames = [...new Set(HexDB.getAll().map(h => h.spriteName).filter(Boolean))];
       const spriteIds = _loadSpriteIds();
       for (let i = 0; i < spriteNames.length; i++) {
@@ -4025,23 +4072,25 @@ const DriveSync = (() => {
           if (!r.ok) continue;
           const blob  = await r.blob();
           const fname = name.endsWith('.png') ? name : name + '.png';
-          const fileId = await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+          const fileId = await _uploadFile(hexSpriteFid, fname, blob, 'image/png', hexSpriteByName[fname]);
           if (fileId) spriteIds[name] = fileId;
           hashes[fname] = await _sha256hex(blob);
-          done++; UI.progress(10 + Math.round(80 * (i+1) / Math.max(spriteNames.length,1)), '↑ ' + name + ' (' + (i+1) + '/' + spriteNames.length + ')'); UI.toast(`↑ ${name} (${i+1}/${spriteNames.length})`);
+          done++; UI.progress(10 + Math.round(70 * (i+1) / Math.max(spriteNames.length,1)), '↑ ' + name + ' (' + (i+1) + '/' + spriteNames.length + ')'); UI.toast(`↑ ${name} (${i+1}/${spriteNames.length})`);
         } catch(e) { console.warn('[DriveSync] sprite', name, e.message); }
       }
 
-      // User-uploaded sprites from IndexedDB — always upload
+      // User-uploaded sprites from IndexedDB → HEX_DATA/hex/ or HEX_DATA/buildings/
       try {
         const uploaded = await SpriteStore.loadAll();
-        for (const { name, dataUrl } of uploaded) {
+        for (const { name, dataUrl, category = 'hex' } of uploaded) {
+          const spriteFid     = category === 'buildings' ? bldSpriteFid     : hexSpriteFid;
+          const spriteByName  = category === 'buildings' ? bldSpriteByName  : hexSpriteByName;
           const blob  = await (await fetch(dataUrl)).blob();
           const fname = name.endsWith('.png') ? name : name + '.png';
-          const fileId = await _uploadFile(fid, fname, blob, 'image/png', byName[fname]);
+          const fileId = await _uploadFile(spriteFid, fname, blob, 'image/png', spriteByName[fname]);
           if (fileId) spriteIds[name] = fileId;
           hashes[fname] = await _sha256hex(blob);
-          done++; UI.progress(92, '↑ ' + name); UI.toast(`↑ ${name}`);
+          done++; UI.progress(85, '↑ ' + name); UI.toast(`↑ ${name}`);
         }
       } catch(e) { console.warn('[DriveSync] IndexedDB sprites:', e.message); }
 
@@ -4106,7 +4155,16 @@ const DriveSync = (() => {
       const fid   = await _hexFolder();
       const files = await _listFiles(fid);
       await Promise.all(files.map(f => _makePublic(f.id)));
-      console.log(`[DriveSync] Made ${files.length} HEX_DATA file(s) public.`);
+      // Also make sprite subfolders and their contents public
+      for (const cat of ['hex', 'buildings']) {
+        try {
+          const sfid   = await _spriteFolder(cat);
+          await _makePublic(sfid);
+          const sfiles = await _listFiles(sfid);
+          await Promise.all(sfiles.map(f => _makePublic(f.id)));
+        } catch(e) { /* subfolder may not exist yet — skip */ }
+      }
+      console.log('[DriveSync] Made HEX_DATA and sprite subfolders public.');
     } catch(e) {
       console.warn('[DriveSync] _makeHexDataPublic failed:', e.message);
     }
@@ -4134,7 +4192,7 @@ const DriveSync = (() => {
 
     console.log(`[DriveSync] Fetching ${toFetch.length} custom sprite(s) from Drive…`);
 
-    const fid    = await _hexFolder();
+    const fid    = await _spriteFolder('hex');
     const files  = await _listFiles(fid);
     const byName = Object.fromEntries(files.map(f => [f.name, f.id]));
 
@@ -4190,7 +4248,7 @@ const DriveSync = (() => {
       )];
 
       // Always fetch Drive file list so both custom and bundled sprite sync can use it.
-      const fid    = await _hexFolder();
+      const fid    = await _spriteFolder('hex');
       const files  = await _listFiles(fid);
       const byName = Object.fromEntries(files.map(f => [f.name, f]));
 
@@ -4400,8 +4458,8 @@ const DriveSync = (() => {
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
            pushSprite, publishDb, publishHexDbOnly, publishLoc, loadLocFromDrive, publishMap,
            setDbSource, syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
-           loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb,
-           togglePublishDropdown };
+           loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb, togglePublishDropdown,
+           listSpriteFiles, fetchSpriteDataUrl };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -4943,6 +5001,7 @@ const UI = (() => {
     const folder    = opts.folder || 'sprites/hex';
     const category  = folder.includes('buildings') ? 'buildings' : 'hex';
     const dbSprites = opts.getSprites ? opts.getSprites() : HexDB.getAll().map(h => h.spriteName).filter(Boolean);
+    const authed    = DriveSync.isAuthenticated();
 
     _spritePickerCallback = onSelect;
     _spritePickerOpts = opts;
@@ -4950,36 +5009,62 @@ const UI = (() => {
     grid.innerHTML = '';
     const shown = new Set();
 
-    // All sprites referenced in the active DB
+    // Build SpriteStore cache map once for fast lookup
+    let cacheMap = {};
+    try {
+      const cached = await SpriteStore.loadByCategory(category);
+      cacheMap = Object.fromEntries(cached.map(e => [e.name, e.dataUrl]));
+    } catch(e) { /* IndexedDB unavailable */ }
+
+    // 1. DB-referenced sprites — use cached dataUrl when available, fall back to server
     [...new Set(dbSprites)].forEach(name => {
       shown.add(name);
-      grid.appendChild(_makeThumb(name, `${folder}/${name}.png`, false, null));
+      grid.appendChild(_makeThumb(name, cacheMap[name] || `${folder}/${name}.png`, false, null));
     });
 
-    // User-uploaded sprites from IndexedDB — filtered to this picker's category
-    try {
-      const uploaded = await SpriteStore.loadByCategory(category);
-      uploaded.forEach(({ name, dataUrl }) => {
-        shown.add(name);
-        grid.appendChild(_makeThumb(name, dataUrl, true, async n => {
-          await SpriteStore.remove(n);
-          toast(`Removed "${n}"`);
-        }));
-      });
-    } catch(e) { /* IndexedDB unavailable — skip */ }
+    // 2. Extra SpriteStore entries not already shown (user-uploaded, deletable)
+    Object.entries(cacheMap).forEach(([name, dataUrl]) => {
+      if (shown.has(name)) return;
+      shown.add(name);
+      grid.appendChild(_makeThumb(name, dataUrl, true, async n => {
+        await SpriteStore.remove(n);
+        toast(`Removed "${n}"`);
+      }));
+    });
 
-    // All sprites from folder manifest — catches sprites not yet referenced in any DB
-    try {
-      const resp = await fetch(`${folder}/manifest.json`);
-      if (resp.ok) {
-        const names = await resp.json();
-        names.forEach(name => {
+    // 3. Remaining sprites: Drive listing (authenticated) or server manifest (fallback)
+    if (authed) {
+      try {
+        const driveFiles = await DriveSync.listSpriteFiles(category);
+        driveFiles.forEach(({ name, id }) => {
           if (shown.has(name)) return;
           shown.add(name);
-          grid.appendChild(_makeThumb(name, `${folder}/${name}.png`, false, null));
+          // Show with server fallback immediately; lazy-load from Drive and cache
+          const thumb = _makeThumb(name, `${folder}/${name}.png`, false, null);
+          const img   = thumb.querySelector('img');
+          DriveSync.fetchSpriteDataUrl(id).then(dataUrl => {
+            if (dataUrl) {
+              img.src = dataUrl;
+              SpriteStore.save(name, dataUrl, category).catch(() => {});
+            }
+          }).catch(() => {});
+          grid.appendChild(thumb);
         });
-      }
-    } catch(e) { /* manifest unavailable — skip */ }
+      } catch(e) { /* Drive unavailable — skip */ }
+    } else {
+      // Server manifest fallback for unauthenticated users
+      try {
+        const resp = await fetch(`${folder}/manifest.json`);
+        if (resp.ok) {
+          const names = await resp.json();
+          names.forEach(name => {
+            if (shown.has(name)) return;
+            shown.add(name);
+            grid.appendChild(_makeThumb(name, `${folder}/${name}.png`, false, null));
+          });
+        }
+      } catch(e) { /* manifest unavailable — skip */ }
+    }
 
     document.getElementById('sprite-picker-modal').classList.add('open');
   }
@@ -5003,7 +5088,7 @@ const UI = (() => {
       await SpriteStore.save(name, dataUrl, uploadCategory);
       toast(`Uploaded "${name}"`);
       // Push to Drive immediately if already authenticated
-      DriveSync.pushSprite(name, file);
+      DriveSync.pushSprite(name, file, uploadCategory);
     }
     // Refresh grid if picker is open
     if (document.getElementById('sprite-picker-modal').classList.contains('open')) {
