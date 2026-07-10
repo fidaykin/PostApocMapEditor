@@ -1899,7 +1899,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "2c915d3";
+const COMMIT  = "ac78ce4";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8006,11 +8006,12 @@ const BldDB = (() => {
   function _keyHint(val) {
     if (!val) return '';
     if (val !== val.trim()) return '<span style="color:#f90">⚠ Leading/trailing spaces</span>';
-    const keys = LocalizationKeys.getKeys();
-    if (!keys.length) return '<span style="color:#888">⚠ Keys file unavailable</span>';
-    return keys.includes(val)
-      ? '<span style="color:#4caf50">✓ Key found</span>'
-      : '<span style="color:#f90">⚠ Key not found</span>';
+    const entries = LocalizationKeys.getEntries();
+    if (!entries.length) return '<span style="color:#888">⚠ Keys file unavailable</span>';
+    const entry = entries.find(e => e.key === val);
+    if (!entry) return '<span style="color:#f90">⚠ Key not found</span>';
+    const enText = entry.en ? ` — <span style="color:var(--text);font-style:italic">${_esc(entry.en)}</span>` : '';
+    return `<span style="color:#4caf50">✓</span>${enText}`;
   }
 
   function _tagsHTML(fieldName, values, disabled) {
