@@ -1914,7 +1914,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "381a533";
+const COMMIT  = "09bbd6c";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3793,6 +3793,7 @@ const DriveSync = (() => {
     const d = await _fetch(`?q=${encodeURIComponent(q)}&fields=files(id)`);
     if (d.files?.length) {
       _spriteFolderIds[category] = d.files[0].id;
+      await _makePublic(_spriteFolderIds[category]);
       return _spriteFolderIds[category];
     }
     // Create the subfolder — requires auth
@@ -3802,6 +3803,7 @@ const DriveSync = (() => {
       body: JSON.stringify({ name: category, parents: [hexDataId], mimeType: 'application/vnd.google-apps.folder' }),
     });
     const { id } = await resp.json();
+    await _makePublic(id);
     _spriteFolderIds[category] = id;
     return id;
   }
