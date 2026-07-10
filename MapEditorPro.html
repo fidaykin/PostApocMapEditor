@@ -1902,7 +1902,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "f2169d3";
+const COMMIT  = "bd2dce6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7959,6 +7959,7 @@ const HexDB = (() => {
 // ── BldDB Module ───────────────────────────────────────────
 const BldDB = (() => {
   const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, settings: true, special: true };
+  const STORAGE_RESOURCE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'];
 
   let _data      = { version: 1, buildings: [] };
   let _clipboard = null;
@@ -8013,6 +8014,9 @@ const BldDB = (() => {
       productionFacilities: [],
       canStore: false,
       stores: [],
+      // Storage
+      storageCapacity: [],
+      storageUpgradeId: '',
       // Special
       bonusDrop: false, bonusTrigger: 'Destroy', bonuses: [], booster: '', effects: '',
       // Footprint (Artefact type only)
@@ -8383,6 +8387,30 @@ const BldDB = (() => {
           ${_resBlockHTML('incomeConstant', bld.incomeConstant, false, BLD_SPEND_RES)}</div>
         <div class="hexdb-row"><span class="hexdb-label">Spend Constant <span class="hexdb-info" title="Constant drain while on map">ⓘ</span></span>
           ${_resBlockHTML('spendConstant', bld.spendConstant, false, BLD_SPEND_RES)}</div>
+
+        <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+          <div class="bld-section-title">${(bld.buildingCategory || '') === 'Artefact' ? 'Artefact Storage Bonus (Xa)' : 'Storage Capacity'}</div>
+          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:12px">
+            ${STORAGE_RESOURCE_TYPES.map(t => {
+              const scMap = {};
+              (bld.storageCapacity || []).forEach(r => { scMap[r.type] = r.amount; });
+              return `
+              <label class="bld-resource-label" style="display:flex;flex-direction:column;gap:4px">
+                <span style="font-size:11px;color:var(--muted)">${_esc(t)}</span>
+                <input class="hexdb-input bld-resource-input" type="number" min="0" step="1"
+                  id="bld-f-sc-${t.toLowerCase()}" value="${scMap[t] || 0}"
+                  onchange="BldDB.save()" style="width:100%;text-align:center">
+              </label>`;
+            }).join('')}
+          </div>
+          <div class="hexdb-row" style="margin-top:6px">
+            <span class="hexdb-label">Storage Upgrade ID</span>
+            <input class="hexdb-input" id="bld-f-storage-upgrade-id" type="text"
+              value="${_esc(bld.storageUpgradeId || '')}"
+              placeholder="e.g. warehouse_storage"
+              onblur="this.value=this.value.trim();BldDB.save()" style="flex:1">
+          </div>
+        </div>
       </div>
     </div>`;
 
@@ -8753,6 +8781,13 @@ const BldDB = (() => {
     bld.bonusTrigger = iv('bld-f-bonusTrigger') || 'Destroy';
     bld.booster      = iv('bld-f-booster');
     bld.effects      = iv('bld-f-effects');
+
+    // STORAGE
+    bld.storageCapacity = STORAGE_RESOURCE_TYPES.map(t => ({
+      type: t,
+      amount: parseFloat(document.getElementById(`bld-f-sc-${t.toLowerCase()}`)?.value) || 0
+    })).filter(r => r.amount !== 0);
+    bld.storageUpgradeId = (document.getElementById('bld-f-storage-upgrade-id')?.value || '').trim();
 
     // Update list row label
     const row = document.querySelector(`#bld-list .hexdb-list-row[data-filt-idx="${_selFilt}"]`);
