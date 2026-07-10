@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.10.c428813</title>
+<title>Post Apo Map Editor 2026.07.10.f2169d3</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1238,6 +1238,8 @@ body.mode-keys        #keys-tools  { display: flex; }
         <button onclick="DriveSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
         <div class="pub-drop-sep"></div>
         <button onclick="DriveSync.publishMap()">☁ Publish Map</button>
+        <div class="pub-drop-sep"></div>
+        <button onclick="DriveSync.migrateSpritesToSubfolders()" title="One-time: move flat HEX_DATA PNGs → HEX_DATA/hex/">🗂 Migrate sprites to subfolders</button>
       </div>
     </div>
     <button class="publish-btn" id="btn-drive-maps"  onclick="DriveSync.openMapsPopover()" title="Browse and load maps from Google Drive">☁ Maps ▾</button>
@@ -1899,7 +1901,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.10";
-const COMMIT  = "7cdce96";
+const COMMIT  = "2ae6163";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4455,11 +4457,51 @@ const DriveSync = (() => {
     }
   }
 
+  // ── One-time migration: move flat HEX_DATA PNGs → HEX_DATA/hex/ ─
+  async function migrateSpritesToSubfolders() {
+    _closePublishDropdown();
+    try {
+      UI.toast('Authenticating…');
+      await authenticate();
+      UI.progress(5, 'Listing HEX_DATA files…');
+
+      const hexDataId   = await _hexFolder();
+      const hexSpriteFid = await _spriteFolder('hex');
+      const files       = await _listFiles(hexDataId);
+      const sprites     = files.filter(f => /\.(png|webp|jpg|jpeg)$/i.test(f.name));
+
+      if (!sprites.length) {
+        UI.progressDone('ℹ️ No sprite files found in HEX_DATA root');
+        UI.toast('ℹ️ Nothing to migrate — HEX_DATA root has no PNGs');
+        return;
+      }
+
+      UI.toast(`Moving ${sprites.length} sprite(s) to HEX_DATA/hex/…`);
+      let moved = 0;
+      for (let i = 0; i < sprites.length; i++) {
+        const { id, name } = sprites[i];
+        UI.progress(5 + Math.round(90 * (i + 1) / sprites.length), `Moving ${name}…`);
+        await _authFetch(
+          `${DRIVE_API}/${id}?addParents=${hexSpriteFid}&removeParents=${hexDataId}`,
+          { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: '{}' }
+        );
+        moved++;
+      }
+      _spriteFolderIds = {}; // clear cache so next list re-fetches
+      UI.progressDone(`✅ Migrated ${moved} sprite(s) to HEX_DATA/hex/`);
+      UI.toast(`✅ Migrated ${moved} sprite(s)`);
+    } catch(e) {
+      UI.progressDone('❌ Migration failed');
+      UI.toast('❌ Migration failed: ' + e.message);
+      console.error('[DriveSync] migrateSpritesToSubfolders:', e);
+    }
+  }
+
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
            pushSprite, publishDb, publishHexDbOnly, publishLoc, loadLocFromDrive, publishMap,
            setDbSource, syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
            loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb, togglePublishDropdown,
-           listSpriteFiles, fetchSpriteDataUrl };
+           listSpriteFiles, fetchSpriteDataUrl, migrateSpritesToSubfolders };
 })();
 
 // ════════════════════════════════════════════════════════════
