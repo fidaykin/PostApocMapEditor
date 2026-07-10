@@ -567,6 +567,9 @@ body.mode-actions     #main { display: none; } body.mode-actions     #actions-ma
 body.mode-upgrades    #main { display: none; } body.mode-upgrades    #upgrades-main { display: grid; }
 body.mode-monsters    #main { display: none; } body.mode-monsters    #monsters-main { display: flex; }
 body.mode-quests      #main { display: none; } body.mode-quests      #quests-main   { display: flex; }
+body.mode-common #main          { display: none; }
+body.mode-common #hexdb-main    { display: none; }
+body.mode-common #common-main   { display: block; }
 .stub-editor { display: none; align-items: center; justify-content: center; height: 100%; }
 .stub-msg    { color: var(--muted); font-size: 18px; }
 body.mode-settlements #main             { display: none; }
@@ -627,6 +630,8 @@ body.mode-settlements #stt-tools   { display: flex; }
 body.mode-keys        #map-tools   { display: none; }
 body.mode-keys        #map-io      { display: none; }
 body.mode-keys        #keys-tools  { display: flex; }
+body.mode-common #map-tools { display: none; }
+body.mode-common #map-io    { display: none; }
 .hexdb-tool-btn {
   height: 30px; padding: 0 12px;
   background: var(--bg); border: 1px solid var(--border);
@@ -1262,6 +1267,7 @@ body.mode-keys        #keys-tools  { display: flex; }
           <button class="more-item" id="tab-upgrades" onclick="App.setMode('upgrades');App.closeMore()">UPGRADES</button>
           <button class="more-item" id="tab-monsters" onclick="App.setMode('monsters');App.closeMore()">MONSTERS</button>
           <button class="more-item" id="tab-quests"   onclick="App.setMode('quests');App.closeMore()">QUESTS</button>
+          <button class="more-item" id="tab-common"  onclick="App.setMode('common');App.closeMore()">COMMON</button>
         </div>
       </div>
     </div>
@@ -1598,6 +1604,12 @@ body.mode-keys        #keys-tools  { display: flex; }
   </div>
   <div id="monsters-main" class="stub-editor"><div class="stub-msg">MONSTERS Editor — coming soon</div></div>
   <div id="quests-main"   class="stub-editor"><div class="stub-msg">QUESTS Editor — coming soon</div></div>
+  <div id="common-main" style="display:none;padding:16px">
+    <div style="margin-bottom:8px">
+      <button onclick="CommonDB.push()">☁ Push common_settings.json</button>
+    </div>
+    <div id="common-editor"></div>
+  </div>
 
   <!-- ── Settlements Main ───────────────────────────────────────── -->
   <div id="settlements-main">
@@ -1902,7 +1914,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "0480c5a";
+const COMMIT  = "963d2af";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4418,6 +4430,24 @@ const DriveSync = (() => {
     }
   }
 
+  async function publishCommonDb() {
+    try {
+      UI.toast('Authenticating…');
+      await authenticate();
+      UI.progress(30, 'Uploading common_settings.json…');
+      const rootFiles = await _listFiles(ROOT_FOLDER);
+      const byName    = Object.fromEntries(rootFiles.map(f => [f.name, f.id]));
+      const content   = CommonDB.export();
+      await _uploadFile(ROOT_FOLDER, 'common_settings.json', content,
+        'application/json', byName['common_settings.json']);
+      UI.progressDone('✅ Common settings published');
+      UI.toast('✅ common_settings.json published to Drive');
+    } catch(e) {
+      UI.progressDone('❌ Failed');
+      UI.toast('❌ Publish Common DB failed: ' + e.message);
+    }
+  }
+
   // ── Publish HexDB only (no sprites) ──────────────────────────
   async function publishHexDbOnly() {
     _closePublishDropdown();
@@ -4519,7 +4549,8 @@ const DriveSync = (() => {
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
            pushSprite, publishDb, publishHexDbOnly, publishLoc, loadLocFromDrive, publishMap,
            setDbSource, syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
-           loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb, togglePublishDropdown,
+           loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb, publishCommonDb,
+           togglePublishDropdown,
            listSpriteFiles, fetchSpriteDataUrl, setupSpriteFolders, migrateSpritesToSubfolders };
 })();
 
@@ -6263,14 +6294,15 @@ const Satellite = (() => {
 const App = {
   setMode(mode) {
     const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys',
-                   'slots', 'actions', 'upgrades', 'monsters', 'quests'];
+                   'slots', 'actions', 'upgrades', 'monsters', 'quests', 'common'];
     MODES.forEach(m => {
       document.body.classList.toggle('mode-' + m, m === mode);
       const tab = document.getElementById('tab-' + m);
       if (tab) tab.classList.toggle('active', m === mode);
     });
     const moreBtn = document.getElementById('tab-more');
-    if (moreBtn) moreBtn.classList.toggle('active', ['slots','actions','upgrades','monsters','quests'].includes(mode));
+    if (moreBtn) moreBtn.classList.toggle('active', ['slots','actions','upgrades','monsters','quests','common'].includes(mode));
+    if (mode === 'common' && typeof CommonDB !== 'undefined') CommonDB.render();
   },
   toggleMore(e) {
     e.stopPropagation();
@@ -10211,6 +10243,115 @@ window.addEventListener('load', async () => {
   if (_vLabel) _vLabel.textContent = COMMIT ? `${VERSION}.${COMMIT}` : VERSION;
   console.log('[MapEditorPro] Ready.');
 });
+
+// ── CommonDB ─────────────────────────────────────────────────
+;(function () {
+  const ALL_RESOURCE_TYPES = [
+    'Food','Lumber','Stone','Gold','Gems','Steel','Chips','Oil','Ore',
+    'Clay','Population','Energy','Pollution'
+  ];
+
+  const DEFAULTS = {
+    foodSpoilageRate: 0.05,
+    baseFoodIncome: 0,
+    resources: ALL_RESOURCE_TYPES.map(t => ({
+      type: t,
+      requiresStorage: ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'].includes(t),
+      usesFoodFormula: t === 'Food',
+      baseStorageSettings: 0
+    }))
+  };
+
+  let _data = JSON.parse(JSON.stringify(DEFAULTS));
+
+  function load(json) {
+    try { _data = Object.assign(JSON.parse(JSON.stringify(DEFAULTS)), JSON.parse(json)); }
+    catch(e) { console.warn('[CommonDB] load failed:', e); }
+    render();
+  }
+
+  function save() {
+    _data.foodSpoilageRate = parseFloat(document.getElementById('common-spoilage-rate')?.value) || 0.05;
+    _data.baseFoodIncome   = parseFloat(document.getElementById('common-base-food')?.value) || 0;
+    _data.resources = ALL_RESOURCE_TYPES.map(t => ({
+      type: t,
+      requiresStorage: !!document.getElementById(`common-rs-${t}`)?.checked,
+      usesFoodFormula: !!document.getElementById(`common-ff-${t}`)?.checked,
+      baseStorageSettings: parseFloat(document.getElementById(`common-bss-${t}`)?.value) || 0
+    }));
+  }
+
+  function exportJson() {
+    save();
+    return JSON.stringify(_data, null, 2);
+  }
+
+  function push() {
+    save();
+    if (typeof DriveSync !== 'undefined' && DriveSync.isAuthenticated()) {
+      DriveSync.publishCommonDb();
+    } else {
+      const json = JSON.stringify(_data, null, 2);
+      const blob = new Blob([json], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'common_settings.json';
+      a.click();
+    }
+  }
+
+  function _esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+  function render() {
+    const el = document.getElementById('common-editor');
+    if (!el) return;
+    const resMap = {};
+    (_data.resources || []).forEach(r => { resMap[r.type] = r; });
+
+    let html = `
+      <div style="display:flex;gap:16px;margin-bottom:12px">
+        <label>Food Spoilage Rate
+          <input id="common-spoilage-rate" type="number" step="0.01" min="0" max="1"
+            style="width:80px;margin-left:6px" value="${_esc(_data.foodSpoilageRate ?? 0.05)}"
+            onchange="CommonDB.save()">
+        </label>
+        <label>Base Food Income
+          <input id="common-base-food" type="number" step="1" min="0"
+            style="width:80px;margin-left:6px" value="${_esc(_data.baseFoodIncome ?? 0)}"
+            onchange="CommonDB.save()">
+        </label>
+      </div>
+      <table class="hexdb-table" style="width:100%">
+        <thead><tr>
+          <th>Resource</th><th>Requires Storage</th><th>Food Formula</th><th>Base Storage Settings</th>
+        </tr></thead><tbody>`;
+
+    ALL_RESOURCE_TYPES.forEach(t => {
+      const r = resMap[t] || { requiresStorage: false, usesFoodFormula: false, baseStorageSettings: 0 };
+      html += `<tr>
+        <td>${_esc(t)}</td>
+        <td style="text-align:center">
+          <input type="checkbox" id="common-rs-${t}" ${r.requiresStorage ? 'checked' : ''}
+            onchange="CommonDB.save()">
+        </td>
+        <td style="text-align:center">
+          <input type="checkbox" id="common-ff-${t}" ${r.usesFoodFormula ? 'checked' : ''}
+            onchange="CommonDB.save()">
+        </td>
+        <td>
+          <input type="number" id="common-bss-${t}" step="1" min="0" style="width:100px"
+            value="${_esc(r.baseStorageSettings ?? 0)}" onchange="CommonDB.save()">
+        </td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  window.CommonDB = { load, save, export: exportJson, push, render };
+  document.addEventListener('DOMContentLoaded', () => render());
+})();
 </script>
 
 <datalist id="loc-keys-datalist"></datalist>
