@@ -1239,6 +1239,7 @@ body.mode-keys        #keys-tools  { display: flex; }
         <div class="pub-drop-sep"></div>
         <button onclick="DriveSync.publishMap()">☁ Publish Map</button>
         <div class="pub-drop-sep"></div>
+        <button onclick="DriveSync.setupSpriteFolders()" title="Create HEX_DATA/hex/ and HEX_DATA/buildings/ if they don't exist">📁 Setup sprite folders</button>
         <button onclick="DriveSync.migrateSpritesToSubfolders()" title="One-time: move flat HEX_DATA PNGs → HEX_DATA/hex/">🗂 Migrate sprites to subfolders</button>
       </div>
     </div>
@@ -1901,7 +1902,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "c428813";
+const COMMIT  = "f2169d3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4457,6 +4458,24 @@ const DriveSync = (() => {
     }
   }
 
+  // ── Ensure HEX_DATA/hex/ and HEX_DATA/buildings/ exist ──────
+  async function setupSpriteFolders() {
+    _closePublishDropdown();
+    try {
+      UI.toast('Authenticating…');
+      await authenticate();
+      UI.progress(30, 'Creating HEX_DATA/hex/…');
+      await _spriteFolder('hex');
+      UI.progress(70, 'Creating HEX_DATA/buildings/…');
+      await _spriteFolder('buildings');
+      UI.progressDone('✅ Sprite folders ready');
+      UI.toast('✅ HEX_DATA/hex/ and HEX_DATA/buildings/ are ready');
+    } catch(e) {
+      UI.progressDone('❌ Failed');
+      UI.toast('❌ Setup failed: ' + e.message);
+    }
+  }
+
   // ── One-time migration: move flat HEX_DATA PNGs → HEX_DATA/hex/ ─
   async function migrateSpritesToSubfolders() {
     _closePublishDropdown();
@@ -4501,7 +4520,7 @@ const DriveSync = (() => {
            pushSprite, publishDb, publishHexDbOnly, publishLoc, loadLocFromDrive, publishMap,
            setDbSource, syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
            loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb, togglePublishDropdown,
-           listSpriteFiles, fetchSpriteDataUrl, migrateSpritesToSubfolders };
+           listSpriteFiles, fetchSpriteDataUrl, setupSpriteFolders, migrateSpritesToSubfolders };
 })();
 
 // ════════════════════════════════════════════════════════════
