@@ -1899,7 +1899,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "1f7147c";
+const COMMIT  = "e904f16";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8073,7 +8073,8 @@ const BldDB = (() => {
         <div class="hexdb-row"><span class="hexdb-label">Id *</span>
           <div style="flex:1;min-width:0">
             <input class="hexdb-input" id="bld-f-id" type="text" value="${_esc(bld.id)}"
-              style="border-color:${!bld.id || _isDupe(bld.id) ? '#e57373' : ''}">
+              style="border-color:${!bld.id || _isDupe(bld.id) ? '#e57373' : ''}"
+              onblur="this.value=this.value.trim();BldDB.save()">
             <small style="color:#888;font-size:0.8em">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small>
           </div></div>
         <div class="hexdb-row"><span class="hexdb-label">TextId <span class="hexdb-info" title="Localisation key for display name. No leading/trailing spaces.">ⓘ</span></span>
@@ -8539,7 +8540,7 @@ const BldDB = (() => {
     const bv = id => { const el = g(id); return el ? el.checked : false; };
 
     // MAIN
-    bld.id           = iv('bld-f-id');
+    bld.id           = iv('bld-f-id').trim();
     bld.textId       = iv('bld-f-textId').trim();
     bld.descIdleId   = iv('bld-f-descIdleId').trim();
     bld.descBuildId  = iv('bld-f-descBuildId').trim();
