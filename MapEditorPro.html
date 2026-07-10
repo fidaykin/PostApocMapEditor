@@ -1899,7 +1899,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "c49d95a";
+const COMMIT  = "4078408";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3465,11 +3465,11 @@ const SpriteStore = (() => {
     });
   }
 
-  async function save(name, dataUrl) {
+  async function save(name, dataUrl, category = 'hex') {
     const db = await _open();
     return new Promise((res, rej) => {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put({ name, dataUrl });
+      tx.objectStore(STORE).put({ name, dataUrl, category });
       tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
     });
   }
@@ -3483,6 +3483,11 @@ const SpriteStore = (() => {
     });
   }
 
+  async function loadByCategory(category) {
+    const all = await loadAll();
+    return all.filter(e => (e.category || 'hex') === category);
+  }
+
   async function remove(name) {
     const db = await _open();
     return new Promise((res, rej) => {
@@ -3492,7 +3497,7 @@ const SpriteStore = (() => {
     });
   }
 
-  return { save, loadAll, remove };
+  return { save, loadAll, loadByCategory, remove };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -4140,7 +4145,7 @@ const DriveSync = (() => {
       if (!file) continue;
       try {
         const dataUrl = await _imgDataUrl(file);
-        await SpriteStore.save(name, dataUrl);
+        await SpriteStore.save(name, dataUrl, 'hex');
         urlMap[name] = dataUrl;
       } catch(e) {
         console.warn(`[DriveSync] sprite fetch failed: ${name}`, e.message);
@@ -4200,7 +4205,7 @@ const DriveSync = (() => {
         UI.toast(`Syncing sprite ${i + 1}/${custom.length}: ${name}`);
         try {
           const dataUrl = await _imgDataUrl(file.id);
-          await SpriteStore.save(name, dataUrl);
+          await SpriteStore.save(name, dataUrl, 'hex');
           urlMap[name] = dataUrl;
         } catch(e) { console.warn(`[DriveSync] sync sprite ${name}:`, e.message); }
       }
@@ -4228,7 +4233,7 @@ const DriveSync = (() => {
         UI.toast(`Syncing bundled ${i + 1}/${bundledChanged.length}: ${name}`);
         try {
           const dataUrl = await _imgDataUrl(file.id);
-          await SpriteStore.save(name, dataUrl);
+          await SpriteStore.save(name, dataUrl, 'hex');
           urlMap[name]        = dataUrl;
           if (file.md5Checksum) bundledMd5s[fname] = file.md5Checksum;
         } catch(e) { console.warn(`[DriveSync] bundled sprite ${name}:`, e.message); }
@@ -4414,6 +4419,7 @@ const UI = (() => {
   _bridgeSprites.forEach(s => { s.onload = () => { if (typeof Canvas !== 'undefined') Canvas.render(); }; });
   let _confirmCallback = null;
   let _spritePickerCallback = null;
+  let _spritePickerOpts = {};
 
   function init() {
     // Confirm modal OK button
@@ -4934,10 +4940,12 @@ const UI = (() => {
   }
 
   async function showSpritePicker(onSelect, opts = {}) {
-    const folder     = opts.folder     || 'sprites/hex';
-    const dbSprites  = opts.getSprites ? opts.getSprites() : HexDB.getAll().map(h => h.spriteName).filter(Boolean);
+    const folder    = opts.folder || 'sprites/hex';
+    const category  = folder.includes('buildings') ? 'buildings' : 'hex';
+    const dbSprites = opts.getSprites ? opts.getSprites() : HexDB.getAll().map(h => h.spriteName).filter(Boolean);
 
     _spritePickerCallback = onSelect;
+    _spritePickerOpts = opts;
     const grid = document.getElementById('sprite-picker-grid');
     grid.innerHTML = '';
     const shown = new Set();
@@ -4948,9 +4956,9 @@ const UI = (() => {
       grid.appendChild(_makeThumb(name, `${folder}/${name}.png`, false, null));
     });
 
-    // User-uploaded sprites from IndexedDB
+    // User-uploaded sprites from IndexedDB — filtered to this picker's category
     try {
-      const uploaded = await SpriteStore.loadAll();
+      const uploaded = await SpriteStore.loadByCategory(category);
       uploaded.forEach(({ name, dataUrl }) => {
         shown.add(name);
         grid.appendChild(_makeThumb(name, dataUrl, true, async n => {
@@ -4979,6 +4987,7 @@ const UI = (() => {
   function closeSpritePicker() {
     document.getElementById('sprite-picker-modal').classList.remove('open');
     _spritePickerCallback = null;
+    _spritePickerOpts = {};
   }
 
   async function handleSpriteUpload(files) {
@@ -4990,14 +4999,15 @@ const UI = (() => {
         reader.onerror = rej;
         reader.readAsDataURL(file);
       });
-      await SpriteStore.save(name, dataUrl);
+      const uploadCategory = (_spritePickerOpts.folder || '').includes('buildings') ? 'buildings' : 'hex';
+      await SpriteStore.save(name, dataUrl, uploadCategory);
       toast(`Uploaded "${name}"`);
       // Push to Drive immediately if already authenticated
       DriveSync.pushSprite(name, file);
     }
     // Refresh grid if picker is open
     if (document.getElementById('sprite-picker-modal').classList.contains('open')) {
-      showSpritePicker(_spritePickerCallback);
+      showSpritePicker(_spritePickerCallback, _spritePickerOpts);
     }
   }
 
