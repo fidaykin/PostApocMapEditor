@@ -1914,7 +1914,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "963d2af";
+const COMMIT  = "381a533";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9382,7 +9382,7 @@ const SttDB = (() => {
 
 // ── UpgDB Module ───────────────────────────────────────────
 const UpgDB = (() => {
-  const UPG_TYPES       = ['Regular', 'Events Temporary', 'Events Permanents'];
+  const UPG_TYPES       = ['Regular', 'Events Temporary', 'Events Permanents', 'StorageBonus'];
   const UPG_PARAMS      = ['Online Income', 'Offline Income', 'Storage',
                            'Daily Rewards', 'Map', 'Tiles', 'Buildings',
                            'Settlements', 'Action', 'Rules'];
@@ -9416,6 +9416,8 @@ const UpgDB = (() => {
       upgradeLevels: 1,
       priceType: 'Resource',
       levels: [{ target: '', price: [{ type: 'Gold', amount: 100 }] }],
+      flatStorageBonusPerLevel: [],
+      percentStorageBonusPerLevel: [],
     };
   }
 
@@ -9441,6 +9443,8 @@ const UpgDB = (() => {
       if (lv.target === undefined) lv.target = '';
       if (!Array.isArray(lv.price)) lv.price = [{ type: 'Gold', amount: 100 }];
     });
+    if (!Array.isArray(u.flatStorageBonusPerLevel)) u.flatStorageBonusPerLevel = [];
+    if (!Array.isArray(u.percentStorageBonusPerLevel)) u.percentStorageBonusPerLevel = [];
     return u;
   }
 
@@ -9633,6 +9637,35 @@ const UpgDB = (() => {
             <div class="level-cards">${levelsHTML}</div>
           </div>
         </div>
+        ${upg.upgradeType === 'StorageBonus' ? (() => {
+          const STORAGE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'];
+          const flatMap = {}, pctMap = {};
+          (upg.flatStorageBonusPerLevel || []).forEach(r => { flatMap[r.type] = r.amount; });
+          (upg.percentStorageBonusPerLevel || []).forEach(r => { pctMap[r.type] = r.amount; });
+          return `<div class="hexdb-section">
+            <div class="hexdb-section-hdr" data-sec="storage">▼ STORAGE BONUS</div>
+            <div class="hexdb-section-body" data-sec="storage">
+              <div style="padding:8px 0">
+                <div class="bld-section-title" style="margin-top:0">Flat Storage Bonus / Level (ULvl)</div>
+                <div class="bld-resource-grid">
+                  ${STORAGE_TYPES.map(t => `
+                    <label class="bld-resource-label">${_esc(t)}
+                      <input class="hexdb-input bld-resource-input" type="number" min="0" step="1"
+                        id="upg-f-flat-${t.toLowerCase()}" value="${flatMap[t] || 0}">
+                    </label>`).join('')}
+                </div>
+                <div class="bld-section-title" style="margin-top:6px">% Storage Bonus / Level (%% of BaseStorageSettings)</div>
+                <div class="bld-resource-grid">
+                  ${STORAGE_TYPES.map(t => `
+                    <label class="bld-resource-label">${_esc(t)}
+                      <input class="hexdb-input bld-resource-input" type="number" min="0" step="0.01"
+                        id="upg-f-pct-${t.toLowerCase()}" value="${pctMap[t] || 0}">
+                    </label>`).join('')}
+                </div>
+              </div>
+            </div>
+          </div>`;
+        })() : ''}
         <div class="hexdb-actions">
           <button onclick="UpgDB.deleteSelected()">🗑 Delete</button>
         </div>
@@ -9758,6 +9791,19 @@ const UpgDB = (() => {
     upg.typeIco       = g('upg-f-typeIco')?.value       ?? '';
     upg.upgradeIco    = g('upg-f-upgradeIco')?.value    ?? '';
     upg.priceType     = g('upg-f-priceType')?.value     ?? upg.priceType;
+
+    // Read storage bonus fields if StorageBonus type
+    if (upg.upgradeType === 'StorageBonus') {
+      const STORAGE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'];
+      upg.flatStorageBonusPerLevel = STORAGE_TYPES.map(t => ({
+        type: t,
+        amount: parseFloat(document.getElementById(`upg-f-flat-${t.toLowerCase()}`)?.value) || 0
+      })).filter(r => r.amount !== 0);
+      upg.percentStorageBonusPerLevel = STORAGE_TYPES.map(t => ({
+        type: t,
+        amount: parseFloat(document.getElementById(`upg-f-pct-${t.toLowerCase()}`)?.value) || 0
+      })).filter(r => r.amount !== 0);
+    }
 
     const rawLevels  = parseInt(g('upg-f-upgradeLevels')?.value) || 1;
     upg.upgradeLevels = Math.min(999, Math.max(1, rawLevels));
