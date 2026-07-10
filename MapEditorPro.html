@@ -1902,7 +1902,7 @@ body.mode-keys        #keys-tools  { display: flex; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "bd2dce6";
+const COMMIT  = "0480c5a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8391,17 +8391,17 @@ const BldDB = (() => {
         <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
           <div class="bld-section-title">${(bld.buildingCategory || '') === 'Artefact' ? 'Artefact Storage Bonus (Xa)' : 'Storage Capacity'}</div>
           <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:12px">
-            ${STORAGE_RESOURCE_TYPES.map(t => {
+            ${(() => {
               const scMap = {};
               (bld.storageCapacity || []).forEach(r => { scMap[r.type] = r.amount; });
-              return `
+              return STORAGE_RESOURCE_TYPES.map(t => `
               <label class="bld-resource-label" style="display:flex;flex-direction:column;gap:4px">
                 <span style="font-size:11px;color:var(--muted)">${_esc(t)}</span>
                 <input class="hexdb-input bld-resource-input" type="number" min="0" step="1"
                   id="bld-f-sc-${t.toLowerCase()}" value="${scMap[t] || 0}"
                   onchange="BldDB.save()" style="width:100%;text-align:center">
-              </label>`;
-            }).join('')}
+              </label>`).join('');
+            })()}
           </div>
           <div class="hexdb-row" style="margin-top:6px">
             <span class="hexdb-label">Storage Upgrade ID</span>
