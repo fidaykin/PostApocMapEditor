@@ -1915,7 +1915,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "8d095db";
+const COMMIT  = "07af35b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6590,12 +6590,11 @@ const LocalizationKeys = (() => {
     }
   }
 
-  function clearCache() {
-    if (!confirm('Clear localization cache? Entries will be re-fetched from the static file and Drive.')) return;
+  async function clearCache() {
+    if (!confirm('Clear localization cache? Local data will be replaced with Drive data.')) return;
     localStorage.removeItem(LS_KEY);
     _entries = [];
-    load();
-    UI.toast('🗑 Cache cleared — reloading from Drive…');
+    await pullFromDrive();
   }
 
   function getKeys() { return _entries.map(e => e.key); }
