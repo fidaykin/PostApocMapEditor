@@ -1914,7 +1914,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "8e5de54";
+const COMMIT  = "73f6de1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8414,7 +8414,8 @@ const BldDB = (() => {
           </div></div>
         <div class="hexdb-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Capacity <span class="hexdb-info" title="Taps until destroyed (0 = unlimited)">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-capacity" type="number" step="1" min="0"
-            value="${bld.capacity ?? 0}" style="width:110px"></div>
+            value="${bld.capacity ?? 0}" style="width:110px"
+            onchange="this.value=Math.max(0,Math.trunc(parseFloat(this.value)||0))"></div>
         <div class="hexdb-row"${!hasTap ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Get per Tap</span>
           ${_resBlockHTML('getPerTap', bld.getPerTap, !hasTap)}</div>
         <div class="hexdb-row"><span class="hexdb-label">Per Turn <span class="hexdb-info" title="Idle income per turn (9s) while on map">ⓘ</span></span>
