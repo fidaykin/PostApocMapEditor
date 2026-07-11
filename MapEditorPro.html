@@ -1914,7 +1914,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "2f5b570";
+const COMMIT  = "a18b526";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8232,7 +8232,9 @@ const BldDB = (() => {
           data-res-field="${fieldName}" data-res-index="${i}"${dis}>${opts}${customOpt}</select>
         <input class="hexdb-input" type="number" step="1" min="0" style="width:90px"
           data-res-field="${fieldName}" data-res-index="${i}" data-res-key="amount"
-          value="${r.amount ?? 0}"${dis}>
+          value="${r.amount ?? 0}"${dis}
+          onkeydown="if(['.','e','E','+','-',','].includes(event.key))event.preventDefault()"
+          onchange="this.value=Math.max(0,Math.trunc(parseFloat(this.value)||0))">
         <button class="hexdb-res-remove"
           data-res-field="${fieldName}" data-res-index="${i}"${dis}>✕</button>
       </div>`;
