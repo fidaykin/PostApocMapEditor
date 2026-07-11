@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.11.e6a7142</title>
+<title>Post Apo Map Editor 2026.07.11.07af35b</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1337,6 +1337,7 @@ body.mode-common #map-io    { display: none; }
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.openManager()">⚙ Manage Keys</button>
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.pullFromDrive()">☁ Pull</button>
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.pushToDrive()">☁ Push</button>
+      <button class="hexdb-tool-btn" onclick="LocalizationKeys.clearCache()" title="Clear localStorage cache and re-fetch from Drive">🗑 Clear Cache</button>
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.downloadJson()">⬇ Download JSON</button>
     </div>
   </div>
@@ -1914,7 +1915,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.11";
-const COMMIT  = "ba3892e";
+const COMMIT  = "7e1b1ea";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6589,11 +6590,19 @@ const LocalizationKeys = (() => {
     }
   }
 
+  function clearCache() {
+    if (!confirm('Clear localization cache? Entries will be re-fetched from the static file and Drive.')) return;
+    localStorage.removeItem(LS_KEY);
+    _entries = [];
+    load();
+    UI.toast('🗑 Cache cleared — reloading from Drive…');
+  }
+
   function getKeys() { return _entries.map(e => e.key); }
   function getEntries() { return _entries; }
 
   return { load, getKeys, getEntries, add, remove, downloadJson, importJson, compareWithDrive,
-           pushToDrive, pullFromDrive, openManager, closeManager, filterList, _updateField };
+           pushToDrive, pullFromDrive, clearCache, openManager, closeManager, filterList, _updateField };
 })();
 
 // ── BiomeManager ───────────────────────────────────────────
@@ -10427,6 +10436,8 @@ window.addEventListener('load', async () => {
           style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">☁ Push</button>
         <button onclick="LocalizationKeys.importJson()"
           style="background:#37474f;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Import a local localization.json — adds new keys only">⬆ Import</button>
+        <button onclick="LocalizationKeys.clearCache()"
+          style="background:#6d4c41;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Clear localStorage cache and re-fetch from Drive">🗑 Clear Cache</button>
         <button id="loc-btn-compare" onclick="LocalizationKeys.compareWithDrive()"
           style="background:#5c6bc0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Show keys present locally but missing from Drive">🔍 Compare</button>
         <button onclick="LocalizationKeys.downloadJson()"
