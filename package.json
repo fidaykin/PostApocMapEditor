@@ -1,0 +1,13 @@
+{
+  "name": "post-apo-map-editor-tests",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:report": "playwright show-report",
+    "test:ui": "playwright test --ui"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.45.0",
+    "serve": "^14.2.0"
+  }
+}
