@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.11.a18b526</title>
+<title>Post Apo Map Editor 2026.07.11.e6a7142</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1914,7 +1914,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.11";
-const COMMIT  = "33026af";
+const COMMIT  = "ba3892e";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8232,7 +8232,9 @@ const BldDB = (() => {
           data-res-field="${fieldName}" data-res-index="${i}"${dis}>${opts}${customOpt}</select>
         <input class="hexdb-input" type="number" step="1" min="0" style="width:90px"
           data-res-field="${fieldName}" data-res-index="${i}" data-res-key="amount"
-          value="${r.amount ?? 0}"${dis}>
+          value="${r.amount ?? 0}"${dis}
+          onkeydown="if(['.','e','E','+','-',','].includes(event.key))event.preventDefault()"
+          onchange="this.value=Math.max(0,Math.trunc(parseFloat(this.value)||0))">
         <button class="hexdb-res-remove"
           data-res-field="${fieldName}" data-res-index="${i}"${dis}>✕</button>
       </div>`;
