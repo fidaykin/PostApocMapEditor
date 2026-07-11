@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.11.07af35b</title>
+<title>Post Apo Map Editor 2026.07.11.b9a724f</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1915,7 +1915,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.11";
-const COMMIT  = "7e1b1ea";
+const COMMIT  = "256c8ea";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6590,12 +6590,11 @@ const LocalizationKeys = (() => {
     }
   }
 
-  function clearCache() {
-    if (!confirm('Clear localization cache? Entries will be re-fetched from the static file and Drive.')) return;
+  async function clearCache() {
+    if (!confirm('Clear localization cache? Local data will be replaced with Drive data.')) return;
     localStorage.removeItem(LS_KEY);
     _entries = [];
-    load();
-    UI.toast('🗑 Cache cleared — reloading from Drive…');
+    await pullFromDrive();
   }
 
   function getKeys() { return _entries.map(e => e.key); }
