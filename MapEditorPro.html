@@ -1914,7 +1914,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "09bbd6c";
+const COMMIT  = "8e5de54";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8335,6 +8335,7 @@ const BldDB = (() => {
               <option${bld.destroyTransformToMode === 'HexID'   ? ' selected' : ''}>HexID</option>
             </select>
             <input class="hexdb-input" id="bld-f-destroyTransformTo" type="text" placeholder="Tile ID"
+              list="blddb-hex-id-list"
               value="${_esc(bld.destroyTransformTo)}"
               style="flex:1${bld.destroyTransformToMode === 'Parents' ? ';display:none' : ''}">
           </div>` : `<input class="hexdb-input" value="Unbreakable" style="width:160px" disabled>`}</div>
@@ -8407,6 +8408,7 @@ const BldDB = (() => {
               <option${bld.incomeTransformToMode === 'HexID'   ? ' selected' : ''}>HexID</option>
             </select>
             <input class="hexdb-input" id="bld-f-incomeTransformTo" type="text" placeholder="Tile ID"
+              list="blddb-hex-id-list"
               value="${_esc(bld.incomeTransformTo)}"
               style="flex:1${bld.incomeTransformToMode === 'Parents' ? ';display:none' : ''}">
           </div></div>
@@ -8620,9 +8622,13 @@ const BldDB = (() => {
       </div>
     </div>`;
 
+    const bldHexIdDatalist = '<datalist id="blddb-hex-id-list">' +
+      (typeof HexDB !== 'undefined' ? HexDB.getAll() : [])
+        .filter(h => h.id).map(h => `<option value="${_esc(h.id)}">`).join('') +
+      '</datalist>';
     right.innerHTML = visualHTML + `<div class="hexdb-form">
       ${mainHTML}${footprintHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${specialHTML}${actionsHTML}
-    </div>`;
+    </div>` + bldHexIdDatalist;
 
     // ── Wire section headers ──────────────────────────────────
     right.querySelectorAll('.hexdb-section-hdr').forEach(hdr => {
