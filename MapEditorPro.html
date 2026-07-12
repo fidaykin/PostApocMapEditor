@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.12.fc695c5</title>
+<title>Post Apo Map Editor 2026.07.12.59d60a6</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1915,7 +1915,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.12";
-const COMMIT  = "d75ed5f";
+const COMMIT  = "f9eee60";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8324,9 +8324,10 @@ const BldDB = (() => {
             </div>
             <small style="color:#888;font-size:0.8em">Web: sprites/buildings/&lt;name&gt;.png | Unity: Resources/Buildings/&lt;name&gt;</small>
           </div></div>
-        <div class="hexdb-row"><span class="hexdb-label">Base Cost Taps <span class="hexdb-info" title="Taps to unlock. Min 1.">ⓘ</span></span>
-          <input class="hexdb-input" id="bld-f-baseCostTaps" type="number" step="1" min="1"
-            value="${Math.max(1, bld.baseCostTaps ?? 1)}"></div>
+        <div class="hexdb-row"><span class="hexdb-label">Base Cost Taps <span class="hexdb-info" title="Integer, 0–100 000. Auto-corrects leading zeros.">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-baseCostTaps" type="number" step="1" min="0" max="100000"
+            oninput="this.value=Math.min(100000,Math.max(0,parseInt(this.value,10)||0))"
+            value="${Math.min(100000, Math.max(0, bld.baseCostTaps ?? 0))}"></div>
       </div>
     </div>`;
 
@@ -8811,7 +8812,7 @@ const BldDB = (() => {
     bld.biome            = iv('bld-f-biome');
     bld.filter       = iv('bld-f-filter');
     bld.spriteName   = iv('bld-f-spriteName');
-    bld.baseCostTaps = Math.max(1, nv('bld-f-baseCostTaps'));
+    bld.baseCostTaps = Math.min(100000, Math.max(0, nv('bld-f-baseCostTaps')));
 
     // DESTROY
     bld.canDestroy               = bv('bld-f-canDestroy');
