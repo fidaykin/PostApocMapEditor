@@ -1915,7 +1915,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "b9a724f";
+const COMMIT  = "f41a869";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8000,7 +8000,7 @@ const HexDB = (() => {
 
 // ── BldDB Module ───────────────────────────────────────────
 const BldDB = (() => {
-  const SECTION_DEFAULTS = { main: false, destroy: true, build: true, income: false, settings: true, special: true };
+  const SECTION_DEFAULTS = { main: false, footprint: false, destroy: true, build: true, income: false, settings: true, special: true };
   const STORAGE_RESOURCE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'];
 
   let _data      = { version: 1, buildings: [] };
@@ -8298,8 +8298,7 @@ const BldDB = (() => {
             <div id="bld-hint-descBuildId" style="font-size:10px;margin-top:2px">${_keyHint(bld.descBuildId)}</div>
           </div></div>
         <div class="hexdb-row"><span class="hexdb-label">Type <span class="hexdb-info" title="Ground Building · Water Building · Artefact (pre-placed, no road, permanent bonus, multi-tile)">ⓘ</span></span>
-          <select class="hexdb-select" id="bld-f-type"
-            onchange="document.getElementById('bld-footprint-section').style.display=this.value==='Artefact'?'':'none'">
+          <select class="hexdb-select" id="bld-f-type">
             <option${bld.type === 'Ground Building' ? ' selected' : ''}>Ground Building</option>
             <option${bld.type === 'Water Building'  ? ' selected' : ''}>Water Building</option>
             <option${bld.type === 'Artefact'        ? ' selected' : ''}>Artefact</option>
@@ -8622,15 +8621,14 @@ const BldDB = (() => {
     </div>`;
 
     const footprintHTML = `
-    <div class="hexdb-section" id="bld-footprint-section" style="display:${bld.type === 'Artefact' ? '' : 'none'}">
-      <div class="hexdb-section-hdr" style="background:var(--panel);padding:6px 12px;font-size:11px;font-weight:bold;letter-spacing:.06em;cursor:default">⬡ FOOTPRINT</div>
-      <div class="hexdb-section-body" style="padding:10px 12px">
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px">Axial (q, r) offsets from anchor tile. Anchor (0,0) is always the placement tile.</div>
-        <div id="bld-fp-container">
-          ${_footprintHTML(bld.footprint)}
-        </div>
-        <button onclick="BldDB.addFootprintTile()" style="margin-top:6px;font-size:12px;padding:2px 8px">+ Add Tile</button>
-        <span style="font-size:11px;color:var(--muted);margin-left:10px">Total: <span id="bld-fp-count">${Math.max(1, (bld.footprint || []).length || 1)}</span> tile(s)</span>
+    <div class="hexdb-section" id="bld-footprint-section">
+      <div class="hexdb-section-hdr" data-sec="footprint">${col('footprint')} FOOTPRINT</div>
+      <div class="hexdb-section-body" data-sec="footprint" style="display:${bod('footprint')}">
+        ${_footprintHTML(bld.footprint)}
+        <small style="color:var(--muted);font-size:0.8em;display:block;margin-top:4px">
+          Toggle neighbours occupied by this multi-tile building.<br>
+          Orange centre = anchor (placement tile). Saved as <code>footprint</code>.
+        </small>
       </div>
     </div>`;
 
@@ -8653,6 +8651,32 @@ const BldDB = (() => {
         hdr.textContent = (_secState[s] ? '▶ ' : '▼ ') + hdr.textContent.slice(2);
       });
     });
+
+    // ── Wire footprint rosette ────────────────────────────────
+    const bldRosette = document.getElementById('bld-footprint-rosette');
+    if (bldRosette) {
+      bldRosette.addEventListener('click', e => {
+        const btn = e.target.closest('[data-fp]');
+        if (!btn || _selFilt < 0) return;
+        const q = parseInt(btn.dataset.q);
+        const r = parseInt(btn.dataset.r);
+        const bld = _data.buildings[_filtered[_selFilt]];
+        if (!Array.isArray(bld.footprint)) bld.footprint = [];
+        const idx = bld.footprint.findIndex(t => t.q === q && t.r === r);
+        if (idx >= 0) bld.footprint.splice(idx, 1);
+        else bld.footprint.push({q, r});
+        const extras = bld.footprint.filter(t => !(t.q === 0 && t.r === 0));
+        bld.footprint = extras.length > 0 ? [{q:0, r:0}, ...extras] : [];
+        btn.classList.toggle('active', idx < 0);
+        _autoSave();
+        const summary = document.getElementById('bld-fp-summary');
+        if (summary) {
+          summary.innerHTML = extras.length === 0
+            ? '<span style="color:var(--muted)">Single tile (no multi-tile footprint)</span>'
+            : `<span style="color:var(--accent)">Anchor + ${extras.length} tile${extras.length > 1 ? 's' : ''}: ${extras.map(t=>`(${t.q},${t.r})`).join(', ')}</span>`;
+        }
+      });
+    }
 
     // ── Wire simple inputs → _readRecord ─────────────────────
     right.querySelectorAll('input:not(.hexdb-tag-input):not([data-res-field]),select:not([data-res-field])').forEach(el => {
@@ -8782,7 +8806,7 @@ const BldDB = (() => {
     bld.descIdleId   = iv('bld-f-descIdleId').trim();
     bld.descBuildId  = iv('bld-f-descBuildId').trim();
     bld.type             = iv('bld-f-type');
-    bld.footprint        = bld.type === 'Artefact' ? _readFootprint() : [];
+    bld.footprint        = _readFootprint();
     bld.buildingCategory = iv('bld-f-buildingCategory');
     bld.biome            = iv('bld-f-biome');
     bld.filter       = iv('bld-f-filter');
@@ -8863,63 +8887,32 @@ const BldDB = (() => {
   }
 
   function _footprintHTML(footprint) {
-    const tiles = Array.isArray(footprint) && footprint.length > 0
-      ? footprint : [{q:0, r:0}];
-    const hasAnchor = tiles.some(t => t.q === 0 && t.r === 0);
-    const all = hasAnchor ? tiles : [{q:0, r:0}, ...tiles];
-    return all.map((t, i) => {
-      const anc = i === 0;
-      return `<div class="bld-fp-row" style="display:flex;gap:6px;align-items:center;margin-bottom:4px">
-        <span style="color:var(--muted);font-size:11px;width:54px;flex-shrink:0">${anc ? '⚓ Anchor' : `Tile ${i}`}</span>
-        <label style="font-size:11px;color:var(--muted)">q</label>
-        <input class="hexdb-input bld-fp-q" type="number" value="${t.q}" style="width:58px"${anc ? ' disabled' : ''}>
-        <label style="font-size:11px;color:var(--muted)">r</label>
-        <input class="hexdb-input bld-fp-r" type="number" value="${t.r}" style="width:58px"${anc ? ' disabled' : ''}>
-        ${anc ? '<span style="width:22px"></span>' : `<button onclick="BldDB.removeFootprintTile(this)" style="padding:1px 5px;font-size:11px">✕</button>`}
-      </div>`;
+    const fp = Array.isArray(footprint) ? footprint : [];
+    const FP_CELLS = [
+      {key:'NW', q:-1, r:0},  {key:'N',  q:0,  r:-1}, {key:'NE', q:1,  r:-1},
+      {key:'SW', q:-1, r:1},  {anchor:true},            {key:'SE', q:1,  r:0},
+      {empty:true},            {key:'S',  q:0,  r:1},   {empty:true},
+    ];
+    const cells = FP_CELLS.map(c => {
+      if (c.empty)  return `<div class="fp-empty"></div>`;
+      if (c.anchor) return `<span class="fp-anchor" title="Anchor tile (placement hex)">A</span>`;
+      const active = fp.some(t => t.q === c.q && t.r === c.r) ? ' class="active"' : '';
+      return `<button${active} data-fp="${c.key}" data-q="${c.q}" data-r="${c.r}" title="${c.key} (${c.q},${c.r})">${c.key}</button>`;
     }).join('');
-  }
-
-  function addFootprintTile() {
-    const container = document.getElementById('bld-fp-container');
-    if (!container) return;
-    const idx = container.querySelectorAll('.bld-fp-row').length;
-    const div = document.createElement('div');
-    div.className = 'bld-fp-row';
-    div.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:4px';
-    div.innerHTML = `<span style="color:var(--muted);font-size:11px;width:54px;flex-shrink:0">Tile ${idx}</span>
-      <label style="font-size:11px;color:var(--muted)">q</label>
-      <input class="hexdb-input bld-fp-q" type="number" value="1" style="width:58px">
-      <label style="font-size:11px;color:var(--muted)">r</label>
-      <input class="hexdb-input bld-fp-r" type="number" value="0" style="width:58px">
-      <button onclick="BldDB.removeFootprintTile(this)" style="padding:1px 5px;font-size:11px">✕</button>`;
-    container.appendChild(div);
-    _updateFpCount();
-  }
-
-  function removeFootprintTile(btn) {
-    btn.closest('.bld-fp-row').remove();
-    const container = document.getElementById('bld-fp-container');
-    if (container) container.querySelectorAll('.bld-fp-row').forEach((row, i) => {
-      if (i > 0) { const s = row.querySelector('span'); if (s) s.textContent = `Tile ${i}`; }
-    });
-    _updateFpCount();
-  }
-
-  function _updateFpCount() {
-    const el = document.getElementById('bld-fp-count');
-    if (el) el.textContent = document.querySelectorAll('#bld-fp-container .bld-fp-row').length;
+    const extras = fp.filter(t => !(t.q === 0 && t.r === 0));
+    const summary = extras.length === 0
+      ? '<span style="color:var(--muted)">Single tile (no multi-tile footprint)</span>'
+      : `<span style="color:var(--accent)">Anchor + ${extras.length} tile${extras.length > 1 ? 's' : ''}: ${extras.map(t=>`(${t.q},${t.r})`).join(', ')}</span>`;
+    return `<div class="hex-fp-rosette" id="bld-footprint-rosette">${cells}</div>
+    <div id="bld-fp-summary" style="margin-top:4px;font-size:0.85em">${summary}</div>`;
   }
 
   function _readFootprint() {
-    const rows = document.querySelectorAll('#bld-fp-container .bld-fp-row');
     const result = [];
-    rows.forEach(row => {
-      const q = parseInt(row.querySelector('.bld-fp-q')?.value) || 0;
-      const r = parseInt(row.querySelector('.bld-fp-r')?.value) || 0;
-      result.push({q, r});
+    document.querySelectorAll('#bld-footprint-rosette [data-fp].active').forEach(btn => {
+      result.push({ q: parseInt(btn.dataset.q), r: parseInt(btn.dataset.r) });
     });
-    return result;
+    return result.length > 0 ? [{q:0, r:0}, ...result] : [];
   }
 
   function pushRecord(bld) {
@@ -9062,7 +9055,7 @@ const BldDB = (() => {
     });
   }
 
-  return { init, add, pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, pickSprite, addFootprintTile, removeFootprintTile };
+  return { init, add, pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, pickSprite };
 })();
 
 // ── SttDB Module ───────────────────────────────────────────

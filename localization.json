@@ -839,6 +839,111 @@
       "key": "tooltip_daily_quest",
       "en": "Complete Daily Quest and earn Point Chests for abundant rewards!",
       "uk": "Виконуйте щоденні квести та отримуйте скрині очок за щедрі нагороди!"
+    },
+    {
+      "key": "loading_text",
+      "en": "Loading...",
+      "uk": "Завантаження..."
+    },
+    {
+      "key": "loading_tip_1",
+      "en": "Build settlements and defeat monsters along your journey!",
+      "uk": "Будуйте поселення та перемагайте монстрів на своєму шляху!"
+    },
+    {
+      "key": "version_your",
+      "en": "Your version:",
+      "uk": "Ваша версія:"
+    },
+    {
+      "key": "offline_income_title",
+      "en": "Offline Income",
+      "uk": "Офлайн дохід"
+    },
+    {
+      "key": "offline_income_total_rewards",
+      "en": "total rewards",
+      "uk": "загальні нагороди"
+    },
+    {
+      "key": "offline_income_time_label",
+      "en": "Time Offline",
+      "uk": "Час офлайн"
+    },
+    {
+      "key": "offline_income_max_label",
+      "en": "Max offline income:",
+      "uk": "Макс. офлайн дохід:"
+    },
+    {
+      "key": "btn_extra_income",
+      "en": "+50% Extra",
+      "uk": "+50% Додатково"
+    },
+    {
+      "key": "offline_income_upgrade_requirements",
+      "en": "Upgrade Requirements",
+      "uk": "Вимоги до покращень"
+    },
+    {
+      "key": "offline_income_recommend_upgrades",
+      "en": "Recommend Upgrades",
+      "uk": "Рекомендовані покращення"
+    },
+    {
+      "key": "quest_tab_chapter",
+      "en": "chapter",
+      "uk": "розділ"
+    },
+    {
+      "key": "quest_tab_daily",
+      "en": "daily",
+      "uk": "щоденні"
+    },
+    {
+      "key": "quest_tab_main",
+      "en": "main",
+      "uk": "основні"
+    },
+    {
+      "key": "quest_header_main",
+      "en": "main quest",
+      "uk": "основний квест"
+    },
+    {
+      "key": "quest_header_side",
+      "en": "side quest",
+      "uk": "побічний квест"
+    },
+    {
+      "key": "journal_title",
+      "en": "JOURNAL",
+      "uk": "ЖУРНАЛ"
+    },
+    {
+      "key": "btn_journal",
+      "en": "Journal",
+      "uk": "Журнал"
+    },
+    {
+      "key": "levelup_new_upgrades",
+      "en": "New Upgrades",
+      "uk": "Нові покращення"
+    },
+    {
+      "key": "quest_chapter_prefix",
+      "en": "chapter ",
+      "uk": "розділ "
+    },
+    {
+      "key": "quests_counter_prefix",
+      "en": "QUESTS ",
+      "uk": "КВЕСТИ "
+    },
+    {
+      "key": "quest_daily_tasks_desc",
+      "en": "Complete {1} Daily Tasks ({0}\\{1})",
+      "uk": "Виконати {1} щоденних завдань ({0}\\{1})"
     }
   ]
 }
