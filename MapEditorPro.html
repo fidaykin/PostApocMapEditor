@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.12.59d60a6</title>
+<title>Post Apo Map Editor 2026.07.12.1c4e8ea</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1262,7 +1262,6 @@ body.mode-common #map-io    { display: none; }
       <div class="mode-more-wrap">
         <button class="mode-tab" id="tab-more" onclick="App.toggleMore(event)">MORE ▾</button>
         <div id="more-dropdown">
-          <button class="more-item" id="tab-slots"    onclick="App.setMode('slots');App.closeMore()">SLOTS</button>
           <button class="more-item" id="tab-actions"  onclick="App.setMode('actions');App.closeMore()">ACTIONS</button>
           <button class="more-item" id="tab-upgrades" onclick="App.setMode('upgrades');App.closeMore()">UPGRADES</button>
           <button class="more-item" id="tab-monsters" onclick="App.setMode('monsters');App.closeMore()">MONSTERS</button>
@@ -1551,8 +1550,7 @@ body.mode-common #map-io    { display: none; }
 
   </div>
 
-  <!-- ── Stub editors (SLOTS / ACTIONS / UPGRADES / MONSTERS / QUESTS) ── -->
-  <div id="slots-main"    class="stub-editor"><div class="stub-msg">SLOTS Editor — coming soon</div></div>
+  <!-- ── Stub editors (ACTIONS / UPGRADES / MONSTERS / QUESTS) ── -->
   <div id="actions-main"  class="stub-editor"><div class="stub-msg">ACTIONS Editor — coming soon</div></div>
   <div id="upgrades-main">
 
@@ -1915,7 +1913,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.12";
-const COMMIT  = "f9eee60";
+const COMMIT  = "1baa9ff";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
