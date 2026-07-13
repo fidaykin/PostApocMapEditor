@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.13.6a04129</title>
+<title>Post Apo Map Editor 2026.07.13.b38aa02</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -742,19 +742,24 @@ body.mode-common #map-io    { display: none; }
 .hex-rosette button {
   position: absolute;
   width: 56px; height: 48px;
-  background: var(--bg);
-  border: 2px solid rgba(150,175,200,0.55);
+  background: rgba(255,255,255,0.08);
+  border: none;
   clip-path: polygon(100% 50%, 75% 0%, 25% 0%, 0% 50%, 25% 100%, 75% 100%);
+  filter: drop-shadow(0 0 1.5px rgba(140,165,200,0.75));
   color: var(--muted);
   font-size: 13px; cursor: pointer;
-  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  transition: background 0.1s, color 0.1s, filter 0.1s;
 }
-.hex-rosette button:hover { background: var(--hover); color: var(--text); }
+.hex-rosette button:hover {
+  background: rgba(255,255,255,0.16);
+  color: var(--text);
+  filter: drop-shadow(0 0 2.5px rgba(140,165,200,1));
+}
 .hex-rosette button.active {
-  background: rgba(79,195,247,0.45);
-  border-color: var(--accent);
+  background: rgba(79,195,247,0.35);
   color: var(--accent);
   font-weight: bold;
+  filter: drop-shadow(0 0 3px rgba(79,195,247,0.85));
 }
 
 /* ── Footprint rosette (7-cell flat-top hex cluster) ─────────── */
@@ -768,27 +773,33 @@ body.mode-common #map-io    { display: none; }
 .hex-fp-rosette button {
   position: absolute;
   width: 56px; height: 48px;
-  background: var(--bg);
-  border: 2px solid rgba(150,175,200,0.55);
+  background: rgba(255,255,255,0.08);
+  border: none;
   clip-path: polygon(100% 50%, 75% 0%, 25% 0%, 0% 50%, 25% 100%, 75% 100%);
+  filter: drop-shadow(0 0 1.5px rgba(140,165,200,0.75));
   color: var(--muted);
   font-size: 13px; cursor: pointer;
-  transition: background 0.1s, color 0.1s, border-color 0.1s;
+  transition: background 0.1s, color 0.1s, filter 0.1s;
 }
-.hex-fp-rosette button:hover { background: var(--hover); color: var(--text); }
+.hex-fp-rosette button:hover {
+  background: rgba(255,255,255,0.16);
+  color: var(--text);
+  filter: drop-shadow(0 0 2.5px rgba(140,165,200,1));
+}
 .hex-fp-rosette button.active {
-  background: rgba(79,195,247,0.45);
-  border-color: var(--accent);
+  background: rgba(79,195,247,0.35);
   color: var(--accent);
   font-weight: bold;
+  filter: drop-shadow(0 0 3px rgba(79,195,247,0.85));
 }
 .fp-anchor {
   position: absolute;
   display: flex; align-items: center; justify-content: center;
   width: 56px; height: 48px;
-  background: rgba(180,83,9,0.35);
-  border: 2px solid rgba(217,119,6,0.85);
+  background: rgba(180,83,9,0.45);
+  border: none;
   clip-path: polygon(100% 50%, 75% 0%, 25% 0%, 0% 50%, 25% 100%, 75% 100%);
+  filter: drop-shadow(0 0 2px rgba(217,119,6,0.9));
   color: #d97706;
   font-size: 13px; font-weight: bold;
   user-select: none;
@@ -2241,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.13";
-const COMMIT  = "aaf2f3d";
+const COMMIT  = "2785a46";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
