@@ -1913,7 +1913,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "59d60a6";
+const COMMIT  = "1c4e8ea";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4252,6 +4252,17 @@ const DriveSync = (() => {
       const driveData = await loadHexDb();
       HexDB.loadFromObject(driveData);
       setDbSource('drive');
+      UI.progress(20, 'Syncing common settings…');
+      try {
+        const rootFiles  = await _listFiles(ROOT_FOLDER);
+        const commonFile = rootFiles.find(f => f.name === 'common_settings.json');
+        if (commonFile) {
+          const blob = await _downloadBlob(commonFile.id);
+          CommonDB.load(await blob.text());
+        }
+      } catch(e) {
+        console.warn('[DriveSync] common_settings.json pull skipped:', e.message);
+      }
       UI.progress(25, 'Syncing sprites…');
 
       const bundled = new Set(
