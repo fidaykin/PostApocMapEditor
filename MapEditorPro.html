@@ -730,22 +730,22 @@ body.mode-common #map-io    { display: none; }
 .hexdb-section-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; }
 
 /* ── Hex direction rosette (water exits — flat-top hex cluster) ── */
-/* Cell positions use flat-top hex geometry: r=16, COL_PITCH=24, STAGGER=14, ROW_PITCH=28
-   N(24,0) NE(48,14) SE(48,42) S(24,56) SW(0,42) NW(0,14) — container 80×84px */
+/* Cell positions use flat-top hex geometry: r=22, COL_PITCH=33, STAGGER=19, ROW_PITCH=38
+   N(33,0) NE(66,19) SE(66,57) S(33,76) SW(0,57) NW(0,19) A(33,38) — container 110×114px */
 .hex-rosette {
   position: relative;
-  width: 80px;
-  height: 84px;
+  width: 110px;
+  height: 114px;
   margin: 4px 0;
   flex-shrink: 0;
 }
 .hex-rosette button {
   position: absolute;
-  width: 32px; height: 28px;
+  width: 44px; height: 38px;
   background: var(--bg); border: 1px solid var(--border);
   clip-path: polygon(100% 50%, 75% 0%, 25% 0%, 0% 50%, 25% 100%, 75% 100%);
   color: var(--muted);
-  font-size: 9px; cursor: pointer;
+  font-size: 11px; cursor: pointer;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 .hex-rosette button:hover { background: var(--hover); color: var(--text); }
@@ -759,18 +759,18 @@ body.mode-common #map-io    { display: none; }
 /* ── Footprint rosette (7-cell flat-top hex cluster) ─────────── */
 .hex-fp-rosette {
   position: relative;
-  width: 80px;
-  height: 84px;
+  width: 110px;
+  height: 114px;
   margin: 4px 0;
   flex-shrink: 0;
 }
 .hex-fp-rosette button {
   position: absolute;
-  width: 32px; height: 28px;
+  width: 44px; height: 38px;
   background: var(--bg); border: 1px solid var(--border);
   clip-path: polygon(100% 50%, 75% 0%, 25% 0%, 0% 50%, 25% 100%, 75% 100%);
   color: var(--muted);
-  font-size: 9px; cursor: pointer;
+  font-size: 11px; cursor: pointer;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 .hex-fp-rosette button:hover { background: var(--hover); color: var(--text); }
@@ -783,12 +783,12 @@ body.mode-common #map-io    { display: none; }
 .fp-anchor {
   position: absolute;
   display: flex; align-items: center; justify-content: center;
-  width: 32px; height: 28px;
+  width: 44px; height: 38px;
   background: rgba(180,83,9,0.30);
   border: 1px solid rgba(217,119,6,0.7);
   clip-path: polygon(100% 50%, 75% 0%, 25% 0%, 0% 50%, 25% 100%, 75% 100%);
   color: #d97706;
-  font-size: 10px; font-weight: bold;
+  font-size: 11px; font-weight: bold;
   user-select: none;
 }
 .fp-empty { display: none; }
@@ -2239,7 +2239,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.13";
-const COMMIT  = "f40c641";
+const COMMIT  = "7c470bb";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7370,7 +7370,7 @@ const HexDB = (() => {
   ];
 
   // Flat-top hex positions for water/footprint rosettes (left, top in px)
-  const HEX_POS = { NW:{l:0,t:14}, N:{l:24,t:0}, NE:{l:48,t:14}, SW:{l:0,t:42}, S:{l:24,t:56}, SE:{l:48,t:42} };
+  const HEX_POS = { NW:{l:0,t:19}, N:{l:33,t:0}, NE:{l:66,t:19}, SW:{l:0,t:57}, S:{l:33,t:76}, SE:{l:66,t:57} };
 
   function _waterFacesHTML(hex) {
     if (hex.type !== 'Rivers') return '';
@@ -7398,9 +7398,9 @@ const HexDB = (() => {
     const offsets = Array.isArray(hex.occupiedOffsets) ? hex.occupiedOffsets : [];
     // Flat-top hex cluster: 6 neighbours + anchor, absolute-positioned
     const FP_CELLS = [
-      {key:'NW', l:0,  t:14}, {key:'N',  l:24, t:0},  {key:'NE', l:48, t:14},
-      {key:'SW', l:0,  t:42}, {anchor:true, l:24, t:28}, {key:'SE', l:48, t:42},
-      null,                   {key:'S',  l:24, t:56},  null,
+      {key:'NW', l:0,  t:19}, {key:'N',  l:33, t:0},  {key:'NE', l:66, t:19},
+      {key:'SW', l:0,  t:57}, {anchor:true, l:33, t:38}, {key:'SE', l:66, t:57},
+      null,                   {key:'S',  l:33, t:76},  null,
     ];
     const cells = FP_CELLS.map(c => {
       if (!c) return '';
@@ -9230,9 +9230,9 @@ const BldDB = (() => {
     const fp = Array.isArray(footprint) ? footprint : [];
     // Flat-top hex cluster: 6 neighbours + anchor, absolute-positioned
     const FP_CELLS = [
-      {key:'NW', q:-1, r:0,  l:0,  t:14}, {key:'N',  q:0, r:-1, l:24, t:0},  {key:'NE', q:1, r:-1, l:48, t:14},
-      {key:'SW', q:-1, r:1,  l:0,  t:42}, {anchor:true,         l:24, t:28},  {key:'SE', q:1, r:0,  l:48, t:42},
-      null,                                {key:'S',  q:0,  r:1,  l:24, t:56}, null,
+      {key:'NW', q:-1, r:0,  l:0,  t:19}, {key:'N',  q:0, r:-1, l:33, t:0},  {key:'NE', q:1, r:-1, l:66, t:19},
+      {key:'SW', q:-1, r:1,  l:0,  t:57}, {anchor:true,         l:33, t:38},  {key:'SE', q:1, r:0,  l:66, t:57},
+      null,                                {key:'S',  q:0,  r:1,  l:33, t:76}, null,
     ];
     const cells = FP_CELLS.map(c => {
       if (!c)       return '';
