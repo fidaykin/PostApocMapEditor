@@ -826,6 +826,17 @@ body.mode-common #map-io    { display: none; }
 /* Drag-drop highlight */
 #hexdb-main.dragover { outline: 2px dashed var(--accent); outline-offset: -4px; }
 
+/* Common-settings table */
+.hexdb-table { border-collapse: collapse; font-size: 13px; }
+.hexdb-table th, .hexdb-table td {
+  border: 1px solid var(--border); padding: 5px 10px; text-align: left;
+}
+.hexdb-table thead th {
+  background: var(--panel); color: var(--muted);
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
+}
+.hexdb-table tbody tr:hover { background: var(--hover); }
+
 /* ── Tags input (Source field) ────────────────────────── */
 .hexdb-tags {
   display: flex; flex-wrap: wrap; gap: 4px; align-items: center;
@@ -915,6 +926,7 @@ body.mode-common #map-io    { display: none; }
   min-height: 0;
 }
 #upgrades-main { display: none; }
+#common-main   { display: none; }
 #upgrades-main.dragover { outline: 2px dashed var(--accent); outline-offset: -4px; }
 
 /* Level cards */
@@ -1603,7 +1615,7 @@ body.mode-common #map-io    { display: none; }
   </div>
   <div id="monsters-main" class="stub-editor"><div class="stub-msg">MONSTERS Editor — coming soon</div></div>
   <div id="quests-main"   class="stub-editor"><div class="stub-msg">QUESTS Editor — coming soon</div></div>
-  <div id="common-main" style="display:none;padding:16px">
+  <div id="common-main" style="padding:16px">
     <div style="margin-bottom:8px">
       <button onclick="CommonDB.push()">☁ Push common_settings.json</button>
     </div>
@@ -1913,7 +1925,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.09";
-const COMMIT  = "1c4e8ea";
+const COMMIT  = "e815d76";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
