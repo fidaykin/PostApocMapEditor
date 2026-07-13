@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.13.f4a22e2</title>
+<title>Post Apo Map Editor 2026.07.13.7356866</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -563,7 +563,7 @@ body.mode-buildings   #main             { display: none; }
 body.mode-buildings   #hexdb-main       { display: none; }
 body.mode-buildings   #buildings-main   { display: grid; }
 body.mode-slots       #main { display: none; } body.mode-slots       #slots-main    { display: flex; }
-body.mode-actions     #main { display: none; } body.mode-actions     #actions-main  { display: flex; }
+body.mode-actions     #main { display: none; } body.mode-actions     #actions-main  { display: grid; }
 body.mode-upgrades    #main { display: none; } body.mode-upgrades    #upgrades-main { display: grid; }
 body.mode-monsters    #main { display: none; } body.mode-monsters    #monsters-main { display: flex; }
 body.mode-quests      #main { display: none; } body.mode-quests      #quests-main   { display: flex; }
@@ -925,9 +925,45 @@ body.mode-common #map-io    { display: none; }
   display: flex; flex-direction: column; gap: 0;
   min-height: 0;
 }
+#actions-main  { display: none; }
 #upgrades-main { display: none; }
 #common-main   { display: none; }
 #upgrades-main.dragover { outline: 2px dashed var(--accent); outline-offset: -4px; }
+
+/* ── Actions skeleton ────────────────────────────────────── */
+#actions-main {
+  grid-row: 3; grid-column: 1;
+  grid-template-columns: 260px 1fr;
+  grid-template-rows: 1fr;
+  background: var(--bg);
+  overflow: hidden;
+}
+#act-left {
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--panel); min-height: 0;
+}
+#act-filters {
+  padding: 8px; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+}
+#act-search {
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: 5px 8px; border-radius: 4px;
+  font-size: 13px; width: 100%; box-sizing: border-box;
+}
+#act-list { flex: 1; overflow-y: auto; }
+#act-right {
+  overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 0; min-height: 0;
+}
+.skel-banner {
+  background: rgba(245,158,11,0.1); border: 1px solid rgba(245,158,11,0.3);
+  border-radius: 5px; color: #d97706; font-size: 12px;
+  padding: 7px 12px; margin-bottom: 10px;
+}
+@keyframes skel-pulse { 0%,100%{opacity:.4} 50%{opacity:.2} }
+.skel-item { animation: skel-pulse 1.8s ease-in-out infinite; }
 
 /* Level cards */
 .level-cards { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
@@ -1563,7 +1599,88 @@ body.mode-common #map-io    { display: none; }
   </div>
 
   <!-- ── Stub editors (ACTIONS / UPGRADES / MONSTERS / QUESTS) ── -->
-  <div id="actions-main"  class="stub-editor"><div class="stub-msg">ACTIONS Editor — coming soon</div></div>
+  <div id="actions-main">
+    <!-- Left: list -->
+    <div id="act-left">
+      <div id="act-filters">
+        <input id="act-search" type="text" placeholder="🔍 Search actions…" disabled>
+        <div class="hexdb-filter-row">
+          <span style="width:38px;flex-shrink:0">Type</span>
+          <select class="hexdb-select" disabled>
+            <option value="">All</option>
+            <option>Tap</option>
+            <option>Auto</option>
+            <option>Timed</option>
+          </select>
+        </div>
+      </div>
+      <div id="act-list">
+        <div class="hexdb-list-row skel-item">tap_city_gold</div>
+        <div class="hexdb-list-row skel-item">tap_settlement</div>
+        <div class="hexdb-list-row skel-item">auto_food_decay</div>
+        <div class="hexdb-list-row skel-item">timed_scavenge</div>
+        <div class="hexdb-list-row skel-item">tap_building_repair</div>
+      </div>
+      <div class="hexdb-list-footer">
+        <button disabled>+ Add Action</button>
+      </div>
+    </div>
+    <!-- Right: detail editor -->
+    <div id="act-right">
+      <div class="skel-banner">⚠ Skeleton preview — schema not finalised. Fields shown are predicted.</div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Basic</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">ID *</span>
+            <input class="hexdb-input" disabled placeholder="e.g. tap_city_gold"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Name key</span>
+            <input class="hexdb-input" disabled placeholder="localization key"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Icon</span>
+            <input class="hexdb-input" disabled placeholder="sprite name"></div>
+        </div>
+      </div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Trigger</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">Type</span>
+            <select class="hexdb-select" disabled><option>Tap</option><option>Auto</option><option>Timed</option></select></div>
+          <div class="hexdb-row"><span class="hexdb-label">Target</span>
+            <select class="hexdb-select" disabled><option>City</option><option>Settlement</option><option>Building</option><option>Tile</option></select></div>
+          <div class="hexdb-row"><span class="hexdb-label">Cooldown (s)</span>
+            <input class="hexdb-input" type="number" disabled value="0"></div>
+        </div>
+      </div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Reward</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">Resource</span>
+            <select class="hexdb-select" disabled><option>Gold</option><option>Food</option><option>Lumber</option><option>Stone</option><option>Gems</option></select></div>
+          <div class="hexdb-row"><span class="hexdb-label">Base Amount</span>
+            <input class="hexdb-input" type="number" disabled value="5"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Strength ×</span>
+            <input class="hexdb-input" type="number" step="0.1" disabled value="1.0"></div>
+        </div>
+      </div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Cost</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">Resource</span>
+            <select class="hexdb-select" disabled><option value="">(none)</option><option>Gold</option><option>Food</option><option>Gems</option></select></div>
+          <div class="hexdb-row"><span class="hexdb-label">Amount</span>
+            <input class="hexdb-input" type="number" disabled value="0"></div>
+        </div>
+      </div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Unlock Condition</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">Min Town Level</span>
+            <input class="hexdb-input" type="number" disabled value="1"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Required Building</span>
+            <input class="hexdb-input" disabled placeholder="building id or blank"></div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="upgrades-main">
 
     <!-- Left panel: list + filters -->
@@ -1922,7 +2039,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.13";
-const COMMIT  = "0ad6cc3";
+const COMMIT  = "147d210";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
