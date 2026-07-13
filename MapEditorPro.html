@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.12.1c4e8ea</title>
+<title>Post Apo Map Editor 2026.07.13.e815d76</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1912,8 +1912,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.07.12";
-const COMMIT  = "1baa9ff";
+const VERSION = "2026.07.13";
+const COMMIT  = "035ed11";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4252,6 +4252,17 @@ const DriveSync = (() => {
       const driveData = await loadHexDb();
       HexDB.loadFromObject(driveData);
       setDbSource('drive');
+      UI.progress(20, 'Syncing common settings…');
+      try {
+        const rootFiles  = await _listFiles(ROOT_FOLDER);
+        const commonFile = rootFiles.find(f => f.name === 'common_settings.json');
+        if (commonFile) {
+          const blob = await _downloadBlob(commonFile.id);
+          CommonDB.load(await blob.text());
+        }
+      } catch(e) {
+        console.warn('[DriveSync] common_settings.json pull skipped:', e.message);
+      }
       UI.progress(25, 'Syncing sprites…');
 
       const bundled = new Set(
