@@ -1,0 +1,844 @@
+{
+  "version": 1,
+  "locales": [
+    "en",
+    "uk"
+  ],
+  "entries": [
+    {
+      "key": "btn_close",
+      "en": "Close",
+      "uk": "Закрити"
+    },
+    {
+      "key": "btn_confirm",
+      "en": "Confirm",
+      "uk": "Підтвердити"
+    },
+    {
+      "key": "btn_cancel",
+      "en": "Cancel",
+      "uk": "Скасувати"
+    },
+    {
+      "key": "btn_ok",
+      "en": "OK",
+      "uk": "OK"
+    },
+    {
+      "key": "btn_yes",
+      "en": "Yes",
+      "uk": "Так"
+    },
+    {
+      "key": "btn_no",
+      "en": "No",
+      "uk": "Ні"
+    },
+    {
+      "key": "btn_back",
+      "en": "Back",
+      "uk": "Назад"
+    },
+    {
+      "key": "btn_reset_data",
+      "en": "Reset Data",
+      "uk": "Скинути дані"
+    },
+    {
+      "key": "btn_privacy_policy",
+      "en": "Privacy Policy",
+      "uk": "Політика конфіденційності"
+    },
+    {
+      "key": "settings_title",
+      "en": "Settings",
+      "uk": "Налаштування"
+    },
+    {
+      "key": "settings_sfx",
+      "en": "Sound Effects",
+      "uk": "Звукові ефекти"
+    },
+    {
+      "key": "settings_music",
+      "en": "Music",
+      "uk": "Музика"
+    },
+    {
+      "key": "settings_notifications",
+      "en": "Notifications",
+      "uk": "Сповіщення"
+    },
+    {
+      "key": "settings_language",
+      "en": "Language",
+      "uk": "Мова"
+    },
+    {
+      "key": "settings_account",
+      "en": "Account ID",
+      "uk": "ID облікового запису"
+    },
+    {
+      "key": "settings_version",
+      "en": "Version",
+      "uk": "Версія"
+    },
+    {
+      "key": "settings_reset_confirm",
+      "en": "Are you sure? This will delete all progress.",
+      "uk": "Ви впевнені? Всі дані буде видалено."
+    },
+    {
+      "key": "settlement_title",
+      "en": "Settlement (Level {0})",
+      "uk": "Поселення (Рівень {0})"
+    },
+    {
+      "key": "settlement_abandoned",
+      "en": "Abandoned Settlement",
+      "uk": "Покинуте поселення"
+    },
+    {
+      "key": "settlement_active",
+      "en": "Active - Generating Gold",
+      "uk": "Активне — генерує золото"
+    },
+    {
+      "key": "settlement_connect",
+      "en": "Connect via road to activate",
+      "uk": "Підключіть дорогою для активації"
+    },
+    {
+      "key": "settlement_desc_active",
+      "en": "This settlement has been restored and is now producing gold. Upgrade to increase production.",
+      "uk": "Це поселення відновлено та виробляє золото. Поліпшіть для збільшення виробництва."
+    },
+    {
+      "key": "settlement_desc_inactive",
+      "en": "Resources looted. Build a road connection to the city to activate this settlement and start generating gold.",
+      "uk": "Ресурси пограбовано. Проведіть дорогу до міста щоб активувати поселення та почати видобувати золото."
+    },
+    {
+      "key": "settlement_production_rate",
+      "en": "<b>Production:</b>\n+{0} gold every 9 seconds",
+      "uk": "<b>Виробництво:</b>\n+{0} золота кожні 9 секунд"
+    },
+    {
+      "key": "settlement_upgrade_cost",
+      "en": "Upgrade: {0} Gold",
+      "uk": "Поліпшення: {0} золота"
+    },
+    {
+      "key": "settlement_activate",
+      "en": "Activate",
+      "uk": "Активувати"
+    },
+    {
+      "key": "no_description",
+      "en": "No description available.",
+      "uk": "Опис відсутній."
+    },
+    {
+      "key": "building_production_header",
+      "en": "<b>Production:</b>\n",
+      "uk": "<b>Виробництво:</b>\n"
+    },
+    {
+      "key": "building_production_none",
+      "en": "<b>Production:</b> None",
+      "uk": "<b>Виробництво:</b> Відсутнє"
+    },
+    {
+      "key": "building_cost_header",
+      "en": "<b>Construction Cost:</b>\n",
+      "uk": "<b>Вартість будівництва:</b>\n"
+    },
+    {
+      "key": "building_cost_free",
+      "en": "<b>Construction Cost:</b> Free",
+      "uk": "<b>Вартість будівництва:</b> Безкоштовно"
+    },
+    {
+      "key": "building_requirements_header",
+      "en": "<b>Requirements:</b>\n",
+      "uk": "<b>Вимоги:</b>\n"
+    },
+    {
+      "key": "building_town_level_req",
+      "en": "  Town Level {0}+\n",
+      "uk": "  Рівень міста {0}+\n"
+    },
+    {
+      "key": "building_terrain_label",
+      "en": "  Terrain: ",
+      "uk": "  Рельєф:"
+    },
+    {
+      "key": "city_name",
+      "en": "Settlement",
+      "uk": "Поселення"
+    },
+    {
+      "key": "city_total_clicks",
+      "en": "Total Clicks: {0}",
+      "uk": "Всього натискань: {0}"
+    },
+    {
+      "key": "city_max_level",
+      "en": "Max Level",
+      "uk": "Максимальний рівень"
+    },
+    {
+      "key": "city_upgrade_requirements",
+      "en": "Upgrade Requirements:\n",
+      "uk": "Вимоги для поліпшення:\n"
+    },
+    {
+      "key": "city_clicks_progress",
+      "en": "Clicks: {0}/{1}",
+      "uk": "Натискань: {0}/{1}"
+    },
+    {
+      "key": "levelup_buildings",
+      "en": "New buildings unlocked!",
+      "uk": "Нові будівлі розблоковано!"
+    },
+    {
+      "key": "levelup_keep_going",
+      "en": "Keep building!",
+      "uk": "Продовжуй будувати!"
+    },
+    {
+      "key": "offline_welcome",
+      "en": "Welcome Back!",
+      "uk": "З поверненням!"
+    },
+    {
+      "key": "offline_storage_capped",
+      "en": "Max 8h production applied. Build more storage!",
+      "uk": "Застосовано максимум 8 годин виробництва. Збудуйте більше сховищ!"
+    },
+    {
+      "key": "offline_storage_full",
+      "en": "Some storage was full — build more to earn more!",
+      "uk": "Деякі сховища переповнені — збудуйте більше для більшого доходу!"
+    },
+    {
+      "key": "restoration_strength_default",
+      "en": "Strength: 1x",
+      "uk": "Сила: 1x"
+    },
+    {
+      "key": "restoration_tap_power",
+      "en": "Tap Power: {0}x",
+      "uk": "Сила натискання: {0}x"
+    },
+    {
+      "key": "restoration_max_level",
+      "en": "MAX LEVEL",
+      "uk": "МАКС. РІВЕНЬ"
+    },
+    {
+      "key": "restoration_upgrade",
+      "en": "Upgrade to {0}x\n{1:N0} Gold",
+      "uk": "Поліпшити до {0}x\n{1:N0} золота"
+    },
+    {
+      "key": "upgrade_max",
+      "en": "MAX",
+      "uk": "МАКС"
+    },
+    {
+      "key": "upgrade_purchase",
+      "en": "Purchase",
+      "uk": "Придбати"
+    },
+    {
+      "key": "upgrade_upgrade",
+      "en": "Upgrade",
+      "uk": "Поліпшити"
+    },
+    {
+      "key": "upgrade_free",
+      "en": "Free",
+      "uk": "Безкоштовно"
+    },
+    {
+      "key": "upgrade_price",
+      "en": "Price: {0}",
+      "uk": "Ціна: {0}"
+    },
+    {
+      "key": "upgrade_level_bounded",
+      "en": "Level:\n{0}/{1}",
+      "uk": "Рівень:\n{0}/{1}"
+    },
+    {
+      "key": "upgrade_level_unbounded",
+      "en": "Level: {0}",
+      "uk": "Рівень: {0}"
+    },
+    {
+      "key": "upgrades_header",
+      "en": "Upgrades ({0}/{1})",
+      "uk": "Поліпшення ({0}/{1})"
+    },
+    {
+      "key": "hud_town_level",
+      "en": "Town Lv. {0}",
+      "uk": "Місто Рів. {0}"
+    },
+    {
+      "key": "float_gold_earned",
+      "en": "+{0:F0} Gold",
+      "uk": "+{0:F0} золота"
+    },
+    {
+      "key": "float_gold_spent",
+      "en": "-{0:F0} Gold",
+      "uk": "-{0:F0} золота"
+    },
+    {
+      "key": "tile_info_terrain",
+      "en": "Terrain",
+      "uk": "Рельєф"
+    },
+    {
+      "key": "tile_info_building",
+      "en": "Building",
+      "uk": "Будівля"
+    },
+    {
+      "key": "tile_info_road",
+      "en": "Road",
+      "uk": "Дорога"
+    },
+    {
+      "key": "build_cost",
+      "en": "Construction Cost",
+      "uk": "Вартість будівництва"
+    },
+    {
+      "key": "build_requirements",
+      "en": "Requirements",
+      "uk": "Вимоги"
+    },
+    {
+      "key": "build_production",
+      "en": "Production",
+      "uk": "Виробництво"
+    },
+    {
+      "key": "build_not_met",
+      "en": "Requirements not met",
+      "uk": "Вимоги не виконані"
+    },
+    {
+      "key": "city_level",
+      "en": "City Level {0}",
+      "uk": "Рівень міста {0}"
+    },
+    {
+      "key": "disconnected_road",
+      "en": "Road not connected to city",
+      "uk": "Дорога не з'єднана з містом"
+    },
+    {
+      "key": "error_unknown_building",
+      "en": "Unknown building.",
+      "uk": "Невідома будівля."
+    },
+    {
+      "key": "error_tile_unavailable",
+      "en": "Tile is not available.",
+      "uk": "Клітинка недоступна."
+    },
+    {
+      "key": "error_building_exists",
+      "en": "A building already exists here.",
+      "uk": "Тут вже є будівля."
+    },
+    {
+      "key": "error_road_exists",
+      "en": "Road already exists here.",
+      "uk": "Тут вже є дорога."
+    },
+    {
+      "key": "error_terrain",
+      "en": "{0} can only be built on: {1}.",
+      "uk": "{0} можна будувати лише на: {1}."
+    },
+    {
+      "key": "error_road_terrain",
+      "en": "Roads cannot be built on this terrain.",
+      "uk": "На цьому рельєфі не можна будувати дороги."
+    },
+    {
+      "key": "error_town_level",
+      "en": "Requires Town Level {0} (you are Level {1}).",
+      "uk": "Потрібен рівень міста {0} (ваш рівень: {1})."
+    },
+    {
+      "key": "error_road_connect",
+      "en": "Roads must connect to the city or another road.",
+      "uk": "Дороги мають з'єднуватися з містом або іншою дорогою."
+    },
+    {
+      "key": "error_road_required",
+      "en": "{0} requires road connection!\nBuild it next to a road or the city.",
+      "uk": "{0} потребує підключення до дороги!\nРозташуйте поруч із дорогою або містом."
+    },
+    {
+      "key": "error_not_enough_resources",
+      "en": "Not enough resources. Need:",
+      "uk": "Недостатньо ресурсів. Потрібно:"
+    },
+    {
+      "key": "city_main_settlement",
+      "en": "MAIN SETTLEMENT",
+      "uk": "ГОЛОВНЕ ПОСЕЛЕННЯ"
+    },
+    {
+      "key": "ad_reward_gems",
+      "en": "+{0} Gems",
+      "uk": "+{0} самоцвітів"
+    },
+    {
+      "key": "ad_reward_resource",
+      "en": "+{0:F0} {1}",
+      "uk": "+{0:F0} {1}"
+    },
+    {
+      "key": "ad_reward_gold_boost",
+      "en": "2x Gold (30 min)",
+      "uk": "2x золота (30 хв)"
+    },
+    {
+      "key": "forest_cost",
+      "en": "Cost: {0} Gold",
+      "uk": "Вартість: {0} золота"
+    },
+    {
+      "key": "forest_reward",
+      "en": "Reward: +{0} Lumber",
+      "uk": "Нагорода: +{0} деревини"
+    },
+    {
+      "key": "bottom_hud_label_quests",
+      "en": "QUESTS",
+      "uk": "КВЕСТИ"
+    },
+    {
+      "key": "bottom_hud_label_info",
+      "en": "INFO",
+      "uk": "ІНФО"
+    },
+    {
+      "key": "bottom_hud_label_upgrades",
+      "en": "UPGRADES",
+      "uk": "ПОЛІПШЕННЯ"
+    },
+    {
+      "key": "bottom_hud_label_smth",
+      "en": "SMTH",
+      "uk": "ЩОСЬ"
+    },
+    {
+      "key": "bottom_hud_label_shop",
+      "en": "SHOP",
+      "uk": "МАГАЗИН"
+    },
+    {
+      "key": "gold_price_title",
+      "en": "Gold",
+      "uk": "Золота"
+    },
+    {
+      "key": "cost_efficiency",
+      "en": "Cost Efficiency",
+      "uk": "Ефективність витрат"
+    },
+    {
+      "key": "shop",
+      "en": "",
+      "uk": ""
+    },
+    {
+      "key": "panel_label_shop",
+      "en": "Shop",
+      "uk": "Магазин"
+    },
+    {
+      "key": "settlement_need_road",
+      "en": "Need road connection",
+      "uk": "Потрібне дорожнє з'єднання"
+    },
+    {
+      "key": "error_bridge_exists",
+      "en": "A bridge already exists here.",
+      "uk": "Тут вже є міст."
+    },
+    {
+      "key": "error_bridge_road",
+      "en": "Cannot place a bridge where a road exists.",
+      "uk": "Не можна розмістити міст там, де вже є дорога."
+    },
+    {
+      "key": "error_bridge_no_exit",
+      "en": "Bridge has no valid crossing direction.",
+      "uk": "Немає дійсного напрямку для переправи."
+    },
+    {
+      "key": "error_bridge_connect",
+      "en": "Bridge must connect to an existing road or city.",
+      "uk": "Міст має з'єднуватися з існуючою дорогою або містом."
+    },
+    {
+      "key": "lake_desc",
+      "en": "Lake",
+      "uk": "Озеро"
+    },
+    {
+      "key": "plain_desc",
+      "en": "Plain",
+      "uk": "Рівнина"
+    },
+    {
+      "key": "building_road",
+      "en": "Building road",
+      "uk": "Будувати дорогу"
+    },
+    {
+      "key": "brokenplane_desc",
+      "en": "Broken Plane",
+      "uk": "Зламаний літак"
+    },
+    {
+      "key": "barren_desc",
+      "en": "Barren",
+      "uk": "Пустка"
+    },
+    {
+      "key": "forest_desc",
+      "en": "Forest",
+      "uk": "Ліс"
+    },
+    {
+      "key": "road",
+      "en": "Road",
+      "uk": "Дорога"
+    },
+    {
+      "key": "building_farm",
+      "en": "Farm",
+      "uk": "Ферма"
+    },
+    {
+      "key": "building_lumber_camp",
+      "en": "Lumber Camp",
+      "uk": "Лісопильня"
+    },
+    {
+      "key": "building_quarry",
+      "en": "Quarry",
+      "uk": "Кар'єр"
+    },
+    {
+      "key": "building_generator",
+      "en": "Generator",
+      "uk": "Генератор"
+    },
+    {
+      "key": "building_bridge",
+      "en": "Bridge",
+      "uk": "Міст"
+    },
+    {
+      "key": "building_city",
+      "en": "City",
+      "uk": "Місто"
+    },
+    {
+      "key": "building_remove_road",
+      "en": "Remove Road",
+      "uk": "Прибрати дорогу"
+    },
+    {
+      "key": "building_clear_forest",
+      "en": "Clear Forest",
+      "uk": "Розчистити ліс"
+    },
+    {
+      "key": "artefact_test_key",
+      "en": "Artefact",
+      "uk": "Артефакт (тест)"
+    },
+    {
+      "key": "brokenplane_key",
+      "en": "Broken Plane",
+      "uk": "Зламаний літак"
+    },
+    {
+      "key": "brokenrails_key",
+      "en": "Broken Rails",
+      "uk": "Зламані рейки"
+    },
+    {
+      "key": "desert_key",
+      "en": "Desert",
+      "uk": "Пустеля"
+    },
+    {
+      "key": "destroyedbuilding_key",
+      "en": "Destroyed Building",
+      "uk": "Зруйнована будівля"
+    },
+    {
+      "key": "farm_test_key",
+      "en": "Farm Test",
+      "uk": "Ферма (тест)"
+    },
+    {
+      "key": "fish_key",
+      "en": "Fish",
+      "uk": "Риба"
+    },
+    {
+      "key": "gemfield_key",
+      "en": "Gem Field",
+      "uk": "Поле самоцвітів"
+    },
+    {
+      "key": "goldmine_test_key",
+      "en": "Gold Mine Test",
+      "uk": "Золота шахта (тест)"
+    },
+    {
+      "key": "goldvein_key",
+      "en": "Gold Vein",
+      "uk": "Золота жила"
+    },
+    {
+      "key": "grain_key",
+      "en": "Grain",
+      "uk": "Зернове поле"
+    },
+    {
+      "key": "hills_key",
+      "en": "Hills",
+      "uk": "Пагорби"
+    },
+    {
+      "key": "ironmine_test_key",
+      "en": "Iron Mine Test",
+      "uk": "Залізна шахта (тест)"
+    },
+    {
+      "key": "lake_key",
+      "en": "Lake",
+      "uk": "Озеро"
+    },
+    {
+      "key": "lava_plain_key",
+      "en": "Lava Plain",
+      "uk": "Лавова рівнина"
+    },
+    {
+      "key": "lava_rift_key",
+      "en": "Lava Rift",
+      "uk": "Лавова тріщина"
+    },
+    {
+      "key": "lumbermill_test_key",
+      "en": "Lumber Mill Test",
+      "uk": "Лісопильня (тест)"
+    },
+    {
+      "key": "mountain_key",
+      "en": "Mountain",
+      "uk": "Гора"
+    },
+    {
+      "key": "oil_key",
+      "en": "Oil",
+      "uk": "Нафта"
+    },
+    {
+      "key": "old_generator_key",
+      "en": "Old Generator",
+      "uk": "Старий генератор"
+    },
+    {
+      "key": "plain_key",
+      "en": "Plain",
+      "uk": "Рівнина"
+    },
+    {
+      "key": "rift_key",
+      "en": "Rift",
+      "uk": "Тріщина"
+    },
+    {
+      "key": "river_d_key",
+      "en": "River",
+      "uk": "Річка"
+    },
+    {
+      "key": "rubble_key",
+      "en": "Rubble",
+      "uk": "Уламки"
+    },
+    {
+      "key": "scouttower_test_key",
+      "en": "Scout Tower",
+      "uk": "Спостережна вежа (тест)"
+    },
+    {
+      "key": "stoneconveyor_test_key",
+      "en": "Stone Conveyor",
+      "uk": "Кам'яний конвеєр (тест)"
+    },
+    {
+      "key": "stonemine_test_key",
+      "en": "Stone Mine",
+      "uk": "Кам'яна шахта (тест)"
+    },
+    {
+      "key": "swamp_key",
+      "en": "Swamp",
+      "uk": "Болото"
+    },
+    {
+      "key": "water_key",
+      "en": "Water",
+      "uk": "Вода"
+    },
+    {
+      "key": "water_brokenboat_key",
+      "en": "Water Broken Boat",
+      "uk": "Зламаний човен"
+    },
+    {
+      "key": "water_dirty_key",
+      "en": "Water Dirty",
+      "uk": "Брудна вода"
+    },
+    {
+      "key": "water_oilspill_key",
+      "en": "Water Oil Spill",
+      "uk": "Нафтова пляма"
+    },
+    {
+      "key": "water_rock_key",
+      "en": "Water Rock",
+      "uk": "Скеля у воді"
+    },
+    {
+      "key": "water_ship_test_key",
+      "en": "Water Ship",
+      "uk": "Корабель (тест)"
+    },
+    {
+      "key": "water_smallshipyard_test_key",
+      "en": "Water Small Shipyard",
+      "uk": "Мала суднобудівня (тест)"
+    },
+    {
+      "key": "login_failed",
+      "en": "Sign-in failed. Try again.",
+      "uk": "Не вдалося увійти. Спробуйте ще раз."
+    },
+    {
+      "key": "conflict_save_differ",
+      "en": "Your cloud save and local save differ.\nLocal save ({0}) is newer — which do you want to keep?",
+      "uk": "Хмарне та локальне збереження різняться.\nЛокальне ({0}) новіше — яке залишити?"
+    },
+    {
+      "key": "map_info_uploaded",
+      "en": "Uploaded:",
+      "uk": "Завантажено:"
+    },
+    {
+      "key": "map_info_modified",
+      "en": "Modified:",
+      "uk": "Змінено:"
+    },
+    {
+      "key": "btn_download",
+      "en": "Download",
+      "uk": "Завантажити"
+    },
+    {
+      "key": "btn_downloaded",
+      "en": "Downloaded",
+      "uk": "Завантажено"
+    },
+    {
+      "key": "btn_restart",
+      "en": "Restart",
+      "uk": "Перезапустити"
+    },
+    {
+      "key": "btn_reload",
+      "en": "Reload",
+      "uk": "Перезавантажити"
+    },
+    {
+      "key": "btn_claim",
+      "en": "Claim",
+      "uk": "Отримати"
+    },
+    {
+      "key": "btn_go",
+      "en": "Go",
+      "uk": "Вперед"
+    },
+    {
+      "key": "btn_build",
+      "en": "Build",
+      "uk": "Будувати"
+    },
+    {
+      "key": "status_locked",
+      "en": "LOCKED",
+      "uk": "ЗАБЛОКОВАНО"
+    },
+    {
+      "key": "unit_min",
+      "en": "min",
+      "uk": "хв"
+    },
+    {
+      "key": "version_prefix",
+      "en": "v",
+      "uk": "v"
+    },
+    {
+      "key": "error_no_internet_title",
+      "en": "Connection Lost",
+      "uk": "З'єднання втрачено"
+    },
+    {
+      "key": "error_no_internet_body",
+      "en": "Unable to connect to the server.\nPlease check your internet connection",
+      "uk": "Не вдалося підключитися до сервера.\nПеревірте підключення до інтернету"
+    },
+    {
+      "key": "error_loading_title",
+      "en": "Loading Error",
+      "uk": "Помилка завантаження"
+    },
+    {
+      "key": "error_loading_body",
+      "en": "The app is taking too long to load. Your internet connection may be slow.",
+      "uk": "Завантаження займає надто довго. Можливо, з'єднання нестабільне."
+    },
+    {
+      "key": "tooltip_daily_quest",
+      "en": "Complete Daily Quest and earn Point Chests for abundant rewards!",
+      "uk": "Виконуйте щоденні квести та отримуйте скрині очок за щедрі нагороди!"
+    }
+  ]
+}
