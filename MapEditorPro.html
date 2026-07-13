@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.13.f40c641</title>
+<title>Post Apo Map Editor 2026.07.13.7c470bb</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -729,64 +729,69 @@ body.mode-common #map-io    { display: none; }
 .hexdb-section-hdr:hover { color: var(--text); }
 .hexdb-section-body { padding: 10px 12px; display: flex; flex-direction: column; gap: 7px; }
 
-/* ── Hex direction rosette (water exits — 3×2) ─────────── */
+/* ── Hex direction rosette (water exits — flat-top hex cluster) ── */
+/* Cell positions use flat-top hex geometry: r=16, COL_PITCH=24, STAGGER=14, ROW_PITCH=28
+   N(24,0) NE(48,14) SE(48,42) S(24,56) SW(0,42) NW(0,14) — container 80×84px */
 .hex-rosette {
-  display: grid;
-  grid-template-columns: repeat(3, 32px);
-  grid-template-rows: repeat(2, 28px);
-  gap: 2px;
-  width: fit-content;
+  position: relative;
+  width: 80px;
+  height: 84px;
   margin: 4px 0;
+  flex-shrink: 0;
 }
 .hex-rosette button {
+  position: absolute;
   width: 32px; height: 28px;
   background: var(--bg); border: 1px solid var(--border);
-  border-radius: 4px; color: var(--muted);
-  font-size: 10px; cursor: pointer;
+  clip-path: polygon(100% 50%, 75% 0%, 25% 0%, 0% 50%, 25% 100%, 75% 100%);
+  color: var(--muted);
+  font-size: 9px; cursor: pointer;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 .hex-rosette button:hover { background: var(--hover); color: var(--text); }
 .hex-rosette button.active {
-  background: rgba(79,195,247,0.18);
+  background: rgba(79,195,247,0.45);
   border-color: var(--accent);
   color: var(--accent);
   font-weight: bold;
 }
 
-/* ── Footprint rosette (7-cell hex cluster — 3×3) ─────── */
+/* ── Footprint rosette (7-cell flat-top hex cluster) ─────────── */
 .hex-fp-rosette {
-  display: grid;
-  grid-template-columns: repeat(3, 36px);
-  grid-template-rows: repeat(3, 32px);
-  gap: 3px;
-  width: fit-content;
+  position: relative;
+  width: 80px;
+  height: 84px;
   margin: 4px 0;
+  flex-shrink: 0;
 }
 .hex-fp-rosette button {
-  width: 36px; height: 32px;
+  position: absolute;
+  width: 32px; height: 28px;
   background: var(--bg); border: 1px solid var(--border);
-  border-radius: 4px; color: var(--muted);
-  font-size: 10px; cursor: pointer;
+  clip-path: polygon(100% 50%, 75% 0%, 25% 0%, 0% 50%, 25% 100%, 75% 100%);
+  color: var(--muted);
+  font-size: 9px; cursor: pointer;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 .hex-fp-rosette button:hover { background: var(--hover); color: var(--text); }
 .hex-fp-rosette button.active {
-  background: rgba(79,195,247,0.18);
+  background: rgba(79,195,247,0.45);
   border-color: var(--accent);
   color: var(--accent);
   font-weight: bold;
 }
 .fp-anchor {
+  position: absolute;
   display: flex; align-items: center; justify-content: center;
-  width: 36px; height: 32px;
+  width: 32px; height: 28px;
   background: rgba(180,83,9,0.30);
   border: 1px solid rgba(217,119,6,0.7);
-  border-radius: 4px;
+  clip-path: polygon(100% 50%, 75% 0%, 25% 0%, 0% 50%, 25% 100%, 75% 100%);
   color: #d97706;
-  font-size: 11px; font-weight: bold;
+  font-size: 10px; font-weight: bold;
   user-select: none;
 }
-.fp-empty { /* invisible grid placeholder */ }
+.fp-empty { display: none; }
 
 .hexdb-section.collapsed .hexdb-section-body { display: none; }
 .hexdb-row { display: flex; align-items: center; gap: 8px; }
@@ -2234,7 +2239,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.13";
-const COMMIT  = "f33ce78";
+const COMMIT  = "2628570";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7364,12 +7369,16 @@ const HexDB = (() => {
     { key:'SW', label:'SW' }, { key:'S',  label:'S'  }, { key:'SE', label:'SE' },
   ];
 
+  // Flat-top hex positions for water/footprint rosettes (left, top in px)
+  const HEX_POS = { NW:{l:0,t:14}, N:{l:24,t:0}, NE:{l:48,t:14}, SW:{l:0,t:42}, S:{l:24,t:56}, SE:{l:48,t:42} };
+
   function _waterFacesHTML(hex) {
     if (hex.type !== 'Rivers') return '';
     const faces = Array.isArray(hex.waterFaces) ? hex.waterFaces : [];
     const btns = WATER_DIRS.map(d => {
+      const p = HEX_POS[d.key];
       const active = faces.includes(d.key) ? ' class="active"' : '';
-      return `<button${active} data-wf="${d.key}" title="${d.key} — water exits this direction">${d.label}</button>`;
+      return `<button${active} style="left:${p.l}px;top:${p.t}px" data-wf="${d.key}" title="${d.key} — water exits this direction">${d.label}</button>`;
     }).join('');
     return `
     <div class="hexdb-row" style="align-items:flex-start">
@@ -7387,17 +7396,17 @@ const HexDB = (() => {
 
   function _footprintHTML(hex) {
     const offsets = Array.isArray(hex.occupiedOffsets) ? hex.occupiedOffsets : [];
-    // 3×3 grid: [NW][N][NE] / [SW][A][SE] / [_][S][_]
+    // Flat-top hex cluster: 6 neighbours + anchor, absolute-positioned
     const FP_CELLS = [
-      { key:'NW' }, { key:'N'  }, { key:'NE' },
-      { key:'SW' }, { key:null }, { key:'SE' },   // null = anchor
-      { key:null, empty:true }, { key:'S' }, { key:null, empty:true },
+      {key:'NW', l:0,  t:14}, {key:'N',  l:24, t:0},  {key:'NE', l:48, t:14},
+      {key:'SW', l:0,  t:42}, {anchor:true, l:24, t:28}, {key:'SE', l:48, t:42},
+      null,                   {key:'S',  l:24, t:56},  null,
     ];
     const cells = FP_CELLS.map(c => {
-      if (c.empty) return `<div class="fp-empty"></div>`;
-      if (c.key === null) return `<span class="fp-anchor" title="Anchor tile (this hex)">A</span>`;
+      if (!c) return '';
+      if (c.anchor) return `<span class="fp-anchor" style="left:${c.l}px;top:${c.t}px" title="Anchor tile (this hex)">A</span>`;
       const active = offsets.includes(c.key) ? ' class="active"' : '';
-      return `<button${active} data-fp="${c.key}" title="${c.key} — occupied by this object">${c.key}</button>`;
+      return `<button${active} style="left:${c.l}px;top:${c.t}px" data-fp="${c.key}" title="${c.key} — occupied by this object">${c.key}</button>`;
     }).join('');
     const summary = offsets.length === 0
       ? '<span style="color:var(--muted)">Single tile (no multi-tile footprint)</span>'
@@ -9219,16 +9228,17 @@ const BldDB = (() => {
 
   function _footprintHTML(footprint) {
     const fp = Array.isArray(footprint) ? footprint : [];
+    // Flat-top hex cluster: 6 neighbours + anchor, absolute-positioned
     const FP_CELLS = [
-      {key:'NW', q:-1, r:0},  {key:'N',  q:0,  r:-1}, {key:'NE', q:1,  r:-1},
-      {key:'SW', q:-1, r:1},  {anchor:true},            {key:'SE', q:1,  r:0},
-      {empty:true},            {key:'S',  q:0,  r:1},   {empty:true},
+      {key:'NW', q:-1, r:0,  l:0,  t:14}, {key:'N',  q:0, r:-1, l:24, t:0},  {key:'NE', q:1, r:-1, l:48, t:14},
+      {key:'SW', q:-1, r:1,  l:0,  t:42}, {anchor:true,         l:24, t:28},  {key:'SE', q:1, r:0,  l:48, t:42},
+      null,                                {key:'S',  q:0,  r:1,  l:24, t:56}, null,
     ];
     const cells = FP_CELLS.map(c => {
-      if (c.empty)  return `<div class="fp-empty"></div>`;
-      if (c.anchor) return `<span class="fp-anchor" title="Anchor tile (placement hex)">A</span>`;
+      if (!c)       return '';
+      if (c.anchor) return `<span class="fp-anchor" style="left:${c.l}px;top:${c.t}px" title="Anchor tile (placement hex)">A</span>`;
       const active = fp.some(t => t.q === c.q && t.r === c.r) ? ' class="active"' : '';
-      return `<button${active} data-fp="${c.key}" data-q="${c.q}" data-r="${c.r}" title="${c.key} (${c.q},${c.r})">${c.key}</button>`;
+      return `<button${active} style="left:${c.l}px;top:${c.t}px" data-fp="${c.key}" data-q="${c.q}" data-r="${c.r}" title="${c.key} (${c.q},${c.r})">${c.key}</button>`;
     }).join('');
     const extras = fp.filter(t => !(t.q === 0 && t.r === 0));
     const summary = extras.length === 0
