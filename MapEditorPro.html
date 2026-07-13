@@ -565,8 +565,8 @@ body.mode-buildings   #buildings-main   { display: grid; }
 body.mode-slots       #main { display: none; } body.mode-slots       #slots-main    { display: flex; }
 body.mode-actions     #main { display: none; } body.mode-actions     #actions-main  { display: grid; }
 body.mode-upgrades    #main { display: none; } body.mode-upgrades    #upgrades-main { display: grid; }
-body.mode-monsters    #main { display: none; } body.mode-monsters    #monsters-main { display: flex; }
-body.mode-quests      #main { display: none; } body.mode-quests      #quests-main   { display: flex; }
+body.mode-monsters    #main { display: none; } body.mode-monsters    #monsters-main { display: grid; }
+body.mode-quests      #main { display: none; } body.mode-quests      #quests-main   { display: grid; }
 body.mode-common #main          { display: none; }
 body.mode-common #hexdb-main    { display: none; }
 body.mode-common #common-main   { display: block; }
@@ -926,6 +926,8 @@ body.mode-common #map-io    { display: none; }
   min-height: 0;
 }
 #actions-main  { display: none; }
+#monsters-main { display: none; }
+#quests-main   { display: none; }
 #upgrades-main { display: none; }
 #common-main   { display: none; }
 #upgrades-main.dragover { outline: 2px dashed var(--accent); outline-offset: -4px; }
@@ -964,6 +966,33 @@ body.mode-common #map-io    { display: none; }
 }
 @keyframes skel-pulse { 0%,100%{opacity:.4} 50%{opacity:.2} }
 .skel-item { animation: skel-pulse 1.8s ease-in-out infinite; }
+
+/* ── Monsters skeleton ───────────────────────────────────── */
+#monsters-main, #quests-main {
+  grid-row: 3; grid-column: 1;
+  grid-template-columns: 260px 1fr;
+  grid-template-rows: 1fr;
+  background: var(--bg); overflow: hidden;
+}
+#mon-left, #qst-left {
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; overflow: hidden;
+  background: var(--panel); min-height: 0;
+}
+#mon-filters, #qst-filters {
+  padding: 8px; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
+}
+#mon-search, #qst-search {
+  background: var(--bg); border: 1px solid var(--border);
+  color: var(--text); padding: 5px 8px; border-radius: 4px;
+  font-size: 13px; width: 100%; box-sizing: border-box;
+}
+#mon-list, #qst-list { flex: 1; overflow-y: auto; }
+#mon-right, #qst-right {
+  overflow-y: auto; padding: 12px;
+  display: flex; flex-direction: column; gap: 0; min-height: 0;
+}
 
 /* Level cards */
 .level-cards { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
@@ -1730,8 +1759,174 @@ body.mode-common #map-io    { display: none; }
 
     <input id="upg-file-input" type="file" accept=".json" style="display:none">
   </div>
-  <div id="monsters-main" class="stub-editor"><div class="stub-msg">MONSTERS Editor — coming soon</div></div>
-  <div id="quests-main"   class="stub-editor"><div class="stub-msg">QUESTS Editor — coming soon</div></div>
+  <div id="monsters-main">
+    <!-- Left: list -->
+    <div id="mon-left">
+      <div id="mon-filters">
+        <input id="mon-search" type="text" placeholder="🔍 Search monsters…" disabled>
+        <div class="hexdb-filter-row">
+          <span style="width:38px;flex-shrink:0">Biome</span>
+          <select class="hexdb-select" disabled>
+            <option value="">All</option>
+            <option>Wasteland</option>
+            <option>Forest</option>
+            <option>Swamp</option>
+            <option>Mountain</option>
+            <option>Ruins</option>
+          </select>
+        </div>
+      </div>
+      <div id="mon-list">
+        <div class="hexdb-list-row skel-item">raider_basic</div>
+        <div class="hexdb-list-row skel-item">mutant_wolf</div>
+        <div class="hexdb-list-row skel-item">scavenger_gang</div>
+        <div class="hexdb-list-row skel-item">toxic_crawler</div>
+        <div class="hexdb-list-row skel-item">rust_golem</div>
+      </div>
+      <div class="hexdb-list-footer">
+        <button disabled>+ Add Monster</button>
+      </div>
+    </div>
+    <!-- Right: detail editor -->
+    <div id="mon-right">
+      <div class="skel-banner">⚠ Skeleton preview — schema not finalised. Fields shown are predicted.</div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Basic</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">ID *</span>
+            <input class="hexdb-input" disabled placeholder="e.g. raider_basic"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Name key</span>
+            <input class="hexdb-input" disabled placeholder="localization key"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Icon</span>
+            <input class="hexdb-input" disabled placeholder="sprite name"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Biome</span>
+            <select class="hexdb-select" disabled><option>Wasteland</option><option>Forest</option><option>Swamp</option><option>Mountain</option><option>Ruins</option></select></div>
+        </div>
+      </div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Combat Stats</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">HP</span>
+            <input class="hexdb-input" type="number" disabled value="50"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Damage</span>
+            <input class="hexdb-input" type="number" disabled value="10"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Defense</span>
+            <input class="hexdb-input" type="number" disabled value="0"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Speed</span>
+            <input class="hexdb-input" type="number" step="0.1" disabled value="1.0"></div>
+        </div>
+      </div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Spawn</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">Spawn Weight</span>
+            <input class="hexdb-input" type="number" disabled value="10"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Group Size</span>
+            <input class="hexdb-input" type="number" disabled value="1"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Min Town Level</span>
+            <input class="hexdb-input" type="number" disabled value="1"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Min Tile Distance</span>
+            <input class="hexdb-input" type="number" disabled value="5"></div>
+        </div>
+      </div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Defeat Reward</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">Gold</span>
+            <input class="hexdb-input" type="number" disabled value="20"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Gems</span>
+            <input class="hexdb-input" type="number" disabled value="0"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Resource</span>
+            <select class="hexdb-select" disabled><option value="">(none)</option><option>Lumber</option><option>Stone</option><option>Oil</option><option>Ore</option></select></div>
+          <div class="hexdb-row"><span class="hexdb-label">Resource Amt</span>
+            <input class="hexdb-input" type="number" disabled value="0"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="quests-main">
+    <!-- Left: list -->
+    <div id="qst-left">
+      <div id="qst-filters">
+        <input id="qst-search" type="text" placeholder="🔍 Search quests…" disabled>
+        <div class="hexdb-filter-row">
+          <span style="width:38px;flex-shrink:0">Type</span>
+          <select class="hexdb-select" disabled>
+            <option value="">All</option>
+            <option>Daily</option>
+            <option>Main</option>
+            <option>Chapter</option>
+          </select>
+        </div>
+      </div>
+      <div id="qst-list">
+        <div class="hexdb-list-row skel-item">daily_collect_food</div>
+        <div class="hexdb-list-row skel-item">main_build_sawmill</div>
+        <div class="hexdb-list-row skel-item">chapter1_reach_lv3</div>
+        <div class="hexdb-list-row skel-item">daily_tap_city</div>
+        <div class="hexdb-list-row skel-item">main_explore_forest</div>
+      </div>
+      <div class="hexdb-list-footer">
+        <button disabled>+ Add Quest</button>
+      </div>
+    </div>
+    <!-- Right: detail editor -->
+    <div id="qst-right">
+      <div class="skel-banner">⚠ Skeleton preview — schema not finalised. Fields shown are predicted.</div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Basic</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">ID *</span>
+            <input class="hexdb-input" disabled placeholder="e.g. daily_collect_food"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Type</span>
+            <select class="hexdb-select" disabled><option>Daily</option><option>Main</option><option>Chapter</option></select></div>
+          <div class="hexdb-row"><span class="hexdb-label">Name key</span>
+            <input class="hexdb-input" disabled placeholder="localization key"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Desc key</span>
+            <input class="hexdb-input" disabled placeholder="localization key"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Icon</span>
+            <input class="hexdb-input" disabled placeholder="sprite name"></div>
+        </div>
+      </div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Objective</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">Obj Type</span>
+            <select class="hexdb-select" disabled><option>Collect</option><option>Build</option><option>Tap</option><option>Explore</option><option>Defeat</option><option>Reach Level</option></select></div>
+          <div class="hexdb-row"><span class="hexdb-label">Target ID</span>
+            <input class="hexdb-input" disabled placeholder="resource / building / monster id"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Required Count</span>
+            <input class="hexdb-input" type="number" disabled value="1"></div>
+        </div>
+      </div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Reward</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">Gold</span>
+            <input class="hexdb-input" type="number" disabled value="0"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Gems</span>
+            <input class="hexdb-input" type="number" disabled value="0"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Resource</span>
+            <select class="hexdb-select" disabled><option value="">(none)</option><option>Food</option><option>Lumber</option><option>Stone</option><option>Oil</option></select></div>
+          <div class="hexdb-row"><span class="hexdb-label">Resource Amt</span>
+            <input class="hexdb-input" type="number" disabled value="0"></div>
+        </div>
+      </div>
+      <div class="hexdb-section">
+        <div class="hexdb-section-hdr"><span>Condition</span><span class="hexdb-chevron">▼</span></div>
+        <div class="hexdb-section-body">
+          <div class="hexdb-row"><span class="hexdb-label">Prerequisite</span>
+            <input class="hexdb-input" disabled placeholder="quest id or blank"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Min Town Level</span>
+            <input class="hexdb-input" type="number" disabled value="1"></div>
+          <div class="hexdb-row"><span class="hexdb-label">Time Limit (h)</span>
+            <input class="hexdb-input" type="number" disabled value="0"
+              title="0 = no limit (used for Daily quests)"></div>
+        </div>
+      </div>
+    </div>
+  </div>
   <div id="common-main" style="overflow-y:auto;padding:16px">
     <div id="common-editor"></div>
   </div>
@@ -2039,7 +2234,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.13";
-const COMMIT  = "f4a22e2";
+const COMMIT  = "7356866";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
