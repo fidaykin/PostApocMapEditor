@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.14.91423f1</title>
+<title>Post Apo Map Editor 2026.07.14.98556d6</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.14";
-const COMMIT  = "07d5783";
+const COMMIT  = "1e73621";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2319,10 +2319,14 @@ const Terrain = (() => {
 
   // Returns true when the tile should be drawn as two stacked layers:
   // the terrain derived from type underneath, spriteName on top.
+  // "Special" tiles (e.g. Snail_Medieval_1) are decorative PNG overlays — always layered.
+  const _LAYERED_TYPES = new Set(['special']);
+
   function isLayeredHex(hexEntry) {
     if (!hexEntry) return false;
     if (hexEntry.isLayered) return true;
-    return _LAYERED_HEX_IDS.has((hexEntry.id || '').toLowerCase());
+    if (_LAYERED_HEX_IDS.has((hexEntry.id || '').toLowerCase())) return true;
+    return _LAYERED_TYPES.has((hexEntry.type || '').toLowerCase());
   }
 
   // Case-insensitive color lookup by hex ID string.
@@ -2677,6 +2681,7 @@ const Canvas = (() => {
       case 'forests': case 'forest': return '#2d6a2d';
       case 'plains': case 'plain':   return '#7a9a4a';
       case 'swamp':  return '#4a6a3a';
+      case 'special': return '#7a9a4a';
       default:       return '#555';
     }
   }
