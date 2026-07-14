@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.14.98556d6</title>
+<title>Post Apo Map Editor 2026.07.14.613ef17</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.14";
-const COMMIT  = "1e73621";
+const COMMIT  = "93ace79";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7107,7 +7107,7 @@ const HexDB = (() => {
   // ── Blank record ─────────────────────────────────────────
   function _blank() {
     return {
-      id:'', textId:'', type:'New', biome:'Summer',
+      id:'', textId:'', type:'Special', biome:'Summer',
       filterCategory:'FilterTerrain', spriteName:'',
       category:'', terrainTypeId:-1, fallback:false,
       roadAllowed:false,
@@ -7442,12 +7442,20 @@ const HexDB = (() => {
     const summary = offsets.length === 0
       ? '<span style="color:var(--muted)">Single tile (no multi-tile footprint)</span>'
       : `<span style="color:var(--accent)">Anchor + ${offsets.length} occupied tile${offsets.length > 1 ? 's' : ''}: ${offsets.join(', ')}</span>`;
+    // Warn if footprint is set but type is not an object type — causes black center in game
+    const OBJECT_TYPES = ['Special', 'Object', 'Building', 'New'];
+    const typeWarn = offsets.length > 0 && !OBJECT_TYPES.includes(hex.type)
+      ? `<div style="color:#e74c3c;font-size:0.82em;margin-top:4px">
+           ⚠ Multi-tile footprint set but Type is "<b>${hex.type}</b>" — change Type to <b>Special</b> or the center tile will appear black in-game.
+         </div>`
+      : '';
     return `
     <div class="hexdb-row" style="align-items:flex-start">
       <span class="hexdb-label" style="padding-top:6px">Footprint</span>
       <div>
         <div class="hex-fp-rosette" id="hex-footprint-rosette">${cells}</div>
         <div style="margin-top:4px;font-size:0.85em">${summary}</div>
+        ${typeWarn}
         <small style="color:var(--muted);font-size:0.8em;margin-top:2px;display:block">
           Toggle neighbours occupied by this multi-tile object.<br>
           Orange centre = anchor (data owner). Saved as <code>occupiedOffsets</code>.
