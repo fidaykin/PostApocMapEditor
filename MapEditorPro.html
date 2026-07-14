@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.14.733035a</title>
+<title>Post Apo Map Editor 2026.07.14.5a51f83</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.14";
-const COMMIT  = "733035a";
+const COMMIT  = "5a51f83";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2577,7 +2577,7 @@ const Canvas = (() => {
         // Sprite at cluster scale, semi-transparent
         const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
         if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
-          const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
+          const cW        = 2 * (COL_PITCH + HEX_SIZE) * scale;
           const cH = 3.5 * ROW_PITCH * scale;
           const s  = Math.min(cW / selSprite.naturalWidth, cH / selSprite.naturalHeight);
           const dW = selSprite.naturalWidth  * s;
