@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.13";
-const COMMIT  = "6a04129";
+const COMMIT  = "b38aa02";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2518,12 +2518,18 @@ const Canvas = (() => {
     // Second pass: draw multi-tile anchor sprites spanning the full 7-tile cluster.
     // The sprite PNG has transparent background outside the 7-hex shape, so drawing
     // it unclipped at cluster scale naturally produces the correct footprint.
-    _anchorPass.forEach(({ cx, cy, entry }) => {
+    // Odd-stagger anchors (worldX%2!==0): diagonal neighbours land in unstaggered columns,
+    // so the cluster extends one extra STAGGER downward; shift sprite centre down by STAGGER/2.
+    _anchorPass.forEach(({ cx, cy, col, row, entry }) => {
       const spr = Terrain.getSprite(entry.id);
       if (!spr || !spr.complete || !spr.naturalWidth) return;
-      const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
-      const cH = 3 * ROW_PITCH * scale;
-      ctx.drawImage(spr, cx - cW / 2, cy - cH / 2, cW, cH);
+      const cW       = 2 * (COL_PITCH + HEX_SIZE) * scale;
+      const cH       = 3 * ROW_PITCH * scale;
+      const worldX   = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
+      const isOddWX  = (worldX % 2 !== 0);
+      const actualCH = isOddWX ? cH * 7 / 6 : cH;
+      const yShift   = isOddWX ? cH / 12 : 0;
+      ctx.drawImage(spr, cx - cW / 2, cy - actualCH / 2 + yShift, cW, actualCH);
     });
 
     if (_showZones) _drawZoneOverlays(scale, radius);
@@ -2571,10 +2577,14 @@ const Canvas = (() => {
         // Sprite at cluster scale, semi-transparent
         const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
         if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
-          const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
-          const cH = 3 * ROW_PITCH * scale;
+          const cW        = 2 * (COL_PITCH + HEX_SIZE) * scale;
+          const cH        = 3 * ROW_PITCH * scale;
+          const curWorldX = (MAP_HEIGHT - 1 - _cursorRow) - Math.floor(MAP_HEIGHT / 2);
+          const isOddWX   = (curWorldX % 2 !== 0);
+          const actualCH  = isOddWX ? cH * 7 / 6 : cH;
+          const yShift    = isOddWX ? cH / 12 : 0;
           ctx.globalAlpha = 0.75;
-          ctx.drawImage(selSprite, as.x - cW / 2, as.y - cH / 2, cW, cH);
+          ctx.drawImage(selSprite, as.x - cW / 2, as.y - actualCH / 2 + yShift, cW, actualCH);
           ctx.globalAlpha = 1;
         }
 
