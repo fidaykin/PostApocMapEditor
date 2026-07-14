@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.14.f0e14ee</title>
+<title>Post Apo Map Editor 2026.07.14.91423f1</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.14";
-const COMMIT  = "9b1f201";
+const COMMIT  = "07d5783";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2516,19 +2516,21 @@ const Canvas = (() => {
     }
 
     // Second pass: draw multi-tile anchor sprites spanning the full 7-tile cluster.
-    // Always use 3.5*ROW_PITCH height so sprites look identical on odd and even stagger columns.
-    // Odd-stagger anchors: shift centre down by STAGGER/2 so it aligns with the larger cluster box.
-    // Even-stagger anchors: box slightly overflows the cluster; transparent sprite areas cover it.
+    // Uniform "contain" scale: fit sprite within the cluster box without distorting proportions.
+    // Stretching each axis to fill the box compressed landscape sprites into the portrait cluster box.
+    // Odd-stagger anchors: geometric centroid sits STAGGER/2 (= cH/12) below the anchor.
     _anchorPass.forEach(({ cx, cy, col, row, entry }) => {
       const spr = Terrain.getSprite(entry.id);
       if (!spr || !spr.complete || !spr.naturalWidth) return;
-      const cW       = 2 * (COL_PITCH + HEX_SIZE) * scale;
-      const cH       = 3 * ROW_PITCH * scale;
-      const worldX   = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
-      const isOddWX  = (worldX % 2 !== 0);
-      const actualCH = cH * 7 / 6;
-      const yShift   = isOddWX ? cH / 12 : 0;
-      ctx.drawImage(spr, cx - cW / 2, cy - actualCH / 2 + yShift, cW, actualCH);
+      const cW      = 2 * (COL_PITCH + HEX_SIZE) * scale;
+      const cH      = 3 * ROW_PITCH * scale;
+      const worldX  = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
+      const isOddWX = (worldX % 2 !== 0);
+      const yShift  = isOddWX ? cH / 12 : 0;
+      const s       = Math.min(cW / spr.naturalWidth, cH / spr.naturalHeight);
+      const dW      = spr.naturalWidth  * s;
+      const dH      = spr.naturalHeight * s;
+      ctx.drawImage(spr, cx - dW / 2, cy - dH / 2 + yShift, dW, dH);
     });
 
     if (_showZones) _drawZoneOverlays(scale, radius);
@@ -2580,10 +2582,12 @@ const Canvas = (() => {
           const cH        = 3 * ROW_PITCH * scale;
           const curWorldX = (MAP_HEIGHT - 1 - _cursorRow) - Math.floor(MAP_HEIGHT / 2);
           const isOddWX   = (curWorldX % 2 !== 0);
-          const actualCH  = cH * 7 / 6;
           const yShift    = isOddWX ? cH / 12 : 0;
+          const s         = Math.min(cW / selSprite.naturalWidth, cH / selSprite.naturalHeight);
+          const dW        = selSprite.naturalWidth  * s;
+          const dH        = selSprite.naturalHeight * s;
           ctx.globalAlpha = 0.75;
-          ctx.drawImage(selSprite, as.x - cW / 2, as.y - actualCH / 2 + yShift, cW, actualCH);
+          ctx.drawImage(selSprite, as.x - dW / 2, as.y - dH / 2 + yShift, dW, dH);
           ctx.globalAlpha = 1;
         }
 
