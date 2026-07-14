@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.14.613ef17</title>
+<title>Post Apo Map Editor 2026.07.14.5630515</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.14";
-const COMMIT  = "93ace79";
+const COMMIT  = "72173e0";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2646,12 +2646,20 @@ const Canvas = (() => {
     ctx.save();
     hexClipPath(cx, cy, radius);
     ctx.clip();   // always clip to hex first — ensures bg fill and object sprite stay inside
-    // Multi-tile anchor: draw terrain background only — the cluster sprite is drawn
-    // unclipped at full 7-tile scale in the second render pass.
+    // Multi-tile anchor/satellite: draw a plain terrain background so the footprint blends
+    // with surrounding hexes. The cluster sprite is drawn unclipped at full 7-tile scale in
+    // the second render pass. Using the cluster's own flat color (Terrain.color) made the
+    // 7-hex footprint visually distinct; a real terrain sprite matches surrounding tiles.
     if (Array.isArray(hexEntry?.occupiedOffsets) && hexEntry.occupiedOffsets.length > 0) {
-      const [r, g, b] = Terrain.color(hexId);
-      ctx.fillStyle = `rgb(${r},${g},${b})`;
-      ctx.fill();
+      const terrainSprite = Terrain.getTerrainSpriteForType(hexEntry.type)
+                         || Terrain.getSprite('Plain_1')
+                         || Terrain.getSprite('Plain_2');
+      if (terrainSprite && terrainSprite.complete && terrainSprite.naturalWidth > 0) {
+        ctx.drawImage(terrainSprite, cx - radius, cy - radius, radius * 2, radius * 2);
+      } else {
+        ctx.fillStyle = _terrainTypeFallbackColor('Plains');
+        ctx.fill();
+      }
     } else if (hexEntry && Terrain.isLayeredHex(hexEntry)) {
       // Layered tile: draw terrain background, then object sprite on top
       const terrainSprite = Terrain.getTerrainSpriteForType(hexEntry.type);
