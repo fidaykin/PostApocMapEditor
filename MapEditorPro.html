@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.13";
-const COMMIT  = "b38aa02";
+const COMMIT  = "a1ade7a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2516,10 +2516,9 @@ const Canvas = (() => {
     }
 
     // Second pass: draw multi-tile anchor sprites spanning the full 7-tile cluster.
-    // The sprite PNG has transparent background outside the 7-hex shape, so drawing
-    // it unclipped at cluster scale naturally produces the correct footprint.
-    // Odd-stagger anchors (worldX%2!==0): diagonal neighbours land in unstaggered columns,
-    // so the cluster extends one extra STAGGER downward; shift sprite centre down by STAGGER/2.
+    // Always use 3.5*ROW_PITCH height so sprites look identical on odd and even stagger columns.
+    // Odd-stagger anchors: shift centre down by STAGGER/2 so it aligns with the larger cluster box.
+    // Even-stagger anchors: box slightly overflows the cluster; transparent sprite areas cover it.
     _anchorPass.forEach(({ cx, cy, col, row, entry }) => {
       const spr = Terrain.getSprite(entry.id);
       if (!spr || !spr.complete || !spr.naturalWidth) return;
@@ -2527,7 +2526,7 @@ const Canvas = (() => {
       const cH       = 3 * ROW_PITCH * scale;
       const worldX   = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
       const isOddWX  = (worldX % 2 !== 0);
-      const actualCH = isOddWX ? cH * 7 / 6 : cH;
+      const actualCH = cH * 7 / 6;
       const yShift   = isOddWX ? cH / 12 : 0;
       ctx.drawImage(spr, cx - cW / 2, cy - actualCH / 2 + yShift, cW, actualCH);
     });
@@ -2581,7 +2580,7 @@ const Canvas = (() => {
           const cH        = 3 * ROW_PITCH * scale;
           const curWorldX = (MAP_HEIGHT - 1 - _cursorRow) - Math.floor(MAP_HEIGHT / 2);
           const isOddWX   = (curWorldX % 2 !== 0);
-          const actualCH  = isOddWX ? cH * 7 / 6 : cH;
+          const actualCH  = cH * 7 / 6;
           const yShift    = isOddWX ? cH / 12 : 0;
           ctx.globalAlpha = 0.75;
           ctx.drawImage(selSprite, as.x - cW / 2, as.y - actualCH / 2 + yShift, cW, actualCH);
