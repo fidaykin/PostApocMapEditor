@@ -2520,21 +2520,16 @@ const Canvas = (() => {
     }
 
     // Second pass: draw multi-tile anchor sprites spanning the full 7-tile cluster.
-    // Uniform "contain" scale: fit sprite within the cluster box without distorting proportions.
-    // Cluster height = 7 × STAGGER = 3.5 × ROW_PITCH (each flat-top hex extends ±STAGGER vertically).
-    // The cluster centroid sits STAGGER/2 away from the anchor: below for odd-worldX, above for even.
-    _anchorPass.forEach(({ cx, cy, col, row, entry }) => {
+    // Sprite center snaps to the anchor hex center — matches Unity SpriteRenderer pivot behaviour.
+    _anchorPass.forEach(({ cx, cy, entry }) => {
       const spr = Terrain.getSprite(entry.id);
       if (!spr || !spr.complete || !spr.naturalWidth) return;
-      const cW      = 2 * (COL_PITCH + HEX_SIZE) * scale;
-      const cH      = 3.5 * ROW_PITCH * scale;
-      const worldX  = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
-      const isOddWX = (worldX % 2 !== 0);
-      const yShift  = (isOddWX ? 1 : -1) * STAGGER * scale / 2;
-      const s       = Math.min(cW / spr.naturalWidth, cH / spr.naturalHeight);
-      const dW      = spr.naturalWidth  * s;
-      const dH      = spr.naturalHeight * s;
-      ctx.drawImage(spr, cx - dW / 2, cy - dH / 2 + yShift, dW, dH);
+      const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
+      const cH = 3.5 * ROW_PITCH * scale;
+      const s  = Math.min(cW / spr.naturalWidth, cH / spr.naturalHeight);
+      const dW = spr.naturalWidth  * s;
+      const dH = spr.naturalHeight * s;
+      ctx.drawImage(spr, cx - dW / 2, cy - dH / 2, dW, dH);
     });
 
     if (_showZones) _drawZoneOverlays(scale, radius);
@@ -2582,16 +2577,13 @@ const Canvas = (() => {
         // Sprite at cluster scale, semi-transparent
         const selSprite = Terrain.getSprite(UI.getSelectedTerrain());
         if (selSprite && selSprite.complete && selSprite.naturalWidth > 0) {
-          const cW        = 2 * (COL_PITCH + HEX_SIZE) * scale;
-          const cH        = 3.5 * ROW_PITCH * scale;
-          const curWorldX = (MAP_HEIGHT - 1 - _cursorRow) - Math.floor(MAP_HEIGHT / 2);
-          const isOddWX   = (curWorldX % 2 !== 0);
-          const yShift    = (isOddWX ? 1 : -1) * STAGGER * scale / 2;
-          const s         = Math.min(cW / selSprite.naturalWidth, cH / selSprite.naturalHeight);
-          const dW        = selSprite.naturalWidth  * s;
-          const dH        = selSprite.naturalHeight * s;
+          const cW = 2 * (COL_PITCH + HEX_SIZE) * scale;
+          const cH = 3.5 * ROW_PITCH * scale;
+          const s  = Math.min(cW / selSprite.naturalWidth, cH / selSprite.naturalHeight);
+          const dW = selSprite.naturalWidth  * s;
+          const dH = selSprite.naturalHeight * s;
           ctx.globalAlpha = 0.75;
-          ctx.drawImage(selSprite, as.x - dW / 2, as.y - dH / 2 + yShift, dW, dH);
+          ctx.drawImage(selSprite, as.x - dW / 2, as.y - dH / 2, dW, dH);
           ctx.globalAlpha = 1;
         }
 
