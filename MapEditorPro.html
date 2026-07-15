@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.15";
-const COMMIT  = "b0097e0";
+const COMMIT  = "d12e9ae";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7460,6 +7460,10 @@ const HexDB = (() => {
         if (mapped) h.category = mapped;
       } else if (mapped && h.category !== mapped && knownCategories.has(h.category)) {
         h.category = mapped;
+      } else if (!mapped && /bridge/i.test(h.id || '') && knownCategories.has(h.category)) {
+        // Bridge tiles (type has no terrain mapping) incorrectly stamped with a terrain
+        // system category — clear so they fall through to ⚙️ SPECIAL in the palette.
+        h.category = '';
       }
     });
   }
