@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.15";
-const COMMIT  = "7458548";
+const COMMIT  = "b0097e0";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7395,7 +7395,8 @@ const HexDB = (() => {
   // Bump this whenever new tiles are added to hex_database.json.
   // Any autosave whose dbVersion is lower (or absent) will be fully replaced.
   // v4: purge stale bridge entries by ID as well as spriteName (v3 only filtered by spriteName).
-  const _DB_VERSION = 4;
+  // v5: apply bridge filter in loadFromObject/load paths (Drive sync bypassed v4 filter).
+  const _DB_VERSION = 5;
 
   // Loads hex_database.json when autosave is absent or at an older version.
   async function _tryAutoLoadDefaultDb() {
@@ -8417,7 +8418,7 @@ const HexDB = (() => {
     if (!parsed?.hexes || !Array.isArray(parsed.hexes)) {
       UI.toast('Invalid HexDB data'); return;
     }
-    _data = parsed;
+    _data = { ...parsed, hexes: parsed.hexes.filter(h => !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || '')) };
     _migrateHexTypes(_data.hexes);
     _migrateDestroyFields(_data.hexes);
     _migrateBuildFields(_data.hexes);
@@ -8441,7 +8442,7 @@ const HexDB = (() => {
     try {
       const parsed = JSON.parse(text);
       if (!parsed.hexes || !Array.isArray(parsed.hexes)) throw new Error('Missing hexes array');
-      _data = parsed;
+      _data = { ...parsed, hexes: parsed.hexes.filter(h => !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || '')) };
       _migrateHexTypes(_data.hexes);
       _migrateDestroyFields(_data.hexes);
       _migrateBuildFields(_data.hexes);
