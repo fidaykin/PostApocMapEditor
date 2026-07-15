@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.15";
-const COMMIT  = "92084a6";
+const COMMIT  = "8ab6b34";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9442,6 +9442,7 @@ const BldDB = (() => {
         '<div class="hexdb-empty"><div>Drop building_database.json here</div>' +
         '<div>or use <button class="hexdb-empty-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button></div></div>';
       if (_filtered.length) _selectIdx(0);
+      UI.buildPalette();
       UI.toast(`Loaded ${_data.buildings.length} buildings`);
     } catch(e) { UI.toast('Error: ' + e.message); }
   }
@@ -9471,6 +9472,7 @@ const BldDB = (() => {
       }
     } catch(e) {}
     _applyFilter(); _buildList();
+    if (_data.buildings.length) UI.buildPalette();
 
     const fi = document.getElementById('bld-file-input');
     fi.addEventListener('change', e => {
