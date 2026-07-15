@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.15";
-const COMMIT  = "8ab6b34";
+const COMMIT  = "a9a42fb";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5102,12 +5102,12 @@ const UI = (() => {
       { label: '🏛️ ARTEFACTS',         type: 'Artefact'        },
     ];
     const allBuildings = typeof BldDB !== 'undefined' ? BldDB.getAll() : [];
+    const _bldType = b => b.type || 'Ground Building';
     BLD_SECTIONS.forEach(({ label, type }) => {
-      const buildings = allBuildings.filter(b => b.type === type);
-      if (!buildings.length) return;
+      const buildings = allBuildings.filter(b => _bldType(b) === type);
       const hdr = document.createElement('button');
       hdr.className = 'cat-header collapsed';
-      hdr.textContent = label;
+      hdr.textContent = `${label} (${buildings.length})`;
       const items = document.createElement('div');
       items.className = 'cat-items collapsed';
       hdr.addEventListener('click', () => {
