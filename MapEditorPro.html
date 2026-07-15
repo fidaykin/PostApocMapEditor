@@ -1077,6 +1077,16 @@ body.mode-common #map-io    { display: none; }
 }
 .publish-btn:hover { background: #2a5a3a; }
 .publish-btn:disabled { opacity: .4; cursor: wait; }
+.auto-sync-label {
+  margin-left: 6px;
+  font-size: 11px;
+  color: #4a9;
+  cursor: pointer;
+  user-select: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
 /* ── Publish dropdown ───────────────────────────────────── */
 .pub-drop-wrap {
@@ -1329,6 +1339,9 @@ body.mode-common #map-io    { display: none; }
     <span id="google-auth-status" title="Google Drive login status">🔴 Not signed in</span>
     <button class="publish-btn" id="btn-google-login" onclick="DriveSync.signIn()" title="Sign in to Google to enable Drive sync">Sign in to Google</button>
     <button class="publish-btn" id="btn-sync-drive"  onclick="DriveSync.syncFromDrive()" title="Force re-download HexDB + all custom sprites from Drive">☁ Sync</button>
+    <label class="auto-sync-label" title="Automatically sync from Drive on every page load">
+      <input type="checkbox" id="chk-auto-sync" onchange="DriveSync.setAutoSync(this.checked)">Auto-sync
+    </label>
     <div class="pub-drop-wrap" id="pub-drop-wrap">
       <button class="publish-btn" id="btn-publish-all" onclick="DriveSync.togglePublishDropdown(event)" title="Publish to Google Drive">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
@@ -2252,7 +2265,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.15";
-const COMMIT  = "d12e9ae";
+const COMMIT  = "8cfc805";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4636,24 +4649,26 @@ const DriveSync = (() => {
       const files  = await _listFiles(fid);
       const byName = Object.fromEntries(files.map(f => [f.name, f]));
 
-      // ── Custom sprites ──────────────────────────────────────────────────────
+      // ── Custom hex sprites ──────────────────────────────────────────────────
       const urlMap = {};
+      let hexCustomSynced = 0;
       for (let i = 0; i < custom.length; i++) {
         const name  = custom[i];
         const fname = name.endsWith('.png') ? name : name + '.png';
         const file  = byName[fname];
         if (!file) continue;
-        UI.progress(25 + Math.round(55 * (i+1) / Math.max(custom.length,1)), 'Sprite ' + (i+1) + '/' + custom.length + ': ' + name);
-        UI.toast(`Syncing sprite ${i + 1}/${custom.length}: ${name}`);
+        UI.progress(25 + Math.round(35 * (i+1) / Math.max(custom.length,1)), 'Hex sprite ' + (i+1) + '/' + custom.length + ': ' + name);
+        UI.toast(`Syncing hex sprite ${i + 1}/${custom.length}: ${name}`);
         try {
           const dataUrl = await _imgDataUrl(file.id);
           await SpriteStore.save(name, dataUrl, 'hex');
           urlMap[name] = dataUrl;
+          hexCustomSynced++;
         } catch(e) { console.warn(`[DriveSync] sync sprite ${name}:`, e.message); }
       }
-      UI.progress(80, 'Syncing bundled sprites…');
+      UI.progress(60, 'Syncing bundled sprites…');
 
-      // ── Bundled sprites — download when Drive MD5 differs from stored ───────
+      // ── Bundled hex sprites — download when Drive MD5 differs from stored ──
       const bundledMd5s    = _loadBundledMd5s();
       const bundledNames   = [...bundled];
       const bundledChanged = bundledNames.filter(name => {
@@ -4667,33 +4682,52 @@ const DriveSync = (() => {
       if (bundledChanged.length) {
         UI.toast(`Syncing ${bundledChanged.length} updated bundled sprite(s)…`);
       }
+      let hexBundledSynced = 0;
       for (let i = 0; i < bundledChanged.length; i++) {
         const name  = bundledChanged[i];
         const fname = name.endsWith('.png') ? name : name + '.png';
         const file  = byName[fname];
-        UI.progress(80 + Math.round(18 * (i+1) / Math.max(bundledChanged.length,1)), 'Bundled ' + (i+1) + '/' + bundledChanged.length + ': ' + name);
+        UI.progress(60 + Math.round(15 * (i+1) / Math.max(bundledChanged.length,1)), 'Bundled ' + (i+1) + '/' + bundledChanged.length + ': ' + name);
         UI.toast(`Syncing bundled ${i + 1}/${bundledChanged.length}: ${name}`);
         try {
           const dataUrl = await _imgDataUrl(file.id);
           await SpriteStore.save(name, dataUrl, 'hex');
-          urlMap[name]        = dataUrl;
+          urlMap[name] = dataUrl;
           if (file.md5Checksum) bundledMd5s[fname] = file.md5Checksum;
+          hexBundledSynced++;
         } catch(e) { console.warn(`[DriveSync] bundled sprite ${name}:`, e.message); }
       }
       if (bundledChanged.length) _saveBundledMd5s(bundledMd5s);
 
-      if (Object.keys(urlMap).length) {
-        Terrain.registerUploadedUrls(urlMap);
-        Terrain.applyHexDbOverrides(HexDB.getAll()).then(() => {
-          UI.buildPalette();
-          Canvas.render();
-        });
-      }
-      const bundledSynced = bundledChanged.filter(n => urlMap[n]);
-      const customSynced  = Object.keys(urlMap).length - bundledSynced.length;
+      // ── Building sprites — download all from HEX_DATA/buildings/ ───────────
+      UI.progress(75, 'Syncing building sprites…');
+      let bldSynced = 0;
+      try {
+        const bldFid   = await _spriteFolder('buildings');
+        const bldFiles = await _listFiles(bldFid);
+        for (let i = 0; i < bldFiles.length; i++) {
+          const file  = bldFiles[i];
+          const name  = file.name.replace(/\.png$/i, '');
+          UI.progress(75 + Math.round(23 * (i+1) / Math.max(bldFiles.length,1)), 'Bld sprite ' + (i+1) + '/' + bldFiles.length + ': ' + name);
+          UI.toast(`Syncing building sprite ${i + 1}/${bldFiles.length}: ${name}`);
+          try {
+            const dataUrl = await _imgDataUrl(file.id);
+            await SpriteStore.save(name, dataUrl, 'buildings');
+            urlMap[name] = dataUrl;
+            bldSynced++;
+          } catch(e) { console.warn(`[DriveSync] bld sprite ${name}:`, e.message); }
+        }
+      } catch(e) { console.warn('[DriveSync] building sprites skipped:', e.message); }
+
+      Terrain.registerUploadedUrls(urlMap);
+      Terrain.applyHexDbOverrides(HexDB.getAll()).then(() => {
+        UI.buildPalette();
+        Canvas.render();
+      });
       const parts = [];
-      if (custom.length)        parts.push(`${customSynced}/${custom.length} custom`);
-      if (bundledSynced.length) parts.push(`${bundledSynced.length} bundled`);
+      if (hexCustomSynced)  parts.push(`${hexCustomSynced}/${custom.length} hex custom`);
+      if (hexBundledSynced) parts.push(`${hexBundledSynced} hex bundled`);
+      if (bldSynced)        parts.push(`${bldSynced} building`);
       UI.progressDone('✅ Synced');
       UI.toast(`✅ Synced: HexDB${parts.length ? ' + ' + parts.join(', ') + ' sprite(s)' : ''}`);
     } catch(e) {
@@ -4912,11 +4946,15 @@ const DriveSync = (() => {
     }
   }
 
+  const AUTO_SYNC_KEY = 'driveAutoSync';
+  function getAutoSync() { return localStorage.getItem(AUTO_SYNC_KEY) === '1'; }
+  function setAutoSync(v) { localStorage.setItem(AUTO_SYNC_KEY, v ? '1' : '0'); }
+
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
            pushSprite, publishDb, publishHexDbOnly, publishLoc, loadLocFromDrive, publishMap,
            setDbSource, syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
            loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb, publishCommonDb,
-           togglePublishDropdown,
+           togglePublishDropdown, getAutoSync, setAutoSync,
            listSpriteFiles, fetchSpriteDataUrl, setupSpriteFolders, migrateSpritesToSubfolders };
 })();
 
@@ -5118,7 +5156,7 @@ const UI = (() => {
         btn.className = 'tile-btn';
         btn.dataset.hexId = bld.id;
         const img = document.createElement('img');
-        img.src = bld.spriteName ? `sprites/buildings/${bld.spriteName}.png` : '';
+        img.src = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `sprites/buildings/${bld.spriteName}.png`) : '';
         img.alt = bld.id;
         btn.appendChild(img);
         const tt = document.createElement('span');
@@ -8633,7 +8671,6 @@ window.HexDB = HexDB;
 // ── BldDB Module ───────────────────────────────────────────
 const BldDB = (() => {
   const SECTION_DEFAULTS = { main: false, footprint: false, destroy: true, build: true, income: false, settings: true, special: true };
-  const STORAGE_RESOURCE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'];
 
   let _data      = { version: 1, buildings: [] };
   let _clipboard = null;
@@ -9068,28 +9105,12 @@ const BldDB = (() => {
         <div class="hexdb-row"><span class="hexdb-label">Spend Constant <span class="hexdb-info" title="Constant drain while on map">ⓘ</span></span>
           ${_resBlockHTML('spendConstant', bld.spendConstant, false, BLD_SPEND_RES)}</div>
 
-        <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
-          <div class="bld-section-title">${(bld.buildingCategory || '') === 'Artefact' ? 'Artefact Storage Bonus (Xa)' : 'Storage Capacity'}</div>
-          <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:12px">
-            ${(() => {
-              const scMap = {};
-              (bld.storageCapacity || []).forEach(r => { scMap[r.type] = r.amount; });
-              return STORAGE_RESOURCE_TYPES.map(t => `
-              <label class="bld-resource-label" style="display:flex;flex-direction:column;gap:4px">
-                <span style="font-size:11px;color:var(--muted)">${_esc(t)}</span>
-                <input class="hexdb-input bld-resource-input" type="number" min="0" step="1"
-                  id="bld-f-sc-${t.toLowerCase()}" value="${scMap[t] || 0}"
-                  onchange="BldDB.save()" style="width:100%;text-align:center">
-              </label>`).join('');
-            })()}
-          </div>
-          <div class="hexdb-row" style="margin-top:6px">
-            <span class="hexdb-label">Storage Upgrade ID</span>
-            <input class="hexdb-input" id="bld-f-storage-upgrade-id" type="text"
-              value="${_esc(bld.storageUpgradeId || '')}"
-              placeholder="e.g. warehouse_storage"
-              onblur="this.value=this.value.trim();BldDB.save()" style="flex:1">
-          </div>
+        <div class="hexdb-row" style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+          <span class="hexdb-label">Storage Upgrade ID</span>
+          <input class="hexdb-input" id="bld-f-storage-upgrade-id" type="text"
+            value="${_esc(bld.storageUpgradeId || '')}"
+            placeholder="e.g. warehouse_storage"
+            onblur="this.value=this.value.trim();BldDB.save()" style="flex:1">
         </div>
       </div>
     </div>`;
@@ -9241,7 +9262,7 @@ const BldDB = (() => {
       <button onclick="BldDB.paste()">Paste</button>
     </div>`;
 
-    const spriteSrc = bld.spriteName ? `sprites/buildings/${_esc(bld.spriteName)}.png` : '';
+    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
     const visualHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
       <img src="${spriteSrc}" alt=""
@@ -9492,10 +9513,6 @@ const BldDB = (() => {
     bld.effects      = iv('bld-f-effects');
 
     // STORAGE
-    bld.storageCapacity = STORAGE_RESOURCE_TYPES.map(t => ({
-      type: t,
-      amount: parseFloat(document.getElementById(`bld-f-sc-${t.toLowerCase()}`)?.value) || 0
-    })).filter(r => r.amount !== 0);
     bld.storageUpgradeId = (document.getElementById('bld-f-storage-upgrade-id')?.value || '').trim();
 
     // Update list row label
@@ -10979,6 +10996,10 @@ window.addEventListener('load', async () => {
   if (!_mapRestored) IO.showNewMapPrompt();
   const _vLabel = document.getElementById('version-label');
   if (_vLabel) _vLabel.textContent = COMMIT ? `${VERSION}.${COMMIT}` : VERSION;
+  // Init auto-sync checkbox state from localStorage, then trigger if enabled
+  const _autoSyncChk = document.getElementById('chk-auto-sync');
+  if (_autoSyncChk) _autoSyncChk.checked = DriveSync.getAutoSync();
+  if (DriveSync.getAutoSync()) DriveSync.syncFromDrive();
   console.log('[MapEditorPro] Ready.');
 });
 
@@ -10988,16 +11009,18 @@ window.addEventListener('load', async () => {
     'Food','Lumber','Stone','Gold','Gems','Steel','Chips','Oil','Ore',
     'Clay','Population','Energy','Pollution'
   ];
+  const STORAGE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'];
 
   const DEFAULTS = {
     foodSpoilageRate: 0.05,
     baseFoodIncome: 0,
     resources: ALL_RESOURCE_TYPES.map(t => ({
       type: t,
-      requiresStorage: ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'].includes(t),
+      requiresStorage: STORAGE_TYPES.includes(t),
       usesFoodFormula: t === 'Food',
       baseStorageSettings: 0
-    }))
+    })),
+    storageCapacity: STORAGE_TYPES.map(t => ({ type: t, amount: 0 }))
   };
 
   let _data = JSON.parse(JSON.stringify(DEFAULTS));
@@ -11017,6 +11040,10 @@ window.addEventListener('load', async () => {
       usesFoodFormula: !!document.getElementById(`common-ff-${t}`)?.checked,
       baseStorageSettings: parseFloat(document.getElementById(`common-bss-${t}`)?.value) || 0
     }));
+    _data.storageCapacity = STORAGE_TYPES.map(t => ({
+      type: t,
+      amount: parseFloat(document.getElementById(`common-sc-${t.toLowerCase()}`)?.value) || 0
+    })).filter(r => r.amount !== 0);
   }
 
   function exportJson() {
@@ -11087,6 +11114,26 @@ window.addEventListener('load', async () => {
               </tr></thead>
               <tbody>${rows}</tbody>
             </table>
+          </div>
+        </div>
+        <div class="hexdb-section">
+          <div class="hexdb-section-hdr js-common-hdr">
+            <span>Storage Capacity</span><span class="hexdb-chevron">▼</span>
+          </div>
+          <div class="hexdb-section-body">
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:8px">
+              ${(() => {
+                const scMap = {};
+                (_data.storageCapacity || []).forEach(r => { scMap[r.type] = r.amount; });
+                return STORAGE_TYPES.map(t => `
+                  <label style="display:flex;flex-direction:column;gap:4px">
+                    <span style="font-size:11px;color:var(--muted)">${_esc(t)}</span>
+                    <input class="hexdb-input" type="number" min="0" step="1"
+                      id="common-sc-${t.toLowerCase()}" value="${scMap[t] || 0}"
+                      onchange="CommonDB.save()" style="width:100%;text-align:center">
+                  </label>`).join('');
+              })()}
+            </div>
           </div>
         </div>
         <div class="hexdb-actions" style="margin-top:8px">
