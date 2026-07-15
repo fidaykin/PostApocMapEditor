@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.15";
-const COMMIT  = "99f7db5";
+const COMMIT  = "92084a6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5094,6 +5094,44 @@ const UI = (() => {
       btn.addEventListener('click', () => selectBridge(axis));
       bridgeItems.appendChild(btn);
     }
+
+    // ── Building sections (Ground Building / Water Building / Artefact) ──
+    const BLD_SECTIONS = [
+      { label: '🏗️ GROUND BUILDINGS', type: 'Ground Building' },
+      { label: '🌊 WATER BUILDINGS',   type: 'Water Building'  },
+      { label: '🏛️ ARTEFACTS',         type: 'Artefact'        },
+    ];
+    const allBuildings = typeof BldDB !== 'undefined' ? BldDB.getAll() : [];
+    BLD_SECTIONS.forEach(({ label, type }) => {
+      const buildings = allBuildings.filter(b => b.type === type);
+      if (!buildings.length) return;
+      const hdr = document.createElement('button');
+      hdr.className = 'cat-header collapsed';
+      hdr.textContent = label;
+      const items = document.createElement('div');
+      items.className = 'cat-items collapsed';
+      hdr.addEventListener('click', () => {
+        hdr.classList.toggle('collapsed');
+        items.classList.toggle('collapsed');
+      });
+      scroll.appendChild(hdr);
+      scroll.appendChild(items);
+      buildings.forEach(bld => {
+        const btn = document.createElement('button');
+        btn.className = 'tile-btn';
+        btn.dataset.hexId = bld.id;
+        const img = document.createElement('img');
+        img.src = bld.spriteName ? `sprites/buildings/${bld.spriteName}.png` : '';
+        img.alt = bld.id;
+        btn.appendChild(img);
+        const tt = document.createElement('span');
+        tt.className = 'tile-tooltip';
+        tt.textContent = bld.id;
+        btn.appendChild(tt);
+        btn.addEventListener('click', () => selectTerrain(bld.id));
+        items.appendChild(btn);
+      });
+    });
 
     // Re-apply the current selection to the freshly-created buttons.
     // buildPalette() is called asynchronously (HexDB.init setTimeout, Drive sync,
@@ -9507,7 +9545,8 @@ const BldDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, pickSprite, countLocKey, renameLocKey };
+  function getAll() { return _data.buildings || []; }
+  return { init, add, pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
 window.BldDB = BldDB;
