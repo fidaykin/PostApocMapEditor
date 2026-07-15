@@ -2265,7 +2265,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.15";
-const COMMIT  = "8cfc805";
+const COMMIT  = "69dee19";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4598,10 +4598,9 @@ const DriveSync = (() => {
 
     if (Object.keys(urlMap).length) {
       Terrain.registerUploadedUrls(urlMap);
-      Terrain.applyHexDbOverrides(HexDB.getAll()).then(() => {
-        UI.buildPalette();
-        Canvas.render();
-      });
+      Terrain.applyHexDbOverrides(HexDB.getAll())
+        .then(() => Terrain.applyHexDbOverrides(BldDB.getAll()))
+        .then(() => { UI.buildPalette(); Canvas.render(); });
       console.log(`[DriveSync] Cached ${Object.keys(urlMap).length} sprite(s) locally.`);
     }
   }
@@ -4720,10 +4719,9 @@ const DriveSync = (() => {
       } catch(e) { console.warn('[DriveSync] building sprites skipped:', e.message); }
 
       Terrain.registerUploadedUrls(urlMap);
-      Terrain.applyHexDbOverrides(HexDB.getAll()).then(() => {
-        UI.buildPalette();
-        Canvas.render();
-      });
+      Terrain.applyHexDbOverrides(HexDB.getAll())
+        .then(() => Terrain.applyHexDbOverrides(BldDB.getAll()))
+        .then(() => { UI.buildPalette(); Canvas.render(); });
       const parts = [];
       if (hexCustomSynced)  parts.push(`${hexCustomSynced}/${custom.length} hex custom`);
       if (hexBundledSynced) parts.push(`${hexBundledSynced} hex bundled`);
@@ -8632,6 +8630,8 @@ const HexDB = (() => {
 
         // Push to BldDB and select it
         BldDB.pushRecord(newBld);
+        // Keep sprite in Terrain so canvas still renders this tile ID after migration
+        Terrain.applyHexDbOverrides([newBld]);
 
         // Remove from HexDB
         _data.hexes.splice(realIdx, 1);
@@ -10969,6 +10969,8 @@ window.addEventListener('load', async () => {
   // Drive HexDB is loaded explicitly via ☁ Sync button.
   // Autosave (localStorage) is used on startup to avoid 403 noise from private Drive files.
   BldDB.init();
+  // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
+  setTimeout(() => Terrain.applyHexDbOverrides(BldDB.getAll()).then(() => Canvas.render()), 0);
   SttDB.init();
   UpgDB.init();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
