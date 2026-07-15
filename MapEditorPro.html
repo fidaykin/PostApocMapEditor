@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.14.5a51f83</title>
+<title>Post Apo Map Editor 2026.07.09.ec18f59</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2251,8 +2251,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.07.14";
-const COMMIT  = "5a51f83";
+const VERSION = "2026.07.13";
+const COMMIT  = "e428bac";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6790,6 +6790,38 @@ const LocalizationKeys = (() => {
     _save();
   }
 
+  function renameKey(oldKey, newKey, inputEl) {
+    newKey = (newKey || '').trim();
+    if (!newKey || newKey === oldKey) { if (inputEl) inputEl.value = oldKey; return; }
+    if (_entries.find(e => e.key === newKey)) {
+      if (inputEl) inputEl.value = oldKey;
+      UI.toast('⚠️ Key "' + newKey + '" already exists');
+      return;
+    }
+    const refs =
+      HexDB.countLocKey(oldKey) +
+      BldDB.countLocKey(oldKey) +
+      SttDB.countLocKey(oldKey) +
+      UpgDB.countLocKey(oldKey);
+    const msg =
+      'Rename "' + oldKey + '" → "' + newKey + '"?' +
+      (refs > 0 ? '\n\nWill update ' + refs + ' DB reference(s) in currently loaded data.' : '') +
+      '\n\nC⁠# code must be updated manually:\n' +
+      '  Find:    L("' + oldKey + '")\n' +
+      '  Replace: L("' + newKey + '")\n' +
+      'in Assets/_Project/Scripts/';
+    if (!confirm(msg)) { if (inputEl) inputEl.value = oldKey; return; }
+    const entry = _entries.find(e => e.key === oldKey);
+    entry.key = newKey;
+    _save();
+    _populateDatalist();
+    HexDB.renameLocKey(oldKey, newKey);
+    BldDB.renameLocKey(oldKey, newKey);
+    SttDB.renameLocKey(oldKey, newKey);
+    UpgDB.renameLocKey(oldKey, newKey);
+    _renderList();
+  }
+
   // ── Download ──────────────────────────────────────────────
 
   function downloadJson() {
@@ -6898,7 +6930,10 @@ const LocalizationKeys = (() => {
     if (_driveKeysSet) visible = visible.filter(e => !_driveKeysSet.has(e.key));
     container.innerHTML = visible.map(e => `
       <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:4px;align-items:center;padding:3px 0 3px 5px;border-bottom:1px solid #333${_driveKeysSet ? ';border-left:3px solid #ef5350' : ''}">
-        <span style="color:#aaa;font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${_ea(e.key)}">${_ex(e.key)}</span>
+        <input type="text" value="${_ea(e.key)}" data-orig="${_ea(e.key)}"
+          style="background:#2a2a2a;border:1px solid #555;color:#aaa;padding:3px 6px;border-radius:3px;font-size:11px;width:100%;box-sizing:border-box"
+          onblur="LocalizationKeys.renameKey(this.dataset.orig,this.value,this)"
+          onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){this.value=this.dataset.orig;this.blur()}">
         <input type="text" value="${_ea(e.en)}" placeholder="EN"
           style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px;width:100%"
           onchange="LocalizationKeys._updateField('${_ea(e.key)}','en',this.value)">
@@ -6967,8 +7002,10 @@ const LocalizationKeys = (() => {
   function getEntries() { return _entries; }
 
   return { load, getKeys, getEntries, add, remove, downloadJson, importJson, compareWithDrive,
-           pushToDrive, pullFromDrive, clearCache, openManager, closeManager, filterList, _updateField };
+           pushToDrive, pullFromDrive, clearCache, openManager, closeManager, filterList, _updateField, renameKey, _renderList, _ex, _ea };
 })();
+
+window.LocalizationKeys = LocalizationKeys;
 
 // ── BiomeManager ───────────────────────────────────────────
 const BiomeManager = (() => {
@@ -8373,9 +8410,27 @@ const HexDB = (() => {
     );
   }
 
-  return { init, add, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap };
+  function countLocKey(key) {
+    return _data.hexes.filter(h =>
+      h.textId === key || h.descriptionIdleId === key || h.descriptionBuildId === key
+    ).length;
+  }
+  function renameLocKey(oldKey, newKey) {
+    let n = 0;
+    for (const h of _data.hexes) {
+      let changed = false;
+      if (h.textId === oldKey)             { h.textId = newKey;             changed = true; }
+      if (h.descriptionIdleId === oldKey)  { h.descriptionIdleId = newKey;  changed = true; }
+      if (h.descriptionBuildId === oldKey) { h.descriptionBuildId = newKey; changed = true; }
+      if (changed) n++;
+    }
+    if (n > 0) _autoSave();
+    return n;
+  }
+  return { init, add, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
 })();
 
+window.HexDB = HexDB;
 // ── BldDB Module ───────────────────────────────────────────
 const BldDB = (() => {
   const SECTION_DEFAULTS = { main: false, footprint: false, destroy: true, build: true, income: false, settings: true, special: true };
@@ -9435,9 +9490,27 @@ const BldDB = (() => {
     });
   }
 
-  return { init, add, pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, pickSprite };
+  function countLocKey(key) {
+    return _data.buildings.filter(b =>
+      b.textId === key || b.descIdleId === key || b.descBuildId === key
+    ).length;
+  }
+  function renameLocKey(oldKey, newKey) {
+    let n = 0;
+    for (const b of _data.buildings) {
+      let changed = false;
+      if (b.textId === oldKey)      { b.textId = newKey;      changed = true; }
+      if (b.descIdleId === oldKey)  { b.descIdleId = newKey;  changed = true; }
+      if (b.descBuildId === oldKey) { b.descBuildId = newKey; changed = true; }
+      if (changed) n++;
+    }
+    if (n > 0) _autoSave();
+    return n;
+  }
+  return { init, add, pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, pickSprite, countLocKey, renameLocKey };
 })();
 
+window.BldDB = BldDB;
 // ── SttDB Module ───────────────────────────────────────────
 const SttDB = (() => {
   const SECTION_DEFAULTS = { main: false, build: true, levels: false };
@@ -9770,9 +9843,21 @@ const SttDB = (() => {
     });
   }
 
-  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad };
+  function countLocKey(key) {
+    return _data.settlements.filter(s => s.textId === key).length;
+  }
+  function renameLocKey(oldKey, newKey) {
+    let n = 0;
+    for (const s of _data.settlements) {
+      if (s.textId === oldKey) { s.textId = newKey; n++; }
+    }
+    if (n > 0) _autoSave();
+    return n;
+  }
+  return { init, add, deleteSelected, copy, paste, load, save, triggerLoad, countLocKey, renameLocKey };
 })();
 
+window.SttDB = SttDB;
 // ── UpgDB Module ───────────────────────────────────────────
 const UpgDB = (() => {
   const UPG_TYPES       = ['Regular', 'Events Temporary', 'Events Permanents', 'StorageBonus'];
@@ -10392,9 +10477,21 @@ const UpgDB = (() => {
     });
   }
 
-  return { init, add, deleteSelected, load, save, triggerLoad, getJson };
+  function countLocKey(key) {
+    return _data.upgrades.filter(u => u.descriptionId === key).length;
+  }
+  function renameLocKey(oldKey, newKey) {
+    let n = 0;
+    for (const u of _data.upgrades) {
+      if (u.descriptionId === oldKey) { u.descriptionId = newKey; n++; }
+    }
+    if (n > 0) _autoSave();
+    return n;
+  }
+  return { init, add, deleteSelected, load, save, triggerLoad, getJson, countLocKey, renameLocKey };
 })();
 
+window.UpgDB = UpgDB;
 // ── Dev / QA utilities ─────────────────────────────────────
 const Dev = (() => {
   const CAT_ORDER = {
