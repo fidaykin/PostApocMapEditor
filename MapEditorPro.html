@@ -2252,7 +2252,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.15";
-const COMMIT  = "a9a42fb";
+const COMMIT  = "7458548";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4723,10 +4723,7 @@ const DriveSync = (() => {
       const fid     = await _hexFolder();
       const files   = await _listFiles(fid);
       const byName  = Object.fromEntries(files.map(f => [f.name, f.id]));
-      const content = JSON.stringify(
-        { version: 1, locales: ['en', 'uk'],
-          entries: LocalizationKeys.getEntries().map(({key,en,uk}) => ({key,en,uk})) },
-        null, 2);
+      const content = JSON.stringify(LocalizationKeys.getExportData(), null, 2);
       const hashes  = _loadHashes();
       const hash    = _strHash(content);
       if (hashes['localization.json'] === hash) {
@@ -6732,6 +6729,16 @@ const LocalizationKeys = (() => {
   let _entries = []; // [{key, en, uk}]
   let _filterText = '';
   let _driveKeysSet = null; // Set of keys fetched from Drive; non-null = compare mode active
+  let _groups = ['Tiles', 'Buildings', 'Settlements', 'Upgrades', 'Universal Keys'];
+  let _collapseState = {};
+  let _addGroup = 'Universal Keys';
+
+  function _migrateEntries(entries) {
+    for (const e of entries) {
+      if (!e.group) e.group = 'Universal Keys';
+      if (!_groups.includes(e.group)) _groups.push(e.group);
+    }
+  }
 
   // ── Load ──────────────────────────────────────────────────
 
@@ -6742,6 +6749,7 @@ const LocalizationKeys = (() => {
       if (res.ok) {
         const data = await res.json();
         fetched = (data.entries || []).filter(e => e.key);
+        if (data.groups && Array.isArray(data.groups)) _groups = data.groups;
       }
     } catch(e) {
       console.warn('[LocalizationKeys] Could not load localization.json:', e);
@@ -6750,15 +6758,27 @@ const LocalizationKeys = (() => {
     let stored = [];
     try {
       const raw = localStorage.getItem(LS_KEY);
-      if (raw) stored = JSON.parse(raw);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+          stored = parsed; // v1 bare array
+        } else if (parsed && parsed.entries) {
+          stored = parsed.entries; // v2 object
+          if (parsed.groups) _groups = parsed.groups;
+        }
+      }
     } catch(e) {}
 
+    _migrateEntries(fetched);
+
     if (stored.length > 0) {
+      _migrateEntries(stored);
       const storedMap = Object.fromEntries(stored.map(e => [e.key, e]));
       const fetchedKeys = new Set(fetched.map(e => e.key));
       const merged = fetched.map(e => storedMap[e.key] || e);
       const extra = stored.filter(e => !fetchedKeys.has(e.key));
       _entries = [...merged, ...extra];
+      _save();
     } else {
       _entries = fetched;
       _save();
@@ -6775,6 +6795,8 @@ const LocalizationKeys = (() => {
       const data = await DriveSync.loadLocFromDrive();
       const incoming = (data.entries || []).filter(e => e.key);
       if (!incoming.length) return;
+      _migrateEntries(incoming);
+      if (data.groups && Array.isArray(data.groups)) _groups = data.groups;
       const map = Object.fromEntries(_entries.map(e => [e.key, e]));
       for (const e of incoming) map[e.key] = e;
       const existingKeys = new Set(_entries.map(e => e.key));
@@ -6792,7 +6814,7 @@ const LocalizationKeys = (() => {
   // ── Persistence ───────────────────────────────────────────
 
   function _save() {
-    localStorage.setItem(LS_KEY, JSON.stringify(_entries));
+    localStorage.setItem(LS_KEY, JSON.stringify({ groups: _groups, entries: _entries }));
   }
 
   function _populateDatalist() {
@@ -6801,16 +6823,28 @@ const LocalizationKeys = (() => {
     dl.innerHTML = _entries.map(e => `<option value="${e.key}">`).join('');
   }
 
+  function getExportData() {
+    return {
+      version: 2,
+      locales: ['en', 'uk'],
+      groups: _groups,
+      entries: _entries.map(({ key, en, uk, group }) => ({ key, en, uk, group }))
+    };
+  }
+
   // ── CRUD ──────────────────────────────────────────────────
 
   function add(key, en, uk) {
     key = (key || '').trim();
     if (!key) return;
     if (_entries.find(e => e.key === key)) { alert(`Key "${key}" already exists.`); return; }
-    _entries.push({ key, en: en || '', uk: uk || '' });
+    const group = document.getElementById('loc-add-group')?.value || _addGroup;
+    _entries.push({ key, en: en || '', uk: uk || '', group });
+    _addGroup = 'Universal Keys';
     _save();
     _populateDatalist();
     _renderList();
+    _renderAddForm();
   }
 
   function remove(key) {
@@ -6826,6 +6860,71 @@ const LocalizationKeys = (() => {
     if (!e) return;
     e[field] = value;
     _save();
+  }
+
+  function addGroup(name) {
+    name = (name || '').trim();
+    if (!name) return;
+    if (_groups.includes(name)) { UI.toast('Group "' + name + '" already exists'); return; }
+    _groups.push(name);
+    _save();
+    _renderGroupsPanel();
+    _renderList();
+    _renderAddForm();
+  }
+
+  function removeGroup(name) {
+    if (name === 'Universal Keys') { UI.toast('Cannot remove "Universal Keys"'); return; }
+    const count = _entries.filter(e => e.group === name).length;
+    if (count > 0 && !confirm('Move ' + count + ' key(s) to "Universal Keys" and remove group "' + name + '"?')) return;
+    for (const e of _entries) { if (e.group === name) e.group = 'Universal Keys'; }
+    _groups = _groups.filter(g => g !== name);
+    _save();
+    _renderGroupsPanel();
+    _renderList();
+    _renderAddForm();
+  }
+
+  function setEntryGroup(key, group) {
+    const e = _entries.find(e => e.key === key);
+    if (!e) return;
+    e.group = group;
+    _save();
+    _renderList();
+  }
+
+  function toggleGroup(name) {
+    _collapseState[name] = !_collapseState[name];
+    try { localStorage.setItem('loc_collapse', JSON.stringify(_collapseState)); } catch(e) {}
+    _renderList();
+  }
+
+  function toggleGroupsPanel() {
+    const panel = document.getElementById('loc-groups-panel');
+    if (!panel) return;
+    const isVisible = panel.style.display !== 'none';
+    panel.style.display = isVisible ? 'none' : 'block';
+    if (!isVisible) _renderGroupsPanel();
+  }
+
+  function _renderGroupsPanel() {
+    const panel = document.getElementById('loc-groups-panel');
+    if (!panel || panel.style.display === 'none') return;
+    panel.innerHTML = `
+      <div style="margin-bottom:8px;border-bottom:1px solid #444;padding-bottom:8px">
+        ${_groups.map(g => `
+          <div style="display:flex;align-items:center;gap:6px;padding:3px 0">
+            <span style="flex:1;color:#ccc;font-size:12px">${_ex(g)}</span>
+            ${g === 'Universal Keys' ? '' : `<button onclick="LocalizationKeys.removeGroup('${_ea(g)}')" style="background:none;border:none;color:#e57373;cursor:pointer;font-size:12px;line-height:1">✕</button>`}
+          </div>`).join('')}
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <input id="loc-new-group-input" type="text" placeholder="New group name…"
+          style="flex:1;background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px"
+          onkeydown="if(event.key==='Enter')LocalizationKeys.addGroup(this.value)">
+        <button onclick="LocalizationKeys.addGroup(document.getElementById('loc-new-group-input').value)"
+          style="background:#1565c0;border:none;color:#fff;padding:3px 8px;border-radius:3px;cursor:pointer;font-size:12px">Add</button>
+      </div>`;
   }
 
   function renameKey(oldKey, newKey, inputEl) {
@@ -6863,7 +6962,7 @@ const LocalizationKeys = (() => {
   // ── Download ──────────────────────────────────────────────
 
   function downloadJson() {
-    const obj = { version: 1, locales: ['en', 'uk'], entries: _entries.map(({key,en,uk}) => ({key,en,uk})) };
+    const obj = getExportData();
     const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -6887,6 +6986,7 @@ const LocalizationKeys = (() => {
         const text = await file.text();
         const data = JSON.parse(text);
         const incoming = (data.entries || []).filter(e => e.key);
+        _migrateEntries(incoming);
         if (!incoming.length) { UI.toast('No entries found in imported file'); return; }
         const existingKeys = new Set(_entries.map(e => e.key));
         const newEntries = incoming.filter(e => !existingKeys.has(e.key));
@@ -6944,7 +7044,12 @@ const LocalizationKeys = (() => {
     const btn = document.getElementById('loc-btn-compare');
     if (btn) { btn.textContent = '🔍 Compare'; btn.style.background = '#5c6bc0'; }
     document.getElementById('loc-keys-search').value = '';
+    try {
+      const raw = localStorage.getItem('loc_collapse');
+      if (raw) _collapseState = JSON.parse(raw);
+    } catch(e) { _collapseState = {}; }
     modal.style.display = 'flex';
+    _renderAddForm();
     _renderList();
   }
 
@@ -6958,29 +7063,75 @@ const LocalizationKeys = (() => {
     _renderList();
   }
 
+  function _renderRow(e) {
+    return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;align-items:center;padding:3px 0 3px 5px;border-bottom:1px solid #333${_driveKeysSet ? ';border-left:3px solid #ef5350' : ''}">
+    <input type="text" value="${_ea(e.key)}" data-orig="${_ea(e.key)}"
+      style="background:#2a2a2a;border:1px solid #555;color:#aaa;padding:3px 6px;border-radius:3px;font-size:11px;width:100%;box-sizing:border-box"
+      onblur="LocalizationKeys.renameKey(this.dataset.orig,this.value,this)"
+      onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){this.value=this.dataset.orig;this.blur()}">
+    <input type="text" value="${_ea(e.en)}" placeholder="EN"
+      style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px;width:100%"
+      onchange="LocalizationKeys._updateField('${_ea(e.key)}','en',this.value)">
+    <input type="text" value="${_ea(e.uk)}" placeholder="UK"
+      style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px;width:100%"
+      onchange="LocalizationKeys._updateField('${_ea(e.key)}','uk',this.value)">
+    <select onchange="LocalizationKeys.setEntryGroup('${_ea(e.key)}',this.value)"
+      style="background:#2a2a2a;border:1px solid #555;color:#aaa;padding:3px 2px;border-radius:3px;font-size:11px;width:100%">
+      ${_groups.map(g => `<option value="${_ea(g)}"${g === e.group ? ' selected' : ''}>${_ex(g)}</option>`).join('')}
+    </select>
+    <button onclick="LocalizationKeys.remove('${_ea(e.key)}')"
+      style="background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;padding:0 4px;line-height:1">✕</button>
+  </div>`;
+  }
+
   function _renderList() {
     const container = document.getElementById('loc-keys-list');
     if (!container) return;
-    let visible = _filterText
-      ? _entries.filter(e => e.key.toLowerCase().includes(_filterText) || (e.en||'').toLowerCase().includes(_filterText))
-      : _entries;
-    // Compare mode: show only keys absent from Drive
-    if (_driveKeysSet) visible = visible.filter(e => !_driveKeysSet.has(e.key));
-    container.innerHTML = visible.map(e => `
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:4px;align-items:center;padding:3px 0 3px 5px;border-bottom:1px solid #333${_driveKeysSet ? ';border-left:3px solid #ef5350' : ''}">
-        <input type="text" value="${_ea(e.key)}" data-orig="${_ea(e.key)}"
-          style="background:#2a2a2a;border:1px solid #555;color:#aaa;padding:3px 6px;border-radius:3px;font-size:11px;width:100%;box-sizing:border-box"
-          onblur="LocalizationKeys.renameKey(this.dataset.orig,this.value,this)"
-          onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){this.value=this.dataset.orig;this.blur()}">
-        <input type="text" value="${_ea(e.en)}" placeholder="EN"
-          style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px;width:100%"
-          onchange="LocalizationKeys._updateField('${_ea(e.key)}','en',this.value)">
-        <input type="text" value="${_ea(e.uk)}" placeholder="UK"
-          style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px;width:100%"
-          onchange="LocalizationKeys._updateField('${_ea(e.key)}','uk',this.value)">
-        <button onclick="LocalizationKeys.remove('${_ea(e.key)}')"
-          style="background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;padding:0 4px;line-height:1">✕</button>
-      </div>`).join('');
+
+    const isFlat = !!(_filterText || _driveKeysSet);
+
+    if (isFlat) {
+      let visible = _filterText
+        ? _entries.filter(e => e.key.toLowerCase().includes(_filterText) || (e.en||'').toLowerCase().includes(_filterText))
+        : _entries;
+      if (_driveKeysSet) visible = visible.filter(e => !_driveKeysSet.has(e.key));
+      container.innerHTML = visible.map(_renderRow).join('');
+      return;
+    }
+
+    container.innerHTML = _groups.map(group => {
+      const entries = _entries.filter(e => e.group === group);
+      const collapsed = !!_collapseState[group];
+      return `<div>
+      <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:#1e1e1e;border-radius:3px;margin-bottom:2px;cursor:pointer;user-select:none"
+        onclick="LocalizationKeys.toggleGroup('${_ea(group)}')">
+        <span style="font-size:9px;display:inline-block;transform:rotate(${collapsed ? '-90' : '0'}deg);transition:transform 0.15s">▼</span>
+        <span style="color:#aaa;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px">${_ex(group)}</span>
+        <span style="color:#666;font-size:11px">(${entries.length})</span>
+        <button onclick="event.stopPropagation();LocalizationKeys.addKeyToGroup('${_ea(group)}')"
+          style="margin-left:auto;background:none;border:1px solid #555;color:#aaa;padding:1px 7px;border-radius:3px;cursor:pointer;font-size:11px">+ Add Key</button>
+      </div>
+      <div style="display:${collapsed ? 'none' : 'block'};margin-bottom:6px">${entries.map(_renderRow).join('')}</div>
+    </div>`;
+    }).join('');
+  }
+
+  function _renderAddForm() {
+    const sel = document.getElementById('loc-add-group');
+    if (!sel) return;
+    sel.innerHTML = _groups.map(g =>
+      `<option value="${_ea(g)}"${g === _addGroup ? ' selected' : ''}>${_ex(g)}</option>`
+    ).join('');
+  }
+
+  function addKeyToGroup(group) {
+    _addGroup = group;
+    _renderAddForm();
+    const input = document.getElementById('loc-new-key');
+    if (input) {
+      input.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      input.focus();
+    }
   }
 
   function _ex(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -7009,7 +7160,8 @@ const LocalizationKeys = (() => {
       UI.toast('Downloading localization.json from Drive…');
       const data = await DriveSync.loadLocFromDrive();
       const incoming = (data.entries || []).filter(e => e.key);
-      // Merge: incoming wins for existing keys, new keys are appended
+      _migrateEntries(incoming);
+      if (data.groups && Array.isArray(data.groups)) _groups = data.groups;
       const map = Object.fromEntries(_entries.map(e => [e.key, e]));
       for (const e of incoming) map[e.key] = e;
       const existingKeys = new Set(_entries.map(e => e.key));
@@ -7033,14 +7185,18 @@ const LocalizationKeys = (() => {
     if (!confirm('Clear localization cache? Local data will be replaced with Drive data.')) return;
     localStorage.removeItem(LS_KEY);
     _entries = [];
+    _groups = ['Tiles', 'Buildings', 'Settlements', 'Upgrades', 'Universal Keys'];
     await pullFromDrive();
   }
 
   function getKeys() { return _entries.map(e => e.key); }
   function getEntries() { return _entries; }
+  function getGroups() { return _groups; }
 
-  return { load, getKeys, getEntries, add, remove, downloadJson, importJson, compareWithDrive,
-           pushToDrive, pullFromDrive, clearCache, openManager, closeManager, filterList, _updateField, renameKey, _renderList, _ex, _ea };
+  return { load, getKeys, getEntries, getGroups, getExportData, add, remove, downloadJson, importJson,
+           compareWithDrive, pushToDrive, pullFromDrive, clearCache, openManager, closeManager,
+           filterList, _updateField, renameKey, _renderList, _ex, _ea,
+           addGroup, removeGroup, setEntryGroup, toggleGroup, toggleGroupsPanel, addKeyToGroup };
 })();
 
 window.LocalizationKeys = LocalizationKeys;
@@ -10967,6 +11123,8 @@ window.addEventListener('load', async () => {
           style="background:#5c6bc0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Show keys present locally but missing from Drive">🔍 Compare</button>
         <button onclick="LocalizationKeys.downloadJson()"
           style="background:#2e7d32;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">⬇ JSON</button>
+        <button onclick="LocalizationKeys.toggleGroupsPanel()"
+          style="background:#4a4a4a;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">⚙ Groups</button>
         <button onclick="LocalizationKeys.closeManager()"
           style="background:none;border:none;color:#aaa;font-size:18px;cursor:pointer;line-height:1">✕</button>
       </div>
@@ -10975,17 +11133,20 @@ window.addEventListener('load', async () => {
     <input id="loc-keys-search" type="text" placeholder="🔍 Filter by key or EN text…"
       oninput="LocalizationKeys.filterList(this.value)"
       style="background:#333;border:1px solid #555;color:#eee;padding:5px 10px;border-radius:4px;font-size:13px;width:100%;box-sizing:border-box">
+    <!-- Groups panel (hidden by default) -->
+    <div id="loc-groups-panel" style="display:none;background:#1e1e1e;border:1px solid #444;border-radius:4px;padding:10px"></div>
     <!-- Column headers -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:4px;padding:2px 0;border-bottom:1px solid #555">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;padding:2px 0;border-bottom:1px solid #555">
       <span style="color:#888;font-size:11px;text-transform:uppercase">Key</span>
       <span style="color:#888;font-size:11px;text-transform:uppercase">EN</span>
       <span style="color:#888;font-size:11px;text-transform:uppercase">UK</span>
+      <span style="color:#888;font-size:11px;text-transform:uppercase">Group</span>
       <span></span>
     </div>
     <!-- Rows -->
     <div id="loc-keys-list" style="overflow-y:auto;flex:1;min-height:0;max-height:55vh"></div>
     <!-- Add new key -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:4px;align-items:center;border-top:1px solid #444;padding-top:10px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;align-items:center;border-top:1px solid #444;padding-top:10px">
       <input id="loc-new-key" type="text" placeholder="new_key"
         style="background:#333;border:1px solid #555;color:#eee;padding:4px 8px;border-radius:4px;font-size:12px"
         onkeydown="if(event.key==='Enter')document.getElementById('loc-add-btn').click()">
@@ -10995,7 +11156,12 @@ window.addEventListener('load', async () => {
       <input id="loc-new-uk" type="text" placeholder="Ukrainian text"
         style="background:#333;border:1px solid #555;color:#eee;padding:4px 8px;border-radius:4px;font-size:12px"
         onkeydown="if(event.key==='Enter')document.getElementById('loc-add-btn').click()">
-      <button id="loc-add-btn" onclick="LocalizationKeys.add(document.getElementById('loc-new-key').value,document.getElementById('loc-new-en').value,document.getElementById('loc-new-uk').value);document.getElementById('loc-new-key').value='';document.getElementById('loc-new-en').value='';document.getElementById('loc-new-uk').value=''"
+      <select id="loc-add-group"
+        style="background:#333;border:1px solid #555;color:#eee;padding:4px 4px;border-radius:4px;font-size:12px">
+        <!-- populated by _renderAddForm() on openManager() -->
+      </select>
+      <button id="loc-add-btn"
+        onclick="LocalizationKeys.add(document.getElementById('loc-new-key').value,document.getElementById('loc-new-en').value,document.getElementById('loc-new-uk').value);document.getElementById('loc-new-key').value='';document.getElementById('loc-new-en').value='';document.getElementById('loc-new-uk').value=''"
         style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;white-space:nowrap">+ Add</button>
     </div>
   </div>
