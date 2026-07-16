@@ -1348,11 +1348,8 @@ body.mode-common #map-io    { display: none; }
         <div class="pub-drop-sep"></div>
         <button onclick="GitHubSync.publishMap()">☁ Publish Map</button>
         <div class="pub-drop-sep"></div>
-        <button onclick="DriveSync.setupSpriteFolders()" title="Create HEX_DATA/hex/ and HEX_DATA/buildings/ if they don't exist">📁 Setup sprite folders</button>
-        <button onclick="DriveSync.migrateSpritesToSubfolders()" title="One-time: move flat HEX_DATA PNGs → HEX_DATA/hex/">🗂 Migrate sprites to subfolders</button>
       </div>
     </div>
-    <button class="publish-btn" id="btn-drive-maps"  onclick="DriveSync.openMapsPopover()" title="Browse and load maps from Google Drive">☁ Maps ▾</button>
   </div>
 
   <!-- ── Toolbar ──────────────────────────────────────────── -->
@@ -8990,17 +8987,20 @@ const HexDB = (() => {
         // Keep sprite in Terrain so canvas still renders this tile ID after migration
         Terrain.applyHexDbOverrides([newBld]);
 
-        // Copy sprite from HEX_DATA/hex/ → HEX_DATA/buildings/ so Unity can download it
-        if (newBld.spriteName && DriveSync.isAuthenticated()) {
-          DriveSync.copySpriteToBuildings(newBld.spriteName)
-            .catch(e => console.warn('[HexDB] Sprite copy hex→buildings failed:', e.message));
+        // Push sprite to GitHub buildings folder
+        if (newBld.spriteName && GitHubSync.isPATConfigured()) {
+          SpriteStore.load(newBld.spriteName, 'hex').then(async dataUrl => {
+            if (!dataUrl) return;
+            const res  = await fetch(dataUrl);
+            const blob = await res.blob();
+            GitHubSync.pushSprite(newBld.spriteName, blob, 'buildings')
+              .catch(e => console.warn('[migrate] pushSprite buildings failed:', e.message));
+          }).catch(() => {});
         }
 
         // Remove from HexDB
         _data.hexes.splice(realIdx, 1);
         _autoSave();
-        // Block Drive sync from restoring the migrated hex until HexDB & BldDB are published.
-        localStorage.setItem('migration_dirty', '1');
         _selFilt = -1;
         _applyFilter();
         _buildList();
@@ -11363,10 +11363,6 @@ window.addEventListener('load', async () => {
   if (!_mapRestored) IO.showNewMapPrompt();
   const _vLabel = document.getElementById('version-label');
   if (_vLabel) _vLabel.textContent = COMMIT ? `${VERSION}.${COMMIT}` : VERSION;
-  // Init auto-sync checkbox state from localStorage, then trigger if enabled
-  const _autoSyncChk = document.getElementById('chk-auto-sync');
-  if (_autoSyncChk) _autoSyncChk.checked = DriveSync.getAutoSync();
-  if (DriveSync.getAutoSync()) DriveSync.syncFromDrive();
   console.log('[MapEditorPro] Ready.');
 });
 
