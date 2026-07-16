@@ -25,9 +25,7 @@ sed -i '' "s/const VERSION = \"[^\"]*\"/const VERSION = \"${DATE}\"/" MapEditorP
 sed -i '' "s/const COMMIT  = \"[^\"]*\"/const COMMIT  = \"${SHA}\"/" MapEditorPro.html
 sed -i '' "s|<title>Post Apo Map Editor[^<]*</title>|<title>Post Apo Map Editor ${BUILD}</title>|" MapEditorPro.html
 
-bash compress_sprites.sh
-git add MapEditorPro.html sprites/ maps/
-git add building_database.json upgrade_database.json 2>/dev/null || true
+git add MapEditorPro.html
 git commit -m "deploy: ${BUILD}"
 git push origin gh-pages
 
