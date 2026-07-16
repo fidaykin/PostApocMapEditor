@@ -1346,7 +1346,7 @@ body.mode-common #map-io    { display: none; }
         <button onclick="GitHubSync.publishBuildingsDb()">☁ Publish Buildings DB</button>
         <button onclick="GitHubSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
         <div class="pub-drop-sep"></div>
-        <button onclick="DriveSync.publishMap()">☁ Publish Map</button>
+        <button onclick="GitHubSync.publishMap()">☁ Publish Map</button>
         <div class="pub-drop-sep"></div>
         <button onclick="DriveSync.setupSpriteFolders()" title="Create HEX_DATA/hex/ and HEX_DATA/buildings/ if they don't exist">📁 Setup sprite folders</button>
         <button onclick="DriveSync.migrateSpritesToSubfolders()" title="One-time: move flat HEX_DATA PNGs → HEX_DATA/hex/">🗂 Migrate sprites to subfolders</button>
@@ -4124,6 +4124,51 @@ const GitHubSync = (() => {
       }));
   }
 
+  async function publishMap() {
+    if (!isPATConfigured()) { UI.toast('⚠ Configure GitHub PAT first'); return; }
+    const mapJson = IO.getMapJson();
+    if (!mapJson) { UI.toast('No map to publish'); return; }
+
+    const rawName = prompt('Map filename:', _lastMapName || 'current_map');
+    if (rawName === null) return;
+    const fname = rawName.trim().replace(/\.json$/i, '') || 'current_map';
+    _lastMapName = fname;
+    localStorage.setItem('ghLastMapName', _lastMapName);
+
+    const btn = document.getElementById('btn-publish-all');
+    if (btn) btn.disabled = true;
+    try {
+      _closeDropdown();
+      UI.progress(20, `Uploading ${fname}.json…`);
+      await _putText(`maps/${fname}.json`, mapJson, `publish map: ${fname}`);
+
+      UI.progress(60, 'Updating map_list.json…');
+      const existing = await _getFile('maps/map_list.json');
+      let list = { maps: [] };
+      if (existing) {
+        try { list = JSON.parse(existing.content); } catch(e) { list = { maps: [] }; }
+      }
+      const entry = {
+        name: fname,
+        fileName: `${fname}.json`,
+        size: String(new TextEncoder().encode(mapJson).length),
+        uploadedTime: new Date().toISOString().substring(0, 10),
+      };
+      const idx = list.maps.findIndex(m => m.fileName === entry.fileName);
+      if (idx >= 0) list.maps[idx] = entry; else list.maps.push(entry);
+
+      await _putText('maps/map_list.json', JSON.stringify(list, null, 2) + '\n', 'publish: map_list.json');
+      UI.progressDone(`✅ Map "${fname}" published`);
+      UI.toast(`✅ maps/${fname}.json → gh-pages`);
+    } catch(e) {
+      UI.progressDone('❌ Failed');
+      UI.toast('❌ Publish Map failed: ' + e.message);
+      console.error('[GitHubSync] publishMap:', e);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
@@ -4131,7 +4176,7 @@ const GitHubSync = (() => {
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
     togglePublishDropdown, publishDb, publishHexDbOnly,
-    publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc,
+    publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
   };
 })();
@@ -4283,7 +4328,7 @@ const DriveSync = (() => {
       document.body.appendChild(pop);
       document.getElementById('drive-maps-close').onclick   = () => _closeMapsPopover();
       document.getElementById('drive-maps-refresh').onclick = () => { _mapListCache = null; _fetchAndRender(); };
-      document.getElementById('drive-maps-publish-btn').onclick = () => { _closeMapsPopover(); publishMap(); };
+      document.getElementById('drive-maps-publish-btn').onclick = () => { _closeMapsPopover(); GitHubSync.publishMap(); };
       document.addEventListener('click', _outsideClickHandler);
       document.addEventListener('keydown', _escHandler);
     }
