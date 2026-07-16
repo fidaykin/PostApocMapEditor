@@ -3751,40 +3751,28 @@ const GitHubSync = (() => {
   function setPAT(pat)        { localStorage.setItem(PAT_KEY, pat.trim()); }
   function isPATConfigured()  { return !!localStorage.getItem(PAT_KEY); }
 
-  function _headers() {
-    return {
-      'Authorization': `Bearer ${getPAT()}`,
-      'Accept': 'application/vnd.github+json',
-      'Content-Type': 'application/json',
-    };
-  }
-
-  // ── Core file API ─────────────────────────────────────────────
-  async function _getFile(path) {
-    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, { headers: _headers() });
-    if (res.status === 404) return null;
-    if (!res.ok) throw new Error(`GitHub GET ${path}: ${res.status}`);
-    const data = await res.json();
-    // data.content is base64 with embedded newlines — strip them before atob
-    return { sha: data.sha, content: atob(data.content.replace(/\n/g, '')) };
-  }
-
-  async function _putFile(path, base64Content, message, sha) {
-    const body = { message, content: base64Content, branch: BRANCH };
-    if (sha) body.sha = sha;
-    const res = await fetch(`${GH_API}/${path}`, {
-      method: 'PUT',
-      headers: _headers(),
-      body: JSON.stringify(body),
+  // ── Core dispatch API ─────────────────────────────────────────
+  async function _dispatch(path, base64Content, message) {
+    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/dispatches`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${getPAT()}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        event_type: 'publish-content',
+        client_payload: { path, content: base64Content, message },
+      }),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(`GitHub PUT ${path}: ${res.status} — ${err.message || 'unknown'}`);
+      throw new Error(`GitHub dispatch ${path}: ${res.status} — ${err.message || 'unknown'}`);
     }
   }
 
   async function _listFolder(path) {
-    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, { headers: _headers() });
+    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`);
     if (res.status === 404) return [];
     if (!res.ok) throw new Error(`GitHub LIST ${path}: ${res.status}`);
     return await res.json(); // [{name, sha, size, download_url, ...}]
@@ -3792,14 +3780,13 @@ const GitHubSync = (() => {
 
   // ── Encode helpers ────────────────────────────────────────────
   function _encodeText(text) {
-    // UTF-8 safe base64
     return btoa(unescape(encodeURIComponent(text)));
   }
 
   async function _encodeBlob(blob) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
-      reader.onload  = () => resolve(reader.result.split(',')[1]); // strip data:…;base64,
+      reader.onload  = () => resolve(reader.result.split(',')[1]);
       reader.onerror = reject;
       reader.readAsDataURL(blob);
     });
@@ -3807,14 +3794,11 @@ const GitHubSync = (() => {
 
   // ── High-level put helpers ────────────────────────────────────
   async function _putText(path, text, message) {
-    const existing = await _getFile(path);
-    await _putFile(path, _encodeText(text), message, existing?.sha);
+    await _dispatch(path, _encodeText(text), message);
   }
 
   async function _putBinary(path, blob, message) {
-    const existing = await _getFile(path);
-    const base64   = await _encodeBlob(blob);
-    await _putFile(path, base64, message, existing?.sha);
+    await _dispatch(path, await _encodeBlob(blob), message);
   }
 
   // ── PAT validation ────────────────────────────────────────────
@@ -3888,11 +3872,11 @@ const GitHubSync = (() => {
 
   async function publishHexDbOnly() {
     await _withPublishBtn('Publish HexDB', async () => {
-      UI.progress(20, 'Uploading hex_database.json…');
+      UI.progress(20, 'Queuing hex_database.json…');
       const json = JSON.stringify(HexDB.getData(), null, 2);
       await _putText('hex_database.json', json, 'publish: hex_database.json');
-      UI.progressDone('✅ HexDB published');
-      UI.toast('✅ hex_database.json → gh-pages');
+      UI.progressDone('⏳ HexDB queued — live in ~30s');
+      UI.toast('⏳ hex_database.json queued');
     });
   }
 
@@ -3909,8 +3893,8 @@ const GitHubSync = (() => {
         done++;
         UI.progress(Math.round((done / all.length) * 90) + 10, `${done}/${all.length} sprites…`);
       }
-      UI.progressDone(`✅ ${all.length} sprites published`);
-      UI.toast(`✅ ${all.length} sprites → gh-pages`);
+      UI.progressDone(`⏳ ${all.length} sprites queued — live in ~30s`);
+      UI.toast(`⏳ ${all.length} sprites queued`);
     });
   }
 
@@ -3918,8 +3902,8 @@ const GitHubSync = (() => {
     await _withPublishBtn('Publish Buildings DB', async () => {
       UI.progress(30, 'Uploading building_database.json…');
       await _putText('building_database.json', BldDB.getJson(), 'publish: building_database.json');
-      UI.progressDone('✅ Buildings DB published');
-      UI.toast('✅ building_database.json → gh-pages');
+      UI.progressDone('⏳ Buildings DB queued — live in ~30s');
+      UI.toast('⏳ building_database.json queued');
     });
   }
 
@@ -3927,8 +3911,8 @@ const GitHubSync = (() => {
     await _withPublishBtn('Publish Upgrade DB', async () => {
       UI.progress(30, 'Uploading upgrade_database.json…');
       await _putText('upgrade_database.json', UpgDB.getJson(), 'publish: upgrade_database.json');
-      UI.progressDone('✅ Upgrade DB published');
-      UI.toast('✅ upgrade_database.json → gh-pages');
+      UI.progressDone('⏳ Upgrade DB queued — live in ~30s');
+      UI.toast('⏳ upgrade_database.json queued');
     });
   }
 
@@ -3937,8 +3921,8 @@ const GitHubSync = (() => {
     try {
       UI.progress(30, 'Uploading common_settings.json…');
       await _putText('common_settings.json', CommonDB.export(), 'publish: common_settings.json');
-      UI.progressDone('✅ Common settings published');
-      UI.toast('✅ common_settings.json → gh-pages');
+      UI.progressDone('⏳ Common settings queued — live in ~30s');
+      UI.toast('⏳ common_settings.json queued');
     } catch(e) {
       UI.progressDone('❌ Failed');
       console.error('[GitHubSync] publishCommonDb:', e);
@@ -3952,7 +3936,7 @@ const GitHubSync = (() => {
       UI.progress(20, 'Uploading localization.json…');
       const json = JSON.stringify(LocalizationKeys.getExportData(), null, 2);
       await _putText('localization.json', json, 'publish: localization.json');
-      UI.progressDone('✅ localization.json published');
+      UI.progressDone('⏳ localization.json queued — live in ~30s');
     } catch(e) {
       UI.progressDone('❌ Failed');
       UI.toast('❌ Publish loc failed: ' + e.message);
@@ -4012,11 +3996,11 @@ const GitHubSync = (() => {
       await _putText(`maps/${fname}.json`, mapJson, `publish map: ${fname}`);
 
       UI.progress(60, 'Updating map_list.json…');
-      const existing = await _getFile('maps/map_list.json');
       let list = { maps: [] };
-      if (existing) {
-        try { list = JSON.parse(existing.content); } catch(e) { list = { maps: [] }; }
-      }
+      try {
+        const lr = await fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`);
+        if (lr.ok) list = await lr.json();
+      } catch(e) { /* start fresh */ }
       const entry = {
         name: fname,
         fileName: `${fname}.json`,
@@ -4027,8 +4011,8 @@ const GitHubSync = (() => {
       if (idx >= 0) list.maps[idx] = entry; else list.maps.push(entry);
 
       await _putText('maps/map_list.json', JSON.stringify(list, null, 2) + '\n', 'publish: map_list.json');
-      UI.progressDone(`✅ Map "${fname}" published`);
-      UI.toast(`✅ maps/${fname}.json → gh-pages`);
+      UI.progressDone(`⏳ Map "${fname}" queued — live in ~30s`);
+      UI.toast(`⏳ maps/${fname}.json queued`);
     } catch(e) {
       UI.progressDone('❌ Failed');
       UI.toast('❌ Publish Map failed: ' + e.message);
