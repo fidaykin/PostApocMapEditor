@@ -4193,7 +4193,7 @@ const GitHubSync = (() => {
     togglePublishDropdown, publishHexDbOnly, publishAllSprites,
     publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
-    loadHexDbIntoEditor, loadLocFromServer,
+    loadHexDbIntoEditor, loadLocFromServer, loadBuildingDbFromServer, loadUpgradeDbFromServer,
     openMapsPopover, closeMapsPopover, _loadMap,
     openContentManager, closeContentManager,
   };
@@ -10238,8 +10238,8 @@ window.addEventListener('load', async () => {
   // Always fetch DBs from server in background so the editor stays in sync with gh-pages.
   // LocalStorage copy is loaded first (instant), then overwritten with the server version.
   (async () => {
-    try { await loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
-    try { await loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
+    try { await GitHubSync.loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
+    try { await GitHubSync.loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
     await Terrain.applyHexDbOverrides(BldDB.getAll());
     Canvas.render();
