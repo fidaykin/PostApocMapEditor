@@ -13,9 +13,9 @@ fi
 
 echo "Compressing PNGs in $SPRITES_DIR..."
 find "$SPRITES_DIR" -name "*.png" | while read -r f; do
-  before=$(stat -f%z "$f")
+  before=$(wc -c < "$f")
   oxipng -o 4 --quiet "$f"
-  after=$(stat -f%z "$f")
+  after=$(wc -c < "$f")
   saved=$(( before - after ))
   if [ "$saved" -gt 0 ]; then
     pct=$(echo "scale=0; $saved * 100 / $before" | bc)
