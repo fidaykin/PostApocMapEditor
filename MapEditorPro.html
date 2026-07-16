@@ -1196,6 +1196,7 @@ body.mode-common #map-io    { display: none; }
     <span id="sync-badge">DB: 💾 Autosave</span>
     <button class="publish-btn" id="btn-gh-settings" onclick="GitHubSync.openPATSettings()" title="Configure GitHub sync (Personal Access Token)">⚙ GitHub</button>
     <button class="publish-btn" id="btn-gh-maps" onclick="GitHubSync.openMapsPopover()" title="Browse maps on server">☁ Maps</button>
+    <button class="publish-btn" id="btn-gh-content" onclick="GitHubSync.openContentManager()" title="Browse all files on server">📋 Content</button>
     <div class="pub-drop-wrap" id="pub-drop-wrap">
       <button class="publish-btn" id="btn-publish-all" onclick="GitHubSync.togglePublishDropdown(event)" title="Publish to GitHub">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
@@ -4086,6 +4087,87 @@ const GitHubSync = (() => {
     }
   }
 
+  // ── Content Manager ──────────────────────────────────────────
+  const _CM_DB_FILES = [
+    'hex_database.json', 'building_database.json', 'upgrade_database.json',
+    'common_settings.json', 'localization.json',
+  ];
+
+  function _fmtSize(bytes) {
+    if (!bytes) return '';
+    return bytes < 1024 ? `${bytes} B` : bytes < 1048576 ? `${(bytes/1024).toFixed(0)} KB` : `${(bytes/1048576).toFixed(1)} MB`;
+  }
+
+  async function openContentManager() {
+    const modal = document.getElementById('gh-cm-modal');
+    modal.style.display = 'flex';
+    _renderCM('<div class="gh-maps-empty">Loading…</div>');
+
+    try {
+      const [hexFiles, bldFiles, mapList] = await Promise.all([
+        _listFolder('sprites/hex'),
+        _listFolder('sprites/buildings'),
+        fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`).then(r => r.ok ? r.json() : {maps:[]}).catch(() => ({maps:[]})),
+      ]);
+
+      const dbResults = await Promise.all(_CM_DB_FILES.map(async name => {
+        try {
+          const r = await fetch(`${BASE_URL}/${name}?_=${Date.now()}`, {method:'HEAD'});
+          const size = r.ok ? parseInt(r.headers.get('content-length') || '0') : null;
+          return {name, ok: r.ok, size};
+        } catch { return {name, ok: false, size: null}; }
+      }));
+
+      const totalSize = [...hexFiles, ...bldFiles].reduce((s, f) => s + (f.size || 0), 0);
+
+      _renderCM(`
+        <div class="cm-section">
+          <div class="cm-section-title">🖼 Sprites / hex <span class="cm-badge">${hexFiles.length}</span></div>
+          <div class="cm-file-grid">${hexFiles.map(f =>
+            `<div class="cm-file" title="${_escHtml(f.name)}\n${_fmtSize(f.size)}">
+              <img src="${_escHtml(f.download_url)}" class="cm-thumb" onerror="this.style.display='none'">
+              <div class="cm-fname">${_escHtml(f.name.replace(/\.png$/i,''))}</div>
+              <div class="cm-fsize">${_fmtSize(f.size)}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+        <div class="cm-section">
+          <div class="cm-section-title">🏗 Sprites / buildings <span class="cm-badge">${bldFiles.length}</span></div>
+          <div class="cm-file-grid">${bldFiles.map(f =>
+            `<div class="cm-file" title="${_escHtml(f.name)}\n${_fmtSize(f.size)}">
+              <img src="${_escHtml(f.download_url)}" class="cm-thumb" onerror="this.style.display='none'">
+              <div class="cm-fname">${_escHtml(f.name.replace(/\.png$/i,''))}</div>
+              <div class="cm-fsize">${_fmtSize(f.size)}</div>
+            </div>`).join('')}
+          </div>
+        </div>
+        <div class="cm-section">
+          <div class="cm-section-title">🗺 Maps <span class="cm-badge">${(mapList.maps||[]).length}</span></div>
+          <div class="cm-list">${(mapList.maps||[]).map(m =>
+            `<div class="cm-row"><span class="cm-row-name">${_escHtml(m.name)}</span><span class="cm-row-meta">${_escHtml(m.fileName)} · ${_fmtSize(parseInt(m.size||0))} · ${_escHtml(m.uploadedTime||'')}</span></div>`
+          ).join('') || '<div class="gh-maps-empty">No maps</div>'}</div>
+        </div>
+        <div class="cm-section">
+          <div class="cm-section-title">🗄 DB files</div>
+          <div class="cm-list">${dbResults.map(d =>
+            `<div class="cm-row"><span class="cm-row-name">${d.ok ? '✅' : '❌'} ${_escHtml(d.name)}</span><span class="cm-row-meta">${d.ok ? _fmtSize(d.size) : 'missing'}</span></div>`
+          ).join('')}</div>
+        </div>
+        <div style="color:#6c7086;font-size:11px;padding:4px 0">Total sprites: ${_fmtSize(totalSize)}</div>
+      `);
+    } catch(e) {
+      _renderCM(`<div class="gh-maps-empty">❌ ${_escHtml(e.message)}</div>`);
+    }
+  }
+
+  function _renderCM(html) {
+    document.getElementById('gh-cm-body').innerHTML = html;
+  }
+
+  function closeContentManager() {
+    document.getElementById('gh-cm-modal').style.display = 'none';
+  }
+
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
@@ -4097,6 +4179,7 @@ const GitHubSync = (() => {
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
     loadHexDbIntoEditor, loadLocFromServer,
     openMapsPopover, closeMapsPopover, _loadMap,
+    openContentManager, closeContentManager,
   };
 })();
 
@@ -10438,6 +10521,35 @@ window.addEventListener('load', async () => {
     <div id="gh-maps-list"><div class="gh-maps-empty">Loading…</div></div>
   </div>
 </div>
+
+<!-- ── Content Manager ──────────────────────────────────────── -->
+<div id="gh-cm-modal" onclick="if(event.target===this)GitHubSync.closeContentManager()"
+  style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:flex-start;justify-content:center;overflow-y:auto;padding:24px 0;">
+  <div style="background:#1e1e2e;color:#cdd6f4;border-radius:10px;width:860px;max-width:95vw;display:flex;flex-direction:column;max-height:90vh;">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid #313244;flex-shrink:0;">
+      <strong style="font-size:15px">📋 Content Manager — gh-pages</strong>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <button onclick="GitHubSync.openContentManager()" style="padding:4px 12px;border-radius:4px;border:1px solid #45475a;background:transparent;color:#cdd6f4;cursor:pointer;font-size:12px">⟳ Refresh</button>
+        <button onclick="GitHubSync.closeContentManager()" style="background:none;border:none;color:#aaa;font-size:22px;cursor:pointer;line-height:1">✕</button>
+      </div>
+    </div>
+    <div id="gh-cm-body" style="overflow-y:auto;padding:16px 20px;display:flex;flex-direction:column;gap:16px;"></div>
+  </div>
+</div>
+<style>
+.cm-section { display:flex;flex-direction:column;gap:8px; }
+.cm-section-title { font-size:13px;font-weight:600;color:#89b4fa;display:flex;align-items:center;gap:6px; }
+.cm-badge { background:#313244;color:#a6adc8;border-radius:10px;padding:1px 8px;font-size:11px;font-weight:400; }
+.cm-file-grid { display:flex;flex-wrap:wrap;gap:6px; }
+.cm-file { background:#181825;border:1px solid #313244;border-radius:6px;padding:6px;width:88px;display:flex;flex-direction:column;align-items:center;gap:3px;overflow:hidden; }
+.cm-thumb { width:60px;height:60px;object-fit:contain;border-radius:3px; }
+.cm-fname { font-size:9px;color:#a6adc8;text-align:center;word-break:break-all;line-height:1.2;max-height:2.4em;overflow:hidden; }
+.cm-fsize { font-size:9px;color:#6c7086; }
+.cm-list { display:flex;flex-direction:column;gap:2px; }
+.cm-row { display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:#181825;border-radius:4px;font-size:12px; }
+.cm-row-name { color:#cdd6f4; }
+.cm-row-meta { color:#6c7086;font-size:11px; }
+</style>
 
 </body>
 </html>
