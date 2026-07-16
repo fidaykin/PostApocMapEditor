@@ -3918,6 +3918,7 @@ const GitHubSync = (() => {
     } catch(e) {
       UI.progressDone('❌ Failed');
       console.error('[GitHubSync] publishCommonDb:', e);
+      UI.toast('❌ publishCommonDb failed: ' + e.message);
     }
   }
 
@@ -3930,6 +3931,7 @@ const GitHubSync = (() => {
       UI.progressDone('✅ localization.json published');
     } catch(e) {
       UI.progressDone('❌ Failed');
+      UI.toast('❌ Publish loc failed: ' + e.message);
       throw e;
     }
   }
@@ -4016,7 +4018,7 @@ const GitHubSync = (() => {
     const res = await fetch(`${BASE_URL}/hex_database.json?_=${Date.now()}`);
     if (!res.ok) throw new Error(`hex_database.json not found (${res.status})`);
     const data = await res.json();
-    HexDB.loadData(data);
+    HexDB.loadFromObject(data);
     UI.toast('✅ Hex DB loaded from server');
   }
 
@@ -7735,9 +7737,10 @@ const HexDB = (() => {
 
         // Push sprite to GitHub buildings folder
         if (newBld.spriteName && GitHubSync.isPATConfigured()) {
-          SpriteStore.load(newBld.spriteName, 'hex').then(async dataUrl => {
-            if (!dataUrl) return;
-            const res  = await fetch(dataUrl);
+          SpriteStore.loadAll().then(async all => {
+            const entry = all.find(e => e.name === newBld.spriteName && (e.category || 'hex') === 'hex');
+            if (!entry?.dataUrl) return;
+            const res  = await fetch(entry.dataUrl);
             const blob = await res.blob();
             GitHubSync.pushSprite(newBld.spriteName, blob, 'buildings')
               .catch(e => console.warn('[migrate] pushSprite buildings failed:', e.message));
