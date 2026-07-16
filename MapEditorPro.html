@@ -1113,6 +1113,17 @@ body.mode-common #map-io    { display: none; }
 .pub-drop-sep { border-top: 1px solid #2a4a3a; margin: 3px 0; }
 .pub-drop-sub { font-size: 10px; color: #678; margin-left: 6px; }
 
+/* ── GitHub Maps Popover ──────────────────────────────── */
+#gh-maps-modal { display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center; }
+#gh-maps-box { background:#252525;border:1px solid #555;border-radius:8px;padding:16px;width:min(500px,95vw);max-height:75vh;display:flex;flex-direction:column;gap:10px; }
+#gh-maps-list { overflow-y:auto;display:flex;flex-direction:column; }
+.gh-map-row { display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:1px solid #333; }
+.gh-map-name { flex:1;color:#eee;font-size:13px; }
+.gh-map-meta { font-size:11px;color:#888;white-space:nowrap; }
+.gh-map-load-btn { background:#1565c0;border:none;color:#fff;padding:4px 12px;border-radius:4px;cursor:pointer;font-size:12px; }
+.gh-map-load-btn:hover { background:#1976d2; }
+.gh-maps-empty { color:#888;font-size:13px;text-align:center;padding:24px; }
+
 </style>
 <script src="zone-painter.js?v=8"></script>
 </head>
@@ -1184,6 +1195,7 @@ body.mode-common #map-io    { display: none; }
     </div>
     <span id="sync-badge">DB: 💾 Autosave</span>
     <button class="publish-btn" id="btn-gh-settings" onclick="GitHubSync.openPATSettings()" title="Configure GitHub sync (Personal Access Token)">⚙ GitHub</button>
+    <button class="publish-btn" id="btn-gh-maps" onclick="GitHubSync.openMapsPopover()" title="Browse maps on server">☁ Maps</button>
     <div class="pub-drop-wrap" id="pub-drop-wrap">
       <button class="publish-btn" id="btn-publish-all" onclick="GitHubSync.togglePublishDropdown(event)" title="Publish to GitHub">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
@@ -4029,6 +4041,56 @@ const GitHubSync = (() => {
     return await res.json();
   }
 
+  // ── Maps popover ─────────────────────────────────────────
+  let _mapsCache = [];
+  function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  async function openMapsPopover() {
+    const modal = document.getElementById('gh-maps-modal');
+    const list  = document.getElementById('gh-maps-list');
+    modal.style.display = 'flex';
+    list.innerHTML = '<div class="gh-maps-empty">Loading…</div>';
+    try {
+      const res  = await fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`);
+      if (!res.ok) throw new Error(`map_list.json not found (${res.status})`);
+      const data = await res.json();
+      _mapsCache = data.maps || [];
+      if (!_mapsCache.length) {
+        list.innerHTML = '<div class="gh-maps-empty">No maps published yet.</div>';
+        return;
+      }
+      list.innerHTML = _mapsCache.map((m, i) => `
+        <div class="gh-map-row">
+          <span class="gh-map-name">${_escHtml(m.name)}</span>
+          <span class="gh-map-meta">${m.size ? Math.round(m.size/1024)+'&nbsp;KB' : ''} ${_escHtml(m.uploadedTime||'')}</span>
+          <button class="gh-map-load-btn" onclick="GitHubSync._loadMap(${i})">Load</button>
+        </div>`).join('');
+    } catch(e) {
+      list.innerHTML = `<div class="gh-maps-empty">❌ ${_escHtml(e.message)}</div>`;
+    }
+  }
+
+  function closeMapsPopover() {
+    document.getElementById('gh-maps-modal').style.display = 'none';
+  }
+
+  async function _loadMap(index) {
+    const m = _mapsCache[index];
+    if (!m) return;
+    try {
+      UI.toast(`⏳ Loading ${_escHtml(m.name)}…`);
+      const res  = await fetch(`${BASE_URL}/maps/${encodeURIComponent(m.fileName)}?_=${Date.now()}`);
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const json = await res.json();
+      IO.loadFromJSON(json);
+      IO.setFileName(m.fileName.replace(/\.json$/i, ''));
+      closeMapsPopover();
+      UI.toast(`✅ Loaded ${_escHtml(m.name)}`);
+    } catch(e) {
+      UI.toast('❌ Load failed: ' + e.message);
+    }
+  }
+
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
@@ -4039,6 +4101,7 @@ const GitHubSync = (() => {
     publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
     loadHexDbIntoEditor, loadLocFromServer,
+    openMapsPopover, closeMapsPopover, _loadMap,
   };
 })();
 
@@ -10362,5 +10425,16 @@ window.addEventListener('load', async () => {
     </div>
   </div>
 </div>
+<!-- ── GitHub Maps Popover ──────────────────────────────── -->
+<div id="gh-maps-modal" onclick="if(event.target===this)GitHubSync.closeMapsPopover()">
+  <div id="gh-maps-box">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+      <strong style="color:#fff;font-size:14px">☁ Maps on server</strong>
+      <button onclick="GitHubSync.closeMapsPopover()" style="background:none;border:none;color:#aaa;font-size:20px;cursor:pointer;line-height:1">✕</button>
+    </div>
+    <div id="gh-maps-list"><div class="gh-maps-empty">Loading…</div></div>
+  </div>
+</div>
+
 </body>
 </html>
