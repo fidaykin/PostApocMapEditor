@@ -5634,22 +5634,54 @@ const UI = (() => {
     _spritePickerOpts = {};
   }
 
+  // Lazy-load oxipng WASM from CDN — undefined before first use, null after failed attempt.
+  let _oxipngFn = undefined;
+  async function _loadOxipng() {
+    if (_oxipngFn !== undefined) return _oxipngFn;
+    try {
+      const mod = await import('https://cdn.jsdelivr.net/npm/@jsquash/oxipng@2.3.0/+esm');
+      _oxipngFn = mod.optimise ?? mod.default ?? null;
+      if (!_oxipngFn) throw new Error('no optimise export found');
+    } catch(e) {
+      console.warn('[SpriteUpload] oxipng unavailable, uploading uncompressed:', e.message);
+      _oxipngFn = null;
+    }
+    return _oxipngFn;
+  }
+
+  async function _optimizePng(file) {
+    const fn = await _loadOxipng();
+    if (!fn || file.type !== 'image/png') return file;
+    try {
+      const buffer = await file.arrayBuffer();
+      const optimized = await fn(buffer, { level: 4 });
+      const savedPct = Math.round((1 - optimized.byteLength / buffer.byteLength) * 100);
+      if (savedPct > 0) {
+        const name = file.name.replace(/\.[^.]+$/, '');
+        toast(`"${name}" compressed ${savedPct}%`);
+        return new File([optimized], file.name, { type: 'image/png', lastModified: file.lastModified });
+      }
+    } catch(e) {
+      console.warn('[SpriteUpload] oxipng failed, using original:', e.message);
+    }
+    return file;
+  }
+
   async function handleSpriteUpload(files) {
     for (const file of files) {
       const name = file.name.replace(/\.[^.]+$/, ''); // strip extension
+      const optimizedFile = await _optimizePng(file);
       const dataUrl = await new Promise((res, rej) => {
         const reader = new FileReader();
         reader.onload = e => res(e.target.result);
         reader.onerror = rej;
-        reader.readAsDataURL(file);
+        reader.readAsDataURL(optimizedFile);
       });
       const uploadCategory = (_spritePickerOpts.folder || '').includes('buildings') ? 'buildings' : 'hex';
       await SpriteStore.save(name, dataUrl, uploadCategory);
       toast(`Uploaded "${name}"`);
-      // Push to Drive immediately if already authenticated
-      DriveSync.pushSprite(name, file, uploadCategory);
+      DriveSync.pushSprite(name, optimizedFile, uploadCategory);
     }
-    // Refresh grid if picker is open
     if (document.getElementById('sprite-picker-modal').classList.contains('open')) {
       showSpritePicker(_spritePickerCallback, _spritePickerOpts);
     }
