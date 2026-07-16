@@ -4091,6 +4091,39 @@ const GitHubSync = (() => {
     }
   }
 
+  async function pushSprite(name, blob, category = 'hex') {
+    if (!isPATConfigured()) return;
+    try {
+      const fname = name.endsWith('.png') ? name : `${name}.png`;
+      await _putBinary(`sprites/${category}/${fname}`, blob, `sprite: ${fname}`);
+    } catch(e) {
+      console.warn('[GitHubSync] pushSprite failed:', e.message);
+    }
+  }
+
+  async function listSpriteFiles(category) {
+    try {
+      const items = await _listFolder(`sprites/${category}`);
+      return items
+        .filter(f => f.name.toLowerCase().endsWith('.png'))
+        .map(f => ({ name: f.name.replace(/\.png$/i, ''), url: f.download_url }));
+    } catch(e) {
+      console.warn('[GitHubSync] listSpriteFiles failed:', e.message);
+      return [];
+    }
+  }
+
+  function fetchSpriteDataUrl(url) {
+    return fetch(url)
+      .then(r => { if (!r.ok) throw new Error(r.status); return r.blob(); })
+      .then(blob => new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload  = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      }));
+  }
+
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
@@ -4099,6 +4132,7 @@ const GitHubSync = (() => {
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
     togglePublishDropdown, publishDb, publishHexDbOnly,
     publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc,
+    pushSprite, listSpriteFiles, fetchSpriteDataUrl,
   };
 })();
 
@@ -5778,7 +5812,7 @@ const UI = (() => {
     const folder    = opts.folder || 'sprites/hex';
     const category  = folder.includes('buildings') ? 'buildings' : 'hex';
     const dbSprites = opts.getSprites ? opts.getSprites() : HexDB.getAll().map(h => h.spriteName).filter(Boolean);
-    const authed    = DriveSync.isAuthenticated();
+    const authed    = GitHubSync.isPATConfigured();
 
     _spritePickerCallback = onSelect;
     _spritePickerOpts = opts;
@@ -5809,17 +5843,16 @@ const UI = (() => {
       }));
     });
 
-    // 3. Remaining sprites: Drive listing (authenticated) or server manifest (fallback)
+    // 3. Remaining sprites: GitHub listing (authenticated)
     if (authed) {
       try {
-        const driveFiles = await DriveSync.listSpriteFiles(category);
-        driveFiles.forEach(({ name, id }) => {
+        const ghFiles = await GitHubSync.listSpriteFiles(category);
+        ghFiles.forEach(({ name, url }) => {
           if (shown.has(name)) return;
           shown.add(name);
-          // Show with server fallback immediately; lazy-load from Drive and cache
-          const thumb = _makeThumb(name, `${folder}/${name}.png`, false, null);
+          const thumb = _makeThumb(name, `${GitHubSync.BASE_URL}/sprites/${category}/${name}.png`, false, null);
           const img   = thumb.querySelector('img');
-          DriveSync.fetchSpriteDataUrl(id).then(dataUrl => {
+          GitHubSync.fetchSpriteDataUrl(url).then(dataUrl => {
             if (dataUrl) {
               img.src = dataUrl;
               SpriteStore.save(name, dataUrl, category).catch(() => {});
@@ -5827,20 +5860,7 @@ const UI = (() => {
           }).catch(() => {});
           grid.appendChild(thumb);
         });
-      } catch(e) { /* Drive unavailable — skip */ }
-    } else {
-      // Server manifest fallback for unauthenticated users
-      try {
-        const resp = await fetch(`${folder}/manifest.json`);
-        if (resp.ok) {
-          const names = await resp.json();
-          names.forEach(name => {
-            if (shown.has(name)) return;
-            shown.add(name);
-            grid.appendChild(_makeThumb(name, `${folder}/${name}.png`, false, null));
-          });
-        }
-      } catch(e) { /* manifest unavailable — skip */ }
+      } catch(e) { /* GitHub unavailable — skip */ }
     }
 
     document.getElementById('sprite-picker-modal').classList.add('open');
@@ -5898,7 +5918,7 @@ const UI = (() => {
       const uploadCategory = (_spritePickerOpts.folder || '').includes('buildings') ? 'buildings' : 'hex';
       await SpriteStore.save(name, dataUrl, uploadCategory);
       toast(`Uploaded "${name}"`);
-      DriveSync.pushSprite(name, optimizedFile, uploadCategory);
+      GitHubSync.pushSprite(name, optimizedFile, uploadCategory);
     }
     if (document.getElementById('sprite-picker-modal').classList.contains('open')) {
       showSpritePicker(_spritePickerCallback, _spritePickerOpts);
