@@ -3745,12 +3745,11 @@ const GitHubSync = (() => {
   const GH_API   = `https://api.github.com/repos/${OWNER}/${REPO}/contents`;
   const BASE_URL = 'https://fidaykin.github.io/PostApocMapEditor';
   const PAT_KEY     = 'gh_sync_pat';
-  const DEFAULT_PAT = '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';
 
   // ── PAT ───────────────────────────────────────────────────────
-  function getPAT()           { return localStorage.getItem(PAT_KEY) || DEFAULT_PAT; }
+  function getPAT()           { return localStorage.getItem(PAT_KEY) || ''; }
   function setPAT(pat)        { localStorage.setItem(PAT_KEY, pat.trim()); }
-  function isPATConfigured()  { return !!getPAT(); }
+  function isPATConfigured()  { return !!localStorage.getItem(PAT_KEY); }
 
   function _headers() {
     return {
@@ -3870,7 +3869,7 @@ const GitHubSync = (() => {
 
   async function _withPublishBtn(label, fn) {
     if (!isPATConfigured()) {
-      UI.toast('⚠ Configure GitHub PAT first (⚙ GitHub button)');
+      UI.toast('⚠ Open your access link first (or use ⚙ GitHub to enter token)');
       return;
     }
     _closeDropdown();
@@ -3948,7 +3947,7 @@ const GitHubSync = (() => {
   }
 
   async function publishLoc() {
-    if (!isPATConfigured()) { UI.toast('⚠ Configure GitHub PAT first'); return; }
+    if (!isPATConfigured()) { UI.toast('⚠ Open your access link first'); return; }
     try {
       UI.progress(20, 'Uploading localization.json…');
       const json = JSON.stringify(LocalizationKeys.getExportData(), null, 2);
@@ -3995,7 +3994,7 @@ const GitHubSync = (() => {
   }
 
   async function publishMap() {
-    if (!isPATConfigured()) { UI.toast('⚠ Configure GitHub PAT first'); return; }
+    if (!isPATConfigured()) { UI.toast('⚠ Open your access link first'); return; }
     const mapJson = IO.getMapJson();
     if (!mapJson) { UI.toast('No map to publish'); return; }
 
@@ -10180,6 +10179,14 @@ window.addEventListener('load', async () => {
   if (!_mapRestored) IO.showNewMapPrompt();
   const _vLabel = document.getElementById('version-label');
   if (_vLabel) _vLabel.textContent = COMMIT ? `${VERSION}.${COMMIT}` : VERSION;
+  // Auto-configure from magic link: #pat=TOKEN strips itself and saves to localStorage
+  (function() {
+    const _hp = new URLSearchParams(window.location.hash.substring(1)).get('pat');
+    if (!_hp) return;
+    GitHubSync.setPAT(_hp);
+    history.replaceState(null, '', window.location.pathname + window.location.search);
+    UI.toast('✅ GitHub sync ready — you\'re all set!');
+  })();
   console.log('[MapEditorPro] Ready.');
 });
 
@@ -10423,8 +10430,8 @@ window.addEventListener('load', async () => {
   <div style="background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:24px;width:420px;max-width:90vw;display:flex;flex-direction:column;gap:12px;">
     <h3 style="margin:0;font-size:16px;">⚙ GitHub Sync Settings</h3>
     <p style="margin:0;font-size:12px;color:#a6adc8;">
-      Create a fine-grained PAT at github.com/settings/tokens with<br>
-      <strong>Contents: Read &amp; Write</strong> for <code>fidaykin/PostApocMapEditor</code>.
+      Paste your access token below, or open the admin-shared access link — it configures this automatically.<br>
+      Token needs <strong>Contents: Read &amp; Write</strong> for <code>fidaykin/PostApocMapEditor</code>.
     </p>
     <input id="gh-pat-input" type="password" placeholder="github_pat_..." autocomplete="off"
       style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-family:monospace;font-size:13px;">
