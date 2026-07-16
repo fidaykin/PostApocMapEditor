@@ -1320,7 +1320,7 @@ body.mode-common #map-io    { display: none; }
     </div>
     <div class="menu-item" id="menu-data">Data
       <div class="menu-dropdown">
-        <button onclick="DriveSync.loadHexDbIntoEditor()">☁ Load Hex DB from Drive</button>
+        <button onclick="GitHubSync.loadHexDbIntoEditor()">⬇ Load Hex DB from server</button>
         <div class="separator"></div>
         <button onclick="HexDB.triggerLoad()">Load Hex DB…</button>
         <button onclick="HexDB.save()">Save Hex DB <span class="menu-shortcut">Ctrl+Shift+S</span></button>
@@ -4169,6 +4169,20 @@ const GitHubSync = (() => {
     }
   }
 
+  async function loadHexDbIntoEditor() {
+    const res = await fetch(`${BASE_URL}/hex_database.json?_=${Date.now()}`);
+    if (!res.ok) throw new Error(`hex_database.json not found (${res.status})`);
+    const data = await res.json();
+    HexDB.loadData(data);
+    UI.toast('✅ Hex DB loaded from server');
+  }
+
+  async function loadLocFromServer() {
+    const res = await fetch(`${BASE_URL}/localization.json?_=${Date.now()}`);
+    if (!res.ok) throw new Error(`localization.json not found (${res.status})`);
+    return await res.json();
+  }
+
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
@@ -4178,6 +4192,7 @@ const GitHubSync = (() => {
     togglePublishDropdown, publishDb, publishHexDbOnly,
     publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
+    loadHexDbIntoEditor, loadLocFromServer,
   };
 })();
 
@@ -7170,7 +7185,7 @@ const LocalizationKeys = (() => {
 
   async function _tryLoadFromDrive() {
     try {
-      const data = await DriveSync.loadLocFromDrive();
+      const data = await GitHubSync.loadLocFromServer();
       const incoming = (data.entries || []).filter(e => e.key);
       if (!incoming.length) return;
       _migrateEntries(incoming);
@@ -7394,7 +7409,7 @@ const LocalizationKeys = (() => {
     if (btn) btn.disabled = true;
     try {
       UI.toast('Fetching Drive localization for comparison…');
-      const data = await DriveSync.loadLocFromDrive();
+      const data = await GitHubSync.loadLocFromServer();
       const driveKeys = new Set((data.entries || []).filter(e => e.key).map(e => e.key));
       _driveKeysSet = driveKeys;
       const missingCount = _entries.filter(e => !driveKeys.has(e.key)).length;
@@ -7536,7 +7551,7 @@ const LocalizationKeys = (() => {
     if (btn) btn.disabled = true;
     try {
       UI.toast('Downloading localization.json from Drive…');
-      const data = await DriveSync.loadLocFromDrive();
+      const data = await GitHubSync.loadLocFromServer();
       const incoming = (data.entries || []).filter(e => e.key);
       _migrateEntries(incoming);
       if (data.groups && Array.isArray(data.groups)) _groups = data.groups;
