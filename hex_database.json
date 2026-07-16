@@ -42,7 +42,8 @@
       "terrainTypeId": 12,
       "category": "🌾 PLAINS",
       "fallback": false,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Plain_2",
@@ -85,7 +86,8 @@
       "terrainTypeId": 13,
       "category": "🌾 PLAINS",
       "fallback": false,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Forest_1",
@@ -150,7 +152,8 @@
       "terrainTypeId": 15,
       "category": "🌲 FOREST",
       "fallback": false,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Forest_2",
@@ -215,7 +218,8 @@
       "terrainTypeId": 16,
       "category": "🌲 FOREST",
       "fallback": false,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Forest_3",
@@ -280,7 +284,8 @@
       "terrainTypeId": 17,
       "category": "🌲 FOREST",
       "fallback": false,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Forest_4_Test",
@@ -347,7 +352,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "🌲 FOREST",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Forest_5_Test",
@@ -423,7 +429,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "🌲 FOREST",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Hills_1",
@@ -469,7 +476,8 @@
       "roadAllowed": false,
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 18,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Mountain_1",
@@ -515,7 +523,8 @@
       "roadAllowed": false,
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 19,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Rubble_1",
@@ -557,7 +566,8 @@
       "terrainTypeId": 9,
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Rubble_2",
@@ -599,7 +609,8 @@
       "terrainTypeId": 10,
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Rubble_3",
@@ -641,7 +652,8 @@
       "terrainTypeId": 11,
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Water_1",
@@ -773,7 +785,8 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "terrainTypeId": 20,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Rift_1",
@@ -819,7 +832,8 @@
       "roadAllowed": false,
       "category": "🌋 VOLCANIC/RIFT",
       "terrainTypeId": 28,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "GemField_1",
@@ -859,7 +873,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💎 RESOURCES",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Desert_1",
@@ -901,7 +916,8 @@
       "roadAllowed": false,
       "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": 23,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Barren_1",
@@ -943,7 +959,8 @@
       "roadAllowed": false,
       "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": 22,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Oil_1",
@@ -994,7 +1011,8 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "terrainTypeId": 21,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Swamp_1",
@@ -1036,7 +1054,8 @@
       "roadAllowed": false,
       "category": "🟫 SWAMP",
       "terrainTypeId": 24,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Grain_1",
@@ -1087,7 +1106,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💎 RESOURCES",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "BrokenPlane_1",
@@ -1147,7 +1167,8 @@
       "roadAllowed": false,
       "category": "",
       "terrainTypeId": 14,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "BrokenRails_1",
@@ -1197,7 +1218,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "DestroyedBuilding_1",
@@ -1248,7 +1270,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "🌾 PLAINS",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Water_Rock_1",
@@ -1337,7 +1360,8 @@
       "terrainTypeId": 26,
       "category": "🌋 VOLCANIC/RIFT",
       "fallback": false,
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Lava_Rift_1",
@@ -1380,63 +1404,8 @@
       "terrainTypeId": 27,
       "category": "🌋 VOLCANIC/RIFT",
       "fallback": false,
-      "isLayered": false
-    },
-    {
-      "id": "Old_Generator_1",
-      "textId": "",
-      "type": "Special",
-      "biome": "Summer",
-      "filterCategory": "FilterResource",
-      "spriteName": "OldGenerator",
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 3,
-      "canDestroy": true,
-      "destroyTransformTo": "Plains_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": true,
-      "destroyIncome": [
-        {
-          "type": "Oil",
-          "amount": 50
-        }
-      ],
-      "canBuild": false,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
-      "buildPrice": [],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": false,
-      "destroyable": true,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 3,
-      "incomeGetPerTap": [],
-      "incomePerTurn": [],
-      "incomeIdle": [],
-      "incomeConstant": [
-        {
-          "type": "Energy",
-          "amount": 7
-        }
-      ],
-      "spendConstant": [
-        {
-          "type": "Pollution",
-          "amount": 5
-        }
-      ],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "roadAllowed": false,
-      "category": "💎 RESOURCES",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Fish_1",
@@ -1492,253 +1461,6 @@
       "category": "💧 WATER / RIVER",
       "isLayered": true,
       "waterFaces": []
-    },
-    {
-      "id": "Artefact_Test_1",
-      "textId": "",
-      "type": "Special",
-      "biome": "Summer",
-      "filterCategory": "FilterResource",
-      "spriteName": "Artefact_1",
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 15,
-      "canDestroy": false,
-      "destroyTransformTo": "Plains_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": false,
-      "destroyIncome": [],
-      "canBuild": false,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
-      "buildPrice": [],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": false,
-      "destroyable": true,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 3,
-      "incomeGetPerTap": [],
-      "incomePerTurn": [
-        {
-          "type": "Gold",
-          "amount": 50
-        },
-        {
-          "type": "Clay",
-          "amount": 50
-        }
-      ],
-      "incomeIdle": [],
-      "incomeConstant": [
-        {
-          "type": "Energy",
-          "amount": 100
-        }
-      ],
-      "spendConstant": [],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "roadAllowed": false,
-      "category": "",
-      "isLayered": false
-    },
-    {
-      "id": "Farm_Test_1",
-      "textId": "",
-      "type": "Resources",
-      "biome": "Summer",
-      "filterCategory": "FilterResource",
-      "spriteName": "Farm",
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 25,
-      "canDestroy": true,
-      "destroyTransformTo": "Plains_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": true,
-      "destroyIncome": [
-        {
-          "type": "Lumber",
-          "amount": 500
-        },
-        {
-          "type": "Stone",
-          "amount": 25
-        },
-        {
-          "type": "Gold",
-          "amount": 1000
-        }
-      ],
-      "canBuild": true,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
-      "buildPrice": [
-        {
-          "type": "Gold",
-          "amount": 3000
-        }
-      ],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": false,
-      "destroyable": true,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 3,
-      "incomeGetPerTap": [],
-      "incomePerTurn": [
-        {
-          "type": "Food",
-          "amount": 25
-        }
-      ],
-      "incomeIdle": [],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "roadAllowed": false,
-      "category": "💎 RESOURCES",
-      "isLayered": false
-    },
-    {
-      "id": "GoldMine_Test_1",
-      "textId": "",
-      "type": "Resources",
-      "biome": "Summer",
-      "filterCategory": "FilterResource",
-      "spriteName": "GoldMine",
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 15,
-      "canDestroy": true,
-      "destroyTransformTo": "Plains_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": true,
-      "destroyIncome": [
-        {
-          "type": "Lumber",
-          "amount": 500
-        },
-        {
-          "type": "Stone",
-          "amount": 25
-        },
-        {
-          "type": "Gold",
-          "amount": 1000
-        }
-      ],
-      "canBuild": true,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
-      "buildPrice": [
-        {
-          "type": "Gold",
-          "amount": 35000
-        }
-      ],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": false,
-      "destroyable": true,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 3,
-      "incomeGetPerTap": [],
-      "incomePerTurn": [
-        {
-          "type": "Gold",
-          "amount": 150
-        }
-      ],
-      "incomeIdle": [],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "roadAllowed": false,
-      "category": "💎 RESOURCES",
-      "isLayered": false
-    },
-    {
-      "id": "IronMine_Test_1",
-      "textId": "",
-      "type": "Resources",
-      "biome": "Summer",
-      "filterCategory": "FilterResource",
-      "spriteName": "IronMine",
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 15,
-      "canDestroy": true,
-      "destroyTransformTo": "Plains_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": true,
-      "destroyIncome": [
-        {
-          "type": "Lumber",
-          "amount": 5000
-        },
-        {
-          "type": "Stone",
-          "amount": 250
-        },
-        {
-          "type": "Gold",
-          "amount": 10000
-        }
-      ],
-      "canBuild": true,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
-      "buildPrice": [
-        {
-          "type": "Gold",
-          "amount": 50000
-        }
-      ],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": false,
-      "destroyable": true,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 3,
-      "incomeGetPerTap": [],
-      "incomePerTurn": [
-        {
-          "type": "Steel",
-          "amount": 10
-        }
-      ],
-      "incomeIdle": [],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "roadAllowed": false,
-      "category": "💎 RESOURCES",
-      "isLayered": false
     },
     {
       "id": "StoneMine_Test_1",
@@ -1802,71 +1524,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💎 RESOURCES",
-      "isLayered": false
-    },
-    {
-      "id": "StoneConveyor_Test_1",
-      "textId": "",
-      "type": "Resources",
-      "biome": "Summer",
-      "filterCategory": "FilterResource",
-      "spriteName": "StoneConveyor",
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 25,
-      "canDestroy": true,
-      "destroyTransformTo": "Plains_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": true,
-      "destroyIncome": [
-        {
-          "type": "Lumber",
-          "amount": 500
-        },
-        {
-          "type": "Stone",
-          "amount": 25
-        },
-        {
-          "type": "Gold",
-          "amount": 1000
-        }
-      ],
-      "canBuild": true,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
-      "buildPrice": [
-        {
-          "type": "Gold",
-          "amount": 35
-        }
-      ],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": false,
-      "destroyable": true,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 3,
-      "incomeGetPerTap": [],
-      "incomePerTurn": [
-        {
-          "type": "Stone",
-          "amount": 250
-        }
-      ],
-      "incomeIdle": [],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "roadAllowed": false,
-      "category": "💎 RESOURCES",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "LumberMill_Test_1",
@@ -1930,7 +1589,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💎 RESOURCES",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "ScoutTower_Test_1",
@@ -1976,7 +1636,8 @@
       "effects": "",
       "roadAllowed": false,
       "category": "",
-      "isLayered": false
+      "isLayered": false,
+      "waterFaces": []
     },
     {
       "id": "Water_Ship_Test_1",
@@ -3427,7 +3088,1747 @@
         "NW",
         "SE"
       ]
+    },
+    {
+      "id": "Road_Bridge_NS_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Summer",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Road_Bridge_NS_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 0,
+      "canDestroy": true,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [
+        {
+          "type": "Gold",
+          "amount": 6500
+        }
+      ],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "",
+      "terrainTypeId": 22,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "Road_Bridge_SENW_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Summer",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Road_Bridge_SENW_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 0,
+      "canDestroy": true,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [
+        {
+          "type": "Gold",
+          "amount": 6500
+        }
+      ],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "",
+      "terrainTypeId": 22,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "Road_Bridge_NEWS_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Summer",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Road_Bridge_NEWS_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 0,
+      "canDestroy": true,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [
+        {
+          "type": "Gold",
+          "amount": 6500
+        }
+      ],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "",
+      "terrainTypeId": 22,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "Plain_TEST_Cat_1",
+      "textId": "plain_desc",
+      "type": "Plains",
+      "biome": "Radioactive",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Plain_Cat_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "terrainTypeId": 12,
+      "category": "🌾 PLAINS",
+      "fallback": false,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "Plain_TEST_Chicken_1",
+      "textId": "plain_desc",
+      "type": "Plains",
+      "biome": "Radioactive",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Plain_Chicken_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "terrainTypeId": 12,
+      "category": "🌾 PLAINS",
+      "fallback": false,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "Altar_TEST_Chicken_1",
+      "textId": "",
+      "type": "Forests",
+      "biome": "Radioactive",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Altar_Chicken_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 50
+        },
+        {
+          "type": "Steel",
+          "amount": 15
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Food",
+          "amount": 2
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "🌲 FOREST",
+      "isLayered": true,
+      "waterFaces": []
+    },
+    {
+      "id": "Monster_TEST_Chicken_Small_1",
+      "textId": "",
+      "type": "Forests",
+      "biome": "Radioactive",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Monster_Chicken_Small_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": true,
+      "destroyTransformTo": "Plain_TEST_Chicken_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 50
+        },
+        {
+          "type": "Steel",
+          "amount": 15
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Food",
+          "amount": 2
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "🌲 FOREST",
+      "isLayered": true,
+      "waterFaces": []
+    },
+    {
+      "id": "Monster_TEST_Chicken_Big_2",
+      "textId": "",
+      "type": "Forests",
+      "biome": "Radioactive",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Monster_Chicken_Big_2",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": true,
+      "destroyTransformTo": "Monster_TEST_Chicken_Small_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Food",
+          "amount": 500
+        },
+        {
+          "type": "Gems",
+          "amount": 150
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Food",
+          "amount": 2
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "🌲 FOREST",
+      "isLayered": true,
+      "waterFaces": []
+    },
+    {
+      "id": "Settlements_TEST_Big_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Radioactive",
+      "filterCategory": "FilterSettlement",
+      "spriteName": "Setlements_Big_Chicken_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": true,
+      "destroyTransformTo": "Altar_TEST_Chicken_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        },
+        {
+          "type": "Stone",
+          "amount": 25
+        },
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [
+        {
+          "type": "Gold",
+          "amount": 8000
+        }
+      ],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 250
+        }
+      ],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "💎 RESOURCES",
+      "isLayered": false,
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "NW",
+        "N",
+        "NE",
+        "SE",
+        "S",
+        "SW"
+      ]
+    },
+    {
+      "id": "Forest_Kaiju_1",
+      "textId": "forest_desc",
+      "type": "Forests",
+      "biome": "Kaiju",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Forest_Kaiju_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 4,
+      "canDestroy": true,
+      "destroyTransformTo": "Plain_Kaiju_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 5
+        }
+      ],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [
+        "Plains"
+      ],
+      "buildMinLevel": 1,
+      "buildPrice": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 0,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeIdle": [],
+      "incomeConstant": [
+        {
+          "type": "Pollution",
+          "amount": 1
+        }
+      ],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "terrainTypeId": 15,
+      "category": "🌲 FOREST",
+      "fallback": false,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "Plain_Kaiju_1",
+      "textId": "plain_desc",
+      "type": "Plains",
+      "biome": "Kaiju",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Plain_Kaiju_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": true,
+      "terrainTypeId": 12,
+      "category": "🌾 PLAINS",
+      "fallback": false,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "Forest_Kaiju_2",
+      "textId": "forest_desc",
+      "type": "Forests",
+      "biome": "Kaiju",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Forest_Kaiju_2",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 4,
+      "canDestroy": true,
+      "destroyTransformTo": "Plain_Kaiju_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 10
+        }
+      ],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [
+        "Plains"
+      ],
+      "buildMinLevel": 11,
+      "buildPrice": [
+        {
+          "type": "Gold",
+          "amount": 8500
+        }
+      ],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 0,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 2
+        }
+      ],
+      "incomeIdle": [],
+      "incomeConstant": [
+        {
+          "type": "Pollution",
+          "amount": 2
+        }
+      ],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "terrainTypeId": 15,
+      "category": "🌲 FOREST",
+      "fallback": false,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "Mountain_Kaiju_1",
+      "textId": "mountain_key",
+      "type": "Hills/Mountains",
+      "biome": "Kaiju",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Mountain_Kaiju_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": true,
+      "destroyTransformTo": "Plain_Kaiju_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Clay",
+          "amount": 12
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 0,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "⛰️ ROCKY/MOUNTAIN",
+      "terrainTypeId": 19,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "Mountain_Kaiju_2",
+      "textId": "mountain_key",
+      "type": "Hills/Mountains",
+      "biome": "Kaiju",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Mountain_Kaiju_2",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": true,
+      "destroyTransformTo": "Plain_Kaiju_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Clay",
+          "amount": 12
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 0,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "⛰️ ROCKY/MOUNTAIN",
+      "terrainTypeId": 19,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "GoldVein_Kaiju_1",
+      "textId": "goldvein_key",
+      "type": "Resources",
+      "biome": "Kaiju",
+      "filterCategory": "FilterResource",
+      "spriteName": "GoldenMine_Kaiju_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 6,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "💎 RESOURCES",
+      "terrainTypeId": 20,
+      "isLayered": false,
+      "waterFaces": []
+    },
+    {
+      "id": "Settlement_Kaiju_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Kaiju",
+      "filterCategory": "FilterSettlement",
+      "spriteName": "MainSettlement_Kaiju_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": false,
+      "destroyTransformTo": "Altar_TEST_Chicken_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 250
+        }
+      ],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "💎 RESOURCES",
+      "isLayered": false,
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "NW",
+        "N",
+        "NE",
+        "SE",
+        "S",
+        "SW"
+      ]
+    },
+    {
+      "id": "Crustal_Kaiju_Alive_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Kaiju",
+      "filterCategory": "FilterSettlement",
+      "spriteName": "Crystal_Kaiju_Alife_V_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": false,
+      "destroyTransformTo": "Altar_TEST_Chicken_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": true,
+      "destroyable": true,
+      "incomeTransformTo": "Crustal_Kaiju_Defeat_1",
+      "incomeCapacity": 15,
+      "incomeGetPerTap": [
+        {
+          "type": "Gold",
+          "amount": 500
+        },
+        {
+          "type": "Food",
+          "amount": 1000
+        }
+      ],
+      "incomePerTurn": [],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": true,
+      "bonusTrigger": "Destroy",
+      "bonuses": [
+        {
+          "type": "Stone",
+          "amount": 5000
+        },
+        {
+          "type": "Steel",
+          "amount": 5000
+        },
+        {
+          "type": "Gems",
+          "amount": 100
+        }
+      ],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "💎 RESOURCES",
+      "isLayered": false,
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "N",
+        "NE",
+        "NW",
+        "SW",
+        "S",
+        "SE"
+      ]
+    },
+    {
+      "id": "Crustal_Kaiju_Defeat_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Kaiju",
+      "filterCategory": "FilterSettlement",
+      "spriteName": "Crystal_Kaiju_Defeat_V_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": false,
+      "destroyTransformTo": "Altar_TEST_Chicken_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": true,
+      "destroyable": true,
+      "incomeTransformTo": "Crustal_Kaiju_Die_1",
+      "incomeCapacity": 5,
+      "incomeGetPerTap": [
+        {
+          "type": "Gems",
+          "amount": 1
+        },
+        {
+          "type": "Chips",
+          "amount": 50
+        }
+      ],
+      "incomePerTurn": [],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "💎 RESOURCES",
+      "isLayered": false,
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "N",
+        "NE",
+        "NW",
+        "SW",
+        "S",
+        "SE"
+      ]
+    },
+    {
+      "id": "Crustal_Kaiju_Die_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Kaiju",
+      "filterCategory": "FilterSettlement",
+      "spriteName": "Crystal_Kaiju_Die_V1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": false,
+      "destroyTransformTo": "Altar_TEST_Chicken_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": true,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [
+        {
+          "type": "Gold",
+          "amount": 500
+        }
+      ],
+      "incomePerTurn": [],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "💎 RESOURCES",
+      "isLayered": false,
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "N",
+        "NE",
+        "NW",
+        "SW",
+        "S",
+        "SE"
+      ]
+    },
+    {
+      "id": "Crustal_Kaiju_Sceleton_V_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Kaiju",
+      "filterCategory": "FilterSettlement",
+      "spriteName": "Crystal_Kaiju_skeleton_V_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": false,
+      "destroyTransformTo": "Altar_TEST_Chicken_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 0,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 50
+        },
+        {
+          "type": "Gems",
+          "amount": 1
+        }
+      ],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "💎 RESOURCES",
+      "isLayered": false,
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "N",
+        "NE",
+        "NW",
+        "SW",
+        "S",
+        "SE"
+      ]
+    },
+    {
+      "id": "Crustal_Kaiju_Sceleton_V_2",
+      "textId": "",
+      "type": "Special",
+      "biome": "Kaiju",
+      "filterCategory": "FilterSettlement",
+      "spriteName": "Crystal_Kaiju_skeleton_V_2",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": false,
+      "destroyTransformTo": "Altar_TEST_Chicken_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 0,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 50
+        },
+        {
+          "type": "Gems",
+          "amount": 1
+        }
+      ],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "💎 RESOURCES",
+      "isLayered": false,
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "N",
+        "NE",
+        "NW",
+        "SW",
+        "S",
+        "SE"
+      ]
+    },
+    {
+      "id": "Crustal_Kaiju_Sceleton_V_3",
+      "textId": "",
+      "type": "Special",
+      "biome": "Kaiju",
+      "filterCategory": "FilterSettlement",
+      "spriteName": "Crystal_Kaiju_skeleton_V_3",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": false,
+      "destroyTransformTo": "Altar_TEST_Chicken_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 0,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 50
+        },
+        {
+          "type": "Gems",
+          "amount": 1
+        }
+      ],
+      "incomeIdle": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "💎 RESOURCES",
+      "isLayered": false,
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "N",
+        "NE",
+        "NW",
+        "SW",
+        "S",
+        "SE"
+      ]
+    },
+    {
+      "id": "Settlement_Medieval_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Medieval V1",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Settlements_Medieval_Town_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 1,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": true,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 0,
+      "incomeGetPerTap": [
+        {
+          "type": "Gold",
+          "amount": 50
+        },
+        {
+          "type": "Stone",
+          "amount": 10
+        }
+      ],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "NW",
+        "N",
+        "NE",
+        "SE",
+        "S",
+        "SW"
+      ]
+    },
+    {
+      "id": "Chapel_Medieval_1",
+      "textId": "Test_Key_TILES_2",
+      "type": "Special",
+      "biome": "Medieval V1",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Chapel_Medieval_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Chips",
+          "amount": 50
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Pollution",
+          "amount": 1
+        }
+      ],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": []
+    },
+    {
+      "id": "Dragon_Medieval_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Medieval V1",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Dragon_Medieval_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 0,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Gold",
+          "amount": 99
+        }
+      ],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "NW",
+        "N",
+        "NE",
+        "SE",
+        "S",
+        "SW"
+      ]
+    },
+    {
+      "id": "Snail_Medieval_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Medieval V1",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Snail_Medieval_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 50,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": true,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 10,
+      "incomeGetPerTap": [
+        {
+          "type": "Food",
+          "amount": 10
+        },
+        {
+          "type": "Steel",
+          "amount": 10
+        },
+        {
+          "type": "Gold",
+          "amount": 100
+        }
+      ],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": []
+    },
+    {
+      "id": "Plain_Flat_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Medieval Flat V2",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Plain_Flat_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": []
+    },
+    {
+      "id": "Settlement_Town_Flat_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Medieval Flat V2",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Settlement_Town_Flat_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 30,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": true,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 30,
+      "incomeGetPerTap": [
+        {
+          "type": "Lumber",
+          "amount": 5
+        },
+        {
+          "type": "Stone",
+          "amount": 5
+        },
+        {
+          "type": "Gold",
+          "amount": 25
+        }
+      ],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 500
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "NW",
+        "N",
+        "NE",
+        "SE",
+        "S",
+        "SW"
+      ]
+    },
+    {
+      "id": "Chapel_Flat_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Medieval Flat V2",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Chapel_Flat_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [
+        {
+          "type": "Gold",
+          "amount": 10000
+        }
+      ],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": []
+    },
+    {
+      "id": "Shail_Flat_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Medieval Flat V2",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Snail_Flat_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": true,
+      "destroyTransformTo": "Plain_Flat_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Pollution",
+          "amount": 1
+        }
+      ],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": []
+    },
+    {
+      "id": "Dragon_Flat_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Medieval Flat V2",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Dragon_Flat_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Pollution",
+          "amount": 1
+        }
+      ],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "NW",
+        "N",
+        "NE",
+        "SE",
+        "S",
+        "SW"
+      ]
+    },
+    {
+      "id": "Rabbit_Flat_1",
+      "textId": "",
+      "type": "Special",
+      "biome": "Medieval Flat V2",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Rabbit_Flat_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 5,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Pollution",
+          "amount": 1
+        }
+      ],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "occupiedOffsets": [
+        "NW",
+        "N",
+        "NE"
+      ]
     }
   ],
-  "dbVersion": 3
+  "dbVersion": 5,
+  "common": {
+    "goldPerTap": 10
+  }
 }

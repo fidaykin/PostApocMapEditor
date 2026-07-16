@@ -467,10 +467,7 @@
       "bonusTrigger": "Destroy",
       "bonuses": [],
       "booster": "",
-      "effects": "",
-      "footprint": [],
-      "storageCapacity": [],
-      "storageUpgradeId": ""
+      "effects": ""
     }
   ]
 }
