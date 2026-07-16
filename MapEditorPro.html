@@ -4037,6 +4037,22 @@ const GitHubSync = (() => {
     return await res.json();
   }
 
+  async function loadBuildingDbFromServer() {
+    const res = await fetch(`${BASE_URL}/building_database.json?_=${Date.now()}`);
+    if (!res.ok) throw new Error(`building_database.json not found (${res.status})`);
+    const data = await res.json();
+    if (!data || !Array.isArray(data.buildings) || data.buildings.length === 0) return;
+    BldDB.load(JSON.stringify(data));
+  }
+
+  async function loadUpgradeDbFromServer() {
+    const res = await fetch(`${BASE_URL}/upgrade_database.json?_=${Date.now()}`);
+    if (!res.ok) throw new Error(`upgrade_database.json not found (${res.status})`);
+    const data = await res.json();
+    if (!data?.upgrades?.length) return;
+    UpgDB.load(JSON.stringify(data));
+  }
+
   // ── Maps popover ─────────────────────────────────────────
   let _mapsCache = [];
   function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -10217,10 +10233,20 @@ window.addEventListener('load', async () => {
   // HexDB is loaded explicitly via ☁ Sync button.
   // Autosave (localStorage) is used on startup to avoid 403 noise from private server files.
   BldDB.init();
-  // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
-  setTimeout(() => Terrain.applyHexDbOverrides(BldDB.getAll()).then(() => Canvas.render()), 0);
   SttDB.init();
   UpgDB.init();
+  // Auto-fetch DBs from server when localStorage has no data (fresh browser / cleared storage)
+  (async () => {
+    try {
+      if (!localStorage.getItem('blddb_autosave')) await loadBuildingDbFromServer();
+    } catch(e) { console.warn('[init] building_database.json auto-fetch failed:', e.message); }
+    try {
+      if (!localStorage.getItem('upgdb_autosave')) await loadUpgradeDbFromServer();
+    } catch(e) { console.warn('[init] upgrade_database.json auto-fetch failed:', e.message); }
+    // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
+    await Terrain.applyHexDbOverrides(BldDB.getAll());
+    Canvas.render();
+  })();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
   document.addEventListener('keydown', e => {
     if (e.key === 'Tab' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
