@@ -1337,11 +1337,7 @@ body.mode-common #map-io    { display: none; }
     </div>
     <span id="drive-badge">DB: 💾 Autosave</span>
     <span id="google-auth-status" title="Google Drive login status">🔴 Not signed in</span>
-    <button class="publish-btn" id="btn-google-login" onclick="DriveSync.signIn()" title="Sign in to Google to enable Drive sync">Sign in to Google</button>
-    <button class="publish-btn" id="btn-sync-drive"  onclick="DriveSync.syncFromDrive()" title="Force re-download HexDB + all custom sprites from Drive">☁ Sync</button>
-    <label class="auto-sync-label" title="Automatically sync from Drive on every page load">
-      <input type="checkbox" id="chk-auto-sync" onchange="DriveSync.setAutoSync(this.checked)">Auto-sync
-    </label>
+    <button class="publish-btn" id="btn-gh-settings" onclick="GitHubSync.openPATSettings()" title="Configure GitHub sync (Personal Access Token)">⚙ GitHub</button>
     <div class="pub-drop-wrap" id="pub-drop-wrap">
       <button class="publish-btn" id="btn-publish-all" onclick="DriveSync.togglePublishDropdown(event)" title="Publish to Google Drive">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
@@ -3981,8 +3977,34 @@ const GitHubSync = (() => {
 
   let _lastMapName = localStorage.getItem('ghLastMapName') || '';
 
+  function openPATSettings() {
+    const modal = document.getElementById('gh-pat-modal');
+    document.getElementById('gh-pat-input').value = getPAT();
+    document.getElementById('gh-pat-status').textContent = isPATConfigured() ? '✓ Configured' : '';
+    modal.style.display = 'flex';
+  }
+
+  async function _onValidateClick() {
+    const pat = document.getElementById('gh-pat-input').value.trim();
+    const status = document.getElementById('gh-pat-status');
+    const btn = document.getElementById('gh-pat-validate-btn');
+    if (!pat) { status.textContent = '⚠ Enter a PAT first'; return; }
+    btn.disabled = true;
+    status.textContent = 'Checking…';
+    const ok = await validatePAT(pat);
+    if (ok) {
+      setPAT(pat);
+      status.textContent = '✅ Connected — saved';
+      setTimeout(() => { document.getElementById('gh-pat-modal').style.display = 'none'; }, 1000);
+    } else {
+      status.textContent = '❌ Invalid PAT or no repo access';
+    }
+    btn.disabled = false;
+  }
+
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
+    openPATSettings, _onValidateClick,
     _putText, _putBinary, _listFolder, BASE_URL,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
@@ -11409,6 +11431,25 @@ window.addEventListener('load', async () => {
         style="width:36px;height:28px;padding:0;border:none;cursor:pointer">
       <button onclick="BiomeManager.add(document.getElementById('biome-mgr-name').value,document.getElementById('biome-mgr-color').value);document.getElementById('biome-mgr-name').value=''"
         style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer">Add</button>
+    </div>
+  </div>
+</div>
+<!-- GitHub PAT settings modal -->
+<div id="gh-pat-modal" class="modal-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
+  <div style="background:#1e1e2e;color:#cdd6f4;border-radius:8px;padding:24px;width:420px;max-width:90vw;display:flex;flex-direction:column;gap:12px;">
+    <h3 style="margin:0;font-size:16px;">⚙ GitHub Sync Settings</h3>
+    <p style="margin:0;font-size:12px;color:#a6adc8;">
+      Create a fine-grained PAT at github.com/settings/tokens with<br>
+      <strong>Contents: Read &amp; Write</strong> for <code>fidaykin/PostApocMapEditor</code>.
+    </p>
+    <input id="gh-pat-input" type="password" placeholder="github_pat_..." autocomplete="off"
+      style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-family:monospace;font-size:13px;">
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="gh-pat-validate-btn" onclick="GitHubSync._onValidateClick()"
+        style="padding:6px 16px;border-radius:4px;border:none;background:#89b4fa;color:#1e1e2e;cursor:pointer;font-weight:600;">Validate</button>
+      <button onclick="document.getElementById('gh-pat-modal').style.display='none'"
+        style="padding:6px 16px;border-radius:4px;border:1px solid #45475a;background:transparent;color:#cdd6f4;cursor:pointer;">Cancel</button>
+      <span id="gh-pat-status" style="font-size:12px;"></span>
     </div>
   </div>
 </div>
