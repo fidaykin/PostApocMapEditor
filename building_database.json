@@ -1,0 +1,473 @@
+{
+  "version": 1,
+  "buildings": [
+    {
+      "id": "Farm_Test_1",
+      "textId": "farm_test_key",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Summer",
+      "filter": "FilterBuilding",
+      "spriteName": "Farm_1",
+      "baseCostTaps": 25,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "Plains_1",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        },
+        {
+          "type": "Stone",
+          "amount": 25
+        },
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "canBuild": true,
+      "needRoad": false,
+      "availableTiles": [],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 3000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": true,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "Plains_1",
+      "capacity": 3,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Food",
+          "amount": 25
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "storageCapacity": [],
+      "storageUpgradeId": ""
+    },
+    {
+      "id": "Old_Generator_1",
+      "textId": "old_generator_key",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Summer",
+      "filter": "FilterBuilding",
+      "spriteName": "OldGenerator_1",
+      "baseCostTaps": 3,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "Plains_1",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": true,
+      "destroyIncome": [
+        {
+          "type": "Oil",
+          "amount": 50
+        }
+      ],
+      "canBuild": true,
+      "needRoad": false,
+      "availableTiles": [],
+      "minLevel": 1,
+      "price": [],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": true,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "Plains_1",
+      "capacity": 3,
+      "getPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [
+        {
+          "type": "Energy",
+          "amount": 7
+        }
+      ],
+      "spendConstant": [
+        {
+          "type": "Pollution",
+          "amount": 5
+        }
+      ],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "storageUpgradeId": ""
+    },
+    {
+      "id": "IronMine_Test_1",
+      "textId": "ironmine_test_key",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Summer",
+      "filter": "FilterBuilding",
+      "spriteName": "IronMine_1",
+      "baseCostTaps": 15,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "Plains_1",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 5000
+        },
+        {
+          "type": "Stone",
+          "amount": 250
+        },
+        {
+          "type": "Gold",
+          "amount": 10000
+        }
+      ],
+      "canBuild": true,
+      "needRoad": false,
+      "availableTiles": [],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 50000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": true,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "Plains_1",
+      "capacity": 3,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Steel",
+          "amount": 10
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "storageUpgradeId": ""
+    },
+    {
+      "id": "Artefact_Test_1",
+      "textId": "artefact_test_key",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Artefact",
+      "buildingCategory": "Standard",
+      "biome": "Summer",
+      "filter": "FilterBuilding",
+      "spriteName": "Artefact_1",
+      "baseCostTaps": 15,
+      "canDestroy": false,
+      "destroyTransformToMode": "",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": true,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "availableTiles": [],
+      "minLevel": 1,
+      "price": [],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": true,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "Plains_1",
+      "capacity": 3,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 50
+        },
+        {
+          "type": "Clay",
+          "amount": 50
+        }
+      ],
+      "incomeConstant": [
+        {
+          "type": "Energy",
+          "amount": 100
+        }
+      ],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "storageUpgradeId": ""
+    },
+    {
+      "id": "GoldMine_Test_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Summer",
+      "filter": "FilterBuilding",
+      "spriteName": "GoldMine_1",
+      "baseCostTaps": 15,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "Plains_1",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        },
+        {
+          "type": "Stone",
+          "amount": 25
+        },
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "canBuild": true,
+      "needRoad": true,
+      "availableTiles": [],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 35000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": true,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "Plains_1",
+      "capacity": 3,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 150
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "storageUpgradeId": ""
+    },
+    {
+      "id": "StoneConveyor_Test_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Summer",
+      "filter": "FilterBuilding",
+      "spriteName": "StoneConveyor",
+      "baseCostTaps": 25,
+      "canDestroy": true,
+      "destroyTransformToMode": "Direct",
+      "destroyTransformTo": "Plains_1",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        },
+        {
+          "type": "Stone",
+          "amount": 25
+        },
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "canBuild": true,
+      "needRoad": false,
+      "availableTiles": [],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 35
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": true,
+      "incomeTransformToMode": "Direct",
+      "incomeTransformTo": "Plains_1",
+      "capacity": 3,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Stone",
+          "amount": 250
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": ""
+    }
+  ]
+}
