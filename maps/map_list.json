@@ -5,6 +5,222 @@
       "fileName": "postapoc_450x450.json",
       "size": "2426061",
       "uploadedTime": "2026-07-12"
+    },
+    {
+      "name": "b_t",
+      "fileName": "b_t.json",
+      "size": "5381",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "coastline_test_lakes_deltas",
+      "fileName": "coastline_test_lakes_deltas.json",
+      "size": "5314",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "current_empty",
+      "fileName": "current_empty.json",
+      "size": "2189",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "current_map-s2",
+      "fileName": "current_map-s2.json",
+      "size": "5586",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "current_map",
+      "fileName": "current_map.json",
+      "size": "4422",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "current_map_02",
+      "fileName": "current_map_02.json",
+      "size": "3893",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "current_map_02_water",
+      "fileName": "current_map_02_water.json",
+      "size": "3861",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "current_map_450",
+      "fileName": "current_map_450.json",
+      "size": "2299897",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "current_map_new",
+      "fileName": "current_map_new.json",
+      "size": "2675",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "current_map_zones_02",
+      "fileName": "current_map_zones_02.json",
+      "size": "3644",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "demo_tiles_map",
+      "fileName": "demo_tiles_map.json",
+      "size": "5410",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_2zones",
+      "fileName": "map_2zones.json",
+      "size": "6134",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_Cult_1",
+      "fileName": "map_Cult_1.json",
+      "size": "7009",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_Cult_2",
+      "fileName": "map_Cult_2.json",
+      "size": "7046",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_Kaidju",
+      "fileName": "map_Kaidju.json",
+      "size": "8128",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_Kaiju",
+      "fileName": "map_Kaiju.json",
+      "size": "8128",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_Kaiju_Versions",
+      "fileName": "map_Kaiju_Versions.json",
+      "size": "8183",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_Medieval_Flat_V2",
+      "fileName": "map_Medieval_Flat_V2.json",
+      "size": "7957",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_Medieval_Mix",
+      "fileName": "map_Medieval_Mix.json",
+      "size": "8111",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_Medieval_V1",
+      "fileName": "map_Medieval_V1.json",
+      "size": "8181",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_New_Rivers_EE",
+      "fileName": "map_New_Rivers_EE.json",
+      "size": "6399",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_New_Rivers_EEB",
+      "fileName": "map_New_Rivers_EEB.json",
+      "size": "6412",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_New_Rivers_Hills",
+      "fileName": "map_New_Rivers_Hills.json",
+      "size": "6392",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_all_tiles",
+      "fileName": "map_all_tiles.json",
+      "size": "6054",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_all_tiles_09",
+      "fileName": "map_all_tiles_09.json",
+      "size": "6076",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_complex_buildings",
+      "fileName": "map_complex_buildings.json",
+      "size": "5664",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_export_My_Test",
+      "fileName": "map_export_My_Test.json",
+      "size": "2029508",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_export_My_Test_02.06",
+      "fileName": "map_export_My_Test_02.06.json",
+      "size": "611410",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_river",
+      "fileName": "map_river.json",
+      "size": "6166",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_river_12",
+      "fileName": "map_river_12.json",
+      "size": "6166",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_testZones_10",
+      "fileName": "map_testZones_10.json",
+      "size": "6134",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_water_test",
+      "fileName": "map_water_test.json",
+      "size": "5804",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "multi-test",
+      "fileName": "multi-test.json",
+      "size": "5367",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "river-water-test",
+      "fileName": "river-water-test.json",
+      "size": "5835",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "swiz_test",
+      "fileName": "swiz_test.json",
+      "size": "5576",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "zone-test",
+      "fileName": "zone-test.json",
+      "size": "2299773",
+      "uploadedTime": "2026-07-16"
     }
   ]
 }
