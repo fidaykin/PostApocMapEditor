@@ -10235,14 +10235,11 @@ window.addEventListener('load', async () => {
   BldDB.init();
   SttDB.init();
   UpgDB.init();
-  // Auto-fetch DBs from server when localStorage has no data (fresh browser / cleared storage)
+  // Always fetch DBs from server in background so the editor stays in sync with gh-pages.
+  // LocalStorage copy is loaded first (instant), then overwritten with the server version.
   (async () => {
-    try {
-      if (!localStorage.getItem('blddb_autosave')) await loadBuildingDbFromServer();
-    } catch(e) { console.warn('[init] building_database.json auto-fetch failed:', e.message); }
-    try {
-      if (!localStorage.getItem('upgdb_autosave')) await loadUpgradeDbFromServer();
-    } catch(e) { console.warn('[init] upgrade_database.json auto-fetch failed:', e.message); }
+    try { await loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
+    try { await loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
     await Terrain.applyHexDbOverrides(BldDB.getAll());
     Canvas.render();
