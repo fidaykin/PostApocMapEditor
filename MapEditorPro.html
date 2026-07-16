@@ -10230,14 +10230,13 @@ window.addEventListener('load', async () => {
   UI.rebuildSlotPanel();
   UI.selectTerrain('Plain_1');
 
-  // HexDB is loaded explicitly via ☁ Sync button.
-  // Autosave (localStorage) is used on startup to avoid 403 noise from private server files.
   BldDB.init();
   SttDB.init();
   UpgDB.init();
-  // Always fetch DBs from server in background so the editor stays in sync with gh-pages.
+  // Always fetch all DBs from server in background so the editor stays in sync with gh-pages.
   // LocalStorage copy is loaded first (instant), then overwritten with the server version.
   (async () => {
+    try { await GitHubSync.loadHexDbIntoEditor();      } catch(e) { console.warn('[init] hex_database.json fetch failed:', e.message); }
     try { await GitHubSync.loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
     try { await GitHubSync.loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
