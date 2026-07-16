@@ -1043,8 +1043,8 @@ body.mode-common #map-io    { display: none; }
 #buildings-main.dragover,
 #settlements-main.dragover { outline: 2px dashed var(--accent); outline-offset: -4px; }
 
-/* ── Drive badge + Publish ──────────────────────────────── */
-#drive-badge {
+/* ── Sync badge + Publish ──────────────────────────────── */
+#sync-badge {
   margin-left: auto;
   padding: 2px 8px;
   border-radius: 4px;
@@ -1056,14 +1056,6 @@ body.mode-common #map-io    { display: none; }
   white-space: nowrap;
   align-self: center;
   user-select: none;
-}
-#google-auth-status {
-  padding: 2px 8px;
-  font-size: 11px;
-  white-space: nowrap;
-  align-self: center;
-  user-select: none;
-  color: #a44;
 }
 .publish-btn {
   margin-left: 6px;
@@ -1121,7 +1113,6 @@ body.mode-common #map-io    { display: none; }
 .pub-drop-sep { border-top: 1px solid #2a4a3a; margin: 3px 0; }
 .pub-drop-sub { font-size: 10px; color: #678; margin-left: 6px; }
 
-/* ── Drive Maps Popover ──────────────────────────────── */
 </style>
 <script src="zone-painter.js?v=8"></script>
 </head>
@@ -1191,8 +1182,7 @@ body.mode-common #map-io    { display: none; }
         <button onclick="UpgDB.save()">Save Upgrade DB</button>
       </div>
     </div>
-    <span id="drive-badge">DB: 💾 Autosave</span>
-    <span id="google-auth-status" title="Google Drive login status">🔴 Not signed in</span>
+    <span id="sync-badge">DB: 💾 Autosave</span>
     <button class="publish-btn" id="btn-gh-settings" onclick="GitHubSync.openPATSettings()" title="Configure GitHub sync (Personal Access Token)">⚙ GitHub</button>
     <div class="pub-drop-wrap" id="pub-drop-wrap">
       <button class="publish-btn" id="btn-publish-all" onclick="GitHubSync.togglePublishDropdown(event)" title="Publish to GitHub">☁ Publish ▾</button>
@@ -1291,9 +1281,9 @@ body.mode-common #map-io    { display: none; }
     </div>
     <div id="keys-tools">
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.openManager()">⚙ Manage Keys</button>
-      <button class="hexdb-tool-btn" onclick="LocalizationKeys.pullFromDrive()">☁ Pull</button>
-      <button class="hexdb-tool-btn" onclick="LocalizationKeys.pushToDrive()">☁ Push</button>
-      <button class="hexdb-tool-btn" onclick="LocalizationKeys.clearCache()" title="Clear localStorage cache and re-fetch from Drive">🗑 Clear Cache</button>
+      <button class="hexdb-tool-btn" onclick="LocalizationKeys.pullFromServer()">☁ Pull</button>
+      <button class="hexdb-tool-btn" onclick="LocalizationKeys.pushToServer()">☁ Push</button>
+      <button class="hexdb-tool-btn" onclick="LocalizationKeys.clearCache()" title="Clear localStorage cache and re-fetch from server">🗑 Clear Cache</button>
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.downloadJson()">⬇ Download JSON</button>
     </div>
   </div>
@@ -4260,7 +4250,7 @@ const UI = (() => {
     });
 
     // Re-apply the current selection to the freshly-created buttons.
-    // buildPalette() is called asynchronously (HexDB.init setTimeout, Drive sync,
+    // buildPalette() is called asynchronously (HexDB.init setTimeout, server sync,
     // DB edits), so it always runs after selectTerrain() — leaving no button
     // marked .selected and the bottom display stale. Calling selectTerrain here
     // makes every rebuild self-healing regardless of call order.
@@ -5875,7 +5865,7 @@ const LocalizationKeys = (() => {
   const LS_KEY = 'loc_entries';
   let _entries = []; // [{key, en, uk}]
   let _filterText = '';
-  let _driveKeysSet = null; // Set of keys fetched from Drive; non-null = compare mode active
+  let _serverKeysSet = null; // Set of keys fetched from server; non-null = compare mode active
   let _groups = ['Tiles', 'Buildings', 'Settlements', 'Upgrades', 'Universal Keys'];
   let _collapseState = {};
   let _addGroup = 'Universal Keys';
@@ -5932,12 +5922,12 @@ const LocalizationKeys = (() => {
     }
 
     _populateDatalist();
-    // Attempt Drive sync in background — localization.json is public so no auth needed.
-    // Silently ignored if Drive is unreachable or file not yet published.
-    _tryLoadFromDrive();
+    // Attempt server sync in background — localization.json is public so no auth needed.
+    // Silently ignored if server is unreachable or file not yet published.
+    _tryLoadFromServer();
   }
 
-  async function _tryLoadFromDrive() {
+  async function _tryLoadFromServer() {
     try {
       const data = await GitHubSync.loadLocFromServer();
       const incoming = (data.entries || []).filter(e => e.key);
@@ -5952,9 +5942,9 @@ const LocalizationKeys = (() => {
       _save();
       _populateDatalist();
       if (document.getElementById('loc-keys-modal')?.style.display === 'flex') _renderList();
-      console.log(`[LocalizationKeys] Auto-synced ${incoming.length} keys from Drive`);
+      console.log(`[LocalizationKeys] Auto-synced ${incoming.length} keys from server`);
     } catch(e) {
-      console.log('[LocalizationKeys] Drive auto-sync skipped:', e.message);
+      console.log('[LocalizationKeys] Server sync skipped:', e.message);
     }
   }
 
@@ -6149,35 +6139,35 @@ const LocalizationKeys = (() => {
     input.click();
   }
 
-  // ── Compare with Drive ────────────────────────────────────
+  // ── Compare with server ───────────────────────────────────
 
-  async function compareWithDrive() {
+  async function compareWithServer() {
     const btn = document.getElementById('loc-btn-compare');
     // Toggle off
-    if (_driveKeysSet) {
-      _driveKeysSet = null;
+    if (_serverKeysSet) {
+      _serverKeysSet = null;
       if (btn) { btn.textContent = '🔍 Compare'; btn.style.background = '#5c6bc0'; }
       _renderList();
       return;
     }
     if (btn) btn.disabled = true;
     try {
-      UI.toast('Fetching Drive localization for comparison…');
+      UI.toast('Fetching server localization for comparison…');
       const data = await GitHubSync.loadLocFromServer();
-      const driveKeys = new Set((data.entries || []).filter(e => e.key).map(e => e.key));
-      _driveKeysSet = driveKeys;
-      const missingCount = _entries.filter(e => !driveKeys.has(e.key)).length;
+      const serverKeys = new Set((data.entries || []).filter(e => e.key).map(e => e.key));
+      _serverKeysSet = serverKeys;
+      const missingCount = _entries.filter(e => !serverKeys.has(e.key)).length;
       _renderList();
       if (btn) {
         btn.textContent = `⚠ ${missingCount} missing · ✕`;
         btn.style.background = missingCount > 0 ? '#c62828' : '#2e7d32';
       }
       UI.toast(missingCount > 0
-        ? `⚠ ${missingCount} local keys not on Drive`
-        : '✅ All local keys exist on Drive');
+        ? `⚠ ${missingCount} local keys not on server`
+        : '✅ All local keys exist on server');
     } catch(e) {
       UI.toast('❌ Compare failed: ' + e.message);
-      _driveKeysSet = null;
+      _serverKeysSet = null;
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -6187,7 +6177,7 @@ const LocalizationKeys = (() => {
     const modal = document.getElementById('loc-keys-modal');
     if (!modal) return;
     _filterText = '';
-    _driveKeysSet = null;
+    _serverKeysSet = null;
     const btn = document.getElementById('loc-btn-compare');
     if (btn) { btn.textContent = '🔍 Compare'; btn.style.background = '#5c6bc0'; }
     document.getElementById('loc-keys-search').value = '';
@@ -6211,7 +6201,7 @@ const LocalizationKeys = (() => {
   }
 
   function _renderRow(e) {
-    return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;align-items:center;padding:3px 0 3px 5px;border-bottom:1px solid #333${_driveKeysSet ? ';border-left:3px solid #ef5350' : ''}">
+    return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;align-items:center;padding:3px 0 3px 5px;border-bottom:1px solid #333${_serverKeysSet ? ';border-left:3px solid #ef5350' : ''}">
     <input type="text" value="${_ea(e.key)}" data-orig="${_ea(e.key)}"
       style="background:#2a2a2a;border:1px solid #555;color:#aaa;padding:3px 6px;border-radius:3px;font-size:11px;width:100%;box-sizing:border-box"
       onblur="LocalizationKeys.renameKey(this.dataset.orig,this.value,this)"
@@ -6235,13 +6225,13 @@ const LocalizationKeys = (() => {
     const container = document.getElementById('loc-keys-list');
     if (!container) return;
 
-    const isFlat = !!(_filterText || _driveKeysSet);
+    const isFlat = !!(_filterText || _serverKeysSet);
 
     if (isFlat) {
       let visible = _filterText
         ? _entries.filter(e => e.key.toLowerCase().includes(_filterText) || (e.en||'').toLowerCase().includes(_filterText))
         : _entries;
-      if (_driveKeysSet) visible = visible.filter(e => !_driveKeysSet.has(e.key));
+      if (_serverKeysSet) visible = visible.filter(e => !_serverKeysSet.has(e.key));
       container.innerHTML = visible.map(_renderRow).join('');
       return;
     }
@@ -6286,13 +6276,13 @@ const LocalizationKeys = (() => {
 
   // ── Public ────────────────────────────────────────────────
 
-  async function pushToDrive() {
+  async function pushToServer() {
     const btn = document.getElementById('loc-btn-push');
     if (btn) btn.disabled = true;
     try {
-      UI.toast('Uploading localization.json to Drive…');
+      UI.toast('Uploading localization.json to server…');
       await GitHubSync.publishLoc();
-      UI.toast('✅ localization.json published to Drive');
+      UI.toast('✅ localization.json published to server');
     } catch(e) {
       UI.toast('❌ Push failed: ' + e.message);
     } finally {
@@ -6300,11 +6290,11 @@ const LocalizationKeys = (() => {
     }
   }
 
-  async function pullFromDrive() {
+  async function pullFromServer() {
     const btn = document.getElementById('loc-btn-pull');
     if (btn) btn.disabled = true;
     try {
-      UI.toast('Downloading localization.json from Drive…');
+      UI.toast('Downloading localization.json from server…');
       const data = await GitHubSync.loadLocFromServer();
       const incoming = (data.entries || []).filter(e => e.key);
       _migrateEntries(incoming);
@@ -6314,13 +6304,13 @@ const LocalizationKeys = (() => {
       const existingKeys = new Set(_entries.map(e => e.key));
       const extra = incoming.filter(e => !existingKeys.has(e.key));
       _entries = _entries.map(e => map[e.key]).concat(extra);
-      _driveKeysSet = null;
+      _serverKeysSet = null;
       const cmpBtn = document.getElementById('loc-btn-compare');
       if (cmpBtn) { cmpBtn.textContent = '🔍 Compare'; cmpBtn.style.background = '#5c6bc0'; }
       _save();
       _populateDatalist();
       _renderList();
-      UI.toast(`✅ Pulled ${incoming.length} keys from Drive`);
+      UI.toast(`✅ Pulled ${incoming.length} keys from server`);
     } catch(e) {
       UI.toast('❌ Pull failed: ' + e.message);
     } finally {
@@ -6329,11 +6319,11 @@ const LocalizationKeys = (() => {
   }
 
   async function clearCache() {
-    if (!confirm('Clear localization cache? Local data will be replaced with Drive data.')) return;
+    if (!confirm('Clear localization cache? Local data will be replaced with server data.')) return;
     localStorage.removeItem(LS_KEY);
     _entries = [];
     _groups = ['Tiles', 'Buildings', 'Settlements', 'Upgrades', 'Universal Keys'];
-    await pullFromDrive();
+    await pullFromServer();
   }
 
   function getKeys() { return _entries.map(e => e.key); }
@@ -6341,7 +6331,7 @@ const LocalizationKeys = (() => {
   function getGroups() { return _groups; }
 
   return { load, getKeys, getEntries, getGroups, getExportData, add, remove, downloadJson, importJson,
-           compareWithDrive, pushToDrive, pullFromDrive, clearCache, openManager, closeManager,
+           compareWithServer, pushToServer, pullFromServer, clearCache, openManager, closeManager,
            filterList, _updateField, renameKey, _renderList, _ex, _ea,
            addGroup, removeGroup, setEntryGroup, toggleGroup, toggleGroupsPanel, addKeyToGroup };
 })();
@@ -6542,7 +6532,7 @@ const HexDB = (() => {
   // Bump this whenever new tiles are added to hex_database.json.
   // Any autosave whose dbVersion is lower (or absent) will be fully replaced.
   // v4: purge stale bridge entries by ID as well as spriteName (v3 only filtered by spriteName).
-  // v5: apply bridge filter in loadFromObject/load paths (Drive sync bypassed v4 filter).
+  // v5: apply bridge filter in loadFromObject/load paths (server sync bypassed v4 filter).
   const _DB_VERSION = 5;
 
   // Loads hex_database.json when autosave is absent or at an older version.
@@ -10079,8 +10069,8 @@ window.addEventListener('load', async () => {
   UI.rebuildSlotPanel();
   UI.selectTerrain('Plain_1');
 
-  // Drive HexDB is loaded explicitly via ☁ Sync button.
-  // Autosave (localStorage) is used on startup to avoid 403 noise from private Drive files.
+  // HexDB is loaded explicitly via ☁ Sync button.
+  // Autosave (localStorage) is used on startup to avoid 403 noise from private server files.
   BldDB.init();
   // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
   setTimeout(() => Terrain.applyHexDbOverrides(BldDB.getAll()).then(() => Canvas.render()), 0);
@@ -10274,16 +10264,16 @@ window.addEventListener('load', async () => {
     <div style="display:flex;align-items:center;justify-content:space-between">
       <strong style="color:#fff;font-size:15px">Localization Keys</strong>
       <div style="display:flex;gap:6px;align-items:center">
-        <button id="loc-btn-pull" onclick="LocalizationKeys.pullFromDrive()"
+        <button id="loc-btn-pull" onclick="LocalizationKeys.pullFromServer()"
           style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">☁ Pull</button>
-        <button id="loc-btn-push" onclick="LocalizationKeys.pushToDrive()"
+        <button id="loc-btn-push" onclick="LocalizationKeys.pushToServer()"
           style="background:#1565c0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">☁ Push</button>
         <button onclick="LocalizationKeys.importJson()"
           style="background:#37474f;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Import a local localization.json — adds new keys only">⬆ Import</button>
         <button onclick="LocalizationKeys.clearCache()"
-          style="background:#6d4c41;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Clear localStorage cache and re-fetch from Drive">🗑 Clear Cache</button>
-        <button id="loc-btn-compare" onclick="LocalizationKeys.compareWithDrive()"
-          style="background:#5c6bc0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Show keys present locally but missing from Drive">🔍 Compare</button>
+          style="background:#6d4c41;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Clear localStorage cache and re-fetch from server">🗑 Clear Cache</button>
+        <button id="loc-btn-compare" onclick="LocalizationKeys.compareWithServer()"
+          style="background:#5c6bc0;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px" title="Show keys present locally but missing on server">🔍 Compare</button>
         <button onclick="LocalizationKeys.downloadJson()"
           style="background:#2e7d32;border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px">⬇ JSON</button>
         <button onclick="LocalizationKeys.toggleGroupsPanel()"
