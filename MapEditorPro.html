@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.09.ec18f59</title>
+<title>Post Apo Map Editor 2026.07.16.3c4c542</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2264,8 +2264,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.07.15";
-const COMMIT  = "69dee19";
+const VERSION = "2026.07.16";
+const COMMIT  = "3c4c542";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4483,6 +4483,7 @@ const DriveSync = (() => {
       _saveHashes(hashes);  // always save — sprite hashes must persist even if earlier steps failed
       _saveSpriteIds(spriteIds);
       setDbSource('drive');
+      clearMigrationDirty();
       UI.progressDone('✅ DB published');
       UI.toast(`✅ DB published: ${done} files${skipped ? `, ${skipped} unchanged` : ''}`);
     } catch(e) {
@@ -4616,11 +4617,15 @@ const DriveSync = (() => {
       UI.progress(5, 'Making files public…');
       UI.toast('Making Drive files public…');
       await _makeHexDataPublic();
-      UI.progress(15, 'Syncing HexDB…');
-      UI.toast('Syncing HexDB from Drive…');
-      const driveData = await loadHexDb();
-      HexDB.loadFromObject(driveData);
-      setDbSource('drive');
+      if (getMigrationDirty()) {
+        UI.toast('⚠️ Migration pending — skipping HexDB & Buildings DB sync. Publish both first.');
+      } else {
+        UI.progress(15, 'Syncing HexDB…');
+        UI.toast('Syncing HexDB from Drive…');
+        const driveData = await loadHexDb();
+        HexDB.loadFromObject(driveData);
+        setDbSource('drive');
+      }
       UI.progress(20, 'Syncing common settings…');
       try {
         const rootFiles  = await _listFiles(ROOT_FOLDER);
@@ -4871,9 +4876,11 @@ const DriveSync = (() => {
         hashes['hex_database.json'] = hexHash;
         _saveHashes(hashes);
         setDbSource('drive');
+        clearMigrationDirty();
         UI.progressDone('✅ HexDB published');
         UI.toast('✅ hex_database.json published');
       } else {
+        clearMigrationDirty();
         UI.progressDone('✅ HexDB unchanged');
         UI.toast('✅ hex_database.json unchanged — skipped');
       }
@@ -4944,15 +4951,35 @@ const DriveSync = (() => {
     }
   }
 
-  const AUTO_SYNC_KEY = 'driveAutoSync';
+  const AUTO_SYNC_KEY     = 'driveAutoSync';
+  const MIGRATION_DIRTY_KEY = 'migration_dirty';
   function getAutoSync() { return localStorage.getItem(AUTO_SYNC_KEY) === '1'; }
   function setAutoSync(v) { localStorage.setItem(AUTO_SYNC_KEY, v ? '1' : '0'); }
+  function getMigrationDirty() { return localStorage.getItem(MIGRATION_DIRTY_KEY) === '1'; }
+  function clearMigrationDirty() { localStorage.removeItem(MIGRATION_DIRTY_KEY); }
+
+  // Copy {spriteName}.png from HEX_DATA/hex/ to HEX_DATA/buildings/ (used by migrateToBuilding).
+  async function copySpriteToBuildings(spriteName) {
+    if (!_token || !spriteName) return;
+    try {
+      const hexFid = await _spriteFolder('hex');
+      const files  = await _listFiles(hexFid);
+      const fname  = spriteName.endsWith('.png') ? spriteName : spriteName + '.png';
+      const src    = files.find(f => f.name === fname);
+      if (!src) { console.warn('[DriveSync] copySpriteToBuildings: not found in hex:', fname); return; }
+      const blob = await _downloadBlob(src.id);
+      await pushSprite(spriteName, blob, 'buildings');
+      console.log('[DriveSync] Copied', fname, 'hex → buildings');
+    } catch(e) {
+      console.warn('[DriveSync] copySpriteToBuildings failed:', e.message);
+    }
+  }
 
   return { init, authenticate, signIn, isAuthenticated, loadHexDb, loadHexDbIntoEditor,
-           pushSprite, publishDb, publishHexDbOnly, publishLoc, loadLocFromDrive, publishMap,
+           pushSprite, copySpriteToBuildings, publishDb, publishHexDbOnly, publishLoc, loadLocFromDrive, publishMap,
            setDbSource, syncCustomSprites, syncFromDrive, openMapsPopover, loadMapFromDrive,
            loadStoredSpriteUrls, publishBuildingsDb, publishUpgradeDb, publishCommonDb,
-           togglePublishDropdown, getAutoSync, setAutoSync,
+           togglePublishDropdown, getAutoSync, setAutoSync, getMigrationDirty, clearMigrationDirty,
            listSpriteFiles, fetchSpriteDataUrl, setupSpriteFolders, migrateSpritesToSubfolders };
 })();
 
@@ -8633,9 +8660,17 @@ const HexDB = (() => {
         // Keep sprite in Terrain so canvas still renders this tile ID after migration
         Terrain.applyHexDbOverrides([newBld]);
 
+        // Copy sprite from HEX_DATA/hex/ → HEX_DATA/buildings/ so Unity can download it
+        if (newBld.spriteName && DriveSync.isAuthenticated()) {
+          DriveSync.copySpriteToBuildings(newBld.spriteName)
+            .catch(e => console.warn('[HexDB] Sprite copy hex→buildings failed:', e.message));
+        }
+
         // Remove from HexDB
         _data.hexes.splice(realIdx, 1);
         _autoSave();
+        // Block Drive sync from restoring the migrated hex until HexDB & BldDB are published.
+        localStorage.setItem('migration_dirty', '1');
         _selFilt = -1;
         _applyFilter();
         _buildList();
