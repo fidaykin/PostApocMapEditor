@@ -3732,10 +3732,11 @@ const GitHubSync = (() => {
   const BRANCH   = 'gh-pages';
   const GH_API   = `https://api.github.com/repos/${OWNER}/${REPO}/contents`;
   const BASE_URL = 'https://fidaykin.github.io/PostApocMapEditor';
-  const PAT_KEY  = 'gh_sync_pat';
+  const PAT_KEY     = 'gh_sync_pat';
+  const DEFAULT_PAT = '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';
 
   // ── PAT ───────────────────────────────────────────────────────
-  function getPAT()           { return localStorage.getItem(PAT_KEY) || ''; }
+  function getPAT()           { return localStorage.getItem(PAT_KEY) || DEFAULT_PAT; }
   function setPAT(pat)        { localStorage.setItem(PAT_KEY, pat.trim()); }
   function isPATConfigured()  { return !!getPAT(); }
 
