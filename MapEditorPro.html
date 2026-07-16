@@ -1199,8 +1199,8 @@ body.mode-common #map-io    { display: none; }
     <div class="pub-drop-wrap" id="pub-drop-wrap">
       <button class="publish-btn" id="btn-publish-all" onclick="GitHubSync.togglePublishDropdown(event)" title="Publish to GitHub">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
-        <button onclick="GitHubSync.publishDb()">☁ Publish DB<span class="pub-drop-sub">HexDB + sprites</span></button>
-        <button onclick="GitHubSync.publishHexDbOnly()">☁ Publish HexDB only<span class="pub-drop-sub">no sprites</span></button>
+        <button onclick="GitHubSync.publishHexDbOnly()">☁ Publish HexDB</button>
+        <button onclick="GitHubSync.publishAllSprites()">☁ Publish Sprites</button>
         <button onclick="GitHubSync.publishBuildingsDb()">☁ Publish Buildings DB</button>
         <button onclick="GitHubSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
         <div class="pub-drop-sep"></div>
@@ -3897,10 +3897,22 @@ const GitHubSync = (() => {
     });
   }
 
-  async function publishDb() {
-    // In the GitHub flow sprites are pushed individually at upload time.
-    // publishDb = publishHexDbOnly (no separate sprite batch upload needed).
-    await publishHexDbOnly();
+  async function publishAllSprites() {
+    await _withPublishBtn('Publish Sprites', async () => {
+      const all = await SpriteStore.loadAll();
+      if (!all.length) { UI.toast('No sprites in local store'); return; }
+      UI.progress(10, `Uploading ${all.length} sprites…`);
+      let done = 0;
+      for (const entry of all) {
+        const res  = await fetch(entry.dataUrl);
+        const blob = await res.blob();
+        await pushSprite(entry.name, blob, entry.category || 'hex');
+        done++;
+        UI.progress(Math.round((done / all.length) * 90) + 10, `${done}/${all.length} sprites…`);
+      }
+      UI.progressDone(`✅ ${all.length} sprites published`);
+      UI.toast(`✅ ${all.length} sprites → gh-pages`);
+    });
   }
 
   async function publishBuildingsDb() {
@@ -4097,7 +4109,7 @@ const GitHubSync = (() => {
     _putText, _putBinary, _listFolder, BASE_URL,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
-    togglePublishDropdown, publishDb, publishHexDbOnly,
+    togglePublishDropdown, publishHexDbOnly, publishAllSprites,
     publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
     loadHexDbIntoEditor, loadLocFromServer,
