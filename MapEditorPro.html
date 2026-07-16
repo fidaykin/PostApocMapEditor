@@ -1339,12 +1339,12 @@ body.mode-common #map-io    { display: none; }
     <span id="google-auth-status" title="Google Drive login status">🔴 Not signed in</span>
     <button class="publish-btn" id="btn-gh-settings" onclick="GitHubSync.openPATSettings()" title="Configure GitHub sync (Personal Access Token)">⚙ GitHub</button>
     <div class="pub-drop-wrap" id="pub-drop-wrap">
-      <button class="publish-btn" id="btn-publish-all" onclick="DriveSync.togglePublishDropdown(event)" title="Publish to Google Drive">☁ Publish ▾</button>
+      <button class="publish-btn" id="btn-publish-all" onclick="GitHubSync.togglePublishDropdown(event)" title="Publish to GitHub">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
-        <button onclick="DriveSync.publishDb()">☁ Publish DB<span class="pub-drop-sub">HexDB + sprites</span></button>
-        <button onclick="DriveSync.publishHexDbOnly()">☁ Publish HexDB only<span class="pub-drop-sub">no sprites</span></button>
-        <button onclick="DriveSync.publishBuildingsDb()">☁ Publish Buildings DB</button>
-        <button onclick="DriveSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
+        <button onclick="GitHubSync.publishDb()">☁ Publish DB<span class="pub-drop-sub">HexDB + sprites</span></button>
+        <button onclick="GitHubSync.publishHexDbOnly()">☁ Publish HexDB only<span class="pub-drop-sub">no sprites</span></button>
+        <button onclick="GitHubSync.publishBuildingsDb()">☁ Publish Buildings DB</button>
+        <button onclick="GitHubSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
         <div class="pub-drop-sep"></div>
         <button onclick="DriveSync.publishMap()">☁ Publish Map</button>
         <div class="pub-drop-sep"></div>
@@ -4002,12 +4002,103 @@ const GitHubSync = (() => {
     btn.disabled = false;
   }
 
+  // ── Publish helpers ───────────────────────────────────────────
+  function _closeDropdown() {
+    document.getElementById('pub-drop-wrap')?.classList.remove('open');
+  }
+
+  function togglePublishDropdown(e) {
+    e.stopPropagation();
+    document.getElementById('pub-drop-wrap').classList.toggle('open');
+  }
+
+  async function _withPublishBtn(label, fn) {
+    if (!isPATConfigured()) {
+      UI.toast('⚠ Configure GitHub PAT first (⚙ GitHub button)');
+      return;
+    }
+    _closeDropdown();
+    const btn = document.getElementById('btn-publish-all');
+    if (btn) btn.disabled = true;
+    try {
+      await fn();
+    } catch(e) {
+      UI.progressDone('❌ Failed');
+      UI.toast(`❌ ${label} failed: ${e.message}`);
+      console.error(`[GitHubSync] ${label}:`, e);
+    } finally {
+      if (btn) btn.disabled = false;
+    }
+  }
+
+  async function publishHexDbOnly() {
+    await _withPublishBtn('Publish HexDB', async () => {
+      UI.progress(20, 'Uploading hex_database.json…');
+      const json = JSON.stringify(HexDB.getData(), null, 2);
+      await _putText('hex_database.json', json, 'publish: hex_database.json');
+      UI.progressDone('✅ HexDB published');
+      UI.toast('✅ hex_database.json → gh-pages');
+    });
+  }
+
+  async function publishDb() {
+    // In the GitHub flow sprites are pushed individually at upload time.
+    // publishDb = publishHexDbOnly (no separate sprite batch upload needed).
+    await publishHexDbOnly();
+  }
+
+  async function publishBuildingsDb() {
+    await _withPublishBtn('Publish Buildings DB', async () => {
+      UI.progress(30, 'Uploading building_database.json…');
+      await _putText('building_database.json', BldDB.getJson(), 'publish: building_database.json');
+      UI.progressDone('✅ Buildings DB published');
+      UI.toast('✅ building_database.json → gh-pages');
+    });
+  }
+
+  async function publishUpgradeDb() {
+    await _withPublishBtn('Publish Upgrade DB', async () => {
+      UI.progress(30, 'Uploading upgrade_database.json…');
+      await _putText('upgrade_database.json', UpgDB.getJson(), 'publish: upgrade_database.json');
+      UI.progressDone('✅ Upgrade DB published');
+      UI.toast('✅ upgrade_database.json → gh-pages');
+    });
+  }
+
+  async function publishCommonDb() {
+    if (!isPATConfigured()) return;
+    try {
+      UI.progress(30, 'Uploading common_settings.json…');
+      await _putText('common_settings.json', CommonDB.export(), 'publish: common_settings.json');
+      UI.progressDone('✅ Common settings published');
+      UI.toast('✅ common_settings.json → gh-pages');
+    } catch(e) {
+      UI.progressDone('❌ Failed');
+      console.error('[GitHubSync] publishCommonDb:', e);
+    }
+  }
+
+  async function publishLoc() {
+    if (!isPATConfigured()) { UI.toast('⚠ Configure GitHub PAT first'); return; }
+    try {
+      UI.progress(20, 'Uploading localization.json…');
+      const json = JSON.stringify(LocalizationKeys.getExportData(), null, 2);
+      await _putText('localization.json', json, 'publish: localization.json');
+      UI.progressDone('✅ localization.json published');
+    } catch(e) {
+      UI.progressDone('❌ Failed');
+      throw e;
+    }
+  }
+
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
     _putText, _putBinary, _listFolder, BASE_URL,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
+    togglePublishDropdown, publishDb, publishHexDbOnly,
+    publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc,
   };
 })();
 
@@ -7366,7 +7457,7 @@ const LocalizationKeys = (() => {
     if (btn) btn.disabled = true;
     try {
       UI.toast('Uploading localization.json to Drive…');
-      await DriveSync.publishLoc();
+      await GitHubSync.publishLoc();
       UI.toast('✅ localization.json published to Drive');
     } catch(e) {
       UI.toast('❌ Push failed: ' + e.message);
@@ -11249,8 +11340,8 @@ window.addEventListener('load', async () => {
 
   function push() {
     save();
-    if (typeof DriveSync !== 'undefined' && DriveSync.isAuthenticated()) {
-      DriveSync.publishCommonDb();
+    if (GitHubSync.isPATConfigured()) {
+      GitHubSync.publishCommonDb();
     } else {
       const json = JSON.stringify(_data, null, 2);
       const blob = new Blob([json], { type: 'application/json' });
