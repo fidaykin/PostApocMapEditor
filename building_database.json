@@ -480,7 +480,7 @@
       "buildingCategory": "Standard",
       "biome": "Summer",
       "filter": "FilterBuilding",
-      "spriteName": "ScoutTower",
+      "spriteName": "ScoutTower_1",
       "baseCostTaps": 15,
       "canDestroy": true,
       "destroyTransformToMode": "Parents",
