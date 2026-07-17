@@ -533,6 +533,87 @@
       "effects": "",
       "footprint": [],
       "storageUpgradeId": ""
+    },
+    {
+      "id": "LumberMill_Test_1",
+      "textId": "lum",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Summer",
+      "filter": "FilterBuilding",
+      "spriteName": "LumberMill",
+      "baseCostTaps": 25,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "Plains_1",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        },
+        {
+          "type": "Stone",
+          "amount": 25
+        },
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "canBuild": true,
+      "needRoad": false,
+      "availableTiles": [],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 8000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": true,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "Plains_1",
+      "capacity": 3,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Lumber",
+          "amount": 25
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "storageUpgradeId": ""
     }
   ]
 }
