@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "b6b102d";
+const COMMIT  = "fe85baf";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2544,10 +2544,15 @@ const Canvas = (() => {
     // the second render pass. Using the cluster's own flat color (Terrain.color) made the
     // 7-hex footprint visually distinct; a real terrain sprite matches surrounding tiles.
     if (isBridge) {
-      // Draw water base, then bridge sprite on top
-      const waterSprite = Terrain.getTerrainSpriteForType('Water');
-      if (waterSprite && waterSprite.complete && waterSprite.naturalWidth > 0) {
-        ctx.drawImage(waterSprite, cx - radius, cy - radius, radius * 2, radius * 2);
+      // Look up underTerrainId from HexDB or BldDB (set in the bridge entry's form)
+      const bridgeEntry = hexEntry
+        || (typeof BldDB !== 'undefined' ? BldDB.getAll().find(b => b.id && b.id.toLowerCase() === (hexId || '').toLowerCase()) : null);
+      const underId = bridgeEntry?.underTerrainId;
+      const baseSprite = underId
+        ? (Terrain.getSprite(underId) || Terrain.getTerrainSpriteForType('Water'))
+        : Terrain.getTerrainSpriteForType('Water');
+      if (baseSprite && baseSprite.complete && baseSprite.naturalWidth > 0) {
+        ctx.drawImage(baseSprite, cx - radius, cy - radius, radius * 2, radius * 2);
       } else {
         ctx.fillStyle = '#2a6fad';
         ctx.fill();
@@ -7338,6 +7343,12 @@ const HexDB = (() => {
            value="${hex.baseCostTaps ?? 0}">`,
         'Taps required to unlock this tile when first revealed on the map'),
       _checkRow('roadAllowed', hex.roadAllowed ?? false, 'roads can be built on this tile'),
+      ...(/bridge/i.test(hex.id || '') ? [
+        _row('Under Terrain',
+          `<input class="hexdb-input" data-field="underTerrainId" list="hexdb-id-list"
+             value="${_esc(hex.underTerrainId ?? '')}" placeholder="e.g. Water_1">`,
+          'Hex tile ID rendered under the bridge sprite on the map canvas (leave blank for default water)'),
+      ] : []),
     ].join('');
 
     const canDes = hex.canDestroy ?? false;
@@ -8727,6 +8738,11 @@ const BldDB = (() => {
             </div>
             <small style="color:#888;font-size:0.8em">Web: sprites/buildings/&lt;name&gt;.png | Unity: Resources/Buildings/&lt;name&gt;</small>
           </div></div>
+        ${bld.buildingCategory === 'Bridge' ? `
+        <div class="hexdb-row"><span class="hexdb-label">Under Terrain <span class="hexdb-info" title="Hex tile ID drawn under the bridge sprite on the map canvas (e.g. Water_1). Leave blank for default water.">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-underTerrainId" type="text"
+            value="${_esc(bld.underTerrainId ?? '')}" list="blddb-hex-id-list" placeholder="e.g. Water_1">
+        </div>` : ''}
         <div class="hexdb-row"><span class="hexdb-label">Base Cost Taps <span class="hexdb-info" title="Integer, 0–100 000. Auto-corrects leading zeros.">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-baseCostTaps" type="number" step="1" min="0" max="100000"
             oninput="this.value=Math.min(100000,Math.max(0,parseInt(this.value,10)||0))"
@@ -9215,7 +9231,8 @@ const BldDB = (() => {
     bld.buildingCategory = iv('bld-f-buildingCategory');
     bld.biome            = iv('bld-f-biome');
     bld.filter       = iv('bld-f-filter');
-    bld.spriteName   = iv('bld-f-spriteName');
+    bld.spriteName      = iv('bld-f-spriteName');
+    bld.underTerrainId  = iv('bld-f-underTerrainId');
     bld.baseCostTaps = Math.min(100000, Math.max(0, nv('bld-f-baseCostTaps')));
 
     // DESTROY
