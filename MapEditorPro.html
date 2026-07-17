@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "738c6da";
+const COMMIT  = "5eb8e2d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3846,9 +3846,11 @@ const GitHubSync = (() => {
   // ── Core Contents API write ───────────────────────────────────
   async function _putContents(path, base64Content, message) {
     // GET existing file SHA (required by GitHub API when updating)
+    // cache: 'no-store' prevents browser from returning a stale SHA from a prior request.
     let sha;
     try {
       const getRes = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
+        cache: 'no-store',
         headers: {
           'Authorization': `Bearer ${getPAT()}`,
           'Accept': 'application/vnd.github+json',
@@ -4481,12 +4483,9 @@ const UI = (() => {
   let _selectedId = 'Plain_1';  // string hex ID
   let _selectedBridgeAxis = -1; // -1 = no bridge selected, 0/1/2 = axis
 
-  // Bridge sprite preloads
+  // River_bridge overlay sprites (legacy — kept for maps that still have bridgesData entries)
+  // Sprites no longer hosted on server; render falls back to fill colour if missing.
   const _bridgeSprites = [new Image(), new Image(), new Image()];
-  _bridgeSprites[0].src = 'sprites/hex/River_bridge_1.png';
-  _bridgeSprites[1].src = 'sprites/hex/River_bridge_2.png';
-  _bridgeSprites[2].src = 'sprites/hex/River_bridge_3.png';
-  _bridgeSprites.forEach(s => { s.onload = () => { if (typeof Canvas !== 'undefined') Canvas.render(); }; });
   let _confirmCallback = null;
   let _spritePickerCallback = null;
   let _spritePickerOpts = {};
@@ -8217,12 +8216,17 @@ const HexDB = (() => {
             }
 
             if (spriteBlob && spriteDataUrl) {
-              // Register in local cache so BldDB image src resolves without waiting for GitHub
+              // Register in local cache so canvas still resolves this sprite ID
               Terrain.registerUploadedUrls({ [newBld.spriteName]: spriteDataUrl });
-              await SpriteStore.save(newBld.spriteName, spriteDataUrl, 'buildings');
-              // Push to GitHub buildings folder (fire-and-forget)
-              GitHubSync.pushSprite(newBld.spriteName, spriteBlob, 'buildings')
-                .catch(e => console.warn('[migrate] pushSprite buildings failed:', e.message));
+              if (newBld.buildingCategory === 'Bridge') {
+                // Bridge sprites live in sprites/hex/ — no copy to buildings folder needed
+                await SpriteStore.save(newBld.spriteName, spriteDataUrl, 'hex');
+              } else {
+                await SpriteStore.save(newBld.spriteName, spriteDataUrl, 'buildings');
+                // Push to GitHub buildings folder (fire-and-forget)
+                GitHubSync.pushSprite(newBld.spriteName, spriteBlob, 'buildings')
+                  .catch(e => console.warn('[migrate] pushSprite buildings failed:', e.message));
+              }
             } else {
               console.warn('[migrate] sprite not found for:', newBld.spriteName);
             }
