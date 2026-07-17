@@ -1058,58 +1058,6 @@
       "waterFaces": []
     },
     {
-      "id": "Grain_1",
-      "textId": "",
-      "type": "Resources",
-      "biome": "Summer",
-      "filterCategory": "FilterTerrain",
-      "spriteName": "FarmGrain",
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 5,
-      "canDestroy": true,
-      "destroyTransformTo": "Plain_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": true,
-      "destroyIncome": [
-        {
-          "type": "Food",
-          "amount": 5
-        }
-      ],
-      "canBuild": false,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 0,
-      "buildPrice": [],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": false,
-      "destroyable": false,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 0,
-      "incomeGetPerTap": [],
-      "incomePerTurn": [
-        {
-          "type": "Food",
-          "amount": 5
-        }
-      ],
-      "incomeIdle": [],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "roadAllowed": false,
-      "category": "💎 RESOURCES",
-      "isLayered": false,
-      "waterFaces": []
-    },
-    {
       "id": "BrokenPlane_1",
       "textId": "",
       "type": "Special",
