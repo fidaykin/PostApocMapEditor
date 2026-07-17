@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "310b76a";
+const COMMIT  = "fbafcc3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3985,8 +3985,14 @@ const GitHubSync = (() => {
     if (!isPATConfigured()) return UI.toast('⚠ Configure PAT first');
     if (!confirm(`Delete map "${mapName}"?\nThis removes it from GitHub permanently.`)) return;
     try {
-      const sha = await _getFileSha(`maps/${fileName}`);
-      await _deleteContents(`maps/${fileName}`, sha, `remove map: ${fileName}`);
+      // File may already be absent — only delete if it exists
+      const shaRes = await fetch(`${GH_API}/maps/${fileName}?ref=${BRANCH}`, {
+        headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
+      });
+      if (shaRes.ok) {
+        const sha = (await shaRes.json()).sha;
+        await _deleteContents(`maps/${fileName}`, sha, `remove map: ${fileName}`);
+      }
       // Read map_list.json via GitHub API (not CDN) to avoid stale cache
       const list = await _getFileJson('maps/map_list.json').catch(() => ({ maps: [] }));
       list.maps = (list.maps || []).filter(m => m.fileName !== fileName);
