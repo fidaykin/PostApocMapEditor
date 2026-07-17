@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "5d68ee5";
+const COMMIT  = "310b76a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3905,6 +3905,15 @@ const GitHubSync = (() => {
     return (await res.json()).sha;
   }
 
+  async function _getFileJson(path) {
+    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
+      headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
+    });
+    if (!res.ok) throw new Error(`Cannot get ${path}: ${res.status}`);
+    const data = await res.json();
+    return JSON.parse(atob(data.content.replace(/\s/g, '')));
+  }
+
   // ── Content Manager actions ───────────────────────────────────
 
   function _cmDownload(url, filename) {
@@ -3927,8 +3936,8 @@ const GitHubSync = (() => {
     try {
       await _deleteContents(`sprites/${category}/${name}`, sha, `remove sprite: ${name}`);
       await SpriteStore.remove(name.replace(/\.png$/i, ''));
+      document.querySelector(`[data-cm-id="sprite-${category}-${name}"]`)?.remove();
       UI.toast(`✅ Deleted ${name}`);
-      openContentManager();
     } catch(e) { UI.toast('❌ ' + e.message); }
   }
 
@@ -3978,12 +3987,12 @@ const GitHubSync = (() => {
     try {
       const sha = await _getFileSha(`maps/${fileName}`);
       await _deleteContents(`maps/${fileName}`, sha, `remove map: ${fileName}`);
-      const listRes = await fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`);
-      const list = listRes.ok ? await listRes.json() : { maps: [] };
+      // Read map_list.json via GitHub API (not CDN) to avoid stale cache
+      const list = await _getFileJson('maps/map_list.json').catch(() => ({ maps: [] }));
       list.maps = (list.maps || []).filter(m => m.fileName !== fileName);
-      await _putText('maps/map_list.json', JSON.stringify(list, null, 2) + '\n', 'remove from map_list');
+      await _putText('maps/map_list.json', JSON.stringify(list, null, 2) + '\n', `remove from map_list: ${fileName}`);
+      document.querySelector(`[data-cm-id="map-${fileName}"]`)?.remove();
       UI.toast(`✅ Deleted map "${mapName}"`);
-      openContentManager();
     } catch(e) { UI.toast('❌ ' + e.message); }
   }
 
@@ -4377,7 +4386,7 @@ const GitHubSync = (() => {
 
       const spriteCard = (f, cat) => {
         const nameNoExt = f.name.replace(/\.png$/i, '');
-        return `<div class="cm-file" title="${e(f.name)}\n${_fmtSize(f.size)}">
+        return `<div class="cm-file" data-cm-id="sprite-${e(cat)}-${e(f.name)}" title="${e(f.name)}\n${_fmtSize(f.size)}">
           <img src="${e(f.download_url)}" class="cm-thumb" onerror="this.style.display='none'">
           <div class="cm-fname">${e(nameNoExt)}</div>
           <div class="cm-fsize">${_fmtSize(f.size)}</div>
@@ -4404,7 +4413,7 @@ const GitHubSync = (() => {
         <div class="cm-section">
           <div class="cm-section-title">🗺 Maps <span class="cm-badge">${(mapList.maps||[]).length}</span></div>
           <div class="cm-list">${(mapList.maps||[]).map(m =>
-            `<div class="cm-row">
+            `<div class="cm-row" data-cm-id="map-${e(m.fileName)}">
               <span class="cm-row-name">${e(m.name)}</span>
               <span class="cm-row-meta">${e(m.fileName)} · ${_fmtSize(parseInt(m.size||0))} · ${e(m.uploadedTime||'')}</span>
               <div class="cm-row-actions">
