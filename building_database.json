@@ -543,7 +543,7 @@
       "buildingCategory": "Standard",
       "biome": "Summer",
       "filter": "FilterBuilding",
-      "spriteName": "LumberMill",
+      "spriteName": "LumberMill_1",
       "baseCostTaps": 25,
       "canDestroy": true,
       "destroyTransformToMode": "Parents",
