@@ -1240,7 +1240,8 @@ body.mode-common #map-io    { display: none; }
       <button class="tool-btn" data-tool="fill"  onclick="Tools.setActive('fill')">🪣<span class="tooltip">Fill (F)</span></button>
       <button class="tool-btn" data-tool="rect"  onclick="Tools.setActive('rect')">▭<span class="tooltip">Rectangle (R)</span></button>
       <button class="tool-btn" data-tool="eye"   onclick="Tools.setActive('eye')">💧<span class="tooltip">Eyedropper (E)</span></button>
-      <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (S)</span></button>
+      <button class="tool-btn" data-tool="select" onclick="Tools.setActive('select')">🔍<span class="tooltip">Select Tile (S)</span></button>
+      <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (T)</span></button>
       <button class="tool-btn" data-tool="erase" onclick="Tools.setActive('erase')">✕<span class="tooltip">Erase Settlement (D)</span></button>
       <button class="tool-btn" id="btn-zones" onclick="Canvas.toggleZones()">◎<span class="tooltip">Toggle Distance Rings</span></button>
       <input id="ring-interval" type="number" min="5" max="100" step="5" value="10"
@@ -1356,6 +1357,26 @@ body.mode-common #map-io    { display: none; }
             <div id="right-terrain-name">Plain_1</div>
             <div id="right-terrain-id">ID: 12</div>
           </div>
+        </div>
+      </div>
+      <div id="tile-inspector" style="display:none;border-top:1px solid var(--border);padding:8px 10px">
+        <div class="section-title" style="margin-bottom:6px">Selected Tile</div>
+        <div id="tile-insp-pos" style="font-size:11px;color:var(--muted);margin-bottom:2px"></div>
+        <div id="tile-insp-id"  style="font-size:12px;font-weight:bold;margin-bottom:8px;word-break:break-all"></div>
+        <div id="tile-insp-bridge" style="display:none;margin-bottom:8px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:4px">Under terrain <span style="opacity:.6">(for this tile only)</span></div>
+          <div style="display:flex;gap:4px">
+            <input id="tile-insp-under" class="hexdb-input" type="text" list="hexdb-id-list"
+              placeholder="e.g. Water_1" style="flex:1;font-size:11px;padding:3px 6px">
+            <button onclick="Canvas.applyTileInspectorUnder()" title="Apply"
+              style="padding:2px 7px;cursor:pointer;border:1px solid var(--border);border-radius:4px;background:var(--panel);color:var(--text)">✓</button>
+            <button onclick="Canvas.clearTileInspectorUnder()" title="Reset to entry default"
+              style="padding:2px 7px;cursor:pointer;border:1px solid #f38ba8;border-radius:4px;background:var(--panel);color:#f38ba8">✕</button>
+          </div>
+        </div>
+        <div id="tile-insp-object" style="display:none">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:2px">Building object</div>
+          <div id="tile-insp-obj-id" style="font-size:12px;font-weight:bold;word-break:break-all"></div>
         </div>
       </div>
       <div id="settlement-count">Settlements: 0</div>
@@ -2139,7 +2160,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "1633ae2";
+const COMMIT  = "3ceab2c";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2505,6 +2526,18 @@ const Canvas = (() => {
         });
         ctx.restore();
       }
+    }
+
+    // Selection highlight (Select tool)
+    if (_selCol >= 0 && _selRow >= 0) {
+      const sp = hexScreenPos(_selCol, _selRow);
+      const lw = Math.max(2, radius * 0.12);
+      ctx.save();
+      hexClipPath(sp.x, sp.y, radius);
+      ctx.strokeStyle = '#f5c518';
+      ctx.lineWidth = lw * 2;
+      ctx.stroke();
+      ctx.restore();
     }
 
     const _blkInput = document.getElementById('block-nav-input');
@@ -2974,18 +3007,13 @@ const Canvas = (() => {
     if (isPanning && e.button === 2) {
       const moved = Math.hypot(e.clientX - panStartX, e.clientY - panStartY);
       if (moved < 5) {
-        // Right-click without move → bridge tiles open under-terrain picker; others eyedropper
+        // Right-click without move → eyedropper
         const rect = canvas.getBoundingClientRect();
         let { col, row } = screenToHex(e.clientX - rect.left, e.clientY - rect.top);
         if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
           const anc = getSatelliteAnchor(col, row);
           if (anc) { col = anc.col; row = anc.row; }
-          const hexId = mapData[row * MAP_WIDTH + col] || '';
-          if (/bridge/i.test(hexId) && !/^River_bridge_/i.test(hexId)) {
-            IO.openBridgeTerrainModal(col, row);
-          } else {
-            UI.selectTerrain(hexId);
-          }
+          UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
         }
       }
     }
@@ -3341,6 +3369,66 @@ const Canvas = (() => {
     ctx.restore();
   }
 
+  // ── Tile selection (Select tool) ─────────────────────────────
+  let _selCol = -1, _selRow = -1;
+
+  function selectTile(col, row) {
+    _selCol = col; _selRow = row;
+    _updateTileInspector();
+    render();
+  }
+
+  function clearSelection() {
+    _selCol = -1; _selRow = -1;
+    const panel = document.getElementById('tile-inspector');
+    if (panel) panel.style.display = 'none';
+    render();
+  }
+
+  function _updateTileInspector() {
+    const panel = document.getElementById('tile-inspector');
+    if (!panel || _selCol < 0) return;
+    panel.style.display = '';
+    document.getElementById('tile-insp-pos').textContent = `Col ${_selCol}, Row ${_selRow}`;
+    const hexId = (mapData && mapData[_selRow * MAP_WIDTH + _selCol]) || '—';
+    document.getElementById('tile-insp-id').textContent = hexId;
+    // Bridge section
+    const isBridge = /bridge/i.test(hexId) && !/^River_bridge_/i.test(hexId);
+    const bridgeSec = document.getElementById('tile-insp-bridge');
+    bridgeSec.style.display = isBridge ? '' : 'none';
+    if (isBridge) {
+      const key = _selCol + ',' + _selRow;
+      document.getElementById('tile-insp-under').value = (tileExtras[key] || {}).underTerrainId || '';
+    }
+    // Object section
+    const key = _selCol + ',' + _selRow;
+    const objId = objectsData[key] || '';
+    const objSec = document.getElementById('tile-insp-object');
+    objSec.style.display = objId ? '' : 'none';
+    if (objId) document.getElementById('tile-insp-obj-id').textContent = objId;
+  }
+
+  function applyTileInspectorUnder() {
+    if (_selCol < 0) return;
+    const val = document.getElementById('tile-insp-under').value.trim();
+    const key = _selCol + ',' + _selRow;
+    if (val) {
+      tileExtras[key] = Object.assign(tileExtras[key] || {}, { underTerrainId: val });
+    } else {
+      if (tileExtras[key]) delete tileExtras[key].underTerrainId;
+    }
+    render();
+    IO.scheduleAutoSave();
+  }
+
+  function clearTileInspectorUnder() {
+    const key = _selCol + ',' + _selRow;
+    if (tileExtras[key]) delete tileExtras[key].underTerrainId;
+    document.getElementById('tile-insp-under').value = '';
+    render();
+    IO.scheduleAutoSave();
+  }
+
   return {
     init, render, drawMinimap, forceRedraw,
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
@@ -3348,6 +3436,7 @@ const Canvas = (() => {
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot,
     jumpToBlock,
+    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder,
     toggleRulers: () => {
       _showRulers = !_showRulers;
       const btn = document.getElementById('btn-toggle-rulers');
@@ -3431,7 +3520,8 @@ const Tools = (() => {
 
   const TOOL_NAMES = {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
-    eye: 'Eyedropper', settlement: 'Place Settlement', erase: 'Erase Settlement',
+    eye: 'Eyedropper', select: 'Select Tile',
+    settlement: 'Place Settlement', erase: 'Erase Settlement',
     zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object'
   };
 
@@ -3443,6 +3533,7 @@ const Tools = (() => {
       btn.classList.toggle('active', btn.dataset.tool === name);
     });
     UI.updateStatusTool(TOOL_NAMES[name] || name);
+    if (name !== 'select') Canvas.clearSelection();
     // Settlement tools require settlements to be visible
     if ((name === 'settlement' || name === 'erase') && !settlementsVisible) {
       settlementsVisible = true;
@@ -3620,6 +3711,10 @@ const Tools = (() => {
         _rectStart = { col, row };
         _toolsRectPreview = { c1: col, r1: row, c2: col, r2: row };
         break;
+      case 'select':
+        Canvas.selectTile(col, row);
+        _isDown = false;
+        break;
       case 'eye': {
         let eCol = col, eRow = row;
         const eAnc = getSatelliteAnchor(col, row);
@@ -3717,7 +3812,8 @@ const Tools = (() => {
         case 'f': setActive('fill');         break;
         case 'r': setActive('rect');         break;
         case 'e': setActive('eye');          break;
-        case 's': setActive('settlement');   break;
+        case 's': setActive('select');       break;
+        case 't': setActive('settlement');   break;
         case 'd': setActive('erase');        break;
         case 'z': setActive('zone');         break;
         case 'b': setActive('object');       break;
