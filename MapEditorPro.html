@@ -2160,7 +2160,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "3ceab2c";
+const COMMIT  = "8259785";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2447,14 +2447,13 @@ const Canvas = (() => {
     }
     if (settlementsVisible) _drawSlotRings(scale, radius);
 
-    if (settlementsVisible) {
-      settlements.forEach(s => {
-        const pos = hexScreenPos(s.col, s.row);
-        if (pos.x + radius < 0 || pos.x - radius > canvas.width  ||
-            pos.y + radius < 0 || pos.y - radius > canvas.height) return;
-        _drawSettlement(pos.x, pos.y, radius, s.type);
-      });
-    }
+    settlements.forEach(s => {
+      if (!settlementsVisible && s.type !== 'city') return;
+      const pos = hexScreenPos(s.col, s.row);
+      if (pos.x + radius < 0 || pos.x - radius > canvas.width  ||
+          pos.y + radius < 0 || pos.y - radius > canvas.height) return;
+      _drawSettlement(pos.x, pos.y, radius, s.type);
+    });
 
     // Bridge overlays
     bridgesData.forEach(b => {
