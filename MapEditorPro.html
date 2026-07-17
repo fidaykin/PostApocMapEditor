@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "75c0417";
+const COMMIT  = "f317f2f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8434,6 +8434,65 @@ const BldDB = (() => {
     _filtered.sort((a, b) => (_data.buildings[a].id || '').localeCompare(_data.buildings[b].id || ''));
   }
 
+  // ── Road group helpers ────────────────────────────────────
+
+  function _roadGroupOf(spriteName) {
+    if (!spriteName) return null;
+    const m = spriteName.match(/^(.+)_\d+_[A-Z]+$/i);
+    return m ? m[1] : null;
+  }
+
+  function _roadSpriteNum(spriteName) {
+    const m = (spriteName || '').match(/_(\d+)_[A-Z]+$/i);
+    return m ? parseInt(m[1], 10) : 9999;
+  }
+
+  function _roadGroupMembers(group) {
+    return _data.buildings
+      .filter(b => b.buildingCategory === 'Road' && _roadGroupOf(b.spriteName) === group)
+      .sort((a, b) => _roadSpriteNum(a.spriteName) - _roadSpriteNum(b.spriteName));
+  }
+
+  function _isRoadMaster(bld) {
+    if (bld.buildingCategory !== 'Road') return false;
+    const group = _roadGroupOf(bld.spriteName);
+    if (!group) return false;
+    const members = _roadGroupMembers(group);
+    return members.length > 0 && members[0].id === bld.id;
+  }
+
+  const _ROAD_SYNC_KEYS = [
+    'textId','descIdleId','descBuildId',
+    'type','buildingCategory','biome','filter','baseCostTaps',
+    'canDestroy','destroyTransformToMode','destroyTransformTo',
+    'destroySources','moveToStorageOnDestroy','resourceAwardedOnDestroy','destroyIncome',
+    'canBuild','needRoad','availableTiles','minLevel','price','premiumPrice',
+    'additionalBuildCondition','tilesTypeMode','tilesTypeValue','radius',
+    'hexEarnsOnTap','destroyableByTap','incomeTransformToMode','incomeTransformTo',
+    'capacity','getPerTap','incomePerTurn','incomeConstant','spendConstant',
+    'buildingRadius','canProduceEnabled','canProduce','availableTilesForProduce',
+    'canProductionFacilities','facilityBonusType','facilityBonusSize',
+    'facilityBonusTarget','facilityBonusInfluenceType','facilityBonusResources',
+    'productionFacilities','canStore','stores','storageCapacity','storageUpgradeId',
+    'bonusDrop','bonusTrigger','bonuses','booster','effects','footprint',
+  ];
+
+  function _syncGroupFromMaster(master) {
+    const group = _roadGroupOf(master.spriteName);
+    if (!group) return 0;
+    const members = _roadGroupMembers(group);
+    let n = 0;
+    for (const m of members) {
+      if (m.id === master.id) continue;
+      for (const k of _ROAD_SYNC_KEYS) {
+        if (k in master) m[k] = structuredClone(master[k] ?? null);
+      }
+      n++;
+    }
+    if (n > 0) _autoSave();
+    return n;
+  }
+
   function _buildList() {
     const list  = document.getElementById('bld-list');
     const count = document.getElementById('bld-count');
@@ -8444,10 +8503,13 @@ const BldDB = (() => {
       const row   = document.createElement('div');
       row.className = 'hexdb-list-row' + (_selFilt === filtIdx ? ' selected' : '');
       row.dataset.filtIdx = filtIdx;
+      const grp    = bld.buildingCategory === 'Road' ? _roadGroupOf(bld.spriteName) : null;
+      const master = grp ? _isRoadMaster(bld) : false;
       row.innerHTML =
         `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;` +
         `background:${color};flex-shrink:0;margin-right:5px;vertical-align:middle"></span>` +
-        `<span class="hexdb-list-id">${_esc(bld.id) || '(no id)'}</span>`;
+        `<span class="hexdb-list-id">${_esc(bld.id) || '(no id)'}</span>` +
+        (grp ? `<span style="font-size:9px;margin-left:4px;flex-shrink:0;color:${master ? '#89b4fa' : '#6c7086'}" title="${master ? 'Road group master — edits sync to all variants' : 'Road variant — synced from ' + (_roadGroupMembers(grp)[0]?.id || '?')}">${master ? '★' : '↑'}</span>` : '');
       row.addEventListener('click', () => _selectIdx(filtIdx));
       list.appendChild(row);
     });
@@ -8542,6 +8604,50 @@ const BldDB = (() => {
     const canPF     = bld.canProductionFacilities ?? false;
     const bonusType = bld.facilityBonusType ?? '';
     const canSt     = bld.canStore ?? false;
+
+    // ── Road group: non-master gets minimal view ──────────────
+    const _rGroup   = bld.buildingCategory === 'Road' ? _roadGroupOf(bld.spriteName) : null;
+    const _rMaster  = _rGroup ? _isRoadMaster(bld) : false;
+    const _rMembers = _rGroup ? _roadGroupMembers(_rGroup) : [];
+    if (_rGroup && !_rMaster) {
+      const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
+      right.innerHTML = `
+        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
+          <img src="${spriteSrc}" alt="" style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0;object-fit:contain;border:1px solid var(--border);border-radius:4px" onerror="this.style.opacity='0.2'">
+          <div style="min-width:0">
+            <div style="font-size:13px;font-weight:bold;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(bld.id) || '(unnamed)'}</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${spriteSrc || '—'}</div>
+          </div>
+        </div>
+        <div class="bld-road-banner bld-road-variant">
+          ↑ <strong>Road variant</strong> · group <code>${_esc(_rGroup)}</code> · ${_rMembers.length} tiles<br>
+          <span style="font-size:11px">All settings synced from master <strong>${_esc(_rMembers[0]?.id || '?')}</strong>. Edit Id and SpriteName only.</span>
+        </div>
+        <div class="hexdb-form">
+          <div class="hexdb-section">
+            <div class="hexdb-section-hdr" style="pointer-events:none">▼ IDENTITY</div>
+            <div class="hexdb-section-body">
+              <div class="hexdb-row"><span class="hexdb-label">Id *</span>
+                <input class="hexdb-input" id="bld-f-id" type="text" value="${_esc(bld.id)}">
+              </div>
+              <div class="hexdb-row"><span class="hexdb-label">SpriteName</span>
+                <div style="flex:1;min-width:0;display:flex;gap:4px">
+                  <input class="hexdb-input" id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}" style="flex:1;min-width:0">
+                  <button type="button" onclick="BldDB.pickSprite()" style="padding:2px 7px;font-size:13px;cursor:pointer;flex-shrink:0">🖼</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>`;
+      right.querySelectorAll('input,select').forEach(el => {
+        el.addEventListener('input',  _readRecord);
+        el.addEventListener('change', _readRecord);
+      });
+      return;
+    }
+    const roadBanner = _rGroup
+      ? `<div class="bld-road-banner bld-road-master">★ Road Group Master · <code>${_esc(_rGroup)}</code> · ${_rMembers.length} variant${_rMembers.length !== 1 ? 's' : ''} — edits sync to all tiles automatically</div>`
+      : '';
 
     // ── MAIN section ─────────────────────────────────────────
     const mainHTML = `
@@ -8894,7 +9000,7 @@ const BldDB = (() => {
       (typeof HexDB !== 'undefined' ? HexDB.getAll() : [])
         .filter(h => h.id).map(h => `<option value="${_esc(h.id)}">`).join('') +
       '</datalist>';
-    right.innerHTML = visualHTML + `<div class="hexdb-form">
+    right.innerHTML = visualHTML + roadBanner + `<div class="hexdb-form">
       ${mainHTML}${footprintHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${specialHTML}${actionsHTML}
     </div>` + bldHexIdDatalist;
 
@@ -9058,6 +9164,23 @@ const BldDB = (() => {
     const nv = id => { const el = g(id); return el ? (parseInt(el.value, 10) || 0) : 0; };
     const bv = id => { const el = g(id); return el ? el.checked : false; };
 
+    // Non-master road: only id + spriteName are editable; sync rest from master
+    const _rGrp = bld.buildingCategory === 'Road' ? _roadGroupOf(bld.spriteName) : null;
+    if (_rGrp && !_isRoadMaster(bld)) {
+      bld.id         = iv('bld-f-id').trim();
+      bld.spriteName = iv('bld-f-spriteName');
+      const members = _roadGroupMembers(_rGrp);
+      if (members.length > 0 && members[0].id !== bld.id) {
+        for (const k of _ROAD_SYNC_KEYS) {
+          if (k in members[0]) bld[k] = structuredClone(members[0][k] ?? null);
+        }
+      }
+      const row = document.querySelector(`#bld-list .hexdb-list-row[data-filt-idx="${_selFilt}"]`);
+      if (row) row.querySelector('.hexdb-list-id').textContent = bld.id || '(no id)';
+      _autoSave();
+      return;
+    }
+
     // MAIN
     bld.id           = iv('bld-f-id').trim();
     bld.textId       = iv('bld-f-textId').trim();
@@ -9130,6 +9253,9 @@ const BldDB = (() => {
       idEl.style.borderColor = (!bld.id || isDupe) ? '#e57373' : '';
     }
     _autoSave();
+
+    // Auto-sync road group from master
+    if (_rGrp && _isRoadMaster(bld)) _syncGroupFromMaster(bld);
   }
 
   function add() {
@@ -10936,6 +11062,10 @@ window.addEventListener('load', async () => {
 .cm-btn-del:hover { background:#f38ba8;color:#1e1e2e; }
 .cm-btn-up { color:#a6e3a1;border-color:#a6e3a1;margin-left:auto; }
 .cm-btn-up:hover { background:#a6e3a1;color:#1e1e2e; }
+.bld-road-banner { margin:8px 0 4px;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.5;border:1px solid; }
+.bld-road-banner code { background:rgba(255,255,255,.1);padding:1px 4px;border-radius:3px;font-size:11px; }
+.bld-road-master { border-color:#89b4fa;background:rgba(137,180,250,.08);color:#89b4fa; }
+.bld-road-variant { border-color:#6c7086;background:rgba(108,112,134,.08);color:#a6adc8; }
 </style>
 
 </body>
