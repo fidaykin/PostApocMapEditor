@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "fbafcc3";
+const COMMIT  = "0dde511";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7854,6 +7854,14 @@ const HexDB = (() => {
       const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
       if (e.key === 'Delete' && !inInput && _selFilt >= 0) { e.preventDefault(); deleteSelected(); }
       if (e.ctrlKey && e.shiftKey && e.key === 'S') { e.preventDefault(); save(); }
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !inInput && _filtered.length) {
+        e.preventDefault();
+        const next = _selFilt + (e.key === 'ArrowDown' ? 1 : -1);
+        if (next >= 0 && next < _filtered.length) {
+          _selectIdx(next);
+          document.querySelector(`#hexdb-list .hexdb-list-row[data-filt-idx="${next}"]`)?.scrollIntoView({block:'nearest'});
+        }
+      }
     });
 
     _tryAutoLoadDefaultDb();
@@ -9285,9 +9293,17 @@ const BldDB = (() => {
     });
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Delete' && document.body.classList.contains('mode-buildings') &&
-          !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))
-        BldDB.deleteSelected();
+      if (!document.body.classList.contains('mode-buildings')) return;
+      const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
+      if (e.key === 'Delete' && !inInput) BldDB.deleteSelected();
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !inInput && _filtered.length) {
+        e.preventDefault();
+        const next = _selFilt + (e.key === 'ArrowDown' ? 1 : -1);
+        if (next >= 0 && next < _filtered.length) {
+          _selectIdx(next);
+          document.querySelector(`#bld-list .hexdb-list-row[data-filt-idx="${next}"]`)?.scrollIntoView({block:'nearest'});
+        }
+      }
     });
   }
 
@@ -9651,9 +9667,17 @@ const SttDB = (() => {
     });
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Delete' && document.body.classList.contains('mode-settlements') &&
-          !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))
-        SttDB.deleteSelected();
+      if (!document.body.classList.contains('mode-settlements')) return;
+      const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
+      if (e.key === 'Delete' && !inInput) SttDB.deleteSelected();
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !inInput && _filtered.length) {
+        e.preventDefault();
+        const next = _selFilt + (e.key === 'ArrowDown' ? 1 : -1);
+        if (next >= 0 && next < _filtered.length) {
+          _selectIdx(next);
+          document.querySelector(`#stt-list .hexdb-list-row[data-filt-idx="${next}"]`)?.scrollIntoView({block:'nearest'});
+        }
+      }
     });
   }
 
@@ -10285,9 +10309,17 @@ const UpgDB = (() => {
     }
 
     document.addEventListener('keydown', e => {
-      if (e.key === 'Delete' && document.body.classList.contains('mode-upgrades') &&
-          !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))
-        UpgDB.deleteSelected();
+      if (!document.body.classList.contains('mode-upgrades')) return;
+      const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
+      if (e.key === 'Delete' && !inInput) UpgDB.deleteSelected();
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !inInput && _filtered.length) {
+        e.preventDefault();
+        const next = _selFilt + (e.key === 'ArrowDown' ? 1 : -1);
+        if (next >= 0 && next < _filtered.length) {
+          _selectIdx(next);
+          document.querySelector(`#upg-list .hexdb-list-row[data-filt-idx="${next}"]`)?.scrollIntoView({block:'nearest'});
+        }
+      }
     });
   }
 
