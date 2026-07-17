@@ -617,7 +617,7 @@
     },
     {
       "id": "StoneMine_Test_1",
-      "textId": "",
+      "textId": "stonemine_test_key",
       "descIdleId": "",
       "descBuildId": "",
       "type": "Ground Building",
@@ -627,7 +627,7 @@
       "spriteName": "StoneMine",
       "baseCostTaps": 15,
       "canDestroy": true,
-      "destroyTransformToMode": "Direct",
+      "destroyTransformToMode": "Parents",
       "destroyTransformTo": "Plains_1",
       "destroySources": [],
       "moveToStorageOnDestroy": true,
@@ -663,7 +663,7 @@
       "radius": 0,
       "hexEarnsOnTap": false,
       "destroyableByTap": true,
-      "incomeTransformToMode": "Direct",
+      "incomeTransformToMode": "Parents",
       "incomeTransformTo": "Plains_1",
       "capacity": 3,
       "getPerTap": [],
@@ -692,7 +692,9 @@
       "bonusTrigger": "Destroy",
       "bonuses": [],
       "booster": "",
-      "effects": ""
+      "effects": "",
+      "footprint": [],
+      "storageUpgradeId": ""
     }
   ]
 }
