@@ -3752,23 +3752,35 @@ const GitHubSync = (() => {
   function setPAT(pat)        { localStorage.setItem(PAT_KEY, pat.trim()); }
   function isPATConfigured()  { return !!localStorage.getItem(PAT_KEY); }
 
-  // ── Core dispatch API ─────────────────────────────────────────
-  async function _dispatch(path, base64Content, message) {
-    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/dispatches`, {
-      method: 'POST',
+  // ── Core Contents API write ───────────────────────────────────
+  async function _putContents(path, base64Content, message) {
+    // GET existing file SHA (required by GitHub API when updating)
+    let sha;
+    try {
+      const getRes = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
+        headers: {
+          'Authorization': `Bearer ${getPAT()}`,
+          'Accept': 'application/vnd.github+json',
+        },
+      });
+      if (getRes.ok) sha = (await getRes.json()).sha;
+    } catch(e) { /* new file — sha stays undefined */ }
+
+    const body = { message, content: base64Content, branch: BRANCH };
+    if (sha) body.sha = sha;
+
+    const res = await fetch(`${GH_API}/${path}`, {
+      method: 'PUT',
       headers: {
         'Authorization': `Bearer ${getPAT()}`,
         'Accept': 'application/vnd.github+json',
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        event_type: 'publish-content',
-        client_payload: { path, content: base64Content, message },
-      }),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(`GitHub dispatch ${path}: ${res.status} — ${err.message || 'unknown'}`);
+      throw new Error(`GitHub PUT ${path}: ${res.status} — ${err.message || 'unknown'}`);
     }
   }
 
@@ -3795,11 +3807,11 @@ const GitHubSync = (() => {
 
   // ── High-level put helpers ────────────────────────────────────
   async function _putText(path, text, message) {
-    await _dispatch(path, _encodeText(text), message);
+    await _putContents(path, _encodeText(text), message);
   }
 
   async function _putBinary(path, blob, message) {
-    await _dispatch(path, await _encodeBlob(blob), message);
+    await _putContents(path, await _encodeBlob(blob), message);
   }
 
   // ── PAT validation ────────────────────────────────────────────
@@ -3873,11 +3885,11 @@ const GitHubSync = (() => {
 
   async function publishHexDbOnly() {
     await _withPublishBtn('Publish HexDB', async () => {
-      UI.progress(20, 'Queuing hex_database.json…');
+      UI.progress(20, 'Publishing hex_database.json…');
       const json = JSON.stringify(HexDB.getData(), null, 2);
       await _putText('hex_database.json', json, 'publish: hex_database.json');
-      UI.progressDone('⏳ HexDB queued — live in ~30s');
-      UI.toast('⏳ hex_database.json queued');
+      UI.progressDone('✅ HexDB published');
+      UI.toast('✅ hex_database.json published');
     });
   }
 
@@ -3894,26 +3906,26 @@ const GitHubSync = (() => {
         done++;
         UI.progress(Math.round((done / all.length) * 90) + 10, `${done}/${all.length} sprites…`);
       }
-      UI.progressDone(`⏳ ${all.length} sprites queued — live in ~30s`);
-      UI.toast(`⏳ ${all.length} sprites queued`);
+      UI.progressDone(`✅ ${all.length} sprites published`);
+      UI.toast(`✅ ${all.length} sprites published`);
     });
   }
 
   async function publishBuildingsDb() {
     await _withPublishBtn('Publish Buildings DB', async () => {
-      UI.progress(30, 'Uploading building_database.json…');
+      UI.progress(30, 'Publishing building_database.json…');
       await _putText('building_database.json', BldDB.getJson(), 'publish: building_database.json');
-      UI.progressDone('⏳ Buildings DB queued — live in ~30s');
-      UI.toast('⏳ building_database.json queued');
+      UI.progressDone('✅ Buildings DB published');
+      UI.toast('✅ building_database.json published');
     });
   }
 
   async function publishUpgradeDb() {
     await _withPublishBtn('Publish Upgrade DB', async () => {
-      UI.progress(30, 'Uploading upgrade_database.json…');
+      UI.progress(30, 'Publishing upgrade_database.json…');
       await _putText('upgrade_database.json', UpgDB.getJson(), 'publish: upgrade_database.json');
-      UI.progressDone('⏳ Upgrade DB queued — live in ~30s');
-      UI.toast('⏳ upgrade_database.json queued');
+      UI.progressDone('✅ Upgrade DB published');
+      UI.toast('✅ upgrade_database.json published');
     });
   }
 
@@ -3922,8 +3934,8 @@ const GitHubSync = (() => {
     try {
       UI.progress(30, 'Uploading common_settings.json…');
       await _putText('common_settings.json', CommonDB.export(), 'publish: common_settings.json');
-      UI.progressDone('⏳ Common settings queued — live in ~30s');
-      UI.toast('⏳ common_settings.json queued');
+      UI.progressDone('✅ Common settings published');
+      UI.toast('✅ common_settings.json published');
     } catch(e) {
       UI.progressDone('❌ Failed');
       console.error('[GitHubSync] publishCommonDb:', e);
@@ -3937,7 +3949,7 @@ const GitHubSync = (() => {
       UI.progress(20, 'Uploading localization.json…');
       const json = JSON.stringify(LocalizationKeys.getExportData(), null, 2);
       await _putText('localization.json', json, 'publish: localization.json');
-      UI.progressDone('⏳ localization.json queued — live in ~30s');
+      UI.progressDone('✅ localization.json published');
     } catch(e) {
       UI.progressDone('❌ Failed');
       UI.toast('❌ Publish loc failed: ' + e.message);
@@ -4012,8 +4024,8 @@ const GitHubSync = (() => {
       if (idx >= 0) list.maps[idx] = entry; else list.maps.push(entry);
 
       await _putText('maps/map_list.json', JSON.stringify(list, null, 2) + '\n', 'publish: map_list.json');
-      UI.progressDone(`⏳ Map "${fname}" queued — live in ~30s`);
-      UI.toast(`⏳ maps/${fname}.json queued`);
+      UI.progressDone(`✅ Map "${fname}" published`);
+      UI.toast(`✅ maps/${fname}.json published`);
     } catch(e) {
       UI.progressDone('❌ Failed');
       UI.toast('❌ Publish Map failed: ' + e.message);
