@@ -536,7 +536,7 @@
     },
     {
       "id": "LumberMill_Test_1",
-      "textId": "lum",
+      "textId": "lumbermill_test_key",
       "descIdleId": "",
       "descBuildId": "",
       "type": "Ground Building",
