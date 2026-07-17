@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "3bebd1d";
+const COMMIT  = "8c55c5a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4629,24 +4629,7 @@ const UI = (() => {
     scroll.appendChild(bridgeHdr);
     scroll.appendChild(bridgeItems);
 
-    const BRIDGE_LABELS = ['N↔S', 'NE↔SW', 'NW↔SE'];
-    for (let axis = 0; axis < 3; axis++) {
-      const btn = document.createElement('button');
-      btn.className = 'tile-btn';
-      btn.dataset.bridgeAxis = String(axis);
-      const img = document.createElement('img');
-      img.src = `sprites/hex/River_bridge_${axis + 1}.png`;
-      img.alt = `Bridge ${BRIDGE_LABELS[axis]}`;
-      btn.appendChild(img);
-      const tt = document.createElement('span');
-      tt.className = 'tile-tooltip';
-      tt.textContent = `Bridge ${BRIDGE_LABELS[axis]}`;
-      btn.appendChild(tt);
-      btn.addEventListener('click', () => selectBridge(axis));
-      bridgeItems.appendChild(btn);
-    }
-
-    // Road_Bridge and other bridge hex entries from HexDB
+    // Bridge hex entries from HexDB (Road_Bridge_* etc.)
     HexDB.getAll()
       .filter(h => h.id && /bridge/i.test(h.id) && !/^River_bridge_/i.test(h.id))
       .forEach(h => {
