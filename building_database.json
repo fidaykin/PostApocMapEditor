@@ -624,7 +624,7 @@
       "buildingCategory": "Standard",
       "biome": "Summer",
       "filter": "FilterBuilding",
-      "spriteName": "StoneMine",
+      "spriteName": "StoneMine_1",
       "baseCostTaps": 15,
       "canDestroy": true,
       "destroyTransformToMode": "Parents",
