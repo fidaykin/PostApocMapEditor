@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "f493bcf";
+const COMMIT  = "5d68ee5";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3881,6 +3881,112 @@ const GitHubSync = (() => {
     return await res.json(); // [{name, sha, size, download_url, ...}]
   }
 
+  async function _deleteContents(path, sha, message) {
+    const res = await fetch(`${GH_API}/${path}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${getPAT()}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ message, sha, branch: BRANCH }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`GitHub DELETE ${path}: ${res.status} — ${err.message || 'unknown'}`);
+    }
+  }
+
+  async function _getFileSha(path) {
+    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
+      headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
+    });
+    if (!res.ok) throw new Error(`Cannot get SHA for ${path}: ${res.status}`);
+    return (await res.json()).sha;
+  }
+
+  // ── Content Manager actions ───────────────────────────────────
+
+  function _cmDownload(url, filename) {
+    fetch(url + `?_=${Date.now()}`)
+      .then(r => r.blob())
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 5000);
+      })
+      .catch(e => UI.toast('❌ Download failed: ' + e.message));
+  }
+
+  async function _cmDeleteSprite(category, name, sha) {
+    if (!isPATConfigured()) return UI.toast('⚠ Configure PAT first');
+    if (!confirm(`Delete "${name}" from ${category} sprites?\nThis removes it from GitHub and local cache.`)) return;
+    try {
+      await _deleteContents(`sprites/${category}/${name}`, sha, `remove sprite: ${name}`);
+      await SpriteStore.remove(name.replace(/\.png$/i, ''));
+      UI.toast(`✅ Deleted ${name}`);
+      openContentManager();
+    } catch(e) { UI.toast('❌ ' + e.message); }
+  }
+
+  async function _cmUploadSprite(category) {
+    if (!isPATConfigured()) return UI.toast('⚠ Configure PAT first');
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = 'image/png'; input.multiple = true;
+    input.onchange = async () => {
+      const files = Array.from(input.files);
+      if (!files.length) return;
+      let ok = 0, fail = 0;
+      for (const file of files) {
+        try {
+          await _putBinary(`sprites/${category}/${file.name}`, file, `upload sprite: ${file.name}`);
+          const dataUrl = await new Promise((res, rej) => {
+            const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej;
+            r.readAsDataURL(file);
+          });
+          await SpriteStore.save(file.name.replace(/\.png$/i, ''), dataUrl, category);
+          ok++;
+        } catch(e) { fail++; console.error(e); }
+      }
+      UI.toast(fail ? `⚠ ${ok} uploaded, ${fail} failed` : `✅ ${ok} sprite(s) uploaded`);
+      openContentManager();
+    };
+    input.click();
+  }
+
+  async function _cmUploadDb(ghPath) {
+    if (!isPATConfigured()) return UI.toast('⚠ Configure PAT first');
+    const input = document.createElement('input');
+    input.type = 'file'; input.accept = '.json,application/json';
+    input.onchange = async () => {
+      const file = input.files[0]; if (!file) return;
+      try {
+        await _putText(ghPath, await file.text(), `upload: ${ghPath}`);
+        UI.toast(`✅ Uploaded ${ghPath}`);
+        openContentManager();
+      } catch(e) { UI.toast('❌ ' + e.message); }
+    };
+    input.click();
+  }
+
+  async function _cmDeleteMap(fileName, mapName) {
+    if (!isPATConfigured()) return UI.toast('⚠ Configure PAT first');
+    if (!confirm(`Delete map "${mapName}"?\nThis removes it from GitHub permanently.`)) return;
+    try {
+      const sha = await _getFileSha(`maps/${fileName}`);
+      await _deleteContents(`maps/${fileName}`, sha, `remove map: ${fileName}`);
+      const listRes = await fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`);
+      const list = listRes.ok ? await listRes.json() : { maps: [] };
+      list.maps = (list.maps || []).filter(m => m.fileName !== fileName);
+      await _putText('maps/map_list.json', JSON.stringify(list, null, 2) + '\n', 'remove from map_list');
+      UI.toast(`✅ Deleted map "${mapName}"`);
+      openContentManager();
+    } catch(e) { UI.toast('❌ ' + e.message); }
+  }
+
   // ── Encode helpers ────────────────────────────────────────────
   function _encodeText(text) {
     return btoa(unescape(encodeURIComponent(text)));
@@ -4265,38 +4371,60 @@ const GitHubSync = (() => {
       }));
 
       const totalSize = [...hexFiles, ...bldFiles].reduce((s, f) => s + (f.size || 0), 0);
+      const authed = isPATConfigured();
+      const e = _escHtml;
+      const sq = s => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+
+      const spriteCard = (f, cat) => {
+        const nameNoExt = f.name.replace(/\.png$/i, '');
+        return `<div class="cm-file" title="${e(f.name)}\n${_fmtSize(f.size)}">
+          <img src="${e(f.download_url)}" class="cm-thumb" onerror="this.style.display='none'">
+          <div class="cm-fname">${e(nameNoExt)}</div>
+          <div class="cm-fsize">${_fmtSize(f.size)}</div>
+          <div class="cm-file-actions">
+            <button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(f.download_url)}','${sq(f.name)}')" title="Download">↓</button>
+            ${authed ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteSprite('${sq(cat)}','${sq(f.name)}','${sq(f.sha)}')" title="Delete">✕</button>` : ''}
+          </div>
+        </div>`;
+      };
 
       _renderCM(`
         <div class="cm-section">
-          <div class="cm-section-title">🖼 Sprites / hex <span class="cm-badge">${hexFiles.length}</span></div>
-          <div class="cm-file-grid">${hexFiles.map(f =>
-            `<div class="cm-file" title="${_escHtml(f.name)}\n${_fmtSize(f.size)}">
-              <img src="${_escHtml(f.download_url)}" class="cm-thumb" onerror="this.style.display='none'">
-              <div class="cm-fname">${_escHtml(f.name.replace(/\.png$/i,''))}</div>
-              <div class="cm-fsize">${_fmtSize(f.size)}</div>
-            </div>`).join('')}
+          <div class="cm-section-title">🖼 Sprites / hex <span class="cm-badge">${hexFiles.length}</span>
+            ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('hex')">+ Upload</button>` : ''}
           </div>
+          <div class="cm-file-grid">${hexFiles.map(f => spriteCard(f, 'hex')).join('')}</div>
         </div>
         <div class="cm-section">
-          <div class="cm-section-title">🏗 Sprites / buildings <span class="cm-badge">${bldFiles.length}</span></div>
-          <div class="cm-file-grid">${bldFiles.map(f =>
-            `<div class="cm-file" title="${_escHtml(f.name)}\n${_fmtSize(f.size)}">
-              <img src="${_escHtml(f.download_url)}" class="cm-thumb" onerror="this.style.display='none'">
-              <div class="cm-fname">${_escHtml(f.name.replace(/\.png$/i,''))}</div>
-              <div class="cm-fsize">${_fmtSize(f.size)}</div>
-            </div>`).join('')}
+          <div class="cm-section-title">🏗 Sprites / buildings <span class="cm-badge">${bldFiles.length}</span>
+            ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('buildings')">+ Upload</button>` : ''}
           </div>
+          <div class="cm-file-grid">${bldFiles.map(f => spriteCard(f, 'buildings')).join('')}</div>
         </div>
         <div class="cm-section">
           <div class="cm-section-title">🗺 Maps <span class="cm-badge">${(mapList.maps||[]).length}</span></div>
           <div class="cm-list">${(mapList.maps||[]).map(m =>
-            `<div class="cm-row"><span class="cm-row-name">${_escHtml(m.name)}</span><span class="cm-row-meta">${_escHtml(m.fileName)} · ${_fmtSize(parseInt(m.size||0))} · ${_escHtml(m.uploadedTime||'')}</span></div>`
+            `<div class="cm-row">
+              <span class="cm-row-name">${e(m.name)}</span>
+              <span class="cm-row-meta">${e(m.fileName)} · ${_fmtSize(parseInt(m.size||0))} · ${e(m.uploadedTime||'')}</span>
+              <div class="cm-row-actions">
+                <button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(BASE_URL)}/maps/${sq(m.fileName)}','${sq(m.fileName)}')" title="Download">↓</button>
+                ${authed ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteMap('${sq(m.fileName)}','${sq(m.name)}')" title="Delete">✕</button>` : ''}
+              </div>
+            </div>`
           ).join('') || '<div class="gh-maps-empty">No maps</div>'}</div>
         </div>
         <div class="cm-section">
           <div class="cm-section-title">🗄 DB files</div>
           <div class="cm-list">${dbResults.map(d =>
-            `<div class="cm-row"><span class="cm-row-name">${d.ok ? '✅' : '❌'} ${_escHtml(d.name)}</span><span class="cm-row-meta">${d.ok ? _fmtSize(d.size) : 'missing'}</span></div>`
+            `<div class="cm-row">
+              <span class="cm-row-name">${d.ok ? '✅' : '❌'} ${e(d.name)}</span>
+              <span class="cm-row-meta">${d.ok ? _fmtSize(d.size) : 'missing'}</span>
+              <div class="cm-row-actions">
+                ${d.ok ? `<button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(BASE_URL)}/${sq(d.name)}','${sq(d.name)}')" title="Download">↓</button>` : ''}
+                ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadDb('${sq(d.name)}')" title="Upload">↑ Upload</button>` : ''}
+              </div>
+            </div>`
           ).join('')}</div>
         </div>
         <div style="color:#6c7086;font-size:11px;padding:4px 0">Total sprites: ${_fmtSize(totalSize)}</div>
@@ -4318,6 +4446,7 @@ const GitHubSync = (() => {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
     _putText, _putBinary, _listFolder, BASE_URL,
+    _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
     togglePublishDropdown, publishHexDbOnly, publishAllSprites, cleanGhostSprites,
@@ -10750,7 +10879,15 @@ window.addEventListener('load', async () => {
 .cm-list { display:flex;flex-direction:column;gap:2px; }
 .cm-row { display:flex;align-items:center;justify-content:space-between;padding:4px 8px;background:#181825;border-radius:4px;font-size:12px; }
 .cm-row-name { color:#cdd6f4; }
-.cm-row-meta { color:#6c7086;font-size:11px; }
+.cm-row-meta { color:#6c7086;font-size:11px;flex:1;margin:0 8px; }
+.cm-row-actions { display:flex;gap:4px;flex-shrink:0; }
+.cm-file-actions { display:flex;gap:3px;justify-content:center;margin-top:2px; }
+.cm-btn { background:#313244;color:#cdd6f4;border:1px solid #45475a;border-radius:4px;padding:2px 6px;font-size:10px;cursor:pointer;line-height:1.4; }
+.cm-btn:hover { background:#45475a; }
+.cm-btn-del { color:#f38ba8;border-color:#f38ba8; }
+.cm-btn-del:hover { background:#f38ba8;color:#1e1e2e; }
+.cm-btn-up { color:#a6e3a1;border-color:#a6e3a1;margin-left:auto; }
+.cm-btn-up:hover { background:#a6e3a1;color:#1e1e2e; }
 </style>
 
 </body>
