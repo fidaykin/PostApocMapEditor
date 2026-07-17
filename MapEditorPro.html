@@ -1248,6 +1248,9 @@ body.mode-common #map-io    { display: none; }
              style="width:42px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center;vertical-align:middle"
              oninput="Canvas.render()">
       <button class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')">🗺️<span class="tooltip">Zone Painter (Z)</span></button>
+      <button class="tool-btn" data-tool="object" onclick="Tools.setActive('object')">🏗<span class="tooltip">Place Building (B)</span></button>
+      <select id="obj-building-select" style="display:none;background:#1a1a2e;border:1px solid #4fc3f7;color:#e0e0e0;font-size:11px;padding:2px 4px;border-radius:3px;vertical-align:middle;max-width:130px"></select>
+      <button class="tool-btn" data-tool="erase-object" onclick="Tools.setActive('erase-object')">🗑<span class="tooltip">Erase Building (X)</span></button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize & Fill</button>
       <input id="rnd-zone-scale" type="range" min="0.01" max="0.12" step="0.005" value="0.04"
              title="Patch size — left=large, right=small"
@@ -2118,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "beffd85";
+const COMMIT  = "f493bcf";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2421,6 +2424,15 @@ const Canvas = (() => {
       _drawBridgeOverlay(pos.x, pos.y, radius, b.axis);
     });
 
+    // Pre-placed object overlays
+    Object.entries(objectsData).forEach(([key, bldId]) => {
+      const [col, row] = key.split(',').map(Number);
+      const pos = hexScreenPos(col, row);
+      if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
+          pos.y + radius < 0 || pos.y - radius > canvas.height) return;
+      _drawObjectOverlay(pos.x, pos.y, radius, bldId);
+    });
+
     // Rect preview overlay drawn by Tools if needed
     if (_toolsRectPreview) {
       _drawRectPreview(_toolsRectPreview, radius);
@@ -2495,6 +2507,26 @@ const Canvas = (() => {
       ctx.fillStyle = 'rgba(160, 110, 60, 0.75)';
       ctx.fill();
     }
+    ctx.restore();
+  }
+
+  function _drawObjectOverlay(cx, cy, radius, id) {
+    const spr = Terrain.getSprite(id);
+    ctx.save();
+    hexClipPath(cx, cy, radius);
+    ctx.clip();
+    if (spr && spr.complete && spr.naturalWidth > 0) {
+      ctx.globalAlpha = 0.82;
+      ctx.drawImage(spr, cx - radius, cy - radius, radius * 2, radius * 2);
+      ctx.globalAlpha = 1;
+    } else {
+      ctx.fillStyle = 'rgba(245, 197, 24, 0.3)';
+      ctx.fill();
+    }
+    hexClipPath(cx, cy, radius);
+    ctx.strokeStyle = '#f5c518';
+    ctx.lineWidth = Math.max(2, radius * 0.1);
+    ctx.stroke();
     ctx.restore();
   }
 
@@ -3350,12 +3382,13 @@ const Tools = (() => {
   let _isDown          = false;
   let _rectStart       = null;    // { col, row } when rect tool held
   let _lastPainted     = null;    // avoid re-painting same tile on mousemove
-  let _lastZonePainted = null;    // avoid re-painting same tile on mousemove (zone tool)
+  let _lastZonePainted   = null;    // avoid re-painting same tile on mousemove (zone tool)
+  let _lastObjectPainted = null;    // avoid re-placing same tile on mousemove (object tool)
 
   const TOOL_NAMES = {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
     eye: 'Eyedropper', settlement: 'Place Settlement', erase: 'Erase Settlement',
-    zone: 'Zone Painter'
+    zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object'
   };
 
   function setActive(name) {
@@ -3370,6 +3403,19 @@ const Tools = (() => {
     if ((name === 'settlement' || name === 'erase') && !settlementsVisible) {
       settlementsVisible = true;
       Canvas.render();
+    }
+    // Object tool: populate and show building selector
+    const sel = document.getElementById('obj-building-select');
+    if (sel) {
+      if (name === 'object') {
+        sel.innerHTML = BldDB.getAll()
+          .filter(b => b.id)
+          .map(b => `<option value="${b.id}">${b.id}</option>`)
+          .join('');
+        sel.style.display = 'inline-block';
+      } else {
+        sel.style.display = 'none';
+      }
     }
   }
 
@@ -3466,6 +3512,25 @@ const Tools = (() => {
     Canvas.render();
   }
 
+  // ── Objects (pre-placed buildings) ────────────────────────
+  function _placeObject(col, row) {
+    const bldId = document.getElementById('obj-building-select')?.value;
+    if (!bldId) return;
+    const key = col + ',' + row;
+    if (objectsData[key] === bldId) return;
+    objectsData[key] = bldId;
+    IO.scheduleAutoSave();
+    Canvas.render();
+  }
+
+  function _eraseObject(col, row) {
+    const key = col + ',' + row;
+    if (!objectsData[key]) return;
+    delete objectsData[key];
+    IO.scheduleAutoSave();
+    Canvas.render();
+  }
+
   // ── Settlements ────────────────────────────────────────────
   function _placeSettlement(col, row) {
     if (settlements.some(s => s.col === col && s.row === row)) return;
@@ -3530,6 +3595,15 @@ const Tools = (() => {
         _paintZone(col, row);
         _lastZonePainted = { col, row };
         break;
+      case 'object':
+        History.push();
+        _placeObject(col, row);
+        _lastObjectPainted = { col, row };
+        break;
+      case 'erase-object':
+        _eraseObject(col, row);
+        _lastObjectPainted = { col, row };
+        break;
     }
   }
 
@@ -3555,6 +3629,16 @@ const Tools = (() => {
         _paintZone(col, row);
         _lastZonePainted = { col, row };
         break;
+      case 'object':
+        if (_lastObjectPainted && _lastObjectPainted.col === col && _lastObjectPainted.row === row) break;
+        _placeObject(col, row);
+        _lastObjectPainted = { col, row };
+        break;
+      case 'erase-object':
+        if (_lastObjectPainted && _lastObjectPainted.col === col && _lastObjectPainted.row === row) break;
+        _eraseObject(col, row);
+        _lastObjectPainted = { col, row };
+        break;
     }
   }
 
@@ -3573,8 +3657,9 @@ const Tools = (() => {
       _toolsRectPreview = null;
       Canvas.render();
     }
-    _lastPainted     = null;
-    _lastZonePainted = null;
+    _lastPainted       = null;
+    _lastZonePainted   = null;
+    _lastObjectPainted = null;
   }
 
   function init() {
@@ -3591,6 +3676,8 @@ const Tools = (() => {
         case 's': setActive('settlement');   break;
         case 'd': setActive('erase');        break;
         case 'z': setActive('zone');         break;
+        case 'b': setActive('object');       break;
+        case 'x': setActive('erase-object'); break;
       }
     });
   }
@@ -3615,6 +3702,7 @@ const History = (() => {
       p2:          [...settlementPriority2],
       zoneLayer:   zl ? zl.slice() : null,
       bridges:     bridgesData.map(b => Object.assign({}, b)),
+      objects:     Object.assign({}, objectsData),
     };
   }
 
@@ -3629,6 +3717,7 @@ const History = (() => {
       if (zl && zl.length === snap.zoneLayer.length) zl.set(snap.zoneLayer);
     }
     if (snap.bridges) bridgesData = snap.bridges.map(b => Object.assign({}, b));
+    objectsData = snap.objects ? Object.assign({}, snap.objects) : {};
     UI.updateSettlementCount();
     if (UI.rebuildSlotPanel) UI.rebuildSlotPanel();
   }
@@ -5094,6 +5183,12 @@ const IO = (() => {
     };
     if (bridgesData.length > 0)
       result.bridges = bridgesData.map(b => ({ col: b.col, row: b.row, axis: b.axis }));
+    const objEntries = Object.entries(objectsData);
+    if (objEntries.length > 0)
+      result.objects = objEntries.map(([key, id]) => {
+        const [col, row] = key.split(',').map(Number);
+        return { col, row, id };
+      });
     if (settlementSlots.length > 0)
       result.settlement_slots = settlementSlots.map(s => ({
         minDist:       s.minDist,
@@ -5156,6 +5251,9 @@ const IO = (() => {
       bridgesData = Array.isArray(json.bridges)
         ? json.bridges.filter(b => typeof b.col === 'number' && typeof b.row === 'number' && typeof b.axis === 'number')
         : [];
+      objectsData = {};
+      if (Array.isArray(json.objects))
+        json.objects.forEach(o => { if (o.id) objectsData[o.col + ',' + o.row] = o.id; });
       // Detect old integer format: data[0][0] is a number → migrate to hex ID strings
       const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -5221,6 +5319,7 @@ const IO = (() => {
       MAP_HEIGHT = 450;
       mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
       bridgesData = [];
+      objectsData = {};
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = [];
       settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
@@ -5308,6 +5407,9 @@ const IO = (() => {
       bridgesData = Array.isArray(json.bridges)
         ? json.bridges.filter(b => typeof b.col === 'number' && typeof b.row === 'number' && typeof b.axis === 'number')
         : [];
+      objectsData = {};
+      if (Array.isArray(json.objects))
+        json.objects.forEach(o => { if (o.id) objectsData[o.col + ',' + o.row] = o.id; });
       // Detect old integer format and migrate to hex ID strings
       const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -10123,6 +10225,7 @@ let MAP_WIDTH  = 450;
 let MAP_HEIGHT = 450;
 let mapData    = null;  // string[] hex IDs (filled by IO.newMap / load)
 let bridgesData = [];   // [{col, row, axis}] — pre-placed bridges
+let objectsData = {};   // {"col,row": buildingId} — pre-placed building objects
 
 // Satellite→anchor lookup: maps "col_row" → {col, row} of the owning anchor tile.
 // Rebuilt lazily whenever mapData changes. Satellite tiles are the 6 neighbours that
