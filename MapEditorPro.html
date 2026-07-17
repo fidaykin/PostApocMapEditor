@@ -1885,6 +1885,24 @@ body.mode-common #map-io    { display: none; }
   </div>
 </div>
 
+<!-- Bridge tile under-terrain picker -->
+<div class="modal-overlay" id="bridge-terrain-modal">
+  <div class="modal-box" style="max-width:340px">
+    <h3 style="margin:0 0 8px">Bridge tile under-terrain</h3>
+    <p id="bridge-terrain-tile-label" style="font-size:11px;color:var(--muted);margin:0 0 10px"></p>
+    <div style="display:flex;gap:6px;align-items:center">
+      <input id="bridge-terrain-input" class="hexdb-input" type="text" list="hexdb-id-list"
+        placeholder="e.g. Water_1" style="flex:1">
+      <button class="btn" onclick="IO.clearBridgeTileUnder()" title="Reset to entry default" style="padding:4px 8px;font-size:12px">✕</button>
+    </div>
+    <small style="color:var(--muted);font-size:10px;margin-top:4px;display:block">Leave blank to use the entry-level default</small>
+    <div class="modal-actions" style="margin-top:12px">
+      <button class="btn btn-cancel" onclick="IO.closeBridgeTerrainModal()">Cancel</button>
+      <button class="btn" onclick="IO.applyBridgeTileUnder()">Apply</button>
+    </div>
+  </div>
+</div>
+
 <!-- Sprite picker modal -->
 <div class="modal-overlay" id="sprite-picker-modal">
   <div class="modal-box sprite-picker-box">
@@ -2121,7 +2139,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "fe85baf";
+const COMMIT  = "1633ae2";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2382,7 +2400,7 @@ const Canvas = (() => {
         if (s.x + padding < 0 || s.x - padding > canvas.width  ||
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
         const _hid = mapData[row * MAP_WIDTH + col];
-        _drawHexTile(s.x, s.y, radius, _hid);
+        _drawHexTile(s.x, s.y, radius, _hid, col, row);
         const _he = Terrain.byHexId(_hid);
         if (Array.isArray(_he?.occupiedOffsets) && _he.occupiedOffsets.length > 0)
           _anchorPass.push({ cx: s.x, cy: s.y, col, row, entry: _he });
@@ -2531,10 +2549,10 @@ const Canvas = (() => {
     ctx.restore();
   }
 
-  function _drawHexTile(cx, cy, radius, hexId) {
+  function _drawHexTile(cx, cy, radius, hexId, col, row) {
     const hexEntry = Terrain.byHexId(hexId);
     const sprite   = Terrain.getSprite(hexId);
-    // Bridge tiles (Road_Bridge_*) are transparent PNGs — render water terrain underneath.
+    // Bridge tiles (Road_Bridge_*) are transparent PNGs — render terrain underneath.
     const isBridge = /bridge/i.test(hexId || '') && !/^River_bridge_/i.test(hexId || '');
     ctx.save();
     hexClipPath(cx, cy, radius);
@@ -2544,10 +2562,13 @@ const Canvas = (() => {
     // the second render pass. Using the cluster's own flat color (Terrain.color) made the
     // 7-hex footprint visually distinct; a real terrain sprite matches surrounding tiles.
     if (isBridge) {
-      // Look up underTerrainId from HexDB or BldDB (set in the bridge entry's form)
-      const bridgeEntry = hexEntry
-        || (typeof BldDB !== 'undefined' ? BldDB.getAll().find(b => b.id && b.id.toLowerCase() === (hexId || '').toLowerCase()) : null);
-      const underId = bridgeEntry?.underTerrainId;
+      // Per-tile override wins; fall back to entry-level default; then default water
+      const tileKey = (col != null && row != null) ? (col + ',' + row) : null;
+      const perTileId = tileKey ? tileExtras[tileKey]?.underTerrainId : null;
+      const bridgeEntry = !perTileId
+        ? (hexEntry || (typeof BldDB !== 'undefined' ? BldDB.getAll().find(b => b.id && b.id.toLowerCase() === (hexId || '').toLowerCase()) : null))
+        : null;
+      const underId = perTileId || bridgeEntry?.underTerrainId;
       const baseSprite = underId
         ? (Terrain.getSprite(underId) || Terrain.getTerrainSpriteForType('Water'))
         : Terrain.getTerrainSpriteForType('Water');
@@ -2953,14 +2974,18 @@ const Canvas = (() => {
     if (isPanning && e.button === 2) {
       const moved = Math.hypot(e.clientX - panStartX, e.clientY - panStartY);
       if (moved < 5) {
-        // Right-click without move → eyedropper (picks custom terrain too)
+        // Right-click without move → bridge tiles open under-terrain picker; others eyedropper
         const rect = canvas.getBoundingClientRect();
         let { col, row } = screenToHex(e.clientX - rect.left, e.clientY - rect.top);
         if (col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT) {
-          // If this is a satellite, pick the anchor's terrain ID instead
           const anc = getSatelliteAnchor(col, row);
           if (anc) { col = anc.col; row = anc.row; }
-          UI.selectTerrain(mapData[row * MAP_WIDTH + col]);
+          const hexId = mapData[row * MAP_WIDTH + col] || '';
+          if (/bridge/i.test(hexId) && !/^River_bridge_/i.test(hexId)) {
+            IO.openBridgeTerrainModal(col, row);
+          } else {
+            UI.selectTerrain(hexId);
+          }
         }
       }
     }
@@ -3722,6 +3747,7 @@ const History = (() => {
       zoneLayer:   zl ? zl.slice() : null,
       bridges:     bridgesData.map(b => Object.assign({}, b)),
       objects:     Object.assign({}, objectsData),
+      tileExtras:  JSON.parse(JSON.stringify(tileExtras)),
     };
   }
 
@@ -3737,6 +3763,7 @@ const History = (() => {
     }
     if (snap.bridges) bridgesData = snap.bridges.map(b => Object.assign({}, b));
     objectsData = snap.objects ? Object.assign({}, snap.objects) : {};
+    tileExtras  = snap.tileExtras ? JSON.parse(JSON.stringify(snap.tileExtras)) : {};
     UI.updateSettlementCount();
     if (UI.rebuildSlotPanel) UI.rebuildSlotPanel();
   }
@@ -5356,6 +5383,12 @@ const IO = (() => {
         const [col, row] = key.split(',').map(Number);
         return { col, row, id };
       });
+    const extEntries = Object.entries(tileExtras).filter(([, v]) => v && Object.keys(v).length > 0);
+    if (extEntries.length > 0)
+      result.tileExtras = extEntries.map(([key, v]) => {
+        const [col, row] = key.split(',').map(Number);
+        return { col, row, ...v };
+      });
     if (settlementSlots.length > 0)
       result.settlement_slots = settlementSlots.map(s => ({
         minDist:       s.minDist,
@@ -5421,6 +5454,9 @@ const IO = (() => {
       objectsData = {};
       if (Array.isArray(json.objects))
         json.objects.forEach(o => { if (o.id) objectsData[o.col + ',' + o.row] = o.id; });
+      tileExtras = {};
+      if (Array.isArray(json.tileExtras))
+        json.tileExtras.forEach(e => { const { col, row, ...rest } = e; tileExtras[col + ',' + row] = rest; });
       // Detect old integer format: data[0][0] is a number → migrate to hex ID strings
       const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -5487,6 +5523,7 @@ const IO = (() => {
       mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
       bridgesData = [];
       objectsData = {};
+      tileExtras  = {};
       settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
       settlementSlots = [];
       settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
@@ -5534,6 +5571,8 @@ const IO = (() => {
     MAP_HEIGHT = h;
     mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
     bridgesData = [];
+    objectsData = {};
+    tileExtras  = {};
     settlements = [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
     settlementSlots = [];
     settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
@@ -5577,6 +5616,9 @@ const IO = (() => {
       objectsData = {};
       if (Array.isArray(json.objects))
         json.objects.forEach(o => { if (o.id) objectsData[o.col + ',' + o.row] = o.id; });
+      tileExtras = {};
+      if (Array.isArray(json.tileExtras))
+        json.tileExtras.forEach(e => { const { col, row, ...rest } = e; tileExtras[col + ',' + row] = rest; });
       // Detect old integer format and migrate to hex ID strings
       const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -5749,11 +5791,48 @@ const IO = (() => {
 
   function getMapJson() { return mapData ? _buildJson() : null; }
 
+  // ── Per-tile bridge under-terrain modal ──────────────────────
+  let _bridgeTerrainCol = -1, _bridgeTerrainRow = -1;
+
+  function openBridgeTerrainModal(col, row) {
+    _bridgeTerrainCol = col;
+    _bridgeTerrainRow = row;
+    const hexId = mapData[row * MAP_WIDTH + col] || '';
+    const current = (tileExtras[col + ',' + row] || {}).underTerrainId || '';
+    document.getElementById('bridge-terrain-tile-label').textContent = `Tile (${col}, ${row}) — ${hexId}`;
+    document.getElementById('bridge-terrain-input').value = current;
+    document.getElementById('bridge-terrain-modal').classList.add('open');
+    setTimeout(() => document.getElementById('bridge-terrain-input').focus(), 50);
+  }
+
+  function closeBridgeTerrainModal() {
+    document.getElementById('bridge-terrain-modal').classList.remove('open');
+  }
+
+  function applyBridgeTileUnder() {
+    if (_bridgeTerrainCol < 0) return;
+    const val = document.getElementById('bridge-terrain-input').value.trim();
+    const key = _bridgeTerrainCol + ',' + _bridgeTerrainRow;
+    if (val) {
+      tileExtras[key] = Object.assign(tileExtras[key] || {}, { underTerrainId: val });
+    } else {
+      if (tileExtras[key]) delete tileExtras[key].underTerrainId;
+    }
+    closeBridgeTerrainModal();
+    Canvas.render();
+    _autoSave();
+  }
+
+  function clearBridgeTileUnder() {
+    document.getElementById('bridge-terrain-input').value = '';
+  }
+
   return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
            autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave,
            setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson,
-           loadFromJSON: _loadFromJSON, setFileName: _setFileName };
+           loadFromJSON: _loadFromJSON, setFileName: _setFileName,
+           openBridgeTerrainModal, closeBridgeTerrainModal, applyBridgeTileUnder, clearBridgeTileUnder };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -10570,6 +10649,7 @@ let MAP_HEIGHT = 450;
 let mapData    = null;  // string[] hex IDs (filled by IO.newMap / load)
 let bridgesData = [];   // [{col, row, axis}] — pre-placed bridges
 let objectsData = {};   // {"col,row": buildingId} — pre-placed building objects
+let tileExtras  = {};   // {"col,row": {underTerrainId}} — per-tile overrides for bridge under-terrain etc.
 
 // Satellite→anchor lookup: maps "col_row" → {col, row} of the owning anchor tile.
 // Rebuilt lazily whenever mapData changes. Satellite tiles are the 6 neighbours that
