@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "5eb8e2d";
+const COMMIT  = "b6b102d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2534,6 +2534,8 @@ const Canvas = (() => {
   function _drawHexTile(cx, cy, radius, hexId) {
     const hexEntry = Terrain.byHexId(hexId);
     const sprite   = Terrain.getSprite(hexId);
+    // Bridge tiles (Road_Bridge_*) are transparent PNGs — render water terrain underneath.
+    const isBridge = /bridge/i.test(hexId || '') && !/^River_bridge_/i.test(hexId || '');
     ctx.save();
     hexClipPath(cx, cy, radius);
     ctx.clip();   // always clip to hex first — ensures bg fill and object sprite stay inside
@@ -2541,7 +2543,18 @@ const Canvas = (() => {
     // with surrounding hexes. The cluster sprite is drawn unclipped at full 7-tile scale in
     // the second render pass. Using the cluster's own flat color (Terrain.color) made the
     // 7-hex footprint visually distinct; a real terrain sprite matches surrounding tiles.
-    if (Array.isArray(hexEntry?.occupiedOffsets) && hexEntry.occupiedOffsets.length > 0) {
+    if (isBridge) {
+      // Draw water base, then bridge sprite on top
+      const waterSprite = Terrain.getTerrainSpriteForType('Water');
+      if (waterSprite && waterSprite.complete && waterSprite.naturalWidth > 0) {
+        ctx.drawImage(waterSprite, cx - radius, cy - radius, radius * 2, radius * 2);
+      } else {
+        ctx.fillStyle = '#2a6fad';
+        ctx.fill();
+      }
+      if (sprite && sprite.complete && sprite.naturalWidth > 0)
+        ctx.drawImage(sprite, cx - radius, cy - radius, radius * 2, radius * 2);
+    } else if (Array.isArray(hexEntry?.occupiedOffsets) && hexEntry.occupiedOffsets.length > 0) {
       const terrainSprite = Terrain.getTerrainSpriteForType(hexEntry.type)
                          || Terrain.getSprite('Plain_1')
                          || Terrain.getSprite('Plain_2');
