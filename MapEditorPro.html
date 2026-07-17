@@ -1202,6 +1202,7 @@ body.mode-common #map-io    { display: none; }
       <div class="pub-drop" id="pub-drop">
         <button onclick="GitHubSync.publishHexDbOnly()">☁ Publish HexDB</button>
         <button onclick="GitHubSync.publishAllSprites()">☁ Publish Sprites</button>
+        <button onclick="GitHubSync.cleanGhostSprites()">🧹 Clean Ghost Sprites</button>
         <button onclick="GitHubSync.publishBuildingsDb()">☁ Publish Buildings DB</button>
         <button onclick="GitHubSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
         <div class="pub-drop-sep"></div>
@@ -3911,6 +3912,34 @@ const GitHubSync = (() => {
     });
   }
 
+  async function cleanGhostSprites() {
+    await _withPublishBtn('Clean Ghost Sprites', async () => {
+      UI.progress(10, 'Fetching GitHub sprite lists…');
+      const [hexFiles, bldFiles] = await Promise.all([
+        listSpriteFiles('hex'),
+        listSpriteFiles('buildings'),
+      ]);
+      const onGitHub = new Set([
+        ...hexFiles.map(f => `hex/${f.name}`),
+        ...bldFiles.map(f => `buildings/${f.name}`),
+      ]);
+
+      UI.progress(50, 'Scanning local cache…');
+      const local = await SpriteStore.loadAll();
+      const ghosts = local.filter(e => !onGitHub.has(`${e.category || 'hex'}/${e.name}`));
+
+      if (!ghosts.length) {
+        UI.progressDone('✅ No ghost sprites found');
+        UI.toast('✅ Local cache is clean');
+        return;
+      }
+
+      for (const g of ghosts) await SpriteStore.remove(g.name);
+      UI.progressDone(`✅ Removed ${ghosts.length} ghost sprites`);
+      UI.toast(`✅ Removed ${ghosts.length}: ${ghosts.map(g => g.name).join(', ')}`);
+    });
+  }
+
   async function publishBuildingsDb() {
     await _withPublishBtn('Publish Buildings DB', async () => {
       UI.progress(30, 'Publishing building_database.json…');
@@ -4202,7 +4231,7 @@ const GitHubSync = (() => {
     _putText, _putBinary, _listFolder, BASE_URL,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
-    togglePublishDropdown, publishHexDbOnly, publishAllSprites,
+    togglePublishDropdown, publishHexDbOnly, publishAllSprites, cleanGhostSprites,
     publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
     loadHexDbIntoEditor, loadLocFromServer, loadBuildingDbFromServer, loadUpgradeDbFromServer,
