@@ -829,7 +829,8 @@
       "bonusTrigger": "Destroy",
       "bonuses": [],
       "booster": "",
-      "effects": ""
+      "effects": "",
+      "footprint": []
     },
     {
       "id": "Road_Bridge_NS_1",
@@ -890,7 +891,8 @@
       "bonusTrigger": "Destroy",
       "bonuses": [],
       "booster": "",
-      "effects": ""
+      "effects": "",
+      "footprint": []
     },
     {
       "id": "Road_Bridge_SENW_1",
@@ -932,6 +934,73 @@
       "capacity": 3,
       "getPerTap": [],
       "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": []
+    },
+    {
+      "id": "Grain_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Summer",
+      "filter": "FilterBuilding",
+      "spriteName": "FarmGrain",
+      "baseCostTaps": 5,
+      "canDestroy": true,
+      "destroyTransformToMode": "Direct",
+      "destroyTransformTo": "Plain_1",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": true,
+      "destroyIncome": [
+        {
+          "type": "Food",
+          "amount": 5
+        }
+      ],
+      "canBuild": false,
+      "needRoad": false,
+      "availableTiles": [],
+      "minLevel": 0,
+      "price": [],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Direct",
+      "incomeTransformTo": "Plains_1",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Food",
+          "amount": 5
+        }
+      ],
       "incomeConstant": [],
       "spendConstant": [],
       "buildingRadius": 0,
