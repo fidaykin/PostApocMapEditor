@@ -7815,7 +7815,7 @@ const HexDB = (() => {
 
     UI.showConfirm('Migrate to Buildings DB',
       `Move "${label}" from HexDB → BldDB and remove from HexDB?`,
-      () => {
+      async () => {
         // Derive category from hex id
         const lid = (hex.id || '').toLowerCase();
         let buildingCategory = 'Standard';
@@ -7888,22 +7888,52 @@ const HexDB = (() => {
           effects: hex.effects || '',
         };
 
-        // Push to BldDB and select it
-        BldDB.pushRecord(newBld);
+        // Resolve sprite: SpriteStore (hex) first, then GitHub public hex folder as fallback.
+        // Register locally before pushRecord so BldDB image displays immediately.
+        if (newBld.spriteName && GitHubSync.isPATConfigured()) {
+          try {
+            let spriteBlob = null;
+            let spriteDataUrl = null;
+
+            const all = await SpriteStore.loadAll();
+            const entry = all.find(e => e.name === newBld.spriteName && (e.category || 'hex') === 'hex');
+            if (entry?.dataUrl) {
+              spriteDataUrl = entry.dataUrl;
+              const res = await fetch(entry.dataUrl);
+              spriteBlob = await res.blob();
+            } else {
+              // Fallback: fetch directly from GitHub Pages hex folder
+              const hexUrl = `${GitHubSync.BASE_URL}/sprites/hex/${newBld.spriteName}.png`;
+              const res = await fetch(hexUrl);
+              if (res.ok) {
+                spriteBlob = await res.blob();
+                spriteDataUrl = await new Promise(resolve => {
+                  const reader = new FileReader();
+                  reader.onload = e => resolve(e.target.result);
+                  reader.readAsDataURL(spriteBlob);
+                });
+              }
+            }
+
+            if (spriteBlob && spriteDataUrl) {
+              // Register in local cache so BldDB image src resolves without waiting for GitHub
+              Terrain.registerUploadedUrls({ [newBld.spriteName]: spriteDataUrl });
+              await SpriteStore.save(newBld.spriteName, spriteDataUrl, 'buildings');
+              // Push to GitHub buildings folder (fire-and-forget)
+              GitHubSync.pushSprite(newBld.spriteName, spriteBlob, 'buildings')
+                .catch(e => console.warn('[migrate] pushSprite buildings failed:', e.message));
+            } else {
+              console.warn('[migrate] sprite not found for:', newBld.spriteName);
+            }
+          } catch(e) {
+            console.warn('[migrate] sprite resolve failed:', e.message);
+          }
+        }
+
         // Keep sprite in Terrain so canvas still renders this tile ID after migration
         Terrain.applyHexDbOverrides([newBld]);
-
-        // Push sprite to GitHub buildings folder
-        if (newBld.spriteName && GitHubSync.isPATConfigured()) {
-          SpriteStore.loadAll().then(async all => {
-            const entry = all.find(e => e.name === newBld.spriteName && (e.category || 'hex') === 'hex');
-            if (!entry?.dataUrl) return;
-            const res  = await fetch(entry.dataUrl);
-            const blob = await res.blob();
-            GitHubSync.pushSprite(newBld.spriteName, blob, 'buildings')
-              .catch(e => console.warn('[migrate] pushSprite buildings failed:', e.message));
-          }).catch(() => {});
-        }
+        // Push to BldDB and select it
+        BldDB.pushRecord(newBld);
 
         // Remove from HexDB
         _data.hexes.splice(realIdx, 1);
@@ -7915,6 +7945,12 @@ const HexDB = (() => {
         // Switch to Buildings tab
         App.setMode('buildings');
         UI.toast(`"${label}" migrated to Buildings DB`);
+
+        // Auto-publish updated databases
+        if (GitHubSync.isPATConfigured()) {
+          try { await GitHubSync.publishHexDbOnly(); } catch(e) { console.warn('[migrate] publishHexDb failed:', e.message); }
+          try { await GitHubSync.publishBuildingsDb(); } catch(e) { console.warn('[migrate] publishBuildingsDb failed:', e.message); }
+        }
       }
     );
   }
