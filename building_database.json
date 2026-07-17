@@ -311,7 +311,7 @@
     },
     {
       "id": "GoldMine_Test_1",
-      "textId": "",
+      "textId": "goldmine_test_key",
       "descIdleId": "",
       "descBuildId": "",
       "type": "Ground Building",
