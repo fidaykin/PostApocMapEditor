@@ -1,12 +1,6 @@
 {
   "maps": [
     {
-      "name": "Post Apoc 450x450",
-      "fileName": "postapoc_450x450.json",
-      "size": "2426061",
-      "uploadedTime": "2026-07-12"
-    },
-    {
       "name": "b_t",
       "fileName": "b_t.json",
       "size": "5461",
