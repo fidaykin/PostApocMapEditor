@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "8c55c5a";
+const COMMIT  = "738c6da";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4616,7 +4616,7 @@ const UI = (() => {
       (currentCatEl || scroll).appendChild(btn);
     });
 
-    // ── Bridges section (River_bridge hardcoded + Road_Bridge from HexDB) ──
+    // ── Bridges section (HexDB bridge entries + BldDB bridge category) ──
     const bridgeHdr = document.createElement('button');
     bridgeHdr.className = 'cat-header collapsed';
     bridgeHdr.textContent = '🌉 BRIDGES';
@@ -4629,25 +4629,27 @@ const UI = (() => {
     scroll.appendChild(bridgeHdr);
     scroll.appendChild(bridgeItems);
 
-    // Bridge hex entries from HexDB (Road_Bridge_* etc.)
-    HexDB.getAll()
-      .filter(h => h.id && /bridge/i.test(h.id) && !/^River_bridge_/i.test(h.id))
-      .forEach(h => {
-        const btn = document.createElement('button');
-        btn.className = 'tile-btn';
-        btn.dataset.hexId = h.id;
-        const img = document.createElement('img');
-        const spr = Terrain.getSprite(h.id);
-        img.src = spr ? spr.src : (h.spriteName ? `sprites/hex/${h.spriteName}.png` : '');
-        img.alt = h.id;
-        btn.appendChild(img);
-        const tt = document.createElement('span');
-        tt.className = 'tile-tooltip';
-        tt.textContent = h.id;
-        btn.appendChild(tt);
-        btn.addEventListener('click', () => selectTerrain(h.id));
-        bridgeItems.appendChild(btn);
-      });
+    // Bridge entries from HexDB + BldDB (buildingCategory === 'Bridge')
+    // Sprites always live in sprites/hex/ regardless of which DB holds the entry
+    const _hexBridges = HexDB.getAll().filter(h => h.id && /bridge/i.test(h.id) && !/^River_bridge_/i.test(h.id));
+    const _bldBridges = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.id && b.buildingCategory === 'Bridge');
+    const _allBridges = [..._hexBridges, ..._bldBridges.filter(b => !_hexBridges.some(h => h.id === b.id))];
+    _allBridges.forEach(entry => {
+      const btn = document.createElement('button');
+      btn.className = 'tile-btn';
+      btn.dataset.hexId = entry.id;
+      const img = document.createElement('img');
+      const spr = Terrain.getSprite(entry.id);
+      img.src = spr ? spr.src : (entry.spriteName ? `sprites/hex/${entry.spriteName}.png` : '');
+      img.alt = entry.id;
+      btn.appendChild(img);
+      const tt = document.createElement('span');
+      tt.className = 'tile-tooltip';
+      tt.textContent = entry.id;
+      btn.appendChild(tt);
+      btn.addEventListener('click', () => selectTerrain(entry.id));
+      bridgeItems.appendChild(btn);
+    });
 
     // ── Building sections (Ground Building / Water Building / Artefact) ──
     const BLD_SECTIONS = [
@@ -8230,7 +8232,9 @@ const HexDB = (() => {
         }
 
         // Keep sprite in Terrain so canvas still renders this tile ID after migration
-        Terrain.applyHexDbOverrides([newBld], 'sprites/buildings/');
+        // Bridge sprites live in sprites/hex/, not sprites/buildings/
+        const _migrateDir = newBld.buildingCategory === 'Bridge' ? 'sprites/hex/' : 'sprites/buildings/';
+        Terrain.applyHexDbOverrides([newBld], _migrateDir);
         // Push to BldDB and select it
         BldDB.pushRecord(newBld);
 
@@ -10726,7 +10730,10 @@ window.addEventListener('load', async () => {
     try { await GitHubSync.loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
     try { await GitHubSync.loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
-    await Terrain.applyHexDbOverrides(BldDB.getAll(), 'sprites/buildings/');
+    // Bridge buildings keep their sprites in sprites/hex/, all others use sprites/buildings/
+    const _allBlds = BldDB.getAll();
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge'), 'sprites/buildings/');
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory === 'Bridge'), 'sprites/hex/');
     Canvas.render();
   })();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
