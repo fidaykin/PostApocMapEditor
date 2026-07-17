@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "0dde511";
+const COMMIT  = "75c0417";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2232,13 +2232,14 @@ const Terrain = (() => {
   }
 
   // Loads sprites from all HexDB entries into the unified sprites{} dict (keyed by lowercase hex ID).
-  async function applyHexDbOverrides(hexes) {
+  async function applyHexDbOverrides(hexes, dir) {
     if (!hexes || !hexes.length) return;
+    const spriteDir = dir || HEX_DIR;
     const jobs = [];
     for (const h of hexes) {
       if (!h.id || !h.spriteName) continue;
       const key = h.id.toLowerCase();
-      const src = _uploadedUrls[h.spriteName] || (HEX_DIR + h.spriteName + '.png');
+      const src = _uploadedUrls[h.spriteName] || (spriteDir + h.spriteName + '.png');
       jobs.push(new Promise(resolve => {
         const img = new Image();
         img.onload  = () => { sprites[key] = img; resolve(); };
@@ -8226,7 +8227,7 @@ const HexDB = (() => {
         }
 
         // Keep sprite in Terrain so canvas still renders this tile ID after migration
-        Terrain.applyHexDbOverrides([newBld]);
+        Terrain.applyHexDbOverrides([newBld], 'sprites/buildings/');
         // Push to BldDB and select it
         BldDB.pushRecord(newBld);
 
@@ -10596,7 +10597,7 @@ window.addEventListener('load', async () => {
     try { await GitHubSync.loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
     try { await GitHubSync.loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
-    await Terrain.applyHexDbOverrides(BldDB.getAll());
+    await Terrain.applyHexDbOverrides(BldDB.getAll(), 'sprites/buildings/');
     Canvas.render();
   })();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
