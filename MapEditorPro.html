@@ -2121,7 +2121,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.17";
-const COMMIT  = "f317f2f";
+const COMMIT  = "3bebd1d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4548,7 +4548,7 @@ const UI = (() => {
       '🟫 SWAMP':            7,
       '🌋 VOLCANIC/RIFT':    8,
     };
-    const sorted = HexDB.getAll().filter(h => h.id && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || '')).sort((a, b) => {
+    const sorted = HexDB.getAll().filter(h => h.id && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || '') && !/bridge/i.test(h.id || '')).sort((a, b) => {
       const oA = CAT_ORDER[a.category] ?? 99;
       const oB = CAT_ORDER[b.category] ?? 99;
       if (oA !== oB) return oA - oB;
@@ -4616,7 +4616,7 @@ const UI = (() => {
       (currentCatEl || scroll).appendChild(btn);
     });
 
-    // ── Bridges section (hardcoded — not from HexDB) ──────────
+    // ── Bridges section (River_bridge hardcoded + Road_Bridge from HexDB) ──
     const bridgeHdr = document.createElement('button');
     bridgeHdr.className = 'cat-header collapsed';
     bridgeHdr.textContent = '🌉 BRIDGES';
@@ -4645,6 +4645,26 @@ const UI = (() => {
       btn.addEventListener('click', () => selectBridge(axis));
       bridgeItems.appendChild(btn);
     }
+
+    // Road_Bridge and other bridge hex entries from HexDB
+    HexDB.getAll()
+      .filter(h => h.id && /bridge/i.test(h.id) && !/^River_bridge_/i.test(h.id))
+      .forEach(h => {
+        const btn = document.createElement('button');
+        btn.className = 'tile-btn';
+        btn.dataset.hexId = h.id;
+        const img = document.createElement('img');
+        const spr = Terrain.getSprite(h.id);
+        img.src = spr ? spr.src : (h.spriteName ? `sprites/hex/${h.spriteName}.png` : '');
+        img.alt = h.id;
+        btn.appendChild(img);
+        const tt = document.createElement('span');
+        tt.className = 'tile-tooltip';
+        tt.textContent = h.id;
+        btn.appendChild(tt);
+        btn.addEventListener('click', () => selectTerrain(h.id));
+        bridgeItems.appendChild(btn);
+      });
 
     // ── Building sections (Ground Building / Water Building / Artefact) ──
     const BLD_SECTIONS = [
