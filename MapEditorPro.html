@@ -2124,14 +2124,14 @@ body.mode-common #map-io    { display: none; }
 <div class="modal-overlay" id="road-group-modal">
   <div class="newmap-box" style="min-width:360px;max-width:480px">
     <h3>Add Road Group</h3>
-    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Creates a set of road tiles sharing common settings. The first tile (lowest number) is the master — edits to it sync to all variants.</p>
+    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Creates a set of road building entries sharing common settings. The first tile (lowest number) is the master — edits sync to all variants automatically. <strong>Note:</strong> for standard roads the game auto-tiles sprites via bitmask — you only need <em>one</em> entry per road type. Use this for bridge-style buildings or when each orientation needs a separate DB entry.</p>
     <div style="margin-bottom:12px">
       <label style="display:block;margin-bottom:4px;font-size:13px">Group name <span style="color:var(--muted)">(e.g. RoadDirt)</span></label>
       <input id="road-group-name" type="text" placeholder="RoadDirt" style="width:100%;box-sizing:border-box"
              oninput="BldDB._onRoadGroupNameInput(this)">
     </div>
     <div style="margin-bottom:12px">
-      <label style="display:block;margin-bottom:4px;font-size:13px">Sprite prefix <span style="color:var(--muted)">(e.g. RoadDirt → RoadDirt_0_N)</span></label>
+      <label style="display:block;margin-bottom:4px;font-size:13px">Sprite prefix <span style="color:var(--muted)">(e.g. road_hex → road_hex_01_SE, or RoadDirt → RoadDirt_0_SE)</span></label>
       <input id="road-group-prefix" type="text" placeholder="RoadDirt" style="width:100%;box-sizing:border-box">
     </div>
     <div style="margin-bottom:8px">
@@ -2224,7 +2224,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.20";
-const COMMIT  = "8c11b5f";
+const COMMIT  = "40c0de6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8763,7 +8763,7 @@ const BldDB = (() => {
       resourceAwardedOnDestroy: true,
       destroyIncome: [],
       // Build
-      canBuild: true, needRoad: true,
+      canBuild: true, needRoad: true, isRoad: false,
       availableTiles: [],
       minLevel: 1,
       price: [{ type: 'Gold', amount: 1000 }],
@@ -8818,6 +8818,7 @@ const BldDB = (() => {
     if (!Array.isArray(bld.destroyIncome))        bld.destroyIncome = [];
     if (bld.canBuild === undefined)               bld.canBuild = true;
     if (bld.needRoad === undefined)               bld.needRoad = true;
+    if (bld.isRoad === undefined)                 bld.isRoad = false;
     if (!Array.isArray(bld.availableTiles))       bld.availableTiles = [];
     if (bld.minLevel === undefined)               bld.minLevel = bld.requiredTownLevel ?? 1;
     if (!Array.isArray(bld.price)) {
@@ -8927,7 +8928,7 @@ const BldDB = (() => {
 
   const _ROAD_SYNC_KEYS = [
     'textId','descIdleId','descBuildId',
-    'type','buildingCategory','biome','filter','baseCostTaps',
+    'type','buildingCategory','isRoad','biome','filter','baseCostTaps',
     'canDestroy','destroyTransformToMode','destroyTransformTo',
     'destroySources','moveToStorageOnDestroy','resourceAwardedOnDestroy','destroyIncome',
     'canBuild','needRoad','availableTiles','minLevel','price','premiumPrice',
@@ -9153,6 +9154,8 @@ const BldDB = (() => {
             <option${bld.buildingCategory === 'Bridge'   ? ' selected' : ''}>Bridge</option>
             <option${bld.buildingCategory === 'Ship'     ? ' selected' : ''}>Ship</option>
           </select></div>
+        <div class="hexdb-row"><span class="hexdb-label">Is Road <span class="hexdb-info" title="When true: placing this building sets HasRoad=true on the tile. The game auto-tiles the road sprite via 6-bit bitmask (SE·NE·N·NW·SW·S). No per-direction variants needed — one entry per road type is enough.">ⓘ</span></span>
+          <input id="bld-f-isRoad" type="checkbox"${bld.isRoad ? ' checked' : ''}></div>
         <div class="hexdb-row"><span class="hexdb-label">Biome <span class="hexdb-info" title="Season/biome context">ⓘ</span></span>
           <select class="hexdb-select" id="bld-f-biome">${BiomeManager.getNames().map(b =>
             `<option${bld.biome === b ? ' selected' : ''}>${b}</option>`).join('')}</select></div>
@@ -9748,6 +9751,7 @@ const BldDB = (() => {
     // BUILD
     bld.canBuild                 = bv('bld-f-canBuild');
     bld.needRoad                 = bv('bld-f-needRoad');
+    bld.isRoad                   = bv('bld-f-isRoad');
     bld.minLevel                 = Math.max(1, nv('bld-f-minLevel'));
     bld.premiumPrice             = nv('bld-f-premiumPrice');
     bld.additionalBuildCondition = bv('bld-f-additionalBuildCondition');
@@ -10010,15 +10014,34 @@ const BldDB = (() => {
   function getAll() { return _data.buildings || []; }
 
   // ── Road Group Modal ──────────────────────────────────────
+  // 24 canonical bitmask patterns from the game's road auto-tile system.
+  // Direction order: SE(bit0) NE(bit1) N(bit2) NW(bit3) SW(bit4) S(bit5).
+  // Sprite names follow road_hex_{bitmask:02}_{dirs}.png convention.
   const _TYPICAL_HEX_ROAD_DIRS = [
-    'N','NE','SE','S','SW','NW',
-    'N_NE','NE_SE','SE_S','S_SW','SW_NW','NW_N',
-    'N_SE','NE_SW','NW_SE',
-    'N_NE_SE','NE_SE_S','SE_S_SW','S_SW_NW','SW_NW_N','NW_N_NE',
-    'N_NE_SW','N_NE_NW','NE_SE_NW','SE_S_NE','S_SW_NE','SW_NW_SE',
-    'N_NE_SE_S','NE_SE_S_SW','SE_S_SW_NW','S_SW_NW_N','SW_NW_N_NE','NW_N_NE_SE',
-    'N_NE_SE_S_SW','NE_SE_S_SW_NW','SE_S_SW_NW_N','S_SW_NW_N_NE','SW_NW_N_NE_SE','NW_N_NE_SE_S',
-    'N_NE_SE_S_SW_NW',
+    'none',      // 00 — isolated (no connections)
+    'SE',        // 01
+    'SENE',      // 03
+    'N',         // 04
+    'SEN',       // 05
+    'NEN',       // 06
+    'SENEN',     // 07
+    'SENW',      // 09
+    'NENW',      // 10
+    'SENENW',    // 11
+    'SENNW',     // 13
+    'NENNW',     // 14
+    'SENENNW',   // 15
+    'SENSW',     // 21
+    'SENENSW',   // 23
+    'SENENWSW',  // 27
+    'SENENNWSW', // 31
+    'NS',        // 36
+    'SENS',      // 37
+    'SENENS',    // 39
+    'SENNWS',    // 45
+    'NENNWS',    // 46
+    'SENENNWS',  // 47
+    'SENENNWSWS',// 63 — full intersection (all 6 directions)
   ];
 
   function openRoadGroupModal() {
@@ -10074,7 +10097,8 @@ const BldDB = (() => {
       bld.buildingCategory = 'Road';
       bld.type    = 'Ground Building';
       bld.filter  = 'FilterRoad';
-      bld.canBuild = false;
+      bld.isRoad  = true;
+      bld.canBuild = true;
       bld.needRoad = false;
       return bld;
     });
