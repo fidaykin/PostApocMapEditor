@@ -85,8 +85,8 @@
       "spawnsSatellites": [
         {
           "buildingId": "Grain_1",
-          "radius": 2,
-          "maxCount": 6
+          "radius": 1,
+          "maxCount": 0
         }
       ],
       "underTerrainId": ""
