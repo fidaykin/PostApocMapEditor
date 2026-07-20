@@ -2226,7 +2226,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.20";
-const COMMIT  = "c8436a5";
+const COMMIT  = "16a439f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2415,7 +2415,9 @@ const Roads = (() => {
   }
 
   // Canvas scale per transform: [sx, sy]
-  const _SCALES = [[1,1],[1,-1],[-1,1],[-1,-1]];
+  // t=1 H-flip (SE↔SW, NE↔NW) = left-right mirror → scale(-1,1)
+  // t=2 V-flip (N↔S, SE↔NE, NW↔SW) = top-bottom mirror → scale(1,-1)
+  const _SCALES = [[1,1],[-1,1],[1,-1],[-1,-1]];
 
   // Direction → bitmask bit
   const _DIR_BITS = { SE:0, NE:1, N:2, NW:3, SW:4, S:5 };
