@@ -2226,7 +2226,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.20";
-const COMMIT  = "a5f0d73";
+const COMMIT  = "605aed6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2390,20 +2390,20 @@ const Roads = (() => {
   const _sprites = {};
 
   // H-flip: SE↔SW (bit0↔4), NE↔NW (bit1↔3); N(2) and S(5) unchanged.
-  // In screen space (N=right, S=left): reflects top↔bottom → canvas scale(1,-1).
+  // Visual effect (after base y-flip correction): reflects left↔right → canvas scale(-1,1).
   function _hFlip(m) {
     return ((m >> 4) & 1)        | (((m >> 3) & 1) << 1) | (m & 4) |
            (((m >> 1) & 1) << 3) | ((m & 1) << 4)        | (m & 32);
   }
   // V-flip: SE↔NE (bit0↔1), NW↔SW (bit3↔4), N↔S (bit2↔5).
-  // In screen space: reflects left↔right → canvas scale(-1,1).
+  // Visual effect (after base y-flip correction): reflects top↔bottom → canvas scale(1,-1).
   function _vFlip(m) {
     return ((m >> 1) & 1)         | ((m & 1) << 1)        | (((m >> 5) & 1) << 2) |
            (((m >> 4) & 1) << 3)  | (((m >> 3) & 1) << 4) | (((m >> 2) & 1) << 5);
   }
 
   // Lookup: _lookup[bitmask] = {c: canonical, t: transform}
-  // t: 0=none, 1=hFlip→scale(1,-1), 2=vFlip→scale(-1,1), 3=hvFlip→scale(-1,-1)
+  // t: 0=none, 1=hFlip→scale(-1,-1), 2=vFlip→scale(1,1), 3=hvFlip→scale(-1,1)
   const _lookup = new Array(64);
   for (let m = 0; m < 64; m++) {
     if (CANONICAL.has(m)) { _lookup[m] = { c: m, t: 0 }; continue; }
@@ -2437,7 +2437,8 @@ const Roads = (() => {
   }
 
   function calcBitmask(col, row) {
-    const dirs = row % 2 !== 0 ? _DIRS_ODD : _DIRS_EVEN;
+    // Parity based on worldXidx = MAP_HEIGHT-1-row (game's column axis), not raw row.
+    const dirs = (MAP_HEIGHT - 1 - row) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
     let mask = 0;
     for (const [dir, bit] of Object.entries(_DIR_BITS)) {
       const [dc, dr] = dirs[dir];
@@ -11344,16 +11345,18 @@ let roadsData   = {};   // {"col,row": {type}} — painted road tiles
 // a multi-tile anchor (occupiedOffsets in HexDB) marks as part of its footprint.
 let _satelliteMap = null;
 
-// Direction offsets in editor (col, row) coords, split by anchor row parity.
-// Odd row ↔ odd worldX (worldX = MAP_HEIGHT-1-row - MAP_HEIGHT/2, even MAP_HEIGHT).
-const _DIRS_EVEN = { N:[+1,0], S:[-1,0], NE:[0,-1], SE:[-1,-1], NW:[0,+1], SW:[-1,+1] };
-const _DIRS_ODD  = { N:[+1,0], S:[-1,0], NE:[+1,-1], SE:[0,-1], NW:[+1,+1], SW:[0,+1] };
+// Direction offsets in editor (col, row) coords, indexed by game-column parity.
+// Game column = worldXidx = MAP_HEIGHT-1-row. Use _DIRS_ODD when worldXidx is even,
+// _DIRS_EVEN when worldXidx is odd (the table names reflect odd/even EDITOR row parity
+// for even MAP_HEIGHT, where odd worldXidx = even row).
+const _DIRS_EVEN = { N:[+1,0], S:[-1,0], NE:[0,-1],  SE:[-1,-1], NW:[0,+1],  SW:[-1,+1] };
+const _DIRS_ODD  = { N:[+1,0], S:[-1,0], NE:[+1,-1], SE:[0,-1],  NW:[+1,+1], SW:[0,+1] };
 
 function _buildSatelliteMap() {
   _satelliteMap = {};
   if (!mapData) return;
   for (let r = 0; r < MAP_HEIGHT; r++) {
-    const dirs = (r % 2 !== 0) ? _DIRS_ODD : _DIRS_EVEN;
+    const dirs = (MAP_HEIGHT - 1 - r) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
     for (let c = 0; c < MAP_WIDTH; c++) {
       const id = mapData[r * MAP_WIDTH + c];
       const entry = id ? Terrain.byHexId(id) : null;
