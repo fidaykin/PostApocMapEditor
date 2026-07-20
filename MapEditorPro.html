@@ -2226,7 +2226,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.20";
-const COMMIT  = "9fd942a";
+const COMMIT  = "c8436a5";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5089,44 +5089,6 @@ const UI = (() => {
       btn.appendChild(tt);
       btn.addEventListener('click', () => selectTerrain(entry.id));
       bridgeItems.appendChild(btn);
-    });
-
-    // ── Building sections (Ground Building / Water Building / Artefact) ──
-    const BLD_SECTIONS = [
-      { label: '🏗️ GROUND BUILDINGS', type: 'Ground Building' },
-      { label: '🌊 WATER BUILDINGS',   type: 'Water Building'  },
-      { label: '🏛️ ARTEFACTS',         type: 'Artefact'        },
-    ];
-    const allBuildings = typeof BldDB !== 'undefined' ? BldDB.getAll() : [];
-    const _bldType = b => b.type || 'Ground Building';
-    BLD_SECTIONS.forEach(({ label, type }) => {
-      const buildings = allBuildings.filter(b => _bldType(b) === type && b.buildingCategory !== 'Bridge');
-      const hdr = document.createElement('button');
-      hdr.className = 'cat-header collapsed';
-      hdr.textContent = `${label} (${buildings.length})`;
-      const items = document.createElement('div');
-      items.className = 'cat-items collapsed';
-      hdr.addEventListener('click', () => {
-        hdr.classList.toggle('collapsed');
-        items.classList.toggle('collapsed');
-      });
-      scroll.appendChild(hdr);
-      scroll.appendChild(items);
-      buildings.forEach(bld => {
-        const btn = document.createElement('button');
-        btn.className = 'tile-btn';
-        btn.dataset.hexId = bld.id;
-        const img = document.createElement('img');
-        img.src = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `sprites/buildings/${bld.spriteName}.png`) : '';
-        img.alt = bld.id;
-        btn.appendChild(img);
-        const tt = document.createElement('span');
-        tt.className = 'tile-tooltip';
-        tt.textContent = bld.id;
-        btn.appendChild(tt);
-        btn.addEventListener('click', () => selectTerrain(bld.id));
-        items.appendChild(btn);
-      });
     });
 
     // Re-apply the current selection to the freshly-created buttons.
