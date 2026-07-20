@@ -2226,7 +2226,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.20";
-const COMMIT  = "16a439f";
+const COMMIT  = "a5f0d73";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2414,10 +2414,13 @@ const Roads = (() => {
     _lookup[m] = { c: 0, t: 0 };
   }
 
-  // Canvas scale per transform: [sx, sy]
-  // t=1 H-flip (SE↔SW, NE↔NW) = left-right mirror → scale(-1,1)
-  // t=2 V-flip (N↔S, SE↔NE, NW↔SW) = top-bottom mirror → scale(1,-1)
-  const _SCALES = [[1,1],[-1,1],[1,-1],[-1,-1]];
+  // Sprites are Unity y-up assets stored as PNGs (y-down), so every sprite needs a base
+  // vertical flip (scale(1,-1)) to correct orientation. Additional H/V flips compose with that:
+  // t=0 none:    [1,-1]   base y-flip only
+  // t=1 H-flip:  [-1,-1]  base y-flip + x-flip
+  // t=2 V-flip:  [1,1]    base y-flip + y-flip = identity (cancels)
+  // t=3 HV-flip: [-1,1]   base y-flip + both flips = x-flip only
+  const _SCALES = [[1,-1],[-1,-1],[1,1],[-1,1]];
 
   // Direction → bitmask bit
   const _DIR_BITS = { SE:0, NE:1, N:2, NW:3, SW:4, S:5 };
