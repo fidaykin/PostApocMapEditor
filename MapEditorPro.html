@@ -2159,8 +2159,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.07.17";
-const COMMIT  = "8259785";
+const VERSION = "2026.07.20";
+const COMMIT  = "0a921a6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3647,12 +3647,79 @@ const Tools = (() => {
   }
 
   // ── Objects (pre-placed buildings) ────────────────────────
+
+  // Flat-top odd-q offset hex distance (matches Unity HexUtils.Distance)
+  function _satelliteHexDist(ax, ay, bx, by) {
+    const toQ = (c) => c;
+    const toR = (c, r) => r - Math.floor((c - (c & 1)) / 2);
+    const aq = toQ(ax), ar = toR(ax, ay), as_ = -aq - ar;
+    const bq = toQ(bx), br = toR(bx, by), bs  = -bq - br;
+    return (Math.abs(aq - bq) + Math.abs(ar - br) + Math.abs(as_ - bs)) / 2;
+  }
+
+  // Returns all (col,row) pairs within radius of (cx,cy), excluding center
+  function _satelliteTilesInRadius(cx, cy, radius) {
+    const result = [];
+    for (let dx = -(radius + 1); dx <= radius + 1; dx++) {
+      for (let dy = -(radius + 1); dy <= radius + 1; dy++) {
+        if ((dx !== 0 || dy !== 0) && _satelliteHexDist(cx, cy, cx + dx, cy + dy) <= radius)
+          result.push({ col: cx + dx, row: cy + dy });
+      }
+    }
+    return result;
+  }
+
+  function _spawnSatellites(col, row, bldId) {
+    if (typeof BldDB === 'undefined') return;
+    const def = BldDB.getAll().find(b => b.id === bldId);
+    if (!def || !def.spawnsSatellites || !def.spawnsSatellites.length) return;
+
+    for (const rule of def.spawnsSatellites) {
+      if (!rule.buildingId) continue;
+      const candidates = _satelliteTilesInRadius(col, row, rule.radius);
+      // Sort by distance so closest tiles fill first
+      candidates.sort((a, b) =>
+        _satelliteHexDist(col, row, a.col, a.row) - _satelliteHexDist(col, row, b.col, b.row));
+      let placed = 0;
+      const limit = rule.maxCount > 0 ? rule.maxCount : candidates.length;
+      for (const pos of candidates) {
+        if (placed >= limit) break;
+        const k = pos.col + ',' + pos.row;
+        if (objectsData[k]) continue;             // already occupied by a building
+        if (hexData[k] !== undefined) continue;   // skip if hex tool is active on that cell
+        objectsData[k] = rule.buildingId;
+        placed++;
+      }
+    }
+  }
+
+  function _removeSatellites(col, row, bldId) {
+    if (typeof BldDB === 'undefined') return;
+    const def = BldDB.getAll().find(b => b.id === bldId);
+    if (!def || !def.spawnsSatellites || !def.spawnsSatellites.length) return;
+
+    const satelliteIds = new Set(def.spawnsSatellites.map(r => r.buildingId).filter(Boolean));
+    let maxRadius = 0;
+    for (const r of def.spawnsSatellites) if (r.radius > maxRadius) maxRadius = r.radius;
+
+    const candidates = _satelliteTilesInRadius(col, row, maxRadius);
+    for (const pos of candidates) {
+      const k = pos.col + ',' + pos.row;
+      if (objectsData[k] && satelliteIds.has(objectsData[k])) {
+        // Only remove if the satellite def has canBuild=false (it's a true satellite)
+        const satDef = BldDB.getAll().find(b => b.id === objectsData[k]);
+        if (satDef && satDef.canBuild === false) delete objectsData[k];
+      }
+    }
+  }
+
   function _placeObject(col, row) {
     const bldId = document.getElementById('obj-building-select')?.value;
     if (!bldId) return;
     const key = col + ',' + row;
     if (objectsData[key] === bldId) return;
     objectsData[key] = bldId;
+    _spawnSatellites(col, row, bldId);
     IO.scheduleAutoSave();
     Canvas.render();
   }
@@ -3660,7 +3727,9 @@ const Tools = (() => {
   function _eraseObject(col, row) {
     const key = col + ',' + row;
     if (!objectsData[key]) return;
+    const erasedId = objectsData[key];
     delete objectsData[key];
+    _removeSatellites(col, row, erasedId);
     IO.scheduleAutoSave();
     Canvas.render();
   }
