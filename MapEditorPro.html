@@ -2160,7 +2160,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.20";
-const COMMIT  = "0a921a6";
+const COMMIT  = "0cd1074";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9248,6 +9248,38 @@ const BldDB = (() => {
       </div>
     </div>`;
 
+    // ── SATELLITE SPAWNING section ────────────────────────────
+    const satRules   = Array.isArray(bld.spawnsSatellites) ? bld.spawnsSatellites : [];
+    const satRowsHTML = satRules.map((rule, i) => `
+      <div class="hexdb-row" style="gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:4px">
+        <span style="color:var(--muted);font-size:11px;min-width:24px">#${i+1}</span>
+        <label style="color:var(--muted);font-size:12px">Building ID
+          <input class="hexdb-input" type="text" data-sat-index="${i}" data-sat-key="buildingId"
+            value="${_esc(rule.buildingId ?? '')}" style="width:160px;margin-left:4px"
+            list="blddb-bld-id-list" placeholder="Grain_1"></label>
+        <label style="color:var(--muted);font-size:12px">Radius
+          <input class="hexdb-input" type="number" data-sat-index="${i}" data-sat-key="radius"
+            value="${rule.radius ?? 2}" min="1" max="20" style="width:56px;margin-left:4px"></label>
+        <label style="color:var(--muted);font-size:12px">Max Count
+          <input class="hexdb-input" type="number" data-sat-index="${i}" data-sat-key="maxCount"
+            value="${rule.maxCount ?? 1}" min="0" max="100" style="width:56px;margin-left:4px">
+          <span class="hexdb-info" title="0 = fill all valid tiles in radius" style="margin-left:2px">ⓘ</span></label>
+        <button class="sat-remove" data-sat-index="${i}"
+          style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:14px;padding:2px 6px;line-height:1" title="Remove rule">✕</button>
+      </div>`).join('');
+    const satelliteHTML = `
+    <div class="hexdb-section">
+      <div class="hexdb-section-hdr" data-sec="satellite">${col('satellite')} SATELLITE SPAWNING</div>
+      <div class="hexdb-section-body" data-sec="satellite" style="display:${bod('satellite')}">
+        <div style="color:var(--muted);font-size:11px;margin-bottom:8px">
+          Buildings auto-spawned on nearby tiles when this building is placed.<br>
+          Each satellite must have <code>canBuild: false</code> in its own entry.
+        </div>
+        ${satRowsHTML || '<div style="color:var(--muted);font-size:12px;margin-bottom:6px">No rules yet.</div>'}
+        <button class="sat-add" style="font-size:12px;padding:3px 10px;cursor:pointer;margin-top:4px">+ Add Rule</button>
+      </div>
+    </div>`;
+
     // ── Actions ───────────────────────────────────────────────
     const actionsHTML = `
     <div class="hexdb-actions">
@@ -9283,9 +9315,13 @@ const BldDB = (() => {
       (typeof HexDB !== 'undefined' ? HexDB.getAll() : [])
         .filter(h => h.id).map(h => `<option value="${_esc(h.id)}">`).join('') +
       '</datalist>';
+    const bldBldIdDatalist = '<datalist id="blddb-bld-id-list">' +
+      (_data.buildings ?? []).filter(b => b.id && !b.canBuild)
+        .map(b => `<option value="${_esc(b.id)}">`).join('') +
+      '</datalist>';
     right.innerHTML = visualHTML + roadBanner + `<div class="hexdb-form">
-      ${mainHTML}${footprintHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${specialHTML}${actionsHTML}
-    </div>` + bldHexIdDatalist;
+      ${mainHTML}${footprintHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${specialHTML}${satelliteHTML}${actionsHTML}
+    </div>` + bldHexIdDatalist + bldBldIdDatalist;
 
     // ── Wire section headers ──────────────────────────────────
     right.querySelectorAll('.hexdb-section-hdr').forEach(hdr => {
@@ -9433,6 +9469,44 @@ const BldDB = (() => {
         const field  = btn.dataset.resField;
         if (!Array.isArray(bldObj[field])) bldObj[field] = [];
         bldObj[field].push({ type: 'Gold', amount: 0 });
+        _autoSave();
+        _renderRecord(bldObj);
+      });
+    });
+
+    // ── Wire satellite spawn rules ────────────────────────────
+    right.querySelectorAll('[data-sat-index]').forEach(el => {
+      const idx = parseInt(el.dataset.satIndex, 10);
+      if (el.classList.contains('sat-remove')) {
+        el.addEventListener('click', () => {
+          if (_selFilt < 0) return;
+          const bldObj = _data.buildings[_filtered[_selFilt]];
+          if (Array.isArray(bldObj.spawnsSatellites)) {
+            bldObj.spawnsSatellites.splice(idx, 1);
+            if (bldObj.spawnsSatellites.length === 0) delete bldObj.spawnsSatellites;
+            _autoSave();
+            _renderRecord(bldObj);
+          }
+        });
+      } else {
+        const key = el.dataset.satKey;
+        el.addEventListener('input', () => {
+          if (_selFilt < 0) return;
+          const bldObj = _data.buildings[_filtered[_selFilt]];
+          if (!Array.isArray(bldObj.spawnsSatellites) || !bldObj.spawnsSatellites[idx]) return;
+          bldObj.spawnsSatellites[idx][key] = el.type === 'number'
+            ? (parseInt(el.value, 10) || 0)
+            : el.value;
+          _autoSave();
+        });
+      }
+    });
+    right.querySelectorAll('.sat-add').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (_selFilt < 0) return;
+        const bldObj = _data.buildings[_filtered[_selFilt]];
+        if (!Array.isArray(bldObj.spawnsSatellites)) bldObj.spawnsSatellites = [];
+        bldObj.spawnsSatellites.push({ buildingId: '', radius: 2, maxCount: 1 });
         _autoSave();
         _renderRecord(bldObj);
       });
