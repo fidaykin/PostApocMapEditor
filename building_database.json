@@ -86,9 +86,10 @@
         {
           "buildingId": "Grain_1",
           "radius": 2,
-          "maxCount": 3
+          "maxCount": 6
         }
-      ]
+      ],
+      "underTerrainId": ""
     },
     {
       "id": "Grain_1",
