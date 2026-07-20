@@ -9,7 +9,8 @@
     "Buildings",
     "Settlements",
     "Upgrades",
-    "Universal Keys"
+    "Universal Keys",
+    "Buttons"
   ],
   "entries": [
     {
@@ -1174,6 +1175,18 @@
       "key": "save_success",
       "en": "Game saved",
       "uk": "Гру збережено",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "hud_smth",
+      "en": "SMTH",
+      "uk": "ЩОСЬ",
+      "group": "HUD"
+    },
+    {
+      "key": "bottom_hud_smth",
+      "en": "SMTH",
+      "uk": "ЩОСЬ",
       "group": "Universal Keys"
     }
   ]
