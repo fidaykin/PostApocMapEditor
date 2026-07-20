@@ -1280,6 +1280,7 @@ body.mode-common #map-io    { display: none; }
     </div>
     <div id="bld-tools">
       <button class="hexdb-tool-btn" onclick="BldDB.add()">+ Add Building</button>
+      <button class="hexdb-tool-btn" onclick="BldDB.openRoadGroupModal()">+ Add Road Group</button>
       <button class="hexdb-tool-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="BldDB.save()">💾 Save DB</button>
       <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
@@ -2119,6 +2120,37 @@ body.mode-common #map-io    { display: none; }
   </div>
 </div>
 
+<!-- Add Road Group Modal -->
+<div class="modal-overlay" id="road-group-modal">
+  <div class="newmap-box" style="min-width:360px;max-width:480px">
+    <h3>Add Road Group</h3>
+    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Creates a set of road tiles sharing common settings. The first tile (lowest number) is the master — edits to it sync to all variants.</p>
+    <div style="margin-bottom:12px">
+      <label style="display:block;margin-bottom:4px;font-size:13px">Group name <span style="color:var(--muted)">(e.g. RoadDirt)</span></label>
+      <input id="road-group-name" type="text" placeholder="RoadDirt" style="width:100%;box-sizing:border-box"
+             oninput="BldDB._onRoadGroupNameInput(this)">
+    </div>
+    <div style="margin-bottom:12px">
+      <label style="display:block;margin-bottom:4px;font-size:13px">Sprite prefix <span style="color:var(--muted)">(e.g. RoadDirt → RoadDirt_0_N)</span></label>
+      <input id="road-group-prefix" type="text" placeholder="RoadDirt" style="width:100%;box-sizing:border-box">
+    </div>
+    <div style="margin-bottom:8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <label style="font-size:13px">Direction suffixes <span style="color:var(--muted)">(one per line)</span></label>
+        <button class="hexdb-tool-btn" onclick="BldDB._fillTypicalRoadDirs()" style="font-size:11px;padding:2px 7px">Load typical hex set</button>
+      </div>
+      <textarea id="road-group-dirs" rows="8" placeholder="N&#10;NE&#10;SE&#10;S&#10;SW&#10;NW"
+                oninput="BldDB._updateRoadGroupPreview()"
+                style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;resize:vertical;background:#1a1a2e;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:6px"></textarea>
+    </div>
+    <p id="road-group-preview" style="font-size:12px;color:var(--muted);margin:4px 0 14px">0 tiles will be created.</p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="BldDB.closeRoadGroupModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="BldDB.confirmAddRoadGroup()">Create Group</button>
+    </div>
+  </div>
+</div>
+
 <!-- Satellite Import Modal -->
 <div class="modal-overlay" id="sat-modal">
   <div class="sat-modal-box">
@@ -2192,7 +2224,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.20";
-const COMMIT  = "06d2d85";
+const COMMIT  = "8c11b5f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9976,7 +10008,89 @@ const BldDB = (() => {
     return n;
   }
   function getAll() { return _data.buildings || []; }
-  return { init, add, pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
+
+  // ── Road Group Modal ──────────────────────────────────────
+  const _TYPICAL_HEX_ROAD_DIRS = [
+    'N','NE','SE','S','SW','NW',
+    'N_NE','NE_SE','SE_S','S_SW','SW_NW','NW_N',
+    'N_SE','NE_SW','NW_SE',
+    'N_NE_SE','NE_SE_S','SE_S_SW','S_SW_NW','SW_NW_N','NW_N_NE',
+    'N_NE_SW','N_NE_NW','NE_SE_NW','SE_S_NE','S_SW_NE','SW_NW_SE',
+    'N_NE_SE_S','NE_SE_S_SW','SE_S_SW_NW','S_SW_NW_N','SW_NW_N_NE','NW_N_NE_SE',
+    'N_NE_SE_S_SW','NE_SE_S_SW_NW','SE_S_SW_NW_N','S_SW_NW_N_NE','SW_NW_N_NE_SE','NW_N_NE_SE_S',
+    'N_NE_SE_S_SW_NW',
+  ];
+
+  function openRoadGroupModal() {
+    document.getElementById('road-group-name').value = '';
+    document.getElementById('road-group-prefix').value = '';
+    document.getElementById('road-group-dirs').value = '';
+    document.getElementById('road-group-preview').textContent = '0 tiles will be created.';
+    document.getElementById('road-group-modal').style.display = 'flex';
+  }
+
+  function closeRoadGroupModal() {
+    document.getElementById('road-group-modal').style.display = 'none';
+  }
+
+  function _onRoadGroupNameInput(el) {
+    const prefix = document.getElementById('road-group-prefix');
+    if (!prefix.value || prefix.value === el.dataset.prev) prefix.value = el.value;
+    el.dataset.prev = el.value;
+    _updateRoadGroupPreview();
+  }
+
+  function _fillTypicalRoadDirs() {
+    document.getElementById('road-group-dirs').value = _TYPICAL_HEX_ROAD_DIRS.join('\n');
+    _updateRoadGroupPreview();
+  }
+
+  function _updateRoadGroupPreview() {
+    const dirs = document.getElementById('road-group-dirs').value
+      .split('\n').map(s => s.trim()).filter(Boolean);
+    document.getElementById('road-group-preview').textContent =
+      `${dirs.length} tile${dirs.length !== 1 ? 's' : ''} will be created.`;
+  }
+
+  function confirmAddRoadGroup() {
+    const name   = document.getElementById('road-group-name').value.trim();
+    const prefix = document.getElementById('road-group-prefix').value.trim() || name;
+    const dirs   = document.getElementById('road-group-dirs').value
+      .split('\n').map(s => s.trim()).filter(Boolean);
+    if (!name)       { alert('Please enter a group name.'); return; }
+    if (!prefix)     { alert('Please enter a sprite prefix.'); return; }
+    if (!dirs.length){ alert('Please enter at least one direction suffix.'); return; }
+
+    const existing = _data.buildings.filter(b => _roadGroupOf(b.spriteName) === prefix);
+    if (existing.length) {
+      if (!confirm(`Road group "${prefix}" already has ${existing.length} tile(s). Add more?`)) return;
+    }
+    const startNum = existing.length;
+    const created  = dirs.map((dir, i) => {
+      const num   = startNum + i;
+      const bld   = _blank();
+      bld.id      = `${prefix}_${dir}`;
+      bld.spriteName      = `${prefix}_${num}_${dir}`;
+      bld.buildingCategory = 'Road';
+      bld.type    = 'Ground Building';
+      bld.filter  = 'FilterRoad';
+      bld.canBuild = false;
+      bld.needRoad = false;
+      return bld;
+    });
+    created.forEach(b => _data.buildings.push(b));
+    _autoSave();
+    closeRoadGroupModal();
+    _applyFilter();
+    _buildList();
+    // Select the master (first created tile)
+    _selectIdx(_filtered.indexOf(_data.buildings.indexOf(created[0])));
+    UI.toast(`Road group "${name}" created — ${created.length} tile${created.length !== 1 ? 's' : ''}`);
+  }
+
+  return { init, add, openRoadGroupModal, closeRoadGroupModal, _onRoadGroupNameInput,
+           _fillTypicalRoadDirs, _updateRoadGroupPreview, confirmAddRoadGroup,
+           pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
 window.BldDB = BldDB;
