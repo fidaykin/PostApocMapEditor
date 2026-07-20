@@ -2192,7 +2192,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.20";
-const COMMIT  = "57be3e6";
+const COMMIT  = "8e828c9";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3575,7 +3575,7 @@ const Tools = (() => {
     if (sel) {
       if (name === 'object') {
         sel.innerHTML = BldDB.getAll()
-          .filter(b => b.id)
+          .filter(b => b.id && b.buildingCategory !== 'Bridge')
           .map(b => `<option value="${b.id}">${b.id}</option>`)
           .join('');
         sel.style.display = 'inline-block';
@@ -8858,7 +8858,8 @@ const BldDB = (() => {
     _filtered = _data.buildings.map((h, i) => i)
       .filter(i => {
         const bld = _data.buildings[i];
-        return (!s || bld.id.toLowerCase().includes(s)) &&
+        return bld.buildingCategory !== 'Bridge' &&
+               (!s || bld.id.toLowerCase().includes(s)) &&
                (!b || bld.biome === b) &&
                (!t || bld.type === t);
       });
