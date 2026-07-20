@@ -1169,6 +1169,12 @@
       "en": "TEst new 4",
       "uk": "Тестовий ключ ",
       "group": "Universal Keys"
+    },
+    {
+      "key": "save_success",
+      "en": "Game saved",
+      "uk": "Гру збережено",
+      "group": "Universal Keys"
     }
   ]
 }
