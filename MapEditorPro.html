@@ -1151,6 +1151,8 @@ body.mode-common #map-io    { display: none; }
         <div class="separator"></div>
         <button onclick="IO.clearMap()">Clear Map</button>
         <button onclick="IO.fillMap()">Fill Map</button>
+        <div class="separator"></div>
+        <button onclick="IO.openExpandMap()">Expand Map…</button>
       </div>
     </div>
     <div class="menu-item" id="menu-layer">Layer
@@ -1977,6 +1979,36 @@ body.mode-common #map-io    { display: none; }
   </div>
 </div>
 
+<!-- Expand Map modal -->
+<div class="modal-overlay" id="expandmap-modal">
+  <div class="newmap-box">
+    <h3>Expand Map</h3>
+    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Adds tiles equally on all four sides.</p>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px">
+      <label style="white-space:nowrap">Tiles to add:</label>
+      <input id="expandmap-amount" type="number" min="0" max="100" value="10"
+        style="width:80px" oninput="IO._validateExpandInput(this)">
+    </div>
+    <div style="margin-bottom:14px">
+      <div style="margin-bottom:6px;font-size:13px">Fill new tiles with:</div>
+      <label style="margin-right:20px;cursor:pointer">
+        <input type="radio" name="expandmap-type" value="ground" checked onchange="IO._updateExpandPreview()"> Ground
+      </label>
+      <label style="cursor:pointer">
+        <input type="radio" name="expandmap-type" value="water" onchange="IO._updateExpandPreview()"> Water
+      </label>
+    </div>
+    <p class="newmap-note">
+      Current: <span id="expandmap-current">—</span> →
+      New: <span id="expandmap-preview">—</span>
+    </p>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="IO.closeExpandMap()">Cancel</button>
+      <button class="btn btn-primary" onclick="IO.applyExpandMap()">Expand</button>
+    </div>
+  </div>
+</div>
+
 <!-- Generator Modal -->
 <div class="modal-overlay" id="gen-modal">
   <div class="gen-modal-box">
@@ -2160,7 +2192,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.20";
-const COMMIT  = "0cd1074";
+const COMMIT  = "57be3e6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5991,8 +6023,129 @@ const IO = (() => {
     document.getElementById('bridge-terrain-input').value = '';
   }
 
+  // ── Expand Map ────────────────────────────────────────────
+  function openExpandMap() {
+    UI.closeAllMenus();
+    _updateExpandPreview();
+    document.getElementById('expandmap-modal').classList.add('open');
+    document.getElementById('expandmap-amount').focus();
+  }
+
+  function closeExpandMap() {
+    document.getElementById('expandmap-modal').classList.remove('open');
+  }
+
+  function _validateExpandInput(el) {
+    // Strip everything except digits
+    let v = el.value.replace(/[^0-9]/g, '');
+    // Remove leading zeros (keep bare "0")
+    v = v.replace(/^0+(\d)/, '$1');
+    // Clamp to 100
+    if (v !== '' && parseInt(v, 10) > 100) v = '100';
+    el.value = v;
+    _updateExpandPreview();
+  }
+
+  function _updateExpandPreview() {
+    const x  = Math.max(0, parseInt(document.getElementById('expandmap-amount')?.value, 10) || 0);
+    const nw = MAP_WIDTH  + x * 2;
+    const nh = MAP_HEIGHT + x * 2;
+    const cur = document.getElementById('expandmap-current');
+    const prv = document.getElementById('expandmap-preview');
+    if (cur) cur.textContent = `${MAP_WIDTH} × ${MAP_HEIGHT}`;
+    if (prv) {
+      prv.textContent = `${nw} × ${nh}`;
+      prv.style.color = (nw > 450 || nh > 450) ? '#e74c3c' : 'var(--accent)';
+    }
+  }
+
+  function applyExpandMap() {
+    const x = Math.max(0, Math.min(100, parseInt(document.getElementById('expandmap-amount').value, 10) || 0));
+    if (x === 0) { closeExpandMap(); return; }
+
+    const newW = MAP_WIDTH  + x * 2;
+    const newH = MAP_HEIGHT + x * 2;
+    if (newW > 450 || newH > 450) {
+      UI.toast(`Too large — max 450×450. Reduce expand amount.`);
+      return;
+    }
+
+    // Determine fill tile
+    const typeVal = document.querySelector('input[name="expandmap-type"]:checked')?.value;
+    let fillTile = 'Plain_1';
+    if (typeVal === 'water') {
+      const waterEntry = typeof HexDB !== 'undefined'
+        ? HexDB.getAll().find(h => h.type === 'Water' || (h.id || '').toLowerCase().startsWith('water'))
+        : null;
+      fillTile = waterEntry ? waterEntry.id : 'Water_1';
+    }
+
+    // Expand mapData
+    const newMapData = new Array(newW * newH).fill(fillTile);
+    for (let row = 0; row < MAP_HEIGHT; row++)
+      for (let col = 0; col < MAP_WIDTH; col++)
+        newMapData[(row + x) * newW + (col + x)] = mapData[row * MAP_WIDTH + col];
+
+    // Shift objectsData keys
+    const newObjectsData = {};
+    Object.entries(objectsData).forEach(([key, val]) => {
+      const [c, r] = key.split(',').map(Number);
+      newObjectsData[(c + x) + ',' + (r + x)] = val;
+    });
+
+    // Shift tileExtras keys
+    const newTileExtras = {};
+    Object.entries(tileExtras).forEach(([key, val]) => {
+      const [c, r] = key.split(',').map(Number);
+      newTileExtras[(c + x) + ',' + (r + x)] = val;
+    });
+
+    // Shift bridgesData
+    bridgesData = bridgesData.map(b => ({ ...b, col: b.col + x, row: b.row + x }));
+
+    // Shift settlements
+    settlements = settlements.map(s => ({ ...s, col: s.col + x, row: s.row + x }));
+
+    // Shift zone map (same indexing as mapData)
+    let zoneData = null;
+    if (typeof ZonePainter !== 'undefined') {
+      zoneData = ZonePainter.toSaveObject();
+      if (Array.isArray(zoneData.zoneMap) && zoneData.zoneMap.length === MAP_WIDTH * MAP_HEIGHT) {
+        const newZoneMap = new Array(newW * newH).fill(0);
+        for (let row = 0; row < MAP_HEIGHT; row++)
+          for (let col = 0; col < MAP_WIDTH; col++)
+            newZoneMap[(row + x) * newW + (col + x)] = zoneData.zoneMap[row * MAP_WIDTH + col];
+        zoneData.zoneMap = newZoneMap;
+      }
+    }
+
+    // Commit
+    MAP_WIDTH   = newW;
+    MAP_HEIGHT  = newH;
+    mapData     = newMapData;
+    objectsData = newObjectsData;
+    tileExtras  = newTileExtras;
+
+    if (zoneData && typeof ZonePainter !== 'undefined')
+      ZonePainter.fromSaveObject(zoneData);
+    else if (typeof ZonePainter !== 'undefined')
+      ZonePainter.init();
+
+    History.clear();
+    History.push();
+    UI.updateSettlementCount();
+    UI.updateStatusSize();
+    closeExpandMap();
+    Canvas.render();
+    Canvas.drawMinimap();
+    Canvas.centerOnCity();
+    UI.toast(`Map expanded to ${newW} × ${newH}`);
+    _autoSave();
+  }
+
   return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
+           openExpandMap, closeExpandMap, applyExpandMap, _validateExpandInput, _updateExpandPreview,
            autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave,
            setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson,
            loadFromJSON: _loadFromJSON, setFileName: _setFileName,
