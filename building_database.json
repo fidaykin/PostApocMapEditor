@@ -1091,7 +1091,8 @@
       "bonusTrigger": "Destroy",
       "bonuses": [],
       "booster": "",
-      "effects": ""
+      "effects": "",
+      "footprint": []
     }
   ]
 }
