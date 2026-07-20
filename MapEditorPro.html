@@ -2192,7 +2192,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.20";
-const COMMIT  = "8e828c9";
+const COMMIT  = "06d2d85";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4900,7 +4900,7 @@ const UI = (() => {
     const allBuildings = typeof BldDB !== 'undefined' ? BldDB.getAll() : [];
     const _bldType = b => b.type || 'Ground Building';
     BLD_SECTIONS.forEach(({ label, type }) => {
-      const buildings = allBuildings.filter(b => _bldType(b) === type);
+      const buildings = allBuildings.filter(b => _bldType(b) === type && b.buildingCategory !== 'Bridge');
       const hdr = document.createElement('button');
       hdr.className = 'cat-header collapsed';
       hdr.textContent = `${label} (${buildings.length})`;
