@@ -2302,7 +2302,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "973f008";
+const COMMIT  = "94c81b7";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7489,13 +7489,123 @@ const Packages = (() => {
     _importZip = null;
   }
 
+  // ── Import confirm + publish ────────────────────────────────────
+  function _rewriteEntries(entries, originalId, newId) {
+    const oldPrefix = idPrefix(originalId);
+    const newPrefix = idPrefix(newId);
+    return (entries || []).map(e => ({
+      ...e,
+      id: e.id.startsWith(oldPrefix)
+          ? newPrefix + e.id.slice(oldPrefix.length)
+          : newPrefix + e.id,
+      package: newId,
+    }));
+  }
+
+  async function confirmImport() {
+    const name   = document.getElementById('pkg-import-name').value.trim();
+    const newId  = document.getElementById('pkg-import-id').value.trim();
+    const origId = document.getElementById('pkg-import-original-id').value;
+    const errEl  = document.getElementById('pkg-import-error');
+
+    if (!name) {
+      errEl.textContent = 'Display name is required.';
+      errEl.style.display = 'block'; return;
+    }
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(newId)) {
+      errEl.textContent = 'ID must be lowercase letters, numbers, and hyphens only.';
+      errEl.style.display = 'block'; return;
+    }
+    if (getEntry(newId)) {
+      errEl.textContent = `Package "${newId}" already exists.`;
+      errEl.style.display = 'block'; return;
+    }
+
+    const zip = _importZip;
+    closeImportModal();
+
+    try {
+      UI.progress(5, `Importing "${name}"…`);
+
+      // Read databases from ZIP
+      const hexFile = zip.file('hex_database.json');
+      const bldFile = zip.file('building_database.json');
+      const hexData = hexFile ? JSON.parse(await hexFile.async('text')) : { hexes: [] };
+      const bldData = bldFile ? JSON.parse(await bldFile.async('text')) : { buildings: [] };
+
+      const hexes     = _rewriteEntries(hexData.hexes,     origId, newId);
+      const buildings = _rewriteEntries(bldData.buildings, origId, newId);
+
+      // Write package.json
+      UI.progress(10, 'Writing package.json…');
+      const pkgJson = JSON.stringify({ id: newId, name, version: '1.0.0', description: '', isDefault: false }, null, 2);
+      await GitHubSync._putText(`packages/${newId}/package.json`, pkgJson, `import package: ${newId}`);
+
+      // Write hex_database.json
+      UI.progress(20, 'Writing hex_database.json…');
+      await GitHubSync._putText(
+        `packages/${newId}/hex_database.json`,
+        JSON.stringify({ version: 1, package: newId, hexes }, null, 2),
+        `import ${newId}: hex_database.json`);
+
+      // Write building_database.json
+      UI.progress(30, 'Writing building_database.json…');
+      await GitHubSync._putText(
+        `packages/${newId}/building_database.json`,
+        JSON.stringify({ version: 1, package: newId, buildings }, null, 2),
+        `import ${newId}: building_database.json`);
+
+      // Upload sprites from ZIP
+      const spriteFiles = Object.entries(zip.files)
+        .filter(([path, f]) => path.startsWith('sprites/') && !f.dir)
+        .map(([path, file]) => ({ path, file }));
+
+      let done = 0;
+      for (const { path, file } of spriteFiles) {
+        try {
+          // path example: 'sprites/hex/Forest.png' → dest: 'packages/medieval/sprites/hex/Forest.png'
+          const destPath = `packages/${newId}/${path}`;
+          const blob = await file.async('blob');
+          await GitHubSync._putBinary(destPath, blob, `import ${newId}: ${path}`);
+        } catch(e) {
+          console.warn(`[Packages] import: skipped sprite ${path}:`, e.message);
+        }
+        done++;
+        const pct = 30 + Math.round((done / Math.max(spriteFiles.length, 1)) * 55);
+        UI.progress(pct, `Sprites: ${done}/${spriteFiles.length}…`);
+      }
+
+      // Update registry
+      UI.progress(88, 'Updating registry.json…');
+      const newEntry = { id: newId, name, isDefault: false, version: '1.0.0' };
+      let regData;
+      try {
+        const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+        regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
+      } catch(e) { regData = { version: 1, packages: [..._registry] }; }
+      if (!regData.packages.find(p => p.id === newId)) regData.packages.push(newEntry);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${newId}`);
+
+      _registry = regData.packages;
+      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      UI.progressDone(`✅ Package "${name}" imported`);
+      UI.toast(`✅ Package "${name}" imported successfully`);
+      renderPanel();
+      renderActiveDropdowns();
+    } catch(e) {
+      UI.progressDone('');
+      UI.toast(`⚠ Import failed: ${e.message}`);
+    }
+  }
+
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
            openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, publishPackage, confirmDelete, deletePackage,
-           _loadJSZip, exportPackage, openImportModal, _onImportFilePicked,
-           closeImportModal };
+           _loadJSZip, exportPackage,
+           openImportModal, _onImportFilePicked, closeImportModal,
+           _rewriteEntries, confirmImport };
 })();
 
 // ── App: mode switching ────────────────────────────────────
