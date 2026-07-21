@@ -628,6 +628,25 @@ body.mode-settlements #settlements-main { display: grid; }
 }
 .mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .mode-tab:hover:not(.active) { color: var(--text); }
+/* Packages panel */
+body:not(.mode-packages) #packages-tools { display: none; }
+body.mode-packages #packages-tools { display: flex; align-items: center; gap: 6px; }
+body.mode-packages #main { display: none; }
+body:not(.mode-packages) #pkg-panel { display: none; }
+body.mode-packages #pkg-panel { display: block; }
+
+#pkg-panel { padding: 16px; max-width: 860px; }
+#pkg-panel table { border-collapse: collapse; width: 100%; font-size: 13px; }
+#pkg-panel th, #pkg-panel td { padding: 8px 12px; border-bottom: 1px solid #313244; text-align: left; }
+#pkg-panel th { color: #888; font-weight: normal; font-size: 11px; text-transform: uppercase; }
+#pkg-panel tr:hover td { background: #181825; }
+.pkg-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px;
+             font-weight: bold; background: #a6e3a1; color: #1e1e2e; }
+.pkg-chip  { padding: 3px 10px; border-radius: 12px; border: 1px solid #45475a;
+             background: #1e1e2e; color: #cdd6f4; cursor: pointer; font-size: 11px; }
+.pkg-chip.active { background: #a6e3a1; color: #1e1e2e; border-color: #a6e3a1; }
+.pkg-filter-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0 8px; }
+
 .mode-more-wrap { position: relative; display: flex; align-items: stretch; }
 #more-dropdown {
   display: none; position: absolute; top: 100%; left: 0; z-index: 200;
@@ -1259,6 +1278,7 @@ body.mode-common #map-io    { display: none; }
       <button class="mode-tab"        id="tab-buildings"   onclick="App.setMode('buildings')">BUILDINGS</button>
       <button class="mode-tab"        id="tab-settlements" onclick="App.setMode('settlements')">SETTLEMENTS</button>
       <button class="mode-tab"        id="tab-keys"        onclick="App.setMode('keys')">KEYS</button>
+      <button class="mode-tab"        id="tab-packages"    onclick="App.setMode('packages')">PACKAGES</button>
       <div class="mode-more-wrap">
         <button class="mode-tab" id="tab-more" onclick="App.toggleMore(event)">MORE ▾</button>
         <div id="more-dropdown">
@@ -1346,6 +1366,12 @@ body.mode-common #map-io    { display: none; }
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.pushToServer()">☁ Push</button>
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.clearCache()" title="Clear localStorage cache and re-fetch from server">🗑 Clear Cache</button>
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.downloadJson()">⬇ Download JSON</button>
+    </div>
+    <div id="packages-tools">
+      <span id="pkg-active-label" style="font-size:11px;color:#aaa;margin-right:6px">Active package:</span>
+      <select id="pkg-active-select" style="font-size:11px;background:#1e1e2e;color:#cdd6f4;border:1px solid #45475a;border-radius:4px;padding:2px 6px"
+              onchange="Packages.setActive(this.value)"></select>
+      <span id="pkg-active-badge" style="display:none;margin-left:8px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;background:#a6e3a1;color:#1e1e2e"></span>
     </div>
   </div>
 
@@ -1497,6 +1523,9 @@ body.mode-common #map-io    { display: none; }
     </div>
 
   </div>
+
+  <!-- ── Packages Panel ────────────────────────────────────────── -->
+  <div id="pkg-panel"></div>
 
   <!-- ── HEX DB Main ─────────────────────────────────────────── -->
   <div id="hexdb-main">
@@ -2269,7 +2298,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "4a2b208";
+const COMMIT  = "5e50ffa";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7038,9 +7067,40 @@ const Packages = (() => {
   }
 
   // ── Panel / badge rendering (stubs — filled in Tasks 2–5) ──────
-  function renderPanel()           { /* Task 2 */ }
+  function renderPanel() {
+    const el = document.getElementById('pkg-panel');
+    if (!el) return;
+    const rows = _registry.map(p => `
+      <tr>
+        <td><code>${p.id}</code>${p.isDefault ? ' <span class="pkg-badge">default</span>' : ''}</td>
+        <td>${p.name}</td>
+        <td>${p.version || '—'}</td>
+        <td>
+          <button class="hexdb-tool-btn" onclick="Packages.openPublishConfirm('${p.id}')">Publish</button>
+          ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" onclick="Packages.confirmDelete('${p.id}')">Delete</button>` : ''}
+        </td>
+      </tr>`).join('');
+    el.innerHTML = `
+      <h3 style="color:#cdd6f4;margin:0 0 16px">Content Packages</h3>
+      <button class="hexdb-tool-btn" style="margin-bottom:12px" onclick="Packages.openNewModal()">+ New Package</button>
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Version</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
   function renderBadges()          { /* Task 4 */ }
-  function renderActiveDropdowns() { /* Task 2 */ }
+  function renderActiveDropdowns() {
+    const sel = document.getElementById('pkg-active-select');
+    if (!sel) return;
+    sel.innerHTML = _registry.map(p =>
+      `<option value="${p.id}" ${p.id === _active ? 'selected' : ''}>${p.name}</option>`
+    ).join('');
+    const badge = document.getElementById('pkg-active-badge');
+    if (badge) {
+      badge.textContent = _active === 'postapoc' ? '' : idPrefix(_active).slice(0, -1);
+      badge.style.display = _active === 'postapoc' ? 'none' : 'inline-block';
+    }
+  }
 
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns };
@@ -7050,7 +7110,7 @@ const Packages = (() => {
 const App = {
   setMode(mode) {
     const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys',
-                   'slots', 'actions', 'upgrades', 'monsters', 'quests', 'common'];
+                   'slots', 'actions', 'upgrades', 'monsters', 'quests', 'common', 'packages'];
     MODES.forEach(m => {
       document.body.classList.toggle('mode-' + m, m === mode);
       const tab = document.getElementById('tab-' + m);
@@ -7059,6 +7119,7 @@ const App = {
     const moreBtn = document.getElementById('tab-more');
     if (moreBtn) moreBtn.classList.toggle('active', ['slots','actions','upgrades','monsters','quests','common'].includes(mode));
     if (mode === 'common' && typeof CommonDB !== 'undefined') CommonDB.render();
+    if (mode === 'packages' && typeof Packages !== 'undefined') Packages.renderPanel();
   },
   toggleMore(e) {
     e.stopPropagation();
@@ -11706,7 +11767,7 @@ window.addEventListener('load', async () => {
   document.addEventListener('keydown', e => {
     if (e.key === 'Tab' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
       e.preventDefault();
-      const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys'];
+      const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys', 'packages'];
       const cur = MODES.findIndex(m => document.body.classList.contains('mode-' + m));
       App.setMode(MODES[(cur + 1) % MODES.length]);
     }
