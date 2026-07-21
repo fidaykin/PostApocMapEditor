@@ -2269,7 +2269,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "84f6fb0";
+const COMMIT  = "4a2b208";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6982,6 +6982,70 @@ const Satellite = (() => {
   };
 })();
 
+// ─────────────────────────────────────────────────────────────────
+// Packages — registry, active state, create/publish/delete
+// ─────────────────────────────────────────────────────────────────
+const Packages = (() => {
+  const LS_ACTIVE   = 'pkg_active';
+  const LS_REGISTRY = 'pkg_registry_cache';
+
+  let _registry = [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }];
+  let _active   = 'postapoc';
+
+  // ── Init ───────────────────────────────────────────────────────
+  function init() {
+    _active = localStorage.getItem(LS_ACTIVE) || 'postapoc';
+    try {
+      const c = localStorage.getItem(LS_REGISTRY);
+      if (c) _registry = JSON.parse(c);
+    } catch(e) {}
+    _fetchRegistry();
+  }
+
+  async function _fetchRegistry() {
+    try {
+      const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.packages)) {
+        _registry = data.packages;
+        localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+        renderPanel();
+        renderBadges();
+        renderActiveDropdowns();
+      }
+    } catch(e) { console.warn('[Packages] registry fetch failed:', e.message); }
+  }
+
+  // ── Getters / Setters ──────────────────────────────────────────
+  function getActive()  { return _active; }
+  function getAll()     { return _registry; }
+  function getEntry(id) { return _registry.find(p => p.id === id) ?? null; }
+  function isDefault(id){ return id === 'postapoc'; }
+
+  // PascalCase prefix for new entry IDs: 'medieval' → 'Medieval_'
+  function idPrefix(id) {
+    if (!id || id === 'postapoc') return '';
+    return id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('') + '_';
+  }
+
+  function setActive(id) {
+    if (!getEntry(id)) return;
+    _active = id;
+    localStorage.setItem(LS_ACTIVE, id);
+    renderBadges();
+    renderActiveDropdowns();
+  }
+
+  // ── Panel / badge rendering (stubs — filled in Tasks 2–5) ──────
+  function renderPanel()           { /* Task 2 */ }
+  function renderBadges()          { /* Task 4 */ }
+  function renderActiveDropdowns() { /* Task 2 */ }
+
+  return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
+           renderPanel, renderBadges, renderActiveDropdowns };
+})();
+
 // ── App: mode switching ────────────────────────────────────
 const App = {
   setMode(mode) {
@@ -11621,6 +11685,7 @@ window.addEventListener('load', async () => {
   UI.rebuildSlotPanel();
   UI.selectTerrain('Plain_1');
 
+  Packages.init();
   BldDB.init();
   SttDB.init();
   UpgDB.init();
