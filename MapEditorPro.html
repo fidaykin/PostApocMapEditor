@@ -2302,7 +2302,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "3b9b1ad";
+const COMMIT  = "c703de5";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5861,12 +5861,26 @@ const IO = (() => {
     return F[val] || 'Plain_1';
   }
 
+  function _collectMapPackages() {
+    if (!mapData) return ['postapoc'];
+    const hexes = (typeof HexDB !== 'undefined') ? HexDB.getData().hexes : [];
+    const pkgById = {};
+    hexes.forEach(h => { pkgById[h.id] = h.package || 'postapoc'; });
+    const usedPkgs = new Set(['postapoc']);
+    mapData.forEach(id => { if (id && pkgById[id]) usedPkgs.add(pkgById[id]); });
+    // Also check objects layer
+    Object.values(objectsData || {}).forEach(id => { if (id && pkgById[id]) usedPkgs.add(pkgById[id]); });
+    return [...usedPkgs].sort();
+  }
+
   function _buildJson() {
     const data2d = [];
     for (let r = 0; r < MAP_HEIGHT; r++)
       data2d.push(mapData.slice(r * MAP_WIDTH, (r+1) * MAP_WIDTH));
 
     const result = {
+      version: 2,
+      packages: _collectMapPackages(),
       width: MAP_WIDTH, height: MAP_HEIGHT,
       data: data2d,
       settlements: settlements.map(s => ({ col: s.col, row: s.row, type: s.type }))
