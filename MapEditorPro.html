@@ -1254,8 +1254,9 @@ body.mode-common #map-io    { display: none; }
       <button class="tool-btn" data-tool="object" onclick="Tools.setActive('object')">🏗<span class="tooltip">Place Building (B)</span></button>
       <select id="obj-building-select" style="display:none;background:#1a1a2e;border:1px solid #4fc3f7;color:#e0e0e0;font-size:11px;padding:2px 4px;border-radius:3px;vertical-align:middle;max-width:130px"></select>
       <button class="tool-btn" data-tool="erase-object" onclick="Tools.setActive('erase-object')">🗑<span class="tooltip">Erase Building (X)</span></button>
-      <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')">🛣<span class="tooltip">Draw Road (W)</span></button>
-      <button class="tool-btn" data-tool="erase-road" onclick="Tools.setActive('erase-road')">🚫<span class="tooltip">Erase Road (Q)</span></button>
+      <!-- road tools hidden pending sprite-alignment fix -->
+      <!-- <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')">🛣<span class="tooltip">Draw Road (W)</span></button> -->
+      <!-- <button class="tool-btn" data-tool="erase-road" onclick="Tools.setActive('erase-road')">🚫<span class="tooltip">Erase Road (Q)</span></button> -->
       <button class="hexdb-tool-btn" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize & Fill</button>
       <input id="rnd-zone-scale" type="range" min="0.01" max="0.12" step="0.005" value="0.04"
              title="Patch size — left=large, right=small"
@@ -2226,7 +2227,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "9c134e6";
+const COMMIT  = "07e91ac";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2631,14 +2632,14 @@ const Canvas = (() => {
       _drawBridgeOverlay(pos.x, pos.y, radius, b.axis);
     });
 
-    // Road overlays (auto-tile bitmask)
-    Object.entries(roadsData).forEach(([key]) => {
-      const [col, row] = key.split(',').map(Number);
-      const pos = hexScreenPos(col, row);
-      if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
-          pos.y + radius < 0 || pos.y - radius > canvas.height) return;
-      _drawRoadOverlay(pos.x, pos.y, radius, Roads.calcBitmask(col, row));
-    });
+    // Road overlays disabled — sprite arm alignment needs fixing before re-enabling
+    // Object.entries(roadsData).forEach(([key]) => {
+    //   const [col, row] = key.split(',').map(Number);
+    //   const pos = hexScreenPos(col, row);
+    //   if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
+    //       pos.y + radius < 0 || pos.y - radius > canvas.height) return;
+    //   _drawRoadOverlay(pos.x, pos.y, radius, Roads.calcBitmask(col, row));
+    // });
 
     // Pre-placed object overlays
     Object.entries(objectsData).forEach(([key, bldId]) => {
@@ -4118,8 +4119,8 @@ const Tools = (() => {
         case 'z': setActive('zone');         break;
         case 'b': setActive('object');       break;
         case 'x': setActive('erase-object'); break;
-        case 'w': setActive('road');         break;
-        case 'q': setActive('erase-road');   break;
+        // case 'w': setActive('road');         break;  // road tools hidden
+        // case 'q': setActive('erase-road');   break;
       }
     });
   }
