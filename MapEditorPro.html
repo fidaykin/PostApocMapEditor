@@ -2302,7 +2302,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "b15ff46";
+const COMMIT  = "1c64b46";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7446,10 +7446,42 @@ const Packages = (() => {
 
   function renderFilterChips() { _renderFilterChips(); }
 
+  // ── Import Package modal ───────────────────────────────────────
+  let _importZip = null;  // holds JSZip instance while import modal is open
+
   function openImportModal() {
     const input = document.getElementById('pkg-import-input');
     if (input) input.click();
-    else UI.toast('⚠ Import UI not ready');
+    else UI.toast('⚠ Import UI not ready — try reloading');
+  }
+
+  async function _onImportFilePicked(file) {
+    if (!file) return;
+    try {
+      const JSZip = await _loadJSZip();
+      const zip   = await JSZip.loadAsync(file);
+      const pkgFile = zip.file('package.json');
+      if (!pkgFile) return UI.toast('⚠ Invalid package ZIP: missing package.json');
+      const pkgData = JSON.parse(await pkgFile.async('text'));
+      _showImportModal(pkgData.id || '', pkgData.name || '', zip);
+    } catch(e) {
+      UI.toast(`⚠ Could not read ZIP: ${e.message}`);
+    }
+  }
+
+  function _showImportModal(originalId, name, zip) {
+    _importZip = zip;
+    document.getElementById('pkg-import-original-id').value = originalId;
+    document.getElementById('pkg-import-name').value        = name;
+    document.getElementById('pkg-import-id').value          = originalId;
+    document.getElementById('pkg-import-error').style.display = 'none';
+    document.getElementById('pkg-import-modal').style.display = 'flex';
+    document.getElementById('pkg-import-id').focus();
+  }
+
+  function closeImportModal() {
+    document.getElementById('pkg-import-modal').style.display = 'none';
+    _importZip = null;
   }
 
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
@@ -7457,7 +7489,8 @@ const Packages = (() => {
            isPkgVisible, togglePkgFilter,
            openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, publishPackage, confirmDelete, deletePackage,
-           _loadJSZip, exportPackage, openImportModal };
+           _loadJSZip, exportPackage, openImportModal, _onImportFilePicked,
+           closeImportModal };
 })();
 
 // ── App: mode switching ────────────────────────────────────
@@ -12494,6 +12527,27 @@ window.addEventListener('load', async () => {
     </div>
   </div>
 </div>
+
+<!-- Packages — Import Package modal -->
+<div id="pkg-import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;align-items:center;justify-content:center">
+  <div style="background:#1e1e2e;border:1px solid #45475a;border-radius:8px;padding:24px;min-width:380px;display:flex;flex-direction:column;gap:12px">
+    <h3 style="margin:0;color:#cdd6f4">Import Package</h3>
+    <label style="font-size:12px;color:#888">Display Name</label>
+    <input id="pkg-import-name" type="text"
+           style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-size:13px">
+    <label style="font-size:12px;color:#888">Package ID (lowercase, hyphens only)</label>
+    <input id="pkg-import-id" type="text"
+           style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-size:13px;font-family:monospace">
+    <input type="hidden" id="pkg-import-original-id">
+    <div id="pkg-import-error" style="color:#f38ba8;font-size:12px;display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="hexdb-tool-btn" onclick="Packages.closeImportModal()">Cancel</button>
+      <button class="hexdb-tool-btn" style="background:#89dceb;color:#1e1e2e" onclick="Packages.confirmImport()">Import</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="pkg-import-input" accept=".zip" style="display:none"
+       onchange="Packages._onImportFilePicked(this.files[0]); this.value=''">
 
 </body>
 </html>
