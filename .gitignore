@@ -1,0 +1,15 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# QA builds / release zips — don't commit large binaries
+*.zip
+*.tar.gz
+
+# Editor backups
+*.bak
+*~
+
+# Node (if tooling is ever added)
+node_modules/

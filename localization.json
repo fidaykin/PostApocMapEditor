@@ -1,0 +1,1193 @@
+{
+  "version": 2,
+  "locales": [
+    "en",
+    "uk"
+  ],
+  "groups": [
+    "Tiles",
+    "Buildings",
+    "Settlements",
+    "Upgrades",
+    "Universal Keys",
+    "Buttons"
+  ],
+  "entries": [
+    {
+      "key": "btn_close",
+      "en": "Close",
+      "uk": "Закрити",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_confirm",
+      "en": "Confirm",
+      "uk": "Підтвердити",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_cancel",
+      "en": "Cancel",
+      "uk": "Скасувати",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_ok",
+      "en": "OK",
+      "uk": "OK",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_yes",
+      "en": "Yes",
+      "uk": "Так",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_no",
+      "en": "No",
+      "uk": "Ні",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_back",
+      "en": "Back",
+      "uk": "Назад",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_reset_data",
+      "en": "Reset Data",
+      "uk": "Скинути дані",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_privacy_policy",
+      "en": "Privacy Policy",
+      "uk": "Політика конфіденційності",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settings_title",
+      "en": "Settings",
+      "uk": "Налаштування",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settings_sfx",
+      "en": "Sound Effects",
+      "uk": "Звукові ефекти",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settings_music",
+      "en": "Music",
+      "uk": "Музика",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settings_notifications",
+      "en": "Notifications",
+      "uk": "Сповіщення",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settings_language",
+      "en": "Language",
+      "uk": "Мова",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settings_account",
+      "en": "Account ID",
+      "uk": "ID облікового запису",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settings_version",
+      "en": "Version",
+      "uk": "Версія",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settings_reset_confirm",
+      "en": "Are you sure? This will delete all progress.",
+      "uk": "Ви впевнені? Всі дані буде видалено.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settlement_title",
+      "en": "Settlement (Level {0})",
+      "uk": "Поселення (Рівень {0})",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settlement_abandoned",
+      "en": "Abandoned Settlement",
+      "uk": "Покинуте поселення",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settlement_active",
+      "en": "Active - Generating Gold",
+      "uk": "Активне — генерує золото",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settlement_connect",
+      "en": "Connect via road to activate",
+      "uk": "Підключіть дорогою для активації",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settlement_desc_active",
+      "en": "This settlement has been restored and is now producing gold. Upgrade to increase production.",
+      "uk": "Це поселення відновлено та виробляє золото. Поліпшіть для збільшення виробництва.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settlement_desc_inactive",
+      "en": "Resources looted. Build a road connection to the city to activate this settlement and start generating gold.",
+      "uk": "Ресурси пограбовано. Проведіть дорогу до міста щоб активувати поселення та почати видобувати золото.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settlement_production_rate",
+      "en": "<b>Production:</b>\n+{0} gold every 9 seconds",
+      "uk": "<b>Виробництво:</b>\n+{0} золота кожні 9 секунд",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settlement_upgrade_cost",
+      "en": "Upgrade: {0} Gold",
+      "uk": "Поліпшення: {0} золота",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settlement_activate",
+      "en": "Activate",
+      "uk": "Активувати",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "no_description",
+      "en": "No description available.",
+      "uk": "Опис відсутній.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_production_header",
+      "en": "<b>Production:</b>\n",
+      "uk": "<b>Виробництво:</b>\n",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_production_none",
+      "en": "<b>Production:</b> None",
+      "uk": "<b>Виробництво:</b> Відсутнє",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_cost_header",
+      "en": "<b>Construction Cost:</b>\n",
+      "uk": "<b>Вартість будівництва:</b>\n",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_cost_free",
+      "en": "<b>Construction Cost:</b> Free",
+      "uk": "<b>Вартість будівництва:</b> Безкоштовно",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_requirements_header",
+      "en": "<b>Requirements:</b>\n",
+      "uk": "<b>Вимоги:</b>\n",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_town_level_req",
+      "en": "  Town Level {0}+\n",
+      "uk": "  Рівень міста {0}+\n",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_terrain_label",
+      "en": "  Terrain: ",
+      "uk": "  Рельєф:",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "city_name",
+      "en": "Settlement",
+      "uk": "Поселення",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "city_total_clicks",
+      "en": "Total Clicks: {0}",
+      "uk": "Всього натискань: {0}",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "city_max_level",
+      "en": "Max Level",
+      "uk": "Максимальний рівень",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "city_upgrade_requirements",
+      "en": "Upgrade Requirements:\n",
+      "uk": "Вимоги для поліпшення:\n",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "city_clicks_progress",
+      "en": "Clicks: {0}/{1}",
+      "uk": "Натискань: {0}/{1}",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "levelup_buildings",
+      "en": "New buildings unlocked!",
+      "uk": "Нові будівлі розблоковано!",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "levelup_keep_going",
+      "en": "Keep building!",
+      "uk": "Продовжуй будувати!",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "offline_welcome",
+      "en": "Welcome Back!",
+      "uk": "З поверненням!",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "offline_storage_capped",
+      "en": "Max 8h production applied. Build more storage!",
+      "uk": "Застосовано максимум 8 годин виробництва. Збудуйте більше сховищ!",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "offline_storage_full",
+      "en": "Some storage was full — build more to earn more!",
+      "uk": "Деякі сховища переповнені — збудуйте більше для більшого доходу!",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "restoration_strength_default",
+      "en": "Strength: 1x",
+      "uk": "Сила: 1x",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "restoration_tap_power",
+      "en": "Tap Power: {0}x",
+      "uk": "Сила натискання: {0}x",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "restoration_max_level",
+      "en": "MAX LEVEL",
+      "uk": "МАКС. РІВЕНЬ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "restoration_upgrade",
+      "en": "Upgrade to {0}x\n{1:N0} Gold",
+      "uk": "Поліпшити до {0}x\n{1:N0} золота",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "upgrade_max",
+      "en": "MAX",
+      "uk": "МАКС",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "upgrade_purchase",
+      "en": "Purchase",
+      "uk": "Придбати",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "upgrade_upgrade",
+      "en": "Upgrade",
+      "uk": "Поліпшити",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "upgrade_free",
+      "en": "Free",
+      "uk": "Безкоштовно",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "upgrade_price",
+      "en": "Price: {0}",
+      "uk": "Ціна: {0}",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "upgrade_level_bounded",
+      "en": "Level:\n{0}/{1}",
+      "uk": "Рівень:\n{0}/{1}",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "upgrade_level_unbounded",
+      "en": "Level: {0}",
+      "uk": "Рівень: {0}",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "upgrades_header",
+      "en": "Upgrades ({0}/{1})",
+      "uk": "Поліпшення ({0}/{1})",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "hud_town_level",
+      "en": "Town Lv. {0}",
+      "uk": "Місто Рів. {0}",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "float_gold_earned",
+      "en": "+{0:F0} Gold",
+      "uk": "+{0:F0} золота",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "float_gold_spent",
+      "en": "-{0:F0} Gold",
+      "uk": "-{0:F0} золота",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "tile_info_terrain",
+      "en": "Terrain",
+      "uk": "Рельєф",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "tile_info_building",
+      "en": "Building",
+      "uk": "Будівля",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "tile_info_road",
+      "en": "Road",
+      "uk": "Дорога",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "build_cost",
+      "en": "Construction Cost",
+      "uk": "Вартість будівництва",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "build_requirements",
+      "en": "Requirements",
+      "uk": "Вимоги",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "build_production",
+      "en": "Production",
+      "uk": "Виробництво",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "build_not_met",
+      "en": "Requirements not met",
+      "uk": "Вимоги не виконані",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "city_level",
+      "en": "City Level {0}",
+      "uk": "Рівень міста {0}",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "disconnected_road",
+      "en": "Road not connected to city",
+      "uk": "Дорога не з'єднана з містом",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_unknown_building",
+      "en": "Unknown building.",
+      "uk": "Невідома будівля.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_tile_unavailable",
+      "en": "Tile is not available.",
+      "uk": "Клітинка недоступна.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_building_exists",
+      "en": "A building already exists here.",
+      "uk": "Тут вже є будівля.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_road_exists",
+      "en": "Road already exists here.",
+      "uk": "Тут вже є дорога.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_terrain",
+      "en": "{0} can only be built on: {1}.",
+      "uk": "{0} можна будувати лише на: {1}.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_road_terrain",
+      "en": "Roads cannot be built on this terrain.",
+      "uk": "На цьому рельєфі не можна будувати дороги.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_town_level",
+      "en": "Requires Town Level {0} (you are Level {1}).",
+      "uk": "Потрібен рівень міста {0} (ваш рівень: {1}).",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_road_connect",
+      "en": "Roads must connect to the city or another road.",
+      "uk": "Дороги мають з'єднуватися з містом або іншою дорогою.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_road_required",
+      "en": "{0} requires road connection!\nBuild it next to a road or the city.",
+      "uk": "{0} потребує підключення до дороги!\nРозташуйте поруч із дорогою або містом.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_not_enough_resources",
+      "en": "Not enough resources. Need:",
+      "uk": "Недостатньо ресурсів. Потрібно:",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "city_main_settlement",
+      "en": "MAIN SETTLEMENT",
+      "uk": "ГОЛОВНЕ ПОСЕЛЕННЯ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "ad_reward_gems",
+      "en": "+{0} Gems",
+      "uk": "+{0} самоцвітів",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "ad_reward_resource",
+      "en": "+{0:F0} {1}",
+      "uk": "+{0:F0} {1}",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "ad_reward_gold_boost",
+      "en": "2x Gold (30 min)",
+      "uk": "2x золота (30 хв)",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "forest_cost",
+      "en": "Cost: {0} Gold",
+      "uk": "Вартість: {0} золота",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "forest_reward",
+      "en": "Reward: +{0} Lumber",
+      "uk": "Нагорода: +{0} деревини",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "bottom_hud_label_quests",
+      "en": "QUESTS",
+      "uk": "КВЕСТИ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "bottom_hud_label_info",
+      "en": "INFO",
+      "uk": "ІНФО",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "bottom_hud_label_upgrades",
+      "en": "UPGRADES",
+      "uk": "ПОЛІПШЕННЯ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "bottom_hud_label_smth",
+      "en": "SMTH",
+      "uk": "ЩОСЬ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "bottom_hud_label_shop",
+      "en": "SHOP",
+      "uk": "МАГАЗИН",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "gold_price_title",
+      "en": "Gold",
+      "uk": "Золота",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "cost_efficiency",
+      "en": "Cost Efficiency",
+      "uk": "Ефективність витрат",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "shop",
+      "en": "",
+      "uk": "",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "panel_label_shop",
+      "en": "Shop",
+      "uk": "Магазин",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "settlement_need_road",
+      "en": "Need road connection",
+      "uk": "Потрібне дорожнє з'єднання",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_bridge_exists",
+      "en": "A bridge already exists here.",
+      "uk": "Тут вже є міст.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_bridge_road",
+      "en": "Cannot place a bridge where a road exists.",
+      "uk": "Не можна розмістити міст там, де вже є дорога.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_bridge_no_exit",
+      "en": "Bridge has no valid crossing direction.",
+      "uk": "Немає дійсного напрямку для переправи.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_bridge_connect",
+      "en": "Bridge must connect to an existing road or city.",
+      "uk": "Міст має з'єднуватися з існуючою дорогою або містом.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "lake_desc",
+      "en": "Lake",
+      "uk": "Озеро",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "plain_desc",
+      "en": "Plain",
+      "uk": "Рівнина",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_road",
+      "en": "Building road",
+      "uk": "Будувати дорогу",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "brokenplane_desc",
+      "en": "Broken Plane",
+      "uk": "Зламаний літак",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "barren_desc",
+      "en": "Barren",
+      "uk": "Пустка",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "forest_desc",
+      "en": "Forest",
+      "uk": "Ліс",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "road",
+      "en": "Road",
+      "uk": "Дорога",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_farm",
+      "en": "Farm",
+      "uk": "Ферма",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_lumber_camp",
+      "en": "Lumber Camp",
+      "uk": "Лісопильня",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_quarry",
+      "en": "Quarry",
+      "uk": "Кар'єр",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_generator",
+      "en": "Generator",
+      "uk": "Генератор",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_bridge",
+      "en": "Bridge",
+      "uk": "Міст",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_city",
+      "en": "City",
+      "uk": "Місто",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_remove_road",
+      "en": "Remove Road",
+      "uk": "Прибрати дорогу",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_clear_forest",
+      "en": "Clear Forest",
+      "uk": "Розчистити ліс",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_farm_Idle",
+      "en": "Farm - cultivates fields. Each field produces XXX Food",
+      "uk": "Ферма - вирощує поля. Кожне поле проізводить ХХХ Food.  Радіус росту: ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "building_farm_Build",
+      "en": "Farm - cultivates fields. Radius: 3. Total production = ??? ",
+      "uk": "Ферма - вирощує поля. Радіус росту: 3. Загальне виробництво = ???",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "artefact_test_key",
+      "en": "Artefact",
+      "uk": "Артефакт",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "brokenplane_key",
+      "en": "Broken Plane",
+      "uk": "Зламаний літак",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "brokenrails_key",
+      "en": "Broken Rails",
+      "uk": "Зламані рейки",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "desert_key",
+      "en": "Desert",
+      "uk": "Пустеля",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "destroyedbuilding_key",
+      "en": "Destroyed Building",
+      "uk": "Зруйнована будівля",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "farm_test_key",
+      "en": "Farm Test",
+      "uk": "Ферма",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "fish_key",
+      "en": "Fish",
+      "uk": "Риба",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "gemfield_key",
+      "en": "Gem Field",
+      "uk": "Поле самоцвітів",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "goldmine_test_key",
+      "en": "Gold Mine Test",
+      "uk": "Золота шахта",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "goldvein_key",
+      "en": "Gold Vein",
+      "uk": "Золота жила",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "grain_key",
+      "en": "Grain",
+      "uk": "Зернове поле",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "hills_key",
+      "en": "Hills",
+      "uk": "Пагорби",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "ironmine_test_key",
+      "en": "Iron Mine Test",
+      "uk": "Залізна шахта",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "lake_key",
+      "en": "Lake",
+      "uk": "Озеро",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "lava_plain_key",
+      "en": "Lava Plain",
+      "uk": "Лавова рівнина",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "lava_rift_key",
+      "en": "Lava Rift",
+      "uk": "Лавова тріщина",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "lumbermill_test_key",
+      "en": "Lumber Mill",
+      "uk": "Лісопильня",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "mountain_key",
+      "en": "Mountain",
+      "uk": "Гора",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "oil_key",
+      "en": "Oil",
+      "uk": "Нафта",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "old_generator_key",
+      "en": "Old Generator",
+      "uk": "Старий генератор",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "plain_key",
+      "en": "Plain",
+      "uk": "Рівнина",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "rift_key",
+      "en": "Rift",
+      "uk": "Тріщина",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "river_d_key",
+      "en": "River",
+      "uk": "Річка",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "rubble_key",
+      "en": "Rubble",
+      "uk": "Уламки",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "scouttower_test_key",
+      "en": "Scout Tower",
+      "uk": "Спостережна вежа",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "stoneconveyor_test_key",
+      "en": "Stone Conveyor",
+      "uk": "Кам'яний конвеєр",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "stonemine_test_key",
+      "en": "Stone Mine",
+      "uk": "Кам'яна шахта",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "swamp_key",
+      "en": "Swamp",
+      "uk": "Болото",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "water_key",
+      "en": "Water",
+      "uk": "Вода",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "water_brokenboat_key",
+      "en": "Water Broken Boat",
+      "uk": "Зламаний човен",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "water_dirty_key",
+      "en": "Water Dirty",
+      "uk": "Брудна вода",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "water_oilspill_key",
+      "en": "Water Oil Spill",
+      "uk": "Нафтова пляма",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "water_rock_key",
+      "en": "Water Rock",
+      "uk": "Скеля у воді",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "water_ship_test_key",
+      "en": "Water Ship",
+      "uk": "Корабель",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "water_smallshipyard_test_key",
+      "en": "Water Small Shipyard",
+      "uk": "Мала суднобудівня",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "login_failed",
+      "en": "Sign-in failed. Try again.",
+      "uk": "Не вдалося увійти. Спробуйте ще раз.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "conflict_save_differ",
+      "en": "Your cloud save and local save differ.\nLocal save ({0}) is newer — which do you want to keep?",
+      "uk": "Хмарне та локальне збереження різняться.\nЛокальне ({0}) новіше — яке залишити?",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "map_info_uploaded",
+      "en": "Uploaded:",
+      "uk": "Завантажено:",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "map_info_modified",
+      "en": "Modified:",
+      "uk": "Змінено:",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_download",
+      "en": "Download",
+      "uk": "Завантажити",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_downloaded",
+      "en": "Downloaded",
+      "uk": "Завантажено",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_restart",
+      "en": "Restart",
+      "uk": "Перезапустити",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_reload",
+      "en": "Reload",
+      "uk": "Перезавантажити",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_claim",
+      "en": "Claim",
+      "uk": "Отримати",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_go",
+      "en": "Go",
+      "uk": "Вперед",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_build",
+      "en": "Build",
+      "uk": "Будувати",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "status_locked",
+      "en": "LOCKED",
+      "uk": "ЗАБЛОКОВАНО",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "unit_min",
+      "en": "min",
+      "uk": "хв",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "version_prefix",
+      "en": "v",
+      "uk": "v",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_no_internet_title",
+      "en": "Connection Lost",
+      "uk": "З'єднання втрачено",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_no_internet_body",
+      "en": "Unable to connect to the server.\nPlease check your internet connection",
+      "uk": "Не вдалося підключитися до сервера.\nПеревірте підключення до інтернету",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_loading_title",
+      "en": "Loading Error",
+      "uk": "Помилка завантаження",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_loading_body",
+      "en": "The app is taking too long to load. Your internet connection may be slow.",
+      "uk": "Завантаження займає надто довго. Можливо, з'єднання нестабільне.",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "tooltip_daily_quest",
+      "en": "Complete Daily Quest and earn Point Chests for abundant rewards!",
+      "uk": "Виконуйте щоденні квести та отримуйте скрині очок за щедрі нагороди!",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "loading_text",
+      "en": "Loading...",
+      "uk": "Завантаження...",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "loading_tip_1",
+      "en": "Build settlements and defeat monsters along your journey!",
+      "uk": "Будуйте поселення та перемагайте монстрів на своєму шляху!",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "version_your",
+      "en": "Your version:",
+      "uk": "Ваша версія:",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "offline_income_title",
+      "en": "Offline Income",
+      "uk": "Офлайн дохід",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "offline_income_total_rewards",
+      "en": "total rewards",
+      "uk": "загальні нагороди",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "offline_income_time_label",
+      "en": "Time Offline",
+      "uk": "Час офлайн",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "offline_income_max_label",
+      "en": "Max offline income:",
+      "uk": "Макс. офлайн дохід:",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_extra_income",
+      "en": "+50% Extra",
+      "uk": "+50% Додатково",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "offline_income_upgrade_requirements",
+      "en": "Upgrade Requirements",
+      "uk": "Вимоги до покращень",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "offline_income_recommend_upgrades",
+      "en": "Recommend Upgrades",
+      "uk": "Рекомендовані покращення",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "quest_tab_chapter",
+      "en": "chapter",
+      "uk": "розділ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "quest_tab_daily",
+      "en": "daily",
+      "uk": "щоденні",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "quest_tab_main",
+      "en": "main",
+      "uk": "основні",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "quest_header_main",
+      "en": "main quest",
+      "uk": "основний квест",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "quest_header_side",
+      "en": "side quest",
+      "uk": "побічний квест",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "journal_title",
+      "en": "JOURNAL",
+      "uk": "ЖУРНАЛ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "btn_journal",
+      "en": "Journal",
+      "uk": "Журнал",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "levelup_new_upgrades",
+      "en": "New Upgrades",
+      "uk": "Нові покращення",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "quest_chapter_prefix",
+      "en": "chapter ",
+      "uk": "розділ ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "quests_counter_prefix",
+      "en": "QUESTS ",
+      "uk": "КВЕСТИ ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "quest_daily_tasks_desc",
+      "en": "Complete {1} Daily Tasks ({0}\\{1})",
+      "uk": "Виконати {1} щоденних завдань ({0}\\{1})",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "error_saving",
+      "en": "Saving error",
+      "uk": "Помилка збереження",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "tile_redforest_name",
+      "en": "Red Forest ",
+      "uk": "Червоний ліс ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "Test_Key_TILES_7",
+      "en": "TEst new 4",
+      "uk": "Тестовий ключ ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "save_success",
+      "en": "Game saved",
+      "uk": "Гру збережено",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "hud_smth",
+      "en": "SMTH",
+      "uk": "ЩОСЬ",
+      "group": "HUD"
+    },
+    {
+      "key": "bottom_hud_smth",
+      "en": "SMTH",
+      "uk": "ЩОСЬ",
+      "group": "Universal Keys"
+    }
+  ]
+}

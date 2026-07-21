@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Sync Guide v2 — Map Editor ↔ Unity App</title>
+<style>
+  :root {
+    --bg:      #1e1e1e;
+    --panel:   #2a2a2a;
+    --border:  #3a3a3a;
+    --accent:  #4fc3f7;
+    --text:    #ffffff;
+    --muted:   #888888;
+    --danger:  #ef5350;
+    --success: #66bb6a;
+    --warn:    #ffa726;
+    --panel2:  #333333;
+    --sidebar-w: 220px;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; font-size: 15px; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    line-height: 1.65;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  h1 { font-size: 2rem; font-weight: 700; color: var(--accent); margin-bottom: .5rem; }
+  h2 { font-size: 1.45rem; font-weight: 700; color: var(--accent); margin: 2.5rem 0 .75rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+  h3 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 1.6rem 0 .5rem; }
+  h4 { font-size: .95rem; font-weight: 600; color: var(--accent); margin: 1.2rem 0 .4rem; }
+
+  p { margin-bottom: .85rem; }
+  ul, ol { margin: .4rem 0 .85rem 1.4rem; }
+  li { margin-bottom: .3rem; }
+  code {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: .88em;
+    color: var(--accent);
+  }
+  strong { color: var(--text); font-weight: 600; }
+  em { color: var(--muted); font-style: italic; }
+
+  /* ── Layout ─────────────────────────────────────────────────── */
+  nav#sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 1.2rem 0 2rem;
+    flex-shrink: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  nav#sidebar::-webkit-scrollbar { width: 5px; }
+  nav#sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .sidebar-logo { padding: .5rem 1rem 1rem; border-bottom: 1px solid var(--border); margin-bottom: .8rem; }
+  .sidebar-logo .app-name { font-size: 1rem; font-weight: 700; color: var(--accent); display: block; }
+  .sidebar-logo .app-ver  { font-size: .75rem; color: var(--muted); }
+
+  nav#sidebar ul { list-style: none; margin: 0; padding: 0; }
+  nav#sidebar ul li a {
+    display: block; padding: .3rem 1.2rem; color: var(--muted);
+    font-size: .82rem; transition: color .15s, background .15s;
+    border-left: 2px solid transparent;
+  }
+  nav#sidebar ul li a:hover { color: var(--text); background: rgba(79,195,247,.06); text-decoration: none; }
+  nav#sidebar ul li a.active { color: var(--accent); border-left-color: var(--accent); background: rgba(79,195,247,.08); }
+  nav#sidebar .nav-section-label {
+    display: block; padding: .7rem 1rem .2rem; font-size: .68rem;
+    text-transform: uppercase; letter-spacing: .08em; color: var(--muted); font-weight: 600;
+  }
+  nav#sidebar .nav-sub a { padding-left: 1.8rem; font-size: .79rem; }
+
+  main#content { flex: 1; padding: 2rem 2.5rem 4rem; max-width: 980px; min-width: 0; }
+
+  /* ── Callout boxes ──────────────────────────────────────────── */
+  .box {
+    border-left: 3px solid var(--accent);
+    background: rgba(79,195,247,.06);
+    border-radius: 0 6px 6px 0;
+    padding: .7rem 1rem; margin: 1rem 0; font-size: .9rem;
+  }
+  .box.warn  { border-color: var(--warn);    background: rgba(255,167,38,.06); }
+  .box.tip   { border-color: var(--success); background: rgba(102,187,106,.06); }
+  .box.note  { border-color: var(--muted);   background: rgba(136,136,136,.06); }
+
+  /* ── Steps ──────────────────────────────────────────────────── */
+  .steps { list-style: none; margin: 0 0 1rem; padding: 0; counter-reset: step; }
+  .steps > li {
+    counter-increment: step; display: flex; gap: 1rem;
+    margin-bottom: 1rem; align-items: flex-start;
+  }
+  .steps > li::before {
+    content: counter(step); min-width: 28px; height: 28px;
+    background: var(--accent); color: #000; border-radius: 50%;
+    font-weight: 700; font-size: .82rem;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: .15rem;
+  }
+  .steps > li .step-body { flex: 1; }
+  .steps > li .step-body p:last-child { margin-bottom: 0; }
+
+  /* ── Flow diagram ───────────────────────────────────────────── */
+  .flow { display: flex; flex-direction: column; gap: 0; margin: 1.2rem 0; font-size: .85rem; }
+  .flow-node {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: .6rem 1.1rem;
+    display: flex; align-items: flex-start; gap: .75rem;
+  }
+  .flow-node .icon { font-size: 1.25rem; line-height: 1.4; flex-shrink: 0; }
+  .flow-node .label { font-weight: 600; color: var(--text); }
+  .flow-node .desc  { color: var(--muted); font-size: .8rem; margin-top: .15rem; }
+  .flow-node.highlight { border-color: var(--accent); background: rgba(79,195,247,.06); }
+  .flow-arrow { text-align: center; color: var(--accent); font-size: 1.1rem; line-height: 2; }
+  .flow-arrow span { font-size: .76rem; color: var(--muted); vertical-align: middle; margin-left: .4rem; }
+
+  /* ── Two-column flow ────────────────────────────────────────── */
+  .flow2 { display: grid; grid-template-columns: 1fr 1fr; gap: .6rem; margin: 1.2rem 0; }
+  .flow2-col { display: flex; flex-direction: column; gap: .4rem; }
+  .flow2-title { font-size: .72rem; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); font-weight: 600; padding: .3rem 0; }
+  .flow2-node {
+    background: var(--panel2); border: 1px solid var(--border);
+    border-radius: 6px; padding: .45rem .8rem; font-size: .82rem;
+  }
+  .flow2-node .lbl { font-weight: 600; color: var(--text); }
+  .flow2-node .sub { color: var(--muted); font-size: .76rem; }
+
+  /* ── Inspector ──────────────────────────────────────────────── */
+  .inspector { background: #232323; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin: 1rem 0; font-size: .82rem; }
+  .inspector-header { background: #111; color: var(--muted); font-size: .72rem; padding: .35rem .8rem; border-bottom: 1px solid var(--border); font-style: italic; }
+  .inspector-section { background: #1a1a1a; color: var(--accent); font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: .4rem .9rem; border-bottom: 1px solid var(--border); }
+  .inspector-row { display: flex; align-items: center; padding: .3rem .9rem; border-bottom: 1px solid #2e2e2e; gap: .6rem; }
+  .inspector-row:last-child { border-bottom: none; }
+  .inspector-row .lbl { color: var(--muted); min-width: 140px; flex-shrink: 0; }
+  .inspector-row .val { color: var(--text); background: #111; border: 1px solid var(--border); border-radius: 3px; padding: 2px 7px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-family: monospace; font-size: .8rem; }
+  .inspector-row .val.accent { color: var(--accent); }
+  .inspector-row .val.new { color: var(--success); }
+
+  /* ── File tree ──────────────────────────────────────────────── */
+  .filetree { background: #111; border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.2rem; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: .83rem; line-height: 1.9; margin: .8rem 0 1rem; }
+  .filetree .folder { color: var(--accent); font-weight: 600; }
+  .filetree .file.json { color: var(--success); }
+  .filetree .file.png  { color: #f9e2af; }
+  .filetree .file.map  { color: #cba6f7; }
+  .filetree .file      { color: var(--muted); }
+  .filetree .badge { font-size: .7rem; background: rgba(79,195,247,.15); color: var(--accent); border-radius: 3px; padding: 0 5px; margin-left: .4rem; vertical-align: middle; }
+  .filetree .badge.sync { background: rgba(255,167,38,.15); color: var(--warn); }
+  .filetree .badge.cache { background: rgba(102,187,106,.15); color: var(--success); }
+
+  /* ── Table ──────────────────────────────────────────────────── */
+  table.tbl { width: 100%; border-collapse: collapse; font-size: .87rem; margin: 1rem 0; }
+  table.tbl th { background: var(--panel); color: var(--accent); text-align: left; padding: .5rem .85rem; border: 1px solid var(--border); font-weight: 600; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; }
+  table.tbl td { padding: .45rem .85rem; border: 1px solid var(--border); vertical-align: middle; }
+  table.tbl tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+  table.tbl tr:hover td { background: rgba(79,195,247,.04); }
+
+  /* ── Chips ──────────────────────────────────────────────────── */
+  .chip { display: inline-block; font-size: .72rem; font-weight: 600; border-radius: 4px; padding: 1px 7px; vertical-align: middle; }
+  .chip.ok   { background: rgba(102,187,106,.2); color: var(--success); }
+  .chip.warn { background: rgba(255,167,38,.2);  color: var(--warn); }
+  .chip.info { background: rgba(79,195,247,.2);  color: var(--accent); }
+  .chip.new  { background: rgba(102,187,106,.25); color: #a0ffb0; }
+
+  /* ── Scrollbar ──────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 7px; height: 7px; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ SIDEBAR ═══════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <span class="app-name">Data Sync Guide</span>
+    <span class="app-ver">Map Editor ↔ Unity App · v2</span>
+  </div>
+  <ul>
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#how-it-works">How It Works</a></li>
+    <span class="nav-section-label">Setup (one-time)</span>
+    <li><a href="#unity-setup">Unity Setup (1 click)</a></li>
+    <span class="nav-section-label">Workflows</span>
+    <li><a href="#wf-sprites">Update Sprites</a></li>
+    <li><a href="#wf-new-type">Add New Terrain Type</a></li>
+    <li><a href="#wf-map">Use Custom Terrain in Maps</a></li>
+    <span class="nav-section-label">Reference</span>
+    <li><a href="#persistence">Persistence & Cache</a></li>
+    <li><a href="#drive-layout">Drive Folder Layout</a></li>
+    <li><a href="#sync-table">What Gets Synced</a></li>
+    <li><a href="#limits">Remaining Limits</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════════════════ CONTENT ═══════════════════════════ -->
+<main id="content">
+
+<!-- ── Overview ─────────────────────────────────────────────────── -->
+<section id="overview">
+  <h1>Data Sync Guide <span style="font-size:1rem;color:var(--muted);font-weight:400">v2</span></h1>
+  <p><em>Terrain sprites, new types, and custom map terrain — all without rebuilding the app.</em></p>
+
+  <p>
+    This guide covers the full runtime data pipeline between <strong>MapEditorPro</strong> and the Unity mobile app. Three previous limitations have been removed:
+  </p>
+
+  <table class="tbl">
+    <thead><tr><th>Limitation</th><th>Status</th></tr></thead>
+    <tbody>
+      <tr><td>Synced sprites lost on app restart</td><td><span class="chip ok">Fixed</span> — saved to device storage, loaded on startup</td></tr>
+      <tr><td>New terrain types require a code rebuild</td><td><span class="chip ok">Fixed</span> — registered as dynamic tiles at runtime</td></tr>
+      <tr><td>Custom terrain types can't be used in maps</td><td><span class="chip ok">Fixed</span> — Map Editor exports <code>custom_terrain</code>, Unity reads it back</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ── How It Works ─────────────────────────────────────────────── -->
+<section id="how-it-works">
+  <h2>How It Works</h2>
+
+  <div class="flow">
+    <div class="flow-node">
+      <span class="icon">🗺️</span>
+      <div>
+        <div class="label">Map Editor — HexDB tab</div>
+        <div class="desc">Create terrain entries with IDs + sprite names. Built-in types (Plain_1 … Rift) or brand-new custom IDs. Paint maps with any type, export JSON.</div>
+      </div>
+    </div>
+    <div class="flow-arrow">↓ <span>upload files to Google Drive</span></div>
+    <div class="flow-node">
+      <span class="icon">☁️</span>
+      <div>
+        <div class="label">Google Drive — shared folder</div>
+        <div class="desc"><code>hex_database.json</code> + <code>hex_*.png</code> sprites + map JSON files. All in one folder.</div>
+      </div>
+    </div>
+    <div class="flow-arrow">↓ <span>tap "Sync Database" in-app</span></div>
+    <div class="flow-node highlight">
+      <span class="icon">📱</span>
+      <div>
+        <div class="label">Unity App — RuntimeDatabaseSync</div>
+        <div class="desc">Downloads DB + sprites → registers tiles in memory → saves to device cache → rebuilds map. On next startup: loads from cache instantly, no network needed.</div>
+      </div>
+    </div>
+    <div class="flow-arrow">↓ <span>download + apply a map JSON (existing Maps panel)</span></div>
+    <div class="flow-node">
+      <span class="icon">🗾</span>
+      <div>
+        <div class="label">Unity App — RuntimeMapApplier</div>
+        <div class="desc">Applies terrain grid. Custom terrain IDs from <code>custom_terrain</code> array are stored in the save file and restored on every session start.</div>
+      </div>
+    </div>
+  </div>
+
+  <h3>Two tile systems, one render path</h3>
+  <div class="flow2">
+    <div class="flow2-col">
+      <div class="flow2-title">Built-in terrain (enum-backed)</div>
+      <div class="flow2-node"><div class="lbl">Source</div><div class="sub">TerrainTypeDefinition ScriptableObjects in the build</div></div>
+      <div class="flow2-node"><div class="lbl">Sprites updated by</div><div class="sub">RuntimeDatabaseSync → OverrideTerrainTile(id, tile)</div></div>
+      <div class="flow2-node"><div class="lbl">Map reference</div><div class="sub">Integer code 0–28 in <code>data</code> array</div></div>
+      <div class="flow2-node"><div class="lbl">Render lookup</div><div class="sub">TileRenderer._terrainDefs[] by TerrainType enum</div></div>
+    </div>
+    <div class="flow2-col">
+      <div class="flow2-title">Custom terrain (runtime-only)</div>
+      <div class="flow2-node"><div class="lbl">Source</div><div class="sub">HexDB entry with an ID not in the enum</div></div>
+      <div class="flow2-node"><div class="lbl">Sprites registered by</div><div class="sub">RuntimeDatabaseSync → RegisterDynamicTile(id, tile)</div></div>
+      <div class="flow2-node"><div class="lbl">Map reference</div><div class="sub">String ID in <code>custom_terrain</code> array + Plain_1 as int fallback</div></div>
+      <div class="flow2-node"><div class="lbl">Render lookup</div><div class="sub">TileRenderer._dynamicTiles[CustomTerrainId] — checked first</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Unity Setup ───────────────────────────────────────────────── -->
+<section id="unity-setup">
+  <h2>Unity Setup (one-time)</h2>
+
+  <p>
+    Open the Unity project and run the setup menu item:
+  </p>
+
+  <div class="inspector" style="margin-bottom:1.2rem">
+    <div class="inspector-header">Unity Editor menu bar</div>
+    <div class="inspector-row" style="padding:.5rem .9rem">
+      <span style="color:var(--accent);font-weight:600;font-size:.9rem">PostApoc → Wire Sync DB</span>
+    </div>
+  </div>
+
+  <p>The script will:</p>
+  <ul>
+    <li>Add <code>RuntimeDatabaseSync</code> to the <strong>GoogleDriveMapLoader</strong> GameObject with the folder ID and API key pre-filled</li>
+    <li>Create a <strong>Sync Database</strong> button in the Map panel and wire it to <code>MapListPanel._syncDbButton</code></li>
+    <li>Save <code>Game.unity</code> automatically</li>
+  </ul>
+
+  <div class="box tip">
+    <strong>Done.</strong> Build and deploy — no manual component placement or slot assignment needed.
+  </div>
+
+  <h3>Pixels Per Unit (optional)</h3>
+  <p>
+    After running the script, check the <strong>Pixels Per Unit</strong> field on <code>RuntimeDatabaseSync</code> in the Inspector. It defaults to <code>100</code> — leave it unless your hex sprites were authored at a different resolution.
+  </p>
+  <div class="inspector">
+    <div class="inspector-header">Inspector — RuntimeDatabaseSync (after Wire Sync DB)</div>
+    <div class="inspector-section">Google Drive Configuration</div>
+    <div class="inspector-row"><span class="lbl">Drive Folder Id</span><span class="val accent">1740gOYYEbZeTMEm5BQgga4JguOC7Di1Q</span></div>
+    <div class="inspector-row"><span class="lbl">Api Key</span><span class="val">AIzaSyDH1j_eIHu58zawC21D6pPflxOupgojJac</span></div>
+    <div class="inspector-section">Sprite Configuration</div>
+    <div class="inspector-row"><span class="lbl">Pixels Per Unit</span><span class="val new">512  ← must match sprite resolution</span></div>
+  </div>
+</section>
+
+<!-- ── Workflow: Update Sprites ──────────────────────────────────── -->
+<section id="wf-sprites">
+  <h2>Workflow: Update Sprites for Existing Terrain</h2>
+  <p>Use this when you want to change the look of a terrain type that already exists in the app (one of the 29 built-in types).</p>
+
+  <ol class="steps">
+    <li><div class="step-body"><p>In <strong>MapEditorPro → HexDB</strong>, find the entry whose <code>id</code> matches the terrain's Unity ID (e.g. <code>rubble_1</code>). Set its <strong>Sprite Name</strong> to the filename of your new PNG (without extension).</p></div></li>
+    <li><div class="step-body"><p>Export <code>hex_database.json</code> via <strong>File → Save Hex DB</strong>.</p></div></li>
+    <li><div class="step-body"><p>Upload the new PNG(s) and the updated <code>hex_database.json</code> to the shared Google Drive folder. Replace existing files when prompted.</p></div></li>
+    <li><div class="step-body"><p>In the app, open the Maps panel and tap <strong>Sync Database</strong>. The sprite updates immediately and the map redraws.</p></div></li>
+    <li><div class="step-body"><p>On the next app start, the updated sprites load from device cache — no network call needed.</p></div></li>
+  </ol>
+
+  <div class="box tip">
+    <strong>Instant + persistent.</strong> The update applies live to the running session and survives restarts. No rebuild, no redeploy.
+  </div>
+</section>
+
+<!-- ── Workflow: New Terrain Type ────────────────────────────────── -->
+<section id="wf-new-type">
+  <h2>Workflow: Add a Brand-New Terrain Type</h2>
+  <p>Use this when you need a terrain type that doesn't exist in the current build — e.g. <em>Volcanic Ash</em>, <em>Frozen Lake</em>, etc.</p>
+
+  <ol class="steps">
+    <li>
+      <div class="step-body">
+        <p>In <strong>MapEditorPro → HexDB</strong>, click <strong>+ Add Hex</strong>. Give it a unique string <strong>Id</strong> that does NOT match any built-in terrain name (the 29 names like <code>Plain_1</code>, <code>Rubble_2</code>, etc.).</p>
+        <div class="box note">
+          The <strong>Id</strong> is your permanent string key. Once tiles or maps use it, don't rename it. The <strong>Type</strong> field is optional for custom types — leave it blank or set a close enum equivalent for game-logic fallback (e.g. <code>Plain_1</code> for buildability).
+        </div>
+      </div>
+    </li>
+    <li><div class="step-body"><p>Set <strong>Sprite Name</strong> to the filename of your terrain PNG (without extension, e.g. <code>hex_volcanic_ash</code>).</p></div></li>
+    <li><div class="step-body"><p>Export <code>hex_database.json</code> and place the PNG in the export folder.</p></div></li>
+    <li><div class="step-body"><p>Upload both to Google Drive.</p></div></li>
+    <li>
+      <div class="step-body">
+        <p>In the app, tap <strong>Sync Database</strong>. Because the ID doesn't match any compiled <code>TerrainTypeDefinition</code>, the app calls <code>RegisterDynamicTile</code> — the tile is added to the runtime dictionary and renders with your custom sprite.</p>
+      </div>
+    </li>
+    <li><div class="step-body"><p>On next app restart, the tile is restored from device cache automatically — no re-sync needed unless you update the sprite.</p></div></li>
+  </ol>
+
+  <div class="box warn">
+    <strong>Game-logic properties (IsBuildable, ExplorationCost) are not set for dynamic types.</strong> They default to buildable/cost=1. To change these properties you still need to add the type to the <code>TerrainType</code> enum and run <strong>PostApoc → Import Hex Database</strong> in the Unity Editor — but visual rendering works fully at runtime.
+  </div>
+</section>
+
+<!-- ── Workflow: Custom Terrain in Maps ──────────────────────────── -->
+<section id="wf-map">
+  <h2>Workflow: Use Custom Terrain in Maps</h2>
+  <p>Paint your custom terrain type onto a map in the editor and have the Unity app apply it correctly.</p>
+
+  <ol class="steps">
+    <li>
+      <div class="step-body">
+        <p>Complete the <a href="#wf-new-type">Add New Terrain Type</a> workflow first — the custom type must already be synced to the app before a map using it is applied.</p>
+      </div>
+    </li>
+    <li>
+      <div class="step-body">
+        <p>In <strong>MapEditorPro</strong>, open the terrain palette. Custom HexDB types appear <strong>below the 29 built-in types</strong> as additional palette buttons showing your sprite (or a fallback icon).</p>
+        <div class="box note">
+          If the palette was open before you added the HexDB entry, reload the page to refresh it. Custom buttons appear automatically when HexDB has entries whose IDs don't match any built-in terrain name.
+        </div>
+      </div>
+    </li>
+    <li><div class="step-body"><p>Click your custom terrain button to select it, then paint normally. The cell stores <code>Plain_1</code> as the visual fallback in the int grid and your custom ID in a parallel overlay — the editor renders your sprite on canvas.</p></div></li>
+    <li>
+      <div class="step-body">
+        <p>Export the map via <strong>File → Export Map JSON</strong>. The exported JSON includes a <code>custom_terrain</code> array listing every cell that uses a custom type:</p>
+        <div class="filetree" style="line-height:1.6">
+<span style="color:var(--muted)">{</span><br>
+&nbsp;&nbsp;<span style="color:var(--success)">"width"</span>: 50, <span style="color:var(--success)">"height"</span>: 50,<br>
+&nbsp;&nbsp;<span style="color:var(--success)">"data"</span>: [[12,12,9, ...]],<br>
+&nbsp;&nbsp;<span style="color:var(--accent)">"custom_terrain"</span>: [<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span style="color:var(--success)">"x"</span>: 5, <span style="color:var(--success)">"y"</span>: 3, <span style="color:var(--success)">"id"</span>: <span style="color:#f9e2af">"volcanic_ash"</span> },<br>
+&nbsp;&nbsp;&nbsp;&nbsp;{ <span style="color:var(--success)">"x"</span>: 6, <span style="color:var(--success)">"y"</span>: 3, <span style="color:var(--success)">"id"</span>: <span style="color:#f9e2af">"volcanic_ash"</span> }<br>
+&nbsp;&nbsp;]<br>
+<span style="color:var(--muted)">}</span>
+        </div>
+        <p>Old map JSONs without <code>custom_terrain</code> continue to work — the field is optional.</p>
+      </div>
+    </li>
+    <li><div class="step-body"><p>Upload the map JSON to Google Drive alongside the existing maps.</p></div></li>
+    <li>
+      <div class="step-body">
+        <p>In the app, open the Maps panel, tap your map to download and apply it. <code>RuntimeMapApplier</code> processes the <code>custom_terrain</code> array: each cell gets <code>TileData.CustomTerrainId</code> set to the string ID. <code>TileRenderer</code> renders it using the dynamic tile registered in step 1's sync.</p>
+      </div>
+    </li>
+    <li><div class="step-body"><p>The custom terrain IDs are saved to the save file. On the next session start, <code>MapManager</code> restores them before the first render — your map looks correct immediately without re-downloading the map JSON.</p></div></li>
+  </ol>
+
+  <div class="box tip">
+    <strong>Undo/Redo works.</strong> The Map Editor's History system snapshots both the terrain grid and the custom overlay together — undoing a custom terrain stroke removes it from the export correctly.
+  </div>
+</section>
+
+<!-- ── Persistence & Cache ───────────────────────────────────────── -->
+<section id="persistence">
+  <h2>Persistence &amp; Cache</h2>
+
+  <p>After a successful sync, files are saved to device storage:</p>
+
+  <div class="filetree">
+    <span class="folder">📁 Application.persistentDataPath/HexCache/</span><br>
+    &nbsp;&nbsp;<span class="file json">📄 hex_database.json</span>
+    <span class="badge cache">auto-saved</span><br>
+    &nbsp;&nbsp;<span class="file png">🖼 hex_plain_1.png</span>
+    <span class="badge cache">auto-saved</span><br>
+    &nbsp;&nbsp;<span class="file png">🖼 hex_volcanic_ash.png</span>
+    <span class="badge cache">auto-saved</span><br>
+    &nbsp;&nbsp;<span class="file png">🖼 ...</span>
+  </div>
+
+  <h3>Startup sequence</h3>
+  <ol class="steps">
+    <li><div class="step-body"><p><code>RuntimeDatabaseSync.Awake()</code> runs → <code>LoadFromCache()</code> reads HexCache from disk and registers all tiles into <code>TileRenderer</code>. <strong>No network call.</strong></p></div></li>
+    <li><div class="step-body"><p><code>MapManager.LoadFromSave()</code> runs → restores <code>CustomTerrainId</code> on tiles from the save file.</p></div></li>
+    <li><div class="step-body"><p><code>RebuildVisuals()</code> renders the map — all custom tiles display correctly because cache was applied before the render.</p></div></li>
+  </ol>
+
+  <h3>When to sync again</h3>
+  <table class="tbl">
+    <thead><tr><th>Situation</th><th>Action needed</th></tr></thead>
+    <tbody>
+      <tr><td>Updated a sprite PNG on Drive</td><td>Tap <strong>Sync Database</strong> once — cache is overwritten</td></tr>
+      <tr><td>Added a new terrain type to HexDB</td><td>Tap <strong>Sync Database</strong> once</td></tr>
+      <tr><td>Fresh install / cleared app data</td><td>Tap <strong>Sync Database</strong> once — cache is rebuilt from Drive</td></tr>
+      <tr><td>Just restarted the app (no changes)</td><td>Nothing — cache loads automatically</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ── Drive Folder Layout ───────────────────────────────────────── -->
+<section id="drive-layout">
+  <h2>Drive Folder Layout</h2>
+  <p>All files share a single Drive folder. Map JSONs, hex DB, and sprites coexist. Each system only touches the files it recognises.</p>
+
+  <div class="filetree">
+    <span class="folder">📁 1740gOYYEbZeTMEm5BQgga4JguOC7Di1Q/</span>
+    <span style="color:var(--muted);font-size:.78rem;margin-left:.5rem">(shared Drive folder ID)</span><br>
+    <br>
+    &nbsp;&nbsp;<span class="file json">📄 hex_database.json</span>
+    <span class="badge sync">DB sync</span><br>
+    <br>
+    &nbsp;&nbsp;<span class="file png">🖼 hex_plain_1.png</span>
+    <span class="badge sync">DB sync</span><br>
+    &nbsp;&nbsp;<span class="file png">🖼 hex_rubble_2.png</span>
+    <span class="badge sync">DB sync</span><br>
+    &nbsp;&nbsp;<span class="file png">🖼 hex_volcanic_ash.png</span>
+    <span class="badge sync">DB sync · custom type</span><br>
+    <br>
+    &nbsp;&nbsp;<span class="file map">📄 MyCity_v3.json</span>
+    <span class="badge">map loader</span><br>
+    &nbsp;&nbsp;<span class="file map">📄 DesertMap.json</span>
+    <span class="badge">map loader · has custom_terrain</span><br>
+  </div>
+
+  <table class="tbl">
+    <thead><tr><th>File pattern</th><th>Read by</th><th>Notes</th></tr></thead>
+    <tbody>
+      <tr><td><code>hex_database.json</code></td><td>RuntimeDatabaseSync</td><td>Exact name required</td></tr>
+      <tr><td><code>*.png</code></td><td>RuntimeDatabaseSync</td><td>Only PNGs listed in the DB are downloaded</td></tr>
+      <tr><td>Other <code>*.json</code></td><td>GoogleDriveMapLoader</td><td>Ignored by DB sync</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ── What Gets Synced ──────────────────────────────────────────── -->
+<section id="sync-table">
+  <h2>What Gets Synced</h2>
+
+  <table class="tbl">
+    <thead><tr><th>Data</th><th>Method</th><th>Persists?</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Terrain tile sprite (built-in type)</td>
+        <td>DB Sync → <code>OverrideTerrainTile</code></td>
+        <td><span class="chip ok">Yes</span> — HexCache on device</td>
+      </tr>
+      <tr>
+        <td>Terrain tile sprite (custom type)</td>
+        <td>DB Sync → <code>RegisterDynamicTile</code></td>
+        <td><span class="chip ok">Yes</span> — HexCache on device</td>
+      </tr>
+      <tr>
+        <td>Custom terrain cells in a map</td>
+        <td>Map download → <code>RuntimeMapApplier</code></td>
+        <td><span class="chip ok">Yes</span> — save file (<code>CustomTerrainPositions/Ids</code>)</td>
+      </tr>
+      <tr>
+        <td>Enum TerrainType (IsBuildable, cost)</td>
+        <td>Unity Editor import only</td>
+        <td><span class="chip warn">Requires rebuild</span></td>
+      </tr>
+      <tr>
+        <td>Map terrain grid (int codes)</td>
+        <td>Map download → RuntimeMapApplier</td>
+        <td><span class="chip ok">Yes</span> — save file (<code>TerrainOverridePositions/Types</code>)</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ── Remaining Limits ──────────────────────────────────────────── -->
+<section id="limits">
+  <h2>Remaining Limits</h2>
+
+  <h3>Game-logic properties need a code rebuild</h3>
+  <p>
+    <code>IsBuildable</code>, <code>ExplorationCost</code>, tap cost calculations — these come from <code>TerrainTypeDefinition</code> ScriptableObjects which are compiled into the build. To set them for a new terrain type you still need to:
+  </p>
+  <ol>
+    <li>Add the value to the <code>TerrainType</code> enum in <code>TerrainTypeDefinition.cs</code></li>
+    <li>Run <strong>PostApoc → Import Hex Database</strong> in the Unity Editor</li>
+    <li>Build and redeploy the APK</li>
+  </ol>
+  <p>Visual rendering (sprite) works at runtime for all types. Game logic only needs a rebuild for new types.</p>
+
+  <h3>Dynamic tiles are in memory only between syncs</h3>
+  <p>
+    The <code>Tile</code> ScriptableObjects created at runtime are not saved as Unity assets — they exist in memory for the session. They are re-created from the cache file on every cold start, so visually they are always present. But if you clear the app's storage (<em>Settings → Clear Data</em>), the cache is lost and a re-sync is needed.
+  </p>
+
+  <h3>Pixels-per-unit must match your sprites</h3>
+  <p>
+    The <strong>Pixels Per Unit</strong> field on <code>RuntimeDatabaseSync</code> defaults to <code>100</code>. If your hex sprites were authored at a different resolution (e.g. the existing tiles use 64 PPU), set this field to match. All downloaded sprites use the same PPU value.
+  </p>
+</section>
+
+</main>
+
+<script>
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks  = document.querySelectorAll('nav#sidebar a[href^="#"]');
+  function updateActive() {
+    let current = '';
+    sections.forEach(s => { if (window.scrollY >= s.offsetTop - 120) current = s.id; });
+    navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + current));
+  }
+  window.addEventListener('scroll', updateActive, { passive: true });
+  updateActive();
+</script>
+</body>
+</html>

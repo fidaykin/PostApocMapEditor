@@ -1,0 +1,859 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MapEditorPro — QA Testing Guide</title>
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg:      #1e1e1e;
+  --panel:   #2a2a2a;
+  --panel2:  #252525;
+  --border:  #3a3a3a;
+  --accent:  #4fc3f7;
+  --text:    #ffffff;
+  --muted:   #888888;
+  --danger:  #ef5350;
+  --success: #66bb6a;
+  --warn:    #ffa726;
+  --hover:   #333333;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ── Sidebar nav ─────────────────────────────────────────── */
+#sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  overflow-y: auto;
+  padding: 0 0 24px;
+}
+
+#sidebar-header {
+  padding: 16px 16px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+#sidebar-header h2 {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent);
+}
+
+#sidebar-header p {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.nav-section {
+  padding: 10px 0 2px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  padding-left: 16px;
+  margin-top: 6px;
+}
+
+.nav-link {
+  display: block;
+  padding: 5px 16px;
+  font-size: 12px;
+  color: var(--muted);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  transition: color .12s, border-color .12s, background .12s;
+}
+
+.nav-link:hover {
+  color: var(--text);
+  background: var(--hover);
+}
+
+.nav-link.active {
+  color: var(--accent);
+  border-left-color: var(--accent);
+  background: rgba(79,195,247,.06);
+}
+
+/* ── Main content ────────────────────────────────────────── */
+#content {
+  margin-left: 240px;
+  flex: 1;
+  padding: 40px 48px 80px;
+  max-width: 880px;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+#page-header {
+  margin-bottom: 36px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+#page-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.meta-row {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  margin-top: 10px;
+}
+
+.meta-badge {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.meta-badge span { color: var(--text); font-weight: 600; }
+
+/* ── Sections ────────────────────────────────────────────── */
+.section {
+  margin-bottom: 48px;
+  scroll-margin-top: 24px;
+}
+
+.section h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.section h2 .section-num {
+  background: var(--accent);
+  color: #000;
+  font-size: 11px;
+  font-weight: 800;
+  border-radius: 3px;
+  padding: 1px 7px;
+  flex-shrink: 0;
+}
+
+.section h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 20px 0 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.section p {
+  color: var(--muted);
+  margin-bottom: 10px;
+  font-size: 13px;
+}
+
+/* ── Scope table ─────────────────────────────────────────── */
+.scope-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.scope-table th {
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 8px 12px;
+  text-align: left;
+  border: 1px solid var(--border);
+}
+
+.scope-table td {
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  vertical-align: top;
+}
+
+.scope-table tr:nth-child(even) td { background: var(--panel2); }
+
+.badge-new {
+  display: inline-block;
+  background: rgba(79,195,247,.15);
+  color: var(--accent);
+  border: 1px solid rgba(79,195,247,.3);
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  text-transform: uppercase;
+}
+
+.badge-regression {
+  display: inline-block;
+  background: rgba(102,187,106,.12);
+  color: var(--success);
+  border: 1px solid rgba(102,187,106,.3);
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 6px;
+  text-transform: uppercase;
+}
+
+/* ── Checklist ───────────────────────────────────────────── */
+.checklist {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 8px 0 16px;
+}
+
+.checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  padding: 7px 10px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: background .1s;
+}
+
+.checklist li:hover { background: var(--hover); }
+
+.checklist li.done {
+  opacity: .55;
+  text-decoration: line-through;
+  background: rgba(102,187,106,.06);
+  border-color: rgba(102,187,106,.25);
+}
+
+.checklist li input[type=checkbox] {
+  margin-top: 2px;
+  accent-color: var(--accent);
+  flex-shrink: 0;
+  width: 15px;
+  height: 15px;
+  cursor: pointer;
+}
+
+.checklist li .item-text { flex: 1; line-height: 1.45; }
+
+.checklist li code {
+  background: rgba(255,255,255,.08);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-family: 'Cascadia Code', 'Fira Code', monospace;
+  font-size: 12px;
+  color: var(--accent);
+}
+
+/* ── Info / warning boxes ────────────────────────────────── */
+.info-box {
+  background: rgba(79,195,247,.07);
+  border: 1px solid rgba(79,195,247,.25);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+
+.info-box strong { color: var(--accent); }
+
+.warn-box {
+  background: rgba(255,167,38,.07);
+  border: 1px solid rgba(255,167,38,.25);
+  border-radius: 6px;
+  padding: 12px 16px;
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+
+.warn-box strong { color: var(--warn); }
+
+/* ── Progress bar ────────────────────────────────────────── */
+#progress-bar-wrap {
+  position: fixed;
+  top: 0; left: 240px; right: 0;
+  height: 3px;
+  background: var(--border);
+  z-index: 100;
+}
+
+#progress-bar {
+  height: 100%;
+  background: var(--accent);
+  width: 0%;
+  transition: width .3s;
+}
+
+/* ── Sign-off panel ──────────────────────────────────────── */
+#signoff-panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px 24px;
+}
+
+#signoff-counter {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--accent);
+  margin-bottom: 4px;
+}
+
+#signoff-label {
+  font-size: 13px;
+  color: var(--muted);
+  margin-bottom: 16px;
+}
+
+#signoff-btn {
+  display: inline-block;
+  background: var(--accent);
+  color: #000;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 9px 24px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  opacity: .4;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+
+#signoff-btn.ready {
+  opacity: 1;
+  pointer-events: all;
+}
+
+#signoff-btn.ready:hover { background: #81d4fa; }
+
+#signoff-done {
+  display: none;
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: rgba(102,187,106,.12);
+  border: 1px solid rgba(102,187,106,.3);
+  border-radius: 6px;
+  color: var(--success);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+/* ── Kbd ─────────────────────────────────────────────────── */
+kbd {
+  display: inline-block;
+  background: var(--panel);
+  border: 1px solid #555;
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 1px 6px;
+  font-family: monospace;
+  font-size: 12px;
+  color: var(--text);
+}
+
+/* ── Reporting ───────────────────────────────────────────── */
+.report-fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.report-field {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+.report-field label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  margin-bottom: 5px;
+}
+
+.report-field span {
+  font-size: 13px;
+  color: var(--text);
+}
+</style>
+</head>
+<body>
+
+<div id="progress-bar-wrap"><div id="progress-bar"></div></div>
+
+<!-- ── Sidebar ──────────────────────────────────────────── -->
+<nav id="sidebar">
+  <div id="sidebar-header">
+    <h2>QA Testing Guide</h2>
+    <p>MapEditorPro.html · 2026-04-27</p>
+  </div>
+
+  <div class="nav-section">Overview</div>
+  <a class="nav-link" href="#scope">Scope &amp; Setup</a>
+
+  <div class="nav-section">New Features</div>
+  <a class="nav-link" href="#mode-switching">1 · Mode Switching</a>
+  <a class="nav-link" href="#buildings">2 · BUILDINGS Mode</a>
+  <a class="nav-link" href="#settlements">3 · SETTLEMENTS Mode</a>
+  <a class="nav-link" href="#cross-mode">4 · Cross-Mode Consistency</a>
+
+  <div class="nav-section">Regression</div>
+  <a class="nav-link" href="#map-regression">5 · MAP Mode</a>
+  <a class="nav-link" href="#hexdb-regression">6 · HEX DB Mode</a>
+
+  <div class="nav-section">Wrap-Up</div>
+  <a class="nav-link" href="#reporting">Reporting Issues</a>
+  <a class="nav-link" href="#signoff">Sign-Off</a>
+</nav>
+
+<!-- ── Main ─────────────────────────────────────────────── -->
+<main id="content">
+
+  <div id="page-header">
+    <h1>MapEditorPro — QA Testing Guide</h1>
+    <p style="color:var(--muted);font-size:13px">Verify BUILDINGS and SETTLEMENTS editor modes, plus regression on MAP and HEX DB.</p>
+    <div class="meta-row">
+      <div class="meta-badge">File: <span>MapEditorPro.html</span></div>
+      <div class="meta-badge">Branch: <span>feature/hex-grid</span></div>
+      <div class="meta-badge">Date: <span>2026-04-27</span></div>
+      <div class="meta-badge">Total checks: <span id="total-count">—</span></div>
+    </div>
+  </div>
+
+  <!-- ── Scope ──────────────────────────────────────────── -->
+  <div class="section" id="scope">
+    <h2><span class="section-num">ℹ</span> Scope &amp; Setup</h2>
+
+    <h3>How to open the editor</h3>
+    <div class="info-box">
+      Navigate to <code style="color:var(--accent);font-family:monospace">Post Apo Map Editor/</code> and double-click <strong>MapEditorPro.html</strong>.<br>
+      No server needed — works fully offline in any modern browser.
+    </div>
+
+    <h3>What changed</h3>
+    <table class="scope-table">
+      <tr>
+        <th>Mode</th>
+        <th>Test Type</th>
+        <th>What to verify</th>
+      </tr>
+      <tr>
+        <td><strong>BUILDINGS</strong></td>
+        <td><span class="badge-new">Full Test</span></td>
+        <td>Newly implemented — all CRUD, levels, save/load</td>
+      </tr>
+      <tr>
+        <td><strong>SETTLEMENTS</strong></td>
+        <td><span class="badge-new">Full Test</span></td>
+        <td>Newly implemented — same as buildings + unlockBuildings per level</td>
+      </tr>
+      <tr>
+        <td><strong>Mode Switching</strong></td>
+        <td><span class="badge-new">Full Test</span></td>
+        <td>4-tab toolbar, Tab key cycling</td>
+      </tr>
+      <tr>
+        <td><strong>MAP</strong></td>
+        <td><span class="badge-regression">Regression</span></td>
+        <td>No changes — verify nothing broke</td>
+      </tr>
+      <tr>
+        <td><strong>HEX DB</strong></td>
+        <td><span class="badge-regression">Regression</span></td>
+        <td>No changes — verify nothing broke</td>
+      </tr>
+    </table>
+  </div>
+
+  <!-- ── 1. Mode Switching ──────────────────────────────── -->
+  <div class="section" id="mode-switching">
+    <h2><span class="section-num">1</span> Mode Switching</h2>
+
+    <h3>1.1 Toolbar tabs</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Click <strong>MAP</strong> tab → canvas and palette visible, paint/fill/rect tools shown in toolbar</span></li>
+      <li><input type="checkbox"><span class="item-text">Click <strong>HEX DB</strong> tab → hex list panel appears, map canvas hidden</span></li>
+      <li><input type="checkbox"><span class="item-text">Click <strong>BUILDINGS</strong> tab → buildings panel appears, HEX DB panel hidden</span></li>
+      <li><input type="checkbox"><span class="item-text">Click <strong>SETTLEMENTS</strong> tab → settlements panel appears, BUILDINGS panel hidden</span></li>
+      <li><input type="checkbox"><span class="item-text">Active tab has accent-colour highlight; all others do not</span></li>
+      <li><input type="checkbox"><span class="item-text">Toolbar buttons change per mode (Map tools / Add Hex / Add Building / Add Settlement)</span></li>
+    </ul>
+
+    <h3>1.2 Tab key cycling</h3>
+    <div class="info-box">Click an empty area of the page first to ensure no input is focused.</div>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Press <kbd>Tab</kbd> → cycles MAP → HEX DB → BUILDINGS → SETTLEMENTS → MAP (loops)</span></li>
+      <li><input type="checkbox"><span class="item-text">Press <kbd>Tab</kbd> while an <strong>input field is focused</strong> → does NOT switch modes (normal browser tab behaviour)</span></li>
+    </ul>
+
+    <h3>1.3 Regression — MAP still works after switching</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Switch MAP → BUILDINGS → SETTLEMENTS → MAP → canvas renders, paint tool works</span></li>
+    </ul>
+  </div>
+
+  <!-- ── 2. BUILDINGS ───────────────────────────────────── -->
+  <div class="section" id="buildings">
+    <h2><span class="section-num">2</span> BUILDINGS Mode</h2>
+
+    <h3>2.1 Empty state</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Open BUILDINGS tab with no data → right panel shows "Drop building_database.json here or use 📂 Load DB"</span></li>
+      <li><input type="checkbox"><span class="item-text">Left panel shows <code>0 shown / 0</code></span></li>
+    </ul>
+
+    <h3>2.2 Add a building</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Click <code>+ Add Building</code> → new row <code>(no id)</code> appears in list, count becomes 1</span></li>
+      <li><input type="checkbox"><span class="item-text">Right panel shows form with 3 sections: MAIN, BUILD, LEVELS</span></li>
+    </ul>
+
+    <h3>2.3 MAIN section</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Leave <strong>Id</strong> empty → red outline on the field</span></li>
+      <li><input type="checkbox"><span class="item-text">Type <code>Barracks</code> in Id → list row label updates immediately to <code>Barracks</code>, red outline clears</span></li>
+      <li><input type="checkbox"><span class="item-text">Fill TextId, SpriteName, BuildingType — values save without a Save button</span></li>
+      <li><input type="checkbox"><span class="item-text">Biome dropdown — switch to <code>Winter</code>, switch back to <code>Summer</code></span></li>
+      <li><input type="checkbox"><span class="item-text">Set <strong>Max Level</strong> to <code>3</code> → exactly 3 level cards appear in LEVELS section</span></li>
+      <li><input type="checkbox"><span class="item-text">Set <strong>Max Level</strong> to <code>1</code> → only 1 level card remains</span></li>
+    </ul>
+
+    <h3>2.4 BUILD section</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Click section header → collapses (▶), click again → expands (▼)</span></li>
+      <li><input type="checkbox"><span class="item-text">Collapse state is remembered after switching to another record and back</span></li>
+      <li><input type="checkbox"><span class="item-text">Fill Cost Gold, Cost Gems, Cost Event with numbers — values save correctly</span></li>
+      <li><input type="checkbox"><span class="item-text"><code>Requires Road</code> checkbox toggles correctly</span></li>
+      <li><input type="checkbox"><span class="item-text">Placement Rule and Max Per Map accept text/number input</span></li>
+    </ul>
+
+    <h3>2.5 LEVELS section</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Set Max Level to <code>3</code> → Level 1, Level 2, Level 3 cards appear</span></li>
+      <li><input type="checkbox"><span class="item-text">Each level card has: Upgrade Gold, Upgrade Gems, Upgrade Condition, Transform To, Unlock List</span></li>
+      <li><input type="checkbox"><span class="item-text">Fill Level 2 → <code>Upgrade Gold: 300</code>, <code>Upgrade Condition: PlayerLevel5</code></span></li>
+      <li><input type="checkbox"><span class="item-text">Fill Level 3 → <code>Transform To: Barracks_Elite</code></span></li>
+      <li><input type="checkbox"><span class="item-text">Reduce Max Level to <code>2</code> → Level 3 card disappears; Level 2 data still intact</span></li>
+      <li><input type="checkbox"><span class="item-text">Increase Max Level back to <code>3</code> → Level 3 card reappears empty</span></li>
+    </ul>
+
+    <h3>2.6 Search</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Add buildings: <code>Barracks</code>, <code>Farm</code>, <code>PowerPlant</code> — all 3 appear in list</span></li>
+      <li><input type="checkbox"><span class="item-text">Type <code>bar</code> in search → only <code>Barracks</code> shown, count updates</span></li>
+      <li><input type="checkbox"><span class="item-text">Clear search → all 3 shown</span></li>
+    </ul>
+
+    <h3>2.7 Duplicate id validation</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Add a 4th building, set id to <code>Barracks</code> → Id field on duplicate shows red outline</span></li>
+      <li><input type="checkbox"><span class="item-text">Rename to unique id → red outline clears</span></li>
+    </ul>
+
+    <h3>2.8 Copy / Paste</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Select <code>Barracks</code> → click <strong>Copy</strong> → toast "Copied Barracks"</span></li>
+      <li><input type="checkbox"><span class="item-text">Click <strong>Paste</strong> → new row <code>Barracks_copy</code> appears and is selected</span></li>
+      <li><input type="checkbox"><span class="item-text">Rename to <code>Barracks_Elite</code> — level data from Barracks is preserved in the copy</span></li>
+    </ul>
+
+    <h3>2.9 Delete</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Select a building → click <strong>🗑 Delete</strong> → confirmation dialog appears</span></li>
+      <li><input type="checkbox"><span class="item-text">Click <strong>Cancel</strong> → building NOT deleted</span></li>
+      <li><input type="checkbox"><span class="item-text">Delete again → confirm OK → building removed, count decreases</span></li>
+      <li><input type="checkbox"><span class="item-text">Select a building, press <kbd>Delete</kbd> key (no input focused) → confirmation dialog appears</span></li>
+      <li><input type="checkbox"><span class="item-text">Press <kbd>Delete</kbd> while typing in an input → does NOT trigger delete dialog</span></li>
+    </ul>
+
+    <h3>2.10 Save</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Click <strong>💾 Save DB</strong> → browser downloads <code>building_database.json</code></span></li>
+      <li><input type="checkbox"><span class="item-text">Toast shows "Saved building_database.json"</span></li>
+      <li><input type="checkbox"><span class="item-text">Open the file — root keys are <code>version</code> and <code>buildings</code></span></li>
+      <li><input type="checkbox"><span class="item-text">Each building entry has <code>levels</code> array with correct number of level objects</span></li>
+      <li><input type="checkbox"><span class="item-text">Each level object has: <code>level</code>, <code>upgradePriceGold</code>, <code>upgradePriceGems</code>, <code>upgradeCondition</code>, <code>transformTo</code>, <code>unlockList</code></span></li>
+    </ul>
+
+    <h3>2.11 Load</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Reload the page → click <strong>📂 Load DB</strong> → select saved <code>building_database.json</code></span></li>
+      <li><input type="checkbox"><span class="item-text">All buildings reappear in the list — toast "Loaded N buildings"</span></li>
+      <li><input type="checkbox"><span class="item-text">Click each building → all fields and level cards are correctly populated</span></li>
+    </ul>
+
+    <h3>2.12 Drag-drop load</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Drag <code>building_database.json</code> from Finder and drop onto the BUILDINGS panel → same result as Load DB</span></li>
+    </ul>
+
+    <h3>2.13 Data menu</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Menu bar → <strong>Data</strong> → <code>Load Building DB…</code> → file picker opens</span></li>
+      <li><input type="checkbox"><span class="item-text">Menu bar → <strong>Data</strong> → <code>Save Building DB</code> → downloads file</span></li>
+    </ul>
+  </div>
+
+  <!-- ── 3. SETTLEMENTS ─────────────────────────────────── -->
+  <div class="section" id="settlements">
+    <h2><span class="section-num">3</span> SETTLEMENTS Mode</h2>
+
+    <h3>3.1 Empty state</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">SETTLEMENTS tab → right panel shows "Drop settlement_database.json here or use 📂 Load DB"</span></li>
+      <li><input type="checkbox"><span class="item-text">Count shows <code>0 shown / 0</code></span></li>
+    </ul>
+
+    <h3>3.2 Add and fill a settlement</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Click <code>+ Add Settlement</code> → new row appears</span></li>
+      <li><input type="checkbox"><span class="item-text">Set <code>id: Village</code>, <code>settlementType: Rural</code>, <code>Max Level: 3</code></span></li>
+      <li><input type="checkbox"><span class="item-text">BUILD section: set Cost Gold and Cost Gems</span></li>
+    </ul>
+
+    <h3>3.3 Unlock Buildings field per level</h3>
+    <div class="warn-box"><strong>Key difference from BUILDINGS:</strong> each level card has an extra <code>Unlock Buildings</code> field — verify it is present.</div>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Expand LEVELS → each card has 6 fields including <strong>Unlock Buildings</strong> (not present in Building level cards)</span></li>
+      <li><input type="checkbox"><span class="item-text">Level 1 → type <code>Barracks,Farm</code> in Unlock Buildings</span></li>
+      <li><input type="checkbox"><span class="item-text">Level 2 → type <code>PowerPlant</code></span></li>
+      <li><input type="checkbox"><span class="item-text">Switch to a different settlement and back → Unlock Buildings values are still there</span></li>
+    </ul>
+
+    <h3>3.4 Multi-level settlements</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Add <code>Town</code> with <code>Max Level: 5</code> → exactly 5 level cards</span></li>
+      <li><input type="checkbox"><span class="item-text">Add <code>City</code> with <code>Max Level: 8</code> → exactly 8 level cards</span></li>
+    </ul>
+
+    <h3>3.5 Save and load round-trip</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Save → open <code>settlement_database.json</code> — root keys: <code>version</code>, <code>settlements</code></span></li>
+      <li><input type="checkbox"><span class="item-text">Each level object includes <code>unlockBuildings</code> key</span></li>
+      <li><input type="checkbox"><span class="item-text">Reload page → Load DB → all data survives round-trip</span></li>
+    </ul>
+
+    <h3>3.6 Data menu</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Menu bar → <strong>Data</strong> → <code>Load Settlement DB…</code> and <code>Save Settlement DB</code> both work</span></li>
+    </ul>
+  </div>
+
+  <!-- ── 4. Cross-Mode ──────────────────────────────────── -->
+  <div class="section" id="cross-mode">
+    <h2><span class="section-num">4</span> Cross-Mode Consistency</h2>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Load <code>building_database.json</code> in BUILDINGS → switch to SETTLEMENTS → switch back to BUILDINGS → data still loaded</span></li>
+      <li><input type="checkbox"><span class="item-text">Load <code>settlement_database.json</code> in SETTLEMENTS → switch to MAP → draw on canvas → switch back to SETTLEMENTS → settlement data intact</span></li>
+      <li><input type="checkbox"><span class="item-text">HEX DB data is unaffected by BUILDINGS or SETTLEMENTS operations</span></li>
+    </ul>
+  </div>
+
+  <!-- ── 5. MAP Regression ──────────────────────────────── -->
+  <div class="section" id="map-regression">
+    <h2><span class="section-num">5</span> MAP Mode — Regression</h2>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Paint tool: click and drag on canvas paints selected terrain</span></li>
+      <li><input type="checkbox"><span class="item-text">Fill tool: flood-fills a connected region</span></li>
+      <li><input type="checkbox"><span class="item-text">Rectangle tool: drag to fill a rectangular area</span></li>
+      <li><input type="checkbox"><span class="item-text">Eyedropper: click a tile to select its terrain type</span></li>
+      <li><input type="checkbox"><span class="item-text">Settlement placement and erase tools work</span></li>
+      <li><input type="checkbox"><span class="item-text">Zoom in/out via View menu and mouse wheel</span></li>
+      <li><input type="checkbox"><span class="item-text">File → Save → <code>map.json</code> downloads correctly</span></li>
+      <li><input type="checkbox"><span class="item-text">File → Open → previously saved map reloads correctly</span></li>
+      <li><input type="checkbox"><span class="item-text">Undo / Redo (<kbd>Ctrl+Z</kbd> / <kbd>Ctrl+Y</kbd>) work</span></li>
+    </ul>
+  </div>
+
+  <!-- ── 6. HEX DB Regression ──────────────────────────── -->
+  <div class="section" id="hexdb-regression">
+    <h2><span class="section-num">6</span> HEX DB Mode — Regression</h2>
+    <ul class="checklist">
+      <li><input type="checkbox"><span class="item-text">Click HEX DB tab → empty state shown with drag-drop prompt</span></li>
+      <li><input type="checkbox"><span class="item-text"><code>+ Add Hex</code> → blank hex record appears in list</span></li>
+      <li><input type="checkbox"><span class="item-text">Fill id, biome, type → list row label updates, biome badge shows correct colour</span></li>
+      <li><input type="checkbox"><span class="item-text">Biome and Type dropdowns filter the list correctly</span></li>
+      <li><input type="checkbox"><span class="item-text">Search box filters by id</span></li>
+      <li><input type="checkbox"><span class="item-text">💾 Save DB → <code>hex_database.json</code> downloads</span></li>
+      <li><input type="checkbox"><span class="item-text">📂 Load DB → reload saved file → data is identical</span></li>
+    </ul>
+  </div>
+
+  <!-- ── Reporting ──────────────────────────────────────── -->
+  <div class="section" id="reporting">
+    <h2><span class="section-num">!</span> Reporting Issues</h2>
+    <p>For each bug found, note the following:</p>
+    <div class="report-fields">
+      <div class="report-field">
+        <label>Mode</label>
+        <span>MAP / HEX DB / BUILDINGS / SETTLEMENTS / Switching</span>
+      </div>
+      <div class="report-field">
+        <label>Steps to reproduce</label>
+        <span>Exact click sequence from a fresh page load</span>
+      </div>
+      <div class="report-field">
+        <label>Expected result</label>
+        <span>What should happen per this guide</span>
+      </div>
+      <div class="report-field">
+        <label>Actual result</label>
+        <span>What actually happened (screenshot if possible)</span>
+      </div>
+      <div class="report-field">
+        <label>Browser + OS</label>
+        <span>e.g. Chrome 124 / macOS 15</span>
+      </div>
+      <div class="report-field">
+        <label>Report to</label>
+        <span>colonel.tutor@gmail.com or GitHub issue</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Sign-Off ───────────────────────────────────────── -->
+  <div class="section" id="signoff">
+    <h2><span class="section-num">✓</span> Sign-Off</h2>
+    <div id="signoff-panel">
+      <div id="signoff-counter">0 / 0</div>
+      <div id="signoff-label">checks completed</div>
+      <button id="signoff-btn" onclick="signOff()">✓ Sign Off Phase 1 QA</button>
+      <div id="signoff-done">✅ Phase 1 QA passed — ready to push to remote.</div>
+    </div>
+  </div>
+
+</main>
+
+<script>
+// ── Checkbox persistence + progress ──────────────────────
+const STORAGE_KEY = 'qa-guide-checks';
+
+function getIds() {
+  const items = document.querySelectorAll('.checklist input[type=checkbox]');
+  return [...items].map((_, i) => i);
+}
+
+function save() {
+  const items = document.querySelectorAll('.checklist input[type=checkbox]');
+  const state = [...items].map(c => c.checked);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function load() {
+  const items = document.querySelectorAll('.checklist input[type=checkbox]');
+  let state = [];
+  try { state = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); } catch(e) {}
+  items.forEach((c, i) => {
+    c.checked = !!state[i];
+    c.closest('li').classList.toggle('done', !!state[i]);
+  });
+}
+
+function updateProgress() {
+  const items = document.querySelectorAll('.checklist input[type=checkbox]');
+  const total = items.length;
+  const done  = [...items].filter(c => c.checked).length;
+
+  document.getElementById('total-count').textContent = total;
+  document.getElementById('signoff-counter').textContent = `${done} / ${total}`;
+  document.getElementById('signoff-label').textContent = done === total
+    ? 'All checks complete!' : 'checks completed';
+
+  const pct = total ? (done / total * 100) : 0;
+  document.getElementById('progress-bar').style.width = pct + '%';
+
+  const btn = document.getElementById('signoff-btn');
+  btn.classList.toggle('ready', done === total);
+}
+
+function signOff() {
+  document.getElementById('signoff-done').style.display = 'block';
+  document.getElementById('signoff-btn').textContent = '✓ Signed Off';
+  document.getElementById('signoff-btn').style.background = 'var(--success)';
+}
+
+// ── Sidebar active link on scroll ────────────────────────
+function updateNav() {
+  const sections = document.querySelectorAll('.section');
+  const links    = document.querySelectorAll('.nav-link');
+  let current = '';
+  sections.forEach(s => {
+    if (s.getBoundingClientRect().top < 120) current = s.id;
+  });
+  links.forEach(l => l.classList.toggle('active', l.getAttribute('href') === '#' + current));
+}
+
+// ── Wire checkboxes ───────────────────────────────────────
+document.querySelectorAll('.checklist input[type=checkbox]').forEach(cb => {
+  cb.addEventListener('change', () => {
+    cb.closest('li').classList.toggle('done', cb.checked);
+    save();
+    updateProgress();
+  });
+});
+
+document.querySelectorAll('.checklist li').forEach(li => {
+  li.addEventListener('click', e => {
+    if (e.target.tagName === 'INPUT') return;
+    const cb = li.querySelector('input[type=checkbox]');
+    cb.checked = !cb.checked;
+    cb.dispatchEvent(new Event('change'));
+  });
+});
+
+window.addEventListener('scroll', updateNav);
+
+load();
+updateProgress();
+updateNav();
+</script>
+</body>
+</html>

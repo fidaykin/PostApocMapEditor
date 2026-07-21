@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Satellite Color Guide — PostApoc Map Editor</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #111; padding: 40px; max-width: 800px; margin: 0 auto; }
+
+    h1 { font-size: 22px; margin-bottom: 4px; }
+    .subtitle { color: #666; font-size: 13px; margin-bottom: 28px; }
+
+    h2 { font-size: 14px; color: #444; text-transform: uppercase; letter-spacing: 1px; margin: 28px 0 12px; border-bottom: 1px solid #ddd; padding-bottom: 6px; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 24px; }
+    th { background: #f4f4f4; text-align: left; padding: 8px 12px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #555; border-bottom: 2px solid #ddd; }
+    td { padding: 8px 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #fafafa; }
+
+    .swatch { display: inline-block; width: 28px; height: 28px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.12); vertical-align: middle; margin-right: 8px; }
+    .terrain-name { font-weight: 600; }
+    .range { font-family: monospace; font-size: 11px; color: #555; background: #f5f5f5; padding: 2px 5px; border-radius: 3px; white-space: nowrap; }
+
+    .cheat { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 24px; }
+    .cheat-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid #e5e5e5; border-radius: 6px; }
+    .cheat-swatch { width: 36px; height: 36px; border-radius: 6px; flex-shrink: 0; border: 1px solid rgba(0,0,0,0.1); }
+    .cheat-label { font-size: 12px; line-height: 1.4; }
+    .cheat-label strong { display: block; font-size: 13px; }
+
+    .tip { background: #fffbeb; border-left: 3px solid #f59e0b; padding: 12px 16px; font-size: 12px; color: #555; border-radius: 0 4px 4px 0; margin-bottom: 16px; }
+    .tip strong { color: #333; }
+
+    @media print {
+      body { padding: 20px; }
+      .tip { break-inside: avoid; }
+      table { break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+
+  <h1>🛰 Satellite Image Color Guide</h1>
+  <p class="subtitle">PostApoc Hex Map Editor — reference for painting source images used with the Satellite generator</p>
+
+  <h2>Quick Reference</h2>
+  <div class="cheat">
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#3a6ea8;"></div>
+      <div class="cheat-label"><strong>Water</strong>Blue / navy</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#2d6a2d;"></div>
+      <div class="cheat-label"><strong>Forest</strong>Medium green</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#1a4a1a;"></div>
+      <div class="cheat-label"><strong>Dense Forest</strong>Dark green</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#7aaa44;"></div>
+      <div class="cheat-label"><strong>Plains</strong>Light / bright green</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#d4b87a;"></div>
+      <div class="cheat-label"><strong>Desert</strong>Sandy yellow</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#a07850;"></div>
+      <div class="cheat-label"><strong>Barren</strong>Light brown / tan</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#aaaaaa;"></div>
+      <div class="cheat-label"><strong>Hills</strong>Light gray</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#e8e8e8;"></div>
+      <div class="cheat-label"><strong>Mountain</strong>Near-white / snow</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#444444;"></div>
+      <div class="cheat-label"><strong>Rift / Rock</strong>Dark gray / black</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#cc4411;"></div>
+      <div class="cheat-label"><strong>Lava</strong>Deep red-orange</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#2a4a2a;"></div>
+      <div class="cheat-label"><strong>Swamp</strong>Very dark green</div>
+    </div>
+    <div class="cheat-item">
+      <div class="cheat-swatch" style="background:#6a5540;"></div>
+      <div class="cheat-label"><strong>Rubble</strong>Medium brown</div>
+    </div>
+  </div>
+
+  <h2>Detailed Classification Table</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Swatch</th>
+        <th>Terrain</th>
+        <th>Hue range</th>
+        <th>Saturation</th>
+        <th>Lightness</th>
+        <th>Notes</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><span class="swatch" style="background:#1a3a6a;"></span></td>
+        <td class="terrain-name">Deep Water</td>
+        <td><span class="range">170–268°</span></td>
+        <td>&gt; 25%</td>
+        <td>&lt; 32%</td>
+        <td>Dark navy blue</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#3a6ea8;"></span></td>
+        <td class="terrain-name">Water</td>
+        <td><span class="range">170–268°</span></td>
+        <td>&gt; 25%</td>
+        <td>32–70%</td>
+        <td>Medium to bright blue</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#183018;"></span></td>
+        <td class="terrain-name">Swamp</td>
+        <td><span class="range">78–168°</span></td>
+        <td>any</td>
+        <td>&lt; 22%</td>
+        <td>Very dark green, murky</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#1a4a1a;"></span></td>
+        <td class="terrain-name">Dense Forest</td>
+        <td><span class="range">78–168°</span></td>
+        <td>&gt; 8%</td>
+        <td>22–37%</td>
+        <td>Dark green</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#2d6a2d;"></span></td>
+        <td class="terrain-name">Forest</td>
+        <td><span class="range">78–168°</span></td>
+        <td>&gt; 8%</td>
+        <td>37–53%</td>
+        <td>Medium green</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#7aaa44;"></span></td>
+        <td class="terrain-name">Plains</td>
+        <td><span class="range">50–168°</span></td>
+        <td>&gt; 30%</td>
+        <td>&gt; 52%</td>
+        <td>Bright / light green</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#8aaa5a;"></span></td>
+        <td class="terrain-name">Plains (dry)</td>
+        <td><span class="range">78–168°</span></td>
+        <td>low</td>
+        <td>30–50%</td>
+        <td>Muted / olive green, savanna</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#d4b87a;"></span></td>
+        <td class="terrain-name">Desert</td>
+        <td><span class="range">30–60°</span></td>
+        <td>&gt; 28%</td>
+        <td>&gt; 56%</td>
+        <td>Sandy yellow / straw</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#b08855;"></span></td>
+        <td class="terrain-name">Barren</td>
+        <td><span class="range">12–50°</span></td>
+        <td>&gt; 22%</td>
+        <td>&gt; 52%</td>
+        <td>Light brown / tan</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#6a5540;"></span></td>
+        <td class="terrain-name">Rubble</td>
+        <td><span class="range">12–50°</span></td>
+        <td>&gt; 18%</td>
+        <td>36–52%</td>
+        <td>Medium brown, earthy</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#bbbbbb;"></span></td>
+        <td class="terrain-name">Hills</td>
+        <td>any (gray)</td>
+        <td>&lt; 20%</td>
+        <td>&gt; 56%</td>
+        <td>Light gray, weathered rock</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#e8e8e8;"></span></td>
+        <td class="terrain-name">Mountain</td>
+        <td>any (gray)</td>
+        <td>&lt; 18%</td>
+        <td>&gt; 74%</td>
+        <td>Near-white, snow-capped</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#444444;"></span></td>
+        <td class="terrain-name">Rift / Dark Rock</td>
+        <td>any</td>
+        <td>&lt; 20%</td>
+        <td>&lt; 30%</td>
+        <td>Dark gray to black</td>
+      </tr>
+      <tr>
+        <td><span class="swatch" style="background:#cc4411;"></span></td>
+        <td class="terrain-name">Lava Plain</td>
+        <td><span class="range">0–25° / 335–360°</span></td>
+        <td>&gt; 50%</td>
+        <td>12–55%</td>
+        <td>Deep red-orange, saturated</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>Slider Tips</h2>
+
+  <div class="tip">
+    <strong>Greens look like Swamp instead of Forest?</strong> Raise the <em>Forest (green)</em> sensitivity slider — it lowers the saturation threshold so darker greens qualify as forest.
+  </div>
+  <div class="tip">
+    <strong>Blue sky or haze is classified as Water?</strong> Lower the <em>Water (blue)</em> sensitivity slider — it requires higher blue saturation before a pixel is called water.
+  </div>
+  <div class="tip">
+    <strong>Mountains coming out as Plains?</strong> Raise the <em>Mountain (pale)</em> sensitivity slider — it accepts slightly less-white pixels as mountain/rock.
+  </div>
+  <div class="tip">
+    <strong>Image upside-down?</strong> Enable <em>Flip image vertically</em> in the options — some satellite exports have south at the top.
+  </div>
+  <div class="tip">
+    <strong>Blocky / noisy result?</strong> Increase the <em>Sample radius</em> slider. Each hex will average a wider area of pixels, smoothing out noise.
+  </div>
+
+</body>
+</html>

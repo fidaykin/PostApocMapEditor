@@ -1,0 +1,1833 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MapEditorPro v0.4.6 — Посібник користувача</title>
+<style>
+  /* ── Design tokens ─────────────────────────────────────────── */
+  :root {
+    --bg:      #1e1e1e;
+    --panel:   #2a2a2a;
+    --border:  #3a3a3a;
+    --accent:  #4fc3f7;
+    --text:    #ffffff;
+    --muted:   #888888;
+    --danger:  #ef5350;
+    --success: #66bb6a;
+    --warn:    #ffa726;
+    --panel2:  #333333;
+    --sidebar-w: 220px;
+  }
+
+  /* ── Reset / Base ──────────────────────────────────────────── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; font-size: 15px; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    line-height: 1.65;
+    display: flex;
+    min-height: 100vh;
+  }
+
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  h1 { font-size: 2rem; font-weight: 700; color: var(--accent); margin-bottom: .5rem; }
+  h2 { font-size: 1.45rem; font-weight: 700; color: var(--accent); margin: 2.5rem 0 .75rem; border-bottom: 1px solid var(--border); padding-bottom: .4rem; }
+  h3 { font-size: 1.1rem; font-weight: 600; color: var(--text); margin: 1.6rem 0 .5rem; }
+  h4 { font-size: .95rem; font-weight: 600; color: var(--accent); margin: 1.2rem 0 .4rem; }
+
+  p { margin-bottom: .85rem; }
+  ul, ol { margin: .4rem 0 .85rem 1.4rem; }
+  li { margin-bottom: .3rem; }
+  code {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    padding: 1px 5px;
+    font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+    font-size: .88em;
+    color: var(--accent);
+  }
+  kbd {
+    display: inline-block;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    border-bottom: 2px solid #555;
+    border-radius: 4px;
+    padding: 1px 7px;
+    font-family: inherit;
+    font-size: .82em;
+    color: var(--text);
+  }
+
+  strong { color: var(--text); font-weight: 600; }
+  em { color: var(--muted); font-style: italic; }
+
+  /* ── Layout ────────────────────────────────────────────────── */
+  nav#sidebar {
+    width: var(--sidebar-w);
+    min-width: var(--sidebar-w);
+    background: var(--panel);
+    border-right: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+    padding: 1.2rem 0 2rem;
+    flex-shrink: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+  nav#sidebar::-webkit-scrollbar { width: 5px; }
+  nav#sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .sidebar-logo {
+    padding: .5rem 1rem 1rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: .8rem;
+  }
+  .sidebar-logo .app-name {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--accent);
+    display: block;
+  }
+  .sidebar-logo .app-ver {
+    font-size: .75rem;
+    color: var(--muted);
+  }
+
+  nav#sidebar ul { list-style: none; margin: 0; padding: 0; }
+  nav#sidebar ul li a {
+    display: block;
+    padding: .3rem 1.2rem;
+    color: var(--muted);
+    font-size: .82rem;
+    transition: color .15s, background .15s;
+    border-left: 2px solid transparent;
+  }
+  nav#sidebar ul li a:hover {
+    color: var(--text);
+    background: rgba(79,195,247,.06);
+    text-decoration: none;
+  }
+  nav#sidebar ul li a.active {
+    color: var(--accent);
+    border-left-color: var(--accent);
+    background: rgba(79,195,247,.08);
+  }
+  nav#sidebar .nav-section-label {
+    display: block;
+    padding: .7rem 1rem .2rem;
+    font-size: .68rem;
+    text-transform: uppercase;
+    letter-spacing: .08em;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  nav#sidebar .nav-sub a {
+    padding-left: 1.8rem;
+    font-size: .79rem;
+  }
+
+  main#content {
+    flex: 1;
+    padding: 2rem 2.5rem 4rem;
+    max-width: 960px;
+    min-width: 0;
+  }
+
+  /* ── Info boxes ────────────────────────────────────────────── */
+  .box {
+    border-left: 3px solid var(--accent);
+    background: rgba(79,195,247,.06);
+    border-radius: 0 6px 6px 0;
+    padding: .7rem 1rem;
+    margin: 1rem 0;
+    font-size: .9rem;
+  }
+  .box.warn  { border-color: var(--warn);    background: rgba(255,167,38,.06); }
+  .box.tip   { border-color: var(--success); background: rgba(102,187,106,.06); }
+  .box.note  { border-color: var(--muted);   background: rgba(136,136,136,.06); }
+
+  /* ── Shortcut table ─────────────────────────────────────────── */
+  table.shortcuts {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: .88rem;
+    margin: 1rem 0;
+  }
+  table.shortcuts th {
+    background: var(--panel);
+    color: var(--accent);
+    text-align: left;
+    padding: .5rem .85rem;
+    border: 1px solid var(--border);
+    font-weight: 600;
+    font-size: .8rem;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  table.shortcuts td {
+    padding: .45rem .85rem;
+    border: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  table.shortcuts tr:nth-child(even) td { background: rgba(255,255,255,.02); }
+  table.shortcuts tr:hover td { background: rgba(79,195,247,.04); }
+
+  /* ── Mockup helpers ─────────────────────────────────────────── */
+  .mockup {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--bg);
+    overflow: hidden;
+    margin: 1.2rem 0;
+    box-shadow: 0 4px 24px rgba(0,0,0,.5);
+    font-size: .82rem;
+  }
+  .mockup-title {
+    background: #111;
+    color: var(--muted);
+    font-size: .72rem;
+    padding: .35rem .8rem;
+    border-bottom: 1px solid var(--border);
+    font-style: italic;
+  }
+
+  /* Toolbar strip */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    background: #111;
+    border-bottom: 1px solid var(--border);
+    padding: 4px 8px;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .tb-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    color: var(--text);
+    padding: 3px 9px;
+    font-size: .75rem;
+    cursor: default;
+    white-space: nowrap;
+  }
+  .tb-btn.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .tb-btn.tab    { padding: 4px 12px; font-size: .8rem; }
+  .tb-sep { width: 1px; height: 22px; background: var(--border); margin: 0 4px; }
+  .tb-menu { position: relative; display: inline-block; }
+  .tb-menu-label {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    font-size: .8rem;
+    padding: 4px 8px;
+    cursor: default;
+    border-radius: 3px;
+  }
+  .tb-menu-label:hover { background: var(--panel); }
+
+  /* Panel */
+  .side-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .panel-header {
+    background: #222;
+    border-bottom: 1px solid var(--border);
+    padding: 5px 10px;
+    font-size: .78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+  }
+
+  /* Form controls */
+  .mock-input {
+    background: #111;
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    font-size: .8rem;
+    padding: 3px 7px;
+    display: inline-block;
+    min-width: 80px;
+  }
+  .mock-input.wide { min-width: 160px; display: block; }
+  .mock-label { color: var(--muted); font-size: .78rem; margin-bottom: 2px; display: block; }
+  .mock-row { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+  .mock-check { width: 13px; height: 13px; border: 1px solid var(--border); border-radius: 2px; display: inline-flex; align-items: center; justify-content: center; background: #111; color: var(--accent); font-size: .65rem; }
+  .mock-check.checked::after { content: '✓'; }
+  .mock-btn {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 3px;
+    color: var(--text);
+    padding: 3px 10px;
+    font-size: .78rem;
+    cursor: default;
+  }
+  .mock-btn.primary { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+  .mock-btn.danger  { background: rgba(239,83,80,.2); color: var(--danger); border-color: var(--danger); }
+
+  /* Tag chips */
+  .tag-chip {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(79,195,247,.12);
+    border: 1px solid rgba(79,195,247,.3);
+    border-radius: 12px;
+    padding: 1px 8px;
+    font-size: .73rem;
+    color: var(--accent);
+    gap: 4px;
+    margin: 2px;
+  }
+  .tag-chip .rm { color: var(--muted); font-size: .65rem; cursor: default; }
+
+  /* Collapsible section header */
+  .section-hdr {
+    background: #222;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 10px;
+    margin-bottom: 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: .82rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: default;
+  }
+  .section-hdr .arrow { color: var(--muted); font-size: .7rem; }
+  .section-body {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-top: none;
+    border-radius: 0 0 4px 4px;
+    padding: 8px 10px;
+    margin-bottom: 6px;
+  }
+
+  /* Hex tile */
+  .hex-tile {
+    display: inline-block;
+    width: 36px; height: 36px;
+    border-radius: 4px;
+    border: 2px solid var(--border);
+  }
+  .hex-tile.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(79,195,247,.3); }
+
+  /* Resource row */
+  .res-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 3px 0;
+    font-size: .78rem;
+  }
+  .res-icon {
+    width: 18px; height: 18px;
+    border-radius: 3px;
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: .6rem;
+    color: var(--muted);
+  }
+
+  /* Minimap widget */
+  .minimap-widget {
+    width: 100%;
+    aspect-ratio: 1;
+    background: #111;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    position: relative;
+    overflow: hidden;
+  }
+  .minimap-viewport {
+    position: absolute;
+    border: 1px solid var(--accent);
+    background: rgba(79,195,247,.1);
+    border-radius: 2px;
+  }
+
+  /* Brush size buttons */
+  .brush-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px; height: 34px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    font-size: .72rem;
+    color: var(--muted);
+    cursor: default;
+  }
+  .brush-btn.active {
+    background: rgba(79,195,247,.15);
+    border-color: var(--accent);
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  /* Canvas area */
+  .canvas-area {
+    background: #111;
+    border: 1px solid var(--border);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--muted);
+    font-size: .78rem;
+  }
+  .canvas-hex-grid {
+    display: grid;
+    gap: 2px;
+    opacity: .7;
+  }
+
+  /* Palette item */
+  .palette-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: default;
+    font-size: .78rem;
+  }
+  .palette-item:hover { background: rgba(255,255,255,.04); }
+  .palette-item.active { background: rgba(79,195,247,.12); color: var(--accent); }
+  .palette-dot {
+    width: 14px; height: 14px;
+    border-radius: 2px;
+    flex-shrink: 0;
+    border: 1px solid var(--border);
+  }
+
+  /* List item */
+  .list-item {
+    padding: 4px 10px;
+    font-size: .8rem;
+    cursor: default;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .list-item:hover { background: rgba(255,255,255,.04); }
+  .list-item.active { background: rgba(79,195,247,.1); color: var(--accent); }
+  .list-badge {
+    display: inline-block;
+    background: rgba(79,195,247,.12);
+    color: var(--accent);
+    border-radius: 3px;
+    padding: 0 5px;
+    font-size: .68rem;
+    margin-left: auto;
+  }
+
+  /* Preview sprite block */
+  .sprite-preview {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: #111;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    gap: 6px;
+    text-align: center;
+  }
+  .sprite-box {
+    width: 72px; height: 72px;
+    background: var(--panel2);
+    border: 2px solid var(--border);
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.8rem;
+  }
+  .sprite-id   { font-size: .9rem; font-weight: 700; color: var(--accent); }
+  .sprite-path { font-size: .7rem; color: var(--muted); word-break: break-all; }
+
+  /* Two-col form grid */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+  .form-field { display: flex; flex-direction: column; gap: 2px; }
+
+  /* zoom indicator */
+  .zoom-badge {
+    position: absolute;
+    bottom: 6px; right: 8px;
+    background: rgba(0,0,0,.7);
+    color: var(--muted);
+    font-size: .72rem;
+    padding: 2px 7px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+  }
+
+  /* Section anchor target offset */
+  section[id] { scroll-margin-top: 1rem; }
+
+  /* ── Divider ─────────────────────────────────────────────────── */
+  hr { border: none; border-top: 1px solid var(--border); margin: 2rem 0; }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════ SIDEBAR ═══════════════════════════════════ -->
+<nav id="sidebar">
+  <div class="sidebar-logo">
+    <span class="app-name">MapEditorPro</span>
+    <span class="app-ver">v0.4.6 — Посібник користувача</span>
+  </div>
+
+  <ul>
+    <li><span class="nav-section-label">Початок роботи</span></li>
+    <li><a href="#introduction">1. Вступ</a></li>
+    <li><a href="#interface">2. Огляд інтерфейсу</a></li>
+
+    <li><span class="nav-section-label">Редактор карти</span></li>
+    <li class="nav-sub"><a href="#map-tab">3. Редактор карти</a></li>
+    <li class="nav-sub"><a href="#terrain-palette">Палітра ландшафту</a></li>
+    <li class="nav-sub"><a href="#drawing-tools">Інструменти малювання</a></li>
+    <li class="nav-sub"><a href="#zoom-pan">Масштаб &amp; Переміщення</a></li>
+    <li class="nav-sub"><a href="#minimap">Мінікарта</a></li>
+    <li class="nav-sub"><a href="#saving">Збереження та завантаження</a></li>
+    <li class="nav-sub"><a href="#autosave">Автозбереження до теки</a></li>
+
+    <li><span class="nav-section-label">База даних Hex</span></li>
+    <li class="nav-sub"><a href="#hexdb">4. Редактор HexDB</a></li>
+    <li class="nav-sub"><a href="#hexdb-list">Керування записами</a></li>
+    <li class="nav-sub"><a href="#hexdb-preview">Візуальний перегляд</a></li>
+    <li class="nav-sub"><a href="#hexdb-main">Блок MAIN</a></li>
+    <li class="nav-sub"><a href="#hexdb-destroy">Блок DESTROY</a></li>
+    <li class="nav-sub"><a href="#hexdb-build">Блок BUILD</a></li>
+    <li class="nav-sub"><a href="#hexdb-income">Блок INCOME</a></li>
+    <li class="nav-sub"><a href="#hexdb-special">Блок SPECIAL</a></li>
+    <li class="nav-sub"><a href="#hexdb-save">Копіювання/вставка та збереження БД</a></li>
+
+    <li><span class="nav-section-label">Інші редактори</span></li>
+    <li><a href="#buildings">5. Редактор будівель</a></li>
+    <li><a href="#settlements">6. Редактор поселень</a></li>
+
+    <li><span class="nav-section-label">Довідка</span></li>
+    <li><a href="#shortcuts">7. Гарячі клавіші</a></li>
+  </ul>
+</nav>
+
+<!-- ═══════════════════════════════════ CONTENT ═══════════════════════════════════ -->
+<main id="content">
+
+  <!-- ─────────────────────────── HEADER ─────────────────────────── -->
+  <h1>MapEditorPro v0.4.6</h1>
+  <p style="color:var(--muted); font-size:.9rem;">Посібник користувача &nbsp;·&nbsp; Українська &nbsp;·&nbsp; Оновлено 2026-05-06</p>
+  <hr>
+
+  <!-- ═════════════════════ 1. INTRODUCTION ═════════════════════ -->
+  <section id="introduction">
+    <h2>1. Вступ</h2>
+    <p>
+      MapEditorPro — це браузерний редактор hex-карт на чистому JavaScript, який не потребує встановлення.
+      Версія 0.4.6 містить чотири інтегровані інструменти в одному HTML-файлі: <strong>Редактор карти</strong>,
+      <strong>Редактор бази даних Hex</strong>, <strong>Редактор будівель</strong> та
+      <strong>Редактор поселень</strong>. Інструмент розроблений для ізометричних стратегій і градобудівників
+      на основі шестикутних сіток.
+    </p>
+    <p>
+      Оскільки весь застосунок — це один файл <code>.html</code> без серверної частини,
+      він повністю працює офлайн і не потребує інсталяції.
+    </p>
+
+    <h3>Системні вимоги</h3>
+    <ul>
+      <li><strong>Браузер:</strong> рекомендується Google Chrome 90+ або Microsoft Edge 90+ (на базі Chromium).
+        Firefox підходить для редагування карти; функція автозбереження до теки потребує File System Access API
+        (тільки Chrome/Edge).</li>
+      <li><strong>Екран:</strong> мінімум 1200 px завширшки для комфортного відображення.</li>
+    </ul>
+
+    <h3>Відкриття редактора</h3>
+    <ol>
+      <li>Знайдіть файл <code>MapEditorPro.html</code> у теці проекту.</li>
+      <li>Перетягніть файл у відкрите вікно Chrome або Edge, <em>або</em> двічі клацніть його,
+        щоб відкрити у браузері за замовчуванням.</li>
+      <li>Якщо Chrome запитує дозвіл на доступ до файлів (для автозбереження), натисніть <strong>Дозволити</strong>.</li>
+    </ol>
+
+    <!-- Mockup: browser address bar showing a local file -->
+    <div class="mockup">
+      <div class="mockup-title">Макет — відкриття редактора з локального файлу</div>
+      <div style="background:#111; padding:8px 12px; display:flex; align-items:center; gap:10px; border-bottom:1px solid var(--border);">
+        <div style="display:flex; gap:5px;">
+          <span style="width:11px;height:11px;border-radius:50%;background:#ef5350;display:inline-block;"></span>
+          <span style="width:11px;height:11px;border-radius:50%;background:#ffa726;display:inline-block;"></span>
+          <span style="width:11px;height:11px;border-radius:50%;background:#66bb6a;display:inline-block;"></span>
+        </div>
+        <div style="flex:1; background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:3px 14px; font-size:.78rem; color:var(--muted);">
+          file:///C:/Projects/MapEditorPro.html
+        </div>
+      </div>
+      <div style="padding:16px 20px; display:flex; align-items:center; gap:14px;">
+        <div style="font-size:2rem;">🗺️</div>
+        <div>
+          <div style="font-size:1rem; font-weight:700; color:var(--accent);">MapEditorPro v0.4.6</div>
+          <div style="font-size:.8rem; color:var(--muted);">Завантажено локально — підключення до інтернету не потрібне</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box tip">
+      <strong>Порада:</strong> Закріпіть файл на панелі завдань або створіть ярлик на робочому столі,
+      щоб запускати редактор одним кліком.
+    </div>
+  </section>
+
+  <!-- ═════════════════════ 2. INTERFACE OVERVIEW ═════════════════════ -->
+  <section id="interface">
+    <h2>2. Огляд інтерфейсу</h2>
+    <p>
+      Редактор розділений на три горизонтальні смуги: <strong>рядок меню</strong> вгорі,
+      <strong>панель вкладок</strong> під ним та <strong>основна робоча область</strong> нижче.
+      Робоча область завжди складається з вузької лівої панелі, центрального полотна або списку
+      та вужчої правої панелі. Перемикання між чотирма вкладками одночасно змінює вміст усіх панелей.
+    </p>
+
+    <!-- Mockup: full layout diagram -->
+    <div class="mockup">
+      <div class="mockup-title">Макет — загальний вигляд з 4 вкладками</div>
+
+      <!-- Menu bar -->
+      <div style="background:#111; border-bottom:1px solid var(--border); padding:4px 12px; display:flex; gap:6px; font-size:.8rem;">
+        <span class="tb-menu-label">File</span>
+        <span class="tb-menu-label">Edit</span>
+        <span class="tb-menu-label">Layer</span>
+        <span class="tb-menu-label">View</span>
+        <span class="tb-menu-label">Generate</span>
+        <span class="tb-menu-label">Data</span>
+      </div>
+
+      <!-- Tab toolbar -->
+      <div class="toolbar">
+        <span class="tb-btn tab active">MAP</span>
+        <span class="tb-btn tab">HEX DB</span>
+        <span class="tb-btn tab">BUILDINGS</span>
+        <span class="tb-btn tab">SETTLEMENTS</span>
+        <span class="tb-sep"></span>
+        <span class="tb-btn active" title="Малювати">🖌 Малювати</span>
+        <span class="tb-btn" title="Стерти">🗑 Стерти</span>
+        <span class="tb-btn" title="Заливка">🪣 Заливка</span>
+        <span class="tb-btn" title="Піпетка">👁 Піпетка</span>
+        <span class="tb-btn" title="Прямокутник">⬛ Прямокутник</span>
+        <span class="tb-btn" title="Поселення">⬡ Поселення</span>
+        <span class="tb-btn" title="Очистити">✕ Очистити</span>
+      </div>
+
+      <!-- Three-column workspace -->
+      <div style="display:flex; height:200px;">
+        <!-- Left panel -->
+        <div style="width:160px; min-width:160px; background:var(--panel); border-right:1px solid var(--border); padding:6px; overflow:hidden;">
+          <div class="panel-header" style="margin:-6px -6px 6px; border-radius:0;">ПАЛІТРА ЛАНДШАФТУ</div>
+          <div class="palette-item active"><div class="palette-dot" style="background:#4a7c59;"></div>Трав'яник</div>
+          <div class="palette-item"><div class="palette-dot" style="background:#c29a56;"></div>Пустельний пісок</div>
+          <div class="palette-item"><div class="palette-dot" style="background:#2e4d7b;"></div>Глибока вода</div>
+          <div class="palette-item"><div class="palette-dot" style="background:#7a7a6e;"></div>Руїни</div>
+          <div class="palette-item"><div class="palette-dot" style="background:#5a4e3c;"></div>Пустка</div>
+          <div style="color:var(--muted); font-size:.7rem; margin-top:6px; text-align:center;">…29 типів ландшафту</div>
+        </div>
+
+        <!-- Canvas -->
+        <div class="canvas-area" style="flex:1; flex-direction:column; gap:8px;">
+          <div style="display:grid; grid-template-columns: repeat(7, 24px); grid-template-rows: repeat(5, 24px); gap:2px; opacity:.6;">
+            <div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+            <div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#7a7a6e; border-radius:3px;"></div><div style="background:#7a7a6e; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+            <div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#7a7a6e; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+            <div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div>
+            <div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div>
+          </div>
+          <span style="font-size:.72rem;">Hex-полотно — переміщення &amp; масштаб</span>
+          <div class="zoom-badge" style="position:relative; bottom:auto; right:auto; margin-top:2px;">100%</div>
+        </div>
+
+        <!-- Right panel -->
+        <div style="width:150px; min-width:150px; background:var(--panel); border-left:1px solid var(--border); padding:6px;">
+          <div class="panel-header" style="margin:-6px -6px 6px; border-radius:0;">МІНІКАРТА</div>
+          <div class="minimap-widget" style="height:100px;">
+            <div class="minimap-viewport" style="width:40%; height:40%; top:20%; left:25%;"></div>
+          </div>
+          <div style="margin-top:8px; font-size:.72rem; color:var(--muted);">Розмір пензля</div>
+          <div style="display:flex; gap:3px; margin-top:3px;">
+            <div class="brush-btn">1</div>
+            <div class="brush-btn active">3×3</div>
+            <div class="brush-btn">5×5</div>
+            <div class="brush-btn">○7</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>
+      Усі чотири вкладки використовують одну й ту саму трипанельну структуру. Змінюється лише вміст кожної панелі:
+    </p>
+    <ul>
+      <li><strong>MAP</strong> — палітра ландшафту (ліворуч) · hex-полотно (центр) · мінікарта + налаштування пензля (праворуч)</li>
+      <li><strong>HEX DB</strong> — список hex-записів (ліворуч) · візуальний перегляд + форма властивостей (центр/праворуч)</li>
+      <li><strong>BUILDINGS</strong> — список будівель (ліворуч) · форма MAIN / BUILD / LEVELS (праворуч)</li>
+      <li><strong>SETTLEMENTS</strong> — список поселень (ліворуч) · форма MAIN / BUILD / LEVELS (праворуч)</li>
+    </ul>
+  </section>
+
+  <!-- ═════════════════════ 3. MAP EDITOR ═════════════════════ -->
+  <section id="map-tab">
+    <h2>3. Редактор карти</h2>
+    <p>
+      Вкладка MAP — основна робоча область з полотном. Тут ви малюєте ландшафт на hex-сітці,
+      керуєте поселеннями, а також експортуєте або зберігаєте карту.
+    </p>
+  </section>
+
+  <!-- ─── 3a Terrain Palette ─── -->
+  <section id="terrain-palette">
+    <h3>Палітра ландшафту</h3>
+    <p>
+      На лівій панелі перелічено всі 29 типів ландшафту, згрупованих у розгортувані категорії
+      (наприклад, Природний, Міський, Пустка, Вода). Клацніть заголовок категорії, щоб розгорнути або
+      згорнути її. Клацніть на зразок ландшафту, щоб обрати його як активний; обраний елемент
+      підсвічується акцентним кольором і відображається у блоці <em>Активний ландшафт</em> правої панелі.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — палітра ландшафту (ліва панель, вкладка MAP)</div>
+      <div style="width:190px; background:var(--panel); padding:0; font-size:.8rem;">
+
+        <!-- category: Natural -->
+        <div class="section-hdr" style="border-radius:0; margin-bottom:0;">
+          <span class="arrow">▾</span> Природний
+          <span style="margin-left:auto; color:var(--muted); font-size:.7rem; font-weight:400;">8</span>
+        </div>
+        <div style="padding:4px 6px; border:1px solid var(--border); border-top:none; border-bottom:1px solid var(--border); background:var(--bg);">
+          <div class="palette-item active"><div class="palette-dot" style="background:#4a7c59;"></div>Трав'яник <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">001</span></div>
+          <div class="palette-item"><div class="palette-dot" style="background:#6b8e23;"></div>Ліс <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">002</span></div>
+          <div class="palette-item"><div class="palette-dot" style="background:#2e4d7b;"></div>Глибока вода <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">003</span></div>
+          <div class="palette-item"><div class="palette-dot" style="background:#3c6b8a;"></div>Мілководдя <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">004</span></div>
+          <div style="color:var(--muted); font-size:.7rem; padding:2px 4px;">…ще 4</div>
+        </div>
+
+        <!-- category: Wasteland -->
+        <div class="section-hdr" style="border-radius:0; margin-bottom:0;">
+          <span class="arrow">▾</span> Пустка
+          <span style="margin-left:auto; color:var(--muted); font-size:.7rem; font-weight:400;">7</span>
+        </div>
+        <div style="padding:4px 6px; border:1px solid var(--border); border-top:none; background:var(--bg);">
+          <div class="palette-item"><div class="palette-dot" style="background:#5a4e3c;"></div>Пустка <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">010</span></div>
+          <div class="palette-item"><div class="palette-dot" style="background:#7a7a6e;"></div>Руїни <span style="margin-left:auto; color:var(--muted); font-size:.68rem;">011</span></div>
+          <div style="color:var(--muted); font-size:.7rem; padding:2px 4px;">…ще 5</div>
+        </div>
+
+        <!-- category: Urban (collapsed) -->
+        <div class="section-hdr" style="border-radius:0; margin-bottom:0; border-top:1px solid var(--border);">
+          <span class="arrow">▸</span> Міський
+          <span style="margin-left:auto; color:var(--muted); font-size:.7rem; font-weight:400;">6</span>
+        </div>
+        <div class="section-hdr" style="border-radius:0; margin-bottom:0; border-top:1px solid var(--border);">
+          <span class="arrow">▸</span> Особливий
+          <span style="margin-left:auto; color:var(--muted); font-size:.7rem; font-weight:400;">8</span>
+        </div>
+
+      </div>
+    </div>
+
+    <ul>
+      <li>Кожен запис показує кольоровий зразок, назву ландшафту та його числовий ID.</li>
+      <li>Клацніть заголовок категорії, щоб згорнути її та звільнити вертикальний простір.</li>
+      <li>Використовуйте інструмент <strong>Піпетка</strong> (клавіша <kbd>E</kbd>), щоб вибрати ландшафт
+        безпосередньо з полотна — палітра прокрутиться до вибраного елемента й підсвітить його.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 3b Drawing Tools ─── -->
+  <section id="drawing-tools">
+    <h3>Інструменти малювання</h3>
+    <p>
+      На toolbar доступно сім інструментів. Активний інструмент виділено акцентним кольором фону.
+      Виберіть інструмент, клацнувши його кнопку або натиснувши відповідну гарячу клавішу.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — кнопки інструментів на toolbar</div>
+      <div class="toolbar">
+        <span class="tb-btn tab">MAP</span>
+        <span class="tb-btn tab">HEX DB</span>
+        <span class="tb-btn tab">BUILDINGS</span>
+        <span class="tb-btn tab">SETTLEMENTS</span>
+        <span class="tb-sep"></span>
+        <span class="tb-btn active">🖌 Малювати</span>
+        <span class="tb-btn">🗑 Стерти</span>
+        <span class="tb-btn">🪣 Заливка</span>
+        <span class="tb-btn">👁 Піпетка</span>
+        <span class="tb-btn">⬛ Прямокутник</span>
+        <span class="tb-btn">⬡ Поселення</span>
+        <span class="tb-btn">✕ Очистити</span>
+      </div>
+      <div style="padding:8px 12px; font-size:.78rem; color:var(--muted);">
+        Активний інструмент: <span style="color:var(--accent); font-weight:600;">Малювати</span> &nbsp;·&nbsp;
+        Пензель: <span style="color:var(--text);">3×3</span> &nbsp;·&nbsp;
+        Ландшафт: <span style="color:var(--text);">Трав'яник (001)</span>
+      </div>
+    </div>
+
+    <table class="shortcuts" style="margin-top:.5rem;">
+      <thead>
+        <tr><th style="width:130px;">Інструмент</th><th>Опис</th><th style="width:80px;">Клавіша</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>🖌 <strong>Малювати</strong></td><td>Клацніть або перетягніть, щоб нанести активний ландшафт на підсвічені hex-клітинки. Враховується розмір пензля.</td><td><kbd>P</kbd></td></tr>
+        <tr><td>🗑 <strong>Стерти</strong></td><td>Видаляє ландшафт, скидаючи hex-клітинки до порожнього стану. Враховується розмір пензля.</td><td><kbd>Del</kbd></td></tr>
+        <tr><td>🪣 <strong>Заливка</strong></td><td>Заливає суміжну область однакового ландшафту активним типом.</td><td><kbd>F</kbd></td></tr>
+        <tr><td>👁 <strong>Піпетка</strong></td><td>Підбирає ландшафт під курсором і встановлює його як активний.</td><td><kbd>E</kbd></td></tr>
+        <tr><td>⬛ <strong>Прямокутник</strong></td><td>Клацніть і перетягніть, щоб зафарбувати прямокутну область hex-клітинок активним ландшафтом.</td><td><kbd>R</kbd></td></tr>
+        <tr><td>⬡ <strong>Поселення</strong></td><td>Клацніть hex-клітинку, щоб поставити або зняти маркер поселення.</td><td><kbd>S</kbd></td></tr>
+        <tr><td>✕ <strong>Очистити</strong></td><td>Очищає одну hex-клітинку (аналог Стерти з розміром пензля 1).</td><td><kbd>X</kbd></td></tr>
+      </tbody>
+    </table>
+
+    <div class="box tip">
+      <strong>Порада:</strong> Утримуйте <kbd>Shift</kbd> під час перетягування в режимі «Малювати» —
+      інструмент тимчасово перемкнеться на «Стерти», що дозволяє підправляти краї без зміни активного інструменту.
+    </div>
+    <div class="box">
+      <strong>Розмір пензля</strong> налаштовується на правій панелі (див. розділ «Мінікарта»). Застосовується
+      до інструментів «Малювати», «Стерти» та «Прямокутник». Варіант ○7 малює радіально симетричний кластер із 7 hex-клітинок.
+    </div>
+  </section>
+
+  <!-- ─── 3c Zoom and Pan ─── -->
+  <section id="zoom-pan">
+    <h3>Масштаб і переміщення</h3>
+    <p>
+      Hex-полотно підтримує масштаб від <strong>25%</strong> до <strong>400%</strong>. Переміщуйте
+      полотно, утримуючи <kbd>Space</kbd> і перетягуючи, або за допомогою середньої кнопки миші.
+      Поточний рівень масштабу відображається в правому нижньому куті полотна.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — полотно з індикатором масштабу та курсором переміщення</div>
+      <div class="canvas-area" style="height:160px; position:relative;">
+        <div style="display:grid; grid-template-columns: repeat(9, 28px); grid-template-rows: repeat(4, 28px); gap:2px; opacity:.65;">
+          <div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#6b8e23; border-radius:3px;"></div><div style="background:#6b8e23; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+          <div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#7a7a6e; border-radius:3px; border:2px solid var(--accent);"></div><div style="background:#7a7a6e; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#6b8e23; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+          <div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#2e4d7b; border-radius:3px;"></div>
+          <div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#5a4e3c; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#c29a56; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div><div style="background:#4a7c59; border-radius:3px;"></div>
+        </div>
+        <div class="zoom-badge">150%</div>
+        <div style="position:absolute; bottom:6px; left:8px; background:rgba(0,0,0,.7); color:var(--muted); font-size:.7rem; padding:2px 7px; border-radius:10px; border:1px solid var(--border);">Space+перетяг для переміщення</div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Колесо миші</strong> — збільшення/зменшення масштабу відносно позиції курсора.</li>
+      <li><kbd>Ctrl</kbd> + <kbd>+</kbd> / <kbd>Ctrl</kbd> + <kbd>-</kbd> — збільшення/зменшення на один крок.</li>
+      <li><kbd>Ctrl</kbd> + <kbd>0</kbd> — скинути масштаб до 100%.</li>
+      <li><strong>Перетяг середньою кнопкою миші</strong> або <kbd>Space</kbd> + лівий перетяг — переміщення полотна.</li>
+    </ul>
+
+    <div class="box note">
+      Увага: при масштабі менш ніж 50% межі окремих hex-клітинок приховуються, щоб зменшити візуальний шум.
+    </div>
+  </section>
+
+  <!-- ─── 3d Minimap ─── -->
+  <section id="minimap">
+    <h3>Мінікарта</h3>
+    <p>
+      На правій панелі розташована мінікарта 220×220, що показує всю карту у зменшеному масштабі.
+      Напівпрозорий синій прямокутник позначає поточну область перегляду. Клацніть або перетягніть
+      всередині мінікарти, щоб перемістити основне полотно до відповідної позиції. Нижче мінікарти
+      розміщені селектор <strong>Розмір пензля</strong>, блок <strong>Активний ландшафт</strong>
+      та лічильник <strong>Поселень</strong>.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — права панель (вкладка MAP)</div>
+      <div style="width:190px; background:var(--panel); padding:0;">
+        <div class="panel-header" style="border-radius:0;">МІНІКАРТА</div>
+        <div style="padding:8px;">
+          <!-- Minimap -->
+          <div class="minimap-widget" style="height:120px;">
+            <div style="position:absolute; inset:0; opacity:.5; display:grid; grid-template-columns:repeat(10,1fr); grid-template-rows:repeat(8,1fr); gap:1px; padding:1px;">
+              <div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#6b8e23;"></div><div style="background:#c29a56;"></div><div style="background:#c29a56;"></div><div style="background:#2e4d7b;"></div><div style="background:#2e4d7b;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div>
+              <div style="background:#4a7c59;"></div><div style="background:#7a7a6e;"></div><div style="background:#7a7a6e;"></div><div style="background:#4a7c59;"></div><div style="background:#c29a56;"></div><div style="background:#2e4d7b;"></div><div style="background:#2e4d7b;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div>
+              <div style="background:#5a4e3c;"></div><div style="background:#5a4e3c;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#2e4d7b;"></div><div style="background:#2e4d7b;"></div><div style="background:#2e4d7b;"></div>
+              <div style="background:#5a4e3c;"></div><div style="background:#5a4e3c;"></div><div style="background:#4a7c59;"></div><div style="background:#c29a56;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div>
+              <div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#6b8e23;"></div><div style="background:#6b8e23;"></div><div style="background:#4a7c59;"></div><div style="background:#c29a56;"></div><div style="background:#c29a56;"></div><div style="background:#c29a56;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div>
+              <div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#7a7a6e;"></div><div style="background:#7a7a6e;"></div><div style="background:#c29a56;"></div><div style="background:#c29a56;"></div><div style="background:#4a7c59;"></div><div style="background:#2e4d7b;"></div>
+              <div style="background:#6b8e23;"></div><div style="background:#6b8e23;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#5a4e3c;"></div><div style="background:#5a4e3c;"></div><div style="background:#2e4d7b;"></div>
+              <div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div><div style="background:#4a7c59;"></div>
+            </div>
+            <div class="minimap-viewport" style="width:45%; height:50%; top:10%; left:20%;"></div>
+          </div>
+
+          <!-- Brush size -->
+          <div style="margin-top:10px; font-size:.75rem; color:var(--muted); margin-bottom:4px;">РОЗМІР ПЕНЗЛЯ</div>
+          <div style="display:flex; gap:4px;">
+            <div class="brush-btn">1</div>
+            <div class="brush-btn active">3×3</div>
+            <div class="brush-btn">5×5</div>
+            <div class="brush-btn">○7</div>
+          </div>
+
+          <!-- Active terrain -->
+          <div style="margin-top:10px; font-size:.75rem; color:var(--muted); margin-bottom:4px;">АКТИВНИЙ ТЕРЕЙН</div>
+          <div style="display:flex; align-items:center; gap:8px; background:#111; border:1px solid var(--border); border-radius:4px; padding:6px;">
+            <div class="palette-dot" style="width:22px; height:22px; background:#4a7c59; border-radius:3px;"></div>
+            <div>
+              <div style="font-size:.82rem; font-weight:600;">Grassland</div>
+              <div style="font-size:.7rem; color:var(--muted);">ID: 001</div>
+            </div>
+          </div>
+
+          <!-- Settlement count -->
+          <div style="margin-top:10px; font-size:.75rem; color:var(--muted); margin-bottom:2px;">ПОСЕЛЕННЯ</div>
+          <div style="font-size:1.1rem; font-weight:700; color:var(--accent); padding-left:2px;">3</div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li>Клікніть будь-де на мінікарті, щоб миттєво перемістити в'юпорт у цю позицію.</li>
+      <li>Прямокутник в'юпорту оновлюється в реальному часі під час панорамування або масштабування полотна.</li>
+      <li>Розміри пензля: <strong>1</strong> (один hex), <strong>3×3</strong> (ромб 3), <strong>5×5</strong> (ромб 5), <strong>○7</strong> (радіальний кластер із 7 hex).</li>
+    </ul>
+  </section>
+
+  <!-- ─── 3e Saving and Loading ─── -->
+  <section id="saving">
+    <h3>Збереження та завантаження карт</h3>
+    <p>
+      Карти зберігаються як JSON-файли, що містять сітку терейну, позиції поселень і метадані.
+      Використовуйте меню <strong>File</strong> або гарячі клавіші для роботи з файлами карт.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — меню File</div>
+      <div style="background:#111; border-bottom:1px solid var(--border); padding:4px 12px; display:flex; gap:2px; font-size:.8rem; position:relative;">
+        <div style="position:relative;">
+          <span class="tb-menu-label" style="background:var(--panel); border-radius:3px;">File</span>
+          <div style="position:absolute; top:100%; left:0; background:var(--panel2); border:1px solid var(--border); border-radius:4px; width:220px; z-index:10; box-shadow:0 6px 20px rgba(0,0,0,.6); margin-top:2px;">
+            <div style="padding:5px 12px; font-size:.8rem; display:flex; justify-content:space-between; align-items:center; cursor:default; border-bottom:1px solid var(--border);">
+              <span>New Map</span><kbd>Ctrl+N</kbd>
+            </div>
+            <div style="padding:5px 12px; font-size:.8rem; display:flex; justify-content:space-between; align-items:center; cursor:default;">
+              <span>Open…</span><kbd>Ctrl+O</kbd>
+            </div>
+            <div style="padding:5px 12px; font-size:.8rem; display:flex; justify-content:space-between; align-items:center; cursor:default; background:rgba(79,195,247,.08);">
+              <span style="color:var(--accent);">Save</span><kbd>Ctrl+S</kbd>
+            </div>
+            <div style="padding:5px 12px; font-size:.8rem; cursor:default; border-top:1px solid var(--border);">
+              Set Autosave Folder…
+            </div>
+            <div style="padding:5px 12px; font-size:.8rem; cursor:default;">
+              Export CSV
+            </div>
+          </div>
+        </div>
+        <span class="tb-menu-label">Edit</span>
+        <span class="tb-menu-label">Layer</span>
+        <span class="tb-menu-label">View</span>
+        <span class="tb-menu-label">Generate</span>
+        <span class="tb-menu-label">Data</span>
+      </div>
+      <div style="padding:10px 14px; font-size:.78rem; color:var(--muted);">Клікніть пункт меню або скористайтесь гарячою клавішею</div>
+    </div>
+
+    <ul>
+      <li><strong>New Map</strong> (<kbd>Ctrl</kbd>+<kbd>N</kbd>) — запитує розміри карти та створює порожню сітку.</li>
+      <li><strong>Open</strong> (<kbd>Ctrl</kbd>+<kbd>O</kbd>) — відкриває вибір файлу; оберіть будь-який файл карти <code>.json</code>.</li>
+      <li><strong>Save</strong> (<kbd>Ctrl</kbd>+<kbd>S</kbd>) — завантажує поточну карту у браузері як <code>map_session.json</code>.</li>
+      <li><strong>Export CSV</strong> — експортує сітку терейну у файл з комами як роздільниками (рядок × стовпець, ID терейну у кожній клітинці).</li>
+    </ul>
+
+    <div class="box">
+      <strong>Додаткові пункти меню Edit:</strong> <em>Undo</em> (<kbd>Ctrl</kbd>+<kbd>Z</kbd>), <em>Redo</em>
+      (<kbd>Ctrl</kbd>+<kbd>Y</kbd>), <em>Clear Map</em> (скинути всі hex), і
+      <em>Fill Map</em> (залити всю карту активним терейном).
+    </div>
+  </section>
+
+  <!-- ─── 3f Autosave ─── -->
+  <section id="autosave">
+    <h3>Автозбереження до папки</h3>
+    <p>
+      Редактор автоматично зберігає карту до <strong>localStorage браузера</strong> після кожної зміни.
+      Якщо ви випадково закрили вкладку, повторне відкриття редактора автоматично відновить останній стан.
+    </p>
+    <p>
+      Для постійних резервних копій у файловій системі скористайтесь <strong>File → Set Autosave Folder…</strong>.
+      Відкриється системний вибір папки. Редактор створить підпапку <code>saved_maps/</code> всередині
+      обраної папки та записуватиме туди <code>map_session.json</code> після кожної зміни.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — діалог підтвердження папки автозбереження</div>
+      <div style="padding:18px 20px;">
+        <div style="background:var(--panel); border:1px solid var(--border); border-radius:8px; padding:18px 20px; max-width:380px; margin:0 auto; box-shadow:0 6px 24px rgba(0,0,0,.5);">
+          <div style="font-weight:700; font-size:1rem; margin-bottom:6px; color:var(--accent);">Папку автозбереження встановлено</div>
+          <div style="font-size:.82rem; color:var(--muted); margin-bottom:12px;">
+            Карту буде автоматично збережено до:<br>
+            <code style="color:var(--text); display:block; margin-top:6px; word-break:break-all;">
+              /Projects/MyGame/saved_maps/map_session.json
+            </code>
+          </div>
+          <div style="display:flex; gap:8px; justify-content:flex-end;">
+            <div class="mock-btn primary">OK</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box warn">
+      <strong>Сумісність із браузерами:</strong> File System Access API, що використовується для автозбереження,
+      доступний лише у Chrome та Edge. У Firefox і Safari вибір папки не відкриється;
+      скористайтесь <kbd>Ctrl</kbd>+<kbd>S</kbd> для ручного збереження завантаженням.
+    </div>
+    <div class="box tip">
+      <strong>Порада:</strong> Вкажіть папку автозбереження, синхронізовану з хмарою (Dropbox, Google Drive,
+      OneDrive), для автоматичного резервного копіювання поза пристроєм.
+    </div>
+  </section>
+
+  <!-- ═════════════════════ 4. HEX DB EDITOR ═════════════════════ -->
+  <section id="hexdb">
+    <h2>4. Редактор HexDB</h2>
+    <p>
+      Вкладка <strong>HEX DB</strong> — це повноцінний редактор бази даних для кожного типу терейну та об'єктів,
+      що використовуються на карті. Кожен запис бази (так званий "hex") визначає ігрові властивості: зовнішній
+      вигляд, можливість знищення чи будівництва, генерацію доходу та особливу поведінку.
+    </p>
+    <p>
+      Вкладка розділена на лівий список і праву форму деталей. Вибір запису зі списку миттєво завантажує його дані у форму.
+    </p>
+  </section>
+
+  <!-- ─── 4a Adding / managing ─── -->
+  <section id="hexdb-list">
+    <h3>Додавання та керування записами hex</h3>
+    <p>
+      Лівая панель показує всі записи hex у порядку A-Z. Поле пошуку та два фільтри-dropdown
+      (Biome і Type) звужують список у реальному часі. Нижній рядок показує загальну кількість записів і
+      кнопку <strong>Delete</strong> для вибраного запису.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — ліва панель HEX DB</div>
+      <div style="display:flex;">
+        <!-- Toolbar -->
+        <div style="width:200px; background:var(--panel); border-right:1px solid var(--border);">
+          <!-- List toolbar -->
+          <div style="background:#111; border-bottom:1px solid var(--border); padding:6px 8px; display:flex; gap:4px;">
+            <span class="mock-btn primary" style="font-size:.75rem;">+ Додати Hex</span>
+            <span class="mock-btn" style="font-size:.75rem;">📂 Завантажити БД</span>
+            <span class="mock-btn" style="font-size:.75rem;">💾 Зберегти БД</span>
+          </div>
+
+          <!-- Filters -->
+          <div style="padding:6px 8px; border-bottom:1px solid var(--border); display:flex; flex-direction:column; gap:4px;">
+            <div class="mock-input wide" style="color:var(--muted);">🔍 Пошук…</div>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px;">
+              <div class="mock-input" style="font-size:.72rem; color:var(--muted);">Biome ▾</div>
+              <div class="mock-input" style="font-size:.72rem; color:var(--muted);">Type ▾</div>
+            </div>
+          </div>
+
+          <!-- List items -->
+          <div style="overflow-y:auto; flex:1;">
+            <div class="list-item active">
+              <div>
+                <div style="font-size:.8rem;">Grassland</div>
+                <div style="font-size:.68rem; color:var(--muted);">ID: 001</div>
+              </div>
+              <span class="list-badge">Natural</span>
+            </div>
+            <div class="list-item">
+              <div>
+                <div style="font-size:.8rem;">Forest</div>
+                <div style="font-size:.68rem; color:var(--muted);">ID: 002</div>
+              </div>
+              <span class="list-badge">Natural</span>
+            </div>
+            <div class="list-item">
+              <div>
+                <div style="font-size:.8rem;">Rubble</div>
+                <div style="font-size:.68rem; color:var(--muted);">ID: 011</div>
+              </div>
+              <span class="list-badge">Waste</span>
+            </div>
+            <div class="list-item">
+              <div>
+                <div style="font-size:.8rem;">Wasteland</div>
+                <div style="font-size:.68rem; color:var(--muted);">ID: 010</div>
+              </div>
+              <span class="list-badge">Waste</span>
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div style="border-top:1px solid var(--border); padding:5px 8px; display:flex; justify-content:space-between; align-items:center; font-size:.75rem;">
+            <span style="color:var(--muted);">29 записів</span>
+            <span class="mock-btn danger" style="font-size:.72rem;">🗑 Видалити</span>
+          </div>
+        </div>
+        <!-- Placeholder for right side -->
+        <div style="flex:1; background:var(--bg); display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:.8rem;">
+          Виберіть запис для редагування →
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li>Натисніть <strong>+ Add Hex</strong>, щоб створити новий порожній запис; спочатку вкажіть ID, оскільки це первинний ключ.</li>
+      <li>Використовуйте dropdown-и <strong>Biome</strong> і <strong>Type</strong> разом для швидкого пошуку конкретних типів hex.</li>
+      <li>Кнопка <strong>Delete</strong> видаляє вибраний запис без можливості відновлення. Цю дію неможливо скасувати у формі БД — попередньо збережіть резервну копію через <strong>Save DB</strong>.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4b Visual Preview ─── -->
+  <section id="hexdb-preview">
+    <h3>Візуальний блок попереднього перегляду</h3>
+    <p>
+      У верхній частині правої панелі, над усіма блоками, що згортаються, розміщений візуальний
+      блок попереднього перегляду. Він показує призначений sprite hex, його числовий ID і шлях до файлу sprite.
+      Блок оновлюється миттєво при зміні поля <em>SpriteName</em> у секції MAIN.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — візуальний блок попереднього перегляду</div>
+      <div style="padding:14px; max-width:340px;">
+        <div class="sprite-preview">
+          <div class="sprite-box">🌿</div>
+          <div class="sprite-id">001</div>
+          <div class="sprite-path">sprites/terrain/grassland.png</div>
+          <div style="display:flex; gap:6px; margin-top:4px;">
+            <span class="mock-btn" style="font-size:.72rem;">📋 Копіювати ID</span>
+            <span class="mock-btn" style="font-size:.72rem;">📋 Копіювати шлях</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="box note">
+      Перегляд відтворює sprite через шлях, вказаний у SpriteName. Якщо шлях недійсний або
+      файл sprite відсутній, блок показує іконку-заповнювач.
+    </div>
+  </section>
+
+  <!-- ─── 4c MAIN ─── -->
+  <section id="hexdb-main">
+    <h3>Секція MAIN</h3>
+    <p>
+      Секція MAIN, що згортається, містить основні ідентифікаційні поля запису hex. Поле
+      <strong>Id</strong> є обов'язковим (позначено *) і має бути унікальним у базі даних.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — секція MAIN (розгорнута)</div>
+      <div style="padding:10px; max-width:480px;">
+        <div class="section-hdr"><span class="arrow">▾</span> MAIN</div>
+        <div class="section-body">
+          <div class="form-grid">
+            <div class="form-field">
+              <span class="mock-label">Id <span style="color:var(--danger);">*</span></span>
+              <div class="mock-input">001</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">TextId</span>
+              <div class="mock-input">HEX_GRASSLAND</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Desc Idle</span>
+              <div class="mock-input">Відкрита рівнина…</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Desc Build</span>
+              <div class="mock-input">Будівництво тут…</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Type (grouped)</span>
+              <div class="mock-input">Natural ▾</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Biome</span>
+              <div class="mock-input">Temperate ▾</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Filter</span>
+              <div class="mock-input">Grassland ▾</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Base Cost Taps</span>
+              <div class="mock-input">0</div>
+            </div>
+          </div>
+          <div style="margin-top:6px;">
+            <span class="mock-label">SpriteName</span>
+            <div style="display:flex; gap:6px; align-items:center;">
+              <div class="mock-input" style="flex:1;">sprites/terrain/grassland.png</div>
+              <span class="mock-btn">📂</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Id</strong> — унікальний числовий ключ. Зміна після створення перейменовує запис; переконайтесь, що жоден інший hex не посилається на цей ID.</li>
+      <li><strong>TextId</strong> — ключ локалізації, що використовується рушієм гри під час виконання.</li>
+      <li><strong>Type</strong> — згрупований dropdown; категорії (Natural, Wasteland, Water, Urban, Special) відповідають групам палітри у вкладці MAP.</li>
+      <li><strong>SpriteName</strong> — відносний шлях до зображення sprite. Натисніть кнопку з папкою для перегляду ресурсів sprite.</li>
+      <li><strong>Base Cost Taps</strong> — типова кількість натискань гравця, необхідних для виконання базової дії на цьому hex (0 = миттєво).</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4d DESTROY ─── -->
+  <section id="hexdb-destroy">
+    <h3>Секція DESTROY</h3>
+    <p>
+      Секція DESTROY визначає, що відбувається, коли гравець знищує цей hex. Головний toggle
+      <strong>Can Destroy</strong> блокує всі підполя — якщо його вимкнено, всі поля нижче
+      деактивовано. datalist <em>Transform to</em> та кнопка <em>Unbreakable</em> є взаємовиключними:
+      вибір "Unbreakable" очищає ціль трансформації.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — секція DESTROY</div>
+      <div style="padding:10px; max-width:480px;">
+        <div class="section-hdr"><span class="arrow">▾</span> DESTROY</div>
+        <div class="section-body">
+          <!-- Can Destroy row -->
+          <div class="mock-row">
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem; font-weight:600;">Can Destroy</span>
+          </div>
+
+          <!-- Transform to -->
+          <div class="form-field" style="margin-bottom:6px;">
+            <span class="mock-label">Transform to</span>
+            <div style="display:flex; gap:6px;">
+              <div class="mock-input" style="flex:1;">Rubble (011)</div>
+              <div class="mock-btn" style="background:rgba(136,136,136,.15); color:var(--muted); font-size:.72rem;">Unbreakable</div>
+            </div>
+          </div>
+
+          <!-- Source tags -->
+          <div class="form-field" style="margin-bottom:6px;">
+            <span class="mock-label">Source</span>
+            <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:4px 6px; min-height:30px;">
+              <span class="tag-chip">axe<span class="rm">✕</span></span>
+              <span class="tag-chip">fire<span class="rm">✕</span></span>
+              <span style="font-size:.72rem; color:var(--muted); margin-left:4px;">Натисніть Enter для додавання…</span>
+            </div>
+          </div>
+
+          <!-- Can Stored / Destroy Income row -->
+          <div class="mock-row" style="margin-bottom:6px;">
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem;">Can Stored</span>
+            <div style="margin-left:16px;"></div>
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem;">Destroy Income</span>
+          </div>
+
+          <!-- Resources block -->
+          <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:6px;">
+            <div style="font-size:.72rem; color:var(--muted); margin-bottom:4px;">Ресурси</div>
+            <div class="res-row">
+              <div class="res-icon">🪵</div>
+              <div class="mock-input" style="width:60px;">Wood</div>
+              <div class="mock-input" style="width:50px;">5</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="res-row">
+              <div class="res-icon">🪨</div>
+              <div class="mock-input" style="width:60px;">Stone</div>
+              <div class="mock-input" style="width:50px;">2</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="mock-btn" style="font-size:.72rem; margin-top:4px;">+ Додати ресурс</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Can Destroy</strong> (головний toggle) — вимкнення знесилює всі підполя.</li>
+      <li><strong>Transform to</strong> — у який ID hex перетвориться ця плитка після знищення. Залиште порожнім або натисніть <em>Unbreakable</em>, щоб зробити її незнищуваною попри стан toggle.</li>
+      <li><strong>Source</strong> — tags-поле методів знищення (наприклад, <em>axe</em>, <em>fire</em>, <em>bomb</em>). Натисніть <kbd>Enter</kbd> після введення для додавання; клікніть ✕ для видалення.</li>
+      <li><strong>Can Stored</strong> — чи додаються ресурси знищеної плитки до сховища.</li>
+      <li><strong>Destroy Income</strong> — активує блок ресурсів; якщо встановлено, вказані ресурси надходять гравцю при знищенні.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4e BUILD ─── -->
+  <section id="hexdb-build">
+    <h3>Секція BUILD</h3>
+    <p>
+      Секція BUILD визначає, чи можна побудувати будівлю на цьому hex. checkbox-и
+      <strong>Can Build</strong> і <strong>Need Road</strong> розміщені у верхньому рядку та
+      блокують весь вміст нижче. <em>Available Tiles</em> — це tags-поле ID терейнів, які є
+      допустимими базовими поверхнями для цього типу hex.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — секція BUILD</div>
+      <div style="padding:10px; max-width:480px;">
+        <div class="section-hdr"><span class="arrow">▾</span> BUILD</div>
+        <div class="section-body">
+
+          <!-- Top row toggles -->
+          <div class="mock-row" style="margin-bottom:8px;">
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem; font-weight:600;">Can Build</span>
+            <div style="margin-left:20px;"></div>
+            <div class="mock-check"></div>
+            <span style="font-size:.8rem; font-weight:600;">Need Road</span>
+          </div>
+
+          <!-- Available Tiles -->
+          <div class="form-field" style="margin-bottom:6px;">
+            <span class="mock-label">Available Tiles</span>
+            <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:4px 6px;">
+              <span class="tag-chip">001<span class="rm">✕</span></span>
+              <span class="tag-chip">002<span class="rm">✕</span></span>
+              <span class="tag-chip">010<span class="rm">✕</span></span>
+              <span style="font-size:.72rem; color:var(--muted); margin-left:4px;">Натисніть Enter…</span>
+            </div>
+          </div>
+
+          <!-- MinLevel / Placement Rule -->
+          <div class="form-grid" style="margin-bottom:6px;">
+            <div class="form-field">
+              <span class="mock-label">MinLevel</span>
+              <div class="mock-input">1</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Placement Rule</span>
+              <div class="mock-input">Always on ▾</div>
+            </div>
+          </div>
+
+          <!-- Price block -->
+          <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:6px; margin-bottom:6px;">
+            <div style="font-size:.72rem; color:var(--muted); margin-bottom:4px;">Price</div>
+            <div class="res-row">
+              <div class="res-icon">💰</div>
+              <div class="mock-input" style="width:60px;">Coins</div>
+              <div class="mock-input" style="width:50px;">100</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="mock-btn" style="font-size:.72rem; margin-top:4px;">+ Додати ресурс</div>
+          </div>
+
+          <!-- Premium Price -->
+          <div class="form-field">
+            <span class="mock-label">Premium Price</span>
+            <div class="mock-input">10</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Can Build</strong> — головний toggle; якщо вимкнено, всі поля BUILD деактивовано.</li>
+      <li><strong>Need Road</strong> — якщо встановлено, hex має бути суміжним із дорожньою плиткою перед початком будівництва.</li>
+      <li><strong>Available Tiles</strong> — ID допустимих земельних плиток. Порожній список означає відсутність обмежень.</li>
+      <li><strong>MinLevel</strong> — мінімальний рівень гравця, необхідний для розміщення цього типу hex.</li>
+      <li><strong>Placement Rule</strong> — наразі підтримує <em>Always on</em> і <em>Bottom</em> (розміщення лише в нижньому рядку карти).</li>
+      <li><strong>Premium Price</strong> — вартість у преміумній валюті для пропуску таймера будівництва.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4f INCOME ─── -->
+  <section id="hexdb-income">
+    <h3>Секція INCOME</h3>
+    <p>
+      Секція INCOME налаштовує генерацію ресурсів. У верхньому рядку розміщено два головних toggle:
+      <strong>Tap Income</strong> (блокує ланцюг доходу, що активується натисканням) і
+      <strong>Destroyable</strong> (блокує ланцюг трансформації при натисканні). Обидва незалежні.
+      Поля <em>Per Turn</em> і постійного доходу завжди видимі та активні незалежно від toggle.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — секція INCOME</div>
+      <div style="padding:10px; max-width:480px;">
+        <div class="section-hdr"><span class="arrow">▾</span> INCOME</div>
+        <div class="section-body">
+
+          <!-- Top toggles row -->
+          <div class="mock-row" style="margin-bottom:8px;">
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem; font-weight:600;">Tap Income</span>
+            <div style="margin-left:20px;"></div>
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem; font-weight:600;">Destroyable</span>
+          </div>
+
+          <!-- Transform to + Parent Hex (gated by Destroyable) -->
+          <div class="form-grid" style="margin-bottom:6px;">
+            <div class="form-field">
+              <span class="mock-label">Transform to</span>
+              <div class="mock-input">Forest (002)</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Parent Hex</span>
+              <div class="mock-input">Grassland ▾</div>
+            </div>
+          </div>
+
+          <!-- Capacity / Get per Tap (gated by Tap Income) -->
+          <div class="form-grid" style="margin-bottom:6px;">
+            <div class="form-field">
+              <span class="mock-label">Capacity (min 1)</span>
+              <div class="mock-input">3</div>
+            </div>
+          </div>
+
+          <!-- Get per Tap resource block -->
+          <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:6px; margin-bottom:6px;">
+            <div style="font-size:.72rem; color:var(--muted); margin-bottom:4px;">Get per Tap</div>
+            <div class="res-row">
+              <div class="res-icon">🌾</div>
+              <div class="mock-input" style="width:60px;">Food</div>
+              <div class="mock-input" style="width:50px;">3</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="mock-btn" style="font-size:.72rem; margin-top:4px;">+ Додати ресурс</div>
+          </div>
+
+          <!-- Per Turn (always on) -->
+          <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:6px; margin-bottom:6px;">
+            <div style="font-size:.72rem; color:var(--muted); margin-bottom:4px;">Per Turn</div>
+            <div class="res-row">
+              <div class="res-icon">⚡</div>
+              <div class="mock-input" style="width:60px;">Energy</div>
+              <div class="mock-input" style="width:50px;">1</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="mock-btn" style="font-size:.72rem; margin-top:4px;">+ Додати ресурс</div>
+          </div>
+
+          <!-- Idle / Constant / Spend Constant labels -->
+          <div class="form-grid">
+            <div class="form-field">
+              <span class="mock-label">Income Idle</span>
+              <div class="mock-input">0</div>
+            </div>
+            <div class="form-field">
+              <span class="mock-label">Income Constant</span>
+              <div class="mock-input">0</div>
+            </div>
+          </div>
+          <div class="form-field" style="margin-top:6px;">
+            <span class="mock-label">Spend Constant (incl. Pollution &amp; Energy)</span>
+            <div class="mock-input wide" style="color:var(--muted);">+ Додати ресурс…</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Tap Income</strong> — вмикає видачу ресурсів за натискання. Активує <em>Capacity</em> та блок <em>Get per Tap</em>.</li>
+      <li><strong>Destroyable</strong> — вмикає трансформацію при натисканні. Активує dropdown <em>Transform to</em> і <em>Parent Hex</em>.</li>
+      <li><strong>Capacity</strong> — кількість натискань, яку hex може прийняти перед трансформацією (мінімум 1, типово 3).</li>
+      <li><strong>Get per Tap</strong> — динамічний блок ресурсів; кожне натискання надає ці ресурси гравцю.</li>
+      <li><strong>Per Turn</strong> — завжди активний; ресурси генеруються кожен ігровий хід незалежно від взаємодії.</li>
+      <li><strong>Spend Constant</strong> — ресурси, що витрачаються за хід (використовується для забруднення, споживання енергії, обслуговування).</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4g SPECIAL ─── -->
+  <section id="hexdb-special">
+    <h3>Секція SPECIAL</h3>
+    <p>
+      Секція SPECIAL обробляє бонусні нагороди, тригерні події та заблоковані заповнювачі
+      для Boosters і Effects, що будуть додані у майбутніх версіях.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — секція SPECIAL</div>
+      <div style="padding:10px; max-width:480px;">
+        <div class="section-hdr"><span class="arrow">▾</span> SPECIAL</div>
+        <div class="section-body">
+
+          <!-- Bonus Drop toggle -->
+          <div class="mock-row" style="margin-bottom:8px;">
+            <div class="mock-check checked"></div>
+            <span style="font-size:.8rem; font-weight:600;">Bonus Drop</span>
+          </div>
+
+          <!-- Triggers dropdown -->
+          <div class="form-field" style="margin-bottom:6px;">
+            <span class="mock-label">Triggers</span>
+            <div class="mock-input">Destroy ▾</div>
+          </div>
+
+          <!-- Bonuses resource block -->
+          <div style="background:#111; border:1px solid var(--border); border-radius:3px; padding:6px; margin-bottom:10px;">
+            <div style="font-size:.72rem; color:var(--muted); margin-bottom:4px;">Bonuses</div>
+            <div class="res-row">
+              <div class="res-icon">⭐</div>
+              <div class="mock-input" style="width:70px;">Stars</div>
+              <div class="mock-input" style="width:50px;">1</div>
+              <span class="mock-btn danger" style="font-size:.68rem; padding:1px 6px;">✕</span>
+            </div>
+            <div class="mock-btn" style="font-size:.72rem; margin-top:4px;">+ Додати ресурс</div>
+          </div>
+
+          <!-- Locked placeholders -->
+          <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;">
+            <div style="background:rgba(136,136,136,.06); border:1px dashed var(--border); border-radius:4px; padding:8px; text-align:center;">
+              <div style="font-size:.75rem; color:var(--muted); margin-bottom:2px;">Boosters</div>
+              <div style="font-size:.68rem; color:var(--border);">🔒 Незабаром</div>
+            </div>
+            <div style="background:rgba(136,136,136,.06); border:1px dashed var(--border); border-radius:4px; padding:8px; text-align:center;">
+              <div style="font-size:.75rem; color:var(--muted); margin-bottom:2px;">Effects</div>
+              <div style="font-size:.68rem; color:var(--border);">🔒 Незабаром</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>Bonus Drop</strong> — головний toggle; якщо вимкнено, поля Triggers і Bonuses деактивовано.</li>
+      <li><strong>Triggers</strong> — коли нараховується бонус: <em>Destroy</em>, <em>Reveal</em> або <em>Build</em>.</li>
+      <li><strong>Bonuses</strong> — блок ресурсів, що визначає, що отримує гравець при спрацюванні тригера.</li>
+      <li><strong>Boosters</strong> і <strong>Effects</strong> — заблоковані заповнювачі; ці поля будуть розблоковані у майбутній версії.</li>
+    </ul>
+  </section>
+
+  <!-- ─── 4h Copy/Paste & Save DB ─── -->
+  <section id="hexdb-save">
+    <h3>Копіювання/вставлення та збереження БД</h3>
+    <p>
+      Всі дані hex зберігаються в пам'яті під час редагування. Використовуйте дії toolbar для збереження змін:
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — дії toolbar HEX DB</div>
+      <div style="background:#111; border-bottom:1px solid var(--border); padding:6px 10px; display:flex; gap:6px; align-items:center;">
+        <span class="mock-btn primary">+ Додати Hex</span>
+        <span class="mock-btn">📂 Завантажити БД</span>
+        <span class="mock-btn">💾 Зберегти БД</span>
+        <div style="margin-left:auto; font-size:.75rem; color:var(--success);">✓ Збережено 14:32</div>
+      </div>
+      <div style="padding:10px 12px; font-size:.78rem; color:var(--muted);">
+        29 записів у базі даних &nbsp;·&nbsp; Останнє збереження: <span style="color:var(--text);">hexdb_v0.4.6.json</span>
+      </div>
+    </div>
+
+    <ul>
+      <li><strong>📂 Load DB</strong> — відкриває вибір файлу для завантаження файлу hex-бази <code>.json</code>, замінюючи поточну базу в пам'яті.</li>
+      <li><strong>💾 Save DB</strong> — завантажує всю базу даних як файл <code>.json</code>. Зберігайте часто; у формі БД немає історії скасування.</li>
+    </ul>
+
+    <div class="box warn">
+      <strong>Увага:</strong> Завантаження нового файлу БД негайно замінює поточну базу в пам'яті.
+      Всі незбережені зміни буде втрачено. Завжди використовуйте <strong>Save DB</strong> перед завантаженням іншого файлу.
+    </div>
+    <div class="box tip">
+      <strong>Прийом для дублювання:</strong> Щоб скопіювати запис hex, відкрийте JSON-файл у текстовому редакторі,
+      продублюйте об'єкт, призначте новий ID і перезавантажте через <strong>Load DB</strong>.
+    </div>
+  </section>
+
+  <!-- ═════════════════════ 5. BUILDINGS EDITOR ═════════════════════ -->
+  <section id="buildings">
+    <h2>5. Редактор будівель</h2>
+    <p>
+      Вкладка <strong>BUILDINGS</strong> керує каталогом будівель, які можна розміщувати на
+      hex карти. Її структура повторює HEX DB: список із пошуком ліворуч і форма деталей праворуч.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — огляд вкладки BUILDINGS</div>
+      <div style="display:flex; height:210px;">
+        <!-- Left list -->
+        <div style="width:180px; background:var(--panel); border-right:1px solid var(--border);">
+          <div style="background:#111; border-bottom:1px solid var(--border); padding:5px 8px; display:flex; gap:4px;">
+            <span class="mock-btn primary" style="font-size:.73rem;">+ Додати будівлю</span>
+            <span class="mock-btn" style="font-size:.73rem;">💾</span>
+          </div>
+          <div style="padding:5px 8px; border-bottom:1px solid var(--border);">
+            <div class="mock-input wide" style="color:var(--muted); font-size:.75rem;">🔍 Пошук…</div>
+          </div>
+          <div class="list-item active">
+            <div><div style="font-size:.8rem;">Lumber Mill</div><div style="font-size:.68rem; color:var(--muted);">ID: B001</div></div>
+          </div>
+          <div class="list-item">
+            <div><div style="font-size:.8rem;">Stone Quarry</div><div style="font-size:.68rem; color:var(--muted);">ID: B002</div></div>
+          </div>
+          <div class="list-item">
+            <div><div style="font-size:.8rem;">Watch Tower</div><div style="font-size:.68rem; color:var(--muted);">ID: B003</div></div>
+          </div>
+          <div style="border-top:1px solid var(--border); padding:5px 8px; display:flex; justify-content:space-between; margin-top:auto;">
+            <span style="color:var(--muted); font-size:.73rem;">3 будівлі</span>
+            <span class="mock-btn danger" style="font-size:.7rem;">🗑 Видалити</span>
+          </div>
+        </div>
+
+        <!-- Right form -->
+        <div style="flex:1; background:var(--bg); padding:10px; overflow:hidden;">
+          <div class="section-hdr"><span class="arrow">▾</span> MAIN</div>
+          <div class="section-body" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:4px;">
+            <div class="form-field"><span class="mock-label">Id *</span><div class="mock-input">B001</div></div>
+            <div class="form-field"><span class="mock-label">TextId</span><div class="mock-input">BLDG_LUMBER_MILL</div></div>
+            <div class="form-field"><span class="mock-label">Max Level</span><div class="mock-input">5</div></div>
+            <div class="form-field"><span class="mock-label">SpriteName</span><div class="mock-input">bldg/lumber_mill.png</div></div>
+          </div>
+          <div class="section-hdr" style="margin-top:4px;"><span class="arrow">▸</span> BUILD</div>
+          <div class="section-hdr" style="margin-top:2px;"><span class="arrow">▸</span> LEVELS</div>
+        </div>
+      </div>
+    </div>
+
+    <p>Форма правої частини має три секції, що згортаються:</p>
+    <ul>
+      <li><strong>MAIN</strong> — Id, TextId, описи, sprite і <strong>Max Level</strong>.
+        Max Level приймає будь-яке значення ≥ 1 без верхнього обмеження.</li>
+      <li><strong>BUILD</strong> — правила розміщення та ціна, аналогічно секції BUILD для hex.</li>
+      <li><strong>LEVELS</strong> — вартість покращення, значення доходу та модифікатори характеристик для кожного рівня.
+        Рядки додаються/видаляються динамічно відповідно до значення Max Level.</li>
+    </ul>
+
+    <div class="box note">
+      Дані будівель зберігаються незалежно від Hex DB. <em>Id</em> будівлі посилається
+      на карту через маркери поселень, а не безпосередньо через плитки hex.
+    </div>
+  </section>
+
+  <!-- ═════════════════════ 6. SETTLEMENTS EDITOR ═════════════════════ -->
+  <section id="settlements">
+    <h2>6. Редактор поселень</h2>
+    <p>
+      Вкладка <strong>SETTLEMENTS</strong> визначає типи поселень, які можна розміщувати на карті
+      за допомогою інструменту Settlement (⬡). Поселення є іменованими зонами, що складаються з кількох hex
+      і можуть посилатись на набір дозволених будівель.
+    </p>
+
+    <div class="mockup">
+      <div class="mockup-title">Макет — огляд вкладки SETTLEMENTS</div>
+      <div style="display:flex; height:210px;">
+        <!-- Left list -->
+        <div style="width:180px; background:var(--panel); border-right:1px solid var(--border);">
+          <div style="background:#111; border-bottom:1px solid var(--border); padding:5px 8px; display:flex; gap:4px;">
+            <span class="mock-btn primary" style="font-size:.73rem;">+ Додати поселення</span>
+            <span class="mock-btn" style="font-size:.73rem;">💾</span>
+          </div>
+          <div style="padding:5px 8px; border-bottom:1px solid var(--border);">
+            <div class="mock-input wide" style="color:var(--muted); font-size:.75rem;">🔍 Пошук…</div>
+          </div>
+          <div class="list-item active">
+            <div><div style="font-size:.8rem;">Outpost Alpha</div><div style="font-size:.68rem; color:var(--muted);">ID: S001</div></div>
+          </div>
+          <div class="list-item">
+            <div><div style="font-size:.8rem;">Trading Post</div><div style="font-size:.68rem; color:var(--muted);">ID: S002</div></div>
+          </div>
+          <div class="list-item">
+            <div><div style="font-size:.8rem;">Fortress</div><div style="font-size:.68rem; color:var(--muted);">ID: S003</div></div>
+          </div>
+          <div style="border-top:1px solid var(--border); padding:5px 8px; display:flex; justify-content:space-between; margin-top:auto;">
+            <span style="color:var(--muted); font-size:.73rem;">3 поселення</span>
+            <span class="mock-btn danger" style="font-size:.7rem;">🗑 Видалити</span>
+          </div>
+        </div>
+
+        <!-- Right form -->
+        <div style="flex:1; background:var(--bg); padding:10px; overflow:hidden;">
+          <div class="section-hdr"><span class="arrow">▾</span> MAIN</div>
+          <div class="section-body" style="display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:4px;">
+            <div class="form-field"><span class="mock-label">Id *</span><div class="mock-input">S001</div></div>
+            <div class="form-field"><span class="mock-label">TextId</span><div class="mock-input">SETTL_OUTPOST_A</div></div>
+            <div class="form-field"><span class="mock-label">Max Level</span><div class="mock-input">3</div></div>
+            <div class="form-field"><span class="mock-label">SpriteName</span><div class="mock-input">settl/outpost.png</div></div>
+          </div>
+          <div class="section-hdr" style="margin-top:4px;"><span class="arrow">▸</span> BUILD</div>
+          <div class="section-hdr" style="margin-top:2px;"><span class="arrow">▸</span> LEVELS</div>
+        </div>
+      </div>
+    </div>
+
+    <p>Форма повторює структуру Редактора будівель:</p>
+    <ul>
+      <li><strong>MAIN</strong> — Id, TextId, описи, sprite і Max Level (без верхнього обмеження).</li>
+      <li><strong>BUILD</strong> — обмеження плиток, мінімальний рівень гравця та вартість будівництва.</li>
+      <li><strong>LEVELS</strong> — рядки даних для кожного рівня; кількість визначається значенням Max Level.</li>
+    </ul>
+
+    <div class="box">
+      <strong>Лічильник поселень</strong>, що відображається на правій панелі вкладки MAP, показує кількість
+      маркерів поселень, розміщених на полотні, а не кількість визначень поселень у цьому редакторі.
+    </div>
+  </section>
+
+  <!-- ═════════════════════ 7. KEYBOARD SHORTCUTS ═════════════════════ -->
+  <section id="shortcuts">
+    <h2>7. Гарячі клавіші</h2>
+    <p>Всі гарячі клавіші доступні глобально, поки вкладка MAP у фокусі. Форми DB/Buildings/Settlements
+    перехоплюють введення з клавіатури для своїх полів і не реагують на гарячі клавіші інструментів.</p>
+
+    <h3>Операції з файлами</h3>
+    <table class="shortcuts">
+      <thead><tr><th>Гаряча клавіша</th><th>Дія</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>N</kbd></td><td>Нова карта — створює порожню hex-сітку (запитує розміри)</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Відкрити карту — вибір файлу <code>.json</code></td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Зберегти карту — завантажує <code>map_session.json</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Операції редагування</h3>
+    <table class="shortcuts">
+      <thead><tr><th>Гаряча клавіша</th><th>Дія</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd></td><td>Скасувати останню операцію малювання</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Повторити останню скасовану операцію</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Інструменти малювання</h3>
+    <table class="shortcuts">
+      <thead><tr><th>Гаряча клавіша</th><th>Інструмент</th><th>Примітки</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>P</kbd></td><td>🖌 Paint</td><td>Утримуйте та тягніть для безперервного малювання</td></tr>
+        <tr><td><kbd>Del</kbd></td><td>🗑 Erase</td><td>Розмір пензля застосовується</td></tr>
+        <tr><td><kbd>F</kbd></td><td>🪣 Fill</td><td>Заливає суміжну область однакового терейну</td></tr>
+        <tr><td><kbd>E</kbd></td><td>👁 Eyedropper</td><td>Одиночний клік; після вибору повертається до попереднього інструменту</td></tr>
+        <tr><td><kbd>R</kbd></td><td>⬛ Rect</td><td>Тягніть для визначення прямокутника; відпустіть для застосування</td></tr>
+        <tr><td><kbd>S</kbd></td><td>⬡ Settlement</td><td>Перемикає маркер поселення на клікнутому hex</td></tr>
+        <tr><td><kbd>X</kbd></td><td>✕ Clear</td><td>Очищає один hex (стирання з розміром пензля 1)</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Навігація полотном</h3>
+    <table class="shortcuts">
+      <thead><tr><th>Гаряча клавіша</th><th>Дія</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>Scroll wheel</kbd></td><td>Збільшення / зменшення масштабу, відносно курсору</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>+</kbd></td><td>Збільшити масштаб на крок</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>-</kbd></td><td>Зменшити масштаб на крок</td></tr>
+        <tr><td><kbd>Ctrl</kbd>+<kbd>0</kbd></td><td>Скинути масштаб до 100%</td></tr>
+        <tr><td><kbd>Space</kbd> + перетягування</td><td>Панорамування полотна</td></tr>
+        <tr><td>Перетягування середньою кнопкою миші</td><td>Панорамування полотна</td></tr>
+      </tbody>
+    </table>
+
+    <h3>Розмір пензля</h3>
+    <table class="shortcuts">
+      <thead><tr><th>Гаряча клавіша</th><th>Розмір пензля</th></tr></thead>
+      <tbody>
+        <tr><td><kbd>1</kbd></td><td>Один hex</td></tr>
+        <tr><td><kbd>2</kbd></td><td>Ромб 3×3</td></tr>
+        <tr><td><kbd>3</kbd></td><td>Ромб 5×5</td></tr>
+        <tr><td><kbd>4</kbd></td><td>Радіальний кластер ○7</td></tr>
+      </tbody>
+    </table>
+
+    <!-- Visual shortcut quick-reference card -->
+    <div class="mockup" style="margin-top:1.5rem;">
+      <div class="mockup-title">Картка швидкого довідника</div>
+      <div style="padding:14px; display:grid; grid-template-columns:1fr 1fr; gap:12px 20px; font-size:.82rem;">
+        <div>
+          <div style="color:var(--accent); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Файли</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>N</kbd> <span style="color:var(--muted);">Нова</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>O</kbd> <span style="color:var(--muted);">Відкрити</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>S</kbd> <span style="color:var(--muted);">Зберегти</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>Z</kbd> <span style="color:var(--muted);">Скасувати</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>Y</kbd> <span style="color:var(--muted);">Повторити</span></div>
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--accent); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Інструменти</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>P</kbd> <span style="color:var(--muted);">Paint</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Del</kbd> <span style="color:var(--muted);">Erase</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>F</kbd> <span style="color:var(--muted);">Fill</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>E</kbd> <span style="color:var(--muted);">Eyedropper</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>R</kbd> <span style="color:var(--muted);">Rect</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>S</kbd> <span style="color:var(--muted);">Settlement</span></div>
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--accent); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Масштаб</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>+</kbd> <span style="color:var(--muted);">Збільшити</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>-</kbd> <span style="color:var(--muted);">Зменшити</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>Ctrl</kbd>+<kbd>0</kbd> <span style="color:var(--muted);">Скинути 100%</span></div>
+          </div>
+        </div>
+        <div>
+          <div style="color:var(--accent); font-size:.75rem; text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px;">Пензель</div>
+          <div style="display:flex; flex-direction:column; gap:4px;">
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>1</kbd> <span style="color:var(--muted);">Один hex</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>2</kbd> <span style="color:var(--muted);">Ромб 3×3</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>3</kbd> <span style="color:var(--muted);">Ромб 5×5</span></div>
+            <div style="display:flex; gap:6px; align-items:center;"><kbd>4</kbd> <span style="color:var(--muted);">Радіальний ○7</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr>
+  <p style="font-size:.78rem; color:var(--muted); text-align:center;">
+    MapEditorPro v0.4.6 &nbsp;·&nbsp; Посібник користувача &nbsp;·&nbsp; Сформовано 2026-05-06
+  </p>
+
+</main>
+
+<script>
+  // Highlight the active sidebar link on scroll
+  (function () {
+    const links = document.querySelectorAll('nav#sidebar a[href^="#"]');
+    const sections = Array.from(links).map(l => document.querySelector(l.getAttribute('href')));
+
+    function onScroll() {
+      let current = '';
+      const scrollY = window.scrollY + 80;
+      sections.forEach((sec, i) => {
+        if (sec && sec.offsetTop <= scrollY) current = links[i].getAttribute('href');
+      });
+      links.forEach(l => {
+        l.classList.toggle('active', l.getAttribute('href') === current);
+      });
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+  })();
+</script>
+
+</body>
+</html>
