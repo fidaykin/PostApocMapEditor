@@ -354,6 +354,45 @@ body:not(.mode-map) #statusbar { display: none; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 320px;
 }
 
+/* ── Building picker panel ───────────────────────────────────── */
+#obj-building-picker {
+  position: fixed;
+  top: 68px;
+  left: 8px;
+  z-index: 150;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.7);
+  padding: 8px;
+  max-height: calc(100vh - 100px);
+  overflow-y: auto;
+  width: 308px;
+}
+#obj-building-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+.bld-card {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 5px 3px 4px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  background: var(--bg);
+  transition: border-color 0.1s, background 0.1s;
+  overflow: hidden;
+}
+.bld-card:hover { background: var(--hover); }
+.bld-card.selected { border-color: var(--accent); background: rgba(79,195,247,0.12); }
+.bld-card img { width: 48px; height: 48px; object-fit: contain; image-rendering: pixelated; }
+.bld-card span {
+  font-size: 9px; color: var(--muted); text-align: center;
+  margin-top: 3px; word-break: break-all; line-height: 1.2;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
 /* ── Modals (confirm / new-map) ─────────────────────────────── */
 .modal-overlay {
   display: none; position: fixed; inset: 0;
@@ -1252,7 +1291,7 @@ body.mode-common #map-io    { display: none; }
              oninput="Canvas.render()">
       <button class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')">🗺️<span class="tooltip">Zone Painter (Z)</span></button>
       <button class="tool-btn" data-tool="object" onclick="Tools.setActive('object')">🏗<span class="tooltip">Place Building (B)</span></button>
-      <select id="obj-building-select" style="display:none;background:#1a1a2e;border:1px solid #4fc3f7;color:#e0e0e0;font-size:11px;padding:2px 4px;border-radius:3px;vertical-align:middle;max-width:130px"></select>
+      <span id="obj-building-label" style="display:none;font-size:11px;color:var(--accent);vertical-align:middle;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <button class="tool-btn" data-tool="erase-object" onclick="Tools.setActive('erase-object')">🗑<span class="tooltip">Erase Building (X)</span></button>
       <!-- road tools hidden pending sprite-alignment fix -->
       <!-- <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')">🛣<span class="tooltip">Draw Road (W)</span></button> -->
@@ -2123,6 +2162,11 @@ body.mode-common #map-io    { display: none; }
   </div>
 </div>
 
+<!-- Building picker panel -->
+<div id="obj-building-picker" style="display:none">
+  <div id="obj-building-picker-grid"></div>
+</div>
+
 <!-- Add Road Group Modal -->
 <div class="modal-overlay" id="road-group-modal">
   <div class="newmap-box" style="min-width:360px;max-width:480px">
@@ -2227,7 +2271,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "07e91ac";
+const COMMIT  = "f6ab4c2";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3708,9 +3752,10 @@ const Tools = (() => {
   let _isDown          = false;
   let _rectStart       = null;    // { col, row } when rect tool held
   let _lastPainted     = null;    // avoid re-painting same tile on mousemove
-  let _lastZonePainted   = null;    // avoid re-painting same tile on mousemove (zone tool)
-  let _lastObjectPainted = null;    // avoid re-placing same tile on mousemove (object tool)
-  let _lastRoadPainted   = null;    // avoid re-painting same tile on mousemove (road tool)
+  let _lastZonePainted     = null;
+  let _lastObjectPainted   = null;
+  let _lastRoadPainted     = null;
+  let _selectedBuildingId  = null;
 
   const TOOL_NAMES = {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
@@ -3733,20 +3778,50 @@ const Tools = (() => {
       settlementsVisible = true;
       Canvas.render();
     }
-    // Object tool: populate and show building selector
-    const sel = document.getElementById('obj-building-select');
-    if (sel) {
-      if (name === 'object') {
-        sel.innerHTML = BldDB.getAll()
-          .filter(b => b.id && b.buildingCategory !== 'Bridge')
-          .map(b => `<option value="${b.id}">${b.id}</option>`)
-          .join('');
-        sel.style.display = 'inline-block';
-      } else {
-        sel.style.display = 'none';
-      }
+    // Object tool: show/hide building picker panel
+    const picker = document.getElementById('obj-building-picker');
+    const label  = document.getElementById('obj-building-label');
+    if (name === 'object') {
+      _populateBuildingPicker();
+      if (picker) picker.style.display = 'block';
+      if (label)  label.style.display  = 'inline';
+    } else {
+      if (picker) picker.style.display = 'none';
+      if (label)  label.style.display  = 'none';
     }
   }
+
+  function _populateBuildingPicker() {
+    const grid = document.getElementById('obj-building-picker-grid');
+    if (!grid) return;
+    const buildings = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge');
+    if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
+    grid.innerHTML = buildings.map(b => {
+      const src = b.spriteName
+        ? (Terrain.getUploadedUrl ? (Terrain.getUploadedUrl(b.spriteName) || `sprites/buildings/${b.spriteName}.png`) : `sprites/buildings/${b.spriteName}.png`)
+        : '';
+      const label = b.id;
+      const sel = b.id === _selectedBuildingId ? ' selected' : '';
+      return `<div class="bld-card${sel}" data-bld-id="${b.id}" onclick="Tools.selectBuilding('${b.id.replace(/'/g,"\\'")}')">` +
+        `<img src="${src}" alt="" onerror="this.style.visibility='hidden'">` +
+        `<span>${label}</span></div>`;
+    }).join('');
+    _updateBuildingLabel();
+  }
+
+  function selectBuilding(id) {
+    _selectedBuildingId = id;
+    document.querySelectorAll('.bld-card').forEach(c => c.classList.toggle('selected', c.dataset.bldId === id));
+    _updateBuildingLabel();
+  }
+
+  function _updateBuildingLabel() {
+    const label = document.getElementById('obj-building-label');
+    if (label) label.textContent = _selectedBuildingId || '';
+  }
+
+  function getSelectedBuildingId() { return _selectedBuildingId; }
+
 
   function getActive() { return _active; }
 
@@ -3909,7 +3984,7 @@ const Tools = (() => {
   }
 
   function _placeObject(col, row) {
-    const bldId = document.getElementById('obj-building-select')?.value;
+    const bldId = _selectedBuildingId;
     if (!bldId) return;
     const key = col + ',' + row;
     if (objectsData[key] === bldId) return;
@@ -4125,7 +4200,7 @@ const Tools = (() => {
     });
   }
 
-  return { init, setActive, getActive };
+  return { init, setActive, getActive, selectBuilding, getSelectedBuildingId };
 })();
 // ════════════════════════════════════════════════════════════
 // HISTORY MODULE — 50-step string-array undo/redo
