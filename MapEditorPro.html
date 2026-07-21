@@ -2269,7 +2269,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "3b97e13";
+const COMMIT  = "c8ad67a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2279,7 +2279,7 @@ const COMMIT  = "3b97e13";
 // TERRAIN MODULE
 // ════════════════════════════════════════════════════════════
 const Terrain = (() => {
-  const HEX_DIR = 'sprites/hex/';
+  const HEX_DIR = 'packages/postapoc/sprites/hex/';
 
   // RGB triples keyed by lowercase hex ID for pixel-level canvas rendering.
   const COLORS = {
@@ -3804,7 +3804,7 @@ const Tools = (() => {
     if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
     grid.innerHTML = buildings.map(b => {
       const src = b.spriteName
-        ? (Terrain.getUploadedUrl ? (Terrain.getUploadedUrl(b.spriteName) || `sprites/buildings/${b.spriteName}.png`) : `sprites/buildings/${b.spriteName}.png`)
+        ? (Terrain.getUploadedUrl ? (Terrain.getUploadedUrl(b.spriteName) || `packages/postapoc/sprites/buildings/${b.spriteName}.png`) : `packages/postapoc/sprites/buildings/${b.spriteName}.png`)
         : '';
       const label = b.id;
       const sel = b.id === _selectedBuildingId ? ' selected' : '';
@@ -5123,7 +5123,7 @@ const UI = (() => {
 
       const img = document.createElement('img');
       const spr = Terrain.getSprite(h.id);
-      img.src = spr ? spr.src : (h.spriteName ? `sprites/hex/${h.spriteName}.png` : '');
+      img.src = spr ? spr.src : (h.spriteName ? `packages/postapoc/sprites/hex/${h.spriteName}.png` : '');
       img.alt = h.id;
       btn.addEventListener('click', () => selectTerrain(h.id));
       btn.appendChild(img);
@@ -5166,7 +5166,7 @@ const UI = (() => {
       btn.dataset.hexId = entry.id;
       const img = document.createElement('img');
       const spr = Terrain.getSprite(entry.id);
-      img.src = spr ? spr.src : (entry.spriteName ? `sprites/hex/${entry.spriteName}.png` : '');
+      img.src = spr ? spr.src : (entry.spriteName ? `packages/postapoc/sprites/hex/${entry.spriteName}.png` : '');
       img.alt = entry.id;
       btn.appendChild(img);
       const tt = document.createElement('span');
@@ -5202,14 +5202,14 @@ const UI = (() => {
     const selImg = document.getElementById('palette-sel-img');
     const spr = Terrain.getSprite(hexId);
     if (spr) selImg.src = spr.src;
-    else if (t.spriteName) selImg.src = `sprites/hex/${t.spriteName}.png`;
+    else if (t.spriteName) selImg.src = `packages/postapoc/sprites/hex/${t.spriteName}.png`;
     document.getElementById('palette-selected-name').textContent = t.name || hexId;
     document.getElementById('palette-selected-id').textContent   = hexId;
 
     // Right panel active terrain
     const rtImg = document.getElementById('right-terrain-img');
     if (spr) rtImg.src = spr.src;
-    else if (t.spriteName) rtImg.src = `sprites/hex/${t.spriteName}.png`;
+    else if (t.spriteName) rtImg.src = `packages/postapoc/sprites/hex/${t.spriteName}.png`;
     document.getElementById('right-terrain-name').textContent = t.name || hexId;
     document.getElementById('right-terrain-id').textContent   = hexId;
 
@@ -5236,7 +5236,7 @@ const UI = (() => {
     });
     // Update palette display
     const selImg = document.getElementById('palette-sel-img');
-    selImg.src = `sprites/hex/River_bridge_${axis + 1}.png`;
+    selImg.src = `packages/postapoc/sprites/hex/River_bridge_${axis + 1}.png`;
     const BRIDGE_LABELS = ['N↔S', 'NE↔SW', 'NW↔SE'];
     document.getElementById('palette-selected-name').textContent = `Bridge ${BRIDGE_LABELS[axis]}`;
     document.getElementById('palette-selected-id').textContent   = `bridge_axis_${axis}`;
@@ -5541,7 +5541,7 @@ const UI = (() => {
   }
 
   async function showSpritePicker(onSelect, opts = {}) {
-    const folder    = opts.folder || 'sprites/hex';
+    const folder    = opts.folder || 'packages/postapoc/sprites/hex';
     const category  = folder.includes('buildings') ? 'buildings' : 'hex';
     const dbSprites = opts.getSprites ? opts.getSprites() : HexDB.getAll().map(h => h.spriteName).filter(Boolean);
     const authed    = GitHubSync.isPATConfigured();
@@ -5582,7 +5582,7 @@ const UI = (() => {
         ghFiles.forEach(({ name, url }) => {
           if (shown.has(name)) return;
           shown.add(name);
-          const thumb = _makeThumb(name, `${GitHubSync.BASE_URL}/sprites/${category}/${name}.png`, false, null);
+          const thumb = _makeThumb(name, `${GitHubSync.BASE_URL}/packages/postapoc/sprites/${category}/${name}.png`, false, null);
           const img   = thumb.querySelector('img');
           GitHubSync.fetchSpriteDataUrl(url).then(dataUrl => {
             if (dataUrl) {
@@ -8157,7 +8157,7 @@ const HexDB = (() => {
       '</datalist>';
 
     const spriteSrc = hex.spriteName
-      ? (Terrain.getUploadedUrl(hex.spriteName) || `sprites/hex/${_esc(hex.spriteName)}.png`)
+      ? (Terrain.getUploadedUrl(hex.spriteName) || `packages/postapoc/sprites/hex/${_esc(hex.spriteName)}.png`)
       : '';
     const visualHTML = `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0">
       <img src="${spriteSrc}" alt=""
@@ -8893,7 +8893,7 @@ const HexDB = (() => {
               spriteBlob = await res.blob();
             } else {
               // Fallback: fetch directly from GitHub Pages hex folder
-              const hexUrl = `${GitHubSync.BASE_URL}/sprites/hex/${newBld.spriteName}.png`;
+              const hexUrl = `${GitHubSync.BASE_URL}/packages/postapoc/sprites/hex/${newBld.spriteName}.png`;
               const res = await fetch(hexUrl);
               if (res.ok) {
                 spriteBlob = await res.blob();
@@ -8927,7 +8927,7 @@ const HexDB = (() => {
 
         // Keep sprite in Terrain so canvas still renders this tile ID after migration
         // Bridge sprites live in sprites/hex/, not sprites/buildings/
-        const _migrateDir = newBld.buildingCategory === 'Bridge' ? 'sprites/hex/' : 'sprites/buildings/';
+        const _migrateDir = newBld.buildingCategory === 'Bridge' ? 'packages/postapoc/sprites/hex/' : 'packages/postapoc/sprites/buildings/';
         Terrain.applyHexDbOverrides([newBld], _migrateDir);
         // Push to BldDB and select it
         BldDB.pushRecord(newBld);
@@ -9313,7 +9313,7 @@ const BldDB = (() => {
     const _rMaster  = _rGroup ? _isRoadMaster(bld) : false;
     const _rMembers = _rGroup ? _roadGroupMembers(_rGroup) : [];
     if (_rGroup && !_rMaster) {
-      const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
+      const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
       right.innerHTML = `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
           <img src="${spriteSrc}" alt="" style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0;object-fit:contain;border:1px solid var(--border);border-radius:4px" onerror="this.style.opacity='0.2'">
@@ -9714,7 +9714,7 @@ const BldDB = (() => {
       <button onclick="BldDB.paste()">Paste</button>
     </div>`;
 
-    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
+    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
     const visualHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
       <img src="${spriteSrc}" alt=""
@@ -10227,7 +10227,7 @@ const BldDB = (() => {
       const el = document.getElementById('bld-f-spriteName');
       if (el) { el.value = name; el.dispatchEvent(new Event('input', { bubbles: true })); }
     }, {
-      folder: 'sprites/buildings',
+      folder: 'packages/postapoc/sprites/buildings',
       getSprites: () => _data.buildings.map(b => b.spriteName).filter(Boolean),
     });
   }
@@ -11618,8 +11618,8 @@ window.addEventListener('load', async () => {
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
     // Bridge buildings keep their sprites in sprites/hex/, all others use sprites/buildings/
     const _allBlds = BldDB.getAll();
-    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge'), 'sprites/buildings/');
-    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory === 'Bridge'), 'sprites/hex/');
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge'), 'packages/postapoc/sprites/buildings/');
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory === 'Bridge'), 'packages/postapoc/sprites/hex/');
     Canvas.render();
   })();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
