@@ -2300,7 +2300,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "caa6160";
+const COMMIT  = "2a7fb0f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7090,7 +7090,35 @@ const Packages = (() => {
         <tbody>${rows}</tbody>
       </table>`;
   }
-  function renderBadges()          { /* Task 4 */ }
+  function renderBadges() {
+    const isPostapoc = (_active === 'postapoc');
+    const label = isPostapoc ? '' : `[${idPrefix(_active).slice(0, -1)}]`;
+    const style = `display:${isPostapoc ? 'none' : 'inline'};margin-left:8px;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;background:#a6e3a1;color:#1e1e2e`;
+
+    // HexDB toolbar badge
+    let badge = document.getElementById('hexdb-pkg-badge');
+    if (!badge) {
+      const tools = document.getElementById('hexdb-tools');
+      if (tools) {
+        badge = document.createElement('span');
+        badge.id = 'hexdb-pkg-badge';
+        tools.insertBefore(badge, tools.firstChild);
+      }
+    }
+    if (badge) { badge.textContent = label; badge.setAttribute('style', style); }
+
+    // BldDB toolbar badge
+    let bldBadge = document.getElementById('bld-pkg-badge');
+    if (!bldBadge) {
+      const bldTools = document.getElementById('bld-tools');
+      if (bldTools) {
+        bldBadge = document.createElement('span');
+        bldBadge.id = 'bld-pkg-badge';
+        bldTools.insertBefore(bldBadge, bldTools.firstChild);
+      }
+    }
+    if (bldBadge) { bldBadge.textContent = label; bldBadge.setAttribute('style', style); }
+  }
   function renderActiveDropdowns() {
     const sel = document.getElementById('pkg-active-select');
     if (!sel) return;
@@ -7921,7 +7949,9 @@ const HexDB = (() => {
 
   // ── Blank record ─────────────────────────────────────────
   function _blank() {
-    return {
+    const _pkgId = (typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc')
+                   ? Packages.getActive() : undefined;
+    const _e = {
       id:'', textId:'', type:'Special', biome:'Summer',
       filterCategory:'FilterTerrain', spriteName:'',
       category:'', terrainTypeId:-1, fallback:false,
@@ -7943,6 +7973,8 @@ const HexDB = (() => {
       booster:'', effects:'',
       waterFaces:[],
     };
+    if (_pkgId) _e.package = _pkgId;
+    return _e;
   }
 
   // ── HTML escape ──────────────────────────────────────────
@@ -8881,6 +8913,10 @@ const HexDB = (() => {
   function add() {
     const h = _blank();
     h.id = `NewHex_${_data.hexes.length}`;
+    if (typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc') {
+      const prefix = Packages.idPrefix(Packages.getActive());
+      if (prefix && !h.id.startsWith(prefix)) h.id = prefix + h.id;
+    }
     _data.hexes.push(h);
     _autoSave();
     _applyFilter();
@@ -9297,7 +9333,9 @@ const BldDB = (() => {
 
   function _blank() {
     const n = _data.buildings.length + 1;
-    return {
+    const _pkgId = (typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc')
+                   ? Packages.getActive() : undefined;
+    const _e = {
       id: `NewBuild_${n}`,
       textId: '', descIdleId: '', descBuildId: '',
       type: 'Ground Building',
@@ -9349,6 +9387,8 @@ const BldDB = (() => {
       // Footprint (Artefact type only)
       footprint: [],
     };
+    if (_pkgId) _e.package = _pkgId;
+    return _e;
   }
 
   function _migrate(bld) {
@@ -10356,7 +10396,12 @@ const BldDB = (() => {
   }
 
   function add() {
-    _data.buildings.push(_blank());
+    const _newBld = _blank();
+    if (typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc') {
+      const prefix = Packages.idPrefix(Packages.getActive());
+      if (prefix && !_newBld.id.startsWith(prefix)) _newBld.id = prefix + _newBld.id;
+    }
+    _data.buildings.push(_newBld);
     _autoSave();
     _applyFilter();
     _buildList();
