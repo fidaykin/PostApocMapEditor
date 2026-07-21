@@ -2302,7 +2302,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "a2fa4fd";
+const COMMIT  = "b15ff46";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7099,17 +7099,21 @@ const Packages = (() => {
     if (!el) return;
     const rows = _registry.map(p => `
       <tr>
-        <td><code>${p.id}</code>${p.isDefault ? ' <span class="pkg-badge">default</span>' : ''}</td>
+        <td><code>${_esc(p.id)}</code>${p.isDefault ? ' <span class="pkg-badge">default</span>' : ''}</td>
         <td>${_esc(p.name)}</td>
-        <td>${p.version || '—'}</td>
+        <td>${_esc(p.version || '—')}</td>
         <td>
+          <button class="hexdb-tool-btn" onclick="Packages.exportPackage('${p.id}')">↓ Export</button>
           <button class="hexdb-tool-btn" onclick="Packages.openPublishConfirm('${p.id}')">Publish</button>
           ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" onclick="Packages.confirmDelete('${p.id}')">Delete</button>` : ''}
         </td>
       </tr>`).join('');
     el.innerHTML = `
       <h3 style="color:#cdd6f4;margin:0 0 16px">Content Packages</h3>
-      <button class="hexdb-tool-btn" style="margin-bottom:12px" onclick="Packages.openNewModal()">+ New Package</button>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="hexdb-tool-btn" onclick="Packages.openImportModal()">↑ Import Package</button>
+        <button class="hexdb-tool-btn" onclick="Packages.openNewModal()">+ New Package</button>
+      </div>
       <table>
         <thead><tr><th>ID</th><th>Name</th><th>Version</th><th>Actions</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -7154,6 +7158,99 @@ const Packages = (() => {
     if (badge) {
       badge.textContent = _active === 'postapoc' ? '' : idPrefix(_active).slice(0, -1);
       badge.style.display = _active === 'postapoc' ? 'none' : 'inline-block';
+    }
+  }
+
+  // ── JSZip lazy loader ─────────────────────────────────────────
+  async function _loadJSZip() {
+    if (!_jszip) {
+      try {
+        const m = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+        _jszip = m.default;
+      } catch(e) {
+        throw new Error('Could not load ZIP library. Check your connection.');
+      }
+    }
+    return _jszip;
+  }
+
+  // ── Export Package ─────────────────────────────────────────────
+  async function exportPackage(id) {
+    const entry = getEntry(id);
+    if (!entry) return UI.toast('⚠ Package not found');
+    try {
+      UI.progress(0, `Preparing export for "${_esc(entry.name)}"…`);
+      const JSZip = await _loadJSZip();
+
+      // Fetch JSON files
+      UI.progress(5, 'Fetching package.json…');
+      const pkgRes = await fetch(`${BASE_URL}/packages/${id}/package.json?_=${Date.now()}`);
+      if (!pkgRes.ok) {
+        UI.progressDone('');
+        return UI.toast('⚠ Package must be published before exporting');
+      }
+      const pkgText = await pkgRes.text();
+
+      UI.progress(10, 'Fetching hex_database.json…');
+      const hexRes = await fetch(`${BASE_URL}/packages/${id}/hex_database.json?_=${Date.now()}`);
+      const hexText = hexRes.ok ? await hexRes.text() : '{"version":1,"hexes":[]}';
+
+      UI.progress(15, 'Fetching building_database.json…');
+      const bldRes = await fetch(`${BASE_URL}/packages/${id}/building_database.json?_=${Date.now()}`);
+      const bldText = bldRes.ok ? await bldRes.text() : '{"version":1,"buildings":[]}';
+
+      // List sprites
+      UI.progress(20, 'Listing sprites…');
+      const [hexSprites, bldSprites] = await Promise.all([
+        GitHubSync._listFolder(`packages/${id}/sprites/hex`).catch(() => []),
+        GitHubSync._listFolder(`packages/${id}/sprites/buildings`).catch(() => []),
+      ]);
+      const allSprites = [
+        ...hexSprites.map(f => ({ category: 'hex',       name: f.name, url: f.download_url })),
+        ...bldSprites.map(f => ({ category: 'buildings', name: f.name, url: f.download_url })),
+      ];
+
+      // Build ZIP
+      const zip = new JSZip();
+      zip.file('package.json',          pkgText);
+      zip.file('hex_database.json',     hexText);
+      zip.file('building_database.json', bldText);
+      const hexDir = zip.folder('sprites').folder('hex');
+      const bldDir = zip.folder('sprites').folder('buildings');
+
+      // Fetch and add sprites
+      let done = 0;
+      for (const spr of allSprites) {
+        try {
+          const res = await fetch(spr.url);
+          if (res.ok) {
+            const blob = await res.blob();
+            (spr.category === 'hex' ? hexDir : bldDir).file(spr.name, blob);
+          }
+        } catch(e) {
+          console.warn(`[Packages] export: skipped ${spr.name}:`, e.message);
+        }
+        done++;
+        const pct = 20 + Math.round((done / Math.max(allSprites.length, 1)) * 70);
+        UI.progress(pct, `Sprites: ${done}/${allSprites.length}…`);
+      }
+
+      UI.progress(92, 'Generating ZIP…');
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
+      // Trigger download
+      const version = JSON.parse(pkgText).version || '1.0.0';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${id}-${version}.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      UI.progressDone(`✅ Exported ${id}-${version}.zip`);
+      UI.toast(`✅ Package "${entry.name}" exported`);
+    } catch(e) {
+      UI.progressDone('');
+      UI.toast(`⚠ Export failed: ${e.message}`);
     }
   }
 
@@ -7349,11 +7446,18 @@ const Packages = (() => {
 
   function renderFilterChips() { _renderFilterChips(); }
 
+  function openImportModal() {
+    const input = document.getElementById('pkg-import-input');
+    if (input) input.click();
+    else UI.toast('⚠ Import UI not ready');
+  }
+
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
            openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, publishPackage, confirmDelete, deletePackage };
+           openPublishConfirm, publishPackage, confirmDelete, deletePackage,
+           _loadJSZip, exportPackage, openImportModal };
 })();
 
 // ── App: mode switching ────────────────────────────────────
