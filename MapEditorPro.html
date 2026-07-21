@@ -2269,7 +2269,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "c8ad67a";
+const COMMIT  = "39e3db6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4626,8 +4626,15 @@ const GitHubSync = (() => {
 
   async function publishHexDbOnly() {
     await _withPublishBtn('Publish HexDB', async () => {
-      UI.progress(20, 'Publishing hex_database.json…');
-      const json = JSON.stringify(HexDB.getData(), null, 2);
+      UI.progress(10, 'Publishing hex_database.json…');
+      const data = HexDB.getData();
+      const pkgData = Object.assign({ version: data.version, package: 'postapoc' },
+        Object.fromEntries(Object.entries(data).filter(([k]) => k !== 'version')));
+      const json    = JSON.stringify(data, null, 2);
+      const pkgJson = JSON.stringify(pkgData, null, 2);
+      UI.progress(30, 'Writing packages/postapoc/hex_database.json…');
+      await _putText('packages/postapoc/hex_database.json', pkgJson, 'publish: hex_database.json');
+      UI.progress(70, 'Writing root hex_database.json (compat)…');
       await _putText('hex_database.json', json, 'publish: hex_database.json');
       UI.progressDone('✅ HexDB published');
       UI.toast('✅ hex_database.json published');
@@ -4682,7 +4689,13 @@ const GitHubSync = (() => {
 
   async function publishBuildingsDb() {
     await _withPublishBtn('Publish Buildings DB', async () => {
-      UI.progress(30, 'Publishing building_database.json…');
+      UI.progress(10, 'Publishing building_database.json…');
+      const rawData = JSON.parse(BldDB.getJson());
+      const pkgData = { version: rawData.version ?? 1, package: 'postapoc',
+        ...Object.fromEntries(Object.entries(rawData).filter(([k]) => !['version','package'].includes(k))) };
+      UI.progress(30, 'Writing packages/postapoc/building_database.json…');
+      await _putText('packages/postapoc/building_database.json', JSON.stringify(pkgData, null, 2), 'publish: building_database.json');
+      UI.progress(70, 'Writing root building_database.json (compat)…');
       await _putText('building_database.json', BldDB.getJson(), 'publish: building_database.json');
       UI.progressDone('✅ Buildings DB published');
       UI.toast('✅ building_database.json published');
@@ -4730,7 +4743,8 @@ const GitHubSync = (() => {
     if (!isPATConfigured()) return;
     try {
       const fname = name.endsWith('.png') ? name : `${name}.png`;
-      await _putBinary(`sprites/${category}/${fname}`, blob, `sprite: ${fname}`);
+      await _putBinary(`packages/postapoc/sprites/${category}/${fname}`, blob, `sprite: ${fname}`);
+      await _putBinary(`sprites/${category}/${fname}`, blob, `sprite: ${fname} (compat)`);
     } catch(e) {
       console.warn('[GitHubSync] pushSprite failed:', e.message);
     }
@@ -4738,7 +4752,7 @@ const GitHubSync = (() => {
 
   async function listSpriteFiles(category) {
     try {
-      const items = await _listFolder(`sprites/${category}`);
+      const items = await _listFolder(`packages/postapoc/sprites/${category}`);
       return items
         .filter(f => f.name.toLowerCase().endsWith('.png'))
         .map(f => ({ name: f.name.replace(/\.png$/i, ''), url: f.download_url }));
@@ -4805,8 +4819,8 @@ const GitHubSync = (() => {
   }
 
   async function loadHexDbIntoEditor() {
-    const res = await fetch(`${BASE_URL}/hex_database.json?_=${Date.now()}`);
-    if (!res.ok) throw new Error(`hex_database.json not found (${res.status})`);
+    const res = await fetch(`${BASE_URL}/packages/postapoc/hex_database.json?_=${Date.now()}`);
+    if (!res.ok) throw new Error(`packages/postapoc/hex_database.json not found (${res.status})`);
     const data = await res.json();
     HexDB.loadFromObject(data);
     UI.toast('✅ Hex DB loaded from server');
@@ -4819,8 +4833,8 @@ const GitHubSync = (() => {
   }
 
   async function loadBuildingDbFromServer() {
-    const res = await fetch(`${BASE_URL}/building_database.json?_=${Date.now()}`);
-    if (!res.ok) throw new Error(`building_database.json not found (${res.status})`);
+    const res = await fetch(`${BASE_URL}/packages/postapoc/building_database.json?_=${Date.now()}`);
+    if (!res.ok) throw new Error(`packages/postapoc/building_database.json not found (${res.status})`);
     const data = await res.json();
     if (!data || !Array.isArray(data.buildings) || data.buildings.length === 0) return;
     BldDB.load(JSON.stringify(data));
@@ -4902,8 +4916,8 @@ const GitHubSync = (() => {
 
     try {
       const [hexFiles, bldFiles, mapList] = await Promise.all([
-        _listFolder('sprites/hex'),
-        _listFolder('sprites/buildings'),
+        _listFolder('packages/postapoc/sprites/hex'),
+        _listFolder('packages/postapoc/sprites/buildings'),
         fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`).then(r => r.ok ? r.json() : {maps:[]}).catch(() => ({maps:[]})),
       ]);
 
