@@ -2226,7 +2226,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "49df13a";
+const COMMIT  = "9c134e6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2453,11 +2453,9 @@ const Roads = (() => {
     const entry  = _lookup[bitmask & 63];
     const sprite = _sprites[entry.c];
     ctx.save();
-    clipFn(cx, cy, radius);
-    ctx.clip();
+    if (clipFn) { clipFn(cx, cy, radius); ctx.clip(); }
     if (!sprite) {
-      ctx.fillStyle = 'rgba(110,85,50,0.7)';
-      ctx.fill();
+      if (clipFn) { ctx.fillStyle = 'rgba(110,85,50,0.7)'; ctx.fill(); }
     } else {
       const [sx, sy] = _SCALES[entry.t];
       ctx.translate(cx, cy);
@@ -2753,7 +2751,7 @@ const Canvas = (() => {
   }
 
   function _drawRoadOverlay(cx, cy, radius, bitmask) {
-    Roads.drawOverlay(ctx, cx, cy, radius, bitmask, hexClipPath);
+    Roads.drawOverlay(ctx, cx, cy, radius, bitmask, null);
   }
 
   function _drawObjectOverlay(cx, cy, radius, id) {
