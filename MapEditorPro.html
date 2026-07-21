@@ -2302,7 +2302,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "df299fe";
+const COMMIT  = "5997cfd";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7103,9 +7103,9 @@ const Packages = (() => {
         <td>${_esc(p.name)}</td>
         <td>${_esc(p.version || '—')}</td>
         <td>
-          <button class="hexdb-tool-btn" onclick="Packages.exportPackage('${p.id}')">↓ Export</button>
-          <button class="hexdb-tool-btn" onclick="Packages.openPublishConfirm('${p.id}')">Publish</button>
-          ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" onclick="Packages.confirmDelete('${p.id}')">Delete</button>` : ''}
+          <button class="hexdb-tool-btn" onclick="Packages.exportPackage('${_esc(p.id)}')">↓ Export</button>
+          <button class="hexdb-tool-btn" onclick="Packages.openPublishConfirm('${_esc(p.id)}')">Publish</button>
+          ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" onclick="Packages.confirmDelete('${_esc(p.id)}')">Delete</button>` : ''}
         </td>
       </tr>`).join('');
     el.innerHTML = `
@@ -7152,7 +7152,7 @@ const Packages = (() => {
     const sel = document.getElementById('pkg-active-select');
     if (!sel) return;
     sel.innerHTML = _registry.map(p =>
-      `<option value="${p.id}" ${p.id === _active ? 'selected' : ''}>${_esc(p.name)}</option>`
+      `<option value="${_esc(p.id)}" ${p.id === _active ? 'selected' : ''}>${_esc(p.name)}</option>`
     ).join('');
     const badge = document.getElementById('pkg-active-badge');
     if (badge) {
@@ -7439,7 +7439,7 @@ const Packages = (() => {
       if (!el) return;
       el.innerHTML = _registry.map(p =>
         `<button class="pkg-chip ${_hiddenPkgs.has(p.id) ? '' : 'active'}"
-                 onclick="Packages.togglePkgFilter('${p.id}')">${_esc(p.name)}</button>`
+                 onclick="Packages.togglePkgFilter('${_esc(p.id)}')">${_esc(p.name)}</button>`
       ).join('');
     });
   }
@@ -7448,6 +7448,7 @@ const Packages = (() => {
 
   // ── Import Package modal ───────────────────────────────────────
   let _importZip = null;  // holds JSZip instance while import modal is open
+  let _importInProgress = false;
 
   function openImportModal() {
     const input = document.getElementById('pkg-import-input');
@@ -7521,7 +7522,11 @@ const Packages = (() => {
       errEl.style.display = 'block'; return;
     }
 
+    if (_importInProgress) return;
+    _importInProgress = true;
+
     const zip = _importZip;
+    if (!zip) { _importInProgress = false; UI.toast('⚠ No ZIP loaded'); return; }
 
     try {
       UI.progress(0, 'Starting import…');
@@ -7592,9 +7597,11 @@ const Packages = (() => {
       renderPanel();
       renderActiveDropdowns();
       closeImportModal();
+      _importInProgress = false;
     } catch(e) {
       UI.progressDone('');
       UI.toast(`⚠ Import failed: ${e.message}`);
+      _importInProgress = false;
     }
   }
 
