@@ -357,8 +357,6 @@ body:not(.mode-map) #statusbar { display: none; }
 /* ── Building picker panel ───────────────────────────────────── */
 #obj-building-picker {
   position: fixed;
-  top: 68px;
-  left: 8px;
   z-index: 150;
   background: var(--panel);
   border: 1px solid var(--border);
@@ -2271,7 +2269,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "f6ab4c2";
+const COMMIT  = "17a7b0e";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3783,7 +3781,15 @@ const Tools = (() => {
     const label  = document.getElementById('obj-building-label');
     if (name === 'object') {
       _populateBuildingPicker();
-      if (picker) picker.style.display = 'block';
+      if (picker) {
+        const btn = document.querySelector('.tool-btn[data-tool="object"]');
+        if (btn) {
+          const r = btn.getBoundingClientRect();
+          picker.style.left = r.left + 'px';
+          picker.style.top  = (r.bottom + 4) + 'px';
+        }
+        picker.style.display = 'block';
+      }
       if (label)  label.style.display  = 'inline';
     } else {
       if (picker) picker.style.display = 'none';
