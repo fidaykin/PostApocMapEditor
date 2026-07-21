@@ -2302,7 +2302,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "c703de5";
+const COMMIT  = "4920528";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5866,6 +5866,7 @@ const IO = (() => {
     const hexes = (typeof HexDB !== 'undefined') ? HexDB.getData().hexes : [];
     const pkgById = {};
     hexes.forEach(h => { pkgById[h.id] = h.package || 'postapoc'; });
+    (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).forEach(b => { pkgById[b.id] = b.package || 'postapoc'; });
     const usedPkgs = new Set(['postapoc']);
     mapData.forEach(id => { if (id && pkgById[id]) usedPkgs.add(pkgById[id]); });
     // Also check objects layer
@@ -7043,6 +7044,8 @@ const Packages = (() => {
   let _registry = [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }];
   let _active   = 'postapoc';
 
+  function _esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
   // ── Init ───────────────────────────────────────────────────────
   function init() {
     _active = localStorage.getItem(LS_ACTIVE) || 'postapoc';
@@ -7095,7 +7098,7 @@ const Packages = (() => {
     const rows = _registry.map(p => `
       <tr>
         <td><code>${p.id}</code>${p.isDefault ? ' <span class="pkg-badge">default</span>' : ''}</td>
-        <td>${p.name}</td>
+        <td>${_esc(p.name)}</td>
         <td>${p.version || '—'}</td>
         <td>
           <button class="hexdb-tool-btn" onclick="Packages.openPublishConfirm('${p.id}')">Publish</button>
@@ -7143,7 +7146,7 @@ const Packages = (() => {
     const sel = document.getElementById('pkg-active-select');
     if (!sel) return;
     sel.innerHTML = _registry.map(p =>
-      `<option value="${p.id}" ${p.id === _active ? 'selected' : ''}>${p.name}</option>`
+      `<option value="${p.id}" ${p.id === _active ? 'selected' : ''}>${_esc(p.name)}</option>`
     ).join('');
     const badge = document.getElementById('pkg-active-badge');
     if (badge) {
@@ -7230,8 +7233,8 @@ const Packages = (() => {
     if (isDefault(id)) {
       // postapoc: use existing publish functions
       UI.showConfirm('Publish postapoc', 'Publish hex_database.json and building_database.json?', async () => {
-        await publishHexDbOnly();
-        await publishBuildingsDb();
+        await GitHubSync.publishHexDbOnly();
+        await GitHubSync.publishBuildingsDb();
       });
       return;
     }
@@ -7337,7 +7340,7 @@ const Packages = (() => {
       if (!el) return;
       el.innerHTML = _registry.map(p =>
         `<button class="pkg-chip ${_hiddenPkgs.has(p.id) ? '' : 'active'}"
-                 onclick="Packages.togglePkgFilter('${p.id}')">${p.name}</button>`
+                 onclick="Packages.togglePkgFilter('${p.id}')">${_esc(p.name)}</button>`
       ).join('');
     });
   }
