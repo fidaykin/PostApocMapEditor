@@ -2303,7 +2303,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "4920528";
+const COMMIT  = "5997cfd";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5039,7 +5039,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    _putText, _putBinary, _listFolder, BASE_URL,
+    _putText, _putBinary, _listFolder, _withPublishBtn, BASE_URL,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
@@ -7044,6 +7044,8 @@ const Packages = (() => {
 
   let _registry = [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }];
   let _active   = 'postapoc';
+  const BASE_URL = GitHubSync.BASE_URL;
+  let _jszip = null;  // cached JSZip module (lazy-loaded)
 
   function _esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
@@ -7098,17 +7100,21 @@ const Packages = (() => {
     if (!el) return;
     const rows = _registry.map(p => `
       <tr>
-        <td><code>${p.id}</code>${p.isDefault ? ' <span class="pkg-badge">default</span>' : ''}</td>
+        <td><code>${_esc(p.id)}</code>${p.isDefault ? ' <span class="pkg-badge">default</span>' : ''}</td>
         <td>${_esc(p.name)}</td>
-        <td>${p.version || '—'}</td>
+        <td>${_esc(p.version || '—')}</td>
         <td>
-          <button class="hexdb-tool-btn" onclick="Packages.openPublishConfirm('${p.id}')">Publish</button>
-          ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" onclick="Packages.confirmDelete('${p.id}')">Delete</button>` : ''}
+          <button class="hexdb-tool-btn" onclick="Packages.exportPackage('${_esc(p.id)}')">↓ Export</button>
+          <button class="hexdb-tool-btn" onclick="Packages.openPublishConfirm('${_esc(p.id)}')">Publish</button>
+          ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" onclick="Packages.confirmDelete('${_esc(p.id)}')">Delete</button>` : ''}
         </td>
       </tr>`).join('');
     el.innerHTML = `
       <h3 style="color:#cdd6f4;margin:0 0 16px">Content Packages</h3>
-      <button class="hexdb-tool-btn" style="margin-bottom:12px" onclick="Packages.openNewModal()">+ New Package</button>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="hexdb-tool-btn" onclick="Packages.openImportModal()">↑ Import Package</button>
+        <button class="hexdb-tool-btn" onclick="Packages.openNewModal()">+ New Package</button>
+      </div>
       <table>
         <thead><tr><th>ID</th><th>Name</th><th>Version</th><th>Actions</th></tr></thead>
         <tbody>${rows}</tbody>
@@ -7147,12 +7153,105 @@ const Packages = (() => {
     const sel = document.getElementById('pkg-active-select');
     if (!sel) return;
     sel.innerHTML = _registry.map(p =>
-      `<option value="${p.id}" ${p.id === _active ? 'selected' : ''}>${_esc(p.name)}</option>`
+      `<option value="${_esc(p.id)}" ${p.id === _active ? 'selected' : ''}>${_esc(p.name)}</option>`
     ).join('');
     const badge = document.getElementById('pkg-active-badge');
     if (badge) {
       badge.textContent = _active === 'postapoc' ? '' : idPrefix(_active).slice(0, -1);
       badge.style.display = _active === 'postapoc' ? 'none' : 'inline-block';
+    }
+  }
+
+  // ── JSZip lazy loader ─────────────────────────────────────────
+  async function _loadJSZip() {
+    if (!_jszip) {
+      try {
+        const m = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+        _jszip = m.default;
+      } catch(e) {
+        throw new Error('Could not load ZIP library. Check your connection.');
+      }
+    }
+    return _jszip;
+  }
+
+  // ── Export Package ─────────────────────────────────────────────
+  async function exportPackage(id) {
+    const entry = getEntry(id);
+    if (!entry) return UI.toast('⚠ Package not found');
+    try {
+      UI.progress(0, `Preparing export for "${_esc(entry.name)}"…`);
+      const JSZip = await _loadJSZip();
+
+      // Fetch JSON files
+      UI.progress(5, 'Fetching package.json…');
+      const pkgRes = await fetch(`${BASE_URL}/packages/${id}/package.json?_=${Date.now()}`);
+      if (!pkgRes.ok) {
+        UI.progressDone('');
+        return UI.toast('⚠ Package must be published before exporting');
+      }
+      const pkgText = await pkgRes.text();
+
+      UI.progress(10, 'Fetching hex_database.json…');
+      const hexRes = await fetch(`${BASE_URL}/packages/${id}/hex_database.json?_=${Date.now()}`);
+      const hexText = hexRes.ok ? await hexRes.text() : '{"version":1,"hexes":[]}';
+
+      UI.progress(15, 'Fetching building_database.json…');
+      const bldRes = await fetch(`${BASE_URL}/packages/${id}/building_database.json?_=${Date.now()}`);
+      const bldText = bldRes.ok ? await bldRes.text() : '{"version":1,"buildings":[]}';
+
+      // List sprites
+      UI.progress(20, 'Listing sprites…');
+      const [hexSprites, bldSprites] = await Promise.all([
+        GitHubSync._listFolder(`packages/${id}/sprites/hex`).catch(() => []),
+        GitHubSync._listFolder(`packages/${id}/sprites/buildings`).catch(() => []),
+      ]);
+      const allSprites = [
+        ...hexSprites.map(f => ({ category: 'hex',       name: f.name, url: f.download_url })),
+        ...bldSprites.map(f => ({ category: 'buildings', name: f.name, url: f.download_url })),
+      ];
+
+      // Build ZIP
+      const zip = new JSZip();
+      zip.file('package.json',          pkgText);
+      zip.file('hex_database.json',     hexText);
+      zip.file('building_database.json', bldText);
+      const hexDir = zip.folder('sprites').folder('hex');
+      const bldDir = zip.folder('sprites').folder('buildings');
+
+      // Fetch and add sprites
+      let done = 0;
+      for (const spr of allSprites) {
+        try {
+          const res = await fetch(spr.url);
+          if (res.ok) {
+            const blob = await res.blob();
+            (spr.category === 'hex' ? hexDir : bldDir).file(spr.name, blob);
+          }
+        } catch(e) {
+          console.warn(`[Packages] export: skipped ${spr.name}:`, e.message);
+        }
+        done++;
+        const pct = 20 + Math.round((done / Math.max(allSprites.length, 1)) * 70);
+        UI.progress(pct, `Sprites: ${done}/${allSprites.length}…`);
+      }
+
+      UI.progress(92, 'Generating ZIP…');
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
+      // Trigger download
+      const version = JSON.parse(pkgText).version || '1.0.0';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${id}-${version}.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      UI.progressDone(`✅ Exported ${id}-${version}.zip`);
+      UI.toast(`✅ Package "${entry.name}" exported`);
+    } catch(e) {
+      UI.progressDone('');
+      UI.toast(`⚠ Export failed: ${e.message}`);
     }
   }
 
@@ -7201,7 +7300,7 @@ const Packages = (() => {
         description: '', preview: 'preview.png', isDefault: false
       }, null, 2);
       UI.progress(30, 'Writing package.json…');
-      await _putText(`packages/${rawId}/package.json`, pkgJson, `create package: ${rawId}`);
+      await GitHubSync._putText(`packages/${rawId}/package.json`, pkgJson, `create package: ${rawId}`);
 
       // Update registry.json
       UI.progress(60, 'Updating registry.json…');
@@ -7214,7 +7313,7 @@ const Packages = (() => {
         regData = { version: 1, packages: [..._registry] };
       }
       if (!regData.packages.find(p => p.id === rawId)) regData.packages.push(newEntry);
-      await _putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${rawId}`);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${rawId}`);
 
       // Update local state
       _registry = regData.packages;
@@ -7253,7 +7352,7 @@ const Packages = (() => {
     if (!entry) return UI.toast('⚠ Package not found');
     if (isDefault(id)) return UI.toast('⚠ Use HexDB/Buildings publish buttons for postapoc');
 
-    await _withPublishBtn('Publish Package', async () => {
+    await GitHubSync._withPublishBtn('Publish Package', async () => {
       const hexes    = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => h.package === id);
       const buildings = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.package === id);
 
@@ -7263,15 +7362,15 @@ const Packages = (() => {
 
       UI.progress(10, `Publishing ${id}/hex_database.json…`);
       const hexPayload = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
-      await _putText(`packages/${id}/hex_database.json`, hexPayload, `publish ${id}: hex_database.json`);
+      await GitHubSync._putText(`packages/${id}/hex_database.json`, hexPayload, `publish ${id}: hex_database.json`);
 
       UI.progress(35, `Publishing ${id}/building_database.json…`);
       const bldPayload = JSON.stringify({ version: 1, package: id, buildings }, null, 2);
-      await _putText(`packages/${id}/building_database.json`, bldPayload, `publish ${id}: building_database.json`);
+      await GitHubSync._putText(`packages/${id}/building_database.json`, bldPayload, `publish ${id}: building_database.json`);
 
       UI.progress(60, `Updating ${id}/package.json…`);
       const pkgJson = JSON.stringify({ ...entry, version: newVersion }, null, 2);
-      await _putText(`packages/${id}/package.json`, pkgJson, `publish ${id}: package.json`);
+      await GitHubSync._putText(`packages/${id}/package.json`, pkgJson, `publish ${id}: package.json`);
 
       UI.progress(80, 'Updating registry.json…');
       let regData;
@@ -7280,7 +7379,7 @@ const Packages = (() => {
         regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
       } catch(e) { regData = { version: 1, packages: [..._registry] }; }
       regData.packages = regData.packages.map(p => p.id === id ? { ...p, version: newVersion } : p);
-      await _putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: bump ${id} to ${newVersion}`);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: bump ${id} to ${newVersion}`);
 
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
@@ -7309,7 +7408,7 @@ const Packages = (() => {
         regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
       } catch(e) { regData = { version: 1, packages: [..._registry] }; }
       regData.packages = regData.packages.filter(p => p.id !== id);
-      await _putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: remove ${id}`);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: remove ${id}`);
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
       if (_active === id) setActive('postapoc');
@@ -7341,18 +7440,180 @@ const Packages = (() => {
       if (!el) return;
       el.innerHTML = _registry.map(p =>
         `<button class="pkg-chip ${_hiddenPkgs.has(p.id) ? '' : 'active'}"
-                 onclick="Packages.togglePkgFilter('${p.id}')">${_esc(p.name)}</button>`
+                 onclick="Packages.togglePkgFilter('${_esc(p.id)}')">${_esc(p.name)}</button>`
       ).join('');
     });
   }
 
   function renderFilterChips() { _renderFilterChips(); }
 
+  // ── Import Package modal ───────────────────────────────────────
+  let _importZip = null;  // holds JSZip instance while import modal is open
+  let _importInProgress = false;
+
+  function openImportModal() {
+    const input = document.getElementById('pkg-import-input');
+    if (input) input.click();
+    else UI.toast('⚠ Import UI not ready — try reloading');
+  }
+
+  async function _onImportFilePicked(file) {
+    if (!file) return;
+    let zip;
+    try {
+      const JSZip = await _loadJSZip();
+      zip = await JSZip.loadAsync(file);
+    } catch(e) {
+      return UI.toast('Invalid ZIP file');
+    }
+    const pkgFile = zip.file('package.json');
+    if (!pkgFile) return UI.toast('⚠ Invalid package ZIP: missing package.json');
+    try {
+      const pkgData = JSON.parse(await pkgFile.async('text'));
+      _showImportModal(String(pkgData.id || ''), String(pkgData.name || ''), zip);
+    } catch(e) {
+      UI.toast('⚠ Could not read ZIP: invalid package.json');
+    }
+  }
+
+  function _showImportModal(originalId, name, zip) {
+    _importZip = zip;
+    document.getElementById('pkg-import-original-id').value = originalId;
+    document.getElementById('pkg-import-name').value        = name;
+    document.getElementById('pkg-import-id').value          = originalId;
+    document.getElementById('pkg-import-error').style.display = 'none';
+    document.getElementById('pkg-import-modal').style.display = 'flex';
+    document.getElementById('pkg-import-id').focus();
+  }
+
+  function closeImportModal() {
+    document.getElementById('pkg-import-modal').style.display = 'none';
+    _importZip = null;
+  }
+
+  // ── Import confirm + publish ────────────────────────────────────
+  function _rewriteEntries(entries, originalId, newId) {
+    const oldPrefix = idPrefix(originalId);
+    const newPrefix = idPrefix(newId);
+    return (entries || []).map(e => ({
+      ...e,
+      id: e.id.startsWith(oldPrefix)
+          ? newPrefix + e.id.slice(oldPrefix.length)
+          : newPrefix + e.id,
+      package: newId,
+    }));
+  }
+
+  async function confirmImport() {
+    const name   = document.getElementById('pkg-import-name').value.trim();
+    const newId  = document.getElementById('pkg-import-id').value.trim();
+    const origId = document.getElementById('pkg-import-original-id').value;
+    const errEl  = document.getElementById('pkg-import-error');
+
+    if (!name) {
+      errEl.textContent = 'Display name is required.';
+      errEl.style.display = 'block'; return;
+    }
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(newId)) {
+      errEl.textContent = 'ID must be lowercase letters, numbers, and hyphens only.';
+      errEl.style.display = 'block'; return;
+    }
+    if (getEntry(newId)) {
+      errEl.textContent = `Package "${newId}" already exists.`;
+      errEl.style.display = 'block'; return;
+    }
+
+    if (_importInProgress) return;
+    _importInProgress = true;
+
+    const zip = _importZip;
+    if (!zip) { _importInProgress = false; UI.toast('⚠ No ZIP loaded'); return; }
+
+    try {
+      UI.progress(0, 'Starting import…');
+
+      // Read databases from ZIP
+      const hexFile = zip.file('hex_database.json');
+      const bldFile = zip.file('building_database.json');
+      const hexData = hexFile ? JSON.parse(await hexFile.async('text')) : { hexes: [] };
+      const bldData = bldFile ? JSON.parse(await bldFile.async('text')) : { buildings: [] };
+
+      const hexes     = _rewriteEntries(hexData.hexes,     origId, newId);
+      const buildings = _rewriteEntries(bldData.buildings, origId, newId);
+
+      // Write package.json
+      const pkgJson = JSON.stringify({ id: newId, name, version: '1.0.0', description: '', isDefault: false }, null, 2);
+      await GitHubSync._putText(`packages/${newId}/package.json`, pkgJson, `import package: ${newId}`);
+      UI.progress(5, 'Writing package.json…');
+
+      // Write hex_database.json
+      await GitHubSync._putText(
+        `packages/${newId}/hex_database.json`,
+        JSON.stringify({ version: 1, package: newId, hexes }, null, 2),
+        `import ${newId}: hex_database.json`);
+      UI.progress(15, 'Writing hex_database.json…');
+
+      // Write building_database.json
+      await GitHubSync._putText(
+        `packages/${newId}/building_database.json`,
+        JSON.stringify({ version: 1, package: newId, buildings }, null, 2),
+        `import ${newId}: building_database.json`);
+      UI.progress(25, 'Writing building_database.json…');
+
+      // Upload sprites from ZIP
+      const spriteFiles = Object.entries(zip.files)
+        .filter(([path, f]) => path.startsWith('sprites/') && !f.dir)
+        .map(([path, file]) => ({ path, file }));
+
+      let done = 0;
+      for (const { path, file } of spriteFiles) {
+        try {
+          // path example: 'sprites/hex/Forest.png' → dest: 'packages/medieval/sprites/hex/Forest.png'
+          const destPath = `packages/${newId}/${path}`;
+          const blob = await file.async('blob');
+          await GitHubSync._putBinary(destPath, blob, `import ${newId}: ${path}`);
+        } catch(e) {
+          console.warn(`[Packages] import: skipped sprite ${path}:`, e.message);
+        }
+        done++;
+        const pct = 25 + Math.round((done / Math.max(spriteFiles.length, 1)) * 70);
+        UI.progress(pct, `Sprites: ${done}/${spriteFiles.length}…`);
+      }
+
+      // Update registry
+      UI.progress(100, 'Updating registry…');
+      const newEntry = { id: newId, name, isDefault: false, version: '1.0.0' };
+      let regData;
+      try {
+        const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+        regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
+      } catch(e) { regData = { version: 1, packages: [..._registry] }; }
+      if (!regData.packages.find(p => p.id === newId)) regData.packages.push(newEntry);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${newId}`);
+
+      _registry = regData.packages;
+      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      UI.progressDone(`✅ Package '${name}' imported`);
+      UI.toast(`✅ Package '${name}' imported`);
+      renderPanel();
+      renderActiveDropdowns();
+      closeImportModal();
+      _importInProgress = false;
+    } catch(e) {
+      UI.progressDone('');
+      UI.toast(`⚠ Import failed: ${e.message}`);
+      _importInProgress = false;
+    }
+  }
+
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
            openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, publishPackage, confirmDelete, deletePackage };
+           openPublishConfirm, publishPackage, confirmDelete, deletePackage,
+           _loadJSZip, exportPackage,
+           openImportModal, _onImportFilePicked, closeImportModal,
+           _rewriteEntries, confirmImport };
 })();
 
 // ── App: mode switching ────────────────────────────────────
@@ -12389,6 +12650,27 @@ window.addEventListener('load', async () => {
     </div>
   </div>
 </div>
+
+<!-- Packages — Import Package modal -->
+<div id="pkg-import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;align-items:center;justify-content:center">
+  <div style="background:#1e1e2e;border:1px solid #45475a;border-radius:8px;padding:24px;min-width:380px;display:flex;flex-direction:column;gap:12px">
+    <h3 style="margin:0;color:#cdd6f4">Import Package</h3>
+    <label style="font-size:12px;color:#888">Display Name</label>
+    <input id="pkg-import-name" type="text"
+           style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-size:13px">
+    <label style="font-size:12px;color:#888">Package ID (lowercase, hyphens only)</label>
+    <input id="pkg-import-id" type="text"
+           style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-size:13px;font-family:monospace">
+    <input type="hidden" id="pkg-import-original-id">
+    <div id="pkg-import-error" style="color:#f38ba8;font-size:12px;display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="hexdb-tool-btn" onclick="Packages.closeImportModal()">Cancel</button>
+      <button class="hexdb-tool-btn" style="background:#89dceb;color:#1e1e2e" onclick="Packages.confirmImport()">Import</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="pkg-import-input" accept=".zip" style="display:none"
+       onchange="Packages._onImportFilePicked(this.files[0]); this.value=''">
 
 </body>
 </html>
