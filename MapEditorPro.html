@@ -1382,6 +1382,7 @@ body.mode-common #map-io    { display: none; }
 
     <!-- Left palette -->
     <div id="palette-panel">
+      <div class="pkg-filter-row" id="pkg-filter-terrain"></div>
       <div id="palette-scroll"></div>
       <div id="palette-selected">
         <img id="palette-sel-img" src="" alt="">
@@ -2193,6 +2194,7 @@ body.mode-common #map-io    { display: none; }
 
 <!-- Building picker panel -->
 <div id="obj-building-picker" style="display:none">
+  <div class="pkg-filter-row" id="pkg-filter-buildings"></div>
   <div id="obj-building-picker-grid"></div>
 </div>
 
@@ -2300,7 +2302,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "2a7fb0f";
+const COMMIT  = "3b9b1ad";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5102,6 +5104,7 @@ const UI = (() => {
   }
 
   function buildPalette() {
+    if (typeof Packages !== 'undefined') Packages.renderFilterChips();
     const scroll = document.getElementById('palette-scroll');
     scroll.innerHTML = '';
 
@@ -5120,7 +5123,7 @@ const UI = (() => {
       '🟫 SWAMP':            7,
       '🌋 VOLCANIC/RIFT':    8,
     };
-    const sorted = HexDB.getAll().filter(h => h.id && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || '') && !/bridge/i.test(h.id || '')).sort((a, b) => {
+    const allHexes = HexDB.getAll().filter(h => h.id && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || '') && !/bridge/i.test(h.id || '')).sort((a, b) => {
       const oA = CAT_ORDER[a.category] ?? 99;
       const oB = CAT_ORDER[b.category] ?? 99;
       if (oA !== oB) return oA - oB;
@@ -5131,8 +5134,11 @@ const UI = (() => {
       if (bt >= 0) return  1;
       return a.id.localeCompare(b.id);
     });
+    const visibleHexes = allHexes.filter(h =>
+      typeof Packages === 'undefined' || Packages.isPkgVisible(h.package || 'postapoc')
+    );
 
-    sorted.forEach(h => {
+    visibleHexes.forEach(h => {
       const cat = h.category || '⚙️ SPECIAL';
       const tid = typeof h.terrainTypeId !== 'undefined' ? h.terrainTypeId : -1;
 
@@ -7299,8 +7305,34 @@ const Packages = (() => {
     }
   }
 
+  // ── Palette filter ─────────────────────────────────────────────
+  const _hiddenPkgs = new Set();  // package IDs whose tiles are hidden in palette
+
+  function isPkgVisible(pkgId) { return !_hiddenPkgs.has(pkgId || 'postapoc'); }
+
+  function togglePkgFilter(pkgId) {
+    if (_hiddenPkgs.has(pkgId)) _hiddenPkgs.delete(pkgId);
+    else _hiddenPkgs.add(pkgId);
+    if (typeof UI !== 'undefined') UI.buildPalette();
+    _renderFilterChips();
+  }
+
+  function _renderFilterChips() {
+    ['pkg-filter-terrain', 'pkg-filter-buildings'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = _registry.map(p =>
+        `<button class="pkg-chip ${_hiddenPkgs.has(p.id) ? '' : 'active'}"
+                 onclick="Packages.togglePkgFilter('${p.id}')">${p.name}</button>`
+      ).join('');
+    });
+  }
+
+  function renderFilterChips() { _renderFilterChips(); }
+
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
-           renderPanel, renderBadges, renderActiveDropdowns,
+           renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
+           isPkgVisible, togglePkgFilter,
            openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, publishPackage, confirmDelete, deletePackage };
 })();
