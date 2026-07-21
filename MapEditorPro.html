@@ -2269,7 +2269,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "39e3db6";
+const COMMIT  = "93519e8";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4628,7 +4628,7 @@ const GitHubSync = (() => {
     await _withPublishBtn('Publish HexDB', async () => {
       UI.progress(10, 'Publishing hex_database.json…');
       const data = HexDB.getData();
-      const pkgData = Object.assign({ version: data.version, package: 'postapoc' },
+      const pkgData = Object.assign({ version: data.version ?? 1, package: 'postapoc' },
         Object.fromEntries(Object.entries(data).filter(([k]) => k !== 'version')));
       const json    = JSON.stringify(data, null, 2);
       const pkgJson = JSON.stringify(pkgData, null, 2);
