@@ -2302,7 +2302,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "1c64b46";
+const COMMIT  = "973f008";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7457,15 +7457,20 @@ const Packages = (() => {
 
   async function _onImportFilePicked(file) {
     if (!file) return;
+    let zip;
     try {
       const JSZip = await _loadJSZip();
-      const zip   = await JSZip.loadAsync(file);
-      const pkgFile = zip.file('package.json');
-      if (!pkgFile) return UI.toast('⚠ Invalid package ZIP: missing package.json');
-      const pkgData = JSON.parse(await pkgFile.async('text'));
-      _showImportModal(pkgData.id || '', pkgData.name || '', zip);
+      zip = await JSZip.loadAsync(file);
     } catch(e) {
-      UI.toast(`⚠ Could not read ZIP: ${e.message}`);
+      return UI.toast('Invalid ZIP file');
+    }
+    const pkgFile = zip.file('package.json');
+    if (!pkgFile) return UI.toast('⚠ Invalid package ZIP: missing package.json');
+    try {
+      const pkgData = JSON.parse(await pkgFile.async('text'));
+      _showImportModal(String(pkgData.id || ''), String(pkgData.name || ''), zip);
+    } catch(e) {
+      UI.toast('⚠ Could not read ZIP: invalid package.json');
     }
   }
 
