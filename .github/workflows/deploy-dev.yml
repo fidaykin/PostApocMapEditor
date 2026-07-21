@@ -20,6 +20,7 @@ jobs:
 
       - name: Build dev HTML (inject <base href="../"> so relative paths resolve from repo root)
         run: |
+          # GNU sed (ubuntu-latest) required — \n in replacement is literal on macOS sed
           sed 's|</head>|<base href="../">\n</head>|' MapEditorPro.html > /tmp/MapEditorPro_dev.html
 
       - name: Deploy to gh-pages dev/ folder

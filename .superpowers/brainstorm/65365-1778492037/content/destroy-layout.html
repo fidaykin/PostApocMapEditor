@@ -1,0 +1,93 @@
+<h2>DESTROY section — proposed layout</h2>
+<p class="subtitle">Full restructure. Green = new/changed. Red = removed. Click to approve.</p>
+
+<div class="mockup" style="max-width:620px;margin:0 auto">
+  <div class="mockup-header">DESTROY (10–17)</div>
+  <div class="mockup-body" style="padding:0">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:monospace">
+
+      <!-- Can Destroy checkbox — TOP -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;width:140px;text-align:right">Can Destroy</td>
+        <td style="padding:6px 10px">
+          <input type="checkbox"> <span style="color:#888;font-size:11px">default: No — when unchecked, all fields below are disabled</span>
+        </td>
+      </tr>
+
+      <!-- Transform to — datalist picker, disabled when Can Destroy=No -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right">Transform to</td>
+        <td style="padding:6px 10px">
+          <input class="mock-input" style="width:200px" value="Unbreakable" disabled>
+          <span style="color:#888;font-size:11px"> ← shows "Unbreakable" when No; datalist of hex IDs when Yes, default Plains_1</span>
+        </td>
+      </tr>
+
+      <!-- Source — tags input -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right">Source</td>
+        <td style="padding:6px 10px">
+          <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:#111;border:1px solid #444;padding:4px;border-radius:3px;min-height:28px">
+            <span style="background:#2a3a2a;border:1px solid #4caf50;color:#4caf50;padding:2px 6px;border-radius:3px;font-size:11px">ActionDestroy ✕</span>
+            <input style="background:none;border:none;color:#fff;outline:none;width:100px;font-size:11px" placeholder="type ID + Enter">
+          </div>
+          <span style="color:#888;font-size:10px">IDs of Actions/Boosters/Specials that can trigger destruction. Default: N/A</span>
+        </td>
+      </tr>
+
+      <!-- Can Stored checkbox -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right">Can Stored</td>
+        <td style="padding:6px 10px">
+          <input type="checkbox"> <span style="color:#888;font-size:11px">if Yes → hex moves to storage instead of being destroyed</span>
+        </td>
+      </tr>
+
+      <!-- REMOVED fields -->
+      <tr style="border-bottom:1px solid #333;background:#1a0808;opacity:0.5">
+        <td style="color:#e57373;padding:4px 10px;text-align:right"><s>Condition</s></td>
+        <td style="padding:4px 10px;color:#e57373"><s>removed</s></td>
+      </tr>
+      <tr style="border-bottom:1px solid #333;background:#1a0808;opacity:0.5">
+        <td style="color:#e57373;padding:4px 10px;text-align:right"><s>Bonus / Effect / Delay / Requires Road</s></td>
+        <td style="padding:4px 10px;color:#e57373"><s>removed</s></td>
+      </tr>
+
+      <!-- Destroy Income checkbox -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right">Destroy Income</td>
+        <td style="padding:6px 10px">
+          <input type="checkbox"> <span style="color:#888;font-size:11px">default: No — locks resource block below when unchecked</span>
+        </td>
+      </tr>
+
+      <!-- Destroy Income resource block — BOTTOM, dynamic -->
+      <tr style="background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right;vertical-align:top">Resources</td>
+        <td style="padding:6px 10px">
+          <div style="opacity:0.4;font-size:11px;color:#888;margin-bottom:4px">locked when Destroy Income = No</div>
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;gap:4px;align-items:center">
+              <select class="mock-input" style="width:110px"><option>Gold</option></select>
+              <input class="mock-input" type="number" style="width:90px" value="10" disabled>
+              <button class="mock-button" style="padding:2px 6px;font-size:11px">✕</button>
+            </div>
+            <div style="display:flex;gap:4px;align-items:center">
+              <select class="mock-input" style="width:110px"><option>Food</option></select>
+              <input class="mock-input" type="number" style="width:90px" value="5" disabled>
+              <button class="mock-button" style="padding:2px 6px;font-size:11px">✕</button>
+            </div>
+            <button class="mock-button" style="align-self:flex-start;padding:3px 10px;font-size:11px;margin-top:2px">+ Add Resource</button>
+          </div>
+        </td>
+      </tr>
+
+    </table>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:12px;max-width:620px;margin-left:auto;margin-right:auto">
+  🟢 New: Can Destroy, Transform to (datalist), Source (tags), Can Stored, Destroy Income checkbox, dynamic resource block<br>
+  🔴 Removed: Condition, Bonus, Effect, Delay, Requires Road to destroy<br>
+  ♻️ Kept: Transform to (repurposed), Income (renamed + moved to bottom + expanded)
+</p>

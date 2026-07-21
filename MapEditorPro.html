@@ -2269,7 +2269,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.21";
-const COMMIT  = "46394de";
+const COMMIT  = "5ce1bfc";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4481,7 +4481,8 @@ const GitHubSync = (() => {
       let ok = 0, fail = 0;
       for (const file of files) {
         try {
-          await _putBinary(`sprites/${category}/${file.name}`, file, `upload sprite: ${file.name}`);
+          await _putBinary(`packages/postapoc/sprites/${category}/${file.name}`, file, `cm-upload: ${file.name}`);
+          await _putBinary(`sprites/${category}/${file.name}`, file, `cm-upload: ${file.name} (compat)`);
           const dataUrl = await new Promise((res, rej) => {
             const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej;
             r.readAsDataURL(file);
