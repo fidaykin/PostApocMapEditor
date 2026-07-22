@@ -2304,7 +2304,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.07.22";
-const COMMIT  = "9b01d7f";
+const COMMIT  = "42c453f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3855,8 +3855,7 @@ const Tools = (() => {
     // Render category tabs
     const tabs = document.getElementById('bld-category-tabs');
     if (tabs) {
-      const hasRoads = all.some(b => b.buildingCategory === 'Road');
-      const tabDefs = [['all','All'], ['buildings','Buildings'], ...(hasRoads ? [['roads','Roads']] : [])];
+      const tabDefs = [['all','All'], ['buildings','Buildings'], ['roads','Roads']];
       tabs.innerHTML = tabDefs.map(([k, label]) =>
         `<button onclick="Tools.setBldTab('${k}')" style="padding:2px 10px;border-radius:12px;border:1px solid var(--border);background:${_bldPickerTab===k?'var(--accent)':'var(--panel)'};color:var(--text);cursor:pointer;font-size:12px">${label}</button>`
       ).join('');
