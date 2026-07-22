@@ -14,8 +14,8 @@
       "version": "1.0.0"
     },
     {
-      "id": "md",
-      "name": "MD",
+      "id": "backupall",
+      "name": "BackupALL",
       "isDefault": false,
       "version": "1.0.0"
     }
