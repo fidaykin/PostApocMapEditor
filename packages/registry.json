@@ -1,6 +1,17 @@
 {
   "version": 1,
   "packages": [
-    { "id": "postapoc", "name": "Post-Apocalypse", "isDefault": true, "version": "1.0.0" }
+    {
+      "id": "postapoc",
+      "name": "Post-Apocalypse",
+      "isDefault": true,
+      "version": "1.0.0"
+    },
+    {
+      "id": "medieval",
+      "name": "Medieval",
+      "isDefault": false,
+      "version": "1.0.0"
+    }
   ]
 }
