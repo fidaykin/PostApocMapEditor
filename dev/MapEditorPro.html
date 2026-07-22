@@ -2195,6 +2195,7 @@ body.mode-common #map-io    { display: none; }
 
 <!-- Building picker panel -->
 <div id="obj-building-picker" style="display:none">
+  <div id="bld-category-tabs" style="display:flex;gap:4px;padding:6px 8px 4px;border-bottom:1px solid var(--border)"></div>
   <div class="pkg-filter-row" id="pkg-filter-buildings"></div>
   <div id="obj-building-picker-grid"></div>
 </div>
@@ -2302,8 +2303,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.07.21";
-const COMMIT  = "5997cfd";
+const VERSION = "2026.07.22";
+const COMMIT  = "9b01d7f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3788,6 +3789,7 @@ const Tools = (() => {
   let _lastObjectPainted   = null;
   let _lastRoadPainted     = null;
   let _selectedBuildingId  = null;
+  let _bldPickerTab        = 'all'; // 'all' | 'buildings' | 'roads'
 
   const TOOL_NAMES = {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
@@ -3831,22 +3833,48 @@ const Tools = (() => {
     }
   }
 
+  function _bldSpriteUrl(b) {
+    if (!b.spriteName) return '';
+    const uploaded = Terrain.getUploadedUrl ? Terrain.getUploadedUrl(b.spriteName) : null;
+    if (uploaded) return uploaded;
+    if (b.buildingCategory === 'Road')   return `packages/postapoc/sprites/terrain/roads/${b.spriteName}.png`;
+    if (b.buildingCategory === 'Bridge') return `packages/postapoc/sprites/hex/${b.spriteName}.png`;
+    return `packages/postapoc/sprites/buildings/${b.spriteName}.png`;
+  }
+
   function _populateBuildingPicker() {
     const grid = document.getElementById('obj-building-picker-grid');
     if (!grid) return;
-    const buildings = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge');
+    const all = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge');
+    const buildings = all.filter(b =>
+      _bldPickerTab === 'roads'     ? b.buildingCategory === 'Road' :
+      _bldPickerTab === 'buildings' ? b.buildingCategory !== 'Road' : true
+    );
     if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
+
+    // Render category tabs
+    const tabs = document.getElementById('bld-category-tabs');
+    if (tabs) {
+      const hasRoads = all.some(b => b.buildingCategory === 'Road');
+      const tabDefs = [['all','All'], ['buildings','Buildings'], ...(hasRoads ? [['roads','Roads']] : [])];
+      tabs.innerHTML = tabDefs.map(([k, label]) =>
+        `<button onclick="Tools.setBldTab('${k}')" style="padding:2px 10px;border-radius:12px;border:1px solid var(--border);background:${_bldPickerTab===k?'var(--accent)':'var(--panel)'};color:var(--text);cursor:pointer;font-size:12px">${label}</button>`
+      ).join('');
+    }
+
     grid.innerHTML = buildings.map(b => {
-      const src = b.spriteName
-        ? (Terrain.getUploadedUrl ? (Terrain.getUploadedUrl(b.spriteName) || `packages/postapoc/sprites/buildings/${b.spriteName}.png`) : `packages/postapoc/sprites/buildings/${b.spriteName}.png`)
-        : '';
-      const label = b.id;
+      const src = _bldSpriteUrl(b);
       const sel = b.id === _selectedBuildingId ? ' selected' : '';
       return `<div class="bld-card${sel}" data-bld-id="${b.id}" onclick="Tools.selectBuilding('${b.id.replace(/'/g,"\\'")}')">` +
         `<img src="${src}" alt="" onerror="this.style.visibility='hidden'">` +
-        `<span>${label}</span></div>`;
+        `<span>${b.id}</span></div>`;
     }).join('');
     _updateBuildingLabel();
+  }
+
+  function setBldTab(tab) {
+    _bldPickerTab = tab;
+    _populateBuildingPicker();
   }
 
   function selectBuilding(id) {
@@ -4240,7 +4268,7 @@ const Tools = (() => {
     });
   }
 
-  return { init, setActive, getActive, selectBuilding, getSelectedBuildingId };
+  return { init, setActive, getActive, selectBuilding, getSelectedBuildingId, setBldTab };
 })();
 // ════════════════════════════════════════════════════════════
 // HISTORY MODULE — 50-step string-array undo/redo
@@ -9585,7 +9613,9 @@ const HexDB = (() => {
 
         // Keep sprite in Terrain so canvas still renders this tile ID after migration
         // Bridge sprites live in sprites/hex/, not sprites/buildings/
-        const _migrateDir = newBld.buildingCategory === 'Bridge' ? 'packages/postapoc/sprites/hex/' : 'packages/postapoc/sprites/buildings/';
+        const _migrateDir = newBld.buildingCategory === 'Bridge' ? 'packages/postapoc/sprites/hex/'
+                          : newBld.buildingCategory === 'Road'   ? 'packages/postapoc/sprites/terrain/roads/'
+                          : 'packages/postapoc/sprites/buildings/';
         Terrain.applyHexDbOverrides([newBld], _migrateDir);
         // Push to BldDB and select it
         BldDB.pushRecord(newBld);
@@ -9975,7 +10005,8 @@ const BldDB = (() => {
     const _rMaster  = _rGroup ? _isRoadMaster(bld) : false;
     const _rMembers = _rGroup ? _roadGroupMembers(_rGroup) : [];
     if (_rGroup && !_rMaster) {
-      const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
+      const _sprDir0 = bld.buildingCategory === 'Road' ? 'packages/postapoc/sprites/terrain/roads/' : 'packages/postapoc/sprites/buildings/';
+      const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `${_sprDir0}${_esc(bld.spriteName)}.png`) : '';
       right.innerHTML = `
         <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
           <img src="${spriteSrc}" alt="" style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0;object-fit:contain;border:1px solid var(--border);border-radius:4px" onerror="this.style.opacity='0.2'">
@@ -10376,7 +10407,8 @@ const BldDB = (() => {
       <button onclick="BldDB.paste()">Paste</button>
     </div>`;
 
-    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
+    const _sprDir1 = bld.buildingCategory === 'Road' ? 'packages/postapoc/sprites/terrain/roads/' : 'packages/postapoc/sprites/buildings/';
+    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `${_sprDir1}${_esc(bld.spriteName)}.png`) : '';
     const visualHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
       <img src="${spriteSrc}" alt=""
@@ -12284,10 +12316,11 @@ window.addEventListener('load', async () => {
     try { await GitHubSync.loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
     try { await GitHubSync.loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
-    // Bridge buildings keep their sprites in sprites/hex/, all others use sprites/buildings/
+    // Bridge: sprites/hex/  Road: sprites/terrain/roads/  all others: sprites/buildings/
     const _allBlds = BldDB.getAll();
-    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge'), 'packages/postapoc/sprites/buildings/');
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge' && b.buildingCategory !== 'Road'), 'packages/postapoc/sprites/buildings/');
     await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory === 'Bridge'), 'packages/postapoc/sprites/hex/');
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory === 'Road'),   'packages/postapoc/sprites/terrain/roads/');
     Canvas.render();
   })();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
