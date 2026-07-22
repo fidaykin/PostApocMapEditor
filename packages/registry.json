@@ -12,6 +12,12 @@
       "name": "Medieval",
       "isDefault": false,
       "version": "1.0.0"
+    },
+    {
+      "id": "md",
+      "name": "MD",
+      "isDefault": false,
+      "version": "1.0.0"
     }
   ]
 }
