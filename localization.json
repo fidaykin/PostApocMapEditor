@@ -1177,6 +1177,24 @@
       "en": "SMTH",
       "uk": "ЩОСЬ",
       "group": "HUD"
+    },
+    {
+      "key": "Test_Key_TILES_7",
+      "en": "TEst new 4",
+      "uk": "Тестовий ключ ",
+      "group": "Universal Keys"
+    },
+    {
+      "key": "hud_smth",
+      "en": "SMTH",
+      "uk": "ЩОСЬ",
+      "group": "HUD"
+    },
+    {
+      "key": "debug_reset_confirm",
+      "en": "Press OK to reset game,\\n or Cancel - to exit this window",
+      "uk": "Натисніть OK, щоб скинути гру,\\n або Скасувати — для виходу",
+      "group": "Universal Keys"
     }
   ]
 }
