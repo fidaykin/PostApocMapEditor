@@ -1226,6 +1226,12 @@
       "en": "Ore",
       "uk": "Руда",
       "group": "Resources"
+    },
+    {
+      "key": "resource_gems",
+      "en": "Gems",
+      "uk": "Самоцвіти",
+      "group": "Resources"
     }
   ]
 }
