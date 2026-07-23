@@ -1238,6 +1238,78 @@
       "en": "Statistics",
       "uk": "Статистика",
       "group": "City"
+    },
+    {
+      "key": "city_price",
+      "en": "Price:",
+      "uk": "Ціна:",
+      "group": "City"
+    },
+    {
+      "key": "city_storage_cap",
+      "en": "Storage capacity is insufficient for some materials",
+      "uk": "Бракує місця у сховищі для деяких ресурсів",
+      "group": "City"
+    },
+    {
+      "key": "city_btn_boost",
+      "en": "Boost {0}",
+      "uk": "Буст {0}",
+      "group": "City"
+    },
+    {
+      "key": "city_statistics_town_name",
+      "en": "Town name:",
+      "uk": "Назва міста:",
+      "group": "City"
+    },
+    {
+      "key": "city_statistics_level",
+      "en": "Level",
+      "uk": "Рівень",
+      "group": "City"
+    },
+    {
+      "key": "city_statistics_population",
+      "en": "Population",
+      "uk": "Населення",
+      "group": "City"
+    },
+    {
+      "key": "city_statistics_gold_income",
+      "en": "Gold income",
+      "uk": "Дохід золота",
+      "group": "City"
+    },
+    {
+      "key": "city_statistics_click_produces",
+      "en": "Click produces",
+      "uk": "Клік дає",
+      "group": "City"
+    },
+    {
+      "key": "city_statistics_click_avaliable",
+      "en": "Click avaliable",
+      "uk": "Доступні кліки",
+      "group": "City"
+    },
+    {
+      "key": "city_statistics_pollution",
+      "en": "Pollution",
+      "uk": "Забруднення",
+      "group": "City"
+    },
+    {
+      "key": "city_statistics_power_drain",
+      "en": "Power Drain",
+      "uk": "Енерговитрати",
+      "group": "City"
+    },
+    {
+      "key": "city_statistics_current_level",
+      "en": "Current Level",
+      "uk": "Поточний Рівень",
+      "group": "City"
     }
   ]
 }
