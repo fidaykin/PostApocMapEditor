@@ -257,8 +257,8 @@
     },
     {
       "key": "levelup_buildings",
-      "en": "New buildings unlocked!",
-      "uk": "Нові будівлі розблоковано!",
+      "en": "New buildings",
+      "uk": "Нові будівлі",
       "group": "LevelUp"
     },
     {
@@ -1310,6 +1310,12 @@
       "en": "Current Level",
       "uk": "Поточний Рівень",
       "group": "City"
+    },
+    {
+      "key": "levelup_levelup",
+      "en": "Level Up!",
+      "uk": "Новий рівень!",
+      "group": "LevelUp"
     }
   ]
 }
