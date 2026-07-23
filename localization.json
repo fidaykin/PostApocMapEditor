@@ -1232,6 +1232,12 @@
       "en": "Gems",
       "uk": "Самоцвіти",
       "group": "Resources"
+    },
+    {
+      "key": "city_statistics",
+      "en": "Statistics",
+      "uk": "Статистика",
+      "group": "City"
     }
   ]
 }
