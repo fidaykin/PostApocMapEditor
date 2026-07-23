@@ -17,7 +17,8 @@
     "Offline_Reward",
     "Upgrade",
     "Tiles_Error",
-    "Quest"
+    "Quest",
+    "Resources"
   ],
   "entries": [
     {
@@ -1195,6 +1196,36 @@
       "en": "Press OK to reset game,\\n or Cancel - to exit this window",
       "uk": "Натисніть OK, щоб скинути гру,\\n або Скасувати — для виходу",
       "group": "Universal Keys"
+    },
+    {
+      "key": "resource_gold",
+      "en": "Gold",
+      "uk": "Золото",
+      "group": "Resources"
+    },
+    {
+      "key": "resource_stone",
+      "en": "Stone",
+      "uk": "Камінь",
+      "group": "Resources"
+    },
+    {
+      "key": "resource_lumber",
+      "en": "Lumber",
+      "uk": "Деревина",
+      "group": "Resources"
+    },
+    {
+      "key": "resource_food",
+      "en": "Food",
+      "uk": "Їжа",
+      "group": "Resources"
+    },
+    {
+      "key": "resource_ore",
+      "en": "Ore",
+      "uk": "Руда",
+      "group": "Resources"
     }
   ]
 }
