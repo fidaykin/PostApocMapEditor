@@ -2194,7 +2194,6 @@ body.mode-common #map-io    { display: none; }
 
 <!-- Building picker panel -->
 <div id="obj-building-picker" style="display:none">
-  <div id="bld-category-tabs" style="display:flex;gap:4px;padding:6px 8px 4px;border-bottom:1px solid var(--border)"></div>
   <div class="pkg-filter-row" id="pkg-filter-buildings"></div>
   <div id="obj-building-picker-grid"></div>
 </div>
@@ -2302,8 +2301,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.07.22";
-const COMMIT  = "04820c2";
+const VERSION = "2026.07.27";
+const COMMIT  = "01024be";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3788,7 +3787,6 @@ const Tools = (() => {
   let _lastObjectPainted   = null;
   let _lastRoadPainted     = null;
   let _selectedBuildingId  = null;
-  let _bldPickerTab        = 'all'; // 'all' | 'buildings' | 'roads'
 
   const TOOL_NAMES = {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
@@ -3844,21 +3842,8 @@ const Tools = (() => {
   function _populateBuildingPicker() {
     const grid = document.getElementById('obj-building-picker-grid');
     if (!grid) return;
-    const all = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge');
-    const buildings = all.filter(b =>
-      _bldPickerTab === 'roads'     ? b.buildingCategory === 'Road' :
-      _bldPickerTab === 'buildings' ? b.buildingCategory !== 'Road' : true
-    );
+    const buildings = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge' && b.buildingCategory !== 'Road');
     if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
-
-    // Render category tabs
-    const tabs = document.getElementById('bld-category-tabs');
-    if (tabs) {
-      const tabDefs = [['all','All'], ['buildings','Buildings'], ['roads','Roads']];
-      tabs.innerHTML = tabDefs.map(([k, label]) =>
-        `<button onclick="Tools.setBldTab('${k}')" style="padding:2px 10px;border-radius:12px;border:1px solid var(--border);background:${_bldPickerTab===k?'var(--accent)':'var(--panel)'};color:var(--text);cursor:pointer;font-size:12px">${label}</button>`
-      ).join('');
-    }
 
     grid.innerHTML = buildings.map(b => {
       const src = _bldSpriteUrl(b);
@@ -3868,11 +3853,6 @@ const Tools = (() => {
         `<span>${b.id}</span></div>`;
     }).join('');
     _updateBuildingLabel();
-  }
-
-  function setBldTab(tab) {
-    _bldPickerTab = tab;
-    _populateBuildingPicker();
   }
 
   function selectBuilding(id) {
@@ -4266,7 +4246,7 @@ const Tools = (() => {
     });
   }
 
-  return { init, setActive, getActive, selectBuilding, getSelectedBuildingId, setBldTab };
+  return { init, setActive, getActive, selectBuilding, getSelectedBuildingId };
 })();
 // ════════════════════════════════════════════════════════════
 // HISTORY MODULE — 50-step string-array undo/redo
