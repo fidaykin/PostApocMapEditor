@@ -1314,9 +1314,8 @@ body.mode-common #map-io    { display: none; }
       <button class="tool-btn" data-tool="object" onclick="Tools.setActive('object')">🏗<span class="tooltip">Place Building (B)</span></button>
       <span id="obj-building-label" style="display:none;font-size:11px;color:var(--accent);vertical-align:middle;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <button class="tool-btn" data-tool="erase-object" onclick="Tools.setActive('erase-object')">🗑<span class="tooltip">Erase Building (X)</span></button>
-      <!-- road tools hidden pending sprite-alignment fix -->
-      <!-- <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')">🛣<span class="tooltip">Draw Road (W)</span></button> -->
-      <!-- <button class="tool-btn" data-tool="erase-road" onclick="Tools.setActive('erase-road')">🚫<span class="tooltip">Erase Road (Q)</span></button> -->
+      <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')">🛣<span class="tooltip">Draw Road (W)</span></button>
+      <button class="tool-btn" data-tool="erase-road" onclick="Tools.setActive('erase-road')">🚫<span class="tooltip">Erase Road (Q)</span></button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize & Fill</button>
       <input id="rnd-zone-scale" type="range" min="0.01" max="0.12" step="0.005" value="0.04"
              title="Patch size — left=large, right=small"
@@ -1343,7 +1342,6 @@ body.mode-common #map-io    { display: none; }
     </div>
     <div id="bld-tools">
       <button class="hexdb-tool-btn" onclick="BldDB.add()">+ Add Building</button>
-      <button class="hexdb-tool-btn" onclick="BldDB.openRoadGroupModal()">+ Add Road Group</button>
       <button class="hexdb-tool-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="BldDB.save()">💾 Save DB</button>
       <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
@@ -2199,37 +2197,6 @@ body.mode-common #map-io    { display: none; }
   <div id="obj-building-picker-grid"></div>
 </div>
 
-<!-- Add Road Group Modal -->
-<div class="modal-overlay" id="road-group-modal">
-  <div class="newmap-box" style="min-width:360px;max-width:480px">
-    <h3>Add Road Group</h3>
-    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Creates a set of road building entries sharing common settings. The first tile (lowest number) is the master — edits sync to all variants automatically. <strong>Note:</strong> for standard roads the game auto-tiles sprites via bitmask — you only need <em>one</em> entry per road type. Use this for bridge-style buildings or when each orientation needs a separate DB entry.</p>
-    <div style="margin-bottom:12px">
-      <label style="display:block;margin-bottom:4px;font-size:13px">Group name <span style="color:var(--muted)">(e.g. RoadDirt)</span></label>
-      <input id="road-group-name" type="text" placeholder="RoadDirt" style="width:100%;box-sizing:border-box"
-             oninput="BldDB._onRoadGroupNameInput(this)">
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="display:block;margin-bottom:4px;font-size:13px">Sprite prefix <span style="color:var(--muted)">(e.g. road_hex → road_hex_01_SE, or RoadDirt → RoadDirt_0_SE)</span></label>
-      <input id="road-group-prefix" type="text" placeholder="RoadDirt" style="width:100%;box-sizing:border-box">
-    </div>
-    <div style="margin-bottom:8px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <label style="font-size:13px">Direction suffixes <span style="color:var(--muted)">(one per line)</span></label>
-        <button class="hexdb-tool-btn" onclick="BldDB._fillTypicalRoadDirs()" style="font-size:11px;padding:2px 7px">Load typical hex set</button>
-      </div>
-      <textarea id="road-group-dirs" rows="8" placeholder="N&#10;NE&#10;SE&#10;S&#10;SW&#10;NW"
-                oninput="BldDB._updateRoadGroupPreview()"
-                style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;resize:vertical;background:#1a1a2e;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:6px"></textarea>
-    </div>
-    <p id="road-group-preview" style="font-size:12px;color:var(--muted);margin:4px 0 14px">0 tiles will be created.</p>
-    <div class="modal-actions">
-      <button class="btn btn-cancel" onclick="BldDB.closeRoadGroupModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="BldDB.confirmAddRoadGroup()">Create Group</button>
-    </div>
-  </div>
-</div>
-
 <!-- Satellite Import Modal -->
 <div class="modal-overlay" id="sat-modal">
   <div class="sat-modal-box">
@@ -2302,8 +2269,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.07.27";
-const COMMIT  = "01024be";
+const VERSION = "2026.07.29";
+const COMMIT  = "f003873";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2508,7 +2475,7 @@ const Roads = (() => {
         const img = new Image();
         img.onload  = () => { _sprites[+bitmask] = img; resolve(); };
         img.onerror = () => resolve();
-        img.src = 'sprites/terrain/roads/' + name + '.png';
+        img.src = 'packages/postapoc/sprites/terrain/roads/' + name + '.png';
       })
     ));
   }
@@ -2708,14 +2675,14 @@ const Canvas = (() => {
       _drawBridgeOverlay(pos.x, pos.y, radius, b.axis);
     });
 
-    // Road overlays disabled — sprite arm alignment needs fixing before re-enabling
-    // Object.entries(roadsData).forEach(([key]) => {
-    //   const [col, row] = key.split(',').map(Number);
-    //   const pos = hexScreenPos(col, row);
-    //   if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
-    //       pos.y + radius < 0 || pos.y - radius > canvas.height) return;
-    //   _drawRoadOverlay(pos.x, pos.y, radius, Roads.calcBitmask(col, row));
-    // });
+    // Road overlays
+    Object.entries(roadsData).forEach(([key]) => {
+      const [col, row] = key.split(',').map(Number);
+      const pos = hexScreenPos(col, row);
+      if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
+          pos.y + radius < 0 || pos.y - radius > canvas.height) return;
+      _drawRoadOverlay(pos.x, pos.y, radius, Roads.calcBitmask(col, row));
+    });
 
     // Pre-placed object overlays
     Object.entries(objectsData).forEach(([key, bldId]) => {
@@ -3835,7 +3802,6 @@ const Tools = (() => {
     if (!b.spriteName) return '';
     const uploaded = Terrain.getUploadedUrl ? Terrain.getUploadedUrl(b.spriteName) : null;
     if (uploaded) return uploaded;
-    if (b.buildingCategory === 'Road')   return `packages/postapoc/sprites/terrain/roads/${b.spriteName}.png`;
     if (b.buildingCategory === 'Bridge') return `packages/postapoc/sprites/hex/${b.spriteName}.png`;
     return `packages/postapoc/sprites/buildings/${b.spriteName}.png`;
   }
@@ -3843,7 +3809,7 @@ const Tools = (() => {
   function _populateBuildingPicker() {
     const grid = document.getElementById('obj-building-picker-grid');
     if (!grid) return;
-    const buildings = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge' && b.buildingCategory !== 'Road');
+    const buildings = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge');
     if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
 
     grid.innerHTML = buildings.map(b => {
@@ -4190,16 +4156,8 @@ const Tools = (() => {
         _eraseObject(col, row);
         _lastObjectPainted = { col, row };
         break;
-      case 'road':
-        if (_lastRoadPainted && _lastRoadPainted.col === col && _lastRoadPainted.row === row) break;
-        _paintRoad(col, row);
-        _lastRoadPainted = { col, row };
-        break;
-      case 'erase-road':
-        if (_lastRoadPainted && _lastRoadPainted.col === col && _lastRoadPainted.row === row) break;
-        _eraseRoad(col, row);
-        _lastRoadPainted = { col, row };
-        break;
+      // Roads are placed one tap at a time (matching the game's build-menu-per-tile
+      // flow) — no drag-to-paint, unlike terrain/object brushes.
     }
   }
 
@@ -4241,8 +4199,8 @@ const Tools = (() => {
         case 'z': setActive('zone');         break;
         case 'b': setActive('object');       break;
         case 'x': setActive('erase-object'); break;
-        // case 'w': setActive('road');         break;  // road tools hidden
-        // case 'q': setActive('erase-road');   break;
+        case 'w': setActive('road');         break;
+        case 'q': setActive('erase-road');   break;
       }
     });
   }
@@ -9475,7 +9433,6 @@ const HexDB = (() => {
         const lid = (hex.id || '').toLowerCase();
         let buildingCategory = 'Standard';
         if (/bridge/.test(lid))       buildingCategory = 'Bridge';
-        else if (/road/.test(lid))    buildingCategory = 'Road';
         else if (/ship|boat/.test(lid)) buildingCategory = 'Ship';
 
         // Derive building type from hex group
@@ -9593,7 +9550,6 @@ const HexDB = (() => {
         // Keep sprite in Terrain so canvas still renders this tile ID after migration
         // Bridge sprites live in sprites/hex/, not sprites/buildings/
         const _migrateDir = newBld.buildingCategory === 'Bridge' ? 'packages/postapoc/sprites/hex/'
-                          : newBld.buildingCategory === 'Road'   ? 'packages/postapoc/sprites/terrain/roads/'
                           : 'packages/postapoc/sprites/buildings/';
         Terrain.applyHexDbOverrides([newBld], _migrateDir);
         // Push to BldDB and select it
@@ -9808,65 +9764,6 @@ const BldDB = (() => {
     _filtered.sort((a, b) => (_data.buildings[a].id || '').localeCompare(_data.buildings[b].id || ''));
   }
 
-  // ── Road group helpers ────────────────────────────────────
-
-  function _roadGroupOf(spriteName) {
-    if (!spriteName) return null;
-    const m = spriteName.match(/^(.+)_\d+_[A-Z]+$/i);
-    return m ? m[1] : null;
-  }
-
-  function _roadSpriteNum(spriteName) {
-    const m = (spriteName || '').match(/_(\d+)_[A-Z]+$/i);
-    return m ? parseInt(m[1], 10) : 9999;
-  }
-
-  function _roadGroupMembers(group) {
-    return _data.buildings
-      .filter(b => b.buildingCategory === 'Road' && _roadGroupOf(b.spriteName) === group)
-      .sort((a, b) => _roadSpriteNum(a.spriteName) - _roadSpriteNum(b.spriteName));
-  }
-
-  function _isRoadMaster(bld) {
-    if (bld.buildingCategory !== 'Road') return false;
-    const group = _roadGroupOf(bld.spriteName);
-    if (!group) return false;
-    const members = _roadGroupMembers(group);
-    return members.length > 0 && members[0].id === bld.id;
-  }
-
-  const _ROAD_SYNC_KEYS = [
-    'textId','descIdleId','descBuildId',
-    'type','buildingCategory','isRoad','biome','filter','baseCostTaps',
-    'canDestroy','destroyTransformToMode','destroyTransformTo',
-    'destroySources','moveToStorageOnDestroy','resourceAwardedOnDestroy','destroyIncome',
-    'canBuild','needRoad','availableTiles','minLevel','price','premiumPrice',
-    'additionalBuildCondition','tilesTypeMode','tilesTypeValue','radius',
-    'hexEarnsOnTap','destroyableByTap','incomeTransformToMode','incomeTransformTo',
-    'capacity','getPerTap','incomePerTurn','incomeConstant','spendConstant',
-    'buildingRadius','canProduceEnabled','canProduce','availableTilesForProduce',
-    'canProductionFacilities','facilityBonusType','facilityBonusSize',
-    'facilityBonusTarget','facilityBonusInfluenceType','facilityBonusResources',
-    'productionFacilities','canStore','stores','storageCapacity','storageUpgradeId',
-    'bonusDrop','bonusTrigger','bonuses','booster','effects','footprint',
-  ];
-
-  function _syncGroupFromMaster(master) {
-    const group = _roadGroupOf(master.spriteName);
-    if (!group) return 0;
-    const members = _roadGroupMembers(group);
-    let n = 0;
-    for (const m of members) {
-      if (m.id === master.id) continue;
-      for (const k of _ROAD_SYNC_KEYS) {
-        if (k in master) m[k] = structuredClone(master[k] ?? null);
-      }
-      n++;
-    }
-    if (n > 0) _autoSave();
-    return n;
-  }
-
   function _buildList() {
     const list  = document.getElementById('bld-list');
     const count = document.getElementById('bld-count');
@@ -9877,13 +9774,10 @@ const BldDB = (() => {
       const row   = document.createElement('div');
       row.className = 'hexdb-list-row' + (_selFilt === filtIdx ? ' selected' : '');
       row.dataset.filtIdx = filtIdx;
-      const grp    = bld.buildingCategory === 'Road' ? _roadGroupOf(bld.spriteName) : null;
-      const master = grp ? _isRoadMaster(bld) : false;
       row.innerHTML =
         `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;` +
         `background:${color};flex-shrink:0;margin-right:5px;vertical-align:middle"></span>` +
-        `<span class="hexdb-list-id">${_esc(bld.id) || '(no id)'}</span>` +
-        (grp ? `<span style="font-size:9px;margin-left:4px;flex-shrink:0;color:${master ? '#89b4fa' : '#6c7086'}" title="${master ? 'Road group master — edits sync to all variants' : 'Road variant — synced from ' + (_roadGroupMembers(grp)[0]?.id || '?')}">${master ? '★' : '↑'}</span>` : '');
+        `<span class="hexdb-list-id">${_esc(bld.id) || '(no id)'}</span>`;
       row.addEventListener('click', () => _selectIdx(filtIdx));
       list.appendChild(row);
     });
@@ -9979,51 +9873,6 @@ const BldDB = (() => {
     const bonusType = bld.facilityBonusType ?? '';
     const canSt     = bld.canStore ?? false;
 
-    // ── Road group: non-master gets minimal view ──────────────
-    const _rGroup   = bld.buildingCategory === 'Road' ? _roadGroupOf(bld.spriteName) : null;
-    const _rMaster  = _rGroup ? _isRoadMaster(bld) : false;
-    const _rMembers = _rGroup ? _roadGroupMembers(_rGroup) : [];
-    if (_rGroup && !_rMaster) {
-      const _sprDir0 = bld.buildingCategory === 'Road' ? 'packages/postapoc/sprites/terrain/roads/' : 'packages/postapoc/sprites/buildings/';
-      const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `${_sprDir0}${_esc(bld.spriteName)}.png`) : '';
-      right.innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
-          <img src="${spriteSrc}" alt="" style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0;object-fit:contain;border:1px solid var(--border);border-radius:4px" onerror="this.style.opacity='0.2'">
-          <div style="min-width:0">
-            <div style="font-size:13px;font-weight:bold;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(bld.id) || '(unnamed)'}</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${spriteSrc || '—'}</div>
-          </div>
-        </div>
-        <div class="bld-road-banner bld-road-variant">
-          ↑ <strong>Road variant</strong> · group <code>${_esc(_rGroup)}</code> · ${_rMembers.length} tiles<br>
-          <span style="font-size:11px">All settings synced from master <strong>${_esc(_rMembers[0]?.id || '?')}</strong>. Edit Id and SpriteName only.</span>
-        </div>
-        <div class="hexdb-form">
-          <div class="hexdb-section">
-            <div class="hexdb-section-hdr" style="pointer-events:none">▼ IDENTITY</div>
-            <div class="hexdb-section-body">
-              <div class="hexdb-row"><span class="hexdb-label">Id *</span>
-                <input class="hexdb-input" id="bld-f-id" type="text" value="${_esc(bld.id)}">
-              </div>
-              <div class="hexdb-row"><span class="hexdb-label">SpriteName</span>
-                <div style="flex:1;min-width:0;display:flex;gap:4px">
-                  <input class="hexdb-input" id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}" style="flex:1;min-width:0">
-                  <button type="button" onclick="BldDB.pickSprite()" style="padding:2px 7px;font-size:13px;cursor:pointer;flex-shrink:0">🖼</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>`;
-      right.querySelectorAll('input,select').forEach(el => {
-        el.addEventListener('input',  _readRecord);
-        el.addEventListener('change', _readRecord);
-      });
-      return;
-    }
-    const roadBanner = _rGroup
-      ? `<div class="bld-road-banner bld-road-master">★ Road Group Master · <code>${_esc(_rGroup)}</code> · ${_rMembers.length} variant${_rMembers.length !== 1 ? 's' : ''} — edits sync to all tiles automatically</div>`
-      : '';
-
     // ── MAIN section ─────────────────────────────────────────
     const mainHTML = `
     <div class="hexdb-section">
@@ -10057,10 +9906,9 @@ const BldDB = (() => {
             <option${bld.type === 'Water Building'  ? ' selected' : ''}>Water Building</option>
             <option${bld.type === 'Artefact'        ? ' selected' : ''}>Artefact</option>
           </select></div>
-        <div class="hexdb-row"><span class="hexdb-label">Category <span class="hexdb-info" title="Standard · Road · Bridge · Ship — used for Hex→Building migration">ⓘ</span></span>
+        <div class="hexdb-row"><span class="hexdb-label">Category <span class="hexdb-info" title="Standard · Bridge · Ship — used for Hex→Building migration">ⓘ</span></span>
           <select class="hexdb-select" id="bld-f-buildingCategory">
             <option${bld.buildingCategory === 'Standard' ? ' selected' : ''}>Standard</option>
-            <option${bld.buildingCategory === 'Road'     ? ' selected' : ''}>Road</option>
             <option${bld.buildingCategory === 'Bridge'   ? ' selected' : ''}>Bridge</option>
             <option${bld.buildingCategory === 'Ship'     ? ' selected' : ''}>Ship</option>
           </select></div>
@@ -10386,8 +10234,7 @@ const BldDB = (() => {
       <button onclick="BldDB.paste()">Paste</button>
     </div>`;
 
-    const _sprDir1 = bld.buildingCategory === 'Road' ? 'packages/postapoc/sprites/terrain/roads/' : 'packages/postapoc/sprites/buildings/';
-    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `${_sprDir1}${_esc(bld.spriteName)}.png`) : '';
+    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
     const visualHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
       <img src="${spriteSrc}" alt=""
@@ -10419,7 +10266,7 @@ const BldDB = (() => {
       (_data.buildings ?? []).filter(b => b.id && !b.canBuild)
         .map(b => `<option value="${_esc(b.id)}">`).join('') +
       '</datalist>';
-    right.innerHTML = visualHTML + roadBanner + `<div class="hexdb-form">
+    right.innerHTML = visualHTML + `<div class="hexdb-form">
       ${mainHTML}${footprintHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${specialHTML}${satelliteHTML}${actionsHTML}
     </div>` + bldHexIdDatalist + bldBldIdDatalist;
 
@@ -10621,23 +10468,6 @@ const BldDB = (() => {
     const nv = id => { const el = g(id); return el ? (parseInt(el.value, 10) || 0) : 0; };
     const bv = id => { const el = g(id); return el ? el.checked : false; };
 
-    // Non-master road: only id + spriteName are editable; sync rest from master
-    const _rGrp = bld.buildingCategory === 'Road' ? _roadGroupOf(bld.spriteName) : null;
-    if (_rGrp && !_isRoadMaster(bld)) {
-      bld.id         = iv('bld-f-id').trim();
-      bld.spriteName = iv('bld-f-spriteName');
-      const members = _roadGroupMembers(_rGrp);
-      if (members.length > 0 && members[0].id !== bld.id) {
-        for (const k of _ROAD_SYNC_KEYS) {
-          if (k in members[0]) bld[k] = structuredClone(members[0][k] ?? null);
-        }
-      }
-      const row = document.querySelector(`#bld-list .hexdb-list-row[data-filt-idx="${_selFilt}"]`);
-      if (row) row.querySelector('.hexdb-list-id').textContent = bld.id || '(no id)';
-      _autoSave();
-      return;
-    }
-
     // MAIN
     bld.id           = iv('bld-f-id').trim();
     bld.textId       = iv('bld-f-textId').trim();
@@ -10712,9 +10542,6 @@ const BldDB = (() => {
       idEl.style.borderColor = (!bld.id || isDupe) ? '#e57373' : '';
     }
     _autoSave();
-
-    // Auto-sync road group from master
-    if (_rGrp && _isRoadMaster(bld)) _syncGroupFromMaster(bld);
   }
 
   function add() {
@@ -10929,107 +10756,7 @@ const BldDB = (() => {
   }
   function getAll() { return _data.buildings || []; }
 
-  // ── Road Group Modal ──────────────────────────────────────
-  // 24 canonical bitmask patterns from the game's road auto-tile system.
-  // Direction order: SE(bit0) NE(bit1) N(bit2) NW(bit3) SW(bit4) S(bit5).
-  // Sprite names follow road_hex_{bitmask:02}_{dirs}.png convention.
-  const _TYPICAL_HEX_ROAD_DIRS = [
-    'none',      // 00 — isolated (no connections)
-    'SE',        // 01
-    'SENE',      // 03
-    'N',         // 04
-    'SEN',       // 05
-    'NEN',       // 06
-    'SENEN',     // 07
-    'SENW',      // 09
-    'NENW',      // 10
-    'SENENW',    // 11
-    'SENNW',     // 13
-    'NENNW',     // 14
-    'SENENNW',   // 15
-    'SENSW',     // 21
-    'SENENSW',   // 23
-    'SENENWSW',  // 27
-    'SENENNWSW', // 31
-    'NS',        // 36
-    'SENS',      // 37
-    'SENENS',    // 39
-    'SENNWS',    // 45
-    'NENNWS',    // 46
-    'SENENNWS',  // 47
-    'SENENNWSWS',// 63 — full intersection (all 6 directions)
-  ];
-
-  function openRoadGroupModal() {
-    document.getElementById('road-group-name').value = '';
-    document.getElementById('road-group-prefix').value = '';
-    document.getElementById('road-group-dirs').value = '';
-    document.getElementById('road-group-preview').textContent = '0 tiles will be created.';
-    document.getElementById('road-group-modal').style.display = 'flex';
-  }
-
-  function closeRoadGroupModal() {
-    document.getElementById('road-group-modal').style.display = 'none';
-  }
-
-  function _onRoadGroupNameInput(el) {
-    const prefix = document.getElementById('road-group-prefix');
-    if (!prefix.value || prefix.value === el.dataset.prev) prefix.value = el.value;
-    el.dataset.prev = el.value;
-    _updateRoadGroupPreview();
-  }
-
-  function _fillTypicalRoadDirs() {
-    document.getElementById('road-group-dirs').value = _TYPICAL_HEX_ROAD_DIRS.join('\n');
-    _updateRoadGroupPreview();
-  }
-
-  function _updateRoadGroupPreview() {
-    const dirs = document.getElementById('road-group-dirs').value
-      .split('\n').map(s => s.trim()).filter(Boolean);
-    document.getElementById('road-group-preview').textContent =
-      `${dirs.length} tile${dirs.length !== 1 ? 's' : ''} will be created.`;
-  }
-
-  function confirmAddRoadGroup() {
-    const name   = document.getElementById('road-group-name').value.trim();
-    const prefix = document.getElementById('road-group-prefix').value.trim() || name;
-    const dirs   = document.getElementById('road-group-dirs').value
-      .split('\n').map(s => s.trim()).filter(Boolean);
-    if (!name)       { alert('Please enter a group name.'); return; }
-    if (!prefix)     { alert('Please enter a sprite prefix.'); return; }
-    if (!dirs.length){ alert('Please enter at least one direction suffix.'); return; }
-
-    const existing = _data.buildings.filter(b => _roadGroupOf(b.spriteName) === prefix);
-    if (existing.length) {
-      if (!confirm(`Road group "${prefix}" already has ${existing.length} tile(s). Add more?`)) return;
-    }
-    const startNum = existing.length;
-    const created  = dirs.map((dir, i) => {
-      const num   = startNum + i;
-      const bld   = _blank();
-      bld.id      = `${prefix}_${dir}`;
-      bld.spriteName      = `${prefix}_${num}_${dir}`;
-      bld.buildingCategory = 'Road';
-      bld.type    = 'Ground Building';
-      bld.filter  = 'FilterRoad';
-      bld.isRoad  = true;
-      bld.canBuild = true;
-      bld.needRoad = false;
-      return bld;
-    });
-    created.forEach(b => _data.buildings.push(b));
-    _autoSave();
-    closeRoadGroupModal();
-    _applyFilter();
-    _buildList();
-    // Select the master (first created tile)
-    _selectIdx(_filtered.indexOf(_data.buildings.indexOf(created[0])));
-    UI.toast(`Road group "${name}" created — ${created.length} tile${created.length !== 1 ? 's' : ''}`);
-  }
-
-  return { init, add, openRoadGroupModal, closeRoadGroupModal, _onRoadGroupNameInput,
-           _fillTypicalRoadDirs, _updateRoadGroupPreview, confirmAddRoadGroup,
+  return { init, add,
            pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
@@ -12295,11 +12022,10 @@ window.addEventListener('load', async () => {
     try { await GitHubSync.loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
     try { await GitHubSync.loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
-    // Bridge: sprites/hex/  Road: sprites/terrain/roads/  all others: sprites/buildings/
+    // Bridge: sprites/hex/  all others: sprites/buildings/
     const _allBlds = BldDB.getAll();
-    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge' && b.buildingCategory !== 'Road'), 'packages/postapoc/sprites/buildings/');
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge'), 'packages/postapoc/sprites/buildings/');
     await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory === 'Bridge'), 'packages/postapoc/sprites/hex/');
-    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory === 'Road'),   'packages/postapoc/sprites/terrain/roads/');
     Canvas.render();
   })();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
@@ -12638,10 +12364,6 @@ window.addEventListener('load', async () => {
 .cm-btn-del:hover { background:#f38ba8;color:#1e1e2e; }
 .cm-btn-up { color:#a6e3a1;border-color:#a6e3a1;margin-left:auto; }
 .cm-btn-up:hover { background:#a6e3a1;color:#1e1e2e; }
-.bld-road-banner { margin:8px 0 4px;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.5;border:1px solid; }
-.bld-road-banner code { background:rgba(255,255,255,.1);padding:1px 4px;border-radius:3px;font-size:11px; }
-.bld-road-master { border-color:#89b4fa;background:rgba(137,180,250,.08);color:#89b4fa; }
-.bld-road-variant { border-color:#6c7086;background:rgba(108,112,134,.08);color:#a6adc8; }
 </style>
 
 <!-- Packages — New Package modal -->
