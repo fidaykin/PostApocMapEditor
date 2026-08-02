@@ -2265,7 +2265,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.02";
-const COMMIT  = "f666d34";
+const COMMIT  = "b5d924b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9854,8 +9854,7 @@ const BldDB = (() => {
     _filtered = _data.buildings.map((h, i) => i)
       .filter(i => {
         const bld = _data.buildings[i];
-        return bld.buildingCategory !== 'Bridge' &&
-               (!s || bld.id.toLowerCase().includes(s)) &&
+        return (!s || bld.id.toLowerCase().includes(s)) &&
                (!b || bld.biome === b) &&
                (!t || bld.type === t);
       });
