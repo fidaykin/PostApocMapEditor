@@ -650,6 +650,23 @@ body.mode-packages #pkg-panel { display: block; }
 .pkg-chip.active { background: #a6e3a1; color: #1e1e2e; border-color: #a6e3a1; }
 .pkg-filter-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0 8px; }
 
+/* Dev Tools panel */
+body.mode-devtools #main { display: none; }
+body.mode-devtools #map-tools { display: none; }
+body.mode-devtools #map-io { display: none; }
+body:not(.mode-devtools) #devtools-panel { display: none; }
+body.mode-devtools #devtools-panel { display: block; }
+
+#devtools-panel { padding: 16px; max-width: 1100px; overflow-y: auto; }
+#devtools-panel table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 8px; }
+#devtools-panel th, #devtools-panel td { padding: 6px 12px; border-bottom: 1px solid #313244; text-align: left; }
+#devtools-panel th { color: #888; font-weight: normal; font-size: 11px; text-transform: uppercase; }
+#devtools-panel tr:hover td { background: #181825; }
+#devtools-panel input[type="text"] {
+  background: #1e1e2e; border: 1px solid #45475a; color: var(--text);
+  padding: 5px 9px; border-radius: 4px; font-size: 12px; margin-bottom: 10px; width: 260px;
+}
+
 .mode-more-wrap { position: relative; display: flex; align-items: stretch; }
 #more-dropdown {
   display: none; position: absolute; top: 100%; left: 0; z-index: 200;
@@ -1290,6 +1307,7 @@ body.mode-common #map-io    { display: none; }
           <button class="more-item" id="tab-monsters" onclick="App.setMode('monsters');App.closeMore()">MONSTERS</button>
           <button class="more-item" id="tab-quests"   onclick="App.setMode('quests');App.closeMore()">QUESTS</button>
           <button class="more-item" id="tab-common"  onclick="App.setMode('common');App.closeMore()">COMMON</button>
+          <button class="more-item" id="tab-devtools" onclick="App.setMode('devtools');App.closeMore()">DEV TOOLS</button>
         </div>
       </div>
     </div>
@@ -1523,6 +1541,9 @@ body.mode-common #map-io    { display: none; }
 
   <!-- ── Packages Panel ────────────────────────────────────────── -->
   <div id="pkg-panel"></div>
+
+  <!-- ── Dev Tools Panel ──────────────────────────────────────── -->
+  <div id="devtools-panel"></div>
 
   <!-- ── HEX DB Main ─────────────────────────────────────────── -->
   <div id="hexdb-main">
@@ -2265,7 +2286,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.02";
-const COMMIT  = "b5d924b";
+const COMMIT  = "194e94d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7679,20 +7700,158 @@ const Packages = (() => {
            _rewriteEntries, confirmImport };
 })();
 
+// ─────────────────────────────────────────────────────────────────
+// DevTools — live content manifest: every hex tile & building loaded
+// in HexDB/BldDB right now, with a background check for whether each
+// sprite file actually resolves on the configured server.
+// ─────────────────────────────────────────────────────────────────
+const DevTools = (() => {
+  function _esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  const CORE_TERRAIN = new Set([
+    'DirtyWater','DirtyWater_1','DirtyWater_2','River_1','River_2','River_3','River_4','River_5','River_6',
+    'Rubble_1','Rubble_2','Rubble_3','Plain_1','Plain_2','BrokenPlain','Forest_1','Forest_2','Forest_3',
+    'Hills','Mountain','GoldVein','Oil','Barren','Desert','Swamp','RockySwamp','LavaPlain','LavaRift','Rift'
+  ]);
+
+  const STATUS_LABEL = { core:'Core', special:'Special', test:'Test / placeholder', kaiju:'Kaiju (WIP)', legacy:'Legacy / orphaned' };
+  const STATUS_COLOR = { core:'#a6e3a1', special:'#89b4fa', test:'#9399b2', kaiju:'#94e2d5', legacy:'#f5a3c7' };
+
+  function _classifyHex(id, sprite) {
+    if (/TEST/i.test(id)) return 'test';
+    if (/Kaiju/i.test(id) || /Kaiju/i.test(sprite || '')) return 'kaiju';
+    if (/Medieval/.test(id) || /_Flat_/.test(id)) return 'legacy';
+    const bare = id.replace(/_\d+$/, '');
+    if (CORE_TERRAIN.has(id) || CORE_TERRAIN.has(bare)) return 'core';
+    return 'special';
+  }
+
+  function _badge(status) {
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;background:${STATUS_COLOR[status]};color:#1e1e2e">${STATUS_LABEL[status]}</span>`;
+  }
+
+  // Sprite folders to probe, in priority order — mirrors the resolution rules
+  // already used elsewhere in this file (_bldSpriteUrl, _sprDir) rather than
+  // assuming a single canonical folder, since Bridge/Road/hex-extras each
+  // resolve from a different subfolder.
+  function _spriteCandidates(kind, rec) {
+    const name = rec.spriteName;
+    if (!name) return [];
+    if (kind === 'bld') {
+      if (rec.buildingCategory === 'Bridge') return [`packages/postapoc/sprites/hex/${name}.png`, `packages/postapoc/sprites/buildings/${name}.png`];
+      if (rec.isRoad) return [`packages/postapoc/sprites/terrain/roads/${name}.png`];
+      return [`packages/postapoc/sprites/buildings/${name}.png`];
+    }
+    return [`packages/postapoc/sprites/terrain/${name}.png`, `packages/postapoc/sprites/hex/${name}.png`];
+  }
+
+  function _probeImg(candidates, cb) {
+    const BASE = GitHubSync.BASE_URL;
+    let i = 0;
+    (function tryNext() {
+      if (i >= candidates.length) return cb(null);
+      const url = `${BASE}/${candidates[i]}`;
+      const img = new Image();
+      img.onload  = () => cb(url);
+      img.onerror = () => { i++; tryNext(); };
+      img.src = url;
+    })();
+  }
+
+  function _table(rows, cols) {
+    const thead = `<tr>${cols.map(c => `<th>${c.label}</th>`).join('')}</tr>`;
+    const tbody = rows.map(r => `<tr class="dt-row" data-search="${_esc((r.id + ' ' + r.sprite).toLowerCase())}">${cols.map(c => `<td>${c.render(r)}</td>`).join('')}</tr>`).join('');
+    return `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  }
+
+  function _filterTable(inputId, tableId) {
+    const q = document.getElementById(inputId).value.trim().toLowerCase();
+    document.querySelectorAll(`#${tableId} .dt-row`).forEach(tr => {
+      tr.style.display = (!q || tr.dataset.search.includes(q)) ? '' : 'none';
+    });
+  }
+
+  let _rowSeq = 0;
+
+  function renderPanel() {
+    const el = document.getElementById('devtools-panel');
+    if (!el) return;
+    const hexes = (typeof HexDB !== 'undefined') ? HexDB.getAll() : [];
+    const blds  = (typeof BldDB !== 'undefined') ? BldDB.getAll()  : [];
+
+    const probes = [];
+    const hexRows = hexes.map(h => {
+      const rowId = ++_rowSeq;
+      probes.push({ rowId, kind: 'hex', rec: h });
+      return { rowId, id: h.id, type: h.type || '', sprite: h.spriteName || '', status: _classifyHex(h.id, h.spriteName) };
+    });
+    const bldRows = blds.map(b => {
+      const rowId = ++_rowSeq;
+      probes.push({ rowId, kind: 'bld', rec: b });
+      const price = (b.price || []).map(p => `${p.amount} ${p.type}`).join(', ') || '—';
+      return { rowId, id: b.id, type: b.buildingCategory || '', sprite: b.spriteName || '', price };
+    });
+
+    const spriteCell = r => `<span id="dt-spr-${r.rowId}" style="color:#888">checking…</span>`;
+    const hexCols = [
+      { label:'ID',          render: r => `<code>${_esc(r.id)}</code>` },
+      { label:'Type',        render: r => _esc(r.type) },
+      { label:'Sprite',      render: r => `<code style="color:#888">${_esc(r.sprite)}</code>` },
+      { label:'Sprite file', render: spriteCell },
+      { label:'Status',      render: r => _badge(r.status) },
+    ];
+    const bldCols = [
+      { label:'ID',          render: r => `<code>${_esc(r.id)}</code>` },
+      { label:'Category',    render: r => _esc(r.type) },
+      { label:'Sprite',      render: r => `<code style="color:#888">${_esc(r.sprite)}</code>` },
+      { label:'Sprite file', render: spriteCell },
+      { label:'Price',       render: r => _esc(r.price) },
+    ];
+
+    el.innerHTML = `
+      <h3 style="color:#cdd6f4;margin:0 0 4px">Dev Tools — Content Manifest</h3>
+      <div style="color:#888;font-size:12px;margin-bottom:16px">
+        ${hexes.length} hex tiles · ${blds.length} buildings · live from HexDB / BldDB · sprite files checked against ${_esc(GitHubSync.BASE_URL)}
+      </div>
+      <h4 style="color:#cdd6f4;margin:16px 0 6px">Hex Tiles (${hexes.length})</h4>
+      <input type="text" id="dt-hex-filter" placeholder="Filter by id or sprite…" oninput="DevTools._filter('dt-hex-filter','dt-hex-table')">
+      <div id="dt-hex-table">${_table(hexRows, hexCols)}</div>
+      <h4 style="color:#cdd6f4;margin:24px 0 6px">Buildings (${blds.length})</h4>
+      <input type="text" id="dt-bld-filter" placeholder="Filter by id or sprite…" oninput="DevTools._filter('dt-bld-filter','dt-bld-table')">
+      <div id="dt-bld-table">${_table(bldRows, bldCols)}</div>
+    `;
+
+    probes.forEach(({ rowId, kind, rec }) => {
+      const candidates = _spriteCandidates(kind, rec);
+      const cell = () => document.getElementById(`dt-spr-${rowId}`);
+      if (!candidates.length) { const c = cell(); if (c) { c.textContent = '—'; c.style.color = '#888'; } return; }
+      _probeImg(candidates, (foundUrl) => {
+        const c = cell();
+        if (!c) return;
+        if (foundUrl) { c.textContent = '✓ found'; c.style.color = '#a6e3a1'; c.title = foundUrl; }
+        else          { c.textContent = '✗ missing'; c.style.color = '#ef5350'; }
+      });
+    });
+  }
+
+  return { renderPanel, _filter: _filterTable };
+})();
+
 // ── App: mode switching ────────────────────────────────────
 const App = {
   setMode(mode) {
     const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys',
-                   'slots', 'actions', 'upgrades', 'monsters', 'quests', 'common', 'packages'];
+                   'slots', 'actions', 'upgrades', 'monsters', 'quests', 'common', 'packages', 'devtools'];
     MODES.forEach(m => {
       document.body.classList.toggle('mode-' + m, m === mode);
       const tab = document.getElementById('tab-' + m);
       if (tab) tab.classList.toggle('active', m === mode);
     });
     const moreBtn = document.getElementById('tab-more');
-    if (moreBtn) moreBtn.classList.toggle('active', ['slots','actions','upgrades','monsters','quests','common'].includes(mode));
+    if (moreBtn) moreBtn.classList.toggle('active', ['slots','actions','upgrades','monsters','quests','common','devtools'].includes(mode));
     if (mode === 'common' && typeof CommonDB !== 'undefined') CommonDB.render();
     if (mode === 'packages' && typeof Packages !== 'undefined') Packages.renderPanel();
+    if (mode === 'devtools' && typeof DevTools !== 'undefined') DevTools.renderPanel();
   },
   toggleMore(e) {
     e.stopPropagation();
