@@ -1314,6 +1314,7 @@ body.mode-common #map-io    { display: none; }
       <span id="obj-building-label" style="display:none;font-size:11px;color:var(--accent);vertical-align:middle;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
       <button class="tool-btn" data-tool="erase-object" onclick="Tools.setActive('erase-object')">🗑<span class="tooltip">Erase Building (X)</span></button>
       <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')">🛣<span class="tooltip">Draw Road (W)</span></button>
+      <button class="tool-btn" data-tool="road-connect" onclick="Tools.setActive('road-connect')">🔗<span class="tooltip">Connect Road: click start, click destination (C)</span></button>
       <button class="tool-btn" data-tool="erase-road" onclick="Tools.setActive('erase-road')">🚫<span class="tooltip">Erase Road (Q)</span></button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize & Fill</button>
       <input id="rnd-zone-scale" type="range" min="0.01" max="0.12" step="0.005" value="0.04"
@@ -2268,8 +2269,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.07.29";
-const COMMIT  = "f003873";
+const VERSION = "2026.08.02";
+const COMMIT  = "d105e34";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2415,8 +2416,8 @@ const Terrain = (() => {
 const Roads = (() => {
   // 24 canonical bitmask patterns. Bit order: SE=0, NE=1, N=2, NW=3, SW=4, S=5.
   // Direction offsets (dCol, dRow) from _DIRS_EVEN/_DIRS_ODD:
-  //   N=[+1,0] S=[-1,0] NE(even)=[0,-1] SE(even)=[-1,-1] NW(even)=[0,+1] SW(even)=[-1,+1]
-  //   NE(odd)=[+1,-1] SE(odd)=[0,-1] NW(odd)=[+1,+1] SW(odd)=[0,+1]
+  //   N=[+1,0] S=[-1,0] NE(even)=[0,-1] SE(even)=[+1,-1] NW(even)=[0,+1] SW(even)=[+1,+1]
+  //   NE(odd)=[-1,-1] SE(odd)=[0,-1] NW(odd)=[-1,+1] SW(odd)=[0,+1]
   const CANONICAL = new Set([0,1,3,4,5,6,7,9,10,11,13,14,15,21,23,27,31,36,37,39,45,46,47,63]);
 
   const SPRITE_NAMES = {
@@ -2479,17 +2480,48 @@ const Roads = (() => {
     ));
   }
 
+  // Mirrors the game's RoadRenderer.HasRoadOrCity: a neighbor draws a connecting
+  // arm if it has a road, is the city, is any settlement, or holds a building
+  // flagged needRoad in BldDB.
+  function _isRoadLikeNeighbor(col, row, cityCol, cityRow) {
+    const key = col + ',' + row;
+    if (roadsData[key]) return true;
+    if (col === cityCol && row === cityRow) return true;
+    if (typeof settlements !== 'undefined' && settlements.some(s => s.col === col && s.row === row)) return true;
+    const bldId = typeof objectsData !== 'undefined' ? objectsData[key] : null;
+    if (bldId && typeof BldDB !== 'undefined') {
+      const bld = BldDB.getAll().find(b => b.id === bldId);
+      if (bld && bld.needRoad) return true;
+    }
+    return false;
+  }
+
   function calcBitmask(col, row) {
     // Parity based on worldXidx = MAP_HEIGHT-1-row (game's column axis), not raw row.
     const dirs = (MAP_HEIGHT - 1 - row) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
+    const cityCol = getCityCol(), cityRow = getCityRow();
     let mask = 0;
     for (const [dir, bit] of Object.entries(_DIR_BITS)) {
       const [dc, dr] = dirs[dir];
       const nc = col + dc, nr = row + dr;
-      if (nc >= 0 && nc < MAP_WIDTH && nr >= 0 && nr < MAP_HEIGHT && roadsData[nc + ',' + nr])
-        mask |= (1 << bit);
+      if (nc < 0 || nc >= MAP_WIDTH || nr < 0 || nr >= MAP_HEIGHT) continue;
+      if (_isRoadLikeNeighbor(nc, nr, cityCol, cityRow)) mask |= (1 << bit);
     }
     return mask;
+  }
+
+  // All in-bounds {col,row} neighbors of a tile — same direction tables/parity
+  // rule as calcBitmask, so callers (e.g. road path-fill) stay perfectly
+  // consistent with what actually renders as "connected."
+  function getNeighbors(col, row) {
+    const dirs = (MAP_HEIGHT - 1 - row) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
+    const out = [];
+    for (const dir of Object.keys(_DIR_BITS)) {
+      const [dc, dr] = dirs[dir];
+      const nc = col + dc, nr = row + dr;
+      if (nc >= 0 && nc < MAP_WIDTH && nr >= 0 && nr < MAP_HEIGHT) out.push({ col: nc, row: nr });
+    }
+    return out;
   }
 
   function drawOverlay(ctx, cx, cy, radius, bitmask, clipFn) {
@@ -2508,7 +2540,7 @@ const Roads = (() => {
     ctx.restore();
   }
 
-  return { loadSprites, calcBitmask, drawOverlay };
+  return { loadSprites, calcBitmask, drawOverlay, getNeighbors };
 })();
 
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
@@ -2724,10 +2756,10 @@ const Canvas = (() => {
           ctx.globalAlpha = 1;
         }
 
-      } else if (tool === 'road' || tool === 'erase-road') {
+      } else if (tool === 'road' || tool === 'road-connect' || tool === 'erase-road') {
         const pos = hexScreenPos(_cursorCol, _cursorRow);
         ctx.save();
-        const color = tool === 'road' ? [139,110,60] : [220,80,80];
+        const color = tool === 'erase-road' ? [220,80,80] : tool === 'road-connect' ? [79,195,247] : [139,110,60];
         hexClipPath(pos.x, pos.y, radius);
         ctx.fillStyle = `rgba(${color},0.3)`;
         ctx.fill();
@@ -3753,16 +3785,19 @@ const Tools = (() => {
   let _lastZonePainted     = null;
   let _lastObjectPainted   = null;
   let _lastRoadPainted     = null;
+  let _roadConnectStart    = null;    // pending start anchor for the Connect Road tool — set by the first click, consumed by the second
   let _selectedBuildingId  = null;
 
   const TOOL_NAMES = {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
     eye: 'Eyedropper', select: 'Select Tile',
     settlement: 'Place Settlement', erase: 'Erase Settlement',
-    zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object'
+    zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object',
+    'road-connect': 'Connect Road',
   };
 
   function setActive(name) {
+    if (_active !== name && name !== 'road-connect') _roadConnectStart = null;
     _active = name;
     _rectStart = null;
     _toolsRectPreview = null;
@@ -3802,13 +3837,17 @@ const Tools = (() => {
     const uploaded = Terrain.getUploadedUrl ? Terrain.getUploadedUrl(b.spriteName) : null;
     if (uploaded) return uploaded;
     if (b.buildingCategory === 'Bridge') return `packages/postapoc/sprites/hex/${b.spriteName}.png`;
+    if (b.isRoad) return `packages/postapoc/sprites/terrain/roads/${b.spriteName}.png`;
     return `packages/postapoc/sprites/buildings/${b.spriteName}.png`;
   }
 
   function _populateBuildingPicker() {
     const grid = document.getElementById('obj-building-picker-grid');
     if (!grid) return;
-    const buildings = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge');
+    // Road/Bridge have their own dedicated placement tools (Draw Road, Connect
+    // Road, the bridge axis swatches) — excluded here to avoid a redundant,
+    // confusing duplicate entry point in the generic building picker.
+    const buildings = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge' && !b.isRoad);
     if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
 
     grid.innerHTML = buildings.map(b => {
@@ -3838,10 +3877,23 @@ const Tools = (() => {
   function getActive() { return _active; }
 
   // ── Paint ──────────────────────────────────────────────────
+  // Bridges can only be built on river tiles, matching the game's
+  // CoastlineEdgeDetector.IsRiverTerrain check — no road/network connection
+  // required to place one, unlike Draw Road.
+  function _isRiverTile(col, row) {
+    if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return false;
+    const entry = Terrain.byHexId(mapData[row * MAP_WIDTH + col]);
+    return !!entry && entry.type === 'Rivers';
+  }
+
   function _paint(col, row) {
     const bridgeAxis = UI.getSelectedBridgeAxis();
     if (bridgeAxis >= 0) {
       // Bridge mode: single-tile toggle (brush size ignored)
+      if (!_isRiverTile(col, row)) {
+        UI.toast('⚠ Bridges can only be built on river tiles');
+        return;
+      }
       const idx = bridgesData.findIndex(b => b.col === col && b.row === row);
       if (idx >= 0 && bridgesData[idx].axis === bridgeAxis) {
         bridgesData.splice(idx, 1);       // same axis → remove
@@ -4017,10 +4069,59 @@ const Tools = (() => {
   }
 
   // ── Roads ──────────────────────────────────────────────────
+  // Matches the game's IsAdjacentToRoadNetwork placement gate: a road tile can
+  // only be built next to an existing road, the city, or a settlement. The game
+  // enforces this at the build-menu level, so a disconnected/stray road tile is
+  // structurally impossible there — replicate the same rule here rather than
+  // trying to auto-repair whatever gets clicked.
+  function _isRoadNetworkNeighbor(col, row) {
+    const cityCol = getCityCol(), cityRow = getCityRow();
+    for (const n of Roads.getNeighbors(col, row)) {
+      const k = n.col + ',' + n.row;
+      if (roadsData[k]) return true;
+      if (n.col === cityCol && n.row === cityRow) return true;
+      if (settlements.some(s => s.col === n.col && s.row === n.row)) return true;
+    }
+    return false;
+  }
+
   function _paintRoad(col, row) {
     const key = col + ',' + row;
     if (roadsData[key]) return;
+    if (!_isRoadNetworkNeighbor(col, row)) {
+      UI.toast('⚠ Road must connect to an existing road, the city, or a settlement');
+      return;
+    }
     roadsData[key] = { type: 'road_hex' };
+    IO.scheduleAutoSave();
+    Canvas.render();
+  }
+
+  // Connect Road tool: first click sets the start anchor (placing that tile);
+  // second click places ONLY the BFS-computed path to the new tile — no other
+  // clicks in between, so a stray click can never fork off an unrelated tile.
+  // The destination becomes the new anchor, so consecutive uses chain segments.
+  function _connectRoad(col, row) {
+    if (!_roadConnectStart) {
+      const key = col + ',' + row;
+      if (!roadsData[key]) roadsData[key] = { type: 'road_hex' };
+      _roadConnectStart = { col, row };
+      IO.scheduleAutoSave();
+      Canvas.render();
+      UI.toast('Road start set — click a destination to connect');
+      return;
+    }
+    if (_roadConnectStart.col === col && _roadConnectStart.row === row) return;
+    const path = _hexPathBetween(_roadConnectStart.col, _roadConnectStart.row, col, row);
+    if (path) {
+      path.forEach(c => {
+        const k = c.col + ',' + c.row;
+        if (!roadsData[k]) roadsData[k] = { type: 'road_hex' };
+      });
+    } else {
+      UI.toast('Destination too far to connect');
+    }
+    _roadConnectStart = { col, row };
     IO.scheduleAutoSave();
     Canvas.render();
   }
@@ -4115,6 +4216,10 @@ const Tools = (() => {
         _paintRoad(col, row);
         _lastRoadPainted = { col, row };
         break;
+      case 'road-connect':
+        History.push();
+        _connectRoad(col, row);
+        break;
       case 'erase-road':
         History.push();
         _eraseRoad(col, row);
@@ -4164,7 +4269,7 @@ const Tools = (() => {
     if (!_isDown) return;
     _isDown = false;
 
-    if (_active === 'paint' || _active === 'road' || _active === 'erase-road') {
+    if (_active === 'paint' || _active === 'road' || _active === 'road-connect' || _active === 'erase-road') {
       Canvas.drawMinimap();
     } else if (_active === 'rect' && _rectStart && _toolsRectPreview) {
       History.push();
@@ -4199,6 +4304,7 @@ const Tools = (() => {
         case 'b': setActive('object');       break;
         case 'x': setActive('erase-object'); break;
         case 'w': setActive('road');         break;
+        case 'c': setActive('road-connect'); break;
         case 'q': setActive('erase-road');   break;
       }
     });
@@ -5159,39 +5265,42 @@ const UI = (() => {
       (currentCatEl || scroll).appendChild(btn);
     });
 
-    // ── Bridges section (HexDB bridge entries + BldDB bridge category) ──
-    const bridgeHdr = document.createElement('button');
-    bridgeHdr.className = 'cat-header collapsed';
-    bridgeHdr.textContent = '🌉 BRIDGES';
-    const bridgeItems = document.createElement('div');
-    bridgeItems.className = 'cat-items collapsed';
-    bridgeHdr.addEventListener('click', () => {
-      bridgeHdr.classList.toggle('collapsed');
-      bridgeItems.classList.toggle('collapsed');
-    });
-    scroll.appendChild(bridgeHdr);
-    scroll.appendChild(bridgeItems);
-
-    // Bridge entries from HexDB + BldDB (buildingCategory === 'Bridge')
-    // Sprites always live in sprites/hex/ regardless of which DB holds the entry
-    const _hexBridges = HexDB.getAll().filter(h => h.id && /bridge/i.test(h.id) && !/^River_bridge_/i.test(h.id));
-    const _bldBridges = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.id && b.buildingCategory === 'Bridge');
-    const _allBridges = [..._hexBridges, ..._bldBridges.filter(b => !_hexBridges.some(h => h.id === b.id))];
-    _allBridges.forEach(entry => {
-      const btn = document.createElement('button');
-      btn.className = 'tile-btn';
-      btn.dataset.hexId = entry.id;
-      const img = document.createElement('img');
-      const spr = Terrain.getSprite(entry.id);
-      img.src = spr ? spr.src : (entry.spriteName ? `packages/postapoc/sprites/hex/${entry.spriteName}.png` : '');
-      img.alt = entry.id;
-      btn.appendChild(img);
-      const tt = document.createElement('span');
-      tt.className = 'tile-tooltip';
-      tt.textContent = entry.id;
-      btn.appendChild(tt);
-      btn.addEventListener('click', () => selectTerrain(entry.id));
-      bridgeItems.appendChild(btn);
+    // ── Building sections (Ground Building / Water Building / Artefact) ──
+    const BLD_SECTIONS = [
+      { label: '🏗️ GROUND BUILDINGS', type: 'Ground Building' },
+      { label: '🌊 WATER BUILDINGS',   type: 'Water Building'  },
+      { label: '🏛️ ARTEFACTS',         type: 'Artefact'        },
+    ];
+    const allBuildings = typeof BldDB !== 'undefined' ? BldDB.getAll() : [];
+    const _bldType = b => b.type || 'Ground Building';
+    BLD_SECTIONS.forEach(({ label, type }) => {
+      const buildings = allBuildings.filter(b => _bldType(b) === type && b.buildingCategory !== 'Bridge' && !b.isRoad);
+      const hdr = document.createElement('button');
+      hdr.className = 'cat-header collapsed';
+      hdr.textContent = `${label} (${buildings.length})`;
+      const items = document.createElement('div');
+      items.className = 'cat-items collapsed';
+      hdr.addEventListener('click', () => {
+        hdr.classList.toggle('collapsed');
+        items.classList.toggle('collapsed');
+      });
+      scroll.appendChild(hdr);
+      scroll.appendChild(items);
+      buildings.forEach(bld => {
+        const btn = document.createElement('button');
+        btn.className = 'tile-btn';
+        btn.dataset.hexId = bld.id;
+        const img = document.createElement('img');
+        img.src = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${bld.spriteName}.png`) : '';
+        img.alt = bld.id;
+        btn.appendChild(img);
+        const tt = document.createElement('span');
+        tt.className = 'tile-tooltip';
+        tt.textContent = bld.id;
+        btn.appendChild(tt);
+        btn.addEventListener('click', () => selectTerrain(bld.id));
+        items.appendChild(btn);
+      });
     });
 
     // Re-apply the current selection to the freshly-created buttons.
@@ -10233,7 +10342,10 @@ const BldDB = (() => {
       <button onclick="BldDB.paste()">Paste</button>
     </div>`;
 
-    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
+    const _sprDir = bld.buildingCategory === 'Bridge' ? 'packages/postapoc/sprites/hex/'
+                   : bld.isRoad ? 'packages/postapoc/sprites/terrain/roads/'
+                   : 'packages/postapoc/sprites/buildings/';
+    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `${_sprDir}${_esc(bld.spriteName)}.png`) : '';
     const visualHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
       <img src="${spriteSrc}" alt=""
@@ -11833,8 +11945,11 @@ let _satelliteMap = null;
 // Game column = worldXidx = MAP_HEIGHT-1-row. Use _DIRS_ODD when worldXidx is even,
 // _DIRS_EVEN when worldXidx is odd (the table names reflect odd/even EDITOR row parity
 // for even MAP_HEIGHT, where odd worldXidx = even row).
-const _DIRS_EVEN = { N:[+1,0], S:[-1,0], NE:[0,-1],  SE:[-1,-1], NW:[0,+1],  SW:[-1,+1] };
-const _DIRS_ODD  = { N:[+1,0], S:[-1,0], NE:[+1,-1], SE:[0,-1],  NW:[+1,+1], SW:[0,+1] };
+// SE/SW (EVEN) and NE/NW (ODD) previously had the wrong sign on dCol — they pointed
+// at a hex 2 steps away (~120px) instead of a true adjacent neighbor (~69.28px),
+// verified against Canvas.hexScreenPos across the full grid. Fixed 2026-07-29.
+const _DIRS_EVEN = { N:[+1,0], S:[-1,0], NE:[0,-1],  SE:[+1,-1], NW:[0,+1],  SW:[+1,+1] };
+const _DIRS_ODD  = { N:[+1,0], S:[-1,0], NE:[-1,-1], SE:[0,-1],  NW:[-1,+1], SW:[0,+1] };
 
 function _buildSatelliteMap() {
   _satelliteMap = {};
@@ -11896,6 +12011,75 @@ function _hexDistBetween(col1, row1, col2, row2) {
   const a = toAxial(col1, row1), b = toAxial(col2, row2);
   const dq = a.q - b.q, dr = a.r - b.r;
   return Math.max(Math.abs(dq), Math.abs(dr), Math.abs(dq + dr));
+}
+
+// Shortest hex path from (col1,row1) to (col2,row2), inclusive of both endpoints —
+// over Roads.getNeighbors, i.e. the exact same adjacency calcBitmask renders as
+// "connected." Used to auto-fill the gap when two consecutive road clicks aren't
+// already neighbors, so the result is always a genuinely connected chain.
+//
+// Hex grids routinely have MANY equally-short paths between two points (ties).
+// Plain BFS returns whichever one it happens to discover first, which can zigzag
+// even though a straighter route of the same length exists. This does it in two
+// passes: (1) BFS to find each cell's hop-distance layer, (2) within each layer,
+// pick the predecessor that continues in the same direction as the step before
+// it (fewest direction changes), so ties resolve to the visually straightest path.
+function _hexPathBetween(col1, row1, col2, row2, maxNodes) {
+  const startKey = col1 + ',' + row1, targetKey = col2 + ',' + row2;
+  if (startKey === targetKey) return [{ col: col1, row: row1 }];
+  const cap = maxNodes || 4000;
+
+  // Pass 1: hop-distance layers from start.
+  const distOf = new Map([[startKey, 0]]);
+  const layers = [[{ col: col1, row: row1 }]];
+  let foundTarget = false;
+  while (!foundTarget) {
+    if (distOf.size > cap) return null;   // safety valve — unreasonably far apart
+    const prevLayer = layers[layers.length - 1];
+    const nextLayer = [];
+    for (const cell of prevLayer) {
+      for (const n of Roads.getNeighbors(cell.col, cell.row)) {
+        const k = n.col + ',' + n.row;
+        if (distOf.has(k)) continue;
+        distOf.set(k, layers.length);
+        nextLayer.push(n);
+        if (k === targetKey) foundTarget = true;
+      }
+    }
+    if (!nextLayer.length) return null;   // unreachable (shouldn't happen on a bounded rectangular grid)
+    layers.push(nextLayer);
+  }
+
+  // Pass 2: within each layer, minimize direction changes from the step before.
+  const best = new Map();   // key -> { turns, parentKey, dirIn: [dc,dr] }
+  best.set(startKey, { turns: 0, parentKey: null, dirIn: null });
+  for (let d = 1; d < layers.length; d++) {
+    for (const cell of layers[d]) {
+      const k = cell.col + ',' + cell.row;
+      let bestTurns = Infinity, bestParentKey = null, bestDir = null;
+      for (const p of Roads.getNeighbors(cell.col, cell.row)) {
+        const pk = p.col + ',' + p.row;
+        if (distOf.get(pk) !== d - 1) continue;   // only true predecessors, one layer back
+        const pInfo = best.get(pk);
+        if (!pInfo) continue;
+        const dc = cell.col - p.col, dr = cell.row - p.row;
+        const turned = pInfo.dirIn && (pInfo.dirIn[0] !== dc || pInfo.dirIn[1] !== dr);
+        const totalTurns = pInfo.turns + (turned ? 1 : 0);
+        if (totalTurns < bestTurns) { bestTurns = totalTurns; bestParentKey = pk; bestDir = [dc, dr]; }
+      }
+      best.set(k, { turns: bestTurns, parentKey: bestParentKey, dirIn: bestDir });
+    }
+  }
+
+  // Reconstruct from target back to start, then reverse.
+  const cells = [];
+  let cur = targetKey;
+  while (cur !== null) {
+    const [c, r] = cur.split(',').map(Number);
+    cells.push({ col: c, row: r });
+    cur = best.get(cur).parentKey;
+  }
+  return cells.reverse();
 }
 
 function _fisherYates(arr) {
@@ -12021,10 +12205,11 @@ window.addEventListener('load', async () => {
     try { await GitHubSync.loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
     try { await GitHubSync.loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
-    // Bridge: sprites/hex/  all others: sprites/buildings/
+    // Bridge: sprites/hex/  Road: sprites/terrain/roads/  all others: sprites/buildings/
     const _allBlds = BldDB.getAll();
-    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge'), 'packages/postapoc/sprites/buildings/');
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge' && !b.isRoad), 'packages/postapoc/sprites/buildings/');
     await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory === 'Bridge'), 'packages/postapoc/sprites/hex/');
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.isRoad), 'packages/postapoc/sprites/terrain/roads/');
     Canvas.render();
   })();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
