@@ -1311,12 +1311,6 @@ body.mode-common #map-io    { display: none; }
              style="width:42px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center;vertical-align:middle"
              oninput="Canvas.render()">
       <button class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')">🗺️<span class="tooltip">Zone Painter (Z)</span></button>
-      <button class="tool-btn" data-tool="object" onclick="Tools.setActive('object')">🏗<span class="tooltip">Place Building (B)</span></button>
-      <span id="obj-building-label" style="display:none;font-size:11px;color:var(--accent);vertical-align:middle;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-      <button class="tool-btn" data-tool="erase-object" onclick="Tools.setActive('erase-object')">🗑<span class="tooltip">Erase Building (X)</span></button>
-      <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')">🛣<span class="tooltip">Draw Road (W)</span></button>
-      <button class="tool-btn" data-tool="road-connect" onclick="Tools.setActive('road-connect')">🔗<span class="tooltip">Connect Road: click start, click destination (C)</span></button>
-      <button class="tool-btn" data-tool="erase-road" onclick="Tools.setActive('erase-road')">🚫<span class="tooltip">Erase Road (Q)</span></button>
       <button class="hexdb-tool-btn" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize & Fill</button>
       <input id="rnd-zone-scale" type="range" min="0.01" max="0.12" step="0.005" value="0.04"
              title="Patch size — left=large, right=small"
@@ -2271,7 +2265,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.02";
-const COMMIT  = "d105e34";
+const COMMIT  = "f666d34";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4302,11 +4296,6 @@ const Tools = (() => {
         case 't': setActive('settlement');   break;
         case 'd': setActive('erase');        break;
         case 'z': setActive('zone');         break;
-        case 'b': setActive('object');       break;
-        case 'x': setActive('erase-object'); break;
-        case 'w': setActive('road');         break;
-        case 'c': setActive('road-connect'); break;
-        case 'q': setActive('erase-road');   break;
       }
     });
   }
