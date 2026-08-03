@@ -2289,7 +2289,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "34c87a6";
+const COMMIT  = "1254438";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6861,6 +6861,7 @@ const Generator = (() => {
       const cr2  = infR * infR;
       const _riverT = _getGenT();
       const _riverV = [_riverT.WATER_DARK, _riverT.WATER_LIGHT, _riverT.WATER_ROCK];
+      const riverCellIndices = [];
       let carved = 0, tries = 0;
       while (carved < p.rivers && tries < 1200) {
         tries++;
@@ -6903,9 +6904,18 @@ const Generator = (() => {
           if (elev[cr * W + cc] < p.wThr) break;
         }
         if (steps >= 18) {
-          for (const { idx, val } of paintBuf) dest[idx] = val;
+          for (const { idx, val } of paintBuf) { dest[idx] = val; riverCellIndices.push(idx); }
           carved++;
         }
+      }
+
+      // Every river's cells currently hold a random flat-water placeholder.
+      // Now that all rivers (and the coastline, computed earlier in this
+      // function) are final, replace each one with the correct directional
+      // River_*/Lake_* tile based on its real final neighbors.
+      for (const idx of riverCellIndices) {
+        const rrow = Math.floor(idx / W), rcol = idx % W;
+        dest[idx] = EdgeTiling.resolveEdgeTile(rcol, rrow, W, H, dest, ['Water', 'Rivers'], rng, _riverV);
       }
     }
 
