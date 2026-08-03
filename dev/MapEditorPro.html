@@ -2290,7 +2290,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "a1bf5e9";
+const COMMIT  = "f2bdc24";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6802,13 +6802,17 @@ const Generator = (() => {
       const _riverT = _getGenT();
       const _riverV = [_riverT.WATER_DARK, _riverT.WATER_LIGHT, _riverT.WATER_ROCK];
       let carved = 0, tries = 0;
-      while (carved < p.rivers && tries < 400) {
+      while (carved < p.rivers && tries < 1200) {
         tries++;
         const sc = Math.floor(rng() * (W - 20)) + 10;
         const sr = Math.floor(rng() * (H - 20)) + 10;
         if (elev[sr * W + sc] < p.mThr) continue;
         const ddx = sc - halfW, ddy = sr - halfH;
-        if (ddx * ddx + ddy * ddy < 625) continue;
+        // Seeds must start outside the city exclusion zone (cr2), not just a
+        // smaller fixed radius — otherwise a seed can land in the gap between
+        // the old fixed radius and cr2 and instantly fail on the first check
+        // below, wasting the try.
+        if (ddx * ddx + ddy * ddy <= cr2) continue;
         const visited = new Set();
         const paintBuf = [];
         let cc = sc, cr = sr, steps = 0;
@@ -6819,15 +6823,22 @@ const Generator = (() => {
           const dx = cc - halfW, dy = cr - halfH;
           if (dx * dx + dy * dy <= cr2) break;
           paintBuf.push({ idx: cr * W + cc, val: _riverV[Math.floor(rng() * 3)] });
-          let bc = cc, br = cr, be = elev[cr * W + cc];
+          // Steepest-descent with a fallback: prefer a strictly-lower neighbor,
+          // but if none exists, still move to the lowest unvisited neighbor
+          // (even if it's not lower than here) so a small local bump doesn't
+          // dead-end the walk immediately — real water finds a way around.
+          // Only a neighbor that's already part of this walk, or genuinely out
+          // of bounds, stops it.
+          let bc = -1, br = -1, be = Infinity;
           const jitter = (rng() - 0.5) * 0.04;
           for (const [dc, dr] of dirs) {
             const nc = cc + dc, nr = cr + dr;
             if (nc < 1 || nc >= W-1 || nr < 1 || nr >= H-1) continue;
+            if (visited.has(nr * W + nc)) continue;
             const ne = elev[nr * W + nc] + jitter;
             if (ne < be) { be = ne; bc = nc; br = nr; }
           }
-          if (bc === cc && br === cr) break;
+          if (bc === -1) break;
           cc = bc; cr = br; steps++;
           if (elev[cr * W + cc] < p.wThr) break;
         }
