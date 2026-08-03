@@ -2290,7 +2290,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "ae81f17";
+const COMMIT  = "a1bf5e9";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5938,7 +5938,7 @@ const IO = (() => {
       if (e) return e.id;
     }
     const F = {
-      0:'Water_Dark', 1:'Water_Light', 2:'Water_Rock',
+      0:'Water_Dirty_1', 1:'Water_1', 2:'Water_Rock_1',
       9:'Rubble_1',  10:'Rubble_2',   11:'Rubble_3',
       12:'Plain_1',  13:'Plain_2',    14:'BrokenPlane_1',
       15:'Forest_1', 16:'Forest_2',   17:'Forest_3',
@@ -6634,7 +6634,7 @@ const Generator = (() => {
       return hexId;  // pass through as-is — unknown IDs render as fallback color
     };
     _genT = {
-      WATER_DARK: 'Water_Dark', WATER_LIGHT: 'Water_Light', WATER_ROCK: 'Water_Rock',
+      WATER_DARK: find('Water_Dirty_1'), WATER_LIGHT: find('Water_1'), WATER_ROCK: find('Water_Rock_1'),
       RUBBLE_1:     find('Rubble_1'),     RUBBLE_2:  find('Rubble_2'),   RUBBLE_3: find('Rubble_3'),
       PLAIN_1:      find('Plain_1'),      PLAIN_2:   find('Plain_2'),
       BROKEN_PLAIN: find('BrokenPlane_1'),
@@ -6986,7 +6986,7 @@ const Satellite = (() => {
       return hexId;
     };
     _T = {
-      WATER_DARK: 'Water_Dark', WATER_LIGHT: 'Water_Light', WATER_ROCK: 'Water_Rock',
+      WATER_DARK: find('Water_Dirty_1'), WATER_LIGHT: find('Water_1'), WATER_ROCK: find('Water_Rock_1'),
       RUBBLE_1:     find('Rubble_1'),   RUBBLE_2:    find('Rubble_2'),
       PLAIN_1:      find('Plain_1'),    PLAIN_2:     find('Plain_2'),
       BROKEN_PLAIN: find('BrokenPlane_1'),
