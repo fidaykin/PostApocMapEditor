@@ -2113,6 +2113,10 @@ body.mode-common #map-io    { display: none; }
           <button class="gen-rnd-btn"
                   onclick="document.getElementById('gen-seed').value=Math.floor(Math.random()*999998)+1;Generator.schedule()">🎲</button>
         </div>
+        <div class="gen-check-row">
+          <input id="gen-debug" type="checkbox" onchange="Generator.schedule()">
+          <label for="gen-debug" style="color:#8ab4f8">Debug: show elevation/moisture</label>
+        </div>
         <!-- Presets -->
         <div class="gen-section">Presets</div>
         <div class="gen-presets">
@@ -2285,7 +2289,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "fc5b95f";
+const COMMIT  = "10a3e9b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6705,6 +6709,7 @@ const Generator = (() => {
       goldCount:  parseInt(document.getElementById('gen-goldCount').value),
       oil:        document.getElementById('gen-oil').checked,
       oilCount:   parseInt(document.getElementById('gen-oilCount').value),
+      debug:      document.getElementById('gen-debug').checked,
     };
   }
 
@@ -6783,6 +6788,7 @@ const Generator = (() => {
         e = e * (1 - coastInf) + TARGET_OCEAN * coastInf;
 
         elev[row * W + col] = e;
+        if (opts.debugOut) { opts.debugOut.elev[row * W + col] = e; opts.debugOut.moist[row * W + col] = m; }
         dest[row * W + col] = _classify(e, m, b, p.mThr, p.hThr, p.wThr);
       }
     }
@@ -6878,7 +6884,11 @@ const Generator = (() => {
   function _renderPreview() {
     const W = MAP_WIDTH, H = MAP_HEIGHT;
     const tmp = new Array(W * H).fill('Plain_1');
-    _generateInto(tmp, _getParams(), { skipExpensive: true });
+    const params = _getParams();
+    const debugOut = params.debug
+      ? { elev: new Float32Array(W * H), moist: new Float32Array(W * H) }
+      : null;
+    _generateInto(tmp, params, { skipExpensive: true, debugOut });
     const cv = document.getElementById('gen-preview');
     if (!cv) return;
     const ctx = cv.getContext('2d');
@@ -6888,10 +6898,18 @@ const Generator = (() => {
       for (let px = 0; px < pw; px++) {
         const col = Math.floor(px / pw * W);
         const row = Math.floor(py / ph * H);
-        const id  = tmp[row * W + col];
-        const [r, g, b] = Terrain.color(id);
         const i = (py * pw + px) * 4;
-        img.data[i] = r; img.data[i+1] = g; img.data[i+2] = b; img.data[i+3] = 255;
+        if (debugOut) {
+          const idx = row * W + col;
+          const isLeftHalf = px < pw / 2;
+          const v = isLeftHalf ? debugOut.elev[idx] : debugOut.moist[idx];
+          const gray = Math.max(0, Math.min(255, Math.round(v * 255)));
+          img.data[i] = gray; img.data[i+1] = gray; img.data[i+2] = gray; img.data[i+3] = 255;
+        } else {
+          const id = tmp[row * W + col];
+          const [r, g, b] = Terrain.color(id);
+          img.data[i] = r; img.data[i+1] = g; img.data[i+2] = b; img.data[i+3] = 255;
+        }
       }
     }
     ctx.putImageData(img, 0, 0);
