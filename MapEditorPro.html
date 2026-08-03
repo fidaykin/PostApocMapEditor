@@ -2289,7 +2289,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "10a3e9b";
+const COMMIT  = "ae81f17";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6809,6 +6809,7 @@ const Generator = (() => {
         const ddx = sc - halfW, ddy = sr - halfH;
         if (ddx * ddx + ddy * ddy < 625) continue;
         const visited = new Set();
+        const paintBuf = [];
         let cc = sc, cr = sr, steps = 0;
         while (steps < 350) {
           const key = cr * W + cc;
@@ -6816,7 +6817,7 @@ const Generator = (() => {
           visited.add(key);
           const dx = cc - halfW, dy = cr - halfH;
           if (dx * dx + dy * dy <= cr2) break;
-          dest[cr * W + cc] = _riverV[Math.floor(rng() * 3)];
+          paintBuf.push({ idx: cr * W + cc, val: _riverV[Math.floor(rng() * 3)] });
           let bc = cc, br = cr, be = elev[cr * W + cc];
           const jitter = (rng() - 0.5) * 0.04;
           for (const [dc, dr] of dirs) {
@@ -6829,7 +6830,10 @@ const Generator = (() => {
           cc = bc; cr = br; steps++;
           if (elev[cr * W + cc] < p.wThr) break;
         }
-        if (steps >= 18) carved++;
+        if (steps >= 18) {
+          for (const { idx, val } of paintBuf) dest[idx] = val;
+          carved++;
+        }
       }
     }
 
