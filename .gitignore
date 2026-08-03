@@ -13,3 +13,6 @@
 
 # Node (if tooling is ever added)
 node_modules/
+
+# Subagent-driven-development scratch workspace (ledgers, briefs, review packages)
+.superpowers/

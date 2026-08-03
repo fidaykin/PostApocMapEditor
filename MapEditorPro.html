@@ -2113,6 +2113,10 @@ body.mode-common #map-io    { display: none; }
           <button class="gen-rnd-btn"
                   onclick="document.getElementById('gen-seed').value=Math.floor(Math.random()*999998)+1;Generator.schedule()">🎲</button>
         </div>
+        <div class="gen-check-row">
+          <input id="gen-debug" type="checkbox" onchange="Generator.schedule()">
+          <label for="gen-debug" style="color:#8ab4f8">Debug: show elevation/moisture</label>
+        </div>
         <!-- Presets -->
         <div class="gen-section">Presets</div>
         <div class="gen-presets">
@@ -2284,8 +2288,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.08.02";
-const COMMIT  = "194e94d";
+const VERSION = "2026.08.03";
+const COMMIT  = "ae81f17";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6705,38 +6709,93 @@ const Generator = (() => {
       goldCount:  parseInt(document.getElementById('gen-goldCount').value),
       oil:        document.getElementById('gen-oil').checked,
       oilCount:   parseInt(document.getElementById('gen-oilCount').value),
+      debug:      document.getElementById('gen-debug').checked,
     };
   }
 
-  function _generateInto(dest, p) {
+  // Majority-filter smoothing: each cell becomes whichever terrain ID is most
+  // common among its 8 neighbors + itself. Run on the base biome classification
+  // only, BEFORE rivers/resources are stamped on top (see call site below) —
+  // otherwise a river's single-tile width or a small resource cluster's edges
+  // would get voted out by their surrounding neighbors.
+  function _smoothTerrain(dest, W, H, passes) {
+    for (let pass = 0; pass < passes; pass++) {
+      const src = dest.slice();
+      for (let row = 0; row < H; row++) {
+        for (let col = 0; col < W; col++) {
+          const counts = new Map();
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              const nr = row + dr, nc = col + dc;
+              if (nr < 0 || nr >= H || nc < 0 || nc >= W) continue;
+              const id = src[nr * W + nc];
+              counts.set(id, (counts.get(id) || 0) + 1);
+            }
+          }
+          let bestId = src[row * W + col], bestCount = -1;
+          for (const [id, count] of counts) {
+            if (count > bestCount) { bestCount = count; bestId = id; }
+          }
+          dest[row * W + col] = bestId;
+        }
+      }
+    }
+  }
+
+  function _generateInto(dest, p, opts) {
+    opts = opts || {};
     const W = MAP_WIDTH, H = MAP_HEIGHT;
     const rng    = _lcg(p.seed);
     const seedE  = Math.floor(rng() * 100000);
     const seedM  = Math.floor(rng() * 100000);
     const seedB  = Math.floor(rng() * 100000);
     const eNoise = _multiOctave(seedE, p.elevScale);
-    const mNoise = _makeNoise2D(seedM);
-    const bNoise = _makeNoise2D(seedB);
+    const mNoise = _multiOctave(seedM, p.moistScale);
+    const bNoise = _multiOctave(seedB, p.biomeScale);
     const halfW  = Math.floor(W / 2);
     const halfH  = Math.floor(H / 2);
     const elev   = new Float32Array(W * H);
     const infR   = Math.min(W, H) * 0.08;
     const TARGET_E = 0.46, TARGET_M = 0.50, TARGET_B = 0.55;
 
+    // Continent/coastline mask: elevation falls off toward open ocean far from
+    // the map center. Landmass radius is perturbed per-angle by a small seeded
+    // noise so the coastline is an irregular blob, not a perfect circle.
+    const maxR       = Math.sqrt(halfW * halfW + halfH * halfH);
+    const coastNoise = _makeNoise2D(Math.floor(rng() * 100000));
+    const COAST_BASE_R  = maxR * 0.72;   // average landmass radius
+    const COAST_WOBBLE   = 0.28;          // +/- fraction of COAST_BASE_R the coastline wobbles by
+    const COAST_BAND     = maxR * 0.20;   // width of the land->ocean blend band
+    const TARGET_OCEAN    = 0.05;          // elevation deep in the ocean, well below any wThr in GEN_PRESETS (min 0.15)
+
     for (let row = 0; row < H; row++) {
       for (let col = 0; col < W; col++) {
-        const dist = Math.sqrt((col - halfW) ** 2 + (row - halfH) ** 2);
+        const dx = col - halfW, dy = row - halfH;
+        const dist = Math.sqrt(dx * dx + dy * dy);
         const t    = Math.max(0, 1.0 - dist / infR);
         const inf  = t * t * (3 - 2 * t);
-        const e = eNoise(col, row)                           * (1-inf) + TARGET_E * inf;
-        const m = mNoise(col*p.moistScale, row*p.moistScale) * (1-inf) + TARGET_M * inf;
-        const b = bNoise(col*p.biomeScale, row*p.biomeScale) * (1-inf) + TARGET_B * inf;
+        let e = eNoise(col, row)                           * (1-inf) + TARGET_E * inf;
+        const m = mNoise(col, row) * (1-inf) + TARGET_M * inf;
+        const b = bNoise(col, row) * (1-inf) + TARGET_B * inf;
+
+        // Coastline: sample angular noise as a point on a small circle in noise
+        // space (seamless wrap at angle 0/2*PI), perturb the landmass radius by it.
+        const angle    = Math.atan2(dy, dx);
+        const wobble   = coastNoise(Math.cos(angle) * 3 + 3, Math.sin(angle) * 3 + 3);
+        const landR    = COAST_BASE_R * (1 + (wobble * 2 - 1) * COAST_WOBBLE);
+        const coastT   = Math.max(0, Math.min(1, (dist - landR) / COAST_BAND));
+        const coastInf = coastT * coastT * (3 - 2 * coastT);
+        e = e * (1 - coastInf) + TARGET_OCEAN * coastInf;
+
         elev[row * W + col] = e;
+        if (opts.debugOut) { opts.debugOut.elev[row * W + col] = e; opts.debugOut.moist[row * W + col] = m; }
         dest[row * W + col] = _classify(e, m, b, p.mThr, p.hThr, p.wThr);
       }
     }
 
-    if (p.rivers > 0) {
+    if (!opts.skipExpensive) _smoothTerrain(dest, W, H, 1);
+
+    if (p.rivers > 0 && !opts.skipExpensive) {
       const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
       const cr2  = infR * infR;
       const _riverT = _getGenT();
@@ -6750,6 +6809,7 @@ const Generator = (() => {
         const ddx = sc - halfW, ddy = sr - halfH;
         if (ddx * ddx + ddy * ddy < 625) continue;
         const visited = new Set();
+        const paintBuf = [];
         let cc = sc, cr = sr, steps = 0;
         while (steps < 350) {
           const key = cr * W + cc;
@@ -6757,7 +6817,7 @@ const Generator = (() => {
           visited.add(key);
           const dx = cc - halfW, dy = cr - halfH;
           if (dx * dx + dy * dy <= cr2) break;
-          dest[cr * W + cc] = _riverV[Math.floor(rng() * 3)];
+          paintBuf.push({ idx: cr * W + cc, val: _riverV[Math.floor(rng() * 3)] });
           let bc = cc, br = cr, be = elev[cr * W + cc];
           const jitter = (rng() - 0.5) * 0.04;
           for (const [dc, dr] of dirs) {
@@ -6770,14 +6830,21 @@ const Generator = (() => {
           cc = bc; cr = br; steps++;
           if (elev[cr * W + cc] < p.wThr) break;
         }
-        if (steps >= 18) carved++;
+        if (steps >= 18) {
+          for (const { idx, val } of paintBuf) dest[idx] = val;
+          carved++;
+        }
       }
     }
 
     const excR2 = infR * infR;
     function scatter(type, count, minE, maxE) {
+      const CLUSTER_SIZE   = 4;      // target tiles per deposit
+      const CLUSTER_RADIUS = 2.2;    // max spread of a deposit's tiles around its center
+      const numClusters = Math.max(1, Math.round(count / CLUSTER_SIZE));
       let placed = 0, tries = 0;
-      while (placed < count && tries < count * 30) {
+      const maxTries = numClusters * 30;
+      while (placed < count && tries < maxTries) {
         tries++;
         const ac = Math.floor(rng() * (W - 8)) + 4;
         const ar = Math.floor(rng() * (H - 8)) + 4;
@@ -6785,7 +6852,21 @@ const Generator = (() => {
         if (e < minE || e > maxE) continue;
         const dx = ac - halfW, dy = ar - halfH;
         if (dx * dx + dy * dy <= excR2) continue;
-        dest[ar * W + ac] = type; placed++;
+
+        const blobCount = Math.min(CLUSTER_SIZE, count - placed);
+        for (let i = 0; i < blobCount; i++) {
+          const angle  = rng() * Math.PI * 2;
+          const radius = rng() * CLUSTER_RADIUS;
+          const tc = Math.round(ac + Math.cos(angle) * radius);
+          const tr = Math.round(ar + Math.sin(angle) * radius);
+          if (tc < 1 || tc >= W - 1 || tr < 1 || tr >= H - 1) continue;
+          const te = elev[tr * W + tc];
+          if (te < minE || te > maxE) continue;
+          const tdx = tc - halfW, tdy = tr - halfH;
+          if (tdx * tdx + tdy * tdy <= excR2) continue;
+          dest[tr * W + tc] = type;
+          placed++;
+        }
       }
     }
     if (p.gold) scatter(_getGenT().GOLD, p.goldCount, p.hThr, 1.0);
@@ -6807,7 +6888,11 @@ const Generator = (() => {
   function _renderPreview() {
     const W = MAP_WIDTH, H = MAP_HEIGHT;
     const tmp = new Array(W * H).fill('Plain_1');
-    _generateInto(tmp, _getParams());
+    const params = _getParams();
+    const debugOut = params.debug
+      ? { elev: new Float32Array(W * H), moist: new Float32Array(W * H) }
+      : null;
+    _generateInto(tmp, params, { skipExpensive: true, debugOut });
     const cv = document.getElementById('gen-preview');
     if (!cv) return;
     const ctx = cv.getContext('2d');
@@ -6817,10 +6902,18 @@ const Generator = (() => {
       for (let px = 0; px < pw; px++) {
         const col = Math.floor(px / pw * W);
         const row = Math.floor(py / ph * H);
-        const id  = tmp[row * W + col];
-        const [r, g, b] = Terrain.color(id);
         const i = (py * pw + px) * 4;
-        img.data[i] = r; img.data[i+1] = g; img.data[i+2] = b; img.data[i+3] = 255;
+        if (debugOut) {
+          const idx = row * W + col;
+          const isLeftHalf = px < pw / 2;
+          const v = isLeftHalf ? debugOut.elev[idx] : debugOut.moist[idx];
+          const gray = Math.max(0, Math.min(255, Math.round(v * 255)));
+          img.data[i] = gray; img.data[i+1] = gray; img.data[i+2] = gray; img.data[i+3] = 255;
+        } else {
+          const id = tmp[row * W + col];
+          const [r, g, b] = Terrain.color(id);
+          img.data[i] = r; img.data[i+1] = g; img.data[i+2] = b; img.data[i+3] = 255;
+        }
       }
     }
     ctx.putImageData(img, 0, 0);
