@@ -2289,7 +2289,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "89669a7";
+const COMMIT  = "34c87a6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2560,6 +2560,67 @@ const Roads = (() => {
   }
 
   return { loadSprites, calcBitmask, drawOverlay, getNeighbors };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// EDGE TILING — generic neighbor-adjacency tile resolver. Given a
+// terrain "family" (a set of HexDB `type` values, e.g. water/rivers),
+// looks up which pre-authored directional tile matches a cell's real
+// neighbors, the same way Roads picks a road sprite by bitmask. Not
+// hardcoded to any one family — callers supply familyTypes/fallbackIds.
+// ═══════════════════════════════════════════════════════════════
+const EdgeTiling = (() => {
+  const FACE_NAMES = ['SE', 'NE', 'N', 'NW', 'SW', 'S']; // same bit order as Roads' _DIR_BITS
+
+  const _tableCache = new Map(); // "familyTypes,sorted,joined" -> { [mask]: [ids] }
+
+  function _buildEdgeMaskTable(familyTypes) {
+    const key = familyTypes.slice().sort().join(',');
+    if (_tableCache.has(key)) return _tableCache.get(key);
+    const table = {};
+    if (typeof HexDB !== 'undefined') {
+      for (const h of HexDB.getAll()) {
+        if (!familyTypes.includes(h.type)) continue;
+        const faces = Array.isArray(h.edgeFaces) ? h.edgeFaces : [];
+        let mask = 0;
+        for (const f of faces) {
+          const bit = FACE_NAMES.indexOf(f);
+          if (bit >= 0) mask |= (1 << bit);
+        }
+        if (!table[mask]) table[mask] = [];
+        table[mask].push(h.id);
+      }
+    }
+    _tableCache.set(key, table);
+    return table;
+  }
+
+  function _neighborCoords(col, row, W, H) {
+    const dirs = (H - 1 - row) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
+    return FACE_NAMES.map(name => {
+      const [dc, dr] = dirs[name];
+      return { col: col + dc, row: row + dr };
+    });
+  }
+
+  function resolveEdgeTile(col, row, W, H, dataArr, familyTypes, rng, fallbackIds) {
+    const table = _buildEdgeMaskTable(familyTypes);
+    const neighbors = _neighborCoords(col, row, W, H);
+    let mask = 0;
+    neighbors.forEach(({ col: nc, row: nr }, i) => {
+      if (nc < 0 || nc >= W || nr < 0 || nr >= H) return;
+      const nId = dataArr[nr * W + nc];
+      const nEntry = typeof Terrain !== 'undefined' ? Terrain.byHexId(nId) : null;
+      if (nEntry && familyTypes.includes(nEntry.type)) mask |= (1 << i);
+    });
+    const options = table[mask];
+    if (options && options.length) return options[Math.floor(rng() * options.length)];
+    return fallbackIds[Math.floor(rng() * fallbackIds.length)];
+  }
+
+  function clearCache() { _tableCache.clear(); }
+
+  return { resolveEdgeTile, clearCache };
 })();
 
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
