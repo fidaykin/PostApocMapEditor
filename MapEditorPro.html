@@ -2285,7 +2285,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "8d83830";
+const COMMIT  = "fdb466f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6715,8 +6715,8 @@ const Generator = (() => {
     const seedM  = Math.floor(rng() * 100000);
     const seedB  = Math.floor(rng() * 100000);
     const eNoise = _multiOctave(seedE, p.elevScale);
-    const mNoise = _makeNoise2D(seedM);
-    const bNoise = _makeNoise2D(seedB);
+    const mNoise = _multiOctave(seedM, p.moistScale);
+    const bNoise = _multiOctave(seedB, p.biomeScale);
     const halfW  = Math.floor(W / 2);
     const halfH  = Math.floor(H / 2);
     const elev   = new Float32Array(W * H);
@@ -6740,8 +6740,8 @@ const Generator = (() => {
         const t    = Math.max(0, 1.0 - dist / infR);
         const inf  = t * t * (3 - 2 * t);
         let e = eNoise(col, row)                           * (1-inf) + TARGET_E * inf;
-        const m = mNoise(col*p.moistScale, row*p.moistScale) * (1-inf) + TARGET_M * inf;
-        const b = bNoise(col*p.biomeScale, row*p.biomeScale) * (1-inf) + TARGET_B * inf;
+        const m = mNoise(col, row) * (1-inf) + TARGET_M * inf;
+        const b = bNoise(col, row) * (1-inf) + TARGET_B * inf;
 
         // Coastline: sample angular noise as a point on a small circle in noise
         // space (seamless wrap at angle 0/2*PI), perturb the landmass radius by it.
