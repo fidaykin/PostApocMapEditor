@@ -44,7 +44,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Plain_2",
@@ -88,7 +88,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "BrokenPlain_1",
@@ -131,7 +131,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_1",
@@ -197,7 +197,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_2",
@@ -263,7 +263,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_3",
@@ -329,7 +329,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_4_Test",
@@ -397,7 +397,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_5_Test",
@@ -474,7 +474,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Hills_1",
@@ -521,7 +521,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 18,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Mountain_1",
@@ -568,7 +568,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 19,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Rubble_1",
@@ -611,7 +611,7 @@
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Rubble_2",
@@ -654,7 +654,7 @@
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Rubble_3",
@@ -697,7 +697,7 @@
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_1",
@@ -738,7 +738,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_Dirty_1",
@@ -788,7 +788,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "GoldVein_1",
@@ -830,7 +830,7 @@
       "category": "💎 RESOURCES",
       "terrainTypeId": 20,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Rift_1",
@@ -877,7 +877,7 @@
       "category": "🌋 VOLCANIC/RIFT",
       "terrainTypeId": 28,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "GemField_1",
@@ -918,7 +918,7 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Desert_1",
@@ -961,7 +961,7 @@
       "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": 23,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Barren_1",
@@ -1004,7 +1004,7 @@
       "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": 22,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Oil_1",
@@ -1056,7 +1056,7 @@
       "category": "💎 RESOURCES",
       "terrainTypeId": 21,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Swamp_1",
@@ -1099,7 +1099,7 @@
       "category": "🟫 SWAMP",
       "terrainTypeId": 24,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "RockySwamp_1",
@@ -1142,7 +1142,7 @@
       "category": "🟫 SWAMP",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "BrokenPlane_1",
@@ -1203,7 +1203,7 @@
       "category": "",
       "terrainTypeId": 14,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "BrokenRails_1",
@@ -1254,7 +1254,7 @@
       "roadAllowed": false,
       "category": "",
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "DestroyedBuilding_1",
@@ -1306,7 +1306,7 @@
       "roadAllowed": false,
       "category": "🌾 PLAINS",
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_Rock_1",
@@ -1352,7 +1352,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Lava_Plain_1",
@@ -1396,7 +1396,7 @@
       "category": "🌋 VOLCANIC/RIFT",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Lava_Rift_1",
@@ -1440,7 +1440,7 @@
       "category": "🌋 VOLCANIC/RIFT",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Fish_1",
@@ -1495,7 +1495,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_Ship_Test_1",
@@ -1550,7 +1550,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_SmallShipyard_Test_1",
@@ -1609,7 +1609,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_BrokenBoat_1",
@@ -1655,7 +1655,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_OilSpill_1",
@@ -1701,7 +1701,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "River_L_1",
@@ -1741,7 +1741,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "S"
       ]
@@ -1784,7 +1784,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "S"
       ]
@@ -1827,7 +1827,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "SW",
         "SE"
       ]
@@ -1870,7 +1870,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "NE"
       ]
@@ -1913,7 +1913,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "S",
         "NW",
         "NE"
@@ -1957,7 +1957,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "SW",
         "SE"
@@ -2001,7 +2001,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NE",
         "S"
       ]
@@ -2044,7 +2044,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "S"
       ]
@@ -2087,7 +2087,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "SW"
       ]
@@ -2130,7 +2130,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "SE"
       ]
@@ -2173,7 +2173,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NE",
         "SW"
       ]
@@ -2216,7 +2216,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "SE"
       ]
@@ -2259,7 +2259,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "SW"
       ]
     },
@@ -2301,7 +2301,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW"
       ]
     },
@@ -2343,7 +2343,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NE"
       ]
     },
@@ -2385,7 +2385,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "SE"
       ]
     },
@@ -2427,7 +2427,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N"
       ]
     },
@@ -2469,7 +2469,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "S"
       ]
     },
@@ -2511,7 +2511,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "River_D_L_EE_2",
@@ -2551,7 +2551,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "SW",
         "SE"
@@ -2595,7 +2595,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NE",
         "SE",
         "SW"
@@ -2639,7 +2639,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "S"
       ]
@@ -2682,7 +2682,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "S"
       ]
@@ -2725,7 +2725,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "SW",
         "NE"
@@ -2769,7 +2769,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "NE",
         "SE"
@@ -2813,7 +2813,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "SW"
       ]
@@ -2856,7 +2856,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "SW"
       ]
@@ -2899,7 +2899,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "SE"
       ]
@@ -2942,7 +2942,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "SE"
       ]
@@ -2989,7 +2989,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Plain_TEST_Chicken_1",
@@ -3033,7 +3033,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Altar_TEST_Chicken_1",
@@ -3088,7 +3088,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": true,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Monster_TEST_Chicken_Small_1",
@@ -3143,7 +3143,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": true,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Monster_TEST_Chicken_Big_2",
@@ -3198,7 +3198,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": true,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Settlements_TEST_Big_1",
@@ -3263,7 +3263,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "NW",
         "N",
@@ -3271,7 +3270,8 @@
         "SE",
         "S",
         "SW"
-      ]
+      ],
+      "edgeFaces": []
     },
     {
       "id": "Forest_Kaiju_1",
@@ -3337,7 +3337,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Plain_Kaiju_1",
@@ -3381,7 +3381,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_Kaiju_2",
@@ -3447,7 +3447,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Mountain_Kaiju_1",
@@ -3494,7 +3494,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 19,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Mountain_Kaiju_2",
@@ -3541,7 +3541,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 19,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "GoldVein_Kaiju_1",
@@ -3583,7 +3583,7 @@
       "category": "💎 RESOURCES",
       "terrainTypeId": 20,
       "isLayered": false,
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Settlement_Kaiju_1",
@@ -3630,7 +3630,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "NW",
         "N",
@@ -3638,7 +3637,8 @@
         "SE",
         "S",
         "SW"
-      ]
+      ],
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Alive_1",
@@ -3702,7 +3702,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3710,7 +3709,8 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Defeat_1",
@@ -3761,7 +3761,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3769,7 +3768,8 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Die_1",
@@ -3816,7 +3816,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3824,7 +3823,8 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Sceleton_V_1",
@@ -3875,7 +3875,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3883,7 +3882,8 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Sceleton_V_2",
@@ -3934,7 +3934,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3942,7 +3941,8 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Sceleton_V_3",
@@ -3993,7 +3993,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -4001,7 +4000,8 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": []
     }
   ],
   "dbVersion": 5,
