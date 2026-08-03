@@ -2285,7 +2285,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "01b6a5b";
+const COMMIT  = "fc5b95f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6829,8 +6829,12 @@ const Generator = (() => {
 
     const excR2 = infR * infR;
     function scatter(type, count, minE, maxE) {
+      const CLUSTER_SIZE   = 4;      // target tiles per deposit
+      const CLUSTER_RADIUS = 2.2;    // max spread of a deposit's tiles around its center
+      const numClusters = Math.max(1, Math.round(count / CLUSTER_SIZE));
       let placed = 0, tries = 0;
-      while (placed < count && tries < count * 30) {
+      const maxTries = numClusters * 30;
+      while (placed < count && tries < maxTries) {
         tries++;
         const ac = Math.floor(rng() * (W - 8)) + 4;
         const ar = Math.floor(rng() * (H - 8)) + 4;
@@ -6838,7 +6842,21 @@ const Generator = (() => {
         if (e < minE || e > maxE) continue;
         const dx = ac - halfW, dy = ar - halfH;
         if (dx * dx + dy * dy <= excR2) continue;
-        dest[ar * W + ac] = type; placed++;
+
+        const blobCount = Math.min(CLUSTER_SIZE, count - placed);
+        for (let i = 0; i < blobCount; i++) {
+          const angle  = rng() * Math.PI * 2;
+          const radius = rng() * CLUSTER_RADIUS;
+          const tc = Math.round(ac + Math.cos(angle) * radius);
+          const tr = Math.round(ar + Math.sin(angle) * radius);
+          if (tc < 1 || tc >= W - 1 || tr < 1 || tr >= H - 1) continue;
+          const te = elev[tr * W + tc];
+          if (te < minE || te > maxE) continue;
+          const tdx = tc - halfW, tdy = tr - halfH;
+          if (tdx * tdx + tdy * tdy <= excR2) continue;
+          dest[tr * W + tc] = type;
+          placed++;
+        }
       }
     }
     if (p.gold) scatter(_getGenT().GOLD, p.goldCount, p.hThr, 1.0);
