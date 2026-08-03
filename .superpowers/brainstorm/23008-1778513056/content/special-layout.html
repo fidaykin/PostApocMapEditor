@@ -1,0 +1,82 @@
+<h2>SPECIAL section — proposed layout</h2>
+<p class="subtitle">Simplest section — all patterns already built. Green = new/changed. Red = removed.</p>
+
+<div class="mockup" style="max-width:620px;margin:0 auto">
+  <div class="mockup-header">SPECIAL</div>
+  <div class="mockup-body" style="padding:0">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:monospace">
+
+      <!-- Bonus Drop checkbox -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;width:140px;text-align:right">Bonus Drop</td>
+        <td style="padding:6px 10px">
+          <label style="display:inline-flex;align-items:center;gap:6px">
+            <input type="checkbox"> <span style="color:#ccc">has bonus drop on trigger</span>
+          </label>
+          <span style="color:#888;font-size:10px"> default No — gates Triggers + Bonuses below</span>
+        </td>
+      </tr>
+
+      <!-- Triggers dropdown — gated -->
+      <tr style="border-bottom:1px solid #333;background:#0d2a3a">
+        <td style="color:#42a5f5;padding:6px 10px;text-align:right">Triggers</td>
+        <td style="padding:6px 10px">
+          <select class="mock-input" style="width:120px" disabled>
+            <option selected>Destroy</option>
+            <option>Reveal</option>
+            <option>Build</option>
+          </select>
+          <span style="color:#555;font-size:10px"> default: Destroy. Active when Bonus Drop=Yes</span>
+        </td>
+      </tr>
+
+      <!-- Bonuses — gated resource block -->
+      <tr style="border-bottom:1px solid #333;background:#0d2a3a">
+        <td style="color:#42a5f5;padding:6px 10px;text-align:right;vertical-align:top">Bonuses</td>
+        <td style="padding:6px 10px">
+          <div style="opacity:0.4">
+            <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
+              <select class="mock-input" style="width:110px" disabled><option>Gold</option></select>
+              <input class="mock-input" type="number" style="width:90px" value="10" disabled>
+              <button class="mock-button" style="padding:2px 6px;font-size:11px" disabled>✕</button>
+            </div>
+            <button class="mock-button" style="padding:3px 10px;font-size:11px" disabled>+ Add Resource</button>
+          </div>
+          <span style="color:#555;font-size:10px">default Gold=10. Active when Bonus Drop=Yes</span>
+        </td>
+      </tr>
+
+      <!-- REMOVED -->
+      <tr style="border-bottom:1px solid #333;background:#1a0808;opacity:0.5">
+        <td style="color:#e57373;padding:4px 10px;text-align:right"><s>StorageCapacity / EnergyConsumption / PollutionConstant</s></td>
+        <td style="padding:4px 10px;color:#e57373"><s>removed</s></td>
+      </tr>
+
+      <!-- Boosters — locked placeholder -->
+      <tr style="border-bottom:1px solid #333;background:#1a1a1a">
+        <td style="color:#555;padding:6px 10px;text-align:right">Boosters</td>
+        <td style="padding:6px 10px">
+          <input class="mock-input" style="width:200px;opacity:0.4" value="" disabled placeholder="(future use)">
+          <span style="color:#444;font-size:10px"> locked placeholder</span>
+        </td>
+      </tr>
+
+      <!-- Effects — locked placeholder -->
+      <tr style="background:#1a1a1a">
+        <td style="color:#555;padding:6px 10px;text-align:right">Effects</td>
+        <td style="padding:6px 10px">
+          <input class="mock-input" style="width:200px;opacity:0.4" value="" disabled placeholder="(future use)">
+          <span style="color:#444;font-size:10px"> locked placeholder</span>
+        </td>
+      </tr>
+
+    </table>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:12px;max-width:620px;margin-left:auto;margin-right:auto">
+  🟢 New: Bonus Drop checkbox gates Triggers (dropdown) + Bonuses (resource block)<br>
+  🔵 Blue = gated by Bonus Drop<br>
+  ⬛ Boosters + Effects kept as locked placeholders (second-to-last, last)<br>
+  🔴 Removed: StorageCapacity, EnergyConsumption, PollutionConstant
+</p>

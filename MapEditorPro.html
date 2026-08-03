@@ -628,6 +628,44 @@ body.mode-settlements #settlements-main { display: grid; }
 }
 .mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
 .mode-tab:hover:not(.active) { color: var(--text); }
+/* Packages panel */
+body:not(.mode-packages) #packages-tools { display: none; }
+body.mode-packages #packages-tools { display: flex; align-items: center; gap: 6px; }
+body.mode-packages #main { display: none; }
+body.mode-packages #map-tools { display: none; }
+body.mode-packages #map-io { display: none; }
+body:not(.mode-packages) #pkg-panel { display: none; }
+body.mode-packages #pkg-panel { display: block; }
+
+#pkg-panel { padding: 16px; max-width: 860px; }
+#pkg-panel table { border-collapse: collapse; width: 100%; font-size: 13px; }
+#pkg-panel th, #pkg-panel td { padding: 8px 12px; border-bottom: 1px solid #313244; text-align: left; }
+#pkg-panel th { color: #888; font-weight: normal; font-size: 11px; text-transform: uppercase; }
+#pkg-panel tr:hover td { background: #181825; }
+.pkg-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px;
+             font-weight: bold; background: #a6e3a1; color: #1e1e2e; }
+.pkg-chip  { padding: 3px 10px; border-radius: 12px; border: 1px solid #45475a;
+             background: #1e1e2e; color: #cdd6f4; cursor: pointer; font-size: 11px; }
+.pkg-chip.active { background: #a6e3a1; color: #1e1e2e; border-color: #a6e3a1; }
+.pkg-filter-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0 8px; }
+
+/* Dev Tools panel */
+body.mode-devtools #main { display: none; }
+body.mode-devtools #map-tools { display: none; }
+body.mode-devtools #map-io { display: none; }
+body:not(.mode-devtools) #devtools-panel { display: none; }
+body.mode-devtools #devtools-panel { display: block; }
+
+#devtools-panel { padding: 16px; max-width: 1100px; overflow-y: auto; }
+#devtools-panel table { border-collapse: collapse; width: 100%; font-size: 13px; margin-bottom: 8px; }
+#devtools-panel th, #devtools-panel td { padding: 6px 12px; border-bottom: 1px solid #313244; text-align: left; }
+#devtools-panel th { color: #888; font-weight: normal; font-size: 11px; text-transform: uppercase; }
+#devtools-panel tr:hover td { background: #181825; }
+#devtools-panel input[type="text"] {
+  background: #1e1e2e; border: 1px solid #45475a; color: var(--text);
+  padding: 5px 9px; border-radius: 4px; font-size: 12px; margin-bottom: 10px; width: 260px;
+}
+
 .mode-more-wrap { position: relative; display: flex; align-items: stretch; }
 #more-dropdown {
   display: none; position: absolute; top: 100%; left: 0; z-index: 200;
@@ -1259,6 +1297,7 @@ body.mode-common #map-io    { display: none; }
       <button class="mode-tab"        id="tab-buildings"   onclick="App.setMode('buildings')">BUILDINGS</button>
       <button class="mode-tab"        id="tab-settlements" onclick="App.setMode('settlements')">SETTLEMENTS</button>
       <button class="mode-tab"        id="tab-keys"        onclick="App.setMode('keys')">KEYS</button>
+      <button class="mode-tab"        id="tab-packages"    onclick="App.setMode('packages')">PACKAGES</button>
       <div class="mode-more-wrap">
         <button class="mode-tab" id="tab-more" onclick="App.toggleMore(event)">MORE ▾</button>
         <div id="more-dropdown">
@@ -1267,6 +1306,7 @@ body.mode-common #map-io    { display: none; }
           <button class="more-item" id="tab-monsters" onclick="App.setMode('monsters');App.closeMore()">MONSTERS</button>
           <button class="more-item" id="tab-quests"   onclick="App.setMode('quests');App.closeMore()">QUESTS</button>
           <button class="more-item" id="tab-common"  onclick="App.setMode('common');App.closeMore()">COMMON</button>
+          <button class="more-item" id="tab-devtools" onclick="App.setMode('devtools');App.closeMore()">DEV TOOLS</button>
         </div>
       </div>
     </div>
@@ -1288,12 +1328,6 @@ body.mode-common #map-io    { display: none; }
              style="width:42px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center;vertical-align:middle"
              oninput="Canvas.render()">
       <button class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')">🗺️<span class="tooltip">Zone Painter (Z)</span></button>
-      <button class="tool-btn" data-tool="object" onclick="Tools.setActive('object')">🏗<span class="tooltip">Place Building (B)</span></button>
-      <span id="obj-building-label" style="display:none;font-size:11px;color:var(--accent);vertical-align:middle;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
-      <button class="tool-btn" data-tool="erase-object" onclick="Tools.setActive('erase-object')">🗑<span class="tooltip">Erase Building (X)</span></button>
-      <!-- road tools hidden pending sprite-alignment fix -->
-      <!-- <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')">🛣<span class="tooltip">Draw Road (W)</span></button> -->
-      <!-- <button class="tool-btn" data-tool="erase-road" onclick="Tools.setActive('erase-road')">🚫<span class="tooltip">Erase Road (Q)</span></button> -->
       <button class="hexdb-tool-btn" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize & Fill</button>
       <input id="rnd-zone-scale" type="range" min="0.01" max="0.12" step="0.005" value="0.04"
              title="Patch size — left=large, right=small"
@@ -1320,7 +1354,6 @@ body.mode-common #map-io    { display: none; }
     </div>
     <div id="bld-tools">
       <button class="hexdb-tool-btn" onclick="BldDB.add()">+ Add Building</button>
-      <button class="hexdb-tool-btn" onclick="BldDB.openRoadGroupModal()">+ Add Road Group</button>
       <button class="hexdb-tool-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="BldDB.save()">💾 Save DB</button>
       <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
@@ -1347,6 +1380,12 @@ body.mode-common #map-io    { display: none; }
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.clearCache()" title="Clear localStorage cache and re-fetch from server">🗑 Clear Cache</button>
       <button class="hexdb-tool-btn" onclick="LocalizationKeys.downloadJson()">⬇ Download JSON</button>
     </div>
+    <div id="packages-tools">
+      <span id="pkg-active-label" style="font-size:11px;color:#aaa;margin-right:6px">Active package:</span>
+      <select id="pkg-active-select" style="font-size:11px;background:#1e1e2e;color:#cdd6f4;border:1px solid #45475a;border-radius:4px;padding:2px 6px"
+              onchange="Packages.setActive(this.value)"></select>
+      <span id="pkg-active-badge" style="display:none;margin-left:8px;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;background:#a6e3a1;color:#1e1e2e"></span>
+    </div>
   </div>
 
   <!-- ── Main ─────────────────────────────────────────────── -->
@@ -1354,6 +1393,7 @@ body.mode-common #map-io    { display: none; }
 
     <!-- Left palette -->
     <div id="palette-panel">
+      <div class="pkg-filter-row" id="pkg-filter-terrain"></div>
       <div id="palette-scroll"></div>
       <div id="palette-selected">
         <img id="palette-sel-img" src="" alt="">
@@ -1497,6 +1537,12 @@ body.mode-common #map-io    { display: none; }
     </div>
 
   </div>
+
+  <!-- ── Packages Panel ────────────────────────────────────────── -->
+  <div id="pkg-panel"></div>
+
+  <!-- ── Dev Tools Panel ──────────────────────────────────────── -->
+  <div id="devtools-panel"></div>
 
   <!-- ── HEX DB Main ─────────────────────────────────────────── -->
   <div id="hexdb-main">
@@ -2162,38 +2208,8 @@ body.mode-common #map-io    { display: none; }
 
 <!-- Building picker panel -->
 <div id="obj-building-picker" style="display:none">
+  <div class="pkg-filter-row" id="pkg-filter-buildings"></div>
   <div id="obj-building-picker-grid"></div>
-</div>
-
-<!-- Add Road Group Modal -->
-<div class="modal-overlay" id="road-group-modal">
-  <div class="newmap-box" style="min-width:360px;max-width:480px">
-    <h3>Add Road Group</h3>
-    <p style="color:var(--muted);font-size:13px;margin:4px 0 14px">Creates a set of road building entries sharing common settings. The first tile (lowest number) is the master — edits sync to all variants automatically. <strong>Note:</strong> for standard roads the game auto-tiles sprites via bitmask — you only need <em>one</em> entry per road type. Use this for bridge-style buildings or when each orientation needs a separate DB entry.</p>
-    <div style="margin-bottom:12px">
-      <label style="display:block;margin-bottom:4px;font-size:13px">Group name <span style="color:var(--muted)">(e.g. RoadDirt)</span></label>
-      <input id="road-group-name" type="text" placeholder="RoadDirt" style="width:100%;box-sizing:border-box"
-             oninput="BldDB._onRoadGroupNameInput(this)">
-    </div>
-    <div style="margin-bottom:12px">
-      <label style="display:block;margin-bottom:4px;font-size:13px">Sprite prefix <span style="color:var(--muted)">(e.g. road_hex → road_hex_01_SE, or RoadDirt → RoadDirt_0_SE)</span></label>
-      <input id="road-group-prefix" type="text" placeholder="RoadDirt" style="width:100%;box-sizing:border-box">
-    </div>
-    <div style="margin-bottom:8px">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
-        <label style="font-size:13px">Direction suffixes <span style="color:var(--muted)">(one per line)</span></label>
-        <button class="hexdb-tool-btn" onclick="BldDB._fillTypicalRoadDirs()" style="font-size:11px;padding:2px 7px">Load typical hex set</button>
-      </div>
-      <textarea id="road-group-dirs" rows="8" placeholder="N&#10;NE&#10;SE&#10;S&#10;SW&#10;NW"
-                oninput="BldDB._updateRoadGroupPreview()"
-                style="width:100%;box-sizing:border-box;font-family:monospace;font-size:12px;resize:vertical;background:#1a1a2e;color:#e0e0e0;border:1px solid #444;border-radius:4px;padding:6px"></textarea>
-    </div>
-    <p id="road-group-preview" style="font-size:12px;color:var(--muted);margin:4px 0 14px">0 tiles will be created.</p>
-    <div class="modal-actions">
-      <button class="btn btn-cancel" onclick="BldDB.closeRoadGroupModal()">Cancel</button>
-      <button class="btn btn-primary" onclick="BldDB.confirmAddRoadGroup()">Create Group</button>
-    </div>
-  </div>
 </div>
 
 <!-- Satellite Import Modal -->
@@ -2268,8 +2284,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.07.23";
-const COMMIT  = "d15e5f9";
+const VERSION = "2026.08.03";
+const COMMIT  = "734cdc2";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2415,8 +2431,8 @@ const Terrain = (() => {
 const Roads = (() => {
   // 24 canonical bitmask patterns. Bit order: SE=0, NE=1, N=2, NW=3, SW=4, S=5.
   // Direction offsets (dCol, dRow) from _DIRS_EVEN/_DIRS_ODD:
-  //   N=[+1,0] S=[-1,0] NE(even)=[0,-1] SE(even)=[-1,-1] NW(even)=[0,+1] SW(even)=[-1,+1]
-  //   NE(odd)=[+1,-1] SE(odd)=[0,-1] NW(odd)=[+1,+1] SW(odd)=[0,+1]
+  //   N=[+1,0] S=[-1,0] NE(even)=[0,-1] SE(even)=[+1,-1] NW(even)=[0,+1] SW(even)=[+1,+1]
+  //   NE(odd)=[-1,-1] SE(odd)=[0,-1] NW(odd)=[-1,+1] SW(odd)=[0,+1]
   const CANONICAL = new Set([0,1,3,4,5,6,7,9,10,11,13,14,15,21,23,27,31,36,37,39,45,46,47,63]);
 
   const SPRITE_NAMES = {
@@ -2474,22 +2490,53 @@ const Roads = (() => {
         const img = new Image();
         img.onload  = () => { _sprites[+bitmask] = img; resolve(); };
         img.onerror = () => resolve();
-        img.src = 'sprites/terrain/roads/' + name + '.png';
+        img.src = 'packages/postapoc/sprites/terrain/roads/' + name + '.png';
       })
     ));
+  }
+
+  // Mirrors the game's RoadRenderer.HasRoadOrCity: a neighbor draws a connecting
+  // arm if it has a road, is the city, is any settlement, or holds a building
+  // flagged needRoad in BldDB.
+  function _isRoadLikeNeighbor(col, row, cityCol, cityRow) {
+    const key = col + ',' + row;
+    if (roadsData[key]) return true;
+    if (col === cityCol && row === cityRow) return true;
+    if (typeof settlements !== 'undefined' && settlements.some(s => s.col === col && s.row === row)) return true;
+    const bldId = typeof objectsData !== 'undefined' ? objectsData[key] : null;
+    if (bldId && typeof BldDB !== 'undefined') {
+      const bld = BldDB.getAll().find(b => b.id === bldId);
+      if (bld && bld.needRoad) return true;
+    }
+    return false;
   }
 
   function calcBitmask(col, row) {
     // Parity based on worldXidx = MAP_HEIGHT-1-row (game's column axis), not raw row.
     const dirs = (MAP_HEIGHT - 1 - row) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
+    const cityCol = getCityCol(), cityRow = getCityRow();
     let mask = 0;
     for (const [dir, bit] of Object.entries(_DIR_BITS)) {
       const [dc, dr] = dirs[dir];
       const nc = col + dc, nr = row + dr;
-      if (nc >= 0 && nc < MAP_WIDTH && nr >= 0 && nr < MAP_HEIGHT && roadsData[nc + ',' + nr])
-        mask |= (1 << bit);
+      if (nc < 0 || nc >= MAP_WIDTH || nr < 0 || nr >= MAP_HEIGHT) continue;
+      if (_isRoadLikeNeighbor(nc, nr, cityCol, cityRow)) mask |= (1 << bit);
     }
     return mask;
+  }
+
+  // All in-bounds {col,row} neighbors of a tile — same direction tables/parity
+  // rule as calcBitmask, so callers (e.g. road path-fill) stay perfectly
+  // consistent with what actually renders as "connected."
+  function getNeighbors(col, row) {
+    const dirs = (MAP_HEIGHT - 1 - row) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
+    const out = [];
+    for (const dir of Object.keys(_DIR_BITS)) {
+      const [dc, dr] = dirs[dir];
+      const nc = col + dc, nr = row + dr;
+      if (nc >= 0 && nc < MAP_WIDTH && nr >= 0 && nr < MAP_HEIGHT) out.push({ col: nc, row: nr });
+    }
+    return out;
   }
 
   function drawOverlay(ctx, cx, cy, radius, bitmask, clipFn) {
@@ -2508,7 +2555,7 @@ const Roads = (() => {
     ctx.restore();
   }
 
-  return { loadSprites, calcBitmask, drawOverlay };
+  return { loadSprites, calcBitmask, drawOverlay, getNeighbors };
 })();
 
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
@@ -2674,14 +2721,14 @@ const Canvas = (() => {
       _drawBridgeOverlay(pos.x, pos.y, radius, b.axis);
     });
 
-    // Road overlays disabled — sprite arm alignment needs fixing before re-enabling
-    // Object.entries(roadsData).forEach(([key]) => {
-    //   const [col, row] = key.split(',').map(Number);
-    //   const pos = hexScreenPos(col, row);
-    //   if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
-    //       pos.y + radius < 0 || pos.y - radius > canvas.height) return;
-    //   _drawRoadOverlay(pos.x, pos.y, radius, Roads.calcBitmask(col, row));
-    // });
+    // Road overlays
+    Object.entries(roadsData).forEach(([key]) => {
+      const [col, row] = key.split(',').map(Number);
+      const pos = hexScreenPos(col, row);
+      if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
+          pos.y + radius < 0 || pos.y - radius > canvas.height) return;
+      _drawRoadOverlay(pos.x, pos.y, radius, Roads.calcBitmask(col, row));
+    });
 
     // Pre-placed object overlays
     Object.entries(objectsData).forEach(([key, bldId]) => {
@@ -2724,10 +2771,10 @@ const Canvas = (() => {
           ctx.globalAlpha = 1;
         }
 
-      } else if (tool === 'road' || tool === 'erase-road') {
+      } else if (tool === 'road' || tool === 'road-connect' || tool === 'erase-road') {
         const pos = hexScreenPos(_cursorCol, _cursorRow);
         ctx.save();
-        const color = tool === 'road' ? [139,110,60] : [220,80,80];
+        const color = tool === 'erase-road' ? [220,80,80] : tool === 'road-connect' ? [79,195,247] : [139,110,60];
         hexClipPath(pos.x, pos.y, radius);
         ctx.fillStyle = `rgba(${color},0.3)`;
         ctx.fill();
@@ -3753,16 +3800,19 @@ const Tools = (() => {
   let _lastZonePainted     = null;
   let _lastObjectPainted   = null;
   let _lastRoadPainted     = null;
+  let _roadConnectStart    = null;    // pending start anchor for the Connect Road tool — set by the first click, consumed by the second
   let _selectedBuildingId  = null;
 
   const TOOL_NAMES = {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
     eye: 'Eyedropper', select: 'Select Tile',
     settlement: 'Place Settlement', erase: 'Erase Settlement',
-    zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object'
+    zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object',
+    'road-connect': 'Connect Road',
   };
 
   function setActive(name) {
+    if (_active !== name && name !== 'road-connect') _roadConnectStart = null;
     _active = name;
     _rectStart = null;
     _toolsRectPreview = null;
@@ -3797,20 +3847,30 @@ const Tools = (() => {
     }
   }
 
+  function _bldSpriteUrl(b) {
+    if (!b.spriteName) return '';
+    const uploaded = Terrain.getUploadedUrl ? Terrain.getUploadedUrl(b.spriteName) : null;
+    if (uploaded) return uploaded;
+    if (b.buildingCategory === 'Bridge') return `packages/postapoc/sprites/hex/${b.spriteName}.png`;
+    if (b.isRoad) return `packages/postapoc/sprites/terrain/roads/${b.spriteName}.png`;
+    return `packages/postapoc/sprites/buildings/${b.spriteName}.png`;
+  }
+
   function _populateBuildingPicker() {
     const grid = document.getElementById('obj-building-picker-grid');
     if (!grid) return;
-    const buildings = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge');
+    // Road/Bridge have their own dedicated placement tools (Draw Road, Connect
+    // Road, the bridge axis swatches) — excluded here to avoid a redundant,
+    // confusing duplicate entry point in the generic building picker.
+    const buildings = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge' && !b.isRoad);
     if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
+
     grid.innerHTML = buildings.map(b => {
-      const src = b.spriteName
-        ? (Terrain.getUploadedUrl ? (Terrain.getUploadedUrl(b.spriteName) || `packages/postapoc/sprites/buildings/${b.spriteName}.png`) : `packages/postapoc/sprites/buildings/${b.spriteName}.png`)
-        : '';
-      const label = b.id;
+      const src = _bldSpriteUrl(b);
       const sel = b.id === _selectedBuildingId ? ' selected' : '';
       return `<div class="bld-card${sel}" data-bld-id="${b.id}" onclick="Tools.selectBuilding('${b.id.replace(/'/g,"\\'")}')">` +
         `<img src="${src}" alt="" onerror="this.style.visibility='hidden'">` +
-        `<span>${label}</span></div>`;
+        `<span>${b.id}</span></div>`;
     }).join('');
     _updateBuildingLabel();
   }
@@ -3832,10 +3892,23 @@ const Tools = (() => {
   function getActive() { return _active; }
 
   // ── Paint ──────────────────────────────────────────────────
+  // Bridges can only be built on river tiles, matching the game's
+  // CoastlineEdgeDetector.IsRiverTerrain check — no road/network connection
+  // required to place one, unlike Draw Road.
+  function _isRiverTile(col, row) {
+    if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return false;
+    const entry = Terrain.byHexId(mapData[row * MAP_WIDTH + col]);
+    return !!entry && entry.type === 'Rivers';
+  }
+
   function _paint(col, row) {
     const bridgeAxis = UI.getSelectedBridgeAxis();
     if (bridgeAxis >= 0) {
       // Bridge mode: single-tile toggle (brush size ignored)
+      if (!_isRiverTile(col, row)) {
+        UI.toast('⚠ Bridges can only be built on river tiles');
+        return;
+      }
       const idx = bridgesData.findIndex(b => b.col === col && b.row === row);
       if (idx >= 0 && bridgesData[idx].axis === bridgeAxis) {
         bridgesData.splice(idx, 1);       // same axis → remove
@@ -4011,10 +4084,59 @@ const Tools = (() => {
   }
 
   // ── Roads ──────────────────────────────────────────────────
+  // Matches the game's IsAdjacentToRoadNetwork placement gate: a road tile can
+  // only be built next to an existing road, the city, or a settlement. The game
+  // enforces this at the build-menu level, so a disconnected/stray road tile is
+  // structurally impossible there — replicate the same rule here rather than
+  // trying to auto-repair whatever gets clicked.
+  function _isRoadNetworkNeighbor(col, row) {
+    const cityCol = getCityCol(), cityRow = getCityRow();
+    for (const n of Roads.getNeighbors(col, row)) {
+      const k = n.col + ',' + n.row;
+      if (roadsData[k]) return true;
+      if (n.col === cityCol && n.row === cityRow) return true;
+      if (settlements.some(s => s.col === n.col && s.row === n.row)) return true;
+    }
+    return false;
+  }
+
   function _paintRoad(col, row) {
     const key = col + ',' + row;
     if (roadsData[key]) return;
+    if (!_isRoadNetworkNeighbor(col, row)) {
+      UI.toast('⚠ Road must connect to an existing road, the city, or a settlement');
+      return;
+    }
     roadsData[key] = { type: 'road_hex' };
+    IO.scheduleAutoSave();
+    Canvas.render();
+  }
+
+  // Connect Road tool: first click sets the start anchor (placing that tile);
+  // second click places ONLY the BFS-computed path to the new tile — no other
+  // clicks in between, so a stray click can never fork off an unrelated tile.
+  // The destination becomes the new anchor, so consecutive uses chain segments.
+  function _connectRoad(col, row) {
+    if (!_roadConnectStart) {
+      const key = col + ',' + row;
+      if (!roadsData[key]) roadsData[key] = { type: 'road_hex' };
+      _roadConnectStart = { col, row };
+      IO.scheduleAutoSave();
+      Canvas.render();
+      UI.toast('Road start set — click a destination to connect');
+      return;
+    }
+    if (_roadConnectStart.col === col && _roadConnectStart.row === row) return;
+    const path = _hexPathBetween(_roadConnectStart.col, _roadConnectStart.row, col, row);
+    if (path) {
+      path.forEach(c => {
+        const k = c.col + ',' + c.row;
+        if (!roadsData[k]) roadsData[k] = { type: 'road_hex' };
+      });
+    } else {
+      UI.toast('Destination too far to connect');
+    }
+    _roadConnectStart = { col, row };
     IO.scheduleAutoSave();
     Canvas.render();
   }
@@ -4109,6 +4231,10 @@ const Tools = (() => {
         _paintRoad(col, row);
         _lastRoadPainted = { col, row };
         break;
+      case 'road-connect':
+        History.push();
+        _connectRoad(col, row);
+        break;
       case 'erase-road':
         History.push();
         _eraseRoad(col, row);
@@ -4149,16 +4275,8 @@ const Tools = (() => {
         _eraseObject(col, row);
         _lastObjectPainted = { col, row };
         break;
-      case 'road':
-        if (_lastRoadPainted && _lastRoadPainted.col === col && _lastRoadPainted.row === row) break;
-        _paintRoad(col, row);
-        _lastRoadPainted = { col, row };
-        break;
-      case 'erase-road':
-        if (_lastRoadPainted && _lastRoadPainted.col === col && _lastRoadPainted.row === row) break;
-        _eraseRoad(col, row);
-        _lastRoadPainted = { col, row };
-        break;
+      // Roads are placed one tap at a time (matching the game's build-menu-per-tile
+      // flow) — no drag-to-paint, unlike terrain/object brushes.
     }
   }
 
@@ -4166,7 +4284,7 @@ const Tools = (() => {
     if (!_isDown) return;
     _isDown = false;
 
-    if (_active === 'paint' || _active === 'road' || _active === 'erase-road') {
+    if (_active === 'paint' || _active === 'road' || _active === 'road-connect' || _active === 'erase-road') {
       Canvas.drawMinimap();
     } else if (_active === 'rect' && _rectStart && _toolsRectPreview) {
       History.push();
@@ -4198,10 +4316,6 @@ const Tools = (() => {
         case 't': setActive('settlement');   break;
         case 'd': setActive('erase');        break;
         case 'z': setActive('zone');         break;
-        case 'b': setActive('object');       break;
-        case 'x': setActive('erase-object'); break;
-        // case 'w': setActive('road');         break;  // road tools hidden
-        // case 'q': setActive('erase-road');   break;
       }
     });
   }
@@ -4481,7 +4595,8 @@ const GitHubSync = (() => {
       let ok = 0, fail = 0;
       for (const file of files) {
         try {
-          await _putBinary(`sprites/${category}/${file.name}`, file, `upload sprite: ${file.name}`);
+          await _putBinary(`packages/postapoc/sprites/${category}/${file.name}`, file, `cm-upload: ${file.name}`);
+          await _putBinary(`sprites/${category}/${file.name}`, file, `cm-upload: ${file.name} (compat)`);
           const dataUrl = await new Promise((res, rej) => {
             const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej;
             r.readAsDataURL(file);
@@ -5004,7 +5119,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    _putText, _putBinary, _listFolder, BASE_URL,
+    _putText, _putBinary, _listFolder, _withPublishBtn, BASE_URL,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
@@ -5070,6 +5185,7 @@ const UI = (() => {
   }
 
   function buildPalette() {
+    if (typeof Packages !== 'undefined') Packages.renderFilterChips();
     const scroll = document.getElementById('palette-scroll');
     scroll.innerHTML = '';
 
@@ -5088,7 +5204,7 @@ const UI = (() => {
       '🟫 SWAMP':            7,
       '🌋 VOLCANIC/RIFT':    8,
     };
-    const sorted = HexDB.getAll().filter(h => h.id && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || '') && !/bridge/i.test(h.id || '')).sort((a, b) => {
+    const allHexes = HexDB.getAll().filter(h => h.id && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || '') && !/bridge/i.test(h.id || '')).sort((a, b) => {
       const oA = CAT_ORDER[a.category] ?? 99;
       const oB = CAT_ORDER[b.category] ?? 99;
       if (oA !== oB) return oA - oB;
@@ -5099,8 +5215,11 @@ const UI = (() => {
       if (bt >= 0) return  1;
       return a.id.localeCompare(b.id);
     });
+    const visibleHexes = allHexes.filter(h =>
+      typeof Packages === 'undefined' || Packages.isPkgVisible(h.package || 'postapoc')
+    );
 
-    sorted.forEach(h => {
+    visibleHexes.forEach(h => {
       const cat = h.category || '⚙️ SPECIAL';
       const tid = typeof h.terrainTypeId !== 'undefined' ? h.terrainTypeId : -1;
 
@@ -5156,39 +5275,42 @@ const UI = (() => {
       (currentCatEl || scroll).appendChild(btn);
     });
 
-    // ── Bridges section (HexDB bridge entries + BldDB bridge category) ──
-    const bridgeHdr = document.createElement('button');
-    bridgeHdr.className = 'cat-header collapsed';
-    bridgeHdr.textContent = '🌉 BRIDGES';
-    const bridgeItems = document.createElement('div');
-    bridgeItems.className = 'cat-items collapsed';
-    bridgeHdr.addEventListener('click', () => {
-      bridgeHdr.classList.toggle('collapsed');
-      bridgeItems.classList.toggle('collapsed');
-    });
-    scroll.appendChild(bridgeHdr);
-    scroll.appendChild(bridgeItems);
-
-    // Bridge entries from HexDB + BldDB (buildingCategory === 'Bridge')
-    // Sprites always live in sprites/hex/ regardless of which DB holds the entry
-    const _hexBridges = HexDB.getAll().filter(h => h.id && /bridge/i.test(h.id) && !/^River_bridge_/i.test(h.id));
-    const _bldBridges = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.id && b.buildingCategory === 'Bridge');
-    const _allBridges = [..._hexBridges, ..._bldBridges.filter(b => !_hexBridges.some(h => h.id === b.id))];
-    _allBridges.forEach(entry => {
-      const btn = document.createElement('button');
-      btn.className = 'tile-btn';
-      btn.dataset.hexId = entry.id;
-      const img = document.createElement('img');
-      const spr = Terrain.getSprite(entry.id);
-      img.src = spr ? spr.src : (entry.spriteName ? `packages/postapoc/sprites/hex/${entry.spriteName}.png` : '');
-      img.alt = entry.id;
-      btn.appendChild(img);
-      const tt = document.createElement('span');
-      tt.className = 'tile-tooltip';
-      tt.textContent = entry.id;
-      btn.appendChild(tt);
-      btn.addEventListener('click', () => selectTerrain(entry.id));
-      bridgeItems.appendChild(btn);
+    // ── Building sections (Ground Building / Water Building / Artefact) ──
+    const BLD_SECTIONS = [
+      { label: '🏗️ GROUND BUILDINGS', type: 'Ground Building' },
+      { label: '🌊 WATER BUILDINGS',   type: 'Water Building'  },
+      { label: '🏛️ ARTEFACTS',         type: 'Artefact'        },
+    ];
+    const allBuildings = typeof BldDB !== 'undefined' ? BldDB.getAll() : [];
+    const _bldType = b => b.type || 'Ground Building';
+    BLD_SECTIONS.forEach(({ label, type }) => {
+      const buildings = allBuildings.filter(b => _bldType(b) === type && b.buildingCategory !== 'Bridge' && !b.isRoad);
+      const hdr = document.createElement('button');
+      hdr.className = 'cat-header collapsed';
+      hdr.textContent = `${label} (${buildings.length})`;
+      const items = document.createElement('div');
+      items.className = 'cat-items collapsed';
+      hdr.addEventListener('click', () => {
+        hdr.classList.toggle('collapsed');
+        items.classList.toggle('collapsed');
+      });
+      scroll.appendChild(hdr);
+      scroll.appendChild(items);
+      buildings.forEach(bld => {
+        const btn = document.createElement('button');
+        btn.className = 'tile-btn';
+        btn.dataset.hexId = bld.id;
+        const img = document.createElement('img');
+        img.src = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${bld.spriteName}.png`) : '';
+        img.alt = bld.id;
+        btn.appendChild(img);
+        const tt = document.createElement('span');
+        tt.className = 'tile-tooltip';
+        tt.textContent = bld.id;
+        btn.appendChild(tt);
+        btn.addEventListener('click', () => selectTerrain(bld.id));
+        items.appendChild(btn);
+      });
     });
 
     // Re-apply the current selection to the freshly-created buttons.
@@ -5823,12 +5945,27 @@ const IO = (() => {
     return F[val] || 'Plain_1';
   }
 
+  function _collectMapPackages() {
+    if (!mapData) return ['postapoc'];
+    const hexes = (typeof HexDB !== 'undefined') ? HexDB.getData().hexes : [];
+    const pkgById = {};
+    hexes.forEach(h => { pkgById[h.id] = h.package || 'postapoc'; });
+    (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).forEach(b => { pkgById[b.id] = b.package || 'postapoc'; });
+    const usedPkgs = new Set(['postapoc']);
+    mapData.forEach(id => { if (id && pkgById[id]) usedPkgs.add(pkgById[id]); });
+    // Also check objects layer
+    Object.values(objectsData || {}).forEach(id => { if (id && pkgById[id]) usedPkgs.add(pkgById[id]); });
+    return [...usedPkgs].sort();
+  }
+
   function _buildJson() {
     const data2d = [];
     for (let r = 0; r < MAP_HEIGHT; r++)
       data2d.push(mapData.slice(r * MAP_WIDTH, (r+1) * MAP_WIDTH));
 
     const result = {
+      version: 2,
+      packages: _collectMapPackages(),
       width: MAP_WIDTH, height: MAP_HEIGHT,
       data: data2d,
       settlements: settlements.map(s => ({ col: s.col, row: s.row, type: s.type }))
@@ -6981,19 +7118,739 @@ const Satellite = (() => {
   };
 })();
 
+// ─────────────────────────────────────────────────────────────────
+// Packages — registry, active state, create/publish/delete
+// ─────────────────────────────────────────────────────────────────
+const Packages = (() => {
+  const LS_ACTIVE   = 'pkg_active';
+  const LS_REGISTRY = 'pkg_registry_cache';
+
+  let _registry = [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }];
+  let _active   = 'postapoc';
+  const BASE_URL = GitHubSync.BASE_URL;
+  let _jszip = null;  // cached JSZip module (lazy-loaded)
+
+  function _esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  // ── Init ───────────────────────────────────────────────────────
+  function init() {
+    _active = localStorage.getItem(LS_ACTIVE) || 'postapoc';
+    try {
+      const c = localStorage.getItem(LS_REGISTRY);
+      if (c) _registry = JSON.parse(c);
+    } catch(e) {}
+    _fetchRegistry();
+  }
+
+  async function _fetchRegistry() {
+    try {
+      const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+      if (!res.ok) return;
+      const data = await res.json();
+      if (Array.isArray(data.packages)) {
+        _registry = data.packages;
+        localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+        renderPanel();
+        renderBadges();
+        renderActiveDropdowns();
+      }
+    } catch(e) { console.warn('[Packages] registry fetch failed:', e.message); }
+  }
+
+  // ── Getters / Setters ──────────────────────────────────────────
+  function getActive()  { return _active; }
+  function getAll()     { return _registry; }
+  function getEntry(id) { return _registry.find(p => p.id === id) ?? null; }
+  function isDefault(id){ return id === 'postapoc'; }
+
+  // PascalCase prefix for new entry IDs: 'medieval' → 'Medieval_'
+  function idPrefix(id) {
+    if (!id || id === 'postapoc') return '';
+    return id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('') + '_';
+  }
+
+  function setActive(id) {
+    if (!getEntry(id)) return;
+    _active = id;
+    localStorage.setItem(LS_ACTIVE, id);
+    renderBadges();
+    renderActiveDropdowns();
+  }
+
+  // ── Panel / badge rendering (stubs — filled in Tasks 2–5) ──────
+  function renderPanel() {
+    const el = document.getElementById('pkg-panel');
+    if (!el) return;
+    const rows = _registry.map(p => `
+      <tr>
+        <td><code>${_esc(p.id)}</code>${p.isDefault ? ' <span class="pkg-badge">default</span>' : ''}</td>
+        <td>${_esc(p.name)}</td>
+        <td>${_esc(p.version || '—')}</td>
+        <td>
+          <button class="hexdb-tool-btn" onclick="Packages.exportPackage('${_esc(p.id)}')">↓ Export</button>
+          <button class="hexdb-tool-btn" onclick="Packages.openPublishConfirm('${_esc(p.id)}')">Publish</button>
+          ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" onclick="Packages.confirmDelete('${_esc(p.id)}')">Delete</button>` : ''}
+        </td>
+      </tr>`).join('');
+    el.innerHTML = `
+      <h3 style="color:#cdd6f4;margin:0 0 16px">Content Packages</h3>
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="hexdb-tool-btn" onclick="Packages.openImportModal()">↑ Import Package</button>
+        <button class="hexdb-tool-btn" onclick="Packages.openNewModal()">+ New Package</button>
+      </div>
+      <table>
+        <thead><tr><th>ID</th><th>Name</th><th>Version</th><th>Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+  function renderBadges() {
+    const isPostapoc = (_active === 'postapoc');
+    const label = isPostapoc ? '' : `[${idPrefix(_active).slice(0, -1)}]`;
+    const style = `display:${isPostapoc ? 'none' : 'inline'};margin-left:8px;padding:2px 6px;border-radius:4px;font-size:10px;font-weight:bold;background:#a6e3a1;color:#1e1e2e`;
+
+    // HexDB toolbar badge
+    let badge = document.getElementById('hexdb-pkg-badge');
+    if (!badge) {
+      const tools = document.getElementById('hexdb-tools');
+      if (tools) {
+        badge = document.createElement('span');
+        badge.id = 'hexdb-pkg-badge';
+        tools.insertBefore(badge, tools.firstChild);
+      }
+    }
+    if (badge) { badge.textContent = label; badge.setAttribute('style', style); }
+
+    // BldDB toolbar badge
+    let bldBadge = document.getElementById('bld-pkg-badge');
+    if (!bldBadge) {
+      const bldTools = document.getElementById('bld-tools');
+      if (bldTools) {
+        bldBadge = document.createElement('span');
+        bldBadge.id = 'bld-pkg-badge';
+        bldTools.insertBefore(bldBadge, bldTools.firstChild);
+      }
+    }
+    if (bldBadge) { bldBadge.textContent = label; bldBadge.setAttribute('style', style); }
+  }
+  function renderActiveDropdowns() {
+    const sel = document.getElementById('pkg-active-select');
+    if (!sel) return;
+    sel.innerHTML = _registry.map(p =>
+      `<option value="${_esc(p.id)}" ${p.id === _active ? 'selected' : ''}>${_esc(p.name)}</option>`
+    ).join('');
+    const badge = document.getElementById('pkg-active-badge');
+    if (badge) {
+      badge.textContent = _active === 'postapoc' ? '' : idPrefix(_active).slice(0, -1);
+      badge.style.display = _active === 'postapoc' ? 'none' : 'inline-block';
+    }
+  }
+
+  // ── JSZip lazy loader ─────────────────────────────────────────
+  async function _loadJSZip() {
+    if (!_jszip) {
+      try {
+        const m = await import('https://cdn.jsdelivr.net/npm/jszip@3.10.1/+esm');
+        _jszip = m.default;
+      } catch(e) {
+        throw new Error('Could not load ZIP library. Check your connection.');
+      }
+    }
+    return _jszip;
+  }
+
+  // ── Export Package ─────────────────────────────────────────────
+  async function exportPackage(id) {
+    const entry = getEntry(id);
+    if (!entry) return UI.toast('⚠ Package not found');
+    try {
+      UI.progress(0, `Preparing export for "${_esc(entry.name)}"…`);
+      const JSZip = await _loadJSZip();
+
+      // Fetch JSON files
+      UI.progress(5, 'Fetching package.json…');
+      const pkgRes = await fetch(`${BASE_URL}/packages/${id}/package.json?_=${Date.now()}`);
+      if (!pkgRes.ok) {
+        UI.progressDone('');
+        return UI.toast('⚠ Package must be published before exporting');
+      }
+      const pkgText = await pkgRes.text();
+
+      UI.progress(10, 'Fetching hex_database.json…');
+      const hexRes = await fetch(`${BASE_URL}/packages/${id}/hex_database.json?_=${Date.now()}`);
+      const hexText = hexRes.ok ? await hexRes.text() : '{"version":1,"hexes":[]}';
+
+      UI.progress(15, 'Fetching building_database.json…');
+      const bldRes = await fetch(`${BASE_URL}/packages/${id}/building_database.json?_=${Date.now()}`);
+      const bldText = bldRes.ok ? await bldRes.text() : '{"version":1,"buildings":[]}';
+
+      // List sprites
+      UI.progress(20, 'Listing sprites…');
+      const [hexSprites, bldSprites] = await Promise.all([
+        GitHubSync._listFolder(`packages/${id}/sprites/hex`).catch(() => []),
+        GitHubSync._listFolder(`packages/${id}/sprites/buildings`).catch(() => []),
+      ]);
+      const allSprites = [
+        ...hexSprites.map(f => ({ category: 'hex',       name: f.name, url: f.download_url })),
+        ...bldSprites.map(f => ({ category: 'buildings', name: f.name, url: f.download_url })),
+      ];
+
+      // Build ZIP
+      const zip = new JSZip();
+      zip.file('package.json',          pkgText);
+      zip.file('hex_database.json',     hexText);
+      zip.file('building_database.json', bldText);
+      const hexDir = zip.folder('sprites').folder('hex');
+      const bldDir = zip.folder('sprites').folder('buildings');
+
+      // Fetch and add sprites
+      let done = 0;
+      for (const spr of allSprites) {
+        try {
+          const res = await fetch(spr.url);
+          if (res.ok) {
+            const blob = await res.blob();
+            (spr.category === 'hex' ? hexDir : bldDir).file(spr.name, blob);
+          }
+        } catch(e) {
+          console.warn(`[Packages] export: skipped ${spr.name}:`, e.message);
+        }
+        done++;
+        const pct = 20 + Math.round((done / Math.max(allSprites.length, 1)) * 70);
+        UI.progress(pct, `Sprites: ${done}/${allSprites.length}…`);
+      }
+
+      UI.progress(92, 'Generating ZIP…');
+      const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
+      // Trigger download
+      const version = JSON.parse(pkgText).version || '1.0.0';
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = `${id}-${version}.zip`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+
+      UI.progressDone(`✅ Exported ${id}-${version}.zip`);
+      UI.toast(`✅ Package "${entry.name}" exported`);
+    } catch(e) {
+      UI.progressDone('');
+      UI.toast(`⚠ Export failed: ${e.message}`);
+    }
+  }
+
+  // ── New Package modal ──────────────────────────────────────────
+  function openNewModal() {
+    document.getElementById('pkg-new-name').value = '';
+    document.getElementById('pkg-new-id').value = '';
+    document.getElementById('pkg-new-error').style.display = 'none';
+    document.getElementById('pkg-new-modal').style.display = 'flex';
+    document.getElementById('pkg-new-name').focus();
+  }
+
+  function closeNewModal() {
+    document.getElementById('pkg-new-modal').style.display = 'none';
+  }
+
+  function _autoSlugId(name) {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    document.getElementById('pkg-new-id').value = slug;
+  }
+
+  async function createPackage() {
+    const name  = document.getElementById('pkg-new-name').value.trim();
+    const rawId = document.getElementById('pkg-new-id').value.trim();
+    const errEl = document.getElementById('pkg-new-error');
+
+    // Validate
+    if (!name) { errEl.textContent = 'Display name is required.'; errEl.style.display = 'block'; return; }
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(rawId)) {
+      errEl.textContent = 'ID must be lowercase letters, numbers, and hyphens only.';
+      errEl.style.display = 'block'; return;
+    }
+    if (getEntry(rawId)) {
+      errEl.textContent = `Package "${rawId}" already exists.`;
+      errEl.style.display = 'block'; return;
+    }
+
+    closeNewModal();
+
+    try {
+      UI.progress(10, `Creating package "${rawId}"…`);
+
+      // Write package.json
+      const pkgJson = JSON.stringify({
+        id: rawId, name, version: '1.0.0',
+        description: '', preview: 'preview.png', isDefault: false
+      }, null, 2);
+      UI.progress(30, 'Writing package.json…');
+      await GitHubSync._putText(`packages/${rawId}/package.json`, pkgJson, `create package: ${rawId}`);
+
+      // Update registry.json
+      UI.progress(60, 'Updating registry.json…');
+      const newEntry = { id: rawId, name, isDefault: false, version: '1.0.0' };
+      let regData;
+      try {
+        const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+        regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
+      } catch(e) {
+        regData = { version: 1, packages: [..._registry] };
+      }
+      if (!regData.packages.find(p => p.id === rawId)) regData.packages.push(newEntry);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${rawId}`);
+
+      // Update local state
+      _registry = regData.packages;
+      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      UI.progressDone(`✅ Package "${name}" created`);
+      UI.toast(`✅ Package "${name}" created`);
+      renderPanel();
+      renderActiveDropdowns();
+    } catch(e) {
+      UI.progressDone('');
+      UI.toast(`⚠ Failed to create package: ${e.message}`);
+    }
+  }
+
+  // ── Publish Package ────────────────────────────────────────────
+  function openPublishConfirm(id) {
+    if (isDefault(id)) {
+      // postapoc: use existing publish functions
+      UI.showConfirm('Publish postapoc', 'Publish hex_database.json and building_database.json?', async () => {
+        await GitHubSync.publishHexDbOnly();
+        await GitHubSync.publishBuildingsDb();
+      });
+      return;
+    }
+    const entry = getEntry(id);
+    const name  = entry?.name || id;
+    const hexCount = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => h.package === id).length;
+    const bldCount = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.package === id).length;
+    UI.showConfirm('Publish Package',
+      `Publish "${name}"? (${hexCount} hex tiles, ${bldCount} buildings)`,
+      () => publishPackage(id));
+  }
+
+  async function publishPackage(id) {
+    const entry = getEntry(id);
+    if (!entry) return UI.toast('⚠ Package not found');
+    if (isDefault(id)) return UI.toast('⚠ Use HexDB/Buildings publish buttons for postapoc');
+
+    await GitHubSync._withPublishBtn('Publish Package', async () => {
+      const hexes    = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => h.package === id);
+      const buildings = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.package === id);
+
+      // Bump version
+      const [maj, min, pat] = (entry.version || '1.0.0').split('.').map(Number);
+      const newVersion = `${maj}.${min}.${pat + 1}`;
+
+      UI.progress(10, `Publishing ${id}/hex_database.json…`);
+      const hexPayload = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
+      await GitHubSync._putText(`packages/${id}/hex_database.json`, hexPayload, `publish ${id}: hex_database.json`);
+
+      UI.progress(35, `Publishing ${id}/building_database.json…`);
+      const bldPayload = JSON.stringify({ version: 1, package: id, buildings }, null, 2);
+      await GitHubSync._putText(`packages/${id}/building_database.json`, bldPayload, `publish ${id}: building_database.json`);
+
+      UI.progress(60, `Updating ${id}/package.json…`);
+      const pkgJson = JSON.stringify({ ...entry, version: newVersion }, null, 2);
+      await GitHubSync._putText(`packages/${id}/package.json`, pkgJson, `publish ${id}: package.json`);
+
+      UI.progress(80, 'Updating registry.json…');
+      let regData;
+      try {
+        const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+        regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
+      } catch(e) { regData = { version: 1, packages: [..._registry] }; }
+      regData.packages = regData.packages.map(p => p.id === id ? { ...p, version: newVersion } : p);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: bump ${id} to ${newVersion}`);
+
+      _registry = regData.packages;
+      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      UI.progressDone(`✅ Package "${entry.name}" v${newVersion} published`);
+      UI.toast(`✅ ${entry.name} v${newVersion} published`);
+      renderPanel();
+    });
+  }
+
+  // ── Delete Package ─────────────────────────────────────────────
+  function confirmDelete(id) {
+    if (isDefault(id)) return UI.toast('⚠ Cannot delete the default package');
+    const entry = getEntry(id);
+    UI.showConfirm('Delete Package',
+      `Delete "${entry?.name || id}"? This removes it from the registry. Existing entries tagged to this package are not deleted.`,
+      () => deletePackage(id));
+  }
+
+  async function deletePackage(id) {
+    if (isDefault(id)) return;
+    try {
+      UI.progress(20, 'Updating registry.json…');
+      let regData;
+      try {
+        const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+        regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
+      } catch(e) { regData = { version: 1, packages: [..._registry] }; }
+      regData.packages = regData.packages.filter(p => p.id !== id);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: remove ${id}`);
+      _registry = regData.packages;
+      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      if (_active === id) setActive('postapoc');
+      UI.progressDone(`✅ Package "${id}" deleted from registry`);
+      UI.toast(`✅ Package "${id}" removed from registry`);
+      renderPanel();
+      renderActiveDropdowns();
+    } catch(e) {
+      UI.progressDone('');
+      UI.toast(`⚠ Delete failed: ${e.message}`);
+    }
+  }
+
+  // ── Palette filter ─────────────────────────────────────────────
+  const _hiddenPkgs = new Set();  // package IDs whose tiles are hidden in palette
+
+  function isPkgVisible(pkgId) { return !_hiddenPkgs.has(pkgId || 'postapoc'); }
+
+  function togglePkgFilter(pkgId) {
+    if (_hiddenPkgs.has(pkgId)) _hiddenPkgs.delete(pkgId);
+    else _hiddenPkgs.add(pkgId);
+    if (typeof UI !== 'undefined') UI.buildPalette();
+    _renderFilterChips();
+  }
+
+  function _renderFilterChips() {
+    ['pkg-filter-terrain', 'pkg-filter-buildings'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.innerHTML = _registry.map(p =>
+        `<button class="pkg-chip ${_hiddenPkgs.has(p.id) ? '' : 'active'}"
+                 onclick="Packages.togglePkgFilter('${_esc(p.id)}')">${_esc(p.name)}</button>`
+      ).join('');
+    });
+  }
+
+  function renderFilterChips() { _renderFilterChips(); }
+
+  // ── Import Package modal ───────────────────────────────────────
+  let _importZip = null;  // holds JSZip instance while import modal is open
+  let _importInProgress = false;
+
+  function openImportModal() {
+    const input = document.getElementById('pkg-import-input');
+    if (input) input.click();
+    else UI.toast('⚠ Import UI not ready — try reloading');
+  }
+
+  async function _onImportFilePicked(file) {
+    if (!file) return;
+    let zip;
+    try {
+      const JSZip = await _loadJSZip();
+      zip = await JSZip.loadAsync(file);
+    } catch(e) {
+      return UI.toast('Invalid ZIP file');
+    }
+    const pkgFile = zip.file('package.json');
+    if (!pkgFile) return UI.toast('⚠ Invalid package ZIP: missing package.json');
+    try {
+      const pkgData = JSON.parse(await pkgFile.async('text'));
+      _showImportModal(String(pkgData.id || ''), String(pkgData.name || ''), zip);
+    } catch(e) {
+      UI.toast('⚠ Could not read ZIP: invalid package.json');
+    }
+  }
+
+  function _showImportModal(originalId, name, zip) {
+    _importZip = zip;
+    document.getElementById('pkg-import-original-id').value = originalId;
+    document.getElementById('pkg-import-name').value        = name;
+    document.getElementById('pkg-import-id').value          = originalId;
+    document.getElementById('pkg-import-error').style.display = 'none';
+    document.getElementById('pkg-import-modal').style.display = 'flex';
+    document.getElementById('pkg-import-id').focus();
+  }
+
+  function closeImportModal() {
+    document.getElementById('pkg-import-modal').style.display = 'none';
+    _importZip = null;
+  }
+
+  // ── Import confirm + publish ────────────────────────────────────
+  function _rewriteEntries(entries, originalId, newId) {
+    const oldPrefix = idPrefix(originalId);
+    const newPrefix = idPrefix(newId);
+    return (entries || []).map(e => ({
+      ...e,
+      id: e.id.startsWith(oldPrefix)
+          ? newPrefix + e.id.slice(oldPrefix.length)
+          : newPrefix + e.id,
+      package: newId,
+    }));
+  }
+
+  async function confirmImport() {
+    const name   = document.getElementById('pkg-import-name').value.trim();
+    const newId  = document.getElementById('pkg-import-id').value.trim();
+    const origId = document.getElementById('pkg-import-original-id').value;
+    const errEl  = document.getElementById('pkg-import-error');
+
+    if (!name) {
+      errEl.textContent = 'Display name is required.';
+      errEl.style.display = 'block'; return;
+    }
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(newId)) {
+      errEl.textContent = 'ID must be lowercase letters, numbers, and hyphens only.';
+      errEl.style.display = 'block'; return;
+    }
+    if (getEntry(newId)) {
+      errEl.textContent = `Package "${newId}" already exists.`;
+      errEl.style.display = 'block'; return;
+    }
+
+    if (_importInProgress) return;
+    _importInProgress = true;
+
+    const zip = _importZip;
+    if (!zip) { _importInProgress = false; UI.toast('⚠ No ZIP loaded'); return; }
+
+    try {
+      UI.progress(0, 'Starting import…');
+
+      // Read databases from ZIP
+      const hexFile = zip.file('hex_database.json');
+      const bldFile = zip.file('building_database.json');
+      const hexData = hexFile ? JSON.parse(await hexFile.async('text')) : { hexes: [] };
+      const bldData = bldFile ? JSON.parse(await bldFile.async('text')) : { buildings: [] };
+
+      const hexes     = _rewriteEntries(hexData.hexes,     origId, newId);
+      const buildings = _rewriteEntries(bldData.buildings, origId, newId);
+
+      // Write package.json
+      const pkgJson = JSON.stringify({ id: newId, name, version: '1.0.0', description: '', isDefault: false }, null, 2);
+      await GitHubSync._putText(`packages/${newId}/package.json`, pkgJson, `import package: ${newId}`);
+      UI.progress(5, 'Writing package.json…');
+
+      // Write hex_database.json
+      await GitHubSync._putText(
+        `packages/${newId}/hex_database.json`,
+        JSON.stringify({ version: 1, package: newId, hexes }, null, 2),
+        `import ${newId}: hex_database.json`);
+      UI.progress(15, 'Writing hex_database.json…');
+
+      // Write building_database.json
+      await GitHubSync._putText(
+        `packages/${newId}/building_database.json`,
+        JSON.stringify({ version: 1, package: newId, buildings }, null, 2),
+        `import ${newId}: building_database.json`);
+      UI.progress(25, 'Writing building_database.json…');
+
+      // Upload sprites from ZIP
+      const spriteFiles = Object.entries(zip.files)
+        .filter(([path, f]) => path.startsWith('sprites/') && !f.dir)
+        .map(([path, file]) => ({ path, file }));
+
+      let done = 0;
+      for (const { path, file } of spriteFiles) {
+        try {
+          // path example: 'sprites/hex/Forest.png' → dest: 'packages/medieval/sprites/hex/Forest.png'
+          const destPath = `packages/${newId}/${path}`;
+          const blob = await file.async('blob');
+          await GitHubSync._putBinary(destPath, blob, `import ${newId}: ${path}`);
+        } catch(e) {
+          console.warn(`[Packages] import: skipped sprite ${path}:`, e.message);
+        }
+        done++;
+        const pct = 25 + Math.round((done / Math.max(spriteFiles.length, 1)) * 70);
+        UI.progress(pct, `Sprites: ${done}/${spriteFiles.length}…`);
+      }
+
+      // Update registry
+      UI.progress(100, 'Updating registry…');
+      const newEntry = { id: newId, name, isDefault: false, version: '1.0.0' };
+      let regData;
+      try {
+        const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+        regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
+      } catch(e) { regData = { version: 1, packages: [..._registry] }; }
+      if (!regData.packages.find(p => p.id === newId)) regData.packages.push(newEntry);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${newId}`);
+
+      _registry = regData.packages;
+      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      UI.progressDone(`✅ Package '${name}' imported`);
+      UI.toast(`✅ Package '${name}' imported`);
+      renderPanel();
+      renderActiveDropdowns();
+      closeImportModal();
+      _importInProgress = false;
+    } catch(e) {
+      UI.progressDone('');
+      UI.toast(`⚠ Import failed: ${e.message}`);
+      _importInProgress = false;
+    }
+  }
+
+  return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
+           renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
+           isPkgVisible, togglePkgFilter,
+           openNewModal, closeNewModal, _autoSlugId, createPackage,
+           openPublishConfirm, publishPackage, confirmDelete, deletePackage,
+           _loadJSZip, exportPackage,
+           openImportModal, _onImportFilePicked, closeImportModal,
+           _rewriteEntries, confirmImport };
+})();
+
+// ─────────────────────────────────────────────────────────────────
+// DevTools — live content manifest: every hex tile & building loaded
+// in HexDB/BldDB right now, with a background check for whether each
+// sprite file actually resolves on the configured server.
+// ─────────────────────────────────────────────────────────────────
+const DevTools = (() => {
+  function _esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+  const CORE_TERRAIN = new Set([
+    'DirtyWater','DirtyWater_1','DirtyWater_2','River_1','River_2','River_3','River_4','River_5','River_6',
+    'Rubble_1','Rubble_2','Rubble_3','Plain_1','Plain_2','BrokenPlain','Forest_1','Forest_2','Forest_3',
+    'Hills','Mountain','GoldVein','Oil','Barren','Desert','Swamp','RockySwamp','LavaPlain','LavaRift','Rift'
+  ]);
+
+  const STATUS_LABEL = { core:'Core', special:'Special', test:'Test / placeholder', kaiju:'Kaiju (WIP)', legacy:'Legacy / orphaned' };
+  const STATUS_COLOR = { core:'#a6e3a1', special:'#89b4fa', test:'#9399b2', kaiju:'#94e2d5', legacy:'#f5a3c7' };
+
+  function _classifyHex(id, sprite) {
+    if (/TEST/i.test(id)) return 'test';
+    if (/Kaiju/i.test(id) || /Kaiju/i.test(sprite || '')) return 'kaiju';
+    if (/Medieval/.test(id) || /_Flat_/.test(id)) return 'legacy';
+    const bare = id.replace(/_\d+$/, '');
+    if (CORE_TERRAIN.has(id) || CORE_TERRAIN.has(bare)) return 'core';
+    return 'special';
+  }
+
+  function _badge(status) {
+    return `<span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:bold;background:${STATUS_COLOR[status]};color:#1e1e2e">${STATUS_LABEL[status]}</span>`;
+  }
+
+  // Sprite folders to probe, in priority order — mirrors the resolution rules
+  // already used elsewhere in this file (_bldSpriteUrl, _sprDir) rather than
+  // assuming a single canonical folder, since Bridge/Road/hex-extras each
+  // resolve from a different subfolder.
+  function _spriteCandidates(kind, rec) {
+    const name = rec.spriteName;
+    if (!name) return [];
+    if (kind === 'bld') {
+      if (rec.buildingCategory === 'Bridge') return [`packages/postapoc/sprites/hex/${name}.png`, `packages/postapoc/sprites/buildings/${name}.png`];
+      if (rec.isRoad) return [`packages/postapoc/sprites/terrain/roads/${name}.png`];
+      return [`packages/postapoc/sprites/buildings/${name}.png`];
+    }
+    return [`packages/postapoc/sprites/terrain/${name}.png`, `packages/postapoc/sprites/hex/${name}.png`];
+  }
+
+  function _probeImg(candidates, cb) {
+    const BASE = GitHubSync.BASE_URL;
+    let i = 0;
+    (function tryNext() {
+      if (i >= candidates.length) return cb(null);
+      const url = `${BASE}/${candidates[i]}`;
+      const img = new Image();
+      img.onload  = () => cb(url);
+      img.onerror = () => { i++; tryNext(); };
+      img.src = url;
+    })();
+  }
+
+  function _table(rows, cols) {
+    const thead = `<tr>${cols.map(c => `<th>${c.label}</th>`).join('')}</tr>`;
+    const tbody = rows.map(r => `<tr class="dt-row" data-search="${_esc((r.id + ' ' + r.sprite).toLowerCase())}">${cols.map(c => `<td>${c.render(r)}</td>`).join('')}</tr>`).join('');
+    return `<table><thead>${thead}</thead><tbody>${tbody}</tbody></table>`;
+  }
+
+  function _filterTable(inputId, tableId) {
+    const q = document.getElementById(inputId).value.trim().toLowerCase();
+    document.querySelectorAll(`#${tableId} .dt-row`).forEach(tr => {
+      tr.style.display = (!q || tr.dataset.search.includes(q)) ? '' : 'none';
+    });
+  }
+
+  let _rowSeq = 0;
+
+  function renderPanel() {
+    const el = document.getElementById('devtools-panel');
+    if (!el) return;
+    const hexes = (typeof HexDB !== 'undefined') ? HexDB.getAll() : [];
+    const blds  = (typeof BldDB !== 'undefined') ? BldDB.getAll()  : [];
+
+    const probes = [];
+    const hexRows = hexes.map(h => {
+      const rowId = ++_rowSeq;
+      probes.push({ rowId, kind: 'hex', rec: h });
+      return { rowId, id: h.id, type: h.type || '', sprite: h.spriteName || '', status: _classifyHex(h.id, h.spriteName) };
+    });
+    const bldRows = blds.map(b => {
+      const rowId = ++_rowSeq;
+      probes.push({ rowId, kind: 'bld', rec: b });
+      const price = (b.price || []).map(p => `${p.amount} ${p.type}`).join(', ') || '—';
+      return { rowId, id: b.id, type: b.buildingCategory || '', sprite: b.spriteName || '', price };
+    });
+
+    const spriteCell = r => `<span id="dt-spr-${r.rowId}" style="color:#888">checking…</span>`;
+    const hexCols = [
+      { label:'ID',          render: r => `<code>${_esc(r.id)}</code>` },
+      { label:'Type',        render: r => _esc(r.type) },
+      { label:'Sprite',      render: r => `<code style="color:#888">${_esc(r.sprite)}</code>` },
+      { label:'Sprite file', render: spriteCell },
+      { label:'Status',      render: r => _badge(r.status) },
+    ];
+    const bldCols = [
+      { label:'ID',          render: r => `<code>${_esc(r.id)}</code>` },
+      { label:'Category',    render: r => _esc(r.type) },
+      { label:'Sprite',      render: r => `<code style="color:#888">${_esc(r.sprite)}</code>` },
+      { label:'Sprite file', render: spriteCell },
+      { label:'Price',       render: r => _esc(r.price) },
+    ];
+
+    el.innerHTML = `
+      <h3 style="color:#cdd6f4;margin:0 0 4px">Dev Tools — Content Manifest</h3>
+      <div style="color:#888;font-size:12px;margin-bottom:16px">
+        ${hexes.length} hex tiles · ${blds.length} buildings · live from HexDB / BldDB · sprite files checked against ${_esc(GitHubSync.BASE_URL)}
+      </div>
+      <h4 style="color:#cdd6f4;margin:16px 0 6px">Hex Tiles (${hexes.length})</h4>
+      <input type="text" id="dt-hex-filter" placeholder="Filter by id or sprite…" oninput="DevTools._filter('dt-hex-filter','dt-hex-table')">
+      <div id="dt-hex-table">${_table(hexRows, hexCols)}</div>
+      <h4 style="color:#cdd6f4;margin:24px 0 6px">Buildings (${blds.length})</h4>
+      <input type="text" id="dt-bld-filter" placeholder="Filter by id or sprite…" oninput="DevTools._filter('dt-bld-filter','dt-bld-table')">
+      <div id="dt-bld-table">${_table(bldRows, bldCols)}</div>
+    `;
+
+    probes.forEach(({ rowId, kind, rec }) => {
+      const candidates = _spriteCandidates(kind, rec);
+      const cell = () => document.getElementById(`dt-spr-${rowId}`);
+      if (!candidates.length) { const c = cell(); if (c) { c.textContent = '—'; c.style.color = '#888'; } return; }
+      _probeImg(candidates, (foundUrl) => {
+        const c = cell();
+        if (!c) return;
+        if (foundUrl) { c.textContent = '✓ found'; c.style.color = '#a6e3a1'; c.title = foundUrl; }
+        else          { c.textContent = '✗ missing'; c.style.color = '#ef5350'; }
+      });
+    });
+  }
+
+  return { renderPanel, _filter: _filterTable };
+})();
+
 // ── App: mode switching ────────────────────────────────────
 const App = {
   setMode(mode) {
     const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys',
-                   'slots', 'actions', 'upgrades', 'monsters', 'quests', 'common'];
+                   'slots', 'actions', 'upgrades', 'monsters', 'quests', 'common', 'packages', 'devtools'];
     MODES.forEach(m => {
       document.body.classList.toggle('mode-' + m, m === mode);
       const tab = document.getElementById('tab-' + m);
       if (tab) tab.classList.toggle('active', m === mode);
     });
     const moreBtn = document.getElementById('tab-more');
-    if (moreBtn) moreBtn.classList.toggle('active', ['slots','actions','upgrades','monsters','quests','common'].includes(mode));
+    if (moreBtn) moreBtn.classList.toggle('active', ['slots','actions','upgrades','monsters','quests','common','devtools'].includes(mode));
     if (mode === 'common' && typeof CommonDB !== 'undefined') CommonDB.render();
+    if (mode === 'packages' && typeof Packages !== 'undefined') Packages.renderPanel();
+    if (mode === 'devtools' && typeof DevTools !== 'undefined') DevTools.renderPanel();
   },
   toggleMore(e) {
     e.stopPropagation();
@@ -7624,7 +8481,9 @@ const HexDB = (() => {
 
   // ── Blank record ─────────────────────────────────────────
   function _blank() {
-    return {
+    const _pkgId = (typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc')
+                   ? Packages.getActive() : undefined;
+    const _e = {
       id:'', textId:'', type:'Special', biome:'Summer',
       filterCategory:'FilterTerrain', spriteName:'',
       category:'', terrainTypeId:-1, fallback:false,
@@ -7646,6 +8505,8 @@ const HexDB = (() => {
       booster:'', effects:'',
       waterFaces:[],
     };
+    if (_pkgId) _e.package = _pkgId;
+    return _e;
   }
 
   // ── HTML escape ──────────────────────────────────────────
@@ -8584,6 +9445,10 @@ const HexDB = (() => {
   function add() {
     const h = _blank();
     h.id = `NewHex_${_data.hexes.length}`;
+    if (typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc') {
+      const prefix = Packages.idPrefix(Packages.getActive());
+      if (prefix && !h.id.startsWith(prefix)) h.id = prefix + h.id;
+    }
     _data.hexes.push(h);
     _autoSave();
     _applyFilter();
@@ -8824,7 +9689,6 @@ const HexDB = (() => {
         const lid = (hex.id || '').toLowerCase();
         let buildingCategory = 'Standard';
         if (/bridge/.test(lid))       buildingCategory = 'Bridge';
-        else if (/road/.test(lid))    buildingCategory = 'Road';
         else if (/ship|boat/.test(lid)) buildingCategory = 'Ship';
 
         // Derive building type from hex group
@@ -8941,7 +9805,8 @@ const HexDB = (() => {
 
         // Keep sprite in Terrain so canvas still renders this tile ID after migration
         // Bridge sprites live in sprites/hex/, not sprites/buildings/
-        const _migrateDir = newBld.buildingCategory === 'Bridge' ? 'packages/postapoc/sprites/hex/' : 'packages/postapoc/sprites/buildings/';
+        const _migrateDir = newBld.buildingCategory === 'Bridge' ? 'packages/postapoc/sprites/hex/'
+                          : 'packages/postapoc/sprites/buildings/';
         Terrain.applyHexDbOverrides([newBld], _migrateDir);
         // Push to BldDB and select it
         BldDB.pushRecord(newBld);
@@ -9000,7 +9865,9 @@ const BldDB = (() => {
 
   function _blank() {
     const n = _data.buildings.length + 1;
-    return {
+    const _pkgId = (typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc')
+                   ? Packages.getActive() : undefined;
+    const _e = {
       id: `NewBuild_${n}`,
       textId: '', descIdleId: '', descBuildId: '',
       type: 'Ground Building',
@@ -9052,6 +9919,8 @@ const BldDB = (() => {
       // Footprint (Artefact type only)
       footprint: [],
     };
+    if (_pkgId) _e.package = _pkgId;
+    return _e;
   }
 
   function _migrate(bld) {
@@ -9143,71 +10012,11 @@ const BldDB = (() => {
     _filtered = _data.buildings.map((h, i) => i)
       .filter(i => {
         const bld = _data.buildings[i];
-        return bld.buildingCategory !== 'Bridge' &&
-               (!s || bld.id.toLowerCase().includes(s)) &&
+        return (!s || bld.id.toLowerCase().includes(s)) &&
                (!b || bld.biome === b) &&
                (!t || bld.type === t);
       });
     _filtered.sort((a, b) => (_data.buildings[a].id || '').localeCompare(_data.buildings[b].id || ''));
-  }
-
-  // ── Road group helpers ────────────────────────────────────
-
-  function _roadGroupOf(spriteName) {
-    if (!spriteName) return null;
-    const m = spriteName.match(/^(.+)_\d+_[A-Z]+$/i);
-    return m ? m[1] : null;
-  }
-
-  function _roadSpriteNum(spriteName) {
-    const m = (spriteName || '').match(/_(\d+)_[A-Z]+$/i);
-    return m ? parseInt(m[1], 10) : 9999;
-  }
-
-  function _roadGroupMembers(group) {
-    return _data.buildings
-      .filter(b => b.buildingCategory === 'Road' && _roadGroupOf(b.spriteName) === group)
-      .sort((a, b) => _roadSpriteNum(a.spriteName) - _roadSpriteNum(b.spriteName));
-  }
-
-  function _isRoadMaster(bld) {
-    if (bld.buildingCategory !== 'Road') return false;
-    const group = _roadGroupOf(bld.spriteName);
-    if (!group) return false;
-    const members = _roadGroupMembers(group);
-    return members.length > 0 && members[0].id === bld.id;
-  }
-
-  const _ROAD_SYNC_KEYS = [
-    'textId','descIdleId','descBuildId',
-    'type','buildingCategory','isRoad','biome','filter','baseCostTaps',
-    'canDestroy','destroyTransformToMode','destroyTransformTo',
-    'destroySources','moveToStorageOnDestroy','resourceAwardedOnDestroy','destroyIncome',
-    'canBuild','needRoad','availableTiles','minLevel','price','premiumPrice',
-    'additionalBuildCondition','tilesTypeMode','tilesTypeValue','radius',
-    'hexEarnsOnTap','destroyableByTap','incomeTransformToMode','incomeTransformTo',
-    'capacity','getPerTap','incomePerTurn','incomeConstant','spendConstant',
-    'buildingRadius','canProduceEnabled','canProduce','availableTilesForProduce',
-    'canProductionFacilities','facilityBonusType','facilityBonusSize',
-    'facilityBonusTarget','facilityBonusInfluenceType','facilityBonusResources',
-    'productionFacilities','canStore','stores','storageCapacity','storageUpgradeId',
-    'bonusDrop','bonusTrigger','bonuses','booster','effects','footprint',
-  ];
-
-  function _syncGroupFromMaster(master) {
-    const group = _roadGroupOf(master.spriteName);
-    if (!group) return 0;
-    const members = _roadGroupMembers(group);
-    let n = 0;
-    for (const m of members) {
-      if (m.id === master.id) continue;
-      for (const k of _ROAD_SYNC_KEYS) {
-        if (k in master) m[k] = structuredClone(master[k] ?? null);
-      }
-      n++;
-    }
-    if (n > 0) _autoSave();
-    return n;
   }
 
   function _buildList() {
@@ -9220,13 +10029,10 @@ const BldDB = (() => {
       const row   = document.createElement('div');
       row.className = 'hexdb-list-row' + (_selFilt === filtIdx ? ' selected' : '');
       row.dataset.filtIdx = filtIdx;
-      const grp    = bld.buildingCategory === 'Road' ? _roadGroupOf(bld.spriteName) : null;
-      const master = grp ? _isRoadMaster(bld) : false;
       row.innerHTML =
         `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;` +
         `background:${color};flex-shrink:0;margin-right:5px;vertical-align:middle"></span>` +
-        `<span class="hexdb-list-id">${_esc(bld.id) || '(no id)'}</span>` +
-        (grp ? `<span style="font-size:9px;margin-left:4px;flex-shrink:0;color:${master ? '#89b4fa' : '#6c7086'}" title="${master ? 'Road group master — edits sync to all variants' : 'Road variant — synced from ' + (_roadGroupMembers(grp)[0]?.id || '?')}">${master ? '★' : '↑'}</span>` : '');
+        `<span class="hexdb-list-id">${_esc(bld.id) || '(no id)'}</span>`;
       row.addEventListener('click', () => _selectIdx(filtIdx));
       list.appendChild(row);
     });
@@ -9322,50 +10128,6 @@ const BldDB = (() => {
     const bonusType = bld.facilityBonusType ?? '';
     const canSt     = bld.canStore ?? false;
 
-    // ── Road group: non-master gets minimal view ──────────────
-    const _rGroup   = bld.buildingCategory === 'Road' ? _roadGroupOf(bld.spriteName) : null;
-    const _rMaster  = _rGroup ? _isRoadMaster(bld) : false;
-    const _rMembers = _rGroup ? _roadGroupMembers(_rGroup) : [];
-    if (_rGroup && !_rMaster) {
-      const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
-      right.innerHTML = `
-        <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
-          <img src="${spriteSrc}" alt="" style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0;object-fit:contain;border:1px solid var(--border);border-radius:4px" onerror="this.style.opacity='0.2'">
-          <div style="min-width:0">
-            <div style="font-size:13px;font-weight:bold;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${_esc(bld.id) || '(unnamed)'}</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${spriteSrc || '—'}</div>
-          </div>
-        </div>
-        <div class="bld-road-banner bld-road-variant">
-          ↑ <strong>Road variant</strong> · group <code>${_esc(_rGroup)}</code> · ${_rMembers.length} tiles<br>
-          <span style="font-size:11px">All settings synced from master <strong>${_esc(_rMembers[0]?.id || '?')}</strong>. Edit Id and SpriteName only.</span>
-        </div>
-        <div class="hexdb-form">
-          <div class="hexdb-section">
-            <div class="hexdb-section-hdr" style="pointer-events:none">▼ IDENTITY</div>
-            <div class="hexdb-section-body">
-              <div class="hexdb-row"><span class="hexdb-label">Id *</span>
-                <input class="hexdb-input" id="bld-f-id" type="text" value="${_esc(bld.id)}">
-              </div>
-              <div class="hexdb-row"><span class="hexdb-label">SpriteName</span>
-                <div style="flex:1;min-width:0;display:flex;gap:4px">
-                  <input class="hexdb-input" id="bld-f-spriteName" type="text" value="${_esc(bld.spriteName)}" style="flex:1;min-width:0">
-                  <button type="button" onclick="BldDB.pickSprite()" style="padding:2px 7px;font-size:13px;cursor:pointer;flex-shrink:0">🖼</button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>`;
-      right.querySelectorAll('input,select').forEach(el => {
-        el.addEventListener('input',  _readRecord);
-        el.addEventListener('change', _readRecord);
-      });
-      return;
-    }
-    const roadBanner = _rGroup
-      ? `<div class="bld-road-banner bld-road-master">★ Road Group Master · <code>${_esc(_rGroup)}</code> · ${_rMembers.length} variant${_rMembers.length !== 1 ? 's' : ''} — edits sync to all tiles automatically</div>`
-      : '';
-
     // ── MAIN section ─────────────────────────────────────────
     const mainHTML = `
     <div class="hexdb-section">
@@ -9399,10 +10161,9 @@ const BldDB = (() => {
             <option${bld.type === 'Water Building'  ? ' selected' : ''}>Water Building</option>
             <option${bld.type === 'Artefact'        ? ' selected' : ''}>Artefact</option>
           </select></div>
-        <div class="hexdb-row"><span class="hexdb-label">Category <span class="hexdb-info" title="Standard · Road · Bridge · Ship — used for Hex→Building migration">ⓘ</span></span>
+        <div class="hexdb-row"><span class="hexdb-label">Category <span class="hexdb-info" title="Standard · Bridge · Ship — used for Hex→Building migration">ⓘ</span></span>
           <select class="hexdb-select" id="bld-f-buildingCategory">
             <option${bld.buildingCategory === 'Standard' ? ' selected' : ''}>Standard</option>
-            <option${bld.buildingCategory === 'Road'     ? ' selected' : ''}>Road</option>
             <option${bld.buildingCategory === 'Bridge'   ? ' selected' : ''}>Bridge</option>
             <option${bld.buildingCategory === 'Ship'     ? ' selected' : ''}>Ship</option>
           </select></div>
@@ -9728,7 +10489,10 @@ const BldDB = (() => {
       <button onclick="BldDB.paste()">Paste</button>
     </div>`;
 
-    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${_esc(bld.spriteName)}.png`) : '';
+    const _sprDir = bld.buildingCategory === 'Bridge' ? 'packages/postapoc/sprites/hex/'
+                   : bld.isRoad ? 'packages/postapoc/sprites/terrain/roads/'
+                   : 'packages/postapoc/sprites/buildings/';
+    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `${_sprDir}${_esc(bld.spriteName)}.png`) : '';
     const visualHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
       <img src="${spriteSrc}" alt=""
@@ -9760,7 +10524,7 @@ const BldDB = (() => {
       (_data.buildings ?? []).filter(b => b.id && !b.canBuild)
         .map(b => `<option value="${_esc(b.id)}">`).join('') +
       '</datalist>';
-    right.innerHTML = visualHTML + roadBanner + `<div class="hexdb-form">
+    right.innerHTML = visualHTML + `<div class="hexdb-form">
       ${mainHTML}${footprintHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${specialHTML}${satelliteHTML}${actionsHTML}
     </div>` + bldHexIdDatalist + bldBldIdDatalist;
 
@@ -9962,23 +10726,6 @@ const BldDB = (() => {
     const nv = id => { const el = g(id); return el ? (parseInt(el.value, 10) || 0) : 0; };
     const bv = id => { const el = g(id); return el ? el.checked : false; };
 
-    // Non-master road: only id + spriteName are editable; sync rest from master
-    const _rGrp = bld.buildingCategory === 'Road' ? _roadGroupOf(bld.spriteName) : null;
-    if (_rGrp && !_isRoadMaster(bld)) {
-      bld.id         = iv('bld-f-id').trim();
-      bld.spriteName = iv('bld-f-spriteName');
-      const members = _roadGroupMembers(_rGrp);
-      if (members.length > 0 && members[0].id !== bld.id) {
-        for (const k of _ROAD_SYNC_KEYS) {
-          if (k in members[0]) bld[k] = structuredClone(members[0][k] ?? null);
-        }
-      }
-      const row = document.querySelector(`#bld-list .hexdb-list-row[data-filt-idx="${_selFilt}"]`);
-      if (row) row.querySelector('.hexdb-list-id').textContent = bld.id || '(no id)';
-      _autoSave();
-      return;
-    }
-
     // MAIN
     bld.id           = iv('bld-f-id').trim();
     bld.textId       = iv('bld-f-textId').trim();
@@ -10053,13 +10800,15 @@ const BldDB = (() => {
       idEl.style.borderColor = (!bld.id || isDupe) ? '#e57373' : '';
     }
     _autoSave();
-
-    // Auto-sync road group from master
-    if (_rGrp && _isRoadMaster(bld)) _syncGroupFromMaster(bld);
   }
 
   function add() {
-    _data.buildings.push(_blank());
+    const _newBld = _blank();
+    if (typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc') {
+      const prefix = Packages.idPrefix(Packages.getActive());
+      if (prefix && !_newBld.id.startsWith(prefix)) _newBld.id = prefix + _newBld.id;
+    }
+    _data.buildings.push(_newBld);
     _autoSave();
     _applyFilter();
     _buildList();
@@ -10265,107 +11014,7 @@ const BldDB = (() => {
   }
   function getAll() { return _data.buildings || []; }
 
-  // ── Road Group Modal ──────────────────────────────────────
-  // 24 canonical bitmask patterns from the game's road auto-tile system.
-  // Direction order: SE(bit0) NE(bit1) N(bit2) NW(bit3) SW(bit4) S(bit5).
-  // Sprite names follow road_hex_{bitmask:02}_{dirs}.png convention.
-  const _TYPICAL_HEX_ROAD_DIRS = [
-    'none',      // 00 — isolated (no connections)
-    'SE',        // 01
-    'SENE',      // 03
-    'N',         // 04
-    'SEN',       // 05
-    'NEN',       // 06
-    'SENEN',     // 07
-    'SENW',      // 09
-    'NENW',      // 10
-    'SENENW',    // 11
-    'SENNW',     // 13
-    'NENNW',     // 14
-    'SENENNW',   // 15
-    'SENSW',     // 21
-    'SENENSW',   // 23
-    'SENENWSW',  // 27
-    'SENENNWSW', // 31
-    'NS',        // 36
-    'SENS',      // 37
-    'SENENS',    // 39
-    'SENNWS',    // 45
-    'NENNWS',    // 46
-    'SENENNWS',  // 47
-    'SENENNWSWS',// 63 — full intersection (all 6 directions)
-  ];
-
-  function openRoadGroupModal() {
-    document.getElementById('road-group-name').value = '';
-    document.getElementById('road-group-prefix').value = '';
-    document.getElementById('road-group-dirs').value = '';
-    document.getElementById('road-group-preview').textContent = '0 tiles will be created.';
-    document.getElementById('road-group-modal').style.display = 'flex';
-  }
-
-  function closeRoadGroupModal() {
-    document.getElementById('road-group-modal').style.display = 'none';
-  }
-
-  function _onRoadGroupNameInput(el) {
-    const prefix = document.getElementById('road-group-prefix');
-    if (!prefix.value || prefix.value === el.dataset.prev) prefix.value = el.value;
-    el.dataset.prev = el.value;
-    _updateRoadGroupPreview();
-  }
-
-  function _fillTypicalRoadDirs() {
-    document.getElementById('road-group-dirs').value = _TYPICAL_HEX_ROAD_DIRS.join('\n');
-    _updateRoadGroupPreview();
-  }
-
-  function _updateRoadGroupPreview() {
-    const dirs = document.getElementById('road-group-dirs').value
-      .split('\n').map(s => s.trim()).filter(Boolean);
-    document.getElementById('road-group-preview').textContent =
-      `${dirs.length} tile${dirs.length !== 1 ? 's' : ''} will be created.`;
-  }
-
-  function confirmAddRoadGroup() {
-    const name   = document.getElementById('road-group-name').value.trim();
-    const prefix = document.getElementById('road-group-prefix').value.trim() || name;
-    const dirs   = document.getElementById('road-group-dirs').value
-      .split('\n').map(s => s.trim()).filter(Boolean);
-    if (!name)       { alert('Please enter a group name.'); return; }
-    if (!prefix)     { alert('Please enter a sprite prefix.'); return; }
-    if (!dirs.length){ alert('Please enter at least one direction suffix.'); return; }
-
-    const existing = _data.buildings.filter(b => _roadGroupOf(b.spriteName) === prefix);
-    if (existing.length) {
-      if (!confirm(`Road group "${prefix}" already has ${existing.length} tile(s). Add more?`)) return;
-    }
-    const startNum = existing.length;
-    const created  = dirs.map((dir, i) => {
-      const num   = startNum + i;
-      const bld   = _blank();
-      bld.id      = `${prefix}_${dir}`;
-      bld.spriteName      = `${prefix}_${num}_${dir}`;
-      bld.buildingCategory = 'Road';
-      bld.type    = 'Ground Building';
-      bld.filter  = 'FilterRoad';
-      bld.isRoad  = true;
-      bld.canBuild = true;
-      bld.needRoad = false;
-      return bld;
-    });
-    created.forEach(b => _data.buildings.push(b));
-    _autoSave();
-    closeRoadGroupModal();
-    _applyFilter();
-    _buildList();
-    // Select the master (first created tile)
-    _selectIdx(_filtered.indexOf(_data.buildings.indexOf(created[0])));
-    UI.toast(`Road group "${name}" created — ${created.length} tile${created.length !== 1 ? 's' : ''}`);
-  }
-
-  return { init, add, openRoadGroupModal, closeRoadGroupModal, _onRoadGroupNameInput,
-           _fillTypicalRoadDirs, _updateRoadGroupPreview, confirmAddRoadGroup,
+  return { init, add,
            pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
@@ -11443,8 +12092,11 @@ let _satelliteMap = null;
 // Game column = worldXidx = MAP_HEIGHT-1-row. Use _DIRS_ODD when worldXidx is even,
 // _DIRS_EVEN when worldXidx is odd (the table names reflect odd/even EDITOR row parity
 // for even MAP_HEIGHT, where odd worldXidx = even row).
-const _DIRS_EVEN = { N:[+1,0], S:[-1,0], NE:[0,-1],  SE:[-1,-1], NW:[0,+1],  SW:[-1,+1] };
-const _DIRS_ODD  = { N:[+1,0], S:[-1,0], NE:[+1,-1], SE:[0,-1],  NW:[+1,+1], SW:[0,+1] };
+// SE/SW (EVEN) and NE/NW (ODD) previously had the wrong sign on dCol — they pointed
+// at a hex 2 steps away (~120px) instead of a true adjacent neighbor (~69.28px),
+// verified against Canvas.hexScreenPos across the full grid. Fixed 2026-07-29.
+const _DIRS_EVEN = { N:[+1,0], S:[-1,0], NE:[0,-1],  SE:[+1,-1], NW:[0,+1],  SW:[+1,+1] };
+const _DIRS_ODD  = { N:[+1,0], S:[-1,0], NE:[-1,-1], SE:[0,-1],  NW:[-1,+1], SW:[0,+1] };
 
 function _buildSatelliteMap() {
   _satelliteMap = {};
@@ -11506,6 +12158,75 @@ function _hexDistBetween(col1, row1, col2, row2) {
   const a = toAxial(col1, row1), b = toAxial(col2, row2);
   const dq = a.q - b.q, dr = a.r - b.r;
   return Math.max(Math.abs(dq), Math.abs(dr), Math.abs(dq + dr));
+}
+
+// Shortest hex path from (col1,row1) to (col2,row2), inclusive of both endpoints —
+// over Roads.getNeighbors, i.e. the exact same adjacency calcBitmask renders as
+// "connected." Used to auto-fill the gap when two consecutive road clicks aren't
+// already neighbors, so the result is always a genuinely connected chain.
+//
+// Hex grids routinely have MANY equally-short paths between two points (ties).
+// Plain BFS returns whichever one it happens to discover first, which can zigzag
+// even though a straighter route of the same length exists. This does it in two
+// passes: (1) BFS to find each cell's hop-distance layer, (2) within each layer,
+// pick the predecessor that continues in the same direction as the step before
+// it (fewest direction changes), so ties resolve to the visually straightest path.
+function _hexPathBetween(col1, row1, col2, row2, maxNodes) {
+  const startKey = col1 + ',' + row1, targetKey = col2 + ',' + row2;
+  if (startKey === targetKey) return [{ col: col1, row: row1 }];
+  const cap = maxNodes || 4000;
+
+  // Pass 1: hop-distance layers from start.
+  const distOf = new Map([[startKey, 0]]);
+  const layers = [[{ col: col1, row: row1 }]];
+  let foundTarget = false;
+  while (!foundTarget) {
+    if (distOf.size > cap) return null;   // safety valve — unreasonably far apart
+    const prevLayer = layers[layers.length - 1];
+    const nextLayer = [];
+    for (const cell of prevLayer) {
+      for (const n of Roads.getNeighbors(cell.col, cell.row)) {
+        const k = n.col + ',' + n.row;
+        if (distOf.has(k)) continue;
+        distOf.set(k, layers.length);
+        nextLayer.push(n);
+        if (k === targetKey) foundTarget = true;
+      }
+    }
+    if (!nextLayer.length) return null;   // unreachable (shouldn't happen on a bounded rectangular grid)
+    layers.push(nextLayer);
+  }
+
+  // Pass 2: within each layer, minimize direction changes from the step before.
+  const best = new Map();   // key -> { turns, parentKey, dirIn: [dc,dr] }
+  best.set(startKey, { turns: 0, parentKey: null, dirIn: null });
+  for (let d = 1; d < layers.length; d++) {
+    for (const cell of layers[d]) {
+      const k = cell.col + ',' + cell.row;
+      let bestTurns = Infinity, bestParentKey = null, bestDir = null;
+      for (const p of Roads.getNeighbors(cell.col, cell.row)) {
+        const pk = p.col + ',' + p.row;
+        if (distOf.get(pk) !== d - 1) continue;   // only true predecessors, one layer back
+        const pInfo = best.get(pk);
+        if (!pInfo) continue;
+        const dc = cell.col - p.col, dr = cell.row - p.row;
+        const turned = pInfo.dirIn && (pInfo.dirIn[0] !== dc || pInfo.dirIn[1] !== dr);
+        const totalTurns = pInfo.turns + (turned ? 1 : 0);
+        if (totalTurns < bestTurns) { bestTurns = totalTurns; bestParentKey = pk; bestDir = [dc, dr]; }
+      }
+      best.set(k, { turns: bestTurns, parentKey: bestParentKey, dirIn: bestDir });
+    }
+  }
+
+  // Reconstruct from target back to start, then reverse.
+  const cells = [];
+  let cur = targetKey;
+  while (cur !== null) {
+    const [c, r] = cur.split(',').map(Number);
+    cells.push({ col: c, row: r });
+    cur = best.get(cur).parentKey;
+  }
+  return cells.reverse();
 }
 
 function _fisherYates(arr) {
@@ -11620,6 +12341,7 @@ window.addEventListener('load', async () => {
   UI.rebuildSlotPanel();
   UI.selectTerrain('Plain_1');
 
+  Packages.init();
   BldDB.init();
   SttDB.init();
   UpgDB.init();
@@ -11630,17 +12352,18 @@ window.addEventListener('load', async () => {
     try { await GitHubSync.loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
     try { await GitHubSync.loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
-    // Bridge buildings keep their sprites in sprites/hex/, all others use sprites/buildings/
+    // Bridge: sprites/hex/  Road: sprites/terrain/roads/  all others: sprites/buildings/
     const _allBlds = BldDB.getAll();
-    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge'), 'packages/postapoc/sprites/buildings/');
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge' && !b.isRoad), 'packages/postapoc/sprites/buildings/');
     await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory === 'Bridge'), 'packages/postapoc/sprites/hex/');
+    await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.isRoad), 'packages/postapoc/sprites/terrain/roads/');
     Canvas.render();
   })();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
   document.addEventListener('keydown', e => {
     if (e.key === 'Tab' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
       e.preventDefault();
-      const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys'];
+      const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys', 'packages'];
       const cur = MODES.findIndex(m => document.body.classList.contains('mode-' + m));
       App.setMode(MODES[(cur + 1) % MODES.length]);
     }
@@ -11972,11 +12695,47 @@ window.addEventListener('load', async () => {
 .cm-btn-del:hover { background:#f38ba8;color:#1e1e2e; }
 .cm-btn-up { color:#a6e3a1;border-color:#a6e3a1;margin-left:auto; }
 .cm-btn-up:hover { background:#a6e3a1;color:#1e1e2e; }
-.bld-road-banner { margin:8px 0 4px;padding:8px 10px;border-radius:6px;font-size:12px;line-height:1.5;border:1px solid; }
-.bld-road-banner code { background:rgba(255,255,255,.1);padding:1px 4px;border-radius:3px;font-size:11px; }
-.bld-road-master { border-color:#89b4fa;background:rgba(137,180,250,.08);color:#89b4fa; }
-.bld-road-variant { border-color:#6c7086;background:rgba(108,112,134,.08);color:#a6adc8; }
 </style>
+
+<!-- Packages — New Package modal -->
+<div id="pkg-new-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;align-items:center;justify-content:center">
+  <div style="background:#1e1e2e;border:1px solid #45475a;border-radius:8px;padding:24px;min-width:360px;display:flex;flex-direction:column;gap:12px">
+    <h3 style="margin:0;color:#cdd6f4">New Package</h3>
+    <label style="font-size:12px;color:#888">Display Name</label>
+    <input id="pkg-new-name" type="text" placeholder="Medieval Kingdom"
+           style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-size:13px"
+           oninput="Packages._autoSlugId(this.value)">
+    <label style="font-size:12px;color:#888">Package ID (lowercase, hyphens only)</label>
+    <input id="pkg-new-id" type="text" placeholder="medieval"
+           style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-size:13px;font-family:monospace">
+    <div id="pkg-new-error" style="color:#f38ba8;font-size:12px;display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="hexdb-tool-btn" onclick="Packages.closeNewModal()">Cancel</button>
+      <button class="hexdb-tool-btn" style="background:#a6e3a1;color:#1e1e2e" onclick="Packages.createPackage()">Create</button>
+    </div>
+  </div>
+</div>
+
+<!-- Packages — Import Package modal -->
+<div id="pkg-import-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9000;align-items:center;justify-content:center">
+  <div style="background:#1e1e2e;border:1px solid #45475a;border-radius:8px;padding:24px;min-width:380px;display:flex;flex-direction:column;gap:12px">
+    <h3 style="margin:0;color:#cdd6f4">Import Package</h3>
+    <label style="font-size:12px;color:#888">Display Name</label>
+    <input id="pkg-import-name" type="text"
+           style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-size:13px">
+    <label style="font-size:12px;color:#888">Package ID (lowercase, hyphens only)</label>
+    <input id="pkg-import-id" type="text"
+           style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-size:13px;font-family:monospace">
+    <input type="hidden" id="pkg-import-original-id">
+    <div id="pkg-import-error" style="color:#f38ba8;font-size:12px;display:none"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="hexdb-tool-btn" onclick="Packages.closeImportModal()">Cancel</button>
+      <button class="hexdb-tool-btn" style="background:#89dceb;color:#1e1e2e" onclick="Packages.confirmImport()">Import</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="pkg-import-input" accept=".zip" style="display:none"
+       onchange="Packages._onImportFilePicked(this.files[0]); this.value=''">
 
 </body>
 </html>

@@ -1,0 +1,87 @@
+<h2>BUILD section — proposed layout</h2>
+<p class="subtitle">Green = new/changed. Red = removed. Click to approve.</p>
+
+<div class="mockup" style="max-width:620px;margin:0 auto">
+  <div class="mockup-header">BUILD (18–24)</div>
+  <div class="mockup-body" style="padding:0">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:monospace">
+
+      <!-- Can Build + Need Road on same row -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;width:140px;text-align:right">Can Build</td>
+        <td style="padding:6px 10px;display:flex;gap:16px;align-items:center">
+          <label style="display:flex;align-items:center;gap:5px"><input type="checkbox"> <span style="color:#ccc">hex can be built</span></label>
+          <label style="display:flex;align-items:center;gap:5px;color:#4caf50"><input type="checkbox"> Need Road</label>
+          <span style="color:#888;font-size:10px">default: No — gates all fields below</span>
+        </td>
+      </tr>
+
+      <!-- Available Tiles — tags -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right">Available Tiles</td>
+        <td style="padding:6px 10px">
+          <div style="display:flex;flex-wrap:wrap;gap:4px;align-items:center;background:#111;border:1px solid #444;padding:4px;border-radius:3px;min-height:28px">
+            <span style="background:#2a3a2a;border:1px solid #4caf50;color:#4caf50;padding:2px 6px;border-radius:3px;font-size:11px">Plain_1 ✕</span>
+            <input style="background:none;border:none;color:#fff;outline:none;width:100px;font-size:11px" placeholder="type hex ID + Enter">
+          </div>
+          <span style="color:#888;font-size:10px">hex IDs this tile can be placed on (datalist autocomplete)</span>
+        </td>
+      </tr>
+
+      <!-- MinLevel -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right">MinLevel</td>
+        <td style="padding:6px 10px">
+          <input class="mock-input" type="number" style="width:110px" value="1" min="0">
+          <span style="color:#888;font-size:10px"> 0 = available immediately; 9-char field</span>
+        </td>
+      </tr>
+
+      <!-- Price — dynamic resource block -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right;vertical-align:top">Price</td>
+        <td style="padding:6px 10px">
+          <div style="display:flex;flex-direction:column;gap:4px">
+            <div style="display:flex;gap:4px;align-items:center">
+              <select class="mock-input" style="width:110px"><option>Gold</option></select>
+              <input class="mock-input" type="number" style="width:90px" value="100">
+              <button class="mock-button" style="padding:2px 6px;font-size:11px">✕</button>
+            </div>
+            <button class="mock-button" style="align-self:flex-start;padding:3px 10px;font-size:11px">+ Add Resource</button>
+          </div>
+        </td>
+      </tr>
+
+      <!-- Premium Price -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right">Premium Price</td>
+        <td style="padding:6px 10px">
+          <input class="mock-input" type="number" style="width:110px" value="0">
+          <span style="color:#888;font-size:10px"> if &gt;0, overrides Price (gems/premium currency)</span>
+        </td>
+      </tr>
+
+      <!-- REMOVED: MaxPerMap -->
+      <tr style="border-bottom:1px solid #333;background:#1a0808;opacity:0.5">
+        <td style="color:#e57373;padding:4px 10px;text-align:right"><s>MaxPerMap</s></td>
+        <td style="padding:4px 10px;color:#e57373"><s>removed</s></td>
+      </tr>
+
+      <!-- Placement Rule — moved to bottom -->
+      <tr style="background:#1a2a1a">
+        <td style="color:#888;padding:6px 10px;text-align:right">Placement Rule</td>
+        <td style="padding:6px 10px">
+          <input class="mock-input" style="width:100%" placeholder="condition ID (future use)">
+          <span style="color:#555;font-size:10px"> ← moved to bottom (unchanged field)</span>
+        </td>
+      </tr>
+
+    </table>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:12px;max-width:620px;margin-left:auto;margin-right:auto">
+  🟢 New: Can Build + Need Road (same row), Available Tiles (tags), Price (dynamic), Premium Price<br>
+  ♻️ Kept: MinLevel (widened to 9 chars), Placement Rule (moved to bottom)<br>
+  🔴 Removed: MaxPerMap, old Gold/Gems/Event cost row
+</p>

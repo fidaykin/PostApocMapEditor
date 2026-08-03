@@ -1,0 +1,55 @@
+<h2>MAIN section — final design</h2>
+<p class="subtitle">Approved layout. Green = new fields. Red strikethrough = removed.</p>
+
+<div class="mockup" style="max-width:580px;margin:0 auto">
+  <div class="mockup-header">MAIN (0–9)</div>
+  <div class="mockup-body" style="padding:0">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:monospace">
+      <tr style="border-bottom:1px solid #333">
+        <td style="color:#888;padding:6px 10px;width:140px;text-align:right">Id *</td>
+        <td style="padding:6px 10px"><input class="mock-input" style="width:100%" placeholder="e.g. Plain_1"> <small style="color:#555">Format: TypeName_Number</small></td>
+      </tr>
+      <tr style="border-bottom:1px solid #333">
+        <td style="color:#888;padding:6px 10px;text-align:right">TextId</td>
+        <td style="padding:6px 10px"><input class="mock-input" style="width:100%"></td>
+      </tr>
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right">Desc Idle</td>
+        <td style="padding:6px 10px"><input class="mock-input" style="width:100%" placeholder="text ID key for idle description"></td>
+      </tr>
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right">Desc Build</td>
+        <td style="padding:6px 10px"><input class="mock-input" style="width:100%" placeholder="text ID key for build description"></td>
+      </tr>
+      <tr style="border-bottom:1px solid #333">
+        <td style="color:#888;padding:6px 10px;text-align:right">Type</td>
+        <td style="padding:6px 10px"><select class="mock-input" style="width:100%"><option>▾ Plains › Plain_1</option></select></td>
+      </tr>
+      <tr style="border-bottom:1px solid #333">
+        <td style="color:#888;padding:6px 10px;text-align:right">Biome</td>
+        <td style="padding:6px 10px"><select class="mock-input" style="width:100%"><option>Summer</option></select></td>
+      </tr>
+      <tr style="border-bottom:1px solid #333">
+        <td style="color:#888;padding:6px 10px;text-align:right">Filter</td>
+        <td style="padding:6px 10px"><select class="mock-input" style="width:100%"><option>FilterTerrain</option></select></td>
+      </tr>
+      <tr style="border-bottom:1px solid #333">
+        <td style="color:#888;padding:6px 10px;text-align:right">SpriteName</td>
+        <td style="padding:6px 10px"><div style="display:flex;gap:6px;align-items:center"><input class="mock-input" style="flex:1" placeholder="Forest_1"><button class="mock-button" style="padding:3px 10px;font-size:11px">🖼</button></div></td>
+      </tr>
+      <tr style="border-bottom:1px solid #333;background:#1f0d0d;opacity:0.5">
+        <td style="color:#e57373;padding:6px 10px;text-align:right"><s>BaseCost</s></td>
+        <td style="padding:6px 10px;color:#e57373"><s>Gold [____] Gems [____] Event [____]</s> — removed</td>
+      </tr>
+      <tr style="background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right">Base Cost Taps</td>
+        <td style="padding:6px 10px"><input class="mock-input" type="number" style="width:110px" placeholder="0" title="9 chars wide"> <small style="color:#555">taps to unlock on map</small></td>
+      </tr>
+    </table>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px;max-width:580px;margin-left:auto;margin-right:auto">
+  🟢 Added: <code>descriptionIdleId</code>, <code>descriptionBuildId</code>, <code>baseCostTaps</code><br>
+  🔴 Removed: <code>baseCostGold</code>, <code>baseCostGems</code>, <code>baseCostEvent</code>
+</p>
