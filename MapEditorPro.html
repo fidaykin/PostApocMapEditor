@@ -2285,7 +2285,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "859bcdd";
+const COMMIT  = "8d83830";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6723,14 +6723,35 @@ const Generator = (() => {
     const infR   = Math.min(W, H) * 0.08;
     const TARGET_E = 0.46, TARGET_M = 0.50, TARGET_B = 0.55;
 
+    // Continent/coastline mask: elevation falls off toward open ocean far from
+    // the map center. Landmass radius is perturbed per-angle by a small seeded
+    // noise so the coastline is an irregular blob, not a perfect circle.
+    const maxR       = Math.sqrt(halfW * halfW + halfH * halfH);
+    const coastNoise = _makeNoise2D(Math.floor(rng() * 100000));
+    const COAST_BASE_R  = maxR * 0.72;   // average landmass radius
+    const COAST_WOBBLE   = 0.28;          // +/- fraction of COAST_BASE_R the coastline wobbles by
+    const COAST_BAND     = maxR * 0.20;   // width of the land->ocean blend band
+    const TARGET_OCEAN    = 0.05;          // elevation deep in the ocean, well below any wThr in GEN_PRESETS (min 0.15)
+
     for (let row = 0; row < H; row++) {
       for (let col = 0; col < W; col++) {
-        const dist = Math.sqrt((col - halfW) ** 2 + (row - halfH) ** 2);
+        const dx = col - halfW, dy = row - halfH;
+        const dist = Math.sqrt(dx * dx + dy * dy);
         const t    = Math.max(0, 1.0 - dist / infR);
         const inf  = t * t * (3 - 2 * t);
-        const e = eNoise(col, row)                           * (1-inf) + TARGET_E * inf;
+        let e = eNoise(col, row)                           * (1-inf) + TARGET_E * inf;
         const m = mNoise(col*p.moistScale, row*p.moistScale) * (1-inf) + TARGET_M * inf;
         const b = bNoise(col*p.biomeScale, row*p.biomeScale) * (1-inf) + TARGET_B * inf;
+
+        // Coastline: sample angular noise as a point on a small circle in noise
+        // space (seamless wrap at angle 0/2*PI), perturb the landmass radius by it.
+        const angle    = Math.atan2(dy, dx);
+        const wobble   = coastNoise(Math.cos(angle) * 3 + 3, Math.sin(angle) * 3 + 3);
+        const landR    = COAST_BASE_R * (1 + (wobble * 2 - 1) * COAST_WOBBLE);
+        const coastT   = Math.max(0, Math.min(1, (dist - landR) / COAST_BAND));
+        const coastInf = coastT * coastT * (3 - 2 * coastT);
+        e = e * (1 - coastInf) + TARGET_OCEAN * coastInf;
+
         elev[row * W + col] = e;
         dest[row * W + col] = _classify(e, m, b, p.mThr, p.hThr, p.wThr);
       }
