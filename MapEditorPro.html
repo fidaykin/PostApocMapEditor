@@ -2289,7 +2289,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "8e09585";
+const COMMIT  = "89669a7";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8607,7 +8607,7 @@ const HexDB = (() => {
       spendConstant:[{type:'Pollution',amount:1}],
       bonusDrop:false, bonusTrigger:'Destroy', bonuses:[],
       booster:'', effects:'',
-      waterFaces:[],
+      edgeFaces:[],
     };
     if (_pkgId) _e.package = _pkgId;
     return _e;
@@ -8891,9 +8891,9 @@ const HexDB = (() => {
   // Flat-top hex positions for water/footprint rosettes (left, top in px)
   const HEX_POS = { NW:{l:0,t:24}, N:{l:42,t:0}, NE:{l:84,t:24}, SW:{l:0,t:72}, S:{l:42,t:96}, SE:{l:84,t:72} };
 
-  function _waterFacesHTML(hex) {
+  function _edgeFacesHTML(hex) {
     if (hex.type !== 'Rivers') return '';
-    const faces = Array.isArray(hex.waterFaces) ? hex.waterFaces : [];
+    const faces = Array.isArray(hex.edgeFaces) ? hex.edgeFaces : [];
     const btns = WATER_DIRS.map(d => {
       const p = HEX_POS[d.key];
       const active = faces.includes(d.key) ? ' class="active"' : '';
@@ -9156,7 +9156,7 @@ const HexDB = (() => {
       _sectionHTML('build',   'BUILD (18–24)',  buildBody)   +
       _sectionHTML('income',  'INCOME',         incomeBody)  +
       _sectionHTML('special',    'SPECIAL',      specialBody)    +
-      (hex.type === 'Rivers' ? _sectionHTML('waterfaces', 'WATER EXITS', _waterFacesHTML(hex)) : '') +
+      (hex.type === 'Rivers' ? _sectionHTML('waterfaces', 'WATER EXITS', _edgeFacesHTML(hex)) : '') +
       _sectionHTML('footprint', 'FOOTPRINT', _footprintHTML(hex)) +
       actionsHTML + hexIdDatalist;
 
@@ -9328,10 +9328,10 @@ const HexDB = (() => {
         if (!btn || _selFilt < 0) return;
         const dir = btn.dataset.wf;
         const h = _data.hexes[_filtered[_selFilt]];
-        if (!Array.isArray(h.waterFaces)) h.waterFaces = [];
-        const idx = h.waterFaces.indexOf(dir);
-        if (idx >= 0) h.waterFaces.splice(idx, 1);
-        else h.waterFaces.push(dir);
+        if (!Array.isArray(h.edgeFaces)) h.edgeFaces = [];
+        const idx = h.edgeFaces.indexOf(dir);
+        if (idx >= 0) h.edgeFaces.splice(idx, 1);
+        else h.edgeFaces.push(dir);
         btn.classList.toggle('active', idx < 0);
         _autoSave();
       });
@@ -9683,8 +9683,11 @@ const HexDB = (() => {
       delete h.storageCapacity;
       delete h.energyConsumption;
       delete h.pollutionConstant;
-      // waterFaces migration
-      if (!Array.isArray(h.waterFaces)) h.waterFaces = [];
+      // edgeFaces migration (renamed from waterFaces) — also upgrade any
+      // legacy map file that still has the old key name.
+      if (Array.isArray(h.waterFaces) && !Array.isArray(h.edgeFaces)) h.edgeFaces = h.waterFaces;
+      delete h.waterFaces;
+      if (!Array.isArray(h.edgeFaces)) h.edgeFaces = [];
     });
   }
 
