@@ -2285,7 +2285,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "fdb466f";
+const COMMIT  = "01b6a5b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6708,7 +6708,37 @@ const Generator = (() => {
     };
   }
 
-  function _generateInto(dest, p) {
+  // Majority-filter smoothing: each cell becomes whichever terrain ID is most
+  // common among its 8 neighbors + itself. Run on the base biome classification
+  // only, BEFORE rivers/resources are stamped on top (see call site below) —
+  // otherwise a river's single-tile width or a small resource cluster's edges
+  // would get voted out by their surrounding neighbors.
+  function _smoothTerrain(dest, W, H, passes) {
+    for (let pass = 0; pass < passes; pass++) {
+      const src = dest.slice();
+      for (let row = 0; row < H; row++) {
+        for (let col = 0; col < W; col++) {
+          const counts = new Map();
+          for (let dr = -1; dr <= 1; dr++) {
+            for (let dc = -1; dc <= 1; dc++) {
+              const nr = row + dr, nc = col + dc;
+              if (nr < 0 || nr >= H || nc < 0 || nc >= W) continue;
+              const id = src[nr * W + nc];
+              counts.set(id, (counts.get(id) || 0) + 1);
+            }
+          }
+          let bestId = src[row * W + col], bestCount = -1;
+          for (const [id, count] of counts) {
+            if (count > bestCount) { bestCount = count; bestId = id; }
+          }
+          dest[row * W + col] = bestId;
+        }
+      }
+    }
+  }
+
+  function _generateInto(dest, p, opts) {
+    opts = opts || {};
     const W = MAP_WIDTH, H = MAP_HEIGHT;
     const rng    = _lcg(p.seed);
     const seedE  = Math.floor(rng() * 100000);
@@ -6757,7 +6787,9 @@ const Generator = (() => {
       }
     }
 
-    if (p.rivers > 0) {
+    if (!opts.skipExpensive) _smoothTerrain(dest, W, H, 1);
+
+    if (p.rivers > 0 && !opts.skipExpensive) {
       const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
       const cr2  = infR * infR;
       const _riverT = _getGenT();
@@ -6828,7 +6860,7 @@ const Generator = (() => {
   function _renderPreview() {
     const W = MAP_WIDTH, H = MAP_HEIGHT;
     const tmp = new Array(W * H).fill('Plain_1');
-    _generateInto(tmp, _getParams());
+    _generateInto(tmp, _getParams(), { skipExpensive: true });
     const cv = document.getElementById('gen-preview');
     if (!cv) return;
     const ctx = cv.getContext('2d');
