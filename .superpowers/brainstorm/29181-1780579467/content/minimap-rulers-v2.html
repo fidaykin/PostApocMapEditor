@@ -1,0 +1,108 @@
+<h2>Minimap Rulers — Labels or grid lines?</h2>
+<p class="subtitle">Top ruler = A B C… (letters), left ruler = 1 2 3… (numbers). Same on minimap — but space is tight: 23 blocks × ~9.5 px each.</p>
+
+<div class="split">
+
+  <div class="mockup">
+    <div class="mockup-header" style="cursor:pointer" onclick="this.parentElement.parentElement.querySelector('[data-choice]').click()">Option A — Grid lines only (no labels)</div>
+    <div class="mockup-body" style="display:flex;justify-content:center;padding:16px">
+      <div style="position:relative;width:190px" data-choice="lines" onclick="toggleSelect(this.closest('.mockup'))">
+        <!-- Left ruler strip (numbers) — no text, tick marks + current highlight -->
+        <div style="position:absolute;left:0;top:18px;width:14px;bottom:0;background:#1e1e1e;border-right:1px solid #333;z-index:2">
+          <div style="position:absolute;top:0%;width:100%;border-top:1px solid #333"></div>
+          <div style="position:absolute;top:20%;width:100%;border-top:1px solid #333"></div>
+          <div style="position:absolute;top:40%;width:100%;border-top:1px solid #333"></div>
+          <div style="position:absolute;top:60%;width:100%;border-top:1px solid #333"></div>
+          <div style="position:absolute;top:80%;width:100%;border-top:1px solid #333"></div>
+          <!-- row 2 highlighted -->
+          <div style="position:absolute;top:20%;height:20%;background:#4fc3f7;opacity:0.25;left:0;right:0"></div>
+        </div>
+        <!-- Top ruler strip (letters) -->
+        <div style="position:absolute;top:0;left:14px;height:18px;right:0;background:#1e1e1e;border-bottom:1px solid #333;z-index:2">
+          <div style="position:absolute;left:0%;height:100%;border-left:1px solid #333"></div>
+          <div style="position:absolute;left:20%;height:100%;border-left:1px solid #333"></div>
+          <div style="position:absolute;left:40%;height:100%;border-left:1px solid #333"></div>
+          <div style="position:absolute;left:60%;height:100%;border-left:1px solid #333"></div>
+          <div style="position:absolute;left:80%;height:100%;border-left:1px solid #333"></div>
+          <!-- col C highlighted -->
+          <div style="position:absolute;left:40%;width:20%;background:#4fc3f7;opacity:0.25;top:0;bottom:0"></div>
+        </div>
+        <!-- Corner -->
+        <div style="position:absolute;top:0;left:0;width:14px;height:18px;background:#252525;z-index:3;border-right:1px solid #333;border-bottom:1px solid #333"></div>
+        <!-- Minimap -->
+        <div style="margin-left:14px;margin-top:18px;width:176px;height:176px;background:linear-gradient(135deg,#1a2a1a 0%,#2a1a1a 30%,#1a1a2a 60%,#1a2a2a 100%);position:relative;overflow:hidden">
+          <div style="position:absolute;inset:0">
+            <div style="position:absolute;top:20%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;top:40%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;top:60%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;top:80%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;left:20%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;left:40%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;left:60%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;left:80%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.09)"></div>
+            <!-- highlighted C:2 block -->
+            <div style="position:absolute;left:40%;top:20%;width:20%;height:20%;border:1px solid #4fc3f7;background:#4fc3f7;opacity:0.10"></div>
+          </div>
+          <!-- viewport rect -->
+          <div style="position:absolute;border:1.5px solid #4fc3f7;left:25%;top:15%;width:30%;height:30%"></div>
+          <div style="position:absolute;width:4px;height:4px;background:#fff;border-radius:50%;top:45%;left:45%"></div>
+        </div>
+        <div style="margin-top:6px;font-size:9px;color:#555;text-align:center;font-family:monospace">Tick marks only — current block C:2 lit up in both strips</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Option B — Sparse text labels</div>
+    <div class="mockup-body" style="display:flex;justify-content:center;padding:16px">
+      <div style="position:relative;width:190px" data-choice="labels" onclick="toggleSelect(this.closest('.mockup'))">
+        <!-- Left ruler (numbers) with sparse labels -->
+        <div style="position:absolute;left:0;top:18px;width:14px;bottom:0;background:#1e1e1e;border-right:1px solid #333;z-index:2;font-size:7px;font-family:monospace;color:#666">
+          <div style="position:absolute;top:0%;border-top:1px solid #333;width:100%;text-align:center">1</div>
+          <div style="position:absolute;top:20%;border-top:1px solid #333;width:100%;text-align:center;color:#4fc3f7;background:#1a2530">5</div>
+          <div style="position:absolute;top:40%;border-top:1px solid #333;width:100%;text-align:center">9</div>
+          <div style="position:absolute;top:60%;border-top:1px solid #333;width:100%;text-align:center">13</div>
+          <div style="position:absolute;top:80%;border-top:1px solid #333;width:100%;text-align:center">17</div>
+        </div>
+        <!-- Top ruler (letters) with sparse labels -->
+        <div style="position:absolute;top:0;left:14px;height:18px;right:0;background:#1e1e1e;border-bottom:1px solid #333;z-index:2;font-size:7px;font-family:monospace;color:#666">
+          <div style="position:absolute;left:0%;border-left:1px solid #333;height:100%;line-height:18px;padding-left:1px">A</div>
+          <div style="position:absolute;left:20%;border-left:1px solid #333;height:100%;line-height:18px;padding-left:1px">E</div>
+          <div style="position:absolute;left:40%;border-left:1px solid #333;height:100%;line-height:18px;padding-left:1px;color:#4fc3f7;background:#1a2530">I</div>
+          <div style="position:absolute;left:60%;border-left:1px solid #333;height:100%;line-height:18px;padding-left:1px">M</div>
+          <div style="position:absolute;left:80%;border-left:1px solid #333;height:100%;line-height:18px;padding-left:1px">Q</div>
+        </div>
+        <div style="position:absolute;top:0;left:0;width:14px;height:18px;background:#252525;z-index:3;border-right:1px solid #333;border-bottom:1px solid #333"></div>
+        <!-- Minimap -->
+        <div style="margin-left:14px;margin-top:18px;width:176px;height:176px;background:linear-gradient(135deg,#1a2a1a 0%,#2a1a1a 30%,#1a1a2a 60%,#1a2a2a 100%);position:relative;overflow:hidden">
+          <div style="position:absolute;inset:0">
+            <div style="position:absolute;top:20%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;top:40%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;top:60%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;top:80%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;left:20%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;left:40%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;left:60%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;left:80%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.09)"></div>
+            <div style="position:absolute;left:40%;top:20%;width:20%;height:20%;border:1px solid #4fc3f7;background:#4fc3f7;opacity:0.10"></div>
+          </div>
+          <div style="position:absolute;border:1.5px solid #4fc3f7;left:25%;top:15%;width:30%;height:30%"></div>
+          <div style="position:absolute;width:4px;height:4px;background:#fff;border-radius:50%;top:45%;left:45%"></div>
+        </div>
+        <div style="margin-top:6px;font-size:9px;color:#555;text-align:center;font-family:monospace">Every 4th label shown (A E I M… / 1 5 9…). More readable.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="options" style="margin-top:16px">
+  <div class="option" data-choice="lines" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content"><h3>Grid lines only</h3><p>Clean, minimal. Current block highlighted in ruler strip color. No text clutter at small scale.</p></div>
+  </div>
+  <div class="option" data-choice="labels" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content"><h3>Sparse labels</h3><p>Shows A, E, I, M… and 1, 5, 9… at 7px. More informative but tight. Current block highlighted in accent color.</p></div>
+  </div>
+</div>

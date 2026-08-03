@@ -1,0 +1,7 @@
+{"type":"server-started","port":55188,"host":"127.0.0.1","url_host":"localhost","url":"http://localhost:55188","screen_dir":"/Users/sergii.tyshchenko/Post Apo Map Editor/.superpowers/brainstorm/29181-1780579467/content","state_dir":"/Users/sergii.tyshchenko/Post Apo Map Editor/.superpowers/brainstorm/29181-1780579467/state"}
+{"type":"screen-added","file":"/Users/sergii.tyshchenko/Post Apo Map Editor/.superpowers/brainstorm/29181-1780579467/content/rulers-nav.html"}
+{"type":"screen-added","file":"/Users/sergii.tyshchenko/Post Apo Map Editor/.superpowers/brainstorm/29181-1780579467/content/minimap-rulers.html"}
+{"type":"screen-added","file":"/Users/sergii.tyshchenko/Post Apo Map Editor/.superpowers/brainstorm/29181-1780579467/content/minimap-rulers-v2.html"}
+{"source":"user-event","type":"click","text":"B\n    Sparse labelsShows A, E, I, M… and 1, 5, 9… at 7px. More informative but tight. Current block highlighted in accent color.","choice":"labels","id":null,"timestamp":1780579798566}
+{"type":"screen-added","file":"/Users/sergii.tyshchenko/Post Apo Map Editor/.superpowers/brainstorm/29181-1780579467/content/waiting-1.html"}
+{"type":"server-stopped","reason":"idle timeout"}

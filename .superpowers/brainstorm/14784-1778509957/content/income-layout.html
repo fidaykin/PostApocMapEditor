@@ -1,0 +1,114 @@
+<h2>INCOME section — proposed layout</h2>
+<p class="subtitle">Green = new/changed. Red = removed. Blue = gated by Tap Income.</p>
+
+<div class="mockup" style="max-width:640px;margin:0 auto">
+  <div class="mockup-header">INCOME</div>
+  <div class="mockup-body" style="padding:0">
+    <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:monospace">
+
+      <!-- Tap Income + Destroyable same row -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;width:140px;text-align:right">Tap Income</td>
+        <td style="padding:6px 10px">
+          <label style="display:inline-flex;align-items:center;gap:5px;margin-right:16px"><input type="checkbox"> <span style="color:#ccc">hex earns on tap</span></label>
+          <label style="display:inline-flex;align-items:center;gap:5px;color:#4caf50"><input type="checkbox"> Destroyable</label>
+          <span style="color:#888;font-size:10px"> (auto-checked Yes when Tap Income = Yes)</span>
+        </td>
+      </tr>
+
+      <!-- Transform to — gated, datalist + Parent Hex option -->
+      <tr style="border-bottom:1px solid #333;background:#0d2a3a">
+        <td style="color:#42a5f5;padding:6px 10px;text-align:right">Transform to</td>
+        <td style="padding:6px 10px">
+          <input class="mock-input" value="Plains_1" style="width:180px" disabled>
+          <select class="mock-input" style="width:100px;margin-left:6px" disabled><option>Hex ID</option><option>Parent Hex</option></select>
+          <span style="color:#555;font-size:10px"> datalist of hex IDs + Parent Hex. Active only when Tap Income=Yes AND Destroyable=Yes</span>
+        </td>
+      </tr>
+
+      <!-- Capacity — gated, renamed from DamageMod -->
+      <tr style="border-bottom:1px solid #333;background:#0d2a3a">
+        <td style="color:#42a5f5;padding:6px 10px;text-align:right">Capacity</td>
+        <td style="padding:6px 10px">
+          <input class="mock-input" type="number" style="width:110px" value="3" min="1" disabled>
+          <span style="color:#555;font-size:10px"> renamed from DamageMod. Default 3, min 1. Active when Tap Income=Yes</span>
+        </td>
+      </tr>
+
+      <!-- Get per Tap — gated, resource block -->
+      <tr style="border-bottom:1px solid #333;background:#0d2a3a">
+        <td style="color:#42a5f5;padding:6px 10px;text-align:right;vertical-align:top">Get per Tap</td>
+        <td style="padding:6px 10px">
+          <div style="opacity:0.5">
+            <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
+              <select class="mock-input" style="width:110px" disabled><option>Gold</option></select>
+              <input class="mock-input" type="number" style="width:90px" value="1" disabled>
+              <button class="mock-button" style="padding:2px 6px;font-size:11px" disabled>✕</button>
+            </div>
+            <button class="mock-button" style="padding:3px 10px;font-size:11px" disabled>+ Add Resource</button>
+          </div>
+          <span style="color:#555;font-size:10px">Active when Tap Income=Yes</span>
+        </td>
+      </tr>
+
+      <!-- REMOVED fields -->
+      <tr style="border-bottom:1px solid #333;background:#1a0808;opacity:0.5">
+        <td style="color:#e57373;padding:4px 10px;text-align:right"><s>OnCapture / OccupiedPerTurn / HumanResources</s></td>
+        <td style="padding:4px 10px;color:#e57373"><s>removed</s></td>
+      </tr>
+
+      <!-- Per Turn — resource block (always enabled) -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right;vertical-align:top">Per Turn</td>
+        <td style="padding:6px 10px">
+          <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
+            <select class="mock-input" style="width:110px"><option>Gold</option></select>
+            <input class="mock-input" type="number" style="width:90px" value="1">
+            <button class="mock-button" style="padding:2px 6px;font-size:11px">✕</button>
+          </div>
+          <button class="mock-button" style="padding:3px 10px;font-size:11px">+ Add Resource</button>
+          <span style="color:#555;font-size:10px;display:block;margin-top:2px">extends existing single number field → resource block. Always enabled.</span>
+        </td>
+      </tr>
+
+      <!-- Income Idle — new resource block -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right;vertical-align:top">Income Idle</td>
+        <td style="padding:6px 10px">
+          <button class="mock-button" style="padding:3px 10px;font-size:11px">+ Add Resource</button>
+          <span style="color:#555;font-size:10px"> new. Always enabled.</span>
+        </td>
+      </tr>
+
+      <!-- Income Constant — new resource block -->
+      <tr style="border-bottom:1px solid #333;background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right;vertical-align:top">Income Constant</td>
+        <td style="padding:6px 10px">
+          <button class="mock-button" style="padding:3px 10px;font-size:11px">+ Add Resource</button>
+          <span style="color:#555;font-size:10px"> new. Always enabled.</span>
+        </td>
+      </tr>
+
+      <!-- Spend Constant — new resource block, default Pollution=1 -->
+      <tr style="background:#0d1f0d">
+        <td style="color:#4caf50;padding:6px 10px;text-align:right;vertical-align:top">Spend Constant</td>
+        <td style="padding:6px 10px">
+          <div style="display:flex;gap:4px;align-items:center;margin-bottom:4px">
+            <select class="mock-input" style="width:110px"><option>Pollution</option></select>
+            <input class="mock-input" type="number" style="width:90px" value="1">
+            <button class="mock-button" style="padding:2px 6px;font-size:11px">✕</button>
+          </div>
+          <button class="mock-button" style="padding:3px 10px;font-size:11px">+ Add Resource</button>
+          <span style="color:#555;font-size:10px;display:block;margin-top:2px">new. Default: Pollution=1. Always enabled. Includes Pollution + Energy in type list.</span>
+        </td>
+      </tr>
+
+    </table>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:12px;max-width:640px;margin-left:auto;margin-right:auto">
+  🟢 New/changed: Tap Income+Destroyable row, Transform to (datalist+Parent Hex), Capacity, Get per Tap, Per Turn→resource block, Income Idle, Income Constant, Spend Constant<br>
+  🔵 Blue rows = gated by Tap Income checkbox<br>
+  🔴 Removed: OnCapture, OccupiedPerTurn, HumanResources
+</p>

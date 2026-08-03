@@ -1,0 +1,114 @@
+<h2>Minimap Rulers — Labels or lines?</h2>
+<p class="subtitle">The minimap is 220×220 px. With 23 blocks, each block is ~9.5 px. Two options for showing block structure there.</p>
+
+<div class="split">
+
+  <div class="mockup">
+    <div class="mockup-header">Option A — Grid lines only (no labels)</div>
+    <div class="mockup-body" style="display:flex;justify-content:center;padding:16px">
+      <div style="position:relative;width:180px">
+        <!-- Left ruler strip -->
+        <div style="position:absolute;left:0;top:18px;width:14px;bottom:0;background:#1e1e1e;border-right:1px solid #333;z-index:2">
+          <!-- tick marks only -->
+          <div style="position:absolute;top:0;left:0;right:0;bottom:0">
+            <div style="position:absolute;top:0%;width:100%;border-top:1px solid #333"></div>
+            <div style="position:absolute;top:20%;width:100%;border-top:1px solid #333"></div>
+            <div style="position:absolute;top:40%;width:100%;border-top:1px solid #333"></div>
+            <div style="position:absolute;top:60%;width:100%;border-top:1px solid #333"></div>
+            <div style="position:absolute;top:80%;width:100%;border-top:1px solid #333"></div>
+            <!-- current block highlight -->
+            <div style="position:absolute;top:20%;height:20%;background:#4fc3f7;opacity:0.3;left:0;right:0"></div>
+          </div>
+        </div>
+        <!-- Top ruler strip -->
+        <div style="position:absolute;top:0;left:14px;height:18px;right:0;background:#1e1e1e;border-bottom:1px solid #333;z-index:2">
+          <div style="position:absolute;top:0;left:0;right:0;bottom:0">
+            <div style="position:absolute;left:0%;height:100%;border-left:1px solid #333"></div>
+            <div style="position:absolute;left:20%;height:100%;border-left:1px solid #333"></div>
+            <div style="position:absolute;left:40%;height:100%;border-left:1px solid #333"></div>
+            <div style="position:absolute;left:60%;height:100%;border-left:1px solid #333"></div>
+            <div style="position:absolute;left:80%;height:100%;border-left:1px solid #333"></div>
+            <!-- current block highlight -->
+            <div style="position:absolute;left:40%;width:20%;background:#4fc3f7;opacity:0.3;top:0;bottom:0"></div>
+          </div>
+        </div>
+        <!-- Corner -->
+        <div style="position:absolute;top:0;left:0;width:14px;height:18px;background:#252525;z-index:3;border-right:1px solid #333;border-bottom:1px solid #333"></div>
+        <!-- Minimap canvas -->
+        <div style="margin-left:14px;margin-top:18px;width:166px;height:166px;background:linear-gradient(135deg,#1a2a1a 0%,#2a1a1a 30%,#1a1a2a 60%,#1a2a2a 100%);position:relative;overflow:hidden">
+          <!-- block grid lines on map -->
+          <div style="position:absolute;inset:0">
+            <div style="position:absolute;top:0%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;top:20%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;top:40%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;top:60%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;top:80%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:0%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:20%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:40%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:60%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:80%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08)"></div>
+            <!-- highlighted block -->
+            <div style="position:absolute;left:40%;top:20%;width:20%;height:20%;border:1px solid #4fc3f7;background:#4fc3f7;opacity:0.12"></div>
+          </div>
+          <!-- viewport rect -->
+          <div style="position:absolute;border:1.5px solid #4fc3f7;left:25%;top:15%;width:30%;height:30%"></div>
+          <!-- city dot -->
+          <div style="position:absolute;width:4px;height:4px;background:#fff;border-radius:50%;top:45%;left:45%"></div>
+        </div>
+        <div style="margin-top:6px;font-size:9px;color:#555;text-align:center">Clean. Ruler ticks + highlighted current block in both strips.</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Option B — Tiny text labels (every other block)</div>
+    <div class="mockup-body" style="display:flex;justify-content:center;padding:16px">
+      <div style="position:relative;width:180px">
+        <!-- Left ruler strip with labels -->
+        <div style="position:absolute;left:0;top:18px;width:14px;bottom:0;background:#1e1e1e;border-right:1px solid #333;z-index:2;font-size:7px;font-family:monospace">
+          <div style="position:absolute;top:0;left:0;right:0;bottom:0">
+            <div style="position:absolute;top:0%;width:100%;border-top:1px solid #333;text-align:center;color:#4fc3f7;line-height:1">A</div>
+            <div style="position:absolute;top:20%;width:100%;border-top:1px solid #333;text-align:center;color:#7ec87e;line-height:1;background:#1e2e1e">C</div>
+            <div style="position:absolute;top:40%;width:100%;border-top:1px solid #333;text-align:center;color:#888;line-height:1">E</div>
+            <div style="position:absolute;top:60%;width:100%;border-top:1px solid #333;text-align:center;color:#888;line-height:1">G</div>
+            <div style="position:absolute;top:80%;width:100%;border-top:1px solid #333;text-align:center;color:#888;line-height:1">I</div>
+          </div>
+        </div>
+        <!-- Top ruler strip with labels -->
+        <div style="position:absolute;top:0;left:14px;height:18px;right:0;background:#1e1e1e;border-bottom:1px solid #333;z-index:2;font-size:7px;font-family:monospace">
+          <div style="position:absolute;top:0;left:0;right:0;bottom:0">
+            <div style="position:absolute;left:0%;height:100%;border-left:1px solid #333;color:#4fc3f7;line-height:18px;padding-left:1px">1</div>
+            <div style="position:absolute;left:20%;height:100%;border-left:1px solid #333;color:#888;line-height:18px;padding-left:1px">5</div>
+            <div style="position:absolute;left:40%;height:100%;border-left:1px solid #333;color:#7ec87e;line-height:18px;padding-left:1px;background:#1e2e1e">9</div>
+            <div style="position:absolute;left:60%;height:100%;border-left:1px solid #333;color:#888;line-height:18px;padding-left:1px">13</div>
+            <div style="position:absolute;left:80%;height:100%;border-left:1px solid #333;color:#888;line-height:18px;padding-left:1px">17</div>
+          </div>
+        </div>
+        <!-- Corner -->
+        <div style="position:absolute;top:0;left:0;width:14px;height:18px;background:#252525;z-index:3;border-right:1px solid #333;border-bottom:1px solid #333"></div>
+        <!-- Minimap canvas -->
+        <div style="margin-left:14px;margin-top:18px;width:166px;height:166px;background:linear-gradient(135deg,#1a2a1a 0%,#2a1a1a 30%,#1a1a2a 60%,#1a2a2a 100%);position:relative;overflow:hidden">
+          <div style="position:absolute;inset:0">
+            <div style="position:absolute;top:0%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;top:20%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;top:40%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;top:60%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;top:80%;left:0;right:0;border-top:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:0%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:20%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:40%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:60%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:80%;top:0;bottom:0;border-left:1px solid rgba(255,255,255,0.08)"></div>
+            <div style="position:absolute;left:40%;top:20%;width:20%;height:20%;border:1px solid #7ec87e;background:#7ec87e;opacity:0.12"></div>
+          </div>
+          <div style="position:absolute;border:1.5px solid #4fc3f7;left:25%;top:15%;width:30%;height:30%"></div>
+          <div style="position:absolute;width:4px;height:4px;background:#fff;border-radius:50%;top:45%;left:45%"></div>
+        </div>
+        <div style="margin-top:6px;font-size:9px;color:#555;text-align:center">Shows every 4th label (A, C, E…  1, 5, 9…). More info, slightly busier.</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+<p class="subtitle" style="margin-top:12px">Both show a faint block grid on the minimap canvas and highlight the current viewport block. Click your preference.</p>

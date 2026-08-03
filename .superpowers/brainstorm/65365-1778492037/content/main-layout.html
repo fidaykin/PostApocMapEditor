@@ -1,0 +1,48 @@
+<h2>MAIN section — proposed layout</h2>
+<p class="subtitle">Three changes from feedback: add ID Description fields, replace BaseCost resources → taps-only, widen taps input to 9 chars. Question: where do the two Description fields sit?</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">Option A — Descriptions after TextId (before Type)</div>
+    <div class="mockup-body">
+      <div class="option" data-choice="a" onclick="toggleSelect(this)" style="border:none;padding:0;background:none">
+        <div class="content" style="width:100%">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:monospace">
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;width:140px;text-align:right">Id *</td><td style="padding:4px 8px"><input class="mock-input" style="width:100%" placeholder="e.g. Plain_1"></td></tr>
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;text-align:right">TextId</td><td style="padding:4px 8px"><input class="mock-input" style="width:100%"></td></tr>
+            <tr style="border-bottom:1px solid #333;background:#1a2a1a"><td style="color:#6f6;padding:4px 8px;text-align:right">ID Desc Idle</td><td style="padding:4px 8px"><input class="mock-input" style="width:100%" placeholder="text ID key"></td></tr>
+            <tr style="border-bottom:1px solid #333;background:#1a2a1a"><td style="color:#6f6;padding:4px 8px;text-align:right">ID Desc Build</td><td style="padding:4px 8px"><input class="mock-input" style="width:100%" placeholder="text ID key"></td></tr>
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;text-align:right">Type</td><td style="padding:4px 8px"><select class="mock-input" style="width:100%"><option>Plain_1</option></select></td></tr>
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;text-align:right">Biome</td><td style="padding:4px 8px"><select class="mock-input" style="width:100%"><option>Summer</option></select></td></tr>
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;text-align:right">Filter</td><td style="padding:4px 8px"><select class="mock-input" style="width:100%"><option>FilterTerrain</option></select></td></tr>
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;text-align:right">SpriteName</td><td style="padding:4px 8px"><div style="display:flex;gap:4px"><input class="mock-input" style="flex:1" placeholder="Forest_1"><button class="mock-button" style="padding:2px 8px;font-size:11px">🖼</button></div></td></tr>
+            <tr style="background:#1a2a1a"><td style="color:#6f6;padding:4px 8px;text-align:right">Base Cost Taps</td><td style="padding:4px 8px"><input class="mock-input" type="number" style="width:110px" placeholder="0"></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">Option B — Descriptions before SpriteName (after Filter)</div>
+    <div class="mockup-body">
+      <div class="option" data-choice="b" onclick="toggleSelect(this)" style="border:none;padding:0;background:none">
+        <div class="content" style="width:100%">
+          <table style="width:100%;border-collapse:collapse;font-size:12px;font-family:monospace">
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;width:140px;text-align:right">Id *</td><td style="padding:4px 8px"><input class="mock-input" style="width:100%" placeholder="e.g. Plain_1"></td></tr>
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;text-align:right">TextId</td><td style="padding:4px 8px"><input class="mock-input" style="width:100%"></td></tr>
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;text-align:right">Type</td><td style="padding:4px 8px"><select class="mock-input" style="width:100%"><option>Plain_1</option></select></td></tr>
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;text-align:right">Biome</td><td style="padding:4px 8px"><select class="mock-input" style="width:100%"><option>Summer</option></select></td></tr>
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;text-align:right">Filter</td><td style="padding:4px 8px"><select class="mock-input" style="width:100%"><option>FilterTerrain</option></select></td></tr>
+            <tr style="border-bottom:1px solid #333;background:#1a2a1a"><td style="color:#6f6;padding:4px 8px;text-align:right">ID Desc Idle</td><td style="padding:4px 8px"><input class="mock-input" style="width:100%" placeholder="text ID key"></td></tr>
+            <tr style="border-bottom:1px solid #333;background:#1a2a1a"><td style="color:#6f6;padding:4px 8px;text-align:right">ID Desc Build</td><td style="padding:4px 8px"><input class="mock-input" style="width:100%" placeholder="text ID key"></td></tr>
+            <tr style="border-bottom:1px solid #333"><td style="color:#888;padding:4px 8px;text-align:right">SpriteName</td><td style="padding:4px 8px"><div style="display:flex;gap:4px"><input class="mock-input" style="flex:1" placeholder="Forest_1"><button class="mock-button" style="padding:2px 8px;font-size:11px">🖼</button></div></td></tr>
+            <tr style="background:#1a2a1a"><td style="color:#6f6;padding:4px 8px;text-align:right">Base Cost Taps</td><td style="padding:4px 8px"><input class="mock-input" type="number" style="width:110px" placeholder="0"></td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px">🟢 Green rows = new/changed fields. Click a layout to select it.</p>
