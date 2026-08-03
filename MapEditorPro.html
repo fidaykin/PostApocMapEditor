@@ -2289,7 +2289,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.03";
-const COMMIT  = "1254438";
+const COMMIT  = "fdb174d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3966,6 +3966,51 @@ const Tools = (() => {
     return !!entry && entry.type === 'Rivers';
   }
 
+  // If the id just painted at (col,row) belongs to an edge-tiled family
+  // (i.e. it has edgeFaces data — today that's only Water/Rivers), re-resolve
+  // this cell and its 6 neighbors so the correct directional tile is used,
+  // the same way the Generator's river-carving does. Plain terrain (no
+  // edgeFaces) is untouched — this is a no-op for ordinary painting.
+  function _autoResolveEdgesAround(cellsPainted) {
+    if (typeof EdgeTiling === 'undefined' || typeof HexDB === 'undefined') return;
+    const familyTypes = ['Water', 'Rivers'];
+    const toResolve = new Set();
+    for (const { col: c, row: r } of cellsPainted) {
+      if (c < 0 || c >= MAP_WIDTH || r < 0 || r >= MAP_HEIGHT) continue;
+      const entry = Terrain.byHexId(mapData[r * MAP_WIDTH + c]);
+      // Only trigger when the painted cell itself is a directional river/lake
+      // tile (non-empty edgeFaces) — this is the exact condition from the
+      // spec. Plain flat water (Water_1 etc.) has an empty edgeFaces array
+      // despite being type:'Water', so it correctly falls through untouched
+      // here even though 'Water' is in familyTypes below (that broader check
+      // is only for whether a *neighbor* counts toward the adjacency mask,
+      // not for whether the painted cell itself should trigger resolution).
+      if (!entry || !Array.isArray(entry.edgeFaces) || entry.edgeFaces.length === 0) continue;
+      const idx = r * MAP_WIDTH + c;
+      toResolve.add(idx);
+      const dirs = (MAP_HEIGHT - 1 - r) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
+      for (const [dc, dr] of Object.values(dirs)) {
+        const nc = c + dc, nr = r + dr;
+        if (nc < 0 || nc >= MAP_WIDTH || nr < 0 || nr >= MAP_HEIGHT) continue;
+        const nEntry = Terrain.byHexId(mapData[nr * MAP_WIDTH + nc]);
+        if (nEntry && familyTypes.includes(nEntry.type)) toResolve.add(nr * MAP_WIDTH + nc);
+      }
+    }
+    const fallbackIds = [_riverFallbackId('Water_Dirty_1'), _riverFallbackId('Water_1'), _riverFallbackId('Water_Rock_1')];
+    for (const idx of toResolve) {
+      const rr = Math.floor(idx / MAP_WIDTH), rc = idx % MAP_WIDTH;
+      mapData[idx] = EdgeTiling.resolveEdgeTile(rc, rr, MAP_WIDTH, MAP_HEIGHT, mapData, familyTypes, Math.random, fallbackIds);
+    }
+  }
+
+  function _riverFallbackId(hexId) {
+    if (typeof HexDB !== 'undefined') {
+      const e = HexDB.getAll().find(h => h.id && h.id.toLowerCase() === hexId.toLowerCase());
+      if (e) return e.id;
+    }
+    return hexId;
+  }
+
   function _paint(col, row) {
     const bridgeAxis = UI.getSelectedBridgeAxis();
     if (bridgeAxis >= 0) {
@@ -3996,6 +4041,7 @@ const Tools = (() => {
       }
     });
     invalidateSatelliteMap();
+    _autoResolveEdgesAround(tiles);
     Canvas.render();
   }
 
@@ -4043,6 +4089,7 @@ const Tools = (() => {
       });
     }
     invalidateSatelliteMap();
+    _autoResolveEdgesAround([...visited].map(k => ({ col: Math.floor(k / 10000), row: k % 10000 })));
     Canvas.render();
   }
 
