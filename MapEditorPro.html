@@ -2288,8 +2288,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.08.03";
-const COMMIT  = "fdb174d";
+const VERSION = "2026.08.04";
+const COMMIT  = "51b3e29";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2582,6 +2582,7 @@ const EdgeTiling = (() => {
       for (const h of HexDB.getAll()) {
         if (!familyTypes.includes(h.type)) continue;
         const faces = Array.isArray(h.edgeFaces) ? h.edgeFaces : [];
+        if (faces.length === 0) continue;
         let mask = 0;
         for (const f of faces) {
           const bit = FACE_NAMES.indexOf(f);
