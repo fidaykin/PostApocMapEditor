@@ -2310,7 +2310,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.25";
-const COMMIT  = "60ca6d1";
+const COMMIT  = "20d024f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2689,16 +2689,14 @@ const Coastline = (() => {
   // the water cell (coastline should show normally).
   function _riverFacesWater(riverEntry, dirFromWaterToRiver) {
     const faces = Array.isArray(riverEntry?.edgeFaces) ? riverEntry.edgeFaces : [];
-    if (faces.length === 0) return true; // no data: suppress, matches C# backward-compat fallback
     return faces.includes(OPPOSITE[dirFromWaterToRiver]);
   }
 
   // Returns a 6-element boolean array, index order = FACE_NAMES, true where
   // a coastline sprite should be drawn facing that neighbor direction.
   // Only Water-type cells (not Rivers, not Ground) ever get edges.
-  function computeEdges(col, row) {
+  function computeEdges(col, row, entry) {
     const edges = new Array(6).fill(false);
-    const entry = Terrain.byHexId(mapData[row * MAP_WIDTH + col]);
     if (!entry || entry.type !== 'Water') return edges;
 
     const dirs = (MAP_HEIGHT - 1 - row) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
@@ -2860,7 +2858,7 @@ const Canvas = (() => {
         if (Array.isArray(_he?.occupiedOffsets) && _he.occupiedOffsets.length > 0)
           _anchorPass.push({ cx: s.x, cy: s.y, col, row, entry: _he });
         if (_showCoastline && _he && _he.type === 'Water') {
-          const _edges = Coastline.computeEdges(col, row);
+          const _edges = Coastline.computeEdges(col, row, _he);
           if (_edges.some(Boolean)) Coastline.drawOverlay(ctx, s.x, s.y, radius, _edges);
         }
       }
@@ -12672,7 +12670,7 @@ window.addEventListener('load', async () => {
   IO.initFileInput();
   IO.initKeyboard();
   Roads.loadSprites();
-  Coastline.loadSprites();
+  Coastline.loadSprites().then(() => Canvas.forceRedraw());
   // Pre-load user-uploaded sprites from IndexedDB so applyHexDbOverrides
   // can resolve them when it runs inside HexDB.init().
   try {
