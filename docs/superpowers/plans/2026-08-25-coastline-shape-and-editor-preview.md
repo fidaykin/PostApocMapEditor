@@ -23,39 +23,37 @@
 ### Task 1: Copy the 6 coastline sprites from Unity into the web editor
 
 **Files:**
-- Create: `sprites/terrain/coastline/Coastline_0_UpperRight.png`
-- Create: `sprites/terrain/coastline/Coastline_1_LowerRight.png`
-- Create: `sprites/terrain/coastline/Coastline_2_Bottom.png`
-- Create: `sprites/terrain/coastline/Coastline_3_LowerLeft.png`
-- Create: `sprites/terrain/coastline/Coastline_4_UpperLeft.png`
-- Create: `sprites/terrain/coastline/Coastline_5_Top.png`
+- Create: `sprites/terrain/coastline/Coastline_0_UpperRight.png` (and the other 5 direction sprites)
+- Create: `packages/postapoc/sprites/terrain/coastline/Coastline_0_UpperRight.png` (and the other 5 — this is the path actually loaded at runtime; see note below)
+
+**Note on the two destinations:** every existing overlay sprite family (e.g. `Roads`, whose `loadSprites()` reads `packages/postapoc/sprites/terrain/roads/...`) is published to `packages/postapoc/sprites/...` as the real runtime path, with a `sprites/...` root copy kept for compat (see `GitHubSync`'s publish flow, which writes `hex_database.json` to both locations for the same reason). `Coastline.loadSprites()` in Task 2 follows the same `packages/postapoc/...` convention, so the sprites must exist at **both** paths or the editor preview will silently show nothing (broken image, caught by `onerror` → `resolve()`, no console error).
 
 **Interfaces:**
-- Produces: 6 PNG files at `sprites/terrain/coastline/Coastline_<N>_<Name>.png`, consumed by Task 2's `Coastline.loadSprites()`.
+- Produces: 6 PNG files at each of `sprites/terrain/coastline/Coastline_<N>_<Name>.png` and `packages/postapoc/sprites/terrain/coastline/Coastline_<N>_<Name>.png`, consumed by Task 2's `Coastline.loadSprites()`.
 
-- [ ] **Step 1: Copy the source PNGs**
+- [ ] **Step 1: Copy the source PNGs to both destinations**
 
 ```bash
-mkdir -p "/Users/sergii.tyshchenko/Post Apo Map Editor/sprites/terrain/coastline"
-cp /Users/sergii.tyshchenko/PostApocCityBuilder/Assets/_Project/Sprites/Coastline/Coastline_0_UpperRight.png \
-   /Users/sergii.tyshchenko/PostApocCityBuilder/Assets/_Project/Sprites/Coastline/Coastline_1_LowerRight.png \
-   /Users/sergii.tyshchenko/PostApocCityBuilder/Assets/_Project/Sprites/Coastline/Coastline_2_Bottom.png \
-   /Users/sergii.tyshchenko/PostApocCityBuilder/Assets/_Project/Sprites/Coastline/Coastline_3_LowerLeft.png \
-   /Users/sergii.tyshchenko/PostApocCityBuilder/Assets/_Project/Sprites/Coastline/Coastline_4_UpperLeft.png \
-   /Users/sergii.tyshchenko/PostApocCityBuilder/Assets/_Project/Sprites/Coastline/Coastline_5_Top.png \
-   "/Users/sergii.tyshchenko/Post Apo Map Editor/sprites/terrain/coastline/"
+mkdir -p "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview/sprites/terrain/coastline"
+mkdir -p "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview/packages/postapoc/sprites/terrain/coastline"
+for f in Coastline_0_UpperRight Coastline_1_LowerRight Coastline_2_Bottom Coastline_3_LowerLeft Coastline_4_UpperLeft Coastline_5_Top; do
+  cp "/Users/sergii.tyshchenko/PostApocCityBuilder/Assets/_Project/Sprites/Coastline/${f}.png" \
+     "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview/sprites/terrain/coastline/${f}.png"
+  cp "/Users/sergii.tyshchenko/PostApocCityBuilder/Assets/_Project/Sprites/Coastline/${f}.png" \
+     "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview/packages/postapoc/sprites/terrain/coastline/${f}.png"
+done
 ```
 
-- [ ] **Step 2: Verify the 6 files landed and are non-empty**
+- [ ] **Step 2: Verify the files landed and are non-empty in both locations**
 
-Run: `ls -la "/Users/sergii.tyshchenko/Post Apo Map Editor/sprites/terrain/coastline/"`
-Expected: 6 files listed, each with a non-zero byte size matching the source file's size in `Assets/_Project/Sprites/Coastline/`.
+Run: `ls -la "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview/sprites/terrain/coastline/" "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview/packages/postapoc/sprites/terrain/coastline/"`
+Expected: 6 files listed in each directory, each with a non-zero byte size matching the source file's size in `Assets/_Project/Sprites/Coastline/`.
 
 - [ ] **Step 3: Commit**
 
 ```bash
-cd "/Users/sergii.tyshchenko/Post Apo Map Editor"
-git add sprites/terrain/coastline/
+cd "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview"
+git add sprites/terrain/coastline/ packages/postapoc/sprites/terrain/coastline/
 git commit -m "assets: add coastline direction sprites (copied from Unity)"
 ```
 
@@ -176,7 +174,7 @@ Modify `MapEditorPro.html:12550` — add the load call next to `Roads.loadSprite
 
 - [ ] **Step 3: Manually verify sprite loading and edge computation via the browser console**
 
-Run: `cd "/Users/sergii.tyshchenko/Post Apo Map Editor" && python3 -m http.server 8000`
+Run: `cd "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview" && python3 -m http.server 8000`
 Open `http://localhost:8000/MapEditorPro.html` in a browser, open devtools console, and run:
 
 ```js
@@ -188,7 +186,7 @@ Expected: returns an array of 6 `false`/`true` values without throwing (cell 0,0
 - [ ] **Step 4: Commit**
 
 ```bash
-cd "/Users/sergii.tyshchenko/Post Apo Map Editor"
+cd "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview"
 git add MapEditorPro.html
 git commit -m "feat(coastline): add Coastline module — edge detection, sprite load, draw"
 ```
@@ -290,7 +288,7 @@ With the local server still running (`http://localhost:8000/MapEditorPro.html`),
 - [ ] **Step 6: Commit**
 
 ```bash
-cd "/Users/sergii.tyshchenko/Post Apo Map Editor"
+cd "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview"
 git add MapEditorPro.html
 git commit -m "feat(coastline): render coastline overlay in editor, add toggle button"
 ```
@@ -416,7 +414,7 @@ With the local server running, open the editor, open "🎲 Procedural Generator"
 - [ ] **Step 6: Commit**
 
 ```bash
-cd "/Users/sergii.tyshchenko/Post Apo Map Editor"
+cd "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview"
 git add MapEditorPro.html
 git commit -m "feat(generator): expose coastline radius/wobble/band as sliders"
 ```
@@ -467,7 +465,7 @@ Edit the `SPRITE_NAMES` array inside the `Coastline` module (`MapEditorPro.html`
 - [ ] **Step 5: Commit**
 
 ```bash
-cd "/Users/sergii.tyshchenko/Post Apo Map Editor"
+cd "/Users/sergii.tyshchenko/Post Apo Map Editor/.worktrees/feature-coastline-preview"
 git add MapEditorPro.html
 git commit -m "fix(coastline): verify editor/Unity direction mapping against Play mode"
 ```
