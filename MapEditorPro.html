@@ -2289,7 +2289,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.25";
-const COMMIT  = "6792501";
+const COMMIT  = "1b6a3a8";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2622,6 +2622,94 @@ const EdgeTiling = (() => {
   function clearCache() { _tableCache.clear(); }
 
   return { resolveEdgeTile, clearCache };
+})();
+
+// ═══════════════════════════════════════════════════════════════
+// COASTLINE MODULE — mirrors Unity's CoastlineManager/CoastlineEdgeDetector:
+// draws a directional edge sprite on every Water-type cell that borders
+// Ground, so the editor preview matches what the game renders at runtime.
+// Purely visual — never touches mapData or the exported JSON.
+// ═══════════════════════════════════════════════════════════════
+const Coastline = (() => {
+  // Same bit order as EdgeTiling.FACE_NAMES / Roads._DIR_BITS: SE=0, NE=1,
+  // N=2, NW=3, SW=4, S=5. Sprite naming follows Roads' documented convention
+  // (N arm at top of PNG, NE upper-right, SE lower-right, SW lower-left,
+  // NW upper-left) — verify this against Unity in Task 5 if edges look wrong.
+  const FACE_NAMES = ['SE', 'NE', 'N', 'NW', 'SW', 'S'];
+  const SPRITE_NAMES = [
+    'Coastline_1_LowerRight',  // SE
+    'Coastline_0_UpperRight',  // NE
+    'Coastline_5_Top',         // N
+    'Coastline_4_UpperLeft',   // NW
+    'Coastline_3_LowerLeft',   // SW
+    'Coastline_2_Bottom',      // S
+  ];
+  const OPPOSITE = { N: 'S', S: 'N', NE: 'SW', SW: 'NE', SE: 'NW', NW: 'SE' };
+
+  const _sprites = {};
+
+  function loadSprites() {
+    return Promise.all(SPRITE_NAMES.map((name, i) =>
+      new Promise(resolve => {
+        const img = new Image();
+        img.onload  = () => { _sprites[i] = img; resolve(); };
+        img.onerror = () => resolve();
+        img.src = 'packages/postapoc/sprites/terrain/coastline/' + name + '.png';
+      })
+    ));
+  }
+
+  // Mirrors CoastlineEdgeDetector.RiverFacesWater, but works directly in
+  // compass-label space (edgeFaces are already 'N'/'SW'/etc. strings here,
+  // unlike the C# side which only has raw neighbor offsets to compare) —
+  // no even-column dx/dy normalization needed.
+  // Returns true when the river's water channel faces the water cell
+  // (coastline should be suppressed), false when its bank/land side faces
+  // the water cell (coastline should show normally).
+  function _riverFacesWater(riverEntry, dirFromWaterToRiver) {
+    const faces = Array.isArray(riverEntry?.edgeFaces) ? riverEntry.edgeFaces : [];
+    if (faces.length === 0) return true; // no data: suppress, matches C# backward-compat fallback
+    return faces.includes(OPPOSITE[dirFromWaterToRiver]);
+  }
+
+  // Returns a 6-element boolean array, index order = FACE_NAMES, true where
+  // a coastline sprite should be drawn facing that neighbor direction.
+  // Only Water-type cells (not Rivers, not Ground) ever get edges.
+  function computeEdges(col, row) {
+    const edges = new Array(6).fill(false);
+    const entry = Terrain.byHexId(mapData[row * MAP_WIDTH + col]);
+    if (!entry || entry.type !== 'Water') return edges;
+
+    const dirs = (MAP_HEIGHT - 1 - row) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
+    FACE_NAMES.forEach((dirName, i) => {
+      const [dc, dr] = dirs[dirName];
+      const nc = col + dc, nr = row + dr;
+      if (nc < 0 || nc >= MAP_WIDTH || nr < 0 || nr >= MAP_HEIGHT) return;
+      const nEntry = Terrain.byHexId(mapData[nr * MAP_WIDTH + nc]);
+      if (!nEntry) return;
+      if (nEntry.type === 'Rivers') {
+        if (!_riverFacesWater(nEntry, dirName)) edges[i] = true;
+        return;
+      }
+      if (nEntry.type === 'Water') return;
+      edges[i] = true; // any other terrain (Ground, etc.) → show the edge
+    });
+    return edges;
+  }
+
+  // Draws whichever of the 6 direction sprites are set in `edges`, unclipped,
+  // at the tile's own bounding box — matches Unity placing one SpriteRenderer
+  // per active edge at the tile's world position, no per-edge geometry clip.
+  function drawOverlay(ctx, cx, cy, radius, edges) {
+    for (let i = 0; i < 6; i++) {
+      if (!edges[i]) continue;
+      const sprite = _sprites[i];
+      if (!sprite || !sprite.complete || !sprite.naturalWidth) continue;
+      ctx.drawImage(sprite, cx - radius, cy - radius, radius * 2, radius * 2);
+    }
+  }
+
+  return { loadSprites, computeEdges, drawOverlay };
 })();
 
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
@@ -12548,6 +12636,7 @@ window.addEventListener('load', async () => {
   IO.initFileInput();
   IO.initKeyboard();
   Roads.loadSprites();
+  Coastline.loadSprites();
   // Pre-load user-uploaded sprites from IndexedDB so applyHexDbOverrides
   // can resolve them when it runs inside HexDB.init().
   try {
