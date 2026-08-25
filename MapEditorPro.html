@@ -2167,6 +2167,26 @@ body.mode-common #map-io    { display: none; }
                  oninput="Generator.schedule()">
           <span id="gen-water-v" class="gen-val">0.30</span>
         </div>
+        <!-- Coastline -->
+        <div class="gen-section">Coastline</div>
+        <div class="gen-row">
+          <label>Coast Radius</label>
+          <input id="gen-coastR" type="range" min="0.50" max="0.95" step="0.01" value="0.72"
+                 oninput="Generator.schedule()">
+          <span id="gen-coastR-v" class="gen-val">0.72</span>
+        </div>
+        <div class="gen-row">
+          <label>Coast Wobble</label>
+          <input id="gen-coastWobble" type="range" min="0.00" max="0.60" step="0.01" value="0.28"
+                 oninput="Generator.schedule()">
+          <span id="gen-coastWobble-v" class="gen-val">0.28</span>
+        </div>
+        <div class="gen-row">
+          <label>Coast Band</label>
+          <input id="gen-coastBand" type="range" min="0.05" max="0.35" step="0.01" value="0.20"
+                 oninput="Generator.schedule()">
+          <span id="gen-coastBand-v" class="gen-val">0.20</span>
+        </div>
         <!-- Features -->
         <div class="gen-section">Features</div>
         <div class="gen-row">
@@ -2290,7 +2310,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.08.25";
-const COMMIT  = "e4ddbf8";
+const COMMIT  = "f3421fe";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6913,6 +6933,9 @@ const Generator = (() => {
       mThr:       parseFloat(document.getElementById('gen-mountain').value),
       hThr:       parseFloat(document.getElementById('gen-hill').value),
       wThr:       parseFloat(document.getElementById('gen-water').value),
+      coastR:       parseFloat(document.getElementById('gen-coastR').value),
+      coastWobble:  parseFloat(document.getElementById('gen-coastWobble').value),
+      coastBand:    parseFloat(document.getElementById('gen-coastBand').value),
       rivers:     parseInt(document.getElementById('gen-rivers').value),
       gold:       document.getElementById('gen-gold').checked,
       goldCount:  parseInt(document.getElementById('gen-goldCount').value),
@@ -6972,9 +6995,9 @@ const Generator = (() => {
     // noise so the coastline is an irregular blob, not a perfect circle.
     const maxR       = Math.sqrt(halfW * halfW + halfH * halfH);
     const coastNoise = _makeNoise2D(Math.floor(rng() * 100000));
-    const COAST_BASE_R  = maxR * 0.72;   // average landmass radius
-    const COAST_WOBBLE   = 0.28;          // +/- fraction of COAST_BASE_R the coastline wobbles by
-    const COAST_BAND     = maxR * 0.20;   // width of the land->ocean blend band
+    const COAST_BASE_R  = maxR * p.coastR;      // average landmass radius
+    const COAST_WOBBLE   = p.coastWobble;        // +/- fraction of COAST_BASE_R the coastline wobbles by
+    const COAST_BAND     = maxR * p.coastBand;   // width of the land->ocean blend band
     const TARGET_OCEAN    = 0.05;          // elevation deep in the ocean, well below any wThr in GEN_PRESETS (min 0.15)
 
     for (let row = 0; row < H; row++) {
@@ -7105,7 +7128,8 @@ const Generator = (() => {
 
   function _updateLabels() {
     [['gen-elevScale',3],['gen-moistScale',3],['gen-biomeScale',3],
-     ['gen-mountain',2],['gen-hill',2],['gen-water',2]].forEach(([id, dp]) => {
+     ['gen-mountain',2],['gen-hill',2],['gen-water',2],
+     ['gen-coastR',2],['gen-coastWobble',2],['gen-coastBand',2]].forEach(([id, dp]) => {
       const v = document.getElementById(id + '-v');
       if (v) v.textContent = parseFloat(document.getElementById(id).value).toFixed(dp);
     });
