@@ -6,6 +6,12 @@
       "name": "Post-Apocalypse",
       "isDefault": true,
       "version": "1.0.0"
+    },
+    {
+      "id": "decameroon",
+      "name": "Decameroon",
+      "isDefault": false,
+      "version": "1.0.0"
     }
   ]
 }
