@@ -4747,6 +4747,6 @@
   ],
   "dbVersion": 5,
   "common": {
-    "goldPerTap": 10
+    "goldPerTap": 50
   }
 }
