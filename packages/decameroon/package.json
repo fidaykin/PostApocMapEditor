@@ -1,8 +1,6 @@
 {
   "id": "decameroon",
   "name": "Decameroon",
-  "version": "1.0.0",
-  "description": "",
-  "preview": "preview.png",
-  "isDefault": false
+  "isDefault": false,
+  "version": "1.0.1"
 }
