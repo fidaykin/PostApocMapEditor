@@ -1344,6 +1344,8 @@ body.mode-common #map-io    { display: none; }
     </div>
     <div id="hexdb-tools">
       <button class="hexdb-tool-btn" onclick="HexDB.add()">+ Add Hex</button>
+      <button class="hexdb-tool-btn" id="hexdb-add-reskin-btn" onclick="HexDB.promptReskin()"
+              style="display:none" title="Create an entry that reuses an existing postapoc id">+ Reskin</button>
       <button class="hexdb-tool-btn" onclick="HexDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="HexDB.save()">💾 Save DB</button>
       <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
@@ -2310,7 +2312,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.09.30";
-const COMMIT  = "a93dbd1";
+const COMMIT  = "e451699";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7576,6 +7578,8 @@ const Packages = (() => {
       }
     }
     if (bldBadge) { bldBadge.textContent = label; bldBadge.setAttribute('style', style); }
+
+    if (typeof HexDB !== 'undefined' && HexDB._updateReskinButtonVisibility) HexDB._updateReskinButtonVisibility();
   }
   function renderActiveDropdowns() {
     const sel = document.getElementById('pkg-active-select');
@@ -9030,8 +9034,17 @@ const HexDB = (() => {
   }
 
   // ── Duplicate-id check ───────────────────────────────────
-  function _isDuplicate(id, skipRealIdx) {
-    return id !== '' && _data.hexes.some((h, i) => i !== skipRealIdx && h.id === id);
+  // A same-id, same-package match is a real authoring mistake (red border). A same-id,
+  // different-package match is an intentional cross-package reskin — not an error, but
+  // worth a quieter, non-blocking notice (see _crossPackageNote below).
+  function _isDuplicate(h, skipRealIdx) {
+    return !!h.id && _data.hexes.some((other, i) =>
+      i !== skipRealIdx && other.id === h.id && other.package === h.package);
+  }
+
+  function _crossPackageNote(h, skipRealIdx) {
+    const other = _data.hexes.find((o, i) => i !== skipRealIdx && o.id === h.id && o.package !== h.package);
+    return other ? `Also defined by package "${other.package}" — this is an intentional reskin if that's the goal.` : '';
   }
 
   // ── Filter & rebuild list ────────────────────────────────
@@ -9068,7 +9081,7 @@ const HexDB = (() => {
 
       const lbl = document.createElement('span');
       lbl.textContent = h.id || '(unnamed)';
-      if (!h.id || _isDuplicate(h.id, realIdx)) lbl.style.color = '#e55';
+      if (!h.id || _isDuplicate(h, realIdx)) lbl.style.color = '#e55';
 
       row.appendChild(badge);
       row.appendChild(lbl);
@@ -9701,7 +9714,7 @@ const HexDB = (() => {
       const lbl = row.querySelector('span:last-child');
       if (lbl) {
         lbl.textContent = h.id || '(unnamed)';
-        lbl.style.color = (!h.id || _isDuplicate(h.id, realIdx)) ? '#e55' : '';
+        lbl.style.color = (!h.id || _isDuplicate(h, realIdx)) ? '#e55' : '';
       }
       const badge = row.querySelector('.hexdb-biome-badge');
       if (badge) badge.style.background = BiomeManager.getColor(h.biome);
@@ -9714,7 +9727,7 @@ const HexDB = (() => {
     if (realIdx === undefined) return;
     const h = _data.hexes[realIdx];
     const el = document.getElementById('hexdb-id');
-    if (el) el.classList.toggle('error', !h.id || _isDuplicate(h.id, realIdx));
+    if (el) el.classList.toggle('error', !h.id || _isDuplicate(h, realIdx));
   }
 
   // Ensures built-in entries loaded from localStorage have terrainTypeId populated.
@@ -9869,6 +9882,44 @@ const HexDB = (() => {
     const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
     _selectIdx(filtIdx >= 0 ? filtIdx : _filtered.length - 1);
     document.getElementById('hexdb-list').scrollTop = 999999;
+  }
+
+  // Creates a new entry for the active package that reuses an existing hex's id — a
+  // reskin. Deliberately does NOT go through idPrefix(): the whole point is to keep the
+  // id identical so it overrides the same TileRenderer/RuntimeDatabaseSync slot at
+  // runtime (see SP5 plan). Only sensible for a non-default active package.
+  function addReskin(baseId) {
+    const base = _data.hexes.find(h => h.id === baseId && (h.package || 'postapoc') === 'postapoc');
+    if (!base) { UI.toast(`⚠ No postapoc hex found with id "${baseId}"`); return; }
+    if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
+      UI.toast('⚠ Select a non-default package first'); return;
+    }
+    const h = structuredClone(base);
+    h.package = Packages.getActive();
+    _data.hexes.push(h);
+    _autoSave();
+    _applyFilter();
+    _buildList();
+    const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
+    _selectIdx(filtIdx >= 0 ? filtIdx : _filtered.length - 1);
+    document.getElementById('hexdb-list').scrollTop = 999999;
+    UI.toast(`Reskinning "${baseId}" for package "${h.package}" — id kept identical, edit spriteName next.`);
+  }
+
+  function promptReskin() {
+    if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
+      UI.toast('⚠ Select a non-default package first'); return;
+    }
+    const options = _data.hexes.filter(h => (h.package || 'postapoc') === 'postapoc').map(h => h.id);
+    const baseId = window.prompt(`Reskin which postapoc hex id?\n\n${options.join(', ')}`, options[0] || '');
+    if (baseId) addReskin(baseId);
+  }
+
+  // Call this from wherever the panel already re-renders on package switch (the same
+  // place that updates the "+ Add" label/badge for the active package — Packages.renderBadges()).
+  function _updateReskinButtonVisibility() {
+    const btn = document.getElementById('hexdb-add-reskin-btn');
+    if (btn) btn.style.display = (typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc') ? '' : 'none';
   }
 
   function deleteSelected() {
@@ -10264,7 +10315,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
 })();
 
 window.HexDB = HexDB;
