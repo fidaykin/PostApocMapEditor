@@ -62,8 +62,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Plain_1",
@@ -110,8 +110,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Plain_2",
@@ -158,8 +158,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Forest_2",
@@ -221,8 +221,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Forest_3",
@@ -284,8 +284,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Hills_1",
@@ -332,8 +332,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Mountain_1",
@@ -385,8 +385,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Rubble_1",
@@ -428,8 +428,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Rubble_2",
@@ -471,8 +471,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Rubble_3",
@@ -514,8 +514,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_GoldVein_1",
@@ -562,8 +562,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Grain_1",
@@ -610,8 +610,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Herbs_1",
@@ -658,8 +658,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     }
   ]
 }
