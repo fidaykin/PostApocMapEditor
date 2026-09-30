@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "package": "postapoc",
   "hexes": [
     {
       "id": "Plain_1",
@@ -43,6 +44,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -87,6 +89,51 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
+      "waterFaces": []
+    },
+    {
+      "id": "BrokenPlain_1",
+      "textId": "",
+      "type": "Plains",
+      "biome": "Summer",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "BrokenPlain",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": true,
+      "destroyTransformTo": "Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plain_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "terrainTypeId": 14,
+      "category": "🌾 PLAINS",
+      "fallback": false,
+      "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -153,6 +200,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -219,6 +267,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -285,6 +334,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -353,6 +403,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -430,6 +481,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -477,6 +529,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 18,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -524,6 +577,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 19,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -567,6 +621,7 @@
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -610,6 +665,7 @@
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -653,6 +709,7 @@
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -694,6 +751,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -744,6 +802,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -786,6 +845,7 @@
       "category": "💎 RESOURCES",
       "terrainTypeId": 20,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -833,6 +893,7 @@
       "category": "🌋 VOLCANIC/RIFT",
       "terrainTypeId": 28,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -874,6 +935,7 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -917,6 +979,7 @@
       "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": 23,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -960,6 +1023,7 @@
       "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": 22,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1012,6 +1076,7 @@
       "category": "💎 RESOURCES",
       "terrainTypeId": 21,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1055,6 +1120,51 @@
       "category": "🟫 SWAMP",
       "terrainTypeId": 24,
       "isLayered": false,
+      "edgeFaces": [],
+      "waterFaces": []
+    },
+    {
+      "id": "RockySwamp_1",
+      "textId": "",
+      "type": "Swamp",
+      "biome": "Summer",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "RockySwamp",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 70,
+      "canDestroy": true,
+      "destroyTransformTo": "Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plain_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "terrainTypeId": 25,
+      "category": "🟫 SWAMP",
+      "fallback": false,
+      "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1116,6 +1226,7 @@
       "category": "",
       "terrainTypeId": 14,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1167,6 +1278,7 @@
       "roadAllowed": false,
       "category": "",
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1219,6 +1331,7 @@
       "roadAllowed": false,
       "category": "🌾 PLAINS",
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1265,6 +1378,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1309,6 +1423,7 @@
       "category": "🌋 VOLCANIC/RIFT",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1353,6 +1468,7 @@
       "category": "🌋 VOLCANIC/RIFT",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1408,6 +1524,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1463,6 +1580,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1522,6 +1640,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1568,6 +1687,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1614,6 +1734,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -1654,10 +1775,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "S"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_R_1",
@@ -1697,10 +1819,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "S"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_D_2",
@@ -1740,10 +1863,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "SW",
         "SE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_U_2",
@@ -1783,10 +1907,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "NE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_D_3",
@@ -1826,11 +1951,12 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "S",
         "NW",
         "NE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_U_3",
@@ -1870,11 +1996,12 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "SW",
         "SE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_R_4",
@@ -1914,10 +2041,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NE",
         "S"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_L_4",
@@ -1957,10 +2085,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "S"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_U_4",
@@ -2000,10 +2129,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "SW"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_D_4",
@@ -2043,10 +2173,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "SE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_R_5",
@@ -2086,10 +2217,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NE",
         "SW"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_L_5",
@@ -2129,10 +2261,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "SE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "Lake_1",
@@ -2172,9 +2305,10 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "SW"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "Lake_2",
@@ -2214,9 +2348,10 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "Lake_3",
@@ -2256,9 +2391,10 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "Lake_4",
@@ -2298,9 +2434,10 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "SE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "Lake_5",
@@ -2340,9 +2477,10 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "Lake_6",
@@ -2382,9 +2520,10 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "S"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "Lake_7",
@@ -2424,6 +2563,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -2464,11 +2604,12 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "SW",
         "SE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_D_R_EE_2",
@@ -2508,11 +2649,12 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NE",
         "SE",
         "SW"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_L_D_E_1",
@@ -2552,10 +2694,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "S"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_L_U_E_1",
@@ -2595,10 +2738,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "S"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_U_L_EE_2",
@@ -2638,11 +2782,12 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "SW",
         "NE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_U_R_EE_2",
@@ -2682,11 +2827,12 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "NE",
         "SE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_U_D_E_4",
@@ -2726,10 +2872,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "SW"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_U_U_E_4",
@@ -2769,10 +2916,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "N",
         "SW"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_L_L_E_5",
@@ -2812,10 +2960,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "SE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "River_L_R_E_5",
@@ -2855,10 +3004,11 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "waterFaces": [
+      "edgeFaces": [
         "NW",
         "SE"
-      ]
+      ],
+      "waterFaces": []
     },
     {
       "id": "Plain_TEST_Cat_1",
@@ -2902,6 +3052,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -2946,6 +3097,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -3001,6 +3153,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": true,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -3056,6 +3209,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": true,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -3111,6 +3265,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": true,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -3176,7 +3331,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "NW",
         "N",
@@ -3184,7 +3338,9 @@
         "SE",
         "S",
         "SW"
-      ]
+      ],
+      "edgeFaces": [],
+      "waterFaces": []
     },
     {
       "id": "Forest_Kaiju_1",
@@ -3250,6 +3406,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -3294,6 +3451,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -3360,6 +3518,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -3407,6 +3566,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 19,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -3454,6 +3614,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 19,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -3496,6 +3657,7 @@
       "category": "💎 RESOURCES",
       "terrainTypeId": 20,
       "isLayered": false,
+      "edgeFaces": [],
       "waterFaces": []
     },
     {
@@ -3543,7 +3705,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "NW",
         "N",
@@ -3551,7 +3712,9 @@
         "SE",
         "S",
         "SW"
-      ]
+      ],
+      "edgeFaces": [],
+      "waterFaces": []
     },
     {
       "id": "Crustal_Kaiju_Alive_1",
@@ -3615,7 +3778,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3623,7 +3785,9 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": [],
+      "waterFaces": []
     },
     {
       "id": "Crustal_Kaiju_Defeat_1",
@@ -3674,7 +3838,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3682,7 +3845,9 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": [],
+      "waterFaces": []
     },
     {
       "id": "Crustal_Kaiju_Die_1",
@@ -3729,7 +3894,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3737,7 +3901,9 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": [],
+      "waterFaces": []
     },
     {
       "id": "Crustal_Kaiju_Sceleton_V_1",
@@ -3788,7 +3954,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3796,7 +3961,9 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": [],
+      "waterFaces": []
     },
     {
       "id": "Crustal_Kaiju_Sceleton_V_2",
@@ -3847,7 +4014,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3855,7 +4021,9 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": [],
+      "waterFaces": []
     },
     {
       "id": "Crustal_Kaiju_Sceleton_V_3",
@@ -3906,7 +4074,6 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "waterFaces": [],
       "occupiedOffsets": [
         "N",
         "NE",
@@ -3914,97 +4081,45 @@
         "SW",
         "S",
         "SE"
-      ]
+      ],
+      "edgeFaces": [],
+      "waterFaces": []
     },
     {
-      "id": "Settlement_Medieval_1",
+      "id": "Decameroon_Forest_1",
       "textId": "",
-      "type": "Special",
-      "biome": "Medieval V1",
+      "type": "Forests",
+      "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Settlements_Medieval_Town_1",
+      "spriteName": "Decameroon_Forest_1",
       "category": "",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
       "descriptionIdleId": "",
       "descriptionBuildId": "",
-      "baseCostTaps": 1,
-      "canDestroy": false,
-      "destroyTransformTo": "Plains_1",
+      "baseCostTaps": 4,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_2",
       "destroySource": [],
       "canStored": false,
-      "destroyIncomeEnabled": false,
-      "destroyIncome": [],
-      "canBuild": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 5
+        }
+      ],
+      "canBuild": true,
       "buildRequiresRoad": false,
       "buildAvailableTiles": [],
       "buildMinLevel": 1,
-      "buildPrice": [],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": true,
-      "destroyable": false,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 0,
-      "incomeGetPerTap": [
+      "buildPrice": [
         {
           "type": "Gold",
-          "amount": 50
-        },
-        {
-          "type": "Stone",
-          "amount": 10
+          "amount": 500
         }
       ],
-      "incomePerTurn": [
-        {
-          "type": "Gold",
-          "amount": 1000
-        }
-      ],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "waterFaces": [],
-      "occupiedOffsets": [
-        "NW",
-        "N",
-        "NE",
-        "SE",
-        "S",
-        "SW"
-      ]
-    },
-    {
-      "id": "Chapel_Medieval_1",
-      "textId": "Test_Key_TILES_2",
-      "type": "Special",
-      "biome": "Medieval V1",
-      "filterCategory": "FilterTerrain",
-      "spriteName": "Chapel_Medieval_1",
-      "category": "",
-      "terrainTypeId": -1,
-      "fallback": false,
-      "roadAllowed": false,
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 10,
-      "canDestroy": false,
-      "destroyTransformTo": "Plains_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": false,
-      "destroyIncome": [],
-      "canBuild": false,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
-      "buildPrice": [],
       "buildPremiumPrice": 0,
       "buildPlacementRule": "",
       "tapIncomeEnabled": false,
@@ -4014,8 +4129,8 @@
       "incomeGetPerTap": [],
       "incomePerTurn": [
         {
-          "type": "Chips",
-          "amount": 50
+          "type": "Gold",
+          "amount": 2
         }
       ],
       "incomeConstant": [],
@@ -4030,125 +4145,16 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": []
-    },
-    {
-      "id": "Dragon_Medieval_1",
-      "textId": "",
-      "type": "Special",
-      "biome": "Medieval V1",
-      "filterCategory": "FilterTerrain",
-      "spriteName": "Dragon_Medieval_1",
-      "category": "",
-      "terrainTypeId": -1,
-      "fallback": false,
-      "roadAllowed": false,
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 0,
-      "canDestroy": false,
-      "destroyTransformTo": "Plains_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": false,
-      "destroyIncome": [],
-      "canBuild": false,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
-      "buildPrice": [],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": false,
-      "destroyable": false,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 3,
-      "incomeGetPerTap": [],
-      "incomePerTurn": [],
-      "incomeConstant": [],
-      "spendConstant": [
-        {
-          "type": "Gold",
-          "amount": 99
-        }
-      ],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
       "waterFaces": [],
-      "occupiedOffsets": [
-        "NW",
-        "N",
-        "NE",
-        "SE",
-        "S",
-        "SW"
-      ]
+      "package": "decameroon"
     },
     {
-      "id": "Snail_Medieval_1",
+      "id": "Decameroon_Plain_1",
       "textId": "",
-      "type": "Special",
-      "biome": "Medieval V1",
+      "type": "Plains",
+      "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Snail_Medieval_1",
-      "category": "",
-      "terrainTypeId": -1,
-      "fallback": false,
-      "roadAllowed": false,
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 50,
-      "canDestroy": false,
-      "destroyTransformTo": "Plains_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": false,
-      "destroyIncome": [],
-      "canBuild": false,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
-      "buildPrice": [],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": true,
-      "destroyable": false,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 10,
-      "incomeGetPerTap": [
-        {
-          "type": "Food",
-          "amount": 10
-        },
-        {
-          "type": "Steel",
-          "amount": 10
-        },
-        {
-          "type": "Gold",
-          "amount": 100
-        }
-      ],
-      "incomePerTurn": [],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "waterFaces": []
-    },
-    {
-      "id": "Plain_Flat_1",
-      "textId": "",
-      "type": "Special",
-      "biome": "Medieval Flat V2",
-      "filterCategory": "FilterTerrain",
-      "spriteName": "Plain_Flat_1",
+      "spriteName": "Decameroon_Plain_1",
       "category": "",
       "terrainTypeId": -1,
       "fallback": false,
@@ -4174,65 +4180,10 @@
       "incomeTransformTo": "Plains_1",
       "incomeCapacity": 3,
       "incomeGetPerTap": [],
-      "incomePerTurn": [],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "waterFaces": []
-    },
-    {
-      "id": "Settlement_Town_Flat_1",
-      "textId": "",
-      "type": "Special",
-      "biome": "Medieval Flat V2",
-      "filterCategory": "FilterTerrain",
-      "spriteName": "Settlement_Town_Flat_1",
-      "category": "",
-      "terrainTypeId": -1,
-      "fallback": false,
-      "roadAllowed": false,
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 30,
-      "canDestroy": false,
-      "destroyTransformTo": "Plains_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": false,
-      "destroyIncome": [],
-      "canBuild": false,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
-      "buildPrice": [],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": true,
-      "destroyable": false,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 30,
-      "incomeGetPerTap": [
-        {
-          "type": "Lumber",
-          "amount": 5
-        },
-        {
-          "type": "Stone",
-          "amount": 5
-        },
-        {
-          "type": "Gold",
-          "amount": 25
-        }
-      ],
       "incomePerTurn": [
         {
           "type": "Gold",
-          "amount": 500
+          "amount": 1
         }
       ],
       "incomeConstant": [],
@@ -4243,29 +4194,22 @@
       "booster": "",
       "effects": "",
       "waterFaces": [],
-      "occupiedOffsets": [
-        "NW",
-        "N",
-        "NE",
-        "SE",
-        "S",
-        "SW"
-      ]
+      "package": "decameroon"
     },
     {
-      "id": "Chapel_Flat_1",
+      "id": "Decameroon_Plain_2",
       "textId": "",
-      "type": "Special",
-      "biome": "Medieval Flat V2",
+      "type": "Plains",
+      "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Chapel_Flat_1",
+      "spriteName": "Decameroon_Plain_2",
       "category": "",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
       "descriptionIdleId": "",
       "descriptionBuildId": "",
-      "baseCostTaps": 5,
+      "baseCostTaps": 3,
       "canDestroy": false,
       "destroyTransformTo": "Plains_1",
       "destroySource": [],
@@ -4284,37 +4228,265 @@
       "incomeTransformTo": "Plains_1",
       "incomeCapacity": 3,
       "incomeGetPerTap": [],
-      "incomePerTurn": [],
-      "incomeConstant": [
+      "incomePerTurn": [
         {
           "type": "Gold",
-          "amount": 10000
+          "amount": 1
         }
       ],
+      "incomeConstant": [],
       "spendConstant": [],
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": []
+      "waterFaces": [],
+      "package": "decameroon"
     },
     {
-      "id": "Shail_Flat_1",
+      "id": "Decameroon_Forest_2",
       "textId": "",
-      "type": "Special",
-      "biome": "Medieval Flat V2",
+      "type": "Forests",
+      "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Snail_Flat_1",
+      "spriteName": "Decameroon_Forest_2",
       "category": "",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
       "descriptionIdleId": "",
       "descriptionBuildId": "",
-      "baseCostTaps": 5,
+      "baseCostTaps": 6,
       "canDestroy": true,
-      "destroyTransformTo": "Plain_Flat_1",
+      "destroyTransformTo": "Decameroon_Plain_2",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 10
+        }
+      ],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 11,
+      "buildPrice": [
+        {
+          "type": "Gold",
+          "amount": 8500
+        }
+      ],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 3
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Pollution",
+          "amount": 2
+        }
+      ],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Forest_3",
+      "textId": "",
+      "type": "Forests",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_Forest_3",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 20,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_2",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 25
+        }
+      ],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 31,
+      "buildPrice": [
+        {
+          "type": "Gold",
+          "amount": 150000
+        }
+      ],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 5
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Pollution",
+          "amount": 3
+        }
+      ],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Hills_1",
+      "textId": "",
+      "type": "Hills/Mountains",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_Hills_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Mountain_1",
+      "textId": "",
+      "type": "Hills/Mountains",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_Mountain_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Clay",
+          "amount": 12
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Rubble_1",
+      "textId": "",
+      "type": "Rubble",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_Rubble_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_1",
       "destroySource": [],
       "canStored": false,
       "destroyIncomeEnabled": false,
@@ -4333,26 +4505,401 @@
       "incomeGetPerTap": [],
       "incomePerTurn": [],
       "incomeConstant": [],
-      "spendConstant": [
-        {
-          "type": "Pollution",
-          "amount": 1
-        }
-      ],
+      "spendConstant": [],
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": []
+      "waterFaces": [],
+      "package": "decameroon"
     },
     {
-      "id": "Dragon_Flat_1",
+      "id": "Decameroon_Rubble_2",
       "textId": "",
-      "type": "Special",
-      "biome": "Medieval Flat V2",
+      "type": "Rubble",
+      "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Dragon_Flat_1",
+      "spriteName": "Decameroon_Rubble_2",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Rubble_3",
+      "textId": "",
+      "type": "Rubble",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_Rubble_3",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_GoldVein_1",
+      "textId": "",
+      "type": "Resources",
+      "biome": "Decameron",
+      "filterCategory": "FilterResource",
+      "spriteName": "Decameroon_GoldVein_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 0,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Grain_1",
+      "textId": "",
+      "type": "Resources",
+      "biome": "Decameron",
+      "filterCategory": "FilterResource",
+      "spriteName": "Decameroon_Grain_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 4,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 5,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Herbs_1",
+      "textId": "",
+      "type": "Resources",
+      "biome": "Decameron",
+      "filterCategory": "FilterResource",
+      "spriteName": "Decameroon_Herbs_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 10,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Desert_1",
+      "textId": "",
+      "type": "Barren/Desert",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_Desert_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 11,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Barren_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Barren_1",
+      "textId": "",
+      "type": "Barren/Desert",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_Barren_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 11,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Mountain_2",
+      "textId": "",
+      "type": "Hills/Mountains",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_Mountain_2",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Clay",
+          "amount": 12
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Water_1",
+      "textId": "",
+      "type": "Water",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_Water",
       "category": "",
       "terrainTypeId": -1,
       "fallback": false,
@@ -4378,45 +4925,342 @@
       "incomeTransformTo": "Plains_1",
       "incomeCapacity": 3,
       "incomeGetPerTap": [],
-      "incomePerTurn": [],
-      "incomeConstant": [],
-      "spendConstant": [
+      "incomePerTurn": [
         {
-          "type": "Pollution",
+          "type": "Gold",
           "amount": 1
         }
       ],
+      "incomeConstant": [],
+      "spendConstant": [],
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
       "booster": "",
       "effects": "",
       "waterFaces": [],
-      "occupiedOffsets": [
-        "NW",
-        "N",
-        "NE",
-        "SE",
-        "S",
-        "SW"
-      ]
+      "package": "decameroon"
     },
     {
-      "id": "Rabbit_Flat_1",
+      "id": "Decameroon_DirtyWater_1",
       "textId": "",
-      "type": "Special",
-      "biome": "Medieval Flat V2",
-      "filterCategory": "FilterTerrain",
-      "spriteName": "Rabbit_Flat_1",
+      "type": "Water",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_DirtyWater_1",
       "category": "",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
       "descriptionIdleId": "",
       "descriptionBuildId": "",
-      "baseCostTaps": 5,
+      "baseCostTaps": 10,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Water_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Clay",
+          "amount": 2
+        },
+        {
+          "type": "Lumber",
+          "amount": 5
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_SilverVein_1",
+      "textId": "",
+      "type": "Resources",
+      "biome": "Decameron",
+      "filterCategory": "FilterResource",
+      "spriteName": "Decameroon_SilverVein_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
       "canDestroy": false,
       "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 0,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_GemField_1",
+      "textId": "",
+      "type": "Resources",
+      "biome": "Decameron",
+      "filterCategory": "FilterResource",
+      "spriteName": "Decameroon_GemField_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 6,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 0,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_DestroyedBuilding_1",
+      "textId": "",
+      "type": "Rubble",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_DestroyedBuilding_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 3,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Rubble_3",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Stone",
+          "amount": 5
+        },
+        {
+          "type": "Lumber",
+          "amount": 2
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_WaterStones_1",
+      "textId": "",
+      "type": "Water",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_WaterStones_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 50,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_DirtyWater_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Stone",
+          "amount": 10
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_BrokenBoat_1",
+      "textId": "",
+      "type": "Water",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_BrokenBoat_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 15,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_DirtyWater_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Gold",
+          "amount": 25
+        },
+        {
+          "type": "Lumber",
+          "amount": 10
+        },
+        {
+          "type": "Gems",
+          "amount": 1
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "waterFaces": [],
+      "package": "decameroon"
+    },
+    {
+      "id": "Decameroon_Fish_1",
+      "textId": "",
+      "type": "Water",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_Fish_1",
+      "category": "",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 20,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_DirtyWater_1",
       "destroySource": [],
       "canStored": false,
       "destroyIncomeEnabled": false,
@@ -4433,29 +5277,25 @@
       "incomeTransformTo": "Plains_1",
       "incomeCapacity": 3,
       "incomeGetPerTap": [],
-      "incomePerTurn": [],
-      "incomeConstant": [],
-      "spendConstant": [
+      "incomePerTurn": [
         {
-          "type": "Pollution",
+          "type": "Gold",
           "amount": 1
         }
       ],
+      "incomeConstant": [],
+      "spendConstant": [],
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
       "booster": "",
       "effects": "",
       "waterFaces": [],
-      "occupiedOffsets": [
-        "NW",
-        "N",
-        "NE"
-      ]
+      "package": "decameroon"
     }
   ],
   "dbVersion": 5,
   "common": {
-    "goldPerTap": 10
+    "goldPerTap": 50
   }
 }
