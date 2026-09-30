@@ -2312,7 +2312,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.09.30";
-const COMMIT  = "e451699";
+const COMMIT  = "a7f1f6a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9727,7 +9727,10 @@ const HexDB = (() => {
     if (realIdx === undefined) return;
     const h = _data.hexes[realIdx];
     const el = document.getElementById('hexdb-id');
-    if (el) el.classList.toggle('error', !h.id || _isDuplicate(h, realIdx));
+    if (el) {
+      el.classList.toggle('error', !h.id || _isDuplicate(h, realIdx));
+      el.title = _crossPackageNote(h, realIdx);
+    }
   }
 
   // Ensures built-in entries loaded from localStorage have terrainTypeId populated.
