@@ -2314,7 +2314,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.09.30";
-const COMMIT  = "c8bb7f2";
+const COMMIT  = "f3509a4";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10625,6 +10625,7 @@ const BldDB = (() => {
           <div style="flex:1;min-width:0">
             <input class="hexdb-input" id="bld-f-id" type="text" value="${_esc(bld.id)}"
               style="border-color:${!bld.id || _isDupe(bld.id) ? '#e57373' : ''}"
+              title="${_esc(_crossPackageNote(bld, _filtered[_selFilt]))}"
               onblur="this.value=this.value.trim();BldDB.save()">
             <small style="color:#888;font-size:0.8em">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small>
           </div></div>
