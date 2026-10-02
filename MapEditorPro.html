@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "c99c67a";
+const COMMIT  = "b16fcb3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3319,26 +3319,65 @@ const Canvas = (() => {
     drawMinimap();
   }
 
+  // ── Cached colour layers (minimap now; low-zoom overview in T1.12) ──────
+  // Terrain.color reads the static COLORS table only (independent of HexDB / packages), so memoising is safe.
+  const _UNSET = {};
+  const _colorMemo = new Map();
+  function _colorOf(id) {
+    let c = _colorMemo.get(id);
+    if (c === undefined) { c = Terrain.color(id); _colorMemo.set(id, c); }
+    return c;
+  }
+  // Returns update(pw, ph) → offscreen canvas of pw×ph pixels where pixel (px,py) shows the
+  // tile at row = MAP_HEIGHT-1-floor(px/pw*MAP_HEIGHT), col = MAP_WIDTH-1-floor(py/ph*MAP_WIDTH)
+  // (same mapping the minimap always used). Each call compares the sampled tile ids against the ones last
+  // painted (pw*ph pointer compares, independent of map size) and recolours only pixels that changed. This
+  // is exact for every way mapData changes (in-place writes, undo/redo, Generator, load, expand), so no
+  // write hook is needed.
+  function _makeColorLayer() {
+    let cv = null, cx = null, img = null, lastIds = null, srcIdx = null, key = '';
+    return function update(pw, ph) {
+      const k = pw + 'x' + ph + ':' + MAP_WIDTH + 'x' + MAP_HEIGHT;
+      if (k !== key) {
+        key = k;
+        cv = document.createElement('canvas'); cv.width = pw; cv.height = ph;
+        cx = cv.getContext('2d');
+        img = cx.createImageData(pw, ph);
+        lastIds = new Array(pw * ph).fill(_UNSET);   // sentinel → every pixel dirty on first pass (even an undefined id)
+        srcIdx = new Int32Array(pw * ph);
+        for (let py = 0; py < ph; py++) {
+          const col = MAP_WIDTH - 1 - Math.floor(py / ph * MAP_WIDTH);
+          for (let px = 0; px < pw; px++) {
+            const row = MAP_HEIGHT - 1 - Math.floor(px / pw * MAP_HEIGHT);
+            srcIdx[py * pw + px] = row * MAP_WIDTH + col;
+          }
+        }
+      }
+      const d = img.data, n = pw * ph;
+      let dirty = 0;
+      for (let i = 0; i < n; i++) {
+        const id = mapData[srcIdx[i]];
+        if (id === lastIds[i]) continue;
+        lastIds[i] = id;
+        const c = _colorOf(id), o = i * 4;
+        d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 255;
+        dirty++;
+      }
+      if (dirty) cx.putImageData(img, 0, 0);
+      _stats.minimapRecolored = dirty;
+      return cv;
+    };
+  }
+  const _minimapLayer = _makeColorLayer();
+
   // ── Minimap ───────────────────────────────────────────────
   function drawMinimap() {
     if (!canvas || !mapData) return;
     const mc  = document.getElementById('minimap');
     const mCtx = mc.getContext('2d');
     const mw = mc.width, mh = mc.height;
-    const imgD = mCtx.createImageData(mw, mh);
-
-    for (let py = 0; py < mh; py++) {
-      for (let px = 0; px < mw; px++) {
-        // Match new hexCenterWorld axes: px→x→row (E-W, flipped), py→y→col (N-S, flipped)
-        const row = MAP_HEIGHT - 1 - Math.floor(px / mw * MAP_HEIGHT);
-        const col = MAP_WIDTH  - 1 - Math.floor(py / mh * MAP_WIDTH);
-        const id  = mapData[row * MAP_WIDTH + col];
-        const [r, g, b] = Terrain.color(id);
-        const i = (py * mw + px) * 4;
-        imgD.data[i] = r; imgD.data[i+1] = g; imgD.data[i+2] = b; imgD.data[i+3] = 255;
-      }
-    }
-    mCtx.putImageData(imgD, 0, 0);
+    // px→x→row (E-W, flipped), py→y→col (N-S, flipped); see _makeColorLayer
+    mCtx.drawImage(_minimapLayer(mw, mh), 0, 0);
 
     // Viewport rect
     const scale = zoom / 100;
@@ -3991,7 +4030,7 @@ const Canvas = (() => {
 
   return {
     init, render, drawMinimap, forceRedraw, getStats,
-    _test: { setCamera(x, y) { cameraX = x; cameraY = y; }, setFullScan(v) { _fullScan = !!v; } },
+    _test: { minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, setCamera(x, y) { cameraX = x; cameraY = y; }, setFullScan(v) { _fullScan = !!v; } },
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
