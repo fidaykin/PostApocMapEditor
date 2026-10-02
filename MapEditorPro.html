@@ -2322,7 +2322,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.03";
-const COMMIT  = "3dcd8b6";
+const COMMIT  = "c7bc597";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3271,9 +3271,11 @@ const Canvas = (() => {
     ctx.lineWidth = 2;
     if (lod > 0) {
       // One outline around the whole rectangle: stroking every hex of a large rectangle takes seconds.
-      const a = hexScreenPos(minC, minR), b = hexScreenPos(maxC, maxR);
-      const x0 = Math.min(a.x, b.x) - radius, x1 = Math.max(a.x, b.x) + radius;
-      const y0 = Math.min(a.y, b.y) - ROW_PITCH * zoom / 100, y1 = Math.max(a.y, b.y) + ROW_PITCH * zoom / 100;
+      // Bounds from the world grid: centre y of column c lies in [k*ROW_PITCH, k*ROW_PITCH + STAGGER], k = MAP_WIDTH-1-c.
+      const sc = radius / HEX_SIZE;
+      const x0 = (MAP_HEIGHT - 1 - maxR) * COL_PITCH * sc - cameraX - radius, x1 = (MAP_HEIGHT - 1 - minR) * COL_PITCH * sc - cameraX + radius;
+      const y0 = ((MAP_WIDTH - 1 - maxC) * ROW_PITCH - ROW_PITCH / 2) * sc - cameraY;
+      const y1 = ((MAP_WIDTH - 1 - minC) * ROW_PITCH + STAGGER + ROW_PITCH / 2) * sc - cameraY;
       ctx.fillStyle = 'rgba(79,195,247,0.15)';
       ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
       ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
@@ -3907,7 +3909,7 @@ const Canvas = (() => {
         // Flat overview: outline the band's inner and outer edge instead of tinting every tile.
         const cp = hexScreenPos(getCityCol(), getCityRow());
         ctx.globalAlpha = 0.9;
-        ctx.strokeStyle = base + ')';
+        ctx.strokeStyle = base + '1)';   // base is an open rgba( prefix; globalAlpha (0.9) sets the opacity
         ctx.lineWidth = isSelected ? 3 : 2;
         [slot.minDist, slot.maxDist].forEach(d => {
           ctx.beginPath();

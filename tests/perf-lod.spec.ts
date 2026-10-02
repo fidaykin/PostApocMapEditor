@@ -364,3 +364,27 @@ test('performance: simple sprites (LOD 1) draw the same tiles faster than the fu
   expect(r.s1.tilesDrawn).toBeGreaterThan(1000);
   expect(r.lod1 * 1.5, `lod1 ${r.lod1} vs full ${r.full}`).toBeLessThanOrEqual(r.full);
 });
+
+declare let settlementSlots: any[], settlementsVisible: boolean;
+test('flat overview draws each slot band outline in its own palette colour', async ({ page }) => {
+  await overviewPrep(page);   // zoom 9 = LOD 2, rulers off, bare Plain_1 map
+  const r = await page.evaluate(() => {
+    settlementsVisible = true;
+    settlementSlots = [
+      { minDist: 20, maxDist: 40, count: 1, type: 'settlement' },   // palette 0 (79,195,247)
+      { minDist: 60, maxDist: 80, count: 1, type: 'settlement' },   // palette 1 (255,183,77)
+    ];
+    Canvas.render();
+    const city = Canvas.hexScreenPos(Math.floor(MAP_WIDTH / 2), Math.floor((MAP_HEIGHT - 1) / 2));
+    const cp = 60 * Canvas.getZoom() / 100, ctx = Canvas.getCtx();
+    // due-west point of an outline (the label sits on the east side); a 2 px stroke fully covers pixel floor(x)
+    const at = (d: number) => Array.from(ctx.getImageData(Math.floor(city.x - d * cp), Math.floor(city.y), 1, 1).data.slice(0, 3));
+    return { lod: Canvas.getStats().lod, a: at(40), b: at(80), bg: Terrain.color('Plain_1') };
+  });
+  expect(r.lod).toBe(2);
+  const mix = (c: number[]) => c.map((v, i) => Math.round(0.9 * v + 0.1 * r.bg[i]));   // stroke alpha 0.9 over the tile
+  const near = (got: number[], want: number[]) => got.forEach((v, i) => expect(Math.abs(v - want[i])).toBeLessThanOrEqual(4));
+  near(r.a, mix([79, 195, 247]));
+  near(r.b, mix([255, 183, 77]));
+  expect(r.a).not.toEqual(r.b);
+});
