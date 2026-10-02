@@ -99,12 +99,29 @@ test('an unreadable server package.json aborts the publish before any write', as
   expect(gh.putPaths()).toEqual([]);
 });
 
-test('an unreadable server registry.json aborts before package.json is written', async ({ page }) => {
+test('an unreadable server registry.json aborts with zero writes and an error toast', async ({ page }) => {
   const gh = new FakeGitHub();
   await setupPublish(page, gh);
   await page.route(/packages\/registry\.json/, r => r.fulfill({ status: 500, headers: { 'access-control-allow-origin': '*' }, body: 'boom' }));
   await page.evaluate(() => Packages.publishPackage('pp'));
-  expect(gh.putPaths()).not.toContain('packages/registry.json');
-  expect(gh.putPaths()).not.toContain('packages/pp/package.json');
+  expect(gh.putPaths()).toEqual([]);
+  await expect(page.locator('#toast-container')).toContainText('failed');
   expect(gh.json('packages/pp/package.json').version).toBe('1.2.3');
+});
+
+test('a two-part server version is padded before bumping', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await setupPublish(page, gh);
+  gh.setJson('packages/pp/package.json', { id: 'pp', name: 'PP', version: '1.0', description: 'd', preview: 'p.png' });
+  await page.evaluate(() => Packages.publishPackage('pp'));
+  expect(gh.json('packages/pp/package.json').version).toBe('1.0.1');
+});
+
+test('an invalid server version aborts with zero writes and names the version', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await setupPublish(page, gh);
+  gh.setJson('packages/pp/package.json', { id: 'pp', name: 'PP', version: 'abc', description: 'd', preview: 'p.png' });
+  await page.evaluate(() => Packages.publishPackage('pp'));
+  expect(gh.putPaths()).toEqual([]);
+  await expect(page.locator('#toast-container')).toContainText('"abc"');
 });

@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "893292d";
+const COMMIT  = "4ac4165";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8175,8 +8175,20 @@ const Packages = (() => {
       // is derived from it (not from the registry cache), so a retry after a partial failure
       // computes the same version again.
       const serverPkg = await _fetchPackageJson(id);
-      const [maj, min, pat] = (serverPkg?.version || entry.version || '1.0.0').split('.').map(Number);
+      const baseVer = serverPkg?.version || entry.version || '1.0.0';
+      const verStr = typeof baseVer === 'string' && /^\d+\.\d+$/.test(baseVer) ? `${baseVer}.0` : baseVer;
+      if (typeof verStr !== 'string' || !/^\d+\.\d+\.\d+$/.test(verStr)) {
+        throw new Error(`Server version ${JSON.stringify(baseVer)} is not a valid x.y.z version`);
+      }
+      const [maj, min, pat] = verStr.split('.').map(Number);
       const newVersion = `${maj}.${min}.${pat + 1}`;
+
+      // Read the server registry before the first write so an indeterminate read aborts write-free.
+      let regData;
+      const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+      if (res.ok) regData = await res.json();
+      else if (res.status === 404) regData = { version: 1, packages: [..._registry] };
+      else throw new Error(`registry.json: HTTP ${res.status}`); // don't overwrite the server registry from a local cache
 
       UI.progress(5, `Publishing ${id}/hex_database.json…`);
       const hexPayload = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
@@ -8195,11 +8207,6 @@ const Packages = (() => {
       }
 
       UI.progress(80, 'Updating registry.json…');
-      let regData;
-      const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
-      if (res.ok) regData = await res.json();
-      else if (res.status === 404) regData = { version: 1, packages: [..._registry] };
-      else throw new Error(`registry.json: HTTP ${res.status}`); // don't overwrite the server registry from a local cache
       regData.packages = regData.packages.map(p => p.id === id ? { ...p, version: newVersion } : p);
       await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: bump ${id} to ${newVersion}`);
 
