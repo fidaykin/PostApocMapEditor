@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "4831434";
+const COMMIT  = "c99c67a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3070,7 +3070,7 @@ const Canvas = (() => {
   // roadsData/objectsData are {"col,row": value} maps mutated in place and reassigned from
   // many places, so instead of invalidation hooks the cache revalidates by comparing the
   // live key order (and values, for objects) with the cached copy: no string parsing,
-  // no allocation when nothing changed.
+  // no per-entry array/split allocation when nothing changed.
   const _roadCache   = { keys: [], vals: [], cols: [], rows: [] };
   const _objectCache = { keys: [], vals: [], cols: [], rows: [] };
   function _syncKeyCache(cache, obj, trackValues) {
