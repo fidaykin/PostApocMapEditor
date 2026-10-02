@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "096e60b";
+const COMMIT  = "ac0cec3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -14051,6 +14051,8 @@ window.addEventListener('load', async () => {
   ZonePainter._uiRebuildZoneList();
   // Restore last session if available, otherwise init a blank map
   const _mapRestored = await IO.tryRestoreAutosave();
+  // Baseline = exactly what was restored, before any UI exists that could fold an edit into it.
+  if (_mapRestored) IO.markStoredBaseline();
   if (!_mapRestored) IO.newMap(true);
   Canvas.init();
   UI.init();
@@ -14121,7 +14123,6 @@ window.addEventListener('load', async () => {
   if (_mapRestored) { UI.updateSettlementCount(); UI.updateStatusSize(); }
   if (IO.isAutosaveProtected()) UI.toast('⚠ ' + (IO.getRestoreProblem() || 'The saved map could not be read'), { sticky: true,
     detail: IO.protectedMessage() });
-  if (_mapRestored) IO.markStoredBaseline();
   // Force a canvas redraw when the tab becomes visible again after being
   // inactive — the browser may have discarded the canvas contents while hidden.
   document.addEventListener('visibilitychange', () => {
