@@ -3,6 +3,28 @@
 All notable changes to this project are documented here.
 Format: `## [version] — [date]`
 
+## Unreleased
+
+### Data safety
+- Startup merges the saved content with the shipped defaults instead of replacing it, so local edits are no longer lost when defaults change.
+- Publishing shows a diff of what will change and refuses unsafe publishes (guards).
+- Deleting a custom package is reversible.
+- Loading a map shows a warning when the file has problems, instead of loading silently.
+- Autosave now uses IndexedDB and keeps recovery copies you can restore from.
+
+### Performance
+- Faster rendering at all zoom levels; below 25% zoom simple sprites are drawn, and below 10% a flat overview.
+- The zoom-out limit is the whole map.
+- Fill, Satellite import and the Generator run without freezing the page (in a worker, with a fallback to the old path).
+- Undo history uses less memory.
+
+### Behaviour changes
+- Maps smaller than the window are now centred instead of pinned to the top-left.
+- Generator, Satellite apply, Clear Map, Fill Map and auto-place settlements refuse to run while a fill is in progress and show a message.
+- Ctrl+S waits for a running fill to finish, then saves the finished map.
+
+---
+
 ## 2026.06 — 2026-06-30
 
 ### Versioning — switched to calendar versioning (year.month)

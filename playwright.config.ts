@@ -9,6 +9,7 @@ export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   retries: 0,
+  timeout: 60_000,   // editor startup under load can take a while (helpers.waitForEditor waits up to 90 s); heavy specs set their own
   workers: (process.env.UPDATE_BASELINE || process.env.MEASURE_UNDO) ? 1 : DEFAULT_WORKERS,   // baseline JSON is a read-modify-write
   reporter: [['list']],
   // Uses the system Chrome (no bundled Chromium download).
