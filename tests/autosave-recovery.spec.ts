@@ -331,3 +331,27 @@ test('the recovery dialog says when some copies could not be listed', async ({ p
   await expect(rows(page)).toHaveCount(1);
   await expect(page.locator('#dialog-msg')).toContainText('Some copies could not be listed (browser storage did not respond); reload to retry.');
 });
+
+test('a failing startup recovery dialog still leads to the new-map prompt, with a warning', async ({ page }) => {
+  await openEditor(page);
+  await page.evaluate(() => new Promise<void>(res => {
+    const r = indexedDB.open('MapEditorPro', 1);
+    r.onsuccess = () => { const tx = r.result.transaction('kv', 'readwrite'); tx.objectStore('kv').delete('map_autosave'); tx.oncomplete = () => res(); };
+  }));
+  await writeIdbKey(page, 'map_side_2000', mapJson(j => { j._autosavedAt = 2000; }));
+  await noFlush(page);
+  // openRecoveryDialog rejects: its row container lookup throws.
+  await page.addInitScript(() => {
+    const orig = document.getElementById.bind(document);
+    document.getElementById = (id: string) => { if (id === 'dialog-input-wrap') throw new Error('recovery boom'); return orig(id); };
+  });
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await reloadEditor(page);
+  await expect(page.locator('#newmap-modal')).toHaveClass(/open/);
+  await expect(page.locator('.toast', { hasText: 'recovery' }).first()).toBeVisible();
+  expect(errors.filter(m => m.includes('recovery boom'))).toEqual([]);
+  // the recovery flag was cleared: once a map exists, autosave writes again
+  await page.evaluate(() => { IO.setNewMapSize(20, 20); IO.applyNewMap(); });
+  expect(await page.evaluate(() => IO.autoSave())).toBe(true);
+});

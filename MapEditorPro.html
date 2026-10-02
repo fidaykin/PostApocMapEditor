@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "9033155";
+const COMMIT  = "bed5320";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6825,7 +6825,6 @@ const IO = (() => {
       }
     }
     if (!_sideList.length || _recoveryOpen) return false;
-    _recoveryOpen = true;
     let restored = false, busy = false;
     const handled = new Set(), confirming = new Set();
     const p = UI.showDialog({
@@ -6834,7 +6833,7 @@ const IO = (() => {
         + (_listIncomplete ? '\n' + _LIST_INCOMPLETE_MSG : ''),
       buttons: [{ label: 'Decide later', value: 'later', kind: 'cancel' }],
     });
-    const wrap = document.getElementById('dialog-input-wrap');
+    let wrap;
     const render = () => {
       wrap.innerHTML = '';
       wrap.style.display = '';
@@ -6872,8 +6871,12 @@ const IO = (() => {
         wrap.appendChild(row);
       });
     };
-    render();
-    try { await p; } finally { _recoveryOpen = false; }
+    // A failure here must not leave the dialog up and autosave suppressed for the rest of the session.
+    // (Set synchronously right after the dialog opened: no autosave can slip in between.)
+    _recoveryOpen = true;
+    try { wrap = document.getElementById('dialog-input-wrap'); render(); await p; }
+    catch (e) { UI.closeDialog(); throw e; }
+    finally { _recoveryOpen = false; }
     return restored;
   }
 
@@ -14133,7 +14136,13 @@ window.addEventListener('load', async () => {
   // Unrecovered side copies (protected or clean startup): one dialog listing them all; nothing is deleted
   // unless the user says so. The new-map prompt follows when no map is on screen afterwards.
   if (IO.sideCopyCount()) {
-    IO.openRecoveryDialog().then(() => { if (!IO.hasUserMap()) IO.showNewMapPrompt(); });
+    IO.openRecoveryDialog()
+      .catch(e => {
+        console.error('[startup] recovery dialog failed:', e);
+        UI.toast('⚠ Could not open the autosave recovery dialog; use File > Recover autosave copies later',
+                 { sticky: true, detail: String(e && e.message || e) });
+      })
+      .then(() => { if (!IO.hasUserMap()) IO.showNewMapPrompt(); });
   } else if (!_mapRestored) IO.showNewMapPrompt();
   const _vLabel = document.getElementById('version-label');
   if (_vLabel) _vLabel.textContent = COMMIT ? `${VERSION}.${COMMIT}` : VERSION;
