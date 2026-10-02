@@ -129,6 +129,8 @@ export async function installFakeGitHub(page: Page, gh: FakeGitHub) {
 export async function waitForEditor(page: Page) {
   await page.waitForFunction(() =>
     typeof HexDB !== 'undefined' && typeof mapData !== 'undefined' && !!mapData && HexDB.getAll().length > 0);
+  await page.waitForFunction(() => !!(window as any).__startupSyncDone);
+  await page.evaluate(() => (window as any).__startupSyncDone);
   await page.waitForLoadState('networkidle');
 }
 

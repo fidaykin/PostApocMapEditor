@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "cb9d7a4";
+const COMMIT  = "1694e91";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5274,6 +5274,47 @@ const GitHubSync = (() => {
     UpgDB.load(JSON.stringify(data));
   }
 
+  // JSON from the published site; null on 404 (a brand-new package has no database files yet).
+  async function _fetchPublishedJson(path) {
+    const res = await fetch(`${BASE_URL}/${path}?_=${Date.now()}`);
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`${path}: HTTP ${res.status}`);
+    return res.json();
+  }
+
+  // Startup sync: merge every registry package's hex + building files into the local DBs.
+  // Local edits win; nothing is replaced wholesale (see SyncMerge.merge3).
+  async function syncContentFromServer() {
+    const summary = { packages: [], conflicts: [], failed: [] };
+    let ids = ['postapoc'];
+    try {
+      const reg = await _fetchPublishedJson('packages/registry.json');
+      if (reg && Array.isArray(reg.packages))
+        ids = [...new Set(['postapoc', ...reg.packages.map(p => p.id).filter(Boolean)])];
+    } catch (e) { summary.failed.push(`registry.json: ${e.message}`); }
+    for (const id of ids) {
+      try {
+        const hexData = await _fetchPublishedJson(`packages/${id}/hex_database.json`);
+        if (hexData) {
+          const r = HexDB.mergeFromServer(id, hexData);
+          summary.conflicts.push(...r.conflicts.map(k => `hex ${k}`));
+        } else if (id === 'postapoc') {
+          summary.failed.push('postapoc/hex_database.json: not found');
+        }
+      } catch (e) { summary.failed.push(`${id}/hex_database.json: ${e.message}`); }
+      try {
+        const bldData = await _fetchPublishedJson(`packages/${id}/building_database.json`);
+        const usable = bldData && Array.isArray(bldData.buildings) && (id !== 'postapoc' || bldData.buildings.length > 0);
+        if (usable) {
+          const r = BldDB.mergeFromServer(id, bldData);
+          summary.conflicts.push(...r.conflicts.map(k => `bld ${k}`));
+        }
+      } catch (e) { summary.failed.push(`${id}/building_database.json: ${e.message}`); }
+      summary.packages.push(id);
+    }
+    return summary;
+  }
+
   // ── Maps popover ─────────────────────────────────────────
   let _mapsCache = [];
   function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -5437,7 +5478,7 @@ const GitHubSync = (() => {
     togglePublishDropdown, publishHexDbOnly, publishAllSprites, cleanGhostSprites,
     publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
-    loadHexDbIntoEditor, loadLocFromServer, loadBuildingDbFromServer, loadUpgradeDbFromServer,
+    loadHexDbIntoEditor, loadLocFromServer, loadBuildingDbFromServer, loadUpgradeDbFromServer, syncContentFromServer,
     openMapsPopover, closeMapsPopover, _loadMap,
     openContentManager, closeContentManager,
   };
@@ -9206,9 +9247,9 @@ const HexDB = (() => {
   // If category is empty → set from type.
   // If category is one of the known system values but disagrees with type → correct it.
   // This repairs stale autosaves where category was previously stamped incorrectly.
-  function _migrateCategoryFromType() {
+  function _migrateCategoryFromType(hexes = _data.hexes) {
     const knownCategories = new Set(Object.values(TYPE_TO_CATEGORY));
-    _data.hexes.forEach(h => {
+    hexes.forEach(h => {
       const mapped = TYPE_TO_CATEGORY[h.type];
       if (!h.category) {
         if (mapped) h.category = mapped;
@@ -9220,6 +9261,17 @@ const HexDB = (() => {
         h.category = '';
       }
     });
+  }
+
+  // Same pipeline loadFromObject/load run, but on any array (used on a clone of server data so it
+  // can be compared with already-migrated local entries).
+  function _migrateAll(hexes) {
+    _migrateHexTypes(hexes);
+    _migrateDestroyFields(hexes);
+    _migrateBuildFields(hexes);
+    _migrateIncomeFields(hexes);
+    _migrateSpecialFields(hexes);
+    _migrateCategoryFromType(hexes);
   }
 
   // ── Duplicate-id check ───────────────────────────────────
@@ -10318,6 +10370,35 @@ const HexDB = (() => {
     });
   }
 
+  // Merges one package's published hex file into the local data without discarding local edits
+  // (3-way by package+id against the copy stored at the previous sync, see SyncMerge.merge3).
+  function mergeFromServer(pkgId, serverData) {
+    if (!serverData || !Array.isArray(serverData.hexes)) throw new Error('hex_database.json has no hexes array');
+    const incoming = structuredClone(serverData.hexes)
+      .filter(h => !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || ''));
+    if (pkgId !== 'postapoc') incoming.forEach(h => { if (!h.package) h.package = pkgId; });
+    _migrateAll(incoming);
+    const inPkg = h => (h.package || 'postapoc') === pkgId;
+    const base = SyncMerge.loadBase('hex')[pkgId] || null;
+    const res = SyncMerge.merge3(_data.hexes.filter(inPkg), incoming, base);
+    const others = _data.hexes.filter(h => !inPkg(h));
+    _data.hexes = pkgId === 'postapoc' ? [...res.merged, ...others] : [...others, ...res.merged];
+    if (pkgId === 'postapoc') {
+      if (serverData.common && SyncMerge.same(_data.common, { goldPerTap: 10 })) _data.common = serverData.common;
+      _data.dbVersion = Math.max(_data.dbVersion || 0, serverData.dbVersion || 0);
+      _syncCommonUI();
+    }
+    SyncMerge.saveBase('hex', pkgId, incoming);
+    _autoSave();
+    _selFilt = -1;
+    _applyFilter(); _buildList();
+    Terrain.applyHexDbOverrides(_data.hexes).then(() => {
+      UI.buildPalette();
+      Canvas.render();
+    });
+    return { pkgId, conflicts: res.conflicts, fromServer: res.fromServer, kept: res.kept, dropped: res.dropped };
+  }
+
   function getData() { return _data; }
 
   function setCommonGoldPerTap(v) {
@@ -10507,7 +10588,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
 })();
 
 window.HexDB = HexDB;
@@ -11728,7 +11809,26 @@ const BldDB = (() => {
   }
   function getAll() { return _data.buildings || []; }
 
+  function mergeFromServer(pkgId, serverData) {
+    if (!serverData || !Array.isArray(serverData.buildings)) throw new Error('building_database.json has no buildings array');
+    const incoming = structuredClone(serverData.buildings);
+    if (pkgId !== 'postapoc') incoming.forEach(b => { if (!b.package) b.package = pkgId; });
+    incoming.forEach(_migrate);
+    const inPkg = b => (b.package || 'postapoc') === pkgId;
+    const base = SyncMerge.loadBase('bld')[pkgId] || null;
+    const res = SyncMerge.merge3(_data.buildings.filter(inPkg), incoming, base);
+    const others = _data.buildings.filter(b => !inPkg(b));
+    _data.buildings = pkgId === 'postapoc' ? [...res.merged, ...others] : [...others, ...res.merged];
+    SyncMerge.saveBase('bld', pkgId, incoming);
+    _autoSave();
+    _selFilt = -1;
+    _applyFilter(); _buildList();
+    UI.buildPalette();
+    return { pkgId, conflicts: res.conflicts, fromServer: res.fromServer, kept: res.kept, dropped: res.dropped };
+  }
+
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
+           mergeFromServer,
            pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
@@ -13060,11 +13160,22 @@ window.addEventListener('load', async () => {
   BldDB.init();
   SttDB.init();
   UpgDB.init();
-  // Always fetch all DBs from server in background so the editor stays in sync with gh-pages.
-  // LocalStorage copy is loaded first (instant), then overwritten with the server version.
-  (async () => {
-    try { await GitHubSync.loadHexDbIntoEditor();      } catch(e) { console.warn('[init] hex_database.json fetch failed:', e.message); }
-    try { await GitHubSync.loadBuildingDbFromServer(); } catch(e) { console.warn('[init] building_database.json fetch failed:', e.message); }
+  // Background sync with gh-pages. The localStorage copy is loaded first (instant); the server
+  // version is MERGED into it: local edits are kept, untouched entries take server updates.
+  window.__startupSyncDone = (async () => {
+    try {
+      const sync = await GitHubSync.syncContentFromServer();
+      window.__lastSyncSummary = sync;
+      if (sync.conflicts.length) {
+        console.info('[sync] local edits kept over differing server versions:', sync.conflicts);
+        UI.toast(`Kept ${sync.conflicts.length} local edit(s) that differ from the server`,
+                 { ms: 6000, detail: sync.conflicts.slice(0, 5).join('\n') });
+      }
+      if (sync.failed.length) {
+        console.warn('[sync] failed:', sync.failed);
+        UI.toast('Could not load some content from the server', { ms: 6000, detail: sync.failed.join('\n') });
+      }
+    } catch(e) { console.warn('[init] content sync failed:', e.message); }
     try { await GitHubSync.loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
     // Bridge: sprites/hex/  Road: sprites/terrain/roads/  all others: sprites/buildings/

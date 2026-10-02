@@ -53,6 +53,7 @@ test('key order does not matter for equality', async ({ page }) => {
 
 test('saveBase/loadBase keep packages side by side', async ({ page }) => {
   const out = await page.evaluate(() => {
+    localStorage.removeItem('sync_base_hex'); // startup sync now stores a base for real packages
     SyncMerge.saveBase('hex', 'p1', [{ id: 'A' }]);
     SyncMerge.saveBase('hex', 'p2', [{ id: 'B' }]);
     return SyncMerge.loadBase('hex');
