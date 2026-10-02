@@ -8,8 +8,16 @@
   "fill_uniform": "202500:b4ba6a9f",
   "generator_seed42": "202500:c6f8e07c",
   "satellite_synth": "202500:744f6a72",
-  "t_render_25": 91,
-  "t_render_100": 18.30000001192093,
+  "_meta": {
+    "chrome": "154.0.8037.97",
+    "viewport": {
+      "width": 1400,
+      "height": 900
+    },
+    "recorded": "pre-optimisation editor"
+  },
+  "t_render_25": 96.59999996423721,
+  "t_render_100": 20.900000035762787,
   "t_minimap": 1.699999988079071,
-  "t_byHexId_200k": 503
+  "t_byHexId_200k": 518.9000000357628
 }

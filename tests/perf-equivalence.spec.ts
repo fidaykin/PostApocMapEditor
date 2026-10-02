@@ -1,4 +1,4 @@
-import { test } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 import { openEditor } from './helpers';
 import { VIEWPORT, setupScene, frame, hashCanvas, hashMapData, checkBaseline } from './perf-scene';
 
@@ -45,8 +45,13 @@ for (const mode of ['scene', 'uniform'] as const) {
   test(`fill result (${mode})`, async ({ page }) => {
     await openEditor(page);
     await setupScene(page);
+    const before = mode === 'scene' ? await hashMapData(page) : null;
     await clickFill(page, mode);
-    checkBaseline(`fill_${mode}`, await hashMapData(page));
+    const after = await hashMapData(page);
+    // a broken click must not record a no-op hash (uniform: the pre-fill map is all Plain_1)
+    if (before) expect(after).not.toBe(before);
+    else expect(await page.evaluate(() => mapData.some(id => id !== 'Plain_1'))).toBe(true);
+    checkBaseline(`fill_${mode}`, after);
   });
 }
 

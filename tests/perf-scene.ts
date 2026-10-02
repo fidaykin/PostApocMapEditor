@@ -1,9 +1,12 @@
+// Perf baselines (hashes + timings) are pinned to the PRE-optimisation editor and to one Chrome build.
+// After a Chrome update (see `_meta` in perf-baseline.json) regenerate them from the pre-optimisation commit:
+//   git checkout 8311164 && UPDATE_BASELINE=1 npx playwright test tests/perf-equivalence.spec.ts tests/perf-timing.spec.ts --workers=1
 import { expect, type Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
 declare const IO: any, MAP_WIDTH: number, MAP_HEIGHT: number, mapData: string[], roadsData: any,
-  objectsData: any, bridgesData: any[], BldDB: any, UI: any, Terrain: any, Canvas: any, Tools: any;
+  objectsData: any, bridgesData: any[], BldDB: any, UI: any, Terrain: any, Canvas: any, Tools: any, Roads: any, Coastline: any;
 
 export const VIEWPORT = { width: 1400, height: 900 };
 const BASELINE_FILE = path.join(__dirname, 'perf-baseline.json');
@@ -14,10 +17,13 @@ export function readBaseline(): Record<string, any> {
 export function saveBaselineKey(key: string, value: any) {
   const b = readBaseline();
   b[key] = value;
-  fs.writeFileSync(BASELINE_FILE, JSON.stringify(b, null, 2) + '\n');
+  const tmp = BASELINE_FILE + '.' + process.pid + '.tmp';   // atomic: write temp file then rename
+  fs.writeFileSync(tmp, JSON.stringify(b, null, 2) + '\n');
+  fs.renameSync(tmp, BASELINE_FILE);
 }
 /** Hash baselines: UPDATE_BASELINE=1 (on UNMODIFIED code only) writes, otherwise compares. */
 export function checkBaseline(key: string, actual: string) {
+  if (key === '_meta') throw new Error('_meta is reserved');
   if (process.env.UPDATE_BASELINE) { saveBaselineKey(key, actual); return; }
   const saved = readBaseline()[key];
   expect(saved, `baseline "${key}" missing: run with UPDATE_BASELINE=1 on pre-change code`).toBeDefined();
@@ -41,16 +47,33 @@ export async function setupScene(page: Page) {
     const cc = Math.floor(MAP_WIDTH / 2), cr = Math.floor((MAP_HEIGHT - 1) / 2);
     for (let i = -20; i <= 20; i++) roadsData[(cc + i) + ',' + cr] = { type: 'road_hex' };
     for (let i = -20; i <= 20; i += 4) roadsData[cc + ',' + (cr + i)] = { type: 'road_hex' };
-    const bld = BldDB.getAll().find((b: any) => b.id);
-    if (bld) for (let i = 5; i < 40; i += 5) objectsData[(cc + i) + ',' + (cr + 8)] = bld.id;
+    const bld = BldDB.getAll().find((b: any) => b.id && Terrain.getSprite(b.id));
+    if (!bld) throw new Error('scene needs a building that has a sprite');
+    for (let i = 5; i < 40; i += 5) objectsData[(cc + i) + ',' + (cr + 8)] = bld.id;
     const axis = 0;   // UI._bridgeSprites is an array indexed by axis
     bridgesData.push({ col: cc - 10, row: cr - 6, axis });
-    // wait until every sprite used by the scene has decoded so hashes are stable
-    await new Promise<void>(resolve => {
+    // Wait until every sprite the scene draws has decoded, so hashes are stable: terrain, building,
+    // and the road / coastline sprites (their loadSprites() are idempotent promises).
+    const deadline = Date.now() + 10000;
+    const loaded = (s: any) => s && s.complete && s.naturalWidth > 0;
+    const watched: HTMLImageElement[] = [];
+    const RealImage = window.Image;
+    (window as any).Image = function (this: any, ...a: any[]) { const im = new RealImage(...(a as [])); watched.push(im); return im; };
+    (window as any).Image.prototype = RealImage.prototype;
+    try {
+      await Promise.race([
+        Promise.all([Roads.loadSprites(), Coastline.loadSprites()]),
+        new Promise((_, rej) => setTimeout(() => rej(new Error('road/coastline sprite load timed out')), 10000)),
+      ]);
+    } finally { window.Image = RealImage; }
+    const bad = watched.filter(im => !loaded(im)).map(im => im.src);
+    if (!watched.length || bad.length) throw new Error('road/coastline sprites missing: ' + (bad.join(', ') || 'none requested'));
+    const need = [...ids, bld.id];
+    await new Promise<void>((resolve, reject) => {
       const t = setInterval(() => {
-        if (ids.every(id => { const s = Terrain.getSprite(id); return s && s.complete && s.naturalWidth > 0; })) {
-          clearInterval(t); resolve();
-        }
+        const missing = need.filter(id => !loaded(Terrain.getSprite(id)));
+        if (!missing.length) { clearInterval(t); resolve(); }
+        else if (Date.now() > deadline) { clearInterval(t); reject(new Error('sprites not loaded: ' + missing.join(', '))); }
       }, 50);
     });
   });
