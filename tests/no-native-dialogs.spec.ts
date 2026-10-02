@@ -3,13 +3,32 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { openEditor, FakeGitHub, ROOT } from './helpers';
 
-const NATIVE = /(^|[^.\w])(alert|prompt)\(|window\.(alert|prompt)\(/;
-for (const file of ['MapEditorPro.html']) {
+// Blank out comments and string/template literals (keeping newlines so line numbers stay true).
+function stripCommentsAndStrings(src: string): string {
+  let out = '', i = 0;
+  const blank = (t: string) => t.replace(/[^\n]/g, ' ');
+  while (i < src.length) {
+    const c = src[i], d = src[i + 1];
+    if (c === '/' && d === '/') { const e = src.indexOf('\n', i); const end = e < 0 ? src.length : e; out += blank(src.slice(i, end)); i = end; }
+    else if (c === '/' && d === '*') { const e = src.indexOf('*/', i + 2); const end = e < 0 ? src.length : e + 2; out += blank(src.slice(i, end)); i = end; }
+    else if (c === '"' || c === "'" || c === '`') {
+      let k = i + 1;
+      while (k < src.length && src[k] !== c && !(c !== '`' && src[k] === '\n')) { if (src[k] === '\\') k++; k++; }
+      out += blank(src.slice(i, k + 1)); i = k + 1;
+    } else { out += c; i++; }
+  }
+  return out;
+}
+
+const NATIVE = /(^|[^.\w$])(alert|prompt)\s*\(|\b(window|globalThis|self)\s*\.\s*(alert|prompt)\s*\(/;
+for (const file of ['MapEditorPro.html', 'zone-painter.js']) {
   test(`${file} contains no native alert()/prompt()`, () => {
-    const offenders = fs.readFileSync(path.join(ROOT, file), 'utf8').split('\n')
-      .map((l, i) => ({ l: l.trim(), n: i + 1 }))
-      .filter(x => !x.l.startsWith('//') && NATIVE.test(x.l))
-      .map(x => `${file}:${x.n}: ${x.l}`);
+    const src = fs.readFileSync(path.join(ROOT, file), 'utf8');
+    const orig = src.split('\n');
+    const offenders = stripCommentsAndStrings(src).split('\n')
+      .map((l, i) => ({ l, n: i + 1 }))
+      .filter(x => NATIVE.test(x.l))
+      .map(x => `${file}:${x.n}: ${orig[x.n - 1].trim()}`);
     expect(offenders).toEqual([]);
   });
 }
@@ -103,4 +122,30 @@ test('cancelling the Publish Map dialog uploads nothing', async ({ page }) => {
   await page.waitForTimeout(300);
   expect(gh.putPaths().filter(p => p.startsWith('maps/'))).toEqual([]);
   await expect(page.locator('#dialog-modal.open')).toHaveCount(0);
+});
+
+test('Save preset asks for the name in a dialog and confirms with a toast', async ({ page }) => {
+  const { nativeDialogs } = await openEditor(page);
+  await page.evaluate(() => { ZonePainter._uiSavePreset(); });
+  await page.fill('#dialog-input', 'My Test Preset');
+  await page.getByRole('button', { name: 'OK' }).click();
+  await expect(page.locator('.toast', { hasText: 'Preset "My Test Preset" saved' })).toBeVisible();
+  expect(nativeDialogs).toEqual([]);
+});
+
+test('cancelling the Save preset dialog saves nothing', async ({ page }) => {
+  const { nativeDialogs } = await openEditor(page);
+  await page.evaluate(() => { ZonePainter._uiSavePreset(); });
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.waitForTimeout(300);
+  await expect(page.locator('.toast', { hasText: 'saved' })).toHaveCount(0);
+  expect(await page.evaluate(() => Object.keys(localStorage).join('|') + JSON.stringify(ZonePainter.getPresets ? ZonePainter.getPresets() : ''))).not.toContain('user_');
+  expect(nativeDialogs).toEqual([]);
+});
+
+test('Fill Zones with no zones toasts instead of alerting', async ({ page }) => {
+  const { nativeDialogs } = await openEditor(page);
+  await page.evaluate(() => { ZonePainter._fillAllZones(); });
+  await expect(page.locator('.toast', { hasText: 'No zones defined' })).toBeVisible();
+  expect(nativeDialogs).toEqual([]);
 });

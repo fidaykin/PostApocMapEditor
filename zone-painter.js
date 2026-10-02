@@ -497,7 +497,7 @@ const ZonePainter = (() => {
 
   function _fillAllZones() {
     const zones = _zones;
-    if (zones.length === 0) { alert('No zones defined.'); return; }
+    if (zones.length === 0) { UI.toast('⚠ No zones defined. Add a zone first.', { ms: 3000 }); return; }
     if (typeof History !== 'undefined') History.push();
     zones.forEach(z => {
       fillZoneTerrain(z.id, mapData);
@@ -566,7 +566,7 @@ const ZonePainter = (() => {
 
   // Randomizes zone territories then immediately fills terrain for all zones.
   function _randomizeFillUI() {
-    if (typeof mapData === 'undefined' || !mapData) { alert('No map loaded.'); return; }
+    if (typeof mapData === 'undefined' || !mapData) { UI.toast('⚠ No map loaded'); return; }
 
     // Build one zone per available preset (builtins + any user presets).
     // This replaces the current zone list so the panel reflects what was used.
@@ -801,8 +801,8 @@ const ZonePainter = (() => {
     if (typeof IO !== 'undefined') IO.scheduleAutoSave();
   }
 
-  function _uiSavePreset() {
-    const name = prompt('Preset name:', _workingPreset?.name || 'My Preset');
+  async function _uiSavePreset() {
+    const name = await UI.prompt('Save preset', 'Preset name:', _workingPreset?.name || 'My Preset');
     if (!name || !name.trim()) return;
     const trimmed = name.trim();
     const p = Object.assign({}, _workingPreset, {
@@ -811,7 +811,7 @@ const ZonePainter = (() => {
     });
     savePreset(p);
     _uiRebuildZoneConfig();
-    alert(`Preset "${trimmed}" saved.`);
+    UI.toast(`Preset "${trimmed}" saved`);
   }
 
   return {
