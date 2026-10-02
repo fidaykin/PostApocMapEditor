@@ -2320,7 +2320,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "3bed93f";
+const COMMIT  = "76ab184";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6552,7 +6552,18 @@ const IO = (() => {
   // empty/valid (reload) or the user explicitly opens/creates a map.
   let _protected = false;
   function _endProtection() { _protected = false; }
-  const _PROTECTED_MSG = 'Your previous autosave could not be read and was kept untouched. This new map is NOT autosaved to the main slot \u2014 save it to a file (Ctrl+S). Reload to retry reading the old autosave.';
+  // _userMap: false until a map was restored / created through the modal or File>New / loaded. The blank
+  // placeholder installed at startup is never autosaved.
+  let _userMap = false;
+  // _sideLocked: the side copies (map_autosave_pending / _prev) must be kept for the rest of this page load.
+  let _sideLocked = false;
+  let _sideRotated = false;
+  const _SIDE_KEYS = ['map_autosave_pending', 'map_autosave_pending_prev'];
+  function _protectedMsg() {
+    return (_userMap ? 'Your previous autosave could not be read and was kept untouched. This map is NOT autosaved to the main slot'
+                     : 'Your previous autosave could not be read and was kept untouched. Anything you create now is NOT autosaved to the main slot')
+      + ' \u2014 save it to a file (Ctrl+S). Reload to retry reading the old autosave. File > New or File > Open resumes normal saving (this replaces the unreadable autosave).';
+  }
   let _lastStamp = 0;
   function _withTimeout(p, ms, what) {
     let t;
@@ -6560,10 +6571,25 @@ const IO = (() => {
     return Promise.race([p, timeout]).finally(() => clearTimeout(t));
   }
 
+  // Before the first side-copy write of a page load, keep a valid existing side copy by rotating it to
+  // `_prev` (the newer of the two stays). Returns false when rotation is impossible: then do not overwrite.
+  function _rotateSide() {
+    let cur = null, prev = null;
+    try { cur = localStorage.getItem(_SIDE_KEYS[0]); prev = localStorage.getItem(_SIDE_KEYS[1]); } catch(e) {}
+    const c = _parseStored(cur, 'pending');
+    if (!c || c.invalid) return true;
+    const p = _parseStored(prev, 'pending');
+    if (p && !p.invalid && p.ts >= c.ts) return true;
+    try { localStorage.setItem(_SIDE_KEYS[1], cur); return true; }
+    catch(e) { StorageGuard._warn('Map autosave (side copy)', e); return false; }
+  }
+
+  // Resolves true only when the map was durably committed to the main IndexedDB slot.
   async function _writeAutosave(json) {
     if (_protected) {
+      if (!_sideRotated) { if (!_rotateSide()) return false; _sideRotated = true; }
       StorageGuard.setItem('map_autosave_pending', json, 'Map autosave');
-      return;
+      return false;
     }
     let timedOut = false;
     try {
@@ -6579,11 +6605,13 @@ const IO = (() => {
       // Transaction complete: the new copy is durable, so the legacy copy can go.
       try { localStorage.removeItem('map_autosave'); } catch(e) {}
       StorageGuard.ok('Map autosave');
-      if (!_pendingOffer) _removePending();   // side copy no longer needed once the main slot is safe again
+      if (!_pendingOffer && !_sideLocked) _removeSide();   // side copies no longer needed once the main slot is safe again
+      return true;
     } catch(err) {
       // IndexedDB unavailable / blocked / quota / hung: keep the map in localStorage and warn if that fails too.
       console.warn('[autosave] IndexedDB write failed, falling back to localStorage:', err);
       StorageGuard.setItem('map_autosave', json, 'Map autosave');
+      return false;
     }
   }
 
@@ -6607,7 +6635,8 @@ const IO = (() => {
   // Changes saved while protected live in `map_autosave_pending`. On a clean startup read they are offered
   // to the user (offerPendingRestore) when newer than the restored copy; stale/invalid ones are removed.
   let _pendingOffer = null;
-  function _removePending() { try { localStorage.removeItem('map_autosave_pending'); } catch(e) {} }
+  function _removeSide() { _SIDE_KEYS.forEach(k => { try { localStorage.removeItem(k); } catch(e) {} }); }
+  let _restoredInfo = null;   // {ts, kb} of the autosave that was restored (for the offer dialog)
 
   // Returns the JSON string of the newest VALID stored copy (IndexedDB or legacy localStorage), or null.
   // A failed/timed-out read or an invalid record turns on protected mode (see _protected).
@@ -6620,7 +6649,7 @@ const IO = (() => {
       if (c && c.invalid) { _restoreProblem = 'The saved ' + src + ' map copy could not be read'; unsafe = true; return null; }
       return c;
     };
-    let idbRaw = null, lsRaw = null, pendRaw = null;
+    let idbRaw = null, lsRaw = null;
     try { idbRaw = await _withTimeout(_idb.get('map_autosave'), _idbTimeout(), 'IndexedDB read'); }
     catch(e) {
       console.warn('[autosave] IndexedDB read failed:', e);
@@ -6628,56 +6657,84 @@ const IO = (() => {
       unsafe = true;
     }
     try { lsRaw = localStorage.getItem('map_autosave'); } catch(e) {}
-    try { pendRaw = localStorage.getItem('map_autosave_pending'); } catch(e) {}
     const cands = [check(idbRaw, 'IndexedDB'), check(lsRaw, 'localStorage')].filter(Boolean);
     _protected = unsafe;
     // newest wins; on a tie IndexedDB (listed first) wins
     cands.sort((x, y) => y.ts - x.ts);
-    if (!unsafe && pendRaw !== null) {
-      const pc = _parseStored(pendRaw, 'pending');
-      if (pc && !pc.invalid && pc.ts > (cands[0] ? cands[0].ts : 0)) _pendingOffer = pc;
-      else { console.warn('[autosave] removing stale/invalid pending copy'); _removePending(); }
+    _restoredInfo = cands[0] ? { ts: cands[0].ts, kb: Math.round(cands[0].str.length / 1024) } : null;
+    // Side copies (saved while an autosave was unreadable): offer the newest valid one. Only a copy strictly
+    // older than the restored record is stale; invalid/stale ones are deleted only on a clean read.
+    let best = null;
+    for (const k of _SIDE_KEYS) {
+      let raw = null;
+      try { raw = localStorage.getItem(k); } catch(e) {}
+      const pc = _parseStored(raw, 'pending');
+      if (!pc) continue;
+      if (pc.invalid || (cands[0] && pc.ts < cands[0].ts)) {
+        if (!unsafe) { console.warn('[autosave] removing stale/invalid side copy', k); try { localStorage.removeItem(k); } catch(e) {} }
+        continue;
+      }
+      if (!best || pc.ts > best.ts) best = pc;
     }
+    _pendingOffer = best;
     return cands.length ? cands[0].str : null;
   }
 
-  // After a clean startup read: if changes were saved while the autosave was unreadable, ask whether to
-  // restore them. Resolves true when the pending copy was loaded. Either answer removes the pending key.
+  // At startup: if changes were saved to a side copy while the autosave was unreadable, ask what to do.
+  // Resolves true when the side copy was loaded. Only the explicit buttons act; Escape / a superseding dialog
+  // postpone (copy kept, main-slot saves paused for this page load so nothing can make it look stale).
   async function offerPendingRestore() {
     const offer = _pendingOffer;
     if (!offer) return false;
+    const fmt = t => t ? new Date(t).toLocaleString() : 'unknown time';
+    const kb = str => Math.max(1, Math.round(str.length / 1024)) + ' KB';
+    const cur = _restoredInfo
+      ? `Current autosave: saved ${fmt(_restoredInfo.ts)}, about ${_restoredInfo.kb} KB.`
+      : 'There is no readable previous autosave.';
     const r = await UI.showDialog({
       title: 'Unsaved changes found',
-      message: 'Changes were saved while your autosave was unreadable. Restore those instead?',
-      buttons: [{ label: 'Keep previous autosave', value: 'keep', kind: 'cancel' },
+      message: 'Changes were saved to a side copy while your autosave was unreadable. Restore those?',
+      details: `Newer changes: saved ${fmt(offer.ts)}, about ${kb(offer.str)}.\n${cur}`,
+      buttons: [{ label: 'Discard newer changes (cannot be undone)', value: 'discard', kind: 'danger' },
                 { label: 'Restore newer changes', value: 'restore', kind: 'primary' }],
     });
-    let restored = false;
     if (r.button === 'restore') {
-      restored = await tryRestoreAutosave(offer.str);
-      if (restored) {
+      if (await tryRestoreAutosave(offer.str)) {
         UI.updateSettlementCount(); UI.updateStatusSize(); Canvas.render(); Canvas.drawMinimap(); Canvas.centerOnCity();
-        _pendingOffer = null; _autoSave().then(() => {});
-        _removePending();
+        _pendingOffer = null;
+        // Clean mode: the main-slot commit of the restored map removes the side copies (verified commit only).
+        // Protected mode: the restored map keeps saving to the side slot; the old copy is rotated, not lost.
+        _autoSave().catch(() => {});
         return true;
       }
-      UI.toast('Could not restore the newer changes; they were kept in browser storage.', { sticky: true });
       _pendingOffer = null;
+      _sideLocked = true;
+      UI.toast('Could not restore the newer changes. The side copy was left intact in browser storage.', { sticky: true });
       return false;
     }
+    if (r.button === 'discard') {
+      _pendingOffer = null;
+      _removeSide();
+      return false;
+    }
+    // postponed: keep the copy, ask again on the next startup; route saves to the side slot meanwhile
     _pendingOffer = null;
-    _removePending();
+    _sideLocked = true;
+    _protected = true;
+    UI.toast('Autosave to the main slot is paused', { sticky: true,
+      detail: 'You postponed the question about newer changes. They were kept; reload to be asked again. Changes made now go to a side copy.' });
     return false;
   }
 
   function _autoSave() {
-    if (!mapData) return Promise.resolve();
+    // Never save the startup placeholder, and never touch the main slot while the offer is open.
+    if (!mapData || !_userMap || _pendingOffer) return Promise.resolve(false);
     let json;
     try {
       json = _buildJson();
       _lastStamp = Math.max(Date.now(), _lastStamp + 1);
       json = json.slice(0, -1) + ',"_autosavedAt":' + _lastStamp + '}';
-    } catch(e) { StorageGuard._warn('Map autosave', e); return Promise.resolve(); }
+    } catch(e) { StorageGuard._warn('Map autosave', e); return Promise.resolve(false); }
     // 1. IndexedDB (localStorage only as fallback)
     const saved = _writeAutosave(json);
     // 2. Best-effort async write to filesystem folder
@@ -6777,8 +6834,16 @@ const IO = (() => {
       History.clear();
       History.push();
       _setFileName('(autosave)');
+      _userMap = true;
       return true;
-    } catch(e) { console.warn('[autosave] restore failed:', e); _restoreProblem = 'The saved map could not be restored'; _protected = true; return false; }
+    } catch(e) {
+      console.warn('[autosave] restore failed:', e);
+      if (typeof override === 'string') {
+        // offered side copy failed to apply: protection unchanged, copy untouched, the half-applied map is not saved
+        _userMap = false; _sideLocked = true;
+      } else { _restoreProblem = 'The saved map could not be restored'; _protected = true; }
+      return false;
+    }
   }
 
   // Called at boot (silent=true) to initialize mapData before Canvas.init().
@@ -6820,7 +6885,7 @@ const IO = (() => {
     _newMapCanCancel = canCancel;
     _startupModal = !!startup;
     const note = document.getElementById('newmap-protect-note');
-    if (note) { note.textContent = _PROTECTED_MSG; note.style.display = (startup && _protected) ? '' : 'none'; }
+    if (note) { note.textContent = _protectedMsg(); note.style.display = (startup && _protected) ? '' : 'none'; }
     document.getElementById('newmap-w').value = MAP_WIDTH;
     document.getElementById('newmap-h').value = MAP_HEIGHT;
     document.getElementById('newmap-cancel').style.display = canCancel ? '' : 'none';
@@ -6871,6 +6936,7 @@ const IO = (() => {
     // been transiently unreadable), so that new map keeps saving to the side copy.
     if (!(_startupModal && _protected)) _endProtection();
     _startupModal = false;
+    _userMap = true;
     _autoSave();
   }
 
@@ -7029,6 +7095,7 @@ const IO = (() => {
       Canvas.centerOnCity();
       UI.toast('Map loaded');
       _endProtection();   // explicit user load, fully installed: normal saving resumes
+      _userMap = true;
       _autoSave();
       // The map is already loaded; a failing check must neither undo that nor hide itself.
       try {
@@ -7309,7 +7376,7 @@ const IO = (() => {
   return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
            openExpandMap, closeExpandMap, applyExpandMap, _validateExpandInput, _updateExpandPreview,
-           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave, getRestoreProblem: () => _restoreProblem, offerPendingRestore, hasPendingOffer: () => !!_pendingOffer, protectedMessage: () => _PROTECTED_MSG, isAutosaveProtected: () => _protected,
+           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave, getRestoreProblem: () => _restoreProblem, offerPendingRestore, hasPendingOffer: () => !!_pendingOffer, protectedMessage: _protectedMsg, isAutosaveProtected: () => _protected,
            setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson,
            loadFromJSON: _loadFromJSON, analyzeMap, setFileName: _setFileName,
            openBridgeTerrainModal, closeBridgeTerrainModal, applyBridgeTileUnder, clearBridgeTileUnder };

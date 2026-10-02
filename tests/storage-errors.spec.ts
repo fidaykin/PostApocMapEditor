@@ -272,6 +272,7 @@ for (const [name, stub] of [['rejects', FAIL_GET], ['hangs past the timeout', HA
     await reloadEditor(page);
     expect(await page.evaluate(() => IO.isAutosaveProtected())).toBe(true);
     await expect(page.locator('.toast.sticky', { hasText: 'could not be read' })).toHaveCount(1);
+    await page.locator('#newmap-modal .btn-primary', { hasText: 'Create' }).click();
     await page.evaluate(async () => { mapData[0] = 'Barren_1'; await IO.autoSave(); window.dispatchEvent(new Event('pagehide')); });
     await page.waitForTimeout(300);
     expect(await readIdb(page)).toBe(original);                                       // byte-identical
@@ -447,11 +448,93 @@ test('pending changes: "Restore newer changes" loads them and removes the side c
   await expect.poll(async () => JSON.parse((await readIdb(page))!).data[0][0]).toBe('Rubble_2');
 });
 
-test('pending changes: "Keep previous autosave" keeps the main copy and removes the side copy', async ({ page }) => {
+test('pending changes: Discard removes the side copy only on the explicit button; Escape leaves it', async ({ page }) => {
   await seedPending(page, 2000);
-  await page.locator('#dialog-actions').getByRole('button', { name: 'Keep previous autosave' }).click();
+  const before = await pendingKey(page);
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#dialog-modal.open')).toHaveCount(0);
+  expect(await pendingKey(page)).toBe(before);
+  expect(await page.evaluate(() => IO.isAutosaveProtected())).toBe(true);   // main slot paused, copy kept
   expect(await page.evaluate(() => mapData[0])).toBe('Rubble_1');
+});
+
+test('pending changes: the Discard button removes the side copy', async ({ page }) => {
+  await seedPending(page, 2000);
+  await expect(page.locator('#dialog-details')).toContainText('Newer changes: saved');
+  await page.locator('#dialog-actions').getByRole('button', { name: /Discard newer changes/ }).click();
   await expect.poll(() => pendingKey(page)).toBeNull();
+  expect(await page.evaluate(() => mapData[0])).toBe('Rubble_1');
+});
+
+test('an unanswered offer is offered again after a reload (flushes cannot make it look stale)', async ({ page }) => {
+  await seedPending(page, 2000);
+  const before = await pendingKey(page);
+  const idbBefore = await readIdb(page);
+  await expect(page.locator('#dialog-title')).toHaveText('Unsaved changes found');
+  await page.evaluate(async () => { await IO.autoSave(); window.dispatchEvent(new Event('pagehide')); });
+  expect(await readIdb(page)).toBe(idbBefore);
+  await reloadEditor(page);
+  await expect(page.locator('#dialog-title')).toHaveText('Unsaved changes found');
+  expect(await pendingKey(page)).toBe(before);
+});
+
+test('a side copy that fails to apply stays intact and protection is unchanged', async ({ page }) => {
+  const gh = new FakeGitHub();
+  const bad = mapJson(gh, j => { j._autosavedAt = 2000; j.tileExtras = [null]; });
+  await seedPending(page, null, bad);
+  await page.locator('#dialog-actions').getByRole('button', { name: 'Restore newer changes' }).click();
+  await expect(page.locator('.toast.sticky', { hasText: 'Could not restore the newer changes' })).toHaveCount(1);
+  expect(await pendingKey(page)).toBe(bad);
+  expect(await page.evaluate(() => IO.isAutosaveProtected())).toBe(false);
+  await page.evaluate(async () => { await IO.autoSave(); window.dispatchEvent(new Event('pagehide')); });
+  expect(await pendingKey(page)).toBe(bad);
+});
+
+// protected startup (valid record, read fails) with a side copy from an earlier protected session
+const protectedStartupWithSide = async (page: any) => {
+  const gh = new FakeGitHub();
+  const original = mapJson(gh, j => { j._autosavedAt = 777; j.data[0][0] = 'Rubble_3'; });
+  const side = mapJson(gh, j => { j._autosavedAt = 900; j.data[0][0] = 'Rubble_2'; });
+  await openEditor(page);
+  await writeIdb(page, original);
+  await page.evaluate((v: string) => { localStorage.removeItem('map_autosave'); localStorage.setItem('map_autosave_pending', v); }, side);
+  await noFlush(page);
+  await page.addInitScript(FAIL_GET as any);
+  await page.reload();
+  await expect(page.locator('#dialog-title')).toHaveText('Unsaved changes found');   // offered on a protected startup too
+  return { original, side };
+};
+
+test('protected startup: the blank placeholder is never autosaved over the earlier side copy', async ({ page }) => {
+  const { original, side } = await protectedStartupWithSide(page);
+  await page.keyboard.press('Escape');
+  await page.evaluate(async () => { await IO.autoSave(); window.dispatchEvent(new Event('pagehide')); document.dispatchEvent(new Event('visibilitychange')); });
+  await page.waitForTimeout(300);
+  expect(await pendingKey(page)).toBe(side);
+  expect(await readIdb(page)).toBe(original);
+  expect(await page.evaluate(() => localStorage.getItem('map_autosave_pending_prev'))).toBeNull();
+  await expect(page.locator('.toast.sticky', { hasText: 'could not be read' }).locator('.toast-detail')).toContainText('File > New or File > Open resumes normal saving');
+});
+
+test('protected startup: the first side write rotates the earlier side copy to _prev', async ({ page }) => {
+  const { original, side } = await protectedStartupWithSide(page);
+  await page.keyboard.press('Escape');
+  await page.locator('#newmap-modal .btn-primary', { hasText: 'Create' }).click();
+  await page.evaluate(() => IO.autoSave());
+  expect(await page.evaluate(() => localStorage.getItem('map_autosave_pending_prev'))).toBe(side);
+  const pend = JSON.parse((await pendingKey(page))!);
+  expect(pend._autosavedAt).toBeGreaterThan(900);
+  expect(await readIdb(page)).toBe(original);
+});
+
+test('protected startup: Restore loads the side copy, protection stays on, the old copy is rotated not lost', async ({ page }) => {
+  const { original, side } = await protectedStartupWithSide(page);
+  await page.locator('#dialog-actions').getByRole('button', { name: 'Restore newer changes' }).click();
+  await expect.poll(() => page.evaluate(() => mapData[0])).toBe('Rubble_2');
+  expect(await page.evaluate(() => IO.isAutosaveProtected())).toBe(true);
+  await page.evaluate(() => IO.autoSave());
+  expect(await page.evaluate(() => localStorage.getItem('map_autosave_pending_prev'))).toBe(side);
+  expect(await readIdb(page)).toBe(original);
 });
 
 for (const [name, ts, raw] of [['stale', 500, undefined], ['invalid', null, '{"garbage']] as const) {
