@@ -355,3 +355,37 @@ test('a failing startup recovery dialog still leads to the new-map prompt, with 
   await page.evaluate(() => { IO.setNewMapSize(20, 20); IO.applyNewMap(); });
   expect(await page.evaluate(() => IO.autoSave())).toBe(true);
 });
+
+const idbKeys = (page: any) => page.evaluate(async (o: string) => {
+  const db: any = await eval(o);
+  return new Promise<string[]>(res => {
+    const q = db.transaction('kv').objectStore('kv').getAllKeys();
+    q.onsuccess = () => res((q.result as string[]).map(String).sort());
+  });
+}, idbOpen);
+
+test('protected restore of a map with custom-package tiles: a no-edit autosave writes no side copy', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.setRegistry([{ id: 'difpkg', name: 'Dif Pkg', version: '1.0.0' }]);
+  gh.setJson('packages/difpkg/package.json', { id: 'difpkg', name: 'Dif Pkg', version: '1.0.0', description: 'D', preview: 'p.png', isDefault: false });
+  gh.setJson('packages/difpkg/hex_database.json', { version: 1, package: 'difpkg', hexes: [{ id: 'Difpkg_A', package: 'difpkg', spriteName: 'Difpkg_A', type: 'Plains' }] });
+  await page.addInitScript(FAIL_GET_IF_FLAG as any);
+  await openEditor(page, { gh, pat: true });
+  await page.waitForFunction(() => !!Packages.getEntry('difpkg'));
+  // IndexedDB map record unreadable, valid localStorage copy with a custom-package tile
+  const json = mapJson(j => { j._autosavedAt = 777; j.packages = ['difpkg', 'postapoc']; j.data[0][0] = 'Difpkg_A'; });
+  await noFlush(page);
+  await page.evaluate((m: string) => { localStorage.setItem('map_autosave', m); localStorage.setItem('__failGet', '1'); }, json);
+  await reloadEditor(page);
+  await page.waitForFunction(() => (window as any).__startupSyncDone);
+  expect(await page.evaluate(() => IO.isAutosaveProtected())).toBe(true);
+  expect(await page.evaluate(() => mapData[0])).toBe('Difpkg_A');
+  expect(await page.evaluate(() => HexDB.getData().hexes.some((h: any) => h.id === 'Difpkg_A'))).toBe(true);
+  const before = await idbKeys(page);
+  await page.evaluate(async () => { await IO.autoSave(); });
+  await page.waitForTimeout(200);
+  const after = await idbKeys(page);
+  expect(after.filter(k => k.startsWith('map_side_'))).toEqual([]);
+  expect(after).toEqual(before);
+  expect(Object.keys(await lsSides(page))).toEqual([]);
+});
