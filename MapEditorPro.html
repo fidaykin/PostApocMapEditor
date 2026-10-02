@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "bed5320";
+const COMMIT  = "096e60b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5396,11 +5396,16 @@ const GitHubSync = (() => {
     for (const id of ids) {
       try {
         const hexData = await _fetchPublishedJson(`packages/${id}/hex_database.json`);
-        if (hexData) {
+        // Same guard as buildings: an empty or malformed postapoc list is a broken fetch, never
+        // "every tile was deleted on the server" (that would drop all unedited local tiles).
+        const usableHex = hexData && Array.isArray(hexData.hexes) && (id !== 'postapoc' || hexData.hexes.length > 0);
+        if (usableHex) {
           const r = HexDB.mergeFromServer(id, hexData);
           summary.conflicts.push(...r.conflicts.map(k => `hex ${k}`));
         } else if (id === 'postapoc') {
-          summary.failed.push('postapoc/hex_database.json: not found');
+          summary.failed.push(hexData ? 'postapoc/hex_database.json: empty or invalid hex list, skipped' : 'postapoc/hex_database.json: not found');
+        } else if (hexData) {
+          summary.failed.push(`${id}/hex_database.json: no hexes array, skipped`);
         }
       } catch (e) { summary.failed.push(`${id}/hex_database.json: ${e.message}`); }
       try {

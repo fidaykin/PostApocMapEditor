@@ -122,3 +122,21 @@ test('Load Hex DB from server, confirmed, replaces the hexes and drops both merg
   const server = gh.json('packages/postapoc/hex_database.json').hexes.length;
   expect(await page.evaluate(() => HexDB.getAll().length)).toBeLessThanOrEqual(server);
 });
+
+for (const bad of [{ hexes: [] }, { hexes: 'nope' }]) {
+  test(`an unusable postapoc hex list (${JSON.stringify(bad.hexes)}) is skipped with a warning, never merged as "all deleted"`, async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh });
+    const n = await page.evaluate(() => HexDB.getAll().length);
+    gh.setJson('packages/postapoc/hex_database.json', { version: 1, ...bad });
+    await reloadEditor(page);
+    const r = await page.evaluate(() => ({
+      n: HexDB.getAll().length,
+      base: (SyncMerge.loadBase('hex').postapoc || []).length,
+      failed: (window as any).__lastSyncSummary.failed,
+    }));
+    expect(r.n).toBe(n);
+    expect(r.base).toBeGreaterThan(0);
+    expect(r.failed.some((f: string) => f.startsWith('postapoc/hex_database.json'))).toBe(true);
+  });
+}
