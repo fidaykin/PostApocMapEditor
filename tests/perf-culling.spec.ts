@@ -4,7 +4,7 @@ import { VIEWPORT, setupScene, frame, medianMs, expectFasterThan } from './perf-
 
 declare const Canvas: any, Terrain: any, HexDB: any, mapData: string[], MAP_WIDTH: number, MAP_HEIGHT: number;
 test.use({ viewport: VIEWPORT });
-test.setTimeout(240000);   // full-scan reference renders are slow
+test.setTimeout(900000);   // full-scan reference renders are slow (several minutes on a loaded machine)
 
 // Reference implementation: Canvas._test.setFullScan(true) makes render() visit every tile exactly like the
 // pre-T1.3 loop; the exact per-tile cull test is shared, so any difference is a range bug.

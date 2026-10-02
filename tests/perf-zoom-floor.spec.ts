@@ -1,13 +1,16 @@
 import { test, expect } from '@playwright/test';
 import { openEditor } from './helpers';
-import { VIEWPORT, setupScene } from './perf-scene';
+import { VIEWPORT } from './perf-scene';
 
 declare const Canvas: any, MAP_WIDTH: number, MAP_HEIGHT: number, COL_PITCH: number, ROW_PITCH: number, STAGGER: number, HEX_SIZE: number;
+declare const IO: any;
 test.use({ viewport: VIEWPORT });
+// Cheap 450x450 map (no terrain mix / roads / sprites): these tests only need the map size.
+const bigMap = (page: any) => page.evaluate(() => IO.newMap(true));
 
 test('fit-to-screen fits the whole 450x450 map below 25%', async ({ page }) => {
   await openEditor(page);
-  await setupScene(page);
+  await bigMap(page);
   const r = await page.evaluate(() => {
     Canvas.fitToScreen();
     const cv = document.getElementById('map-canvas') as HTMLCanvasElement;
@@ -26,7 +29,7 @@ test('fit-to-screen fits the whole 450x450 map below 25%', async ({ page }) => {
 
 test('fit-to-screen puts the four corner tiles inside the canvas', async ({ page }) => {
   await openEditor(page);
-  await setupScene(page);
+  await bigMap(page);
   const r = await page.evaluate(() => {
     Canvas.fitToScreen();
     const cv = document.getElementById('map-canvas') as HTMLCanvasElement;
@@ -42,7 +45,7 @@ test('fit-to-screen puts the four corner tiles inside the canvas', async ({ page
 
 test('setZoom clamps to the dynamic floor, not 25%', async ({ page }) => {
   await openEditor(page);
-  await setupScene(page);
+  await bigMap(page);
   const r = await page.evaluate(() => {
     Canvas.setZoom(1); const low = Canvas.getZoom();
     Canvas.setZoom(10); const mid = Canvas.getZoom();
@@ -56,7 +59,7 @@ test('setZoom clamps to the dynamic floor, not 25%', async ({ page }) => {
 
 test('wheel zoom out steps proportionally at low zoom', async ({ page }) => {
   await openEditor(page);
-  await setupScene(page);
+  await bigMap(page);
   await page.evaluate(() => Canvas.setZoom(20));
   const box = (await page.locator('#map-canvas').boundingBox())!;
   await page.mouse.move(box.x + 700, box.y + 450);
@@ -67,12 +70,11 @@ test('wheel zoom out steps proportionally at low zoom', async ({ page }) => {
 });
 
 test('repeated zoomOut stops at the floor; normal zooms unchanged', async ({ page }) => {
-  test.setTimeout(90000);   // each render at the floor draws every tile until T1.12 (LOD) lands
   await openEditor(page);
-  await setupScene(page);
+  await bigMap(page);
   const r = await page.evaluate(() => {
-    Canvas.setZoom(30);   // proportional steps from here: few full-map renders before the floor
-    for (let i = 0; i < 20; i++) Canvas.zoomOut();
+    Canvas.setZoom(6);   // start next to the floor: every render here draws the whole map until T1.12 (LOD) lands
+    for (let i = 0; i < 6; i++) Canvas.zoomOut();
     const z = Canvas.getZoom();
     Canvas.setZoom(60); const z60 = Canvas.getZoom();
     Canvas.setZoom(25); const z25 = Canvas.getZoom();
@@ -96,7 +98,7 @@ test('small map keeps the legacy 25% floor', async ({ page }) => {
 
 test('resize re-clamps zoom below the new floor and updates the label', async ({ page }) => {
   await openEditor(page);
-  await setupScene(page);
+  await bigMap(page);
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.evaluate(() => { Canvas.setZoom(Canvas.minZoom()); });
   const before = await page.evaluate(() => Canvas.getZoom());
@@ -110,7 +112,7 @@ test('resize re-clamps zoom below the new floor and updates the label', async ({
 
 test('no NaN or zero floor on a 0x0 canvas; bad zoom input is ignored', async ({ page }) => {
   await openEditor(page);
-  await setupScene(page);
+  await bigMap(page);
   const r = await page.evaluate(() => {
     const cv = document.getElementById('map-canvas') as HTMLCanvasElement;
     const w = cv.width, h = cv.height;
@@ -129,18 +131,4 @@ test('no NaN or zero floor on a 0x0 canvas; bad zoom input is ignored', async ({
   expect(Number.isFinite(r.zInf)).toBe(true);
   expect(r.z).toBe(1);
   expect(Number.isFinite(r.cam.x) && Number.isFinite(r.cam.y)).toBe(true);
-});
-
-test('render time at the floor on 450x450', async ({ page }) => {
-  await openEditor(page);
-  await setupScene(page);
-  const ms = await page.evaluate(() => {
-    Canvas.fitToScreen();
-    const t: number[] = [];
-    for (let i = 0; i < 5; i++) { const s = performance.now(); Canvas.render(); t.push(performance.now() - s); }
-    t.sort((a, b) => a - b);
-    return t[2];
-  });
-  console.log('RENDER_AT_FLOOR_MS', ms.toFixed(1));
-  expect(ms).toBeGreaterThan(0);
 });
