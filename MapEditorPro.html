@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "b16fcb3";
+const COMMIT  = "c3fa7fe";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3320,6 +3320,7 @@ const Canvas = (() => {
   }
 
   // ── Cached colour layers (minimap now; low-zoom overview in T1.12) ──────
+  // NOTE: COLORS is closure-private and not exported, so adding colours at runtime would require invalidating _colorMemo.
   // Terrain.color reads the static COLORS table only (independent of HexDB / packages), so memoising is safe.
   const _UNSET = {};
   const _colorMemo = new Map();
@@ -4030,7 +4031,7 @@ const Canvas = (() => {
 
   return {
     init, render, drawMinimap, forceRedraw, getStats,
-    _test: { minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, setCamera(x, y) { cameraX = x; cameraY = y; }, setFullScan(v) { _fullScan = !!v; } },
+    _test: { /* calling minimapLayer advances the cache and overwrites _stats.minimapRecolored */ minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, setCamera(x, y) { cameraX = x; cameraY = y; }, setFullScan(v) { _fullScan = !!v; } },
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
