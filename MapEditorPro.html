@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "4d18f26";
+const COMMIT  = "ee0c1b1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4707,6 +4707,69 @@ const SpriteStore = (() => {
 
   return { save, loadAll, loadByCategory, remove };
 })();
+
+// ════════════════════════════════════════════════════════════
+// SYNC MERGE — 3-way merge of local DB entries with the server copy
+// ════════════════════════════════════════════════════════════
+const SyncMerge = (() => {
+  function _canon(v) {
+    if (Array.isArray(v)) return '[' + v.map(_canon).join(',') + ']';
+    if (v && typeof v === 'object')
+      return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + _canon(v[k])).join(',') + '}';
+    return JSON.stringify(v);
+  }
+  const same = (a, b) => _canon(a) === _canon(b);
+  const keyOf = e => `${e.package || 'postapoc'}::${e.id}`;
+
+  function _index(list) {
+    const m = new Map();
+    (list || []).forEach(e => { if (e && e.id) m.set(keyOf(e), e); });
+    return m;
+  }
+
+  // local / server / base are entry arrays for ONE package. base = the server copy stored at the
+  // previous sync (null if this browser never synced). Local edits are never overwritten.
+  function merge3(local, server, base) {
+    const L = _index(local), S = _index(server), B = base ? _index(base) : null;
+    const merged = [], conflicts = [];
+    let fromServer = 0, kept = 0, dropped = 0;
+    for (const [k, s] of S) {
+      const l = L.get(k), b = B ? B.get(k) : undefined;
+      if (!l) {
+        if (b && same(s, b)) { dropped++; continue; }     // deleted locally, unchanged on server: stay deleted
+        merged.push(s); fromServer++; continue;
+      }
+      if (same(l, s)) { merged.push(l); continue; }
+      if (b && same(l, b)) { merged.push(s); fromServer++; continue; }  // untouched locally: take server
+      merged.push(l); kept++; conflicts.push(k);                        // edited locally: keep local
+    }
+    for (const [k, l] of L) {
+      if (S.has(k)) continue;
+      const b = B ? B.get(k) : undefined;
+      if (b && same(l, b)) { dropped++; continue; }       // removed on server, untouched locally
+      merged.push(l);                                      // local-only or edited: keep
+    }
+    return { merged, conflicts, fromServer, kept, dropped };
+  }
+
+  const _baseKey = kind => `sync_base_${kind}`;
+
+  function loadBase(kind) {
+    try { return JSON.parse(localStorage.getItem(_baseKey(kind)) || '{}') || {}; }
+    catch (e) { return {}; }
+  }
+
+  // Failing to store the base is safe: the next sync sees base = null and keeps every local entry.
+  function saveBase(kind, pkgId, entries) {
+    const all = loadBase(kind);
+    all[pkgId] = entries;
+    try { localStorage.setItem(_baseKey(kind), JSON.stringify(all)); return true; }
+    catch (e) { console.warn('[sync] could not store merge base:', e.message); return false; }
+  }
+
+  return { same, keyOf, merge3, loadBase, saveBase };
+})();
+
 
 // ════════════════════════════════════════════════════════════
 // GITHUB SYNC — GitHub API publish + remote HexDB load
