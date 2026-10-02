@@ -290,3 +290,44 @@ test('protected startup: Restore shows the copy, protection stays on, the copy a
   expect(Object.keys(all)).toHaveLength(2);
   expect(await readIdbKey(page, 'map_autosave')).toBe(original);
 });
+
+test('protected: discarding the restored (on screen) copy makes the next flush save the map again', async ({ page }) => {
+  await setupProtected(page);
+  const side = mapJson(j => { j._autosavedAt = 900; j.data[0][0] = 'Rubble_2'; });
+  await writeIdbKey(page, 'map_side_900', side);
+  await reloadEditor(page);
+  await rowFor(page, 'map_side_900').getByRole('button', { name: 'Restore' }).click();
+  await expect.poll(() => page.evaluate(() => mapData[0])).toBe('Rubble_2');
+  await page.evaluate(() => (document.querySelector('#menu-file button[onclick*="openRecoveryDialog"]') as HTMLElement).click());
+  await expect(rowFor(page, 'map_side_900')).toContainText('(on screen)');
+  await rowFor(page, 'map_side_900').getByRole('button', { name: /Discard/ }).click();
+  // an extra confirmation step for the copy that is on screen
+  await expect(rowFor(page, 'map_side_900')).toContainText('currently on screen and will be saved again as a new recovery copy');
+  expect(await readIdbKey(page, 'map_side_900')).toBe(side);
+  await rowFor(page, 'map_side_900').getByRole('button', { name: /Discard anyway/ }).click();
+  await expect(dialog(page)).toHaveCount(0);
+  await page.evaluate(() => IO.autoSave());
+  const all = await idbSides(page);
+  const keys = Object.keys(all);
+  expect(keys).toHaveLength(1);
+  expect(keys[0]).not.toBe('map_side_900');
+  expect(sideTile(all[keys[0]])).toBe('Rubble_2');                 // the on-screen map is saved again
+});
+
+test('a failed side-copy listing is reported instead of "No autosave copies to recover"', async ({ page }) => {
+  await openEditor(page);
+  await page.evaluate(() => { IDBObjectStore.prototype.getAllKeys = function () { throw new Error('list boom'); }; });
+  await page.evaluate(() => (document.querySelector('#menu-file button[onclick*="openRecoveryDialog"]') as HTMLElement).click());
+  const t = page.locator('.toast', { hasText: 'could not be listed' });
+  await expect(t).toHaveCount(1);
+  await expect(t).toContainText('reload to retry');
+});
+
+test('the recovery dialog says when some copies could not be listed', async ({ page }) => {
+  await openEditor(page);
+  await page.evaluate(() => localStorage.setItem('map_side_5', JSON.stringify({ width: 10, height: 1, data: [[]], _autosavedAt: 5 })));
+  await page.evaluate(() => { IDBObjectStore.prototype.getAllKeys = function () { throw new Error('list boom'); }; });
+  await page.evaluate(() => { IO.openRecoveryDialog(true); });
+  await expect(rows(page)).toHaveCount(1);
+  await expect(page.locator('#dialog-msg')).toContainText('Some copies could not be listed (browser storage did not respond); reload to retry.');
+});

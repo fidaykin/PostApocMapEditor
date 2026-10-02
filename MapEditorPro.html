@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "09781b8";
+const COMMIT  = "ad58049";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6585,6 +6585,9 @@ const IO = (() => {
   let _sideList = [];        // [{id, store:'idb'|'ls', key, ts, kb, invalid}] known side copies
   let _sideBaseline = null;  // JSON (unstamped) of a map that is already stored as-is: no side copy needed
   let _capToast = null;
+  let _onScreenId = null;    // id of the side copy that was restored and is what the screen shows (kept copy)
+  let _listIncomplete = false; // the last IndexedDB listing failed / timed out
+  const _LIST_INCOMPLETE_MSG = 'Some copies could not be listed (browser storage did not respond); reload to retry.';
   let _recoveryOpen = false; // while the recovery dialog is open ALL autosave writes are suppressed
   const _sideId = (store, key) => store + ':' + key;
 
@@ -6601,10 +6604,11 @@ const IO = (() => {
   // Re-reads the list of side copies (the live list stays in place until the new one is complete).
   async function _refreshSides() {
     const list = [];
+    _listIncomplete = false;
     try {
       const rows = await _withTimeout(_idb.entries(_SIDE_PREFIX), _idbTimeout(), 'IndexedDB side copy list');
       rows.forEach(([k, v]) => list.push(_sideEntry('idb', k, v)));
-    } catch(e) { console.warn('[autosave] could not list IndexedDB side copies:', e); }
+    } catch(e) { console.warn('[autosave] could not list IndexedDB side copies:', e); _listIncomplete = true; }
     try {
       for (let i = 0; i < localStorage.length; i++) {
         const k = localStorage.key(i);
@@ -6625,6 +6629,9 @@ const IO = (() => {
     if (e.store === 'idb') await _withTimeout(_idb.del(e.key), _idbTimeout(), 'IndexedDB side copy delete');
     else localStorage.removeItem(e.key);
     _sideList = _sideList.filter(x => x.id !== e.id);
+    // The baseline may have come from this copy: forget it, so the next flush saves the map on screen again.
+    _sideBaseline = null;
+    if (_onScreenId === e.id) _onScreenId = null;
     if (_capToast && _sideList.length < _SIDE_MAX) { if (_capToast.isConnected) _capToast.remove(); _capToast = null; }
   }
 
@@ -6744,6 +6751,7 @@ const IO = (() => {
     try {
       const built = _stampedJson();
       _sideBaseline = built.raw;   // the restored map is stored as-is in this copy
+      _onScreenId = e.id;
       committed = await _writeAutosave(built.json, built.raw);
     } catch(err) { console.warn('[autosave] saving the restored copy failed:', err); }
     if (committed) {
@@ -6764,15 +6772,20 @@ const IO = (() => {
       UI.closeAllMenus();
       _autoSave();   // the snapshot of the current map is taken now, before writes are suppressed
       await _refreshSides();
-      if (!_sideList.length) { UI.toast('No autosave copies to recover'); return false; }
+      if (!_sideList.length) {
+        UI.toast(_listIncomplete ? 'No autosave copies could be listed. ' + _LIST_INCOMPLETE_MSG : 'No autosave copies to recover',
+                 _listIncomplete ? { sticky: true } : {});
+        return false;
+      }
     }
     if (!_sideList.length || _recoveryOpen) return false;
     _recoveryOpen = true;
     let restored = false, busy = false;
-    const handled = new Set();
+    const handled = new Set(), confirming = new Set();
     const p = UI.showDialog({
       title: 'Unrecovered autosave copies',
-      message: 'These copies were saved while your autosave could not be read. Restore replaces the map on screen; Discard deletes that copy for good.',
+      message: 'These copies were saved while your autosave could not be read. Restore replaces the map on screen; Discard deletes that copy for good.'
+        + (_listIncomplete ? '\n' + _LIST_INCOMPLETE_MSG : ''),
       buttons: [{ label: 'Decide later', value: 'later', kind: 'cancel' }],
     });
     const wrap = document.getElementById('dialog-input-wrap');
@@ -6786,7 +6799,8 @@ const IO = (() => {
         row.style.cssText = 'display:flex;gap:8px;align-items:center;margin:4px 0';
         const label = document.createElement('span');
         label.style.flex = '1';
-        label.textContent = `${_fmtStamp(e.ts)} — ${e.kb} KB${e.invalid ? ' (unreadable)' : ''}${e.key === _sideKey ? ' (this session)' : ''}`;
+        label.textContent = `${_fmtStamp(e.ts)} — ${e.kb} KB${e.invalid ? ' (unreadable)' : ''}${e.key === _sideKey ? ' (this session)' : ''}${e.id === _onScreenId ? ' (on screen)' : ''}`
+          + (confirming.has(e.id) ? ' \u2014 This map is currently on screen and will be saved again as a new recovery copy.' : '');
         const mk = (text, kind, fn) => {
           const b = document.createElement('button');
           b.className = 'btn btn-' + kind; b.textContent = text; b.disabled = busy;
@@ -6804,7 +6818,8 @@ const IO = (() => {
         if (!e.invalid) row.appendChild(mk('Restore', 'primary', async () => {
           if (await _restoreSideCopy(e)) { restored = true; handled.add(e.id); }
         }));
-        row.appendChild(mk('Discard (cannot be undone)', 'danger', async () => {
+        row.appendChild(mk(confirming.has(e.id) ? 'Discard anyway' : 'Discard (cannot be undone)', 'danger', async () => {
+          if (e.id === _onScreenId && !confirming.has(e.id)) { confirming.add(e.id); return; }   // extra confirmation
           try { await _deleteSide(e); handled.add(e.id); }
           catch(err) { UI.toast('Could not discard this copy', { sticky: true, detail: String(err && err.message || err) }); }
         }));
