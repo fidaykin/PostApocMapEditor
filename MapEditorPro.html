@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "e5b3169";
+const COMMIT  = "7afb813";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8306,6 +8306,9 @@ const Packages = (() => {
 
       let done = 0;
       const localSprites = {};   // name -> dataUrl, so imported tiles render before any publish round-trip
+      const skippedSprites = []; // names that already exist locally (kept, not overwritten)
+      const failedSprites = [];  // names that could not be stored locally
+      const existingNames = new Set((await SpriteStore.loadAll()).map(e => e.name));
       for (const { path, file } of spriteFiles) {
         try {
           // path example: 'sprites/hex/Forest.png' → dest: 'packages/medieval/sprites/hex/Forest.png'
@@ -8313,9 +8316,15 @@ const Packages = (() => {
           const blob = await file.async('blob');
           const m = /^sprites\/(hex|buildings)\/(.+)\.png$/i.exec(path);
           if (m) {
-            const dataUrl = await _blobToDataUrl(blob);
-            await SpriteStore.save(m[2], dataUrl, m[1].toLowerCase());
-            localSprites[m[2]] = dataUrl;
+            if (existingNames.has(m[2])) { skippedSprites.push(m[2]); done++; continue; }
+            try {
+              const dataUrl = await _blobToDataUrl(blob);
+              await SpriteStore.save(m[2], dataUrl, m[1].toLowerCase());
+              localSprites[m[2]] = dataUrl;
+            } catch (e) {
+              failedSprites.push(m[2]);
+              console.warn(`[Packages] import: could not store sprite ${m[2]} locally:`, e && e.message);
+            }
           }
           await GitHubSync._putBinary(destPath, blob, `import ${newId}: ${path}`);
         } catch(e) {
@@ -8343,7 +8352,12 @@ const Packages = (() => {
       const addedHex = HexDB.addEntries(hexes);
       const addedBld = BldDB.addEntries(buildings);
       UI.progressDone(`✅ Package '${name}' imported`);
-      UI.toast(`✅ Package '${name}' imported (${addedHex} hex tiles, ${addedBld} buildings loaded)`);
+      const notes = [];
+      if (skippedSprites.length) notes.push(`${skippedSprites.length} sprite(s) skipped: name already exists locally`);
+      if (failedSprites.length) notes.push(`${failedSprites.length} sprite(s) could not be stored locally`);
+      const detail = [...skippedSprites.map(n => `skipped: ${n}`), ...failedSprites.map(n => `failed: ${n}`)].join('\n');
+      UI.toast(`✅ Package '${name}' imported (${addedHex} hex tiles, ${addedBld} buildings loaded)` + (notes.length ? '; ' + notes.join('; ') : ''),
+               notes.length ? { ms: 8000, detail } : undefined);
       renderPanel();
       renderActiveDropdowns();
       closeImportModal();
@@ -10431,7 +10445,7 @@ const HexDB = (() => {
     Terrain.applyHexDbOverrides(incoming).then(() => {
       UI.buildPalette();
       Canvas.render();
-    });
+    }).catch(e => console.warn('[HexDB] addEntries: sprite refresh failed:', e));
     return incoming.length;
   }
 

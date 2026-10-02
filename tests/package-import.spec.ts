@@ -26,3 +26,16 @@ test('importing a ZIP puts its hexes, buildings and sprites into the editor', as
   expect(await page.evaluate(async () => (await SpriteStore.loadAll()).some(s => s.name === 'Zipmod_Hex_1' && s.category === 'hex'))).toBe(true);
   expect(await page.evaluate(() => typeof Terrain.getUploadedUrl('Zipmod_Hex_1'))).toBe('string');
 });
+
+test('importing a ZIP never overwrites an existing local sprite of the same name', async ({ page }) => {
+  await openEditor(page, { pat: true });
+  const orig = 'data:image/png;base64,ORIGINAL';
+  await page.evaluate((u) => SpriteStore.save('Zipmod_Hex_1', u, 'hex'), orig);
+  await pickZip(page, await zipFor('zipmod', 'Zip Mod'));
+  await page.fill('#pkg-import-id', 'zipimp');
+  await page.locator('#pkg-import-modal').getByRole('button', { name: 'Import' }).click();
+  await expect(page.locator('.toast', { hasText: '1 sprite(s) skipped' })).toContainText('Zipmod_Hex_1');
+  const stored = await page.evaluate(async () => (await SpriteStore.loadAll()).find(s => s.name === 'Zipmod_Hex_1')!.dataUrl);
+  expect(stored).toBe(orig);
+  expect(await page.evaluate(() => HexDB.getAll().some(h => h.id === 'Zipimp_Hex_1'))).toBe(true);
+});
