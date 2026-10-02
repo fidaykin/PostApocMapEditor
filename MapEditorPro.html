@@ -2322,7 +2322,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "6449d12";
+const COMMIT  = "45a9db2";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3270,21 +3270,44 @@ const Canvas = (() => {
     const mapPixelH = (MAP_WIDTH  - 1) * ROW_PITCH + STAGGER   + HEX_SIZE * 2;
     const maxX = mapPixelW * scale - canvas.width;
     const maxY = mapPixelH * scale - canvas.height;
-    cameraX = Math.max(-radius * 2, Math.min(maxX + radius * 2, cameraX));
-    cameraY = Math.max(-radius * 2, Math.min(maxY + radius * 2, cameraY));
+    // On an axis where the whole map is smaller than the free area (fitToScreen centres it, below the ruler
+    // strip), the minimum camera leaves room for the strip and the centring slack. Other axes are unchanged.
+    const a = _viewArea();
+    const slackX = a.w - mapPixelW * scale, slackY = a.h - mapPixelH * scale;
+    const minX = slackX > 0 ? -(radius * 2 + a.l + slackX / 2) : -radius * 2;
+    const minY = slackY > 0 ? -(radius * 2 + a.t + slackY / 2) : -radius * 2;
+    cameraX = Math.max(minX, Math.min(maxX + radius * 2, cameraX));
+    cameraY = Math.max(minY, Math.min(maxY + radius * 2, cameraY));
   }
 
-  // Zoom (percent) at which the whole map exactly fits the canvas (0 for a 0-size canvas).
+  // Canvas area the map can use: the canvas minus the ruler strips (zero when rulers are hidden).
+  function _viewArea() {
+    const l = _showRulers ? RULER_LEFT : 0, t = _showRulers ? RULER_TOP : 0;
+    return { l, t, w: Math.max(0, canvas.width - l), h: Math.max(0, canvas.height - t) };
+  }
+
+  // Zoom (percent) at which the whole map (tile centres plus one hex radius on every side) exactly fits the
+  // area left by the ruler strips (0 for a 0-size canvas).
   function _fitZoomPct() {
     const mapPixelW = (MAP_HEIGHT - 1) * COL_PITCH + HEX_SIZE * 2;
     const mapPixelH = (MAP_WIDTH  - 1) * ROW_PITCH + STAGGER   + HEX_SIZE * 2;
-    const f = Math.min(canvas.width / mapPixelW * 100, canvas.height / mapPixelH * 100);
+    const a = _viewArea();
+    const f = Math.min(a.w / mapPixelW * 100, a.h / mapPixelH * 100);
     return Number.isFinite(f) ? f : 0;
   }
   // Dynamic floor: low enough to fit the whole map, never above the legacy 25%, never below 1%.
   function minZoom() { return Math.max(1, Math.min(25, Math.floor(_fitZoomPct()))); }
   // Fixed step at normal zoom, proportional at/below 30% so low zooms stay controllable.
   function _step(frac, fixed) { return zoom <= 30 ? Math.max(1, Math.round(zoom * frac)) : fixed; }
+
+  // Re-apply the floor after the canvas, the ruler strips or the map size changed (caller renders).
+  function reclampZoom() {
+    if (zoom < minZoom()) {
+      zoom = minZoom();
+      document.getElementById('st-zoom').textContent = zoom + '%';
+    }
+    clampCamera();
+  }
 
   function setZoom(pct, pivotScreenX, pivotScreenY) {
     if (!Number.isFinite(pct)) return;
@@ -3322,8 +3345,10 @@ const Canvas = (() => {
     const fit = Math.floor(_fitZoomPct());
     zoom = Math.max(minZoom(), Math.min(200, fit));
     const scale = zoom / 100;
-    cameraX = (mapPixelW * scale - canvas.width)  / 2;
-    cameraY = (mapPixelH * scale - canvas.height) / 2;
+    // Centre the map (tile centres start one radius inside its box) in the area the ruler strips leave free.
+    const a = _viewArea();
+    cameraX = -(a.l + (a.w - mapPixelW * scale) / 2 + HEX_SIZE * scale);
+    cameraY = -(a.t + (a.h - mapPixelH * scale) / 2 + HEX_SIZE * scale);
     clampCamera();
     document.getElementById('st-zoom').textContent = zoom + '%';
     render();
@@ -3499,8 +3524,7 @@ const Canvas = (() => {
     _resizeCanvas();
     window.addEventListener('resize', () => {
       _resizeCanvas();
-      if (zoom < minZoom()) { zoom = minZoom(); document.getElementById('st-zoom').textContent = zoom + '%'; }
-      clampCamera(); render(); drawMinimap();
+      reclampZoom(); render(); drawMinimap();
     });
 
     canvas.addEventListener('mousedown',  _onMouseDown);
@@ -4048,7 +4072,7 @@ const Canvas = (() => {
     init, render, drawMinimap, forceRedraw, getStats,
     _test: { /* calling minimapLayer advances the cache and overwrites _stats.minimapRecolored */ minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, setCamera(x, y) { cameraX = x; cameraY = y; }, setFullScan(v) { _fullScan = !!v; } },
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
-    clampCamera, minZoom, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
+    clampCamera, minZoom, reclampZoom, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot,
     jumpToBlock,
@@ -4057,6 +4081,7 @@ const Canvas = (() => {
       _showRulers = !_showRulers;
       const btn = document.getElementById('btn-toggle-rulers');
       if (btn) btn.style.opacity = _showRulers ? '1' : '0.4';
+      reclampZoom();
       render();
     },
     toggleCoastline: () => {
@@ -7028,7 +7053,7 @@ const IO = (() => {
         detail: 'Nothing was changed: the map on screen is as before and the copy was left intact in browser storage. Autosave works as before.' });
       return false;
     }
-    UI.updateSettlementCount(); UI.updateStatusSize(); Canvas.render(); Canvas.drawMinimap(); Canvas.centerOnCity();
+    UI.updateSettlementCount(); UI.updateStatusSize(); Canvas.reclampZoom(); Canvas.render(); Canvas.drawMinimap(); Canvas.centerOnCity();
     let committed = false;
     try {
       const built = _stampedJson();
@@ -7351,6 +7376,7 @@ const IO = (() => {
     UI.updateSettlementCount();
     UI.updateStatusSize();
     document.getElementById('newmap-modal').classList.remove('open');
+    Canvas.reclampZoom();
     Canvas.render();
     Canvas.drawMinimap();
     Canvas.centerOnCity();
@@ -7515,6 +7541,7 @@ const IO = (() => {
       History.push();
       UI.updateSettlementCount();
       UI.updateStatusSize();
+      Canvas.reclampZoom();
       Canvas.render();
       Canvas.drawMinimap();
       Canvas.centerOnCity();
@@ -7793,6 +7820,7 @@ const IO = (() => {
     UI.updateSettlementCount();
     UI.updateStatusSize();
     closeExpandMap();
+    Canvas.reclampZoom();
     Canvas.render();
     Canvas.drawMinimap();
     Canvas.centerOnCity();
