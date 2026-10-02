@@ -2068,6 +2068,7 @@ body.mode-common #map-io    { display: none; }
       <button class="newmap-preset" onclick="IO.setNewMapSize(200,200)">200×200</button>
       <button class="newmap-preset" onclick="IO.setNewMapSize(450,450)">450×450</button>
     </div>
+    <p class="newmap-note" id="newmap-protect-note" style="display:none;color:var(--danger,#e55)"></p>
     <p class="newmap-note">Min 20×20 · Max 450×450. Unsaved changes will be lost.</p>
     <div class="modal-actions">
       <button class="btn btn-cancel" id="newmap-cancel" onclick="IO.closeNewMap()">Cancel</button>
@@ -2319,7 +2320,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "2836ce8";
+const COMMIT  = "3bed93f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6551,6 +6552,7 @@ const IO = (() => {
   // empty/valid (reload) or the user explicitly opens/creates a map.
   let _protected = false;
   function _endProtection() { _protected = false; }
+  const _PROTECTED_MSG = 'Your previous autosave could not be read and was kept untouched. This new map is NOT autosaved to the main slot \u2014 save it to a file (Ctrl+S). Reload to retry reading the old autosave.';
   let _lastStamp = 0;
   function _withTimeout(p, ms, what) {
     let t;
@@ -6577,6 +6579,7 @@ const IO = (() => {
       // Transaction complete: the new copy is durable, so the legacy copy can go.
       try { localStorage.removeItem('map_autosave'); } catch(e) {}
       StorageGuard.ok('Map autosave');
+      if (!_pendingOffer) _removePending();   // side copy no longer needed once the main slot is safe again
     } catch(err) {
       // IndexedDB unavailable / blocked / quota / hung: keep the map in localStorage and warn if that fails too.
       console.warn('[autosave] IndexedDB write failed, falling back to localStorage:', err);
@@ -6584,29 +6587,40 @@ const IO = (() => {
     }
   }
 
+  // Returns {str, src, ts} for a valid stored copy, null for "nothing stored", {invalid:true} otherwise.
+  function _parseStored(str, src) {
+    if (str === null || str === undefined) return null;
+    try {
+      if (typeof str !== 'string' || !str) throw new Error('not a string');
+      const j = JSON.parse(str);
+      const okRows = j && Array.isArray(j.data) && j.data.length >= j.height && j.data.slice(0, j.height).every(Array.isArray);
+      if (!j || !(j.width > 0) || !(j.height > 0) || !okRows) throw new Error('missing map data');
+      const ts = Number(j._autosavedAt) || 0;
+      _lastStamp = Math.max(_lastStamp, ts);   // next stamp must beat anything stored, whatever the clock says
+      return { str, src, ts };
+    } catch(e) {
+      console.warn('[autosave] ignoring unreadable ' + src + ' copy:', e);
+      return { invalid: true, src };
+    }
+  }
+
+  // Changes saved while protected live in `map_autosave_pending`. On a clean startup read they are offered
+  // to the user (offerPendingRestore) when newer than the restored copy; stale/invalid ones are removed.
+  let _pendingOffer = null;
+  function _removePending() { try { localStorage.removeItem('map_autosave_pending'); } catch(e) {} }
+
   // Returns the JSON string of the newest VALID stored copy (IndexedDB or legacy localStorage), or null.
   // A failed/timed-out read or an invalid record turns on protected mode (see _protected).
   async function _readAutosave() {
     _restoreProblem = '';
+    _pendingOffer = null;
     let unsafe = false;
-    const parse = (str, src) => {
-      if (str === null || str === undefined) return null;
-      try {
-        if (typeof str !== 'string' || !str) throw new Error('not a string');
-        const j = JSON.parse(str);
-        const okRows = j && Array.isArray(j.data) && j.data.length >= j.height && j.data.slice(0, j.height).every(Array.isArray);
-        if (!j || !(j.width > 0) || !(j.height > 0) || !okRows) throw new Error('missing map data');
-        const ts = Number(j._autosavedAt) || 0;
-        _lastStamp = Math.max(_lastStamp, ts);   // next stamp must beat anything stored, whatever the clock says
-        return { str, src, ts };
-      } catch(e) {
-        console.warn('[autosave] ignoring unreadable ' + src + ' copy:', e);
-        _restoreProblem = 'The saved ' + src + ' map copy could not be read';
-        unsafe = true;
-        return null;
-      }
+    const check = (str, src) => {
+      const c = _parseStored(str, src);
+      if (c && c.invalid) { _restoreProblem = 'The saved ' + src + ' map copy could not be read'; unsafe = true; return null; }
+      return c;
     };
-    let idbRaw = null, lsRaw = null;
+    let idbRaw = null, lsRaw = null, pendRaw = null;
     try { idbRaw = await _withTimeout(_idb.get('map_autosave'), _idbTimeout(), 'IndexedDB read'); }
     catch(e) {
       console.warn('[autosave] IndexedDB read failed:', e);
@@ -6614,12 +6628,46 @@ const IO = (() => {
       unsafe = true;
     }
     try { lsRaw = localStorage.getItem('map_autosave'); } catch(e) {}
-    const cands = [parse(idbRaw, 'IndexedDB'), parse(lsRaw, 'localStorage')].filter(Boolean);
+    try { pendRaw = localStorage.getItem('map_autosave_pending'); } catch(e) {}
+    const cands = [check(idbRaw, 'IndexedDB'), check(lsRaw, 'localStorage')].filter(Boolean);
     _protected = unsafe;
-    if (!cands.length) return null;
     // newest wins; on a tie IndexedDB (listed first) wins
     cands.sort((x, y) => y.ts - x.ts);
-    return cands[0].str;
+    if (!unsafe && pendRaw !== null) {
+      const pc = _parseStored(pendRaw, 'pending');
+      if (pc && !pc.invalid && pc.ts > (cands[0] ? cands[0].ts : 0)) _pendingOffer = pc;
+      else { console.warn('[autosave] removing stale/invalid pending copy'); _removePending(); }
+    }
+    return cands.length ? cands[0].str : null;
+  }
+
+  // After a clean startup read: if changes were saved while the autosave was unreadable, ask whether to
+  // restore them. Resolves true when the pending copy was loaded. Either answer removes the pending key.
+  async function offerPendingRestore() {
+    const offer = _pendingOffer;
+    if (!offer) return false;
+    const r = await UI.showDialog({
+      title: 'Unsaved changes found',
+      message: 'Changes were saved while your autosave was unreadable. Restore those instead?',
+      buttons: [{ label: 'Keep previous autosave', value: 'keep', kind: 'cancel' },
+                { label: 'Restore newer changes', value: 'restore', kind: 'primary' }],
+    });
+    let restored = false;
+    if (r.button === 'restore') {
+      restored = await tryRestoreAutosave(offer.str);
+      if (restored) {
+        UI.updateSettlementCount(); UI.updateStatusSize(); Canvas.render(); Canvas.drawMinimap(); Canvas.centerOnCity();
+        _pendingOffer = null; _autoSave().then(() => {});
+        _removePending();
+        return true;
+      }
+      UI.toast('Could not restore the newer changes; they were kept in browser storage.', { sticky: true });
+      _pendingOffer = null;
+      return false;
+    }
+    _pendingOffer = null;
+    _removePending();
+    return false;
   }
 
   function _autoSave() {
@@ -6655,9 +6703,9 @@ const IO = (() => {
   // content sync and the autosave timers, so nothing can open or create a map (or flush) while the read is
   // pending; a blank map is only installed afterwards if this returns false.
   let _restoreProblem = '';
-  async function tryRestoreAutosave() {
+  async function tryRestoreAutosave(override) {
     try {
-      const saved = await _readAutosave();
+      const saved = typeof override === 'string' ? override : await _readAutosave();
       if (!saved) return false;
       const json = JSON.parse(saved);
       if (!json.width || !json.height || !Array.isArray(json.data)) return false;
@@ -6762,12 +6810,17 @@ const IO = (() => {
     _openNewMapModal(true);
   }
 
+  // The forced startup modal: creating a map from it must NOT end protected mode (see applyNewMap).
+  let _startupModal = false;
   function showNewMapPrompt() {
-    _openNewMapModal(false);
+    _openNewMapModal(false, true);
   }
 
-  function _openNewMapModal(canCancel) {
+  function _openNewMapModal(canCancel, startup) {
     _newMapCanCancel = canCancel;
+    _startupModal = !!startup;
+    const note = document.getElementById('newmap-protect-note');
+    if (note) { note.textContent = _PROTECTED_MSG; note.style.display = (startup && _protected) ? '' : 'none'; }
     document.getElementById('newmap-w').value = MAP_WIDTH;
     document.getElementById('newmap-h').value = MAP_HEIGHT;
     document.getElementById('newmap-cancel').style.display = canCancel ? '' : 'none';
@@ -6814,7 +6867,10 @@ const IO = (() => {
     Canvas.centerOnCity();
     _setFileName('');
     UI.toast(`Map created: ${w} × ${h}`);
-    _endProtection();   // explicit user action
+    // Explicit File>New ends protection; the forced startup modal does not (the old record may only have
+    // been transiently unreadable), so that new map keeps saving to the side copy.
+    if (!(_startupModal && _protected)) _endProtection();
+    _startupModal = false;
     _autoSave();
   }
 
@@ -6882,7 +6938,6 @@ const IO = (() => {
     try {
       if (!json.width || !json.height || !Array.isArray(json.data))
         throw new Error('Invalid map file format');
-      _endProtection();   // explicit user load replaces whatever could not be read
 
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
@@ -6973,6 +7028,7 @@ const IO = (() => {
       Canvas.drawMinimap();
       Canvas.centerOnCity();
       UI.toast('Map loaded');
+      _endProtection();   // explicit user load, fully installed: normal saving resumes
       _autoSave();
       // The map is already loaded; a failing check must neither undo that nor hide itself.
       try {
@@ -7253,7 +7309,7 @@ const IO = (() => {
   return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
            openExpandMap, closeExpandMap, applyExpandMap, _validateExpandInput, _updateExpandPreview,
-           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave, getRestoreProblem: () => _restoreProblem, isAutosaveProtected: () => _protected,
+           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave, getRestoreProblem: () => _restoreProblem, offerPendingRestore, hasPendingOffer: () => !!_pendingOffer, protectedMessage: () => _PROTECTED_MSG, isAutosaveProtected: () => _protected,
            setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson,
            loadFromJSON: _loadFromJSON, analyzeMap, setFileName: _setFileName,
            openBridgeTerrainModal, closeBridgeTerrainModal, applyBridgeTileUnder, clearBridgeTileUnder };
@@ -13796,7 +13852,7 @@ window.addEventListener('load', async () => {
   Canvas.centerOnCity();
   if (_mapRestored) { UI.updateSettlementCount(); UI.updateStatusSize(); }
   if (IO.isAutosaveProtected()) UI.toast('⚠ ' + (IO.getRestoreProblem() || 'The saved map could not be read'), { sticky: true,
-    detail: 'The previous autosave was kept untouched and autosaving to it is paused (changes go to a side copy). Reload the page to retry; opening or creating a map resumes normal saving.' });
+    detail: IO.protectedMessage() });
   // Force a canvas redraw when the tab becomes visible again after being
   // inactive — the browser may have discarded the canvas contents while hidden.
   document.addEventListener('visibilitychange', () => {
@@ -13813,7 +13869,9 @@ window.addEventListener('load', async () => {
   // Restore filesystem folder handle from IndexedDB (silent if permission already granted)
   IO.initFsDir();
   // Show new-map prompt only when there is nothing to restore
-  if (!_mapRestored) IO.showNewMapPrompt();
+  if (IO.hasPendingOffer()) {
+    IO.offerPendingRestore().then(r => { if (!_mapRestored && !r) IO.showNewMapPrompt(); });
+  } else if (!_mapRestored) IO.showNewMapPrompt();
   const _vLabel = document.getElementById('version-label');
   if (_vLabel) _vLabel.textContent = COMMIT ? `${VERSION}.${COMMIT}` : VERSION;
   // Auto-configure from magic link: #pat=TOKEN strips itself and saves to localStorage

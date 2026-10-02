@@ -289,8 +289,8 @@ test('protected mode: a wrong-shape record is not overwritten by a flush; openin
   await expect(page.locator('.toast.sticky', { hasText: 'could not be read' })).toHaveCount(1);
   await page.evaluate(() => IO.autoSave());
   expect(await readIdb(page)).toBe(bad);
-  // explicit user action: create a map -> normal saving resumes and replaces the bad record
-  await page.evaluate(() => { IO.setNewMapSize(30, 30); IO.applyNewMap(); });
+  // deliberate File>New (menu path, not the forced startup modal) -> normal saving resumes
+  await page.evaluate(() => { IO.newMap(); IO.setNewMapSize(30, 30); IO.applyNewMap(); });
   await page.evaluate(() => IO.autoSave());
   expect(await page.evaluate(() => IO.isAutosaveProtected())).toBe(false);
   expect(JSON.parse((await readIdb(page))!).width).toBe(30);
@@ -372,3 +372,93 @@ test('flush handlers never throw and the last overlapping write wins', async ({ 
   await page.evaluate(() => { window.dispatchEvent(new Event('pagehide')); window.dispatchEvent(new Event('beforeunload')); });
   expect(pageErrors).toEqual([]);
 });
+
+// ── T0.12 round 2 ────────────────────────────────────────────────────────────
+const seedValidThenFailRead = async (page: any) => {
+  const gh = new FakeGitHub();
+  const original = mapJson(gh, j => { j._autosavedAt = 777; j.data[0][0] = 'Rubble_3'; });
+  await openEditor(page);
+  await writeIdb(page, original);
+  await noFlush(page);
+  await page.addInitScript(FAIL_GET as any);
+  await page.evaluate(() => { localStorage.removeItem('map_autosave'); });
+  return original;
+};
+
+test('the forced startup modal keeps protection on: Create saves to the side copy only', async ({ page }) => {
+  const original = await seedValidThenFailRead(page);
+  await page.reload();
+  const modal = page.locator('#newmap-modal');
+  await expect(modal).toHaveClass(/open/);
+  await expect(page.locator('#newmap-protect-note')).toContainText('NOT autosaved to the main slot');
+  await page.waitForFunction(() => !!(window as any).__startupSyncDone);
+  await modal.locator('.btn-primary', { hasText: 'Create' }).click();
+  await page.evaluate(async () => { mapData[1] = 'Barren_1'; await IO.autoSave(); window.dispatchEvent(new Event('pagehide')); });
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => IO.isAutosaveProtected())).toBe(true);
+  expect(await readIdb(page)).toBe(original);
+  expect(JSON.parse((await page.evaluate(() => localStorage.getItem('map_autosave_pending')))!).data[0][1]).toBe('Barren_1');
+  await expect(page.locator('.toast.sticky', { hasText: 'could not be read' }).locator('.toast-detail')).toContainText('save it to a file');
+});
+
+test('a deliberate File>New after a protected startup ends protection and retires the side copy', async ({ page }) => {
+  const original = await seedValidThenFailRead(page);
+  await page.reload();
+  await page.locator('#newmap-modal .btn-primary', { hasText: 'Create' }).click();
+  await page.evaluate(() => IO.autoSave());
+  expect(await page.evaluate(() => localStorage.getItem('map_autosave_pending'))).not.toBeNull();
+  await page.evaluate(() => { IO.newMap(); });
+  await page.locator('#newmap-modal .btn-primary', { hasText: 'Create' }).click();
+  await page.evaluate(() => IO.autoSave());
+  expect(await page.evaluate(() => IO.isAutosaveProtected())).toBe(false);
+  await expect.poll(() => page.evaluate(() => localStorage.getItem('map_autosave_pending'))).toBeNull();
+  expect(await readIdb(page)).not.toBe(original);
+});
+
+test('a load that fails half-way does not end protection', async ({ page }) => {
+  await openEditor(page);
+  await writeIdb(page, '{"truncated');
+  await noFlush(page);
+  await reloadEditor(page);
+  expect(await page.evaluate(() => IO.isAutosaveProtected())).toBe(true);
+  const bad = new FakeGitHub().json('maps/current_map.json');
+  bad.tileExtras = [null];   // throws after the map array is already replaced
+  await page.evaluate((j: any) => { try { IO.loadFromJSON(j); } catch {} }, bad);
+  expect(await page.evaluate(() => IO.isAutosaveProtected())).toBe(true);
+});
+
+const seedPending = async (page: any, pendingTs: number | null, pendingRaw?: string) => {
+  const gh = new FakeGitHub();
+  await openEditor(page);
+  await writeIdb(page, mapJson(gh, j => { j._autosavedAt = 1000; j.data[0][0] = 'Rubble_1'; }));
+  const pend = pendingRaw ?? mapJson(gh, j => { j._autosavedAt = pendingTs; j.data[0][0] = 'Rubble_2'; });
+  await page.evaluate((v: string) => localStorage.setItem('map_autosave_pending', v), pend);
+  await noFlush(page);
+  await reloadEditor(page);
+};
+const pendingKey = (page: any) => page.evaluate(() => localStorage.getItem('map_autosave_pending'));
+
+test('pending changes: "Restore newer changes" loads them and removes the side copy', async ({ page }) => {
+  await seedPending(page, 2000);
+  await expect(page.locator('#dialog-title')).toHaveText('Unsaved changes found');
+  await page.locator('#dialog-actions').getByRole('button', { name: 'Restore newer changes' }).click();
+  await expect.poll(() => page.evaluate(() => mapData[0])).toBe('Rubble_2');
+  await expect.poll(() => pendingKey(page)).toBeNull();
+  await expect.poll(async () => JSON.parse((await readIdb(page))!).data[0][0]).toBe('Rubble_2');
+});
+
+test('pending changes: "Keep previous autosave" keeps the main copy and removes the side copy', async ({ page }) => {
+  await seedPending(page, 2000);
+  await page.locator('#dialog-actions').getByRole('button', { name: 'Keep previous autosave' }).click();
+  expect(await page.evaluate(() => mapData[0])).toBe('Rubble_1');
+  await expect.poll(() => pendingKey(page)).toBeNull();
+});
+
+for (const [name, ts, raw] of [['stale', 500, undefined], ['invalid', null, '{"garbage']] as const) {
+  test(`a ${name} pending copy is removed on a clean startup without asking`, async ({ page }) => {
+    await seedPending(page, ts, raw);
+    await expect(page.locator('#dialog-modal.open')).toHaveCount(0);
+    expect(await pendingKey(page)).toBeNull();
+    expect(await page.evaluate(() => mapData[0])).toBe('Rubble_1');
+  });
+}
