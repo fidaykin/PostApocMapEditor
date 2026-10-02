@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "b955fcb";
+const COMMIT  = "e371169";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4709,6 +4709,43 @@ const SpriteStore = (() => {
 })();
 
 // ════════════════════════════════════════════════════════════
+// STORAGE GUARD — localStorage writes that never fail silently
+// ════════════════════════════════════════════════════════════
+const StorageGuard = (() => {
+  const _lastWarn = {};   // label -> timestamp of last toast
+  const _toasts = {};     // label -> live toast element
+  function _warn(label, err) {
+    try {
+      console.error(`[StorageGuard] ${label}:`, err);
+      const now = Date.now();
+      const last = _lastWarn[label];
+      // Throttle per label; a negative delta (clock moved back) must not mute warnings forever.
+      if (last !== undefined && now >= last && now - last < 60000) return;
+      _lastWarn[label] = now;
+      const quota = err && (err.name === 'QuotaExceededError' || err.code === 22);
+      _toasts[label] = UI.toast(`⚠ ${label} not saved${quota ? ': browser storage is full' : ''}`, {
+        sticky: true,
+        detail: `${err && err.message ? err.message : err}\nExport your work (Save map / Save DB) so it is not lost.`,
+      });
+    } catch (e) { console.error('[StorageGuard] could not show warning', e); }
+  }
+  function _recovered(label) {
+    if (_lastWarn[label] === undefined) return;
+    delete _lastWarn[label];
+    const el = _toasts[label]; delete _toasts[label];
+    if (el && el.isConnected) el.remove();
+  }
+  function setItem(key, value, label) {
+    const name = label || key;
+    try { localStorage.setItem(key, value); }
+    catch (e) { _warn(name, e); return false; }
+    _recovered(name);
+    return true;
+  }
+  return { setItem, _warn };
+})();
+
+// ════════════════════════════════════════════════════════════
 // SYNC MERGE — 3-way merge of local DB entries with the server copy
 // ════════════════════════════════════════════════════════════
 const SyncMerge = (() => {
@@ -6497,7 +6534,7 @@ const IO = (() => {
     if (!mapData) return;
     const json = _buildJson();
     // 1. Always write to localStorage (sync, survives beforeunload)
-    try { localStorage.setItem('map_autosave', json); } catch(e) {}
+    StorageGuard.setItem('map_autosave', json, 'Map autosave');
     // 2. Best-effort async write to filesystem folder
     _getFsDir().then(dir => {
       if (!dir) return;
@@ -9560,7 +9597,7 @@ const HexDB = (() => {
     try { localStorage.setItem('hexdb_sections', JSON.stringify(_secState)); } catch(e) {}
   }
   function _autoSave() {
-    try { localStorage.setItem('hexdb_autosave', JSON.stringify(_data)); } catch(e) {}
+    StorageGuard.setItem('hexdb_autosave', JSON.stringify(_data), 'Hex DB autosave');
   }
 
   function _migrateHexTypes(hexes) {
@@ -11168,7 +11205,7 @@ const BldDB = (() => {
     localStorage.setItem('blddb-sec', JSON.stringify(_secState));
   }
   function _autoSave() {
-    try { localStorage.setItem('blddb_autosave', JSON.stringify(_data)); } catch(e) {}
+    StorageGuard.setItem('blddb_autosave', JSON.stringify(_data), 'Buildings DB autosave');
   }
 
   function _applyFilter() {
@@ -12338,7 +12375,7 @@ const SttDB = (() => {
     localStorage.setItem('sttdb-sec', JSON.stringify(_secState));
   }
   function _autoSave() {
-    try { localStorage.setItem('sttdb_autosave', JSON.stringify(_data)); } catch(e) {}
+    StorageGuard.setItem('sttdb_autosave', JSON.stringify(_data), 'Settlements DB autosave');
   }
 
   function _applyFilter() {
@@ -12728,7 +12765,7 @@ const UpgDB = (() => {
   }
 
   function _autoSave() {
-    try { localStorage.setItem('upgdb_autosave', JSON.stringify(_data)); } catch(e) {}
+    StorageGuard.setItem('upgdb_autosave', JSON.stringify(_data), 'Upgrades DB autosave');
   }
 
   function _applyFilter() {
