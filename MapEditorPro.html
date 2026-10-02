@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "2d03710";
+const COMMIT  = "2836ce8";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4744,7 +4744,7 @@ const StorageGuard = (() => {
     _recovered(name);
     return true;
   }
-  return { setItem, _warn };
+  return { setItem, _warn, ok: _recovered };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -6389,7 +6389,7 @@ const IO = (() => {
     });
     return {
       get: async k => { const db = await _open(); return new Promise((res, rej) => { const r = db.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => res(r.result); r.onerror = rej; }); },
-      set: async (k, v) => { const db = await _open(); return new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error || new Error('IndexedDB transaction aborted')); }); }
+      set: async (k, v) => { const db = await _open(); return new Promise((res, rej) => { let tx; try { tx = db.transaction('kv', 'readwrite', { durability: 'strict' }); } catch(_) { tx = db.transaction('kv', 'readwrite'); } tx.objectStore('kv').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error || new Error('IndexedDB transaction aborted')); }); }
     };
   })();
 
@@ -6542,7 +6542,15 @@ const IO = (() => {
   // Safety rules: the legacy localStorage copy is only removed AFTER the IndexedDB transaction has
   // completed; if IndexedDB fails (or hangs) the map is written to localStorage through StorageGuard instead.
   // Every saved JSON carries `_autosavedAt` so restore can pick the newest copy when both stores have one.
-  const _IDB_TIMEOUT_MS = 8000;
+  // 8 s unless a test lowers it (window.__autosaveIdbTimeoutMs).
+  const _idbTimeout = () => (typeof window !== 'undefined' && window.__autosaveIdbTimeoutMs) || 8000;
+  // PROTECTED MODE: set when the stored autosave could not be read (IndexedDB error/timeout) or failed
+  // validation. The unread/unreadable record may be the user's only copy, so while protected NOTHING writes
+  // `map_autosave` (IndexedDB) or removes the legacy localStorage key; saves go to the side key
+  // `map_autosave_pending` instead (never auto-restored). It ends when a later read finds the store
+  // empty/valid (reload) or the user explicitly opens/creates a map.
+  let _protected = false;
+  function _endProtection() { _protected = false; }
   let _lastStamp = 0;
   function _withTimeout(p, ms, what) {
     let t;
@@ -6551,12 +6559,24 @@ const IO = (() => {
   }
 
   async function _writeAutosave(json) {
+    if (_protected) {
+      StorageGuard.setItem('map_autosave_pending', json, 'Map autosave');
+      return;
+    }
+    let timedOut = false;
     try {
       const w = _idb.set('map_autosave', json);
-      w.catch(() => {});
-      await _withTimeout(w, _IDB_TIMEOUT_MS, 'IndexedDB write');
+      // A write that times out may still commit later: then the fallback copy is redundant, so retire it
+      // (only if it is still this exact copy, never a newer one).
+      w.then(() => {
+        if (!timedOut) return;
+        try { if (localStorage.getItem('map_autosave') === json) localStorage.removeItem('map_autosave'); } catch(e) {}
+      }, () => {});
+      try { await _withTimeout(w, _idbTimeout(), 'IndexedDB write'); }
+      catch(e) { if (/timed out/.test(e.message)) timedOut = true; throw e; }
       // Transaction complete: the new copy is durable, so the legacy copy can go.
       try { localStorage.removeItem('map_autosave'); } catch(e) {}
+      StorageGuard.ok('Map autosave');
     } catch(err) {
       // IndexedDB unavailable / blocked / quota / hung: keep the map in localStorage and warn if that fails too.
       console.warn('[autosave] IndexedDB write failed, falling back to localStorage:', err);
@@ -6565,25 +6585,37 @@ const IO = (() => {
   }
 
   // Returns the JSON string of the newest VALID stored copy (IndexedDB or legacy localStorage), or null.
+  // A failed/timed-out read or an invalid record turns on protected mode (see _protected).
   async function _readAutosave() {
     _restoreProblem = '';
+    let unsafe = false;
     const parse = (str, src) => {
-      if (typeof str !== 'string' || !str) return null;
+      if (str === null || str === undefined) return null;
       try {
+        if (typeof str !== 'string' || !str) throw new Error('not a string');
         const j = JSON.parse(str);
         const okRows = j && Array.isArray(j.data) && j.data.length >= j.height && j.data.slice(0, j.height).every(Array.isArray);
         if (!j || !(j.width > 0) || !(j.height > 0) || !okRows) throw new Error('missing map data');
-        return { str, src, ts: Number(j._autosavedAt) || 0 };
+        const ts = Number(j._autosavedAt) || 0;
+        _lastStamp = Math.max(_lastStamp, ts);   // next stamp must beat anything stored, whatever the clock says
+        return { str, src, ts };
       } catch(e) {
         console.warn('[autosave] ignoring unreadable ' + src + ' copy:', e);
-        _restoreProblem = 'The saved ' + src + ' map copy was unreadable and was skipped.';
+        _restoreProblem = 'The saved ' + src + ' map copy could not be read';
+        unsafe = true;
         return null;
       }
     };
     let idbRaw = null, lsRaw = null;
-    try { idbRaw = await _withTimeout(_idb.get('map_autosave'), _IDB_TIMEOUT_MS, 'IndexedDB read'); } catch(e) { console.warn('[autosave] IndexedDB read failed:', e); }
+    try { idbRaw = await _withTimeout(_idb.get('map_autosave'), _idbTimeout(), 'IndexedDB read'); }
+    catch(e) {
+      console.warn('[autosave] IndexedDB read failed:', e);
+      _restoreProblem = 'The saved map could not be read from browser storage (IndexedDB)';
+      unsafe = true;
+    }
     try { lsRaw = localStorage.getItem('map_autosave'); } catch(e) {}
     const cands = [parse(idbRaw, 'IndexedDB'), parse(lsRaw, 'localStorage')].filter(Boolean);
+    _protected = unsafe;
     if (!cands.length) return null;
     // newest wins; on a tie IndexedDB (listed first) wins
     cands.sort((x, y) => y.ts - x.ts);
@@ -6619,15 +6651,14 @@ const IO = (() => {
 
   // Attempts to restore the last autosaved map. Returns true on success.
   // Safe to call before Canvas.init() — only sets mapData / settlements.
-  // Async: if the user (or code) installed a map while the read was pending, the restore is dropped
-  // instead of overwriting it.
+  // Async. Ordering guarantee: the load handler awaits this BEFORE Canvas/UI/Tools/file-input init, the
+  // content sync and the autosave timers, so nothing can open or create a map (or flush) while the read is
+  // pending; a blank map is only installed afterwards if this returns false.
   let _restoreProblem = '';
   async function tryRestoreAutosave() {
     try {
-      const before = mapData;
       const saved = await _readAutosave();
       if (!saved) return false;
-      if (mapData !== before) return false;
       const json = JSON.parse(saved);
       if (!json.width || !json.height || !Array.isArray(json.data)) return false;
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
@@ -6699,7 +6730,7 @@ const IO = (() => {
       History.push();
       _setFileName('(autosave)');
       return true;
-    } catch(e) { console.warn('[autosave] restore failed:', e); _restoreProblem = 'The saved map could not be restored.'; return false; }
+    } catch(e) { console.warn('[autosave] restore failed:', e); _restoreProblem = 'The saved map could not be restored'; _protected = true; return false; }
   }
 
   // Called at boot (silent=true) to initialize mapData before Canvas.init().
@@ -6783,6 +6814,7 @@ const IO = (() => {
     Canvas.centerOnCity();
     _setFileName('');
     UI.toast(`Map created: ${w} × ${h}`);
+    _endProtection();   // explicit user action
     _autoSave();
   }
 
@@ -6850,6 +6882,7 @@ const IO = (() => {
     try {
       if (!json.width || !json.height || !Array.isArray(json.data))
         throw new Error('Invalid map file format');
+      _endProtection();   // explicit user load replaces whatever could not be read
 
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
@@ -7220,7 +7253,7 @@ const IO = (() => {
   return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
            openExpandMap, closeExpandMap, applyExpandMap, _validateExpandInput, _updateExpandPreview,
-           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave, getRestoreProblem: () => _restoreProblem,
+           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave, getRestoreProblem: () => _restoreProblem, isAutosaveProtected: () => _protected,
            setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson,
            loadFromJSON: _loadFromJSON, analyzeMap, setFileName: _setFileName,
            openBridgeTerrainModal, closeBridgeTerrainModal, applyBridgeTileUnder, clearBridgeTileUnder };
@@ -13762,7 +13795,8 @@ window.addEventListener('load', async () => {
   });
   Canvas.centerOnCity();
   if (_mapRestored) { UI.updateSettlementCount(); UI.updateStatusSize(); }
-  if (!_mapRestored && IO.getRestoreProblem()) UI.toast('⚠ ' + IO.getRestoreProblem(), { sticky: true, detail: 'A blank map was started instead. Open a saved map file if you have one.' });
+  if (IO.isAutosaveProtected()) UI.toast('⚠ ' + (IO.getRestoreProblem() || 'The saved map could not be read'), { sticky: true,
+    detail: 'The previous autosave was kept untouched and autosaving to it is paused (changes go to a side copy). Reload the page to retry; opening or creating a map resumes normal saving.' });
   // Force a canvas redraw when the tab becomes visible again after being
   // inactive — the browser may have discarded the canvas contents while hidden.
   document.addEventListener('visibilitychange', () => {
