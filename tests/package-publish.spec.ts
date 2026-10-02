@@ -37,3 +37,24 @@ test('confirming the dialog publishes', async ({ page }) => {
   await page.getByRole('button', { name: 'Publish', exact: true }).click();
   await expect.poll(() => gh.putPaths()).toContain('packages/difpkg/hex_database.json');
 });
+
+test('a server entry without an id is listed as removed', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await setup(page, gh);
+  gh.setJson('packages/difpkg/hex_database.json', { version: 1, package: 'difpkg',
+    hexes: [hex('Difpkg_Same'), hex('Difpkg_A'), { package: 'difpkg', spriteName: 'orphan', type: 'Plains' }] });
+  await page.evaluate(() => { Packages.openPublishConfirm('difpkg'); });
+  await expect(page.locator('#dialog-details')).toContainText('- unkeyed hex');
+  await expect(page.locator('#dialog-details')).toContainText('orphan');
+});
+
+test('a failing read of the published files blocks the dialog and writes nothing', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await setup(page, gh);
+  await page.route(/packages\/difpkg\/hex_database\.json/, r => r.fulfill({ status: 500, headers: { 'access-control-allow-origin': '*' }, body: 'boom' }));
+  await page.evaluate(() => { Packages.openPublishConfirm('difpkg'); });
+  await expect(page.locator('#toast-container')).toContainText('Could not compare');
+  await expect(page.locator('#dialog-details')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
+  expect(gh.putPaths()).toEqual([]);
+});

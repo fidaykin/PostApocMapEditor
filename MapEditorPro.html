@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "ea4f023";
+const COMMIT  = "2ecbadb";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4760,16 +4760,18 @@ const SyncMerge = (() => {
     return { merged, conflicts, fromServer, kept, dropped };
   }
 
-  // Compares two entry arrays by package+id; returns display ids.
+  // Compares two entry arrays by package+id; returns display ids. Entries with no usable id or a
+  // repeated package+id cannot be matched; they are returned whole in unkeyedLocal / unkeyedServer.
   function diff(local, server) {
-    const L = _index(local), S = _index(server);
+    const unkeyedLocal = [], unkeyedServer = [];
+    const L = _index(local, unkeyedLocal), S = _index(server, unkeyedServer);
     const added = [], changed = [], removed = [];
     for (const [k, l] of L) {
       if (!S.has(k)) added.push(l.id);
       else if (!same(l, S.get(k))) changed.push(l.id);
     }
     for (const [k, s] of S) if (!L.has(k)) removed.push(s.id);
-    return { added, changed, removed };
+    return { added, changed, removed, unkeyedLocal, unkeyedServer };
   }
 
   const _baseKey = kind => `sync_base_${kind}`;
@@ -8121,7 +8123,12 @@ const Packages = (() => {
       ...x.changed.map(i => `~ ${tag} ${i}`),
       ...x.removed.map(i => `- ${tag} ${i}`),
     ];
-    return [summary('Hex tiles', d.hex), summary('Buildings', d.bld), '', ...rows('hex', d.hex), ...rows('bld', d.bld)].join('\n');
+    const unkeyed = (tag, x) => [
+      ...x.unkeyedLocal.map(e => `+ unkeyed ${tag} ${JSON.stringify(e).slice(0, 120)}`),
+      ...x.unkeyedServer.map(e => `- unkeyed ${tag} ${JSON.stringify(e).slice(0, 120)}`),
+    ];
+    return [summary('Hex tiles', d.hex), summary('Buildings', d.bld), '',
+      ...rows('hex', d.hex), ...rows('bld', d.bld), ...unkeyed('hex', d.hex), ...unkeyed('bld', d.bld)].join('\n');
   }
 
   async function openPublishConfirm(id) {
@@ -8138,7 +8145,7 @@ const Packages = (() => {
     let d;
     try { d = await diffAgainstServer(id); }
     catch(e) { return UI.toast(`⚠ Could not compare "${name}" with the server`, { detail: e.message, ms: 6000 }); }
-    const nothing = ![d.hex, d.bld].some(x => x.added.length || x.changed.length || x.removed.length);
+    const nothing = ![d.hex, d.bld].some(x => x.added.length || x.changed.length || x.removed.length || x.unkeyedLocal.length || x.unkeyedServer.length);
     const head = d.firstPublish ? 'First publish of this package.' : `Server version: ${d.version}.`;
     const ok = await UI.confirm('Publish Package',
       `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; sprites and the version number are still updated.' : ''}`,
@@ -10521,7 +10528,6 @@ const HexDB = (() => {
     return { pkgId, conflicts: res.conflicts, fromServer: res.fromServer, kept: res.kept, dropped: res.dropped };
   }
 
-  // Appends entries (e.g. from an imported package); an entry with the same package+id is replaced.
   // Migrated deep copy of foreign entries (e.g. the published file), so they compare equal to
   // local entries that already went through the migrations. Does not touch _data.
   function migrateCopy(entries) {
@@ -10530,6 +10536,7 @@ const HexDB = (() => {
     return c;
   }
 
+  // Appends entries (e.g. from an imported package); an entry with the same package+id is replaced.
   function addEntries(entries) {
     const keyOf = h => `${h.package || 'postapoc'}::${h.id}`;
     const incoming = structuredClone(entries || []);
