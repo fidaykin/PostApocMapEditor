@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "f150bf9";
+const COMMIT  = "4831434";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2951,29 +2951,33 @@ const Canvas = (() => {
 
     // Bridge overlays
     bridgesData.forEach(b => {
+      if (b.col < colMin || b.col > colMax || b.row < rowMin || b.row > rowMax) return;
       const pos = hexScreenPos(b.col, b.row);
       if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
           pos.y + radius < 0 || pos.y - radius > canvas.height) return;
       _drawBridgeOverlay(pos.x, pos.y, radius, b.axis);
     });
 
-    // Road overlays
-    Object.entries(roadsData).forEach(([key]) => {
-      const [col, row] = key.split(',').map(Number);
+    // Road overlays (parsed key list cached, see _syncKeyCache)
+    const _rc = _syncKeyCache(_roadCache, roadsData, false);
+    for (let i = 0; i < _rc.keys.length; i++) {
+      const col = _rc.cols[i], row = _rc.rows[i];
+      if (col < colMin || col > colMax || row < rowMin || row > rowMax) continue;   // range ⊇ exact test below
       const pos = hexScreenPos(col, row);
       if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
-          pos.y + radius < 0 || pos.y - radius > canvas.height) return;
+          pos.y + radius < 0 || pos.y - radius > canvas.height) continue;
       _drawRoadOverlay(pos.x, pos.y, radius, Roads.calcBitmask(col, row));
-    });
+    }
 
     // Pre-placed object overlays
-    Object.entries(objectsData).forEach(([key, bldId]) => {
-      const [col, row] = key.split(',').map(Number);
-      const pos = hexScreenPos(col, row);
+    const _oc = _syncKeyCache(_objectCache, objectsData, true);
+    for (let i = 0; i < _oc.keys.length; i++) {
+      if (_oc.cols[i] < colMin || _oc.cols[i] > colMax || _oc.rows[i] < rowMin || _oc.rows[i] > rowMax) continue;
+      const pos = hexScreenPos(_oc.cols[i], _oc.rows[i]);
       if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
-          pos.y + radius < 0 || pos.y - radius > canvas.height) return;
-      _drawObjectOverlay(pos.x, pos.y, radius, bldId);
-    });
+          pos.y + radius < 0 || pos.y - radius > canvas.height) continue;
+      _drawObjectOverlay(pos.x, pos.y, radius, _oc.vals[i]);
+    }
 
     // Rect preview overlay drawn by Tools if needed
     if (_toolsRectPreview) {
@@ -3060,6 +3064,34 @@ const Canvas = (() => {
       _blkInput.value = String.fromCharCode(65 + b.col) + ':' + (b.row + 1);
     }
     if (_showRulers) { _drawBlockGrid(); _drawRulers(); }
+  }
+
+  // ── Overlay key caches ───────────────────────────────────
+  // roadsData/objectsData are {"col,row": value} maps mutated in place and reassigned from
+  // many places, so instead of invalidation hooks the cache revalidates by comparing the
+  // live key order (and values, for objects) with the cached copy: no string parsing,
+  // no allocation when nothing changed.
+  const _roadCache   = { keys: [], vals: [], cols: [], rows: [] };
+  const _objectCache = { keys: [], vals: [], cols: [], rows: [] };
+  function _syncKeyCache(cache, obj, trackValues) {
+    let i = 0, same = true;
+    for (const k in obj) {
+      if (i >= cache.keys.length || cache.keys[i] !== k || (trackValues && cache.vals[i] !== obj[k])) { same = false; break; }
+      i++;
+    }
+    if (same && i === cache.keys.length) return cache;
+    const keys = Object.keys(obj);
+    cache.keys = keys;
+    cache.vals = trackValues ? keys.map(k => obj[k]) : [];
+    cache.cols = new Array(keys.length);
+    cache.rows = new Array(keys.length);
+    for (let j = 0; j < keys.length; j++) {
+      const comma = keys[j].indexOf(',');
+      cache.cols[j] = +keys[j].slice(0, comma);
+      cache.rows[j] = +keys[j].slice(comma + 1);
+    }
+    _stats.overlayRebuilds++;
+    return cache;
   }
 
   function _drawBridgeOverlay(cx, cy, radius, axis) {
