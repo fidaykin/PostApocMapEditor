@@ -59,17 +59,17 @@ test('warns again after the 60 s window and clears state after a successful save
   await page.evaluate(() => StorageGuard.setItem('k', 'v', 'Foo'));
   await page.evaluate(() => StorageGuard.setItem('k', 'v', 'Foo'));
   await expect(warn).toHaveCount(1);
-  // 61 s later the same label warns again
+  // 61 s later the same label warns again, replacing (not stacking on) the old toast
   await page.evaluate(() => { const n = Date.now(); Date.now = () => n + 61000; });
   await page.evaluate(() => StorageGuard.setItem('k', 'v', 'Foo'));
-  await expect(warn).toHaveCount(2);
-  // a successful save removes the stale warning and resets the throttle
+  await expect(warn).toHaveCount(1);
+  // a successful save removes the warning and resets the throttle
   await fixStorage(page);
   expect(await page.evaluate(() => StorageGuard.setItem('k', 'v', 'Foo'))).toBe(true);
-  await expect(warn).toHaveCount(1);   // only the older (already-orphaned) one remains
+  await expect(warn).toHaveCount(0);
   await breakStorage(page);
   await page.evaluate(() => StorageGuard.setItem('k', 'v', 'Foo'));
-  await expect(warn).toHaveCount(2);   // immediately warns again: throttle was reset
+  await expect(warn).toHaveCount(1);   // immediately warns again: throttle was reset
 });
 
 test('map autosave failure is surfaced', async ({ page }) => {

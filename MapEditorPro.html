@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "e371169";
+const COMMIT  = "96e0a54";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4723,6 +4723,8 @@ const StorageGuard = (() => {
       if (last !== undefined && now >= last && now - last < 60000) return;
       _lastWarn[label] = now;
       const quota = err && (err.name === 'QuotaExceededError' || err.code === 22);
+      const prev = _toasts[label];
+      if (prev && prev.isConnected) prev.remove();
       _toasts[label] = UI.toast(`⚠ ${label} not saved${quota ? ': browser storage is full' : ''}`, {
         sticky: true,
         detail: `${err && err.message ? err.message : err}\nExport your work (Save map / Save DB) so it is not lost.`,
