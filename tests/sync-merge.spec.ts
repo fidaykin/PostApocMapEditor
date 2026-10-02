@@ -75,3 +75,10 @@ test('undefined values equal missing keys', async ({ page }) => {
   const r = await page.evaluate(() => SyncMerge.same({ id: 'A', a: undefined }, { id: 'A' }));
   expect(r).toBe(true);
 });
+
+test('SyncMerge.diff lists added, changed and removed ids', async ({ page }) => {
+  const d = await page.evaluate(() => SyncMerge.diff(
+    [{ id: 'N' }, { id: 'C', v: 2 }, { id: 'S', v: 1 }],
+    [{ id: 'C', v: 1 }, { id: 'S', v: 1 }, { id: 'G' }]));
+  expect(d).toEqual({ added: ['N'], changed: ['C'], removed: ['G'] });
+});

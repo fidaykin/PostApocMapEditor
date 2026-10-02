@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "fc72621";
+const COMMIT  = "ea4f023";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4760,6 +4760,18 @@ const SyncMerge = (() => {
     return { merged, conflicts, fromServer, kept, dropped };
   }
 
+  // Compares two entry arrays by package+id; returns display ids.
+  function diff(local, server) {
+    const L = _index(local), S = _index(server);
+    const added = [], changed = [], removed = [];
+    for (const [k, l] of L) {
+      if (!S.has(k)) added.push(l.id);
+      else if (!same(l, S.get(k))) changed.push(l.id);
+    }
+    for (const [k, s] of S) if (!L.has(k)) removed.push(s.id);
+    return { added, changed, removed };
+  }
+
   const _baseKey = kind => `sync_base_${kind}`;
 
   function loadBase(kind) {
@@ -4775,7 +4787,7 @@ const SyncMerge = (() => {
     catch (e) { console.warn('[sync] could not store merge base:', e.message); return false; }
   }
 
-  return { same, keyOf, merge3, loadBase, saveBase };
+  return { same, keyOf, merge3, diff, loadBase, saveBase };
 })();
 
 
@@ -8078,7 +8090,41 @@ const Packages = (() => {
   }
 
   // ── Publish Package ────────────────────────────────────────────
-  function openPublishConfirm(id) {
+  // A 404 means "not published yet"; any other failure must not look like an empty server.
+  async function _fetchPublished(id) {
+    const get = async file => {
+      const r = await fetch(`${BASE_URL}/packages/${id}/${file}?_=${Date.now()}`);
+      if (r.status === 404) return null;
+      if (!r.ok) throw new Error(`${file}: HTTP ${r.status}`);
+      return r.json();
+    };
+    const [hexData, bldData, pkg] = await Promise.all([get('hex_database.json'), get('building_database.json'), get('package.json')]);
+    return { hexes: hexData?.hexes || [], buildings: bldData?.buildings || [], pkg };
+  }
+
+  async function diffAgainstServer(id) {
+    const pub = await _fetchPublished(id);
+    const localHex = HexDB.getData().hexes.filter(h => h.package === id);
+    const localBld = BldDB.getAll().filter(b => b.package === id);
+    return {
+      hex: SyncMerge.diff(localHex, HexDB.migrateCopy(pub.hexes)),
+      bld: SyncMerge.diff(localBld, BldDB.migrateCopy(pub.buildings)),
+      firstPublish: !pub.pkg,
+      version: pub.pkg?.version || null,
+    };
+  }
+
+  function _formatDiff(d) {
+    const summary = (label, x) => `${label}: ${x.added.length} new, ${x.changed.length} changed, ${x.removed.length} only on server`;
+    const rows = (tag, x) => [
+      ...x.added.map(i => `+ ${tag} ${i}`),
+      ...x.changed.map(i => `~ ${tag} ${i}`),
+      ...x.removed.map(i => `- ${tag} ${i}`),
+    ];
+    return [summary('Hex tiles', d.hex), summary('Buildings', d.bld), '', ...rows('hex', d.hex), ...rows('bld', d.bld)].join('\n');
+  }
+
+  async function openPublishConfirm(id) {
     if (isDefault(id)) {
       // postapoc: use existing publish functions
       UI.showConfirm('Publish postapoc', 'Publish hex_database.json and building_database.json?', async () => {
@@ -8089,11 +8135,15 @@ const Packages = (() => {
     }
     const entry = getEntry(id);
     const name  = entry?.name || id;
-    const hexCount = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => h.package === id).length;
-    const bldCount = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.package === id).length;
-    UI.showConfirm('Publish Package',
-      `Publish "${name}"? (${hexCount} hex tiles, ${bldCount} buildings, plus their sprites)`,
-      () => publishPackage(id));
+    let d;
+    try { d = await diffAgainstServer(id); }
+    catch(e) { return UI.toast(`⚠ Could not compare "${name}" with the server`, { detail: e.message, ms: 6000 }); }
+    const nothing = ![d.hex, d.bld].some(x => x.added.length || x.changed.length || x.removed.length);
+    const head = d.firstPublish ? 'First publish of this package.' : `Server version: ${d.version}.`;
+    const ok = await UI.confirm('Publish Package',
+      `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; sprites and the version number are still updated.' : ''}`,
+      _formatDiff(d), 'Publish');
+    if (ok) publishPackage(id);
   }
 
   async function publishPackage(id) {
@@ -8412,7 +8462,7 @@ const Packages = (() => {
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
            openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, publishPackage, publishPackageSprites, confirmDelete, deletePackage,
+           openPublishConfirm, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal,
            _rewriteEntries, confirmImport };
@@ -10472,6 +10522,14 @@ const HexDB = (() => {
   }
 
   // Appends entries (e.g. from an imported package); an entry with the same package+id is replaced.
+  // Migrated deep copy of foreign entries (e.g. the published file), so they compare equal to
+  // local entries that already went through the migrations. Does not touch _data.
+  function migrateCopy(entries) {
+    const c = structuredClone(entries || []);
+    _migrateAll(c);
+    return c;
+  }
+
   function addEntries(entries) {
     const keyOf = h => `${h.package || 'postapoc'}::${h.id}`;
     const incoming = structuredClone(entries || []);
@@ -10677,7 +10735,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, addEntries, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, addEntries, migrateCopy, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
 })();
 
 window.HexDB = HexDB;
@@ -11898,6 +11956,12 @@ const BldDB = (() => {
   }
   function getAll() { return _data.buildings || []; }
 
+  function migrateCopy(entries) {
+    const c = structuredClone(entries || []);
+    c.forEach(_migrate);
+    return c;
+  }
+
   function addEntries(entries) {
     const keyOf = b => `${b.package || 'postapoc'}::${b.id}`;
     const incoming = structuredClone(entries || []);
@@ -11930,7 +11994,7 @@ const BldDB = (() => {
   }
 
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
-           mergeFromServer, addEntries,
+           mergeFromServer, addEntries, migrateCopy,
            pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
