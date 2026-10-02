@@ -69,7 +69,7 @@ test.describe('undo history measurement', () => {
           let generatorChangedTiles = 0;
           if (scenario === 'worst') {
             const before = mapData.slice();
-            History.clear(); Generator.apply();   // default seed 42 (apply() pushes once; cleared below)
+            History.clear(); await Generator.apply();   // default seed 42 (apply() pushes once; cleared below)
             for (let i = 0; i < mapData.length; i++) if (mapData[i] !== before[i]) generatorChangedTiles++;
           }
           for (let i = 0; i < plan.roads; i++) roadsData[key(i, 7919)] = { type: 'road_hex' };

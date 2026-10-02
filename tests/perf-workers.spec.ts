@@ -414,3 +414,306 @@ test('deploy-dev.yml publishes map-jobs.js/map-worker.js into dev/ and rewrites 
     expect(published || DEV_DEPLOY_ALLOWLIST.includes(s), `local script ${s} is neither published into dev/ nor allowlisted`).toBe(true);
   }
 });
+
+// ───────────────────────── T1.10: Generator in the worker ─────────────────────────
+declare const Generator: any, MAP_WIDTH: number;
+
+async function setSeed(page: Page, seed: number) {
+  await page.evaluate((seed) => { (document.getElementById('gen-seed') as HTMLInputElement).value = String(seed); }, seed);
+}
+// Count tiles whose id belongs to a River/Lake edge tile (HexDB type Rivers or Water with edge faces).
+const RIVER_COUNT = `(() => { let n = 0; for (const id of mapData) { const e = Terrain.byHexId(id); if (e && e.type === 'Rivers') n++; } return n; })()`;
+
+test('generator via worker equals baseline', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  await setSeed(page, 42);
+  await page.evaluate(async () => { await Generator.apply(); });
+  expect(await page.evaluate(() => WorkerJobs.usingWorker())).toBe(true);
+  checkBaseline('generator_seed42', await hashMapData(page));
+});
+
+test('generator synchronous fallback equals baseline', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  await page.evaluate(() => WorkerJobs.forceSync(true));
+  await setSeed(page, 42);
+  await page.evaluate(async () => { await Generator.apply(); });
+  expect(await page.evaluate(() => WorkerJobs.usingWorker())).toBe(false);
+  checkBaseline('generator_seed42', await hashMapData(page));
+});
+
+test('Worker constructor throwing: generator falls back with the baseline result', async ({ page }) => {
+  await page.addInitScript(() => { (window as any).Worker = function () { throw new DOMException('blocked', 'SecurityError'); }; });
+  await openEditor(page);
+  await setupScene(page);
+  await setSeed(page, 42);
+  await page.evaluate(async () => { await Generator.apply(); });
+  expect(await page.evaluate(() => WorkerJobs.usingWorker())).toBe(false);
+  checkBaseline('generator_seed42', await hashMapData(page));
+});
+
+test('worker version mismatch: generator falls back with the baseline result', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).Worker = function (this: any) {
+      const w: any = this; w.terminate = () => {};
+      w.postMessage = (m: any) => setTimeout(() => w.onmessage && w.onmessage({ data: { id: m.id, kind: 'version-mismatch' } }), 5);
+    };
+  });
+  await openEditor(page);
+  await setupScene(page);
+  await setSeed(page, 42);
+  await page.evaluate(async () => { await Generator.apply(); });
+  checkBaseline('generator_seed42', await hashMapData(page));
+});
+
+test('river tiles and the whole map are identical between worker and fallback (non-default seed, rivers on)', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  await page.evaluate(() => { (document.getElementById('gen-rivers') as HTMLInputElement).value = '6'; });
+  await setSeed(page, 9137);
+  await page.evaluate(async () => { await Generator.apply(); });
+  const viaWorker = { hash: await hashMapData(page), rivers: await page.evaluate(RIVER_COUNT) as number, used: await page.evaluate(() => WorkerJobs.usingWorker()) };
+  await setupScene(page);
+  await page.evaluate(() => WorkerJobs.forceSync(true));
+  await page.evaluate(() => { (document.getElementById('gen-rivers') as HTMLInputElement).value = '6'; });
+  await setSeed(page, 9137);
+  await page.evaluate(async () => { await Generator.apply(); });
+  const viaSync = { hash: await hashMapData(page), rivers: await page.evaluate(RIVER_COUNT) as number, used: await page.evaluate(() => WorkerJobs.usingWorker()) };
+  expect(viaWorker.used).toBe(true);
+  expect(viaSync.used).toBe(false);
+  expect(viaWorker.rivers).toBeGreaterThan(20);        // rivers were really carved and edge-resolved
+  expect(viaSync).toEqual({ ...viaWorker, used: false });
+});
+
+test('preview job output is identical between worker and the direct MapJobs call (also debug maps)', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  await setSeed(page, 5);
+  const ok = await page.evaluate(async () => {
+    const same = (a: any, b: any) =>
+      JSON.stringify(a.names) === JSON.stringify(b.names) && a.grid.length === b.grid.length &&
+      a.grid.every((v: number, i: number) => v === b.grid[i]) &&
+      (!a.elev || (a.elev.every((v: number, i: number) => v === b.elev[i]) && a.moist.every((v: number, i: number) => v === b.moist[i])));
+    const out: boolean[] = [];
+    for (const debug of [false, true]) {
+      const job = Generator._buildJob({ skipExpensive: true, debug });
+      const w = await WorkerJobs.run('generate', job, { owner: 'generator' });
+      const usedWorker = WorkerJobs.usingWorker();
+      const d = MapJobs.generate(Generator._buildJob({ skipExpensive: true, debug }));
+      out.push(usedWorker && same(w, d));
+    }
+    return out;
+  });
+  expect(ok).toEqual([true, true]);
+});
+
+test('main thread stays responsive and progress shows during Generate', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  const r = await page.evaluate(async () => {
+    let last = performance.now(), gap = 0, on = true, ticks = 0;
+    const tick = () => { const n = performance.now(); gap = Math.max(gap, n - last); last = n; ticks++; if (on) setTimeout(tick, 1); };
+    setTimeout(tick, 1);
+    const p = Generator.apply();
+    const progressShown = document.getElementById('progress-wrap')!.classList.contains('active');
+    await p;
+    const ticksAtResolve = ticks;
+    on = false;
+    return { gap, progressShown, ticksAtResolve };
+  });
+  expect(r.progressShown).toBe(true);
+  expect(r.ticksAtResolve).toBeGreaterThan(5);     // the ticker kept running DURING the job
+  expect(r.gap).toBeLessThan(150);
+});
+
+test('longest main-thread block: Generate apply (worker vs forced sync) and a preview refresh', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  const measure = async (sync: boolean, fn: string) => page.evaluate(async ({ sync, fn }) => {
+    WorkerJobs.forceSync(sync);
+    let last = performance.now(), gap = 0, on = true;
+    const tick = () => { const n = performance.now(); gap = Math.max(gap, n - last); last = n; if (on) setTimeout(tick, 0); };
+    setTimeout(tick, 0);
+    const t0 = performance.now();
+    await (0, eval)(fn);
+    const wall = performance.now() - t0;
+    await new Promise(r => setTimeout(r, 30));
+    on = false; WorkerJobs.forceSync(false);
+    return { gap: Math.round(gap), wall: Math.round(wall) };
+  }, { sync, fn });
+  const apply = '(async()=>{ await Generator.apply(); })()';
+  const preview = '(async()=>{ Generator.open(); Generator.schedule(); await new Promise(r=>setTimeout(r,1200)); Generator.close(); })()';
+  const applySync = await measure(true, apply);
+  await setupScene(page);
+  const applyWorker = await measure(false, apply);
+  const prevSync = await measure(true, preview);
+  const prevWorker = await measure(false, preview);
+  test.info().annotations.push({ type: 'blocks-ms', description: JSON.stringify({ applySync, applyWorker, prevSync, prevWorker }) });
+  console.log('BLOCKS ' + JSON.stringify({ applySync, applyWorker, prevSync, prevWorker }));
+  expect(applyWorker.gap).toBeLessThan(100);
+});
+
+test('rapid preview changes cancel earlier jobs; latest request wins and does not pile up workers', async ({ page }) => {
+  await page.addInitScript(() => {
+    const Real = (window as any).Worker; (window as any).__made = 0; (window as any).__term = 0;
+    (window as any).Worker = function (...a: any[]) { (window as any).__made++; const w = new Real(...a); const t = w.terminate.bind(w); w.terminate = () => { (window as any).__term++; t(); }; return w; };
+  });
+  await openEditor(page);
+  await setupScene(page);
+  const r = await page.evaluate(async () => {
+    const cv = document.getElementById('gen-preview') as HTMLCanvasElement;
+    const sig = () => { const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data; let h = 0; for (let i = 0; i < d.length; i += 4) h = (h * 31 + d[i] + d[i + 1] * 3 + d[i + 2] * 7) >>> 0; return h; };
+    Generator.open();
+    await new Promise(r => setTimeout(r, 1200));         // settle the initial preview
+    const base = { made: (window as any).__made, term: (window as any).__term };
+    const sigs: number[] = [];
+    // two requests that reach _renderPreview back to back (debounce bypassed through the public job path)
+    const seed = document.getElementById('gen-seed') as HTMLInputElement;
+    const calls: Promise<any>[] = [];
+    for (const v of ['11', '12', '13']) {
+      seed.value = v;
+      calls.push(WorkerJobs.run('generate', Generator._buildJob({ skipExpensive: true }), { owner: 'generator' }).then(() => 'ok', (e: any) => e.cancelled ? 'cancelled' : 'err'));
+      WorkerJobs.cancel('generator');                       // what _renderPreview does before starting the next job
+    }
+    const res = await Promise.all(calls);
+    seed.value = '20'; Generator.schedule();
+    const before = sig();
+    seed.value = '21'; Generator.schedule();                // debounced: only the last one runs
+    await new Promise(r => setTimeout(r, 1500));
+    return { res, made: (window as any).__made - base.made, changed: sig() !== before, live: (WorkerJobs as any).usingWorker() };
+  });
+  expect(r.res).toEqual(['cancelled', 'cancelled', 'cancelled']);
+  expect(r.changed).toBe(true);
+});
+
+test('preview: a newer request terminates the older in-flight generator job', async ({ page }) => {
+  await page.addInitScript(() => {
+    (window as any).__term = 0; (window as any).__made = 0;
+    (window as any).Worker = function (this: any) { const w: any = this; (window as any).__made++; w.postMessage = () => {}; w.terminate = () => { (window as any).__term++; }; };
+  });
+  await openEditor(page);
+  await setupScene(page);
+  const r = await page.evaluate(async () => {
+    Generator.open();                      // schedules preview 1 (debounced 150 ms)
+    await new Promise(r => setTimeout(r, 400));
+    const afterOne = { made: (window as any).__made, term: (window as any).__term };   // job 1 hangs (fake worker)
+    Generator.schedule();
+    await new Promise(r => setTimeout(r, 400));
+    const afterTwo = { made: (window as any).__made, term: (window as any).__term };
+    Generator.close();
+    return { afterOne, afterTwo, final: (window as any).__term };
+  });
+  expect(r.afterOne).toEqual({ made: 1, term: 0 });
+  expect(r.afterTwo).toEqual({ made: 2, term: 1 });   // older job terminated when the newer started
+  expect(r.final).toBe(2);                            // closing the modal terminates the last one
+});
+
+test('owner-scoped cancellation: cancelling the satellite job leaves a generator job running, and vice versa', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  await loadSyntheticSatellite(page, 320);
+  const r = await page.evaluate(async () => {
+    const out: any = { sat: 'pending', gen: 'pending' };
+    const sat = WorkerJobs.run('satellite', { pixels: new Uint8ClampedArray(64 * 64 * 4), w: 64, h: 64, W: 450, H: 450, T: Satellite._getT(), sampleR: 6, sens: 0.5, flipY: false }, { owner: 'satellite' })
+      .then(() => out.sat = 'ok', (e: any) => out.sat = e.cancelled ? 'cancelled' : 'err');
+    const gen = WorkerJobs.run('generate', Generator._buildJob({}), { owner: 'generator' })
+      .then(() => out.gen = 'ok', (e: any) => out.gen = e.cancelled ? 'cancelled' : 'err');
+    WorkerJobs.cancel('satellite');
+    await sat;
+    const afterCancel = { ...out };
+    await gen;
+    // vice versa
+    const out2: any = {};
+    const sat2 = WorkerJobs.run('satellite', { pixels: new Uint8ClampedArray(64 * 64 * 4), w: 64, h: 64, W: 450, H: 450, T: Satellite._getT(), sampleR: 6, sens: 0.5, flipY: false }, { owner: 'satellite' })
+      .then(() => out2.sat = 'ok', (e: any) => out2.sat = e.cancelled ? 'cancelled' : 'err');
+    const gen2 = WorkerJobs.run('generate', Generator._buildJob({}), { owner: 'generator' })
+      .then(() => out2.gen = 'ok', (e: any) => out2.gen = e.cancelled ? 'cancelled' : 'err');
+    WorkerJobs.cancel('generator');
+    await gen2; await sat2;
+    return { afterCancel, final: out, out2 };
+  });
+  expect(r.afterCancel).toEqual({ sat: 'cancelled', gen: 'pending' });
+  expect(r.final).toEqual({ sat: 'cancelled', gen: 'ok' });
+  expect(r.out2).toEqual({ gen: 'cancelled', sat: 'ok' });
+});
+
+test('Generate result for a different map size is discarded (nothing written, no undo entry)', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  const r = await page.evaluate(async () => {
+    const toasts: string[] = []; const o = UI.toast; UI.toast = (m: string) => { toasts.push(String(m)); };
+    const before = mapData.slice(); const undo0 = History.undoSize();
+    const p = Generator.apply();
+    (0, eval)('MAP_WIDTH = 100; MAP_HEIGHT = 100; mapData = new Array(10000).fill("Plain_1");');
+    await p;
+    UI.toast = o;
+    return { allPlain: mapData.every((id: string) => id === 'Plain_1'), len: mapData.length, undo: History.undoSize() - undo0, toasts, btn: (document.querySelector('#gen-modal .btn-primary') as HTMLButtonElement).disabled };
+  });
+  expect(r.allPlain).toBe(true);
+  expect(r.len).toBe(10000);
+  expect(r.undo).toBe(0);
+  expect(r.toasts.join('|')).toMatch(/discarded/);
+  expect(r.btn).toBe(false);                             // modal not stuck
+});
+
+test('Generate pushes exactly one undo entry and undo restores the map', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  const h0 = await hashMapData(page);
+  const u0 = await page.evaluate(() => History.undoSize());
+  await page.evaluate(async () => { await Generator.apply(); });
+  expect(await page.evaluate(() => History.undoSize())).toBe(u0 + 1);
+  await page.evaluate(() => History.undo());
+  expect(await hashMapData(page)).toBe(h0);
+});
+
+test('Generate: worker error toasts, progress is cleaned up and the button is re-enabled', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  const r = await page.evaluate(async () => {
+    const toasts: string[] = []; const o = UI.toast; UI.toast = (m: string) => { toasts.push(String(m)); };
+    const orig = MapJobs.generate; MapJobs.generate = () => { throw new Error('boom'); };
+    WorkerJobs.forceSync(true);
+    await Generator.apply();
+    MapJobs.generate = orig; WorkerJobs.forceSync(false); UI.toast = o;
+    await new Promise(r => setTimeout(r, 700));
+    return { toasts, btn: (document.querySelector('#gen-modal .btn-primary') as HTMLButtonElement).disabled, active: document.getElementById('progress-wrap')!.classList.contains('active') };
+  });
+  expect(r.toasts.join('|')).toMatch(/Generation failed: boom/);
+  expect(r.btn).toBe(false);
+  expect(r.active).toBe(false);
+});
+
+test('page refuses a map-jobs.js whose VERSION differs from the page constant', async ({ page }) => {
+  await openEditor(page);
+  const r = await page.evaluate(async () => {
+    const v = MapJobs.VERSION; MapJobs.VERSION = v + 100;
+    let msg = ''; try { await WorkerJobs.run('satellite', {}); } catch (e: any) { msg = e.message; }
+    MapJobs.VERSION = v;
+    return { msg, v, page: (0, eval)('MAP_JOBS_VERSION') };
+  });
+  expect(r.msg).toMatch(/does not match this page/);
+  expect(r.v).toBe(r.page);
+  expect(r.v).toBe(2);
+});
+
+test('version, ?v= query, worker importScripts and deploy-dev.yml agree', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'MapEditorPro.html'), 'utf8');
+  const jobs = fs.readFileSync(path.join(ROOT, 'map-jobs.js'), 'utf8');
+  const worker = fs.readFileSync(path.join(ROOT, 'map-worker.js'), 'utf8');
+  const yml = fs.readFileSync(path.join(ROOT, '.github/workflows/deploy-dev.yml'), 'utf8');
+  const v = Number(/MapJobs\.VERSION = (\d+);/.exec(jobs)![1]);
+  expect(Number(/const MAP_JOBS_VERSION = (\d+);/.exec(html)![1])).toBe(v);
+  expect(html).toContain(`<script src="map-jobs.js?v=${v}"></script>`);
+  expect(html).toContain(`new Worker('map-worker.js?v=${v}')`);
+  expect(worker).toContain(`importScripts('map-jobs.js?v=${v}')`);
+  expect(yml).toContain(`src="dev/map-jobs.js?v=${v}"`);
+  expect(yml).toContain(`new Worker('dev/map-worker.js?v=${v}'`);
+});
+
+test('generator core lives only in map-jobs.js (no duplicate in the page)', () => {
+  const html = fs.readFileSync(path.join(ROOT, 'MapEditorPro.html'), 'utf8');
+  for (const fn of ['_makeNoise2D', '_multiOctave', '_smoothTerrain', '_generateInto', '_lcg']) expect(html).not.toContain('function ' + fn);
+  expect(fs.readFileSync(path.join(ROOT, 'map-jobs.js'), 'utf8')).toContain('MapJobs.generate = ');
+});
