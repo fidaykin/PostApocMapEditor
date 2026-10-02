@@ -333,6 +333,11 @@ body:not(.mode-map) #statusbar { display: none; }
   opacity: 1; transition: opacity 0.4s ease;
 }
 .toast.fade-out { opacity: 0; }
+.toast .toast-detail { display: block; margin-top: 4px; font-size: 11px; color: var(--muted); white-space: pre-wrap; max-width: 420px; }
+.toast.sticky { pointer-events: auto; cursor: pointer; border-color: var(--danger); }
+#dialog-details { background: var(--bg); border: 1px solid var(--border); border-radius: 4px; padding: 8px; font: 12px/1.4 monospace; max-height: 240px; overflow: auto; white-space: pre-wrap; margin: 0 0 16px; }
+#dialog-input-wrap { margin-bottom: 16px; }
+#dialog-input { width: 100%; padding: 6px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; }
 
 /* ── Progress bar ───────────────────────────────────────────── */
 #progress-wrap {
@@ -2314,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "262b2ed";
+const COMMIT  = "4d18f26";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5882,6 +5887,106 @@ const UI = (() => {
     document.getElementById('confirm-modal').classList.remove('open');
   }
 
+  // ── Promise-based dialogs (replace native alert/prompt/confirm) ────
+  let _dlgResolve = null;
+
+  function _dlgEl() {
+    let ov = document.getElementById('dialog-modal');
+    if (ov) return ov;
+    ov = document.createElement('div');
+    ov.className = 'modal-overlay';
+    ov.id = 'dialog-modal';
+    ov.innerHTML = `<div class="modal-box" style="max-width:560px">
+      <h3 id="dialog-title"></h3>
+      <p id="dialog-msg" style="white-space:pre-wrap"></p>
+      <pre id="dialog-details" style="display:none"></pre>
+      <div id="dialog-input-wrap" style="display:none"></div>
+      <div class="modal-actions" id="dialog-actions"></div>
+    </div>`;
+    document.body.appendChild(ov);
+    document.addEventListener('keydown', e => {
+      if (!_dlgResolve) return;
+      if (e.key === 'Escape') { e.stopPropagation(); _dlgClose({ button: null, input: undefined }); }
+      else if (e.key === 'Enter' && e.target && e.target.id === 'dialog-input') {
+        document.querySelector('#dialog-actions .btn-primary, #dialog-actions .btn-danger')?.click();
+      }
+    }, true);
+    return ov;
+  }
+
+  function _dlgClose(result) {
+    document.getElementById('dialog-modal')?.classList.remove('open');
+    const r = _dlgResolve;
+    _dlgResolve = null;
+    if (r) r(result);
+  }
+
+  function showDialog(opts) {
+    const { title = '', message = '', details = '', input = null,
+            buttons = [{ label: 'OK', value: 'ok', kind: 'primary' }] } = opts;
+    if (_dlgResolve) _dlgClose({ button: null, input: undefined });  // a new dialog supersedes an open one
+    const ov = _dlgEl();
+    ov.querySelector('#dialog-title').textContent = title;
+    ov.querySelector('#dialog-msg').textContent = message;
+    const det = ov.querySelector('#dialog-details');
+    det.textContent = details;
+    det.style.display = details ? '' : 'none';
+    const wrap = ov.querySelector('#dialog-input-wrap');
+    wrap.innerHTML = '';
+    wrap.style.display = input ? '' : 'none';
+    let field = null;
+    if (input) {
+      if (Array.isArray(input.options) && input.options.length) {
+        field = document.createElement('select');
+        input.options.forEach(o => {
+          const op = document.createElement('option');
+          op.value = o; op.textContent = o;
+          field.appendChild(op);
+        });
+      } else {
+        field = document.createElement('input');
+        field.type = 'text';
+        field.placeholder = input.placeholder || '';
+      }
+      field.id = 'dialog-input';
+      if (input.value !== undefined) field.value = input.value;
+      wrap.appendChild(field);
+    }
+    const actions = ov.querySelector('#dialog-actions');
+    actions.innerHTML = '';
+    buttons.forEach(b => {
+      const btn = document.createElement('button');
+      btn.className = 'btn btn-' + (b.kind || 'cancel');
+      btn.textContent = b.label;
+      btn.dataset.value = b.value;
+      btn.addEventListener('click', () => _dlgClose({ button: b.value, input: field ? field.value : undefined }));
+      actions.appendChild(btn);
+    });
+    ov.classList.add('open');
+    (field || actions.querySelector('.btn-primary, .btn-danger') || actions.lastChild)?.focus();
+    return new Promise(res => { _dlgResolve = res; });
+  }
+
+  async function alertDialog(title, message, details = '') {
+    await showDialog({ title, message, details });
+  }
+
+  async function promptDialog(title, message, value = '', options = null) {
+    const r = await showDialog({
+      title, message, input: { value, options },
+      buttons: [{ label: 'Cancel', value: 'cancel', kind: 'cancel' }, { label: 'OK', value: 'ok', kind: 'primary' }],
+    });
+    return r.button === 'ok' ? r.input : null;
+  }
+
+  async function confirmDialog(title, message, details = '', okLabel = 'OK') {
+    const r = await showDialog({
+      title, message, details,
+      buttons: [{ label: 'Cancel', value: 'cancel', kind: 'cancel' }, { label: okLabel, value: 'ok', kind: 'primary' }],
+    });
+    return r.button === 'ok';
+  }
+
   function _makeThumb(name, imgSrc, isCustom, onDelete) {
     const thumb = document.createElement('div');
     thumb.className = 'sprite-picker-thumb';
@@ -6028,13 +6133,22 @@ const UI = (() => {
     }
   }
 
-  function toast(msg) {
+  function toast(msg, opts = {}) {
     const container = document.getElementById('toast-container');
     const el = document.createElement('div');
-    el.className = 'toast';
+    el.className = 'toast' + (opts.sticky ? ' sticky' : '');
     el.textContent = msg;
+    if (opts.detail) {
+      const d = document.createElement('span');
+      d.className = 'toast-detail';
+      d.textContent = opts.detail;
+      el.appendChild(d);
+    }
     container.appendChild(el);
-    setTimeout(() => { el.classList.add('fade-out'); setTimeout(() => el.remove(), 400); }, 2000);
+    const dismiss = () => { el.classList.add('fade-out'); setTimeout(() => el.remove(), 400); };
+    if (opts.sticky) el.addEventListener('click', dismiss);
+    else setTimeout(dismiss, opts.ms || 2000);
+    return el;
   }
 
   function updateStatusTool(name) {
@@ -6071,6 +6185,7 @@ const UI = (() => {
     updateSettlementCount, updateMenuHistoryState,
     toggleSettlements, closeAllMenus,
     showConfirm, closeConfirm, toast,
+    showDialog, alert: alertDialog, prompt: promptDialog, confirm: confirmDialog,
     showSpritePicker, closeSpritePicker,
     updateStatusTool, updateStatusSize,
     rebuildSlotPanel,
