@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "1694e91";
+const COMMIT  = "e5b3169";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8234,6 +8234,15 @@ const Packages = (() => {
     }));
   }
 
+  function _blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(r.result);
+      r.onerror = () => reject(r.error);
+      r.readAsDataURL(new Blob([blob], { type: 'image/png' }));
+    });
+  }
+
   async function confirmImport() {
     const name   = document.getElementById('pkg-import-name').value.trim();
     const newId  = document.getElementById('pkg-import-id').value.trim();
@@ -8296,11 +8305,18 @@ const Packages = (() => {
         .map(([path, file]) => ({ path, file }));
 
       let done = 0;
+      const localSprites = {};   // name -> dataUrl, so imported tiles render before any publish round-trip
       for (const { path, file } of spriteFiles) {
         try {
           // path example: 'sprites/hex/Forest.png' → dest: 'packages/medieval/sprites/hex/Forest.png'
           const destPath = `packages/${newId}/${path}`;
           const blob = await file.async('blob');
+          const m = /^sprites\/(hex|buildings)\/(.+)\.png$/i.exec(path);
+          if (m) {
+            const dataUrl = await _blobToDataUrl(blob);
+            await SpriteStore.save(m[2], dataUrl, m[1].toLowerCase());
+            localSprites[m[2]] = dataUrl;
+          }
           await GitHubSync._putBinary(destPath, blob, `import ${newId}: ${path}`);
         } catch(e) {
           console.warn(`[Packages] import: skipped sprite ${path}:`, e.message);
@@ -8323,8 +8339,11 @@ const Packages = (() => {
 
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      Terrain.registerUploadedUrls(localSprites);
+      const addedHex = HexDB.addEntries(hexes);
+      const addedBld = BldDB.addEntries(buildings);
       UI.progressDone(`✅ Package '${name}' imported`);
-      UI.toast(`✅ Package '${name}' imported`);
+      UI.toast(`✅ Package '${name}' imported (${addedHex} hex tiles, ${addedBld} buildings loaded)`);
       renderPanel();
       renderActiveDropdowns();
       closeImportModal();
@@ -10399,6 +10418,23 @@ const HexDB = (() => {
     return { pkgId, conflicts: res.conflicts, fromServer: res.fromServer, kept: res.kept, dropped: res.dropped };
   }
 
+  // Appends entries (e.g. from an imported package); an entry with the same package+id is replaced.
+  function addEntries(entries) {
+    const keyOf = h => `${h.package || 'postapoc'}::${h.id}`;
+    const incoming = structuredClone(entries || []);
+    _migrateAll(incoming);
+    const keys = new Set(incoming.map(keyOf));
+    _data.hexes = [..._data.hexes.filter(h => !keys.has(keyOf(h))), ...incoming];
+    _autoSave();
+    _selFilt = -1;
+    _applyFilter(); _buildList();
+    Terrain.applyHexDbOverrides(incoming).then(() => {
+      UI.buildPalette();
+      Canvas.render();
+    });
+    return incoming.length;
+  }
+
   function getData() { return _data; }
 
   function setCommonGoldPerTap(v) {
@@ -10588,7 +10624,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, addEntries, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
 })();
 
 window.HexDB = HexDB;
@@ -11809,6 +11845,19 @@ const BldDB = (() => {
   }
   function getAll() { return _data.buildings || []; }
 
+  function addEntries(entries) {
+    const keyOf = b => `${b.package || 'postapoc'}::${b.id}`;
+    const incoming = structuredClone(entries || []);
+    incoming.forEach(_migrate);
+    const keys = new Set(incoming.map(keyOf));
+    _data.buildings = [..._data.buildings.filter(b => !keys.has(keyOf(b))), ...incoming];
+    _autoSave();
+    _selFilt = -1;
+    _applyFilter(); _buildList();
+    UI.buildPalette();
+    return incoming.length;
+  }
+
   function mergeFromServer(pkgId, serverData) {
     if (!serverData || !Array.isArray(serverData.buildings)) throw new Error('building_database.json has no buildings array');
     const incoming = structuredClone(serverData.buildings);
@@ -11828,7 +11877,7 @@ const BldDB = (() => {
   }
 
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
-           mergeFromServer,
+           mergeFromServer, addEntries,
            pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
