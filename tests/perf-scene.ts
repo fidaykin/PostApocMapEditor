@@ -1,20 +1,37 @@
 // Perf baselines (hashes + timings) are pinned to the PRE-optimisation editor and to one Chrome build.
-// After a Chrome update (see `_meta` in perf-baseline.json) regenerate them from the pre-optimisation commit:
-//   git checkout 8311164 && UPDATE_BASELINE=1 npx playwright test tests/perf-equivalence.spec.ts tests/perf-timing.spec.ts --workers=1
+// After a Chrome update (see `_meta` in perf-baseline.json) regenerate them from the pre-optimisation editor, in a
+// SCRATCH worktree (never on HEAD: that would record the optimised output and drop the pixel-identical guarantee):
+//   git worktree add ../baseline-scratch 79a4bf9 && cd ../baseline-scratch && npm install
+//   UPDATE_BASELINE=1 npx playwright test tests/perf-equivalence.spec.ts tests/perf-timing.spec.ts --workers=1
+//   cp tests/perf-baseline.json <this worktree>/tests/perf-baseline.json && cd - && git worktree remove --force ../baseline-scratch
+// 79a4bf9 has the same editor HTML as 8311164 (apart from the COMMIT stamp) and already contains the recorder specs.
+// Only those two recorder specs may run with UPDATE_BASELINE; writes are refused unless the page's COMMIT stamp
+// is one of the two pre-optimisation stamps below (see assertBaselineWriteAllowed).
 import { expect, type Page } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
-declare const IO: any, MAP_WIDTH: number, MAP_HEIGHT: number, mapData: string[], roadsData: any,
+declare const COMMIT: string, IO: any, MAP_WIDTH: number, MAP_HEIGHT: number, mapData: string[], roadsData: any,
   objectsData: any, bridgesData: any[], BldDB: any, UI: any, Terrain: any, Canvas: any, Tools: any, Roads: any, Coastline: any;
 
 export const VIEWPORT = { width: 1400, height: 900 };
 const BASELINE_FILE = path.join(__dirname, 'perf-baseline.json');
 
+/** COMMIT stamps (parent hash, written by the pre-commit hook) of the pre-optimisation editor: at 79a4bf9 and at 8311164. */
+export const PRE_OPT_COMMIT_STAMPS = ['4ac8bec', 'c3060d1'];
+let pageCommitStamp: string | undefined;
+/** Throws unless the editor under test is a pre-optimisation build, so UPDATE_BASELINE on HEAD fails loudly. */
+export function assertBaselineWriteAllowed(stamp: string | undefined) {
+  if (!stamp || !PRE_OPT_COMMIT_STAMPS.includes(stamp))
+    throw new Error(`Refusing to write perf baselines: editor COMMIT stamp is ${stamp ? `"${stamp}"` : 'unknown (setupScene not run yet)'}, `
+      + `expected a pre-optimisation build (${PRE_OPT_COMMIT_STAMPS.join(' or ')}). Record baselines in a scratch worktree at 79a4bf9; see the top of perf-scene.ts.`);
+}
+
 export function readBaseline(): Record<string, any> {
   try { return JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')); } catch { return {}; }
 }
 export function saveBaselineKey(key: string, value: any) {
+  assertBaselineWriteAllowed(pageCommitStamp);
   const b = readBaseline();
   b[key] = value;
   const tmp = BASELINE_FILE + '.' + process.pid + '.tmp';   // atomic: write temp file then rename
@@ -38,6 +55,7 @@ export function expectFasterThan(key: string, ms: number, factor: number) {
 
 /** Deterministic 450x450 map with terrain mix, roads, objects and a bridge. */
 export async function setupScene(page: Page) {
+  pageCommitStamp = await page.evaluate(() => (typeof COMMIT === 'string' ? COMMIT : undefined));
   await page.evaluate(async () => {
     const ids = ['Plain_1', 'Plain_2', 'Forest_1', 'Water_1', 'Hills_1', 'Rubble_1', 'Mountain_1', 'Water_Dirty_1'];
     IO.newMap(true);

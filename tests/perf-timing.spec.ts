@@ -9,9 +9,9 @@ test.use({ viewport: VIEWPORT });
 
 test('record baseline timings', async ({ page, browser }) => {
   test.skip(!process.env.UPDATE_BASELINE, 'timings are only recorded with UPDATE_BASELINE=1');
-  saveBaselineKey('_meta', { chrome: browser.version(), viewport: VIEWPORT, recorded: 'pre-optimisation editor' });
   await openEditor(page);
   await setupScene(page);
+  saveBaselineKey('_meta', { chrome: browser.version(), viewport: VIEWPORT, recorded: 'pre-optimisation editor' });
   for (const z of [25, 100]) {
     await frame(page, z);
     saveBaselineKey(`t_render_${z}`, await medianMs(page, 'render'));
