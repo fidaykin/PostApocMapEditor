@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "7afb813";
+const COMMIT  = "3ba012b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7935,6 +7935,22 @@ const Packages = (() => {
     document.getElementById('pkg-new-id').value = slug;
   }
 
+  // The local registry cache can be stale or miss a package someone else published,
+  // so ask the server before writing into packages/<id>/.
+  async function _serverHasPackage(id) {
+    try {
+      const reg = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+      if (reg.ok) {
+        const d = await reg.json();
+        if ((d.packages || []).some(p => p.id === id)) return true;
+      }
+    } catch(e) { /* offline: fall through to the file probe */ }
+    try {
+      const r = await fetch(`${BASE_URL}/packages/${id}/package.json?_=${Date.now()}`);
+      return r.ok;
+    } catch(e) { return false; }
+  }
+
   async function createPackage() {
     const name  = document.getElementById('pkg-new-name').value.trim();
     const rawId = document.getElementById('pkg-new-id').value.trim();
@@ -7948,6 +7964,10 @@ const Packages = (() => {
     }
     if (getEntry(rawId)) {
       errEl.textContent = `Package "${rawId}" already exists.`;
+      errEl.style.display = 'block'; return;
+    }
+    if (await _serverHasPackage(rawId)) {
+      errEl.textContent = `Package "${rawId}" already exists on the server. Pick another id.`;
       errEl.style.display = 'block'; return;
     }
 
@@ -8259,6 +8279,10 @@ const Packages = (() => {
     }
     if (getEntry(newId)) {
       errEl.textContent = `Package "${newId}" already exists.`;
+      errEl.style.display = 'block'; return;
+    }
+    if (await _serverHasPackage(newId)) {
+      errEl.textContent = `Package "${newId}" already exists on the server. Pick another id.`;
       errEl.style.display = 'block'; return;
     }
 
