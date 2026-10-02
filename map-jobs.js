@@ -4,6 +4,8 @@
 (function (root) {
   'use strict';
   const MapJobs = {};
+  // Bump when the job protocol/algorithms change; the page sends its expected value and the worker refuses on mismatch.
+  MapJobs.VERSION = 1;
 
 // ── Satellite classification (moved verbatim from MapEditorPro.html, then parameterised) ──
   function _rgbToHsl(r, g, b) {

@@ -1,9 +1,10 @@
 /* map-worker.js: runs MapJobs off the main thread. Protocol:
-   in : { id, type, job }   out: { id, kind:'progress', frac } | { id, kind:'result', result } | { id, kind:'error', message } */
+   in : { id, type, job, version }   out: { id, kind:'progress', frac } | { id, kind:'result', result } | { id, kind:'error'|'version-mismatch', message } */
 importScripts('map-jobs.js?v=1');
 
 self.onmessage = (e) => {
-  const { id, type, job } = e.data;
+  const { id, type, job, version } = e.data;
+  if (version !== self.MapJobs.VERSION) { self.postMessage({ id, kind: 'version-mismatch', message: 'map-jobs version ' + self.MapJobs.VERSION + ' != ' + version }); return; }
   try {
     const fn = self.MapJobs[type];
     if (!fn) throw new Error('Unknown job type: ' + type);

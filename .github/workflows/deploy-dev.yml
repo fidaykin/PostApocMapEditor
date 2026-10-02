@@ -3,7 +3,7 @@ name: Deploy Dev Editor
 on:
   push:
     branches: [dev]
-    paths: ['MapEditorPro.html']
+    paths: ['MapEditorPro.html', 'map-jobs.js', 'map-worker.js']
 
 permissions:
   contents: write
@@ -23,6 +23,14 @@ jobs:
           # Inject at start of <head> so it takes effect before any <script src> or <link> tags
           # GNU sed (ubuntu-latest) required — \n in replacement is literal on macOS sed
           sed 's|<head>|<head>\n<base href="../">|' MapEditorPro.html > /tmp/MapEditorPro_dev.html
+          # map-jobs.js / map-worker.js are versioned with the HTML (job protocol), so dev must serve ITS OWN copies from
+          # dev/ rather than whatever prod last published at the root: point the script tag and the Worker URL into dev/.
+          # (importScripts inside the worker resolves relative to the worker URL, so it picks up dev/map-jobs.js.)
+          sed -i 's|<script src="map-jobs.js|<script src="dev/map-jobs.js|; s|new Worker(.map-worker.js|new Worker('"'"'dev/map-worker.js|' /tmp/MapEditorPro_dev.html
+          grep -q 'src="dev/map-jobs.js' /tmp/MapEditorPro_dev.html
+          grep -q "new Worker('dev/map-worker.js" /tmp/MapEditorPro_dev.html
+          cp map-jobs.js /tmp/map-jobs.js
+          cp map-worker.js /tmp/map-worker.js
 
       - name: Deploy to gh-pages dev/ folder
         run: |
@@ -30,7 +38,9 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git checkout gh-pages
           cp /tmp/MapEditorPro_dev.html dev/MapEditorPro.html
-          git add dev/MapEditorPro.html
+          cp /tmp/map-jobs.js dev/map-jobs.js
+          cp /tmp/map-worker.js dev/map-worker.js
+          git add dev/MapEditorPro.html dev/map-jobs.js dev/map-worker.js
           if git diff --cached --quiet; then
             echo "No changes to deploy"
           else

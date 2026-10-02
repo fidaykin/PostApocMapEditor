@@ -2322,7 +2322,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "17a3fce";
+const COMMIT  = "7ceb3a0";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7799,17 +7799,16 @@ const IO = (() => {
 })();
 
 // ════════════════════════════════════════════════════════════
-// GENERATOR MODULE
-// ════════════════════════════════════════════════════════════
-// ════════════════════════════════════════════════════════════
 // WORKER JOBS — run MapJobs.* in a Web Worker, fall back to the main thread
 // ════════════════════════════════════════════════════════════
-// The worker is optional: from file:// Chrome refuses `new Worker(url)` (opaque origin), and a deployment may lack the
-// script. ANY failure (constructor throws, script 404 / onerror) degrades to running the very same MapJobs function
-// (map-jobs.js is loaded by a <script> tag) on the main thread, so results are identical either way.
+// The worker is optional: from file:// Chrome refuses `new Worker(url)` (opaque origin), a deployment may lack the
+// script, or it may be a different version. ANY failure (constructor throws, onerror/404, messageerror, version
+// mismatch, watchdog timeout) degrades to running the very same MapJobs function (map-jobs.js is loaded by a <script>
+// tag) on the main thread, so results are identical either way.
+// One worker per job run, terminated on completion/cancel, so owners (satellite, generator…) cannot disturb each other.
 const WorkerJobs = (() => {
-  let _worker = null, _broken = false, _forceSync = false, _seq = 0;
-  const _pending = new Map();   // id → { resolve, reject, onProgress, retry }
+  let _broken = false, _forceSync = false, _lastWorker = false, _seq = 0;
+  const _jobs = new Set();      // live entries: { id, owner, w, timer, resolve, reject, onProgress, type, job }
 
   function _runSync(type, job, onProgress) {
     return new Promise((resolve, reject) => setTimeout(() => {   // let the progress UI paint first
@@ -7817,57 +7816,78 @@ const WorkerJobs = (() => {
     }, 0));
   }
 
-  function _ensure() {
-    if (_worker) return _worker;
-    if (_broken || _forceSync || typeof Worker === 'undefined') return null;
-    let w;
-    try { w = new Worker('map-worker.js?v=1'); } catch (e) { _broken = true; return null; }
-    _worker = w;
-    w.onmessage = ev => {
-      if (_worker !== w) return;
-      const m = ev.data, p = _pending.get(m.id);
-      if (!p) return;
-      if (m.kind === 'progress') { if (p.onProgress) p.onProgress(m.frac); return; }
-      _pending.delete(m.id);
-      if (m.kind === 'result') p.resolve(m.result); else p.reject(new Error(m.message));
-    };
-    w.onerror = () => {                              // e.g. file:// origin or missing script: degrade, don't fail
-      if (_worker !== w) return;
-      _broken = true; _worker = null;
-      try { w.terminate(); } catch (e) {}
-      const jobs = [..._pending.values()]; _pending.clear();
-      jobs.forEach(p => p.retry());
-    };
-    return w;
+  function _release(en) {
+    clearTimeout(en.timer);
+    _jobs.delete(en);
+    if (en.w) { try { en.w.terminate(); } catch (e) {} en.w = null; }
   }
 
-  function run(type, job, onProgress) {
-    const w = _ensure();
-    if (!w) return _runSync(type, job, onProgress);
+  // Worker failed: stop it and run the same job on the main thread.
+  function _fallback(en, sticky, msg) {
+    if (!_jobs.has(en)) return;
+    _release(en);
+    if (sticky) _broken = true;
+    _lastWorker = false;
+    if (msg && typeof UI !== 'undefined') UI.toast(msg);
+    _runSync(en.type, en.job, en.onProgress).then(en.resolve, en.reject);
+  }
+
+  function _arm(en) {
+    clearTimeout(en.timer);
+    en.timer = setTimeout(() => _fallback(en, false, 'Background processing did not respond — running on the main thread'), api._watchdogMs);
+  }
+
+  function run(type, job, a, b) {
+    const opts = typeof a === 'function' ? { ...(b || {}), onProgress: a } : (a || {});
+    const onProgress = opts.onProgress;
     return new Promise((resolve, reject) => {
-      const id = ++_seq;
-      _pending.set(id, { resolve, reject, onProgress, retry: () => _runSync(type, job, onProgress).then(resolve, reject) });
+      const en = { id: ++_seq, owner: opts.owner, w: null, timer: 0, resolve, reject, onProgress, type, job };
+      _jobs.add(en);
+      let w = null;
+      if (!_broken && !_forceSync && typeof Worker !== 'undefined') {
+        try { w = new Worker('map-worker.js?v=1'); } catch (e) { _broken = true; }
+      }
+      if (!w) { _jobs.delete(en); _lastWorker = false; _runSync(type, job, onProgress).then(resolve, reject); return; }
+      en.w = w;
+      w.onmessage = ev => {
+        if (en.w !== w) return;
+        const m = ev.data || {};
+        if (m.kind === 'progress') { _arm(en); if (onProgress) onProgress(m.frac); return; }
+        if (m.kind === 'version-mismatch') { _fallback(en, true); return; }
+        _lastWorker = true;
+        _release(en);
+        if (m.kind === 'result') resolve(m.result); else reject(new Error(m.message));
+      };
+      w.onerror = w.onmessageerror = () => _fallback(en, true);   // e.g. file:// origin or missing script
+      _arm(en);
       // Transfer a COPY of the pixel buffer: the caller keeps its own for re-classification.
       const wire = job.pixels ? { ...job, pixels: job.pixels.slice() } : job;
-      try { w.postMessage({ id, type, job: wire }, wire.pixels ? [wire.pixels.buffer] : []); }
-      catch (e) { _pending.delete(id); _runSync(type, job, onProgress).then(resolve, reject); }
+      try { w.postMessage({ id: en.id, type, job: wire, version: MapJobs.VERSION }, wire.pixels ? [wire.pixels.buffer] : []); }
+      catch (e) { _fallback(en, false); }
     });
   }
 
-  // Terminate the worker and reject every pending job with a `cancelled` error. A fresh worker is made on the next run.
-  function cancelAll() {
-    if (_worker) { try { _worker.terminate(); } catch (e) {} _worker = null; }
-    const jobs = [..._pending.values()]; _pending.clear();
-    jobs.forEach(p => { const e = new Error('cancelled'); e.cancelled = true; p.reject(e); });
+  // Terminate the jobs of one owner (or all when owner is omitted); their promises reject with `cancelled`.
+  function cancel(owner) {
+    for (const en of [..._jobs]) {
+      if (owner !== undefined && en.owner !== owner) continue;
+      _release(en);
+      const e = new Error('cancelled'); e.cancelled = true; en.reject(e);
+    }
   }
 
-  return {
-    run, cancelAll,
-    usingWorker: () => !!_worker,
+  const api = {
+    run, cancel, cancelAll: () => cancel(),
+    usingWorker: () => _lastWorker || [..._jobs].some(en => en.w),
     forceSync: on => { _forceSync = !!on; },
+    _watchdogMs: 20000,
   };
+  return api;
 })();
 
+// ════════════════════════════════════════════════════════════
+// GENERATOR MODULE
+// ════════════════════════════════════════════════════════════
 const Generator = (() => {
   const GEN_PRESETS = {
     wasteland: { elevScale:0.018, moistScale:0.022, biomeScale:0.020, mountainThr:0.72, hillThr:0.60, waterThr:0.25, rivers:2  },
@@ -8317,7 +8337,7 @@ const Satellite = (() => {
   let _classMeta = null;   // { W, H, md } the map the classification was computed for
   async function _classify() {
     if (!_pixels) return;
-    if (_busy) WorkerJobs.cancelAll();             // supersede the running job (terminates its worker)
+    if (_busy) WorkerJobs.cancel('satellite');     // supersede the running job (terminates its worker)
     const tok = ++_classTok;                       // newer request supersedes older ones
     const W = MAP_WIDTH, H = MAP_HEIGHT, md = mapData;
     const job = {
@@ -8329,13 +8349,15 @@ const Satellite = (() => {
     const applyBtn = document.getElementById('sat-apply-btn');
     applyBtn.disabled = true;
     _busy = true;
+    let redo = false;
     UI.progress(0, 'Classifying image…');
     try {
-      const res = await WorkerJobs.run('satellite', job, f => { if (tok === _classTok) UI.progress(f * 100, 'Classifying image…'); });
+      const res = await WorkerJobs.run('satellite', job, { owner: 'satellite', onProgress: f => { if (tok === _classTok) UI.progress(f * 100, 'Classifying image…'); } });
       if (tok !== _classTok) return;
-      if (MAP_WIDTH !== W || MAP_HEIGHT !== H || mapData !== md) {   // New Map / Load happened mid-job
+      if (MAP_WIDTH !== W || MAP_HEIGHT !== H) {   // New Map / Load changed the size mid-job: result has the wrong shape
         _classified = null;
-        UI.toast('Map changed while classifying — result discarded');
+        redo = true;
+        UI.toast('Map size changed while classifying — classifying again');
         return;
       }
       const cls = new Array(W * H);
@@ -8347,14 +8369,17 @@ const Satellite = (() => {
     } catch (e) {
       if (tok === _classTok && !e.cancelled) UI.toast('Classification failed: ' + (e && e.message || e));
     } finally {
-      if (tok === _classTok) { _busy = false; UI.progressDone(_classified ? 'Image classified' : ''); }
+      if (tok === _classTok) {
+        _busy = false; UI.progressDone(_classified ? 'Image classified' : '');
+        if (redo) setTimeout(() => { if (tok === _classTok) _classify(); }, 0);   // never leave a stale preview with Apply disabled
+      }
     }
   }
 
   // Abort any running job (modal closed/reopened): terminate the worker and ignore its late result.
   function _cancel() {
     _classTok++;
-    if (_busy) { _busy = false; WorkerJobs.cancelAll(); UI.progressDone(''); }
+    if (_busy) { _busy = false; WorkerJobs.cancel('satellite'); UI.progressDone(''); }
   }
 
   function _renderPreview() {
@@ -8439,7 +8464,8 @@ const Satellite = (() => {
     if (!_classMeta || _classMeta.W !== MAP_WIDTH || _classMeta.H !== MAP_HEIGHT || _classMeta.md !== mapData) {
       _classified = null;
       document.getElementById('sat-apply-btn').disabled = true;
-      UI.toast('Map changed since classification — result discarded');
+      UI.toast('Map changed since classification — classifying again');
+      _classify();
       return;
     }
     History.push();
