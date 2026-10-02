@@ -1,0 +1,15 @@
+{
+  "render_25": "1491x808:6f0a7b8d",
+  "render_60": "1491x808:7c669f6f",
+  "render_100": "1491x808:cadd9548",
+  "render_200": "1491x808:cf0bc3c5",
+  "minimap": "220x220:8bd164eb",
+  "fill_scene": "202500:bf5c6f24",
+  "fill_uniform": "202500:b4ba6a9f",
+  "generator_seed42": "202500:c6f8e07c",
+  "satellite_synth": "202500:744f6a72",
+  "t_render_25": 91,
+  "t_render_100": 18.30000001192093,
+  "t_minimap": 1.699999988079071,
+  "t_byHexId_200k": 503
+}
