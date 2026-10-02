@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "28d17ef";
+const COMMIT  = "e48a90f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4702,31 +4702,66 @@ const History = (() => {
   const _undo = [];   // stack of string[] snapshots (past states)
   const _redo = [];   // stack of string[] snapshots (future states)
 
+  // Structural sharing: a snapshot stores each flat grid (mapData[row*MAP_WIDTH+col], zone layer) as an
+  // array of per-row slices. A row equal to the same row of the previous snapshot reuses that slice, so a
+  // few-tile edit costs a few rows instead of a full 202,500-entry copy. Snapshots are immutable and never
+  // alias live storage (rows are always slice() copies); _restore copies rows back into the live arrays.
+  let _last = null;   // most recently taken snapshot (sharing source)
+
+  function _shareRows(src, prevRows, prevW, W) {
+    const n = Math.ceil(src.length / W), rows = new Array(n);
+    for (let r = 0; r < n; r++) {
+      const start = r * W, end = Math.min(start + W, src.length);
+      const prev = (prevRows && prevW === W) ? prevRows[r] : null;
+      let same = !!prev && prev.length === end - start;
+      if (same) for (let i = start, j = 0; i < end; i++, j++) if (prev[j] !== src[i]) { same = false; break; }
+      rows[r] = same ? prev : src.slice(start, end);
+    }
+    return rows;
+  }
+  function _copyRows(dest, rows) {
+    let o = 0;
+    for (const row of rows) { for (let j = 0; j < row.length; j++) dest[o + j] = row[j]; o += row.length; }
+  }
+  // Snapshot-private copy of tileExtras; an entry equal to the previous snapshot's reuses its (immutable) object.
+  function _cloneExtras(src, prev) {
+    const out = {};
+    for (const k in src) {
+      const v = src[k], pv = prev ? prev[k] : undefined;
+      out[k] = (pv !== undefined && JSON.stringify(pv) === JSON.stringify(v)) ? pv : JSON.parse(JSON.stringify(v));
+    }
+    return out;
+  }
+
   function _snapshot() {
     const zl = typeof ZonePainter !== 'undefined' ? ZonePainter.getZoneLayer() : null;
-    return {
-      grid:        mapData.slice(),
+    const snap = {
+      gridW:       MAP_WIDTH,
+      gridRows:    _shareRows(mapData, _last && _last.gridRows, _last && _last.gridW, MAP_WIDTH),
+      zoneRows:    zl ? _shareRows(zl, _last && _last.zoneRows, _last && _last.gridW, MAP_WIDTH) : null,
       settlements: settlements.map(s => Object.assign({}, s)),
       slots:       settlementSlots.map(s => Object.assign({}, s)),
       p1:          [...settlementPriority1],
       p2:          [...settlementPriority2],
-      zoneLayer:   zl ? zl.slice() : null,
       bridges:     bridgesData.map(b => Object.assign({}, b)),
       objects:     Object.assign({}, objectsData),
-      tileExtras:  JSON.parse(JSON.stringify(tileExtras)),
+      tileExtras:  _cloneExtras(tileExtras, _last && _last.tileExtras),
       roads:       Object.assign({}, roadsData),
     };
+    _last = snap;
+    return snap;
   }
 
   function _restore(snap) {
-    for (let i = 0; i < snap.grid.length; i++) mapData[i] = snap.grid[i];
+    _copyRows(mapData, snap.gridRows);
     settlements = (snap.settlements || []).map(s => Object.assign({}, s));
     settlementSlots = (snap.slots || []).map(s => Object.assign({}, s));
     if (snap.p1) settlementPriority1 = [...snap.p1];
     if (snap.p2) settlementPriority2 = [...snap.p2];
-    if (snap.zoneLayer && typeof ZonePainter !== 'undefined') {
+    if (snap.zoneRows && typeof ZonePainter !== 'undefined') {
       const zl = ZonePainter.getZoneLayer();
-      if (zl && zl.length === snap.zoneLayer.length) zl.set(snap.zoneLayer);
+      const len = snap.zoneRows.reduce((n, r) => n + r.length, 0);
+      if (zl && zl.length === len) _copyRows(zl, snap.zoneRows);
     }
     if (snap.bridges) bridgesData = snap.bridges.map(b => Object.assign({}, b));
     objectsData = snap.objects    ? Object.assign({}, snap.objects)                    : {};
@@ -4766,11 +4801,18 @@ const History = (() => {
   function clear() {
     _undo.length = 0;
     _redo.length = 0;
+    _last = null;
     UI.updateMenuHistoryState();
   }
 
   function undoSize() { return _undo.length; }
   function redoSize() { return _redo.length; }
+  // Number of distinct grid/zone row arrays held by the undo+redo stacks (shows how much storage is shared).
+  function debugRowCount() {
+    const seen = new Set();
+    for (const s of _undo.concat(_redo)) { s.gridRows.forEach(r => seen.add(r)); if (s.zoneRows) s.zoneRows.forEach(r => seen.add(r)); }
+    return seen.size;
+  }
 
   function initKeyboard() {
     window.addEventListener('keydown', e => {
@@ -4786,7 +4828,7 @@ const History = (() => {
     });
   }
 
-  return { push, undo, redo, clear, undoSize, redoSize, initKeyboard };
+  return { push, undo, redo, clear, undoSize, redoSize, initKeyboard, debugRowCount };
 })();
 // ════════════════════════════════════════════════════════════
 // SPRITE STORE — IndexedDB persistence for user-uploaded sprites
