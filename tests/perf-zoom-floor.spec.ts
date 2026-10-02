@@ -50,6 +50,7 @@ for (const rulers of [true, false]) {
 }
 
 test('setZoom clamps to the dynamic floor, not 25%', async ({ page }) => {
+  test.setTimeout(90000);   // renders the full 450x450 map at its floor (~1.5 s each until T1.12)
   await openEditor(page);
   await bigMap(page);
   const r = await page.evaluate(() => {
