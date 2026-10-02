@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "7ccf8ce";
+const COMMIT  = "b955fcb";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6683,6 +6683,61 @@ const IO = (() => {
     document.getElementById('file-input').click();
   }
 
+  // Pure: inspects a parsed map file without touching editor state. Mirrors the
+  // size clamp / legacy-format detection of _loadFromJSON; never mutates `json`.
+  function analyzeMap(json, ctx) {
+    const issues = { clamped: null, missingPackages: [], unknownIds: [], unknownCount: 0 };
+    if (!json || typeof json !== 'object') return issues;
+    const w = json.width, h = json.height;
+    const cw = Math.max(10, Math.min(450, w)), ch = Math.max(10, Math.min(450, h));
+    if (cw !== w || ch !== h) issues.clamped = { from: [w, h], to: [cw, ch] };
+    const label = v => typeof v === 'string' ? v : (() => { try { return JSON.stringify(v); } catch (e) { return String(v); } })();
+    const reg = new Set(((ctx && ctx.registryIds) || []).map(s => String(s).toLowerCase()));
+    const seenPkg = new Set();
+    (Array.isArray(json.packages) ? json.packages : []).forEach(p => {
+      const key = label(p).toLowerCase();
+      if (!reg.has(key) && !seenPkg.has(key)) { seenPkg.add(key); issues.missingPackages.push(label(p)); }
+    });
+    const known = new Set(((ctx && ctx.knownIds) || []).map(s => String(s).toLowerCase()));
+    const counts = new Map();
+    // Falsy values (null, '', 0, undefined) are loaded as Plain_1 / skipped by the loader: not ids.
+    const note = id => {
+      if (!id) return;
+      const l = label(id);
+      if (typeof id !== 'string' || !known.has(l.toLowerCase())) counts.set(l, (counts.get(l) || 0) + 1);
+    };
+    const data = Array.isArray(json.data) ? json.data : [];
+    const legacyInts = !!(data[0] && typeof data[0][0] === 'number');
+    if (!legacyInts && Number.isFinite(cw) && Number.isFinite(ch)) {
+      for (let r = 0; r < ch; r++) {
+        const row = data[r];
+        if (!Array.isArray(row)) continue;
+        for (let c = 0; c < cw; c++) note(row[c]);
+      }
+    }
+    (Array.isArray(json.objects) ? json.objects : []).forEach(o => note(o && o.id));
+    issues.unknownCount = [...counts.values()].reduce((a, n) => a + n, 0);
+    issues.unknownIds = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => `${id} ×${n}`);
+    return issues;
+  }
+
+  function _formatMapIssues(i) {
+    const lines = [];
+    if (i.clamped) {
+      const shrunk = i.clamped.to[0] < i.clamped.from[0] || i.clamped.to[1] < i.clamped.from[1];
+      lines.push(`Map size ${i.clamped.from[0]}×${i.clamped.from[1]} is outside the supported 10–450 range, so it was loaded as ${i.clamped.to[0]}×${i.clamped.to[1]}.` +
+        (shrunk ? ' Tiles outside that area were discarded.' : ''));
+    }
+    if (i.missingPackages.length)
+      lines.push(`Packages not in the registry: ${i.missingPackages.join(', ')}. Their tiles may be missing or drawn as placeholders.`);
+    if (i.unknownCount)
+      lines.push(`${i.unknownCount} tile(s) use ${i.unknownIds.length} id(s) that are not in HexDB or BldDB.`);
+    if (!lines.length) return null;
+    const extra = i.unknownIds.length - 30;
+    return { message: lines.join('\n\n'),
+             details: i.unknownIds.slice(0, 30).join('\n') + (extra > 0 ? `\n…and ${extra} more` : '') };
+  }
+
   function _loadFromJSON(json) {
     try {
       if (!json.width || !json.height || !Array.isArray(json.data))
@@ -6778,6 +6833,20 @@ const IO = (() => {
       Canvas.centerOnCity();
       UI.toast('Map loaded');
       _autoSave();
+      // The map is already loaded; a failing check must neither undo that nor hide itself.
+      try {
+        const registry = typeof Packages !== 'undefined' ? Packages.getAll() : [];
+        const known = [...HexDB.getAll().map(h => h && h.id), ...BldDB.getAll().map(b => b && b.id)].filter(Boolean);
+        if (!Array.isArray(registry) || !registry.length || !known.length)
+          throw new Error('package registry or tile databases are not available');
+        const report = _formatMapIssues(analyzeMap(json, {
+          registryIds: registry.map(p => p && p.id).filter(Boolean),
+          knownIds: known,
+        }));
+        if (report) UI.showDialog({ title: 'Map loaded with warnings', message: report.message, details: report.details });
+      } catch (checkErr) {
+        UI.toast('Map loaded, but it could not be checked for missing packages or unknown ids', { sticky: true, detail: String(checkErr && checkErr.message || checkErr) });
+      }
     } catch (err) {
       alert('Failed to load map: ' + err.message);
     }
@@ -7045,7 +7114,7 @@ const IO = (() => {
            openExpandMap, closeExpandMap, applyExpandMap, _validateExpandInput, _updateExpandPreview,
            autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave,
            setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson,
-           loadFromJSON: _loadFromJSON, setFileName: _setFileName,
+           loadFromJSON: _loadFromJSON, analyzeMap, setFileName: _setFileName,
            openBridgeTerrainModal, closeBridgeTerrainModal, applyBridgeTileUnder, clearBridgeTileUnder };
 })();
 
