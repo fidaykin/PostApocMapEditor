@@ -1,0 +1,16 @@
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests',
+  fullyParallel: true,
+  retries: 0,
+  reporter: [['list']],
+  // Uses the system Chrome (no bundled Chromium download).
+  use: { baseURL: 'http://localhost:4173', headless: true, channel: 'chrome' },
+  webServer: {
+    command: 'npx serve -l 4173 --no-clipboard --no-request-logging .',
+    url: 'http://localhost:4173/zone-painter.js',
+    reuseExistingServer: true,
+    timeout: 30_000,
+  },
+});
