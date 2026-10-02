@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "3ba012b";
+const COMMIT  = "fc72621";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7937,18 +7937,31 @@ const Packages = (() => {
 
   // The local registry cache can be stale or miss a package someone else published,
   // so ask the server before writing into packages/<id>/.
+  // Tri-state: 'taken' | 'free' | 'unknown'. Only a healthy registry that omits the id
+  // AND a clean 404 on the package.json probe count as 'free'; any failure is 'unknown'.
   async function _serverHasPackage(id) {
     try {
       const reg = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
-      if (reg.ok) {
-        const d = await reg.json();
-        if ((d.packages || []).some(p => p.id === id)) return true;
-      }
-    } catch(e) { /* offline: fall through to the file probe */ }
-    try {
+      if (!reg.ok) { console.warn('[Packages] registry check failed:', reg.status); return 'unknown'; }
+      const d = await reg.json();
+      if ((d.packages || []).some(p => p.id === id)) return 'taken';
       const r = await fetch(`${BASE_URL}/packages/${id}/package.json?_=${Date.now()}`);
-      return r.ok;
-    } catch(e) { return false; }
+      if (r.ok) return 'taken';
+      if (r.status === 404) return 'free';
+      console.warn('[Packages] package.json probe failed:', r.status);
+      return 'unknown';
+    } catch(e) {
+      console.warn('[Packages] server id check failed:', e);
+      return 'unknown';
+    }
+  }
+
+  // Returns an error message if the id must not be used, else null.
+  async function _serverIdProblem(id) {
+    const st = await _serverHasPackage(id);
+    if (st === 'taken') return `Package "${id}" already exists on the server. Pick another id.`;
+    if (st !== 'free') return 'Could not verify that the id is free \u2014 check your connection and try again.';
+    return null;
   }
 
   async function createPackage() {
@@ -7966,8 +7979,9 @@ const Packages = (() => {
       errEl.textContent = `Package "${rawId}" already exists.`;
       errEl.style.display = 'block'; return;
     }
-    if (await _serverHasPackage(rawId)) {
-      errEl.textContent = `Package "${rawId}" already exists on the server. Pick another id.`;
+    const _idProblem = await _serverIdProblem(rawId);
+    if (_idProblem) {
+      errEl.textContent = _idProblem;
       errEl.style.display = 'block'; return;
     }
 
@@ -8281,8 +8295,9 @@ const Packages = (() => {
       errEl.textContent = `Package "${newId}" already exists.`;
       errEl.style.display = 'block'; return;
     }
-    if (await _serverHasPackage(newId)) {
-      errEl.textContent = `Package "${newId}" already exists on the server. Pick another id.`;
+    const _idProblem = await _serverIdProblem(newId);
+    if (_idProblem) {
+      errEl.textContent = _idProblem;
       errEl.style.display = 'block'; return;
     }
 

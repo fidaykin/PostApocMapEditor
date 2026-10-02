@@ -77,3 +77,37 @@ test('Import refuses an id that already exists on the server', async ({ page }) 
   await expect(page.locator('#pkg-import-error')).toHaveText('Package "taken" already exists on the server. Pick another id.');
   expect(gh.putPaths()).toEqual([]);
 });
+
+const UNVERIFIED = 'Could not verify that the id is free \u2014 check your connection and try again.';
+
+for (const mode of ['aborted', 'http 500'] as const) {
+  const breakProbe = (page: any) => page.route(/packages\/(fresh|retry)\/package\.json/, (r: any) =>
+    mode === 'aborted' ? r.abort() : r.fulfill({ status: 500, headers: { 'access-control-allow-origin': '*' }, body: 'boom' }));
+
+  test(`New Package refuses when the server id check is indeterminate (${mode})`, async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh, pat: true });
+    await breakProbe(page);
+    await page.evaluate(() => Packages.openNewModal());
+    await page.fill('#pkg-new-name', 'Fresh');
+    await page.fill('#pkg-new-id', 'fresh');
+    await page.evaluate(() => Packages.createPackage());
+    await expect(page.locator('#pkg-new-error')).toHaveText(UNVERIFIED);
+    expect(gh.putPaths()).toEqual([]);
+  });
+
+  test(`Import refuses when the server id check is indeterminate (${mode}), and a retry works`, async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh, pat: true });
+    await breakProbe(page);
+    await pickZip(page, await zipFor('zipmod', 'Zip Mod'));
+    await page.fill('#pkg-import-id', 'retry');
+    const btn = page.locator('#pkg-import-modal').getByRole('button', { name: 'Import' });
+    await btn.click();
+    await expect(page.locator('#pkg-import-error')).toHaveText(UNVERIFIED);
+    expect(gh.putPaths()).toEqual([]);
+    await page.unroute(/packages\/(fresh|retry)\/package\.json/);
+    await btn.click();
+    await expect.poll(() => gh.putPaths()).toContain('packages/retry/package.json');
+  });
+}
