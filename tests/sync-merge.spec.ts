@@ -59,3 +59,18 @@ test('saveBase/loadBase keep packages side by side', async ({ page }) => {
   });
   expect(out).toEqual({ p1: [{ id: 'A' }], p2: [{ id: 'B' }] });
 });
+
+test('local entries without a usable id are passed through', async ({ page }) => {
+  const r = await merge(page, [{ v: 1 }, { id: '', v: 2 }, { id: 'A', v: 3 }], [{ id: 'A', v: 3 }], null);
+  expect(r.merged).toEqual([{ id: 'A', v: 3 }, { v: 1 }, { id: '', v: 2 }]);
+});
+
+test('duplicate package+id local entries are all preserved', async ({ page }) => {
+  const r = await merge(page, [{ id: 'A', v: 1 }, { id: 'A', v: 2 }], [], null);
+  expect(r.merged).toEqual([{ id: 'A', v: 1 }, { id: 'A', v: 2 }]);
+});
+
+test('undefined values equal missing keys', async ({ page }) => {
+  const r = await page.evaluate(() => SyncMerge.same({ id: 'A', a: undefined }, { id: 'A' }));
+  expect(r).toBe(true);
+});

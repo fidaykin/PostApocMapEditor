@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "ee0c1b1";
+const COMMIT  = "cb9d7a4";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4715,22 +4715,29 @@ const SyncMerge = (() => {
   function _canon(v) {
     if (Array.isArray(v)) return '[' + v.map(_canon).join(',') + ']';
     if (v && typeof v === 'object')
-      return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + _canon(v[k])).join(',') + '}';
+      return '{' + Object.keys(v).filter(k => v[k] !== undefined).sort().map(k => JSON.stringify(k) + ':' + _canon(v[k])).join(',') + '}';
     return JSON.stringify(v);
   }
   const same = (a, b) => _canon(a) === _canon(b);
   const keyOf = e => `${e.package || 'postapoc'}::${e.id}`;
 
-  function _index(list) {
+  // Indexes entries by key. Entries with no usable id and repeated keys cannot be merged by key;
+  // they are collected in `extras` (when given) so callers can pass them through untouched.
+  function _index(list, extras) {
     const m = new Map();
-    (list || []).forEach(e => { if (e && e.id) m.set(keyOf(e), e); });
+    (list || []).forEach(e => {
+      if (!e) return;
+      if (!e.id || m.has(keyOf(e))) { if (extras) extras.push(e); return; }
+      m.set(keyOf(e), e);
+    });
     return m;
   }
 
   // local / server / base are entry arrays for ONE package. base = the server copy stored at the
   // previous sync (null if this browser never synced). Local edits are never overwritten.
   function merge3(local, server, base) {
-    const L = _index(local), S = _index(server), B = base ? _index(base) : null;
+    const extras = [];
+    const L = _index(local, extras), S = _index(server), B = base ? _index(base) : null;
     const merged = [], conflicts = [];
     let fromServer = 0, kept = 0, dropped = 0;
     for (const [k, s] of S) {
@@ -4749,6 +4756,7 @@ const SyncMerge = (() => {
       if (b && same(l, b)) { dropped++; continue; }       // removed on server, untouched locally
       merged.push(l);                                      // local-only or edited: keep
     }
+    merged.push(...extras);                                // id-less / duplicate local entries: never dropped
     return { merged, conflicts, fromServer, kept, dropped };
   }
 
