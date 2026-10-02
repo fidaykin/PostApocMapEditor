@@ -2322,7 +2322,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.03";
-const COMMIT  = "c7bc597";
+const COMMIT  = "73396f8";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2907,7 +2907,7 @@ const Canvas = (() => {
     // (row ascending, col ascending) is preserved.
     _stats.tilesVisited = 0; _stats.tilesDrawn = 0;
     let rowMin = 0, rowMax = MAP_HEIGHT - 1, colMin = 0, colMax = MAP_WIDTH - 1;
-    if (!_fullScan) {
+    if (!_fullScan && Number.isFinite(cameraX + cameraY)) {   // a non-finite camera draws the full range, never a blank canvas
       const wxMin = (cameraX - padding) / scale, wxMax = (cameraX + canvas.width  + padding) / scale;
       const wyMin = (cameraY - padding) / scale, wyMax = (cameraY + canvas.height + padding) / scale;
       const xiMin = Math.ceil(wxMin / COL_PITCH) - 1, xiMax = Math.floor(wxMax / COL_PITCH) + 1;
@@ -4171,7 +4171,7 @@ const Canvas = (() => {
 
   return {
     init, render, drawMinimap, forceRedraw, getStats,
-    _test: { /* calling minimapLayer advances the cache and overwrites _stats.minimapRecolored */ minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, overviewLayer() { return _overviewLayer(MAP_HEIGHT, MAP_WIDTH); }, setCamera(x, y) { cameraX = x; cameraY = y; }, setFullScan(v) { _fullScan = !!v; }, setLod(v) { _lodOverride = (v === false) ? 0 : (v === 0 || v === 1 || v === 2 ? v : null); } },
+    _test: { /* TEST ONLY — do not call from app code */ /* calling minimapLayer advances the cache and overwrites _stats.minimapRecolored */ minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, overviewLayer() { return _overviewLayer(MAP_HEIGHT, MAP_WIDTH); }, setCamera(x, y) { cameraX = x; cameraY = y; }, setFullScan(v) { _fullScan = !!v; }, setLod(v) { _lodOverride = (v === false) ? 0 : (v === 0 || v === 1 || v === 2 ? v : null); } },
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, minZoom, reclampZoom, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
@@ -4524,7 +4524,7 @@ const Tools = (() => {
         }
       }
 
-      if (aborted) return;
+      if (aborted) { IO.scheduleAutoSave(); return; }   // the replacement map must not wait for the 30 s timer
       invalidateSatelliteMap();
       const cells = new Array(tail);
       for (let i = 0; i < tail; i++) { const q = queue[i], c = q % W; cells[i] = { col: c, row: (q - c) / W }; }
@@ -4966,7 +4966,9 @@ const History = (() => {
   function undo() {
     if (Tools.isFillBusy() || _undo.length === 0) return;
     _redo.push(_snapshot());
-    _restore(_undo.pop());
+    const snap = _undo.pop();
+    _restore(snap);
+    _last = snap;   // live now equals this snapshot: the next push shares its rows
     Canvas.render();
     Canvas.drawMinimap();
     UI.updateMenuHistoryState();
@@ -4976,7 +4978,9 @@ const History = (() => {
   function redo() {
     if (Tools.isFillBusy() || _redo.length === 0) return;
     _undo.push(_snapshot());
-    _restore(_redo.pop());
+    const snap = _redo.pop();
+    _restore(snap);
+    _last = snap;
     Canvas.render();
     Canvas.drawMinimap();
     UI.updateMenuHistoryState();
@@ -7675,7 +7679,7 @@ const IO = (() => {
   function saveMap() {
     UI.closeAllMenus();
     if (!mapData) return;
-    if (Tools.isFillBusy()) { Tools.whenIdle().then(saveMap); return; }   // wait for the fill, then save the finished map
+    if (Tools.isFillBusy()) { Tools.whenIdle().then(saveMap, saveMap); return; }   // wait for the fill, then save the finished map
     const blob = new Blob([_buildJson()], { type: 'application/json' });
     const a    = document.createElement('a');
     a.href     = URL.createObjectURL(blob);
@@ -8215,12 +8219,12 @@ const Generator = (() => {
     WorkerJobs.cancel('generator');              // supersede a running preview
     const btn = document.querySelector('#gen-modal .btn-primary');
     if (btn) btn.disabled = true;
-    const W0 = MAP_WIDTH, H0 = MAP_HEIGHT;
+    const W0 = MAP_WIDTH, H0 = MAP_HEIGHT, md0 = mapData;
     UI.progress(0, 'Generating map…');
     try {
       const res = await _runGenerate(_getParams(), {}, { onProgress: f => UI.progress(f * 100, 'Generating map…') });
-      if (!mapData || MAP_WIDTH !== W0 || MAP_HEIGHT !== H0 || mapData.length !== res.grid.length) {
-        UI.toast('Map size changed while generating — result discarded'); return;
+      if (!mapData || mapData !== md0 || MAP_WIDTH !== W0 || MAP_HEIGHT !== H0 || mapData.length !== res.grid.length) {
+        UI.toast('Map changed while generating — result discarded'); return;
       }
       if (Tools.isFillBusy()) { UI.toast('A fill started while generating — result discarded'); return; }
       History.push();                            // pre-state, taken right before we overwrite

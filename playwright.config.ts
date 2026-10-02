@@ -1,10 +1,15 @@
 import { defineConfig } from '@playwright/test';
+import * as os from 'os';
+
+// Each worker is a full Chrome rendering 450x450 scenes; more workers than half the cores makes timing-sensitive
+// specs flaky under load. Cap at 3 (2 on small machines); CI uses 2.
+const DEFAULT_WORKERS = process.env.CI ? 2 : Math.min(3, Math.max(1, Math.floor(os.cpus().length / 2)));
 
 export default defineConfig({
   testDir: './tests',
   fullyParallel: true,
   retries: 0,
-  workers: process.env.UPDATE_BASELINE ? 1 : undefined,   // baseline JSON is a read-modify-write
+  workers: (process.env.UPDATE_BASELINE || process.env.MEASURE_UNDO) ? 1 : DEFAULT_WORKERS,   // baseline JSON is a read-modify-write
   reporter: [['list']],
   // Uses the system Chrome (no bundled Chromium download).
   use: { baseURL: 'http://localhost:4173', headless: true, channel: 'chrome' },

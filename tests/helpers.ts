@@ -145,11 +145,13 @@ export async function installFakeGitHub(page: Page, gh: FakeGitHub) {
 }
 
 export async function waitForEditor(page: Page) {
+  // Signal-based waits with a generous explicit cap (slow startup under load must not trip the 30 s default).
+  const cap = { timeout: 90_000 };
   await page.waitForFunction(() =>
-    typeof HexDB !== 'undefined' && typeof mapData !== 'undefined' && !!mapData && HexDB.getAll().length > 0);
-  await page.waitForFunction(() => !!(window as any).__startupSyncDone);
+    typeof HexDB !== 'undefined' && typeof mapData !== 'undefined' && !!mapData && HexDB.getAll().length > 0, undefined, cap);
+  await page.waitForFunction(() => !!(window as any).__startupSyncDone, undefined, cap);
   await page.evaluate(() => (window as any).__startupSyncDone);
-  await page.waitForLoadState('networkidle');
+  await page.waitForLoadState('networkidle', cap);
 }
 
 export interface OpenOptions {
