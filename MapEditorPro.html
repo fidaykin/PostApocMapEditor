@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "79a4bf9";
+const COMMIT  = "d2b3dc8";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -11245,6 +11245,7 @@ const HexDB = (() => {
 
   function triggerLoad() { document.getElementById('hexdb-file-input').click(); }
 
+  // Never mutate a HexDB entry in place without calling _autoSave: Terrain memoises lookups keyed on getRev().
   function getAll() { return _data.hexes || []; }
   function getRev() { return _rev; }
 

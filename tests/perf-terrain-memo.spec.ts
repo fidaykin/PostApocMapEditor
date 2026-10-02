@@ -63,11 +63,15 @@ const cases: Record<string, string> = {
     const t = document.querySelector('#hexdb-right [data-field="type"]'); t.value = 'Water';
     t.dispatchEvent(new Event('change', { bubbles: true }));
     return [Terrain.byHexId('Ed_1')?.type, 'Water'];`,
-  'edit sprite field': `HexDB.add(); const el = document.getElementById('hexdb-id'); el.value = 'Sp_1';
-    el.dispatchEvent(new Event('input', { bubbles: true })); Terrain.byHexId('Sp_1');
-    const s = document.querySelector('#hexdb-right [data-field="spriteName"]'); s.value = 'Sp_Sprite';
+  'edit sprite field': `HexDB.add(); const el = document.getElementById('hexdb-id'); el.value = 'Water_1';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    const t = document.querySelector('#hexdb-right [data-field="type"]'); t.value = 'Water';
+    t.dispatchEvent(new Event('change', { bubbles: true }));
+    const warm = Terrain.getTerrainSpriteForType('Water'); Terrain.byHexId('Water_1');
+    const s = document.querySelector('#hexdb-right [data-field="spriteName"]'); s.value = 'Water_1';
     s.dispatchEvent(new Event('change', { bubbles: true }));
-    return [Terrain.byHexId('Sp_1')?.spriteName, 'Sp_Sprite'];`,
+    const sp = Terrain.getTerrainSpriteForType('Water');
+    return [[Terrain.byHexId('Water_1')?.spriteName, warm, sp !== null && sp === Terrain.getSprite('Water_1')], ['Water_1', null, true]];`,
   'delete': `HexDB.add(); UI.showConfirm = (_t, _m, cb) => cb(); HexDB.deleteSelected();
     return [Terrain.byHexId('NewHex_2'), null];`,
   'copy/paste': `HexDB.add(); HexDB.copy(); HexDB.paste();
@@ -79,8 +83,11 @@ const cases: Record<string, string> = {
     return [had + '|' + Terrain.byHexId('Ent_1'), 'Ent_1|null'];`,
   mergeFromServer: `HexDB.mergeFromServer('pk', { version: 1, hexes: [{ id: 'Mg_1', type: 'Plains', spriteName: '', edgeFaces: [] }] });
     return [Terrain.byHexId('Mg_1')?.id, 'Mg_1'];`,
-  loadFromObject: `HexDB.loadFromObject({ version: 1, common: { goldPerTap: 10 }, hexes: [{ id: 'Lo_1', type: 'Plains', spriteName: '', edgeFaces: [] }] });
-    return [Terrain.byHexId('Lo_1')?.id + '|' + Terrain.byHexId('Aa_1'), 'Lo_1|null'];`,
+  loadFromObject: `const warm = Terrain.getTerrainSpriteForType('Water');
+    HexDB.loadFromObject({ version: 1, common: { goldPerTap: 10 }, hexes: [{ id: 'Lo_1', type: 'Plains', spriteName: '', edgeFaces: [] },
+      { id: 'Water_1', type: 'Water', spriteName: 'Water_1', edgeFaces: [] }] });
+    const sp = Terrain.getTerrainSpriteForType('Water');
+    return [[Terrain.byHexId('Lo_1')?.id + '|' + Terrain.byHexId('Aa_1'), warm, sp !== null && sp === Terrain.getSprite('Water_1')], ['Lo_1|null', null, true]];`,
   // a reskin keeps the id: the postapoc entry stays first and keeps winning, the list grows
   'reskin add': `Packages.getActive = () => 'pk'; const n0 = HexDB.getAll().length; HexDB.addReskin('Aa_1');
     return [[Terrain.byHexId('Aa_1')?.package ?? 'postapoc', HexDB.getAll().length - n0], ['postapoc', 1]];`,
@@ -96,7 +103,6 @@ for (const [name, body] of Object.entries(cases)) {
       Terrain.byHexId('Aa_1'); Terrain.byHexId('Bb_1'); Terrain.byHexId('NewHex_2'); Terrain.byHexId('NewHex_2_copy');
       for (const k of ['Renamed_1','Ed_1','Sp_1','Ent_1','Mg_1','Lo_1']) Terrain.byHexId(k);
       Terrain.getTerrainSpriteForType('Water');
-      const select = () => { try { HexDB.getAll(); } catch(e) {} };
       const r = await (async () => { ${body} })();
       return r; })()`) as [any, any];
     expect(got).toEqual(want);
@@ -105,17 +111,18 @@ for (const [name, body] of Object.entries(cases)) {
 
 test('getTerrainSpriteForType memo follows HexDB changes', async ({ page }) => {
   await openEditor(page);
-  const r = await page.evaluate(async () => {
-    HexDB.loadFromObject({ version: 1, common: { goldPerTap: 10 }, hexes: [] });
+  const r = await page.evaluate(() => {
+    const empty = { version: 1, common: { goldPerTap: 10 }, hexes: [] };
+    HexDB.loadFromObject(empty);
     const none = Terrain.getTerrainSpriteForType('Water');
-    HexDB.addEntries([{ id: 'Water_X', type: 'Water', spriteName: 'Water_X', edgeFaces: [] }]);
-    // the entry is now found; its sprite loads async so only the lookup path is exercised
-    const a = Terrain.getTerrainSpriteForType('Water');
-    HexDB.removeByPackage('postapoc');
-    return { none, after: a, removed: Terrain.getTerrainSpriteForType('Water') };
+    HexDB.addEntries([{ id: 'Water_1', type: 'Water', spriteName: 'Water_1', edgeFaces: [], package: 'pk' }]);
+    const found = Terrain.getTerrainSpriteForType('Water');
+    const expected = Terrain.getSprite('Water_1');
+    HexDB.removeByPackage('pk');
+    const removed = Terrain.getTerrainSpriteForType('Water');
+    return { none, foundOk: found !== null && found === expected, removed };
   });
-  expect(r.none).toBeNull();
-  expect(r.removed).toBeNull();
+  expect(r).toEqual({ none: null, foundOk: true, removed: null });
 });
 
 test('render output unchanged and faster', async ({ page }) => {
