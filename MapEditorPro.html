@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "4ac8bec";
+const COMMIT  = "79a4bf9";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2368,15 +2368,38 @@ const Terrain = (() => {
   function getCitySprite()       { return citySprite; }
   function getSettlementSprite() { return settlementSprite; }
 
+  // ── HexDB lookup memo ───────────────────────────────────
+  // byHexId/getTerrainSpriteForType run per visible tile per frame. The memo is dropped
+  // whenever the HexDB array identity, its length, or HexDB.getRev() changes (every HexDB
+  // mutation ends in _autoSave, which bumps the rev).
+  let _memoSrc = null, _memoLen = -1, _memoRev = -1;
+  const _byRaw = new Map();        // raw id string → { ...entry, name } | null (shared; callers only read)
+  const _typeEntry = new Map();    // raw type string → HexDB entry | null
+  function _memoValid() {
+    if (typeof HexDB === 'undefined') return false;
+    const all = HexDB.getAll();
+    const rev = HexDB.getRev();
+    if (all !== _memoSrc || all.length !== _memoLen || rev !== _memoRev) {
+      _byRaw.clear(); _typeEntry.clear();
+      _memoSrc = all; _memoLen = all.length; _memoRev = rev;
+    }
+    return true;
+  }
+
   // Returns the base terrain sprite for a given type string (e.g. "Water" → Water image).
   // Finds the simplest tile whose spriteName starts with type (i.e. it is a plain terrain tile).
   function getTerrainSpriteForType(type) {
     if (!type) return null;
-    const lo = type.toLowerCase();
-    const entry = (typeof HexDB !== 'undefined' ? HexDB.getAll() : [])
-      .find(h => h.type && h.type.toLowerCase() === lo &&
-                 h.spriteName && h.spriteName.toLowerCase().startsWith(lo));
-    return entry ? (sprites[entry.id.toLowerCase()] || null) : null;
+    if (!_memoValid()) return null;
+    let entry = _typeEntry.get(type);
+    if (entry === undefined) {
+      const lo = type.toLowerCase();
+      entry = HexDB.getAll()
+        .find(h => h.type && h.type.toLowerCase() === lo &&
+                   h.spriteName && h.spriteName.toLowerCase().startsWith(lo)) || null;
+      _typeEntry.set(type, entry);
+    }
+    return entry ? (sprites[entry.id.toLowerCase()] || null) : null;   // sprite looked up live: images load async
   }
 
   // Hardcoded set — mirrors RuntimeDatabaseSync._layeredHexIds in C#.
@@ -2407,12 +2430,15 @@ const Terrain = (() => {
   // Case-insensitive HexDB lookup by hex ID string.
   function byHexId(hexId) {
     if (!hexId || typeof hexId !== 'string') return null;
-    const lo = hexId.toLowerCase();
-    if (typeof HexDB !== 'undefined') {
+    if (!_memoValid()) return null;
+    let v = _byRaw.get(hexId);
+    if (v === undefined) {
+      const lo = hexId.toLowerCase();
       const h = HexDB.getAll().find(e => e.id && e.id.toLowerCase() === lo);
-      if (h) return { ...h, name: h.id };
+      v = h ? { ...h, name: h.id } : null;
+      _byRaw.set(hexId, v);
     }
-    return null;
+    return v;
   }
 
   // Kept for callers that still pass integer terrainTypeId (e.g. legacy code).
@@ -3053,11 +3079,21 @@ const Canvas = (() => {
     ctx.restore();
   }
 
+  const _bridgeIdMemo = new Map();
+  function _isBridgeId(hexId) {
+    let v = _bridgeIdMemo.get(hexId);
+    if (v === undefined) {
+      v = /bridge/i.test(hexId || '') && !/^River_bridge_/i.test(hexId || '');
+      _bridgeIdMemo.set(hexId, v);
+    }
+    return v;
+  }
+
   function _drawHexTile(cx, cy, radius, hexId, col, row) {
     const hexEntry = Terrain.byHexId(hexId);
     const sprite   = Terrain.getSprite(hexId);
     // Bridge tiles (Road_Bridge_*) are transparent PNGs — render terrain underneath.
-    const isBridge = /bridge/i.test(hexId || '') && !/^River_bridge_/i.test(hexId || '');
+    const isBridge = _isBridgeId(hexId);
     ctx.save();
     hexClipPath(cx, cy, radius);
     ctx.clip();   // always clip to hex first — ensures bg fill and object sprite stay inside
@@ -9944,6 +9980,7 @@ const HexDB = (() => {
   let _filter      = { search: '', biome: '', type: '' };
   let _filtered    = [];    // indices into _data.hexes
   let _secState    = {};    // persisted collapse state per section key
+  let _rev         = 0;     // bumped on every persisted edit; Terrain memoisation keys off this
 
   const TYPE_GROUPS = {
     'Special':         ['New'],
@@ -10013,6 +10050,7 @@ const HexDB = (() => {
     try { localStorage.setItem('hexdb_sections', JSON.stringify(_secState)); } catch(e) {}
   }
   function _autoSave() {
+    _rev++;
     return StorageGuard.setItem('hexdb_autosave', JSON.stringify(_data), 'Hex DB autosave');
   }
 
@@ -11208,6 +11246,7 @@ const HexDB = (() => {
   function triggerLoad() { document.getElementById('hexdb-file-input').click(); }
 
   function getAll() { return _data.hexes || []; }
+  function getRev() { return _rev; }
 
   function pickSprite() {
     UI.showSpritePicker(name => {
@@ -11474,7 +11513,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, addEntries, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, addEntries, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
 })();
 
 window.HexDB = HexDB;
