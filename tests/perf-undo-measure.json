@@ -1,0 +1,76 @@
+{
+  "_meta": {
+    "thresholds": {
+      "totalMB": 64,
+      "p95PushMs": 8
+    },
+    "steps": 50,
+    "map": "450x450",
+    "recorded": "2026-10-02",
+    "chrome": "154.0.8037.97"
+  },
+  "scene": {
+    "gcAvailable": true,
+    "uamAvailable": null,
+    "counts": {
+      "roads": 101,
+      "objects": 57,
+      "tileExtras": 0,
+      "settlements": 1,
+      "bridges": 1,
+      "zoneTiles": 0
+    },
+    "heapDeltaMB": 48.51693344116211,
+    "perSnapshotMB": 0.9703386688232422,
+    "structuralEstimatePerSnapshotMB": 1.7442512512207031,
+    "structuralEstimateTotalMB": 87.21256256103516,
+    "pushMs": {
+      "p50": 0.19999998807907104,
+      "p95": 1.199999988079071,
+      "max": 2.400000035762787
+    }
+  },
+  "verdict": "T1.7 VERDICT: JUSTIFIED (total=143.0 MB, p95=19.50 ms)",
+  "rich": {
+    "gcAvailable": true,
+    "uamAvailable": null,
+    "counts": {
+      "roads": 5097,
+      "objects": 1557,
+      "tileExtras": 2000,
+      "settlements": 31,
+      "bridges": 31,
+      "zoneTiles": 40500
+    },
+    "heapDeltaMB": 59.68992233276367,
+    "perSnapshotMB": 1.1937984466552733,
+    "structuralEstimatePerSnapshotMB": 2.332324981689453,
+    "structuralEstimateTotalMB": 116.61624908447266,
+    "pushMs": {
+      "p50": 2.199999988079071,
+      "p95": 3.699999988079071,
+      "max": 4.400000035762787
+    }
+  },
+  "worst": {
+    "gcAvailable": true,
+    "uamAvailable": null,
+    "counts": {
+      "roads": 30092,
+      "objects": 15051,
+      "tileExtras": 20000,
+      "settlements": 201,
+      "bridges": 201,
+      "zoneTiles": 202500
+    },
+    "heapDeltaMB": 142.99995040893555,
+    "perSnapshotMB": 2.8599990081787108,
+    "structuralEstimatePerSnapshotMB": 6.847743988037109,
+    "structuralEstimateTotalMB": 342.38719940185547,
+    "pushMs": {
+      "p50": 12.799999952316284,
+      "p95": 19.5,
+      "max": 20.19999998807907
+    }
+  }
+}
