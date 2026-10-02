@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "6a1c185";
+const COMMIT  = "6f38b1e";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4851,20 +4851,26 @@ const GitHubSync = (() => {
   function isPATConfigured()  { return !!localStorage.getItem(PAT_KEY); }
 
   // ── Core Contents API write ───────────────────────────────────
-  async function _putContents(path, base64Content, message) {
-    // GET existing file SHA (required by GitHub API when updating)
-    // cache: 'no-store' prevents browser from returning a stale SHA from a prior request.
-    let sha;
-    try {
-      const getRes = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
-        cache: 'no-store',
-        headers: {
-          'Authorization': `Bearer ${getPAT()}`,
-          'Accept': 'application/vnd.github+json',
-        },
-      });
-      if (getRes.ok) sha = (await getRes.json()).sha;
-    } catch(e) { /* new file — sha stays undefined */ }
+  // expectedSha (optional) makes the write conditional: pass the sha returned by readRepoFile
+  // (null = "the file must not exist yet"). If the file changed since that read, GitHub answers
+  // 409/422 and nothing is overwritten. Without it the current sha is looked up (last write wins).
+  async function _putContents(path, base64Content, message, expectedSha) {
+    const conditional = expectedSha !== undefined;
+    let sha = conditional ? expectedSha : undefined;
+    if (!conditional) {
+      // GET existing file SHA (required by GitHub API when updating)
+      // cache: 'no-store' prevents browser from returning a stale SHA from a prior request.
+      try {
+        const getRes = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
+          cache: 'no-store',
+          headers: {
+            'Authorization': `Bearer ${getPAT()}`,
+            'Accept': 'application/vnd.github+json',
+          },
+        });
+        if (getRes.ok) sha = (await getRes.json()).sha;
+      } catch(e) { /* new file — sha stays undefined */ }
+    }
 
     const body = { message, content: base64Content, branch: BRANCH };
     if (sha) body.sha = sha;
@@ -4880,8 +4886,32 @@ const GitHubSync = (() => {
     });
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
-      throw new Error(`GitHub PUT ${path}: ${res.status} — ${err.message || 'unknown'}`);
+      const why = conditional && (res.status === 409 || res.status === 422)
+        ? `${path} changed on the server since it was read; nothing was overwritten, try again`
+        : (err.message || 'unknown');
+      throw new Error(`GitHub PUT ${path}: ${res.status} — ${why}`);
     }
+  }
+
+  // Read-modify-write sites must read the live repo, not the GitHub Pages copy (it lags commits by
+  // 30 s to minutes). Contents API with cache:'no-store' (API responses carry max-age=60).
+  // Returns { json, sha } (sha feeds a conditional _putText), null on 404; throws on anything else.
+  async function readRepoFile(path) {
+    const headers = { 'Accept': 'application/vnd.github+json' };
+    if (getPAT()) headers['Authorization'] = `Bearer ${getPAT()}`;
+    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, { cache: 'no-store', headers });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`could not read ${path} (HTTP ${res.status})`);
+    const data = await res.json();
+    if (typeof data.content !== 'string' || (data.encoding && data.encoding !== 'base64'))
+      throw new Error(`could not read ${path}: no inline content`);
+    const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, '')), c => c.charCodeAt(0));
+    return { json: JSON.parse(new TextDecoder().decode(bytes)), sha: data.sha };
+  }
+
+  async function readRepoJson(path) {
+    const f = await readRepoFile(path);
+    return f ? f.json : null;
   }
 
   async function _listFolder(path) {
@@ -5028,8 +5058,8 @@ const GitHubSync = (() => {
   }
 
   // ── High-level put helpers ────────────────────────────────────
-  async function _putText(path, text, message) {
-    await _putContents(path, _encodeText(text), message);
+  async function _putText(path, text, message, expectedSha) {
+    await _putContents(path, _encodeText(text), message, expectedSha);
   }
 
   async function _putBinary(path, blob, message) {
@@ -5526,7 +5556,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    _putText, _putBinary, _listFolder, _withPublishBtn, BASE_URL,
+    _putText, _putBinary, _listFolder, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
@@ -8451,19 +8481,22 @@ const Packages = (() => {
   // AND a clean 404 on the package.json probe count as 'free'; any failure is 'unknown'.
   async function _serverHasPackage(id) {
     try {
-      const reg = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
-      if (!reg.ok) { console.warn('[Packages] registry check failed:', reg.status); return 'unknown'; }
-      const d = await reg.json();
-      if ((d.packages || []).some(p => p.id === id)) return 'taken';
-      const r = await fetch(`${BASE_URL}/packages/${id}/package.json?_=${Date.now()}`);
-      if (r.ok) return 'taken';
-      if (r.status === 404) return 'free';
-      console.warn('[Packages] package.json probe failed:', r.status);
-      return 'unknown';
+      const { regData } = await _readRegistry();
+      if (regData.packages.some(p => p.id === id)) return 'taken';
+      return (await GitHubSync.readRepoJson(`packages/${id}/package.json`)) ? 'taken' : 'free';
     } catch(e) {
       console.warn('[Packages] server id check failed:', e);
       return 'unknown';
     }
+  }
+
+  // The live server registry for a read-modify-write (never the lagging Pages copy, never the local
+  // cache): { regData, sha }. Throws when it cannot be read or is malformed, so callers fail closed.
+  async function _readRegistry() {
+    const f = await GitHubSync.readRepoFile('packages/registry.json');
+    if (!f) throw new Error('registry.json not found on the server');
+    if (!f.json || !Array.isArray(f.json.packages)) throw new Error('registry.json has no packages array');
+    return { regData: f.json, sha: f.sha };
   }
 
   // Returns an error message if the id must not be used, else null.
@@ -8511,15 +8544,9 @@ const Packages = (() => {
       // Update registry.json
       UI.progress(60, 'Updating registry.json…');
       const newEntry = { id: rawId, name, isDefault: false, version: '1.0.0' };
-      let regData;
-      try {
-        const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
-        regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
-      } catch(e) {
-        regData = { version: 1, packages: [..._registry] };
-      }
+      const { regData, sha: regSha } = await _readRegistry();  // fail closed: no local-cache fallback
       if (!regData.packages.find(p => p.id === rawId)) regData.packages.push(newEntry);
-      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${rawId}`);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${rawId}`, regSha);
 
       // Update local state
       _registry = regData.packages;
@@ -8651,11 +8678,10 @@ const Packages = (() => {
 
   // 404 = never published (null). Any other failure throws so publish aborts before writing anything:
   // treating it as "absent" would drop description/preview and bump from a stale registry version.
+  // Read live (Contents API), not from Pages: a lagging copy would bump to an already-published version.
+  // Returns { json, sha } or null.
   async function _fetchPackageJson(id) {
-    const r = await fetch(`${BASE_URL}/packages/${id}/package.json?_=${Date.now()}`);
-    if (r.status === 404) return null;
-    if (!r.ok) throw new Error(`package.json: HTTP ${r.status}`);
-    return r.json();
+    return GitHubSync.readRepoFile(`packages/${id}/package.json`);
   }
 
   async function publishPackage(id) {
@@ -8670,7 +8696,8 @@ const Packages = (() => {
       // The published package.json is the commit marker: it is written last, and the next version
       // is derived from it (not from the registry cache), so a retry after a partial failure
       // computes the same version again.
-      const serverPkg = await _fetchPackageJson(id);
+      const pkgFile = await _fetchPackageJson(id);
+      const serverPkg = pkgFile ? pkgFile.json : null;
       const baseVer = serverPkg?.version || entry.version || '1.0.0';
       const verStr = typeof baseVer === 'string' && /^\d+\.\d+$/.test(baseVer) ? `${baseVer}.0` : baseVer;
       if (typeof verStr !== 'string' || !/^\d+\.\d+\.\d+$/.test(verStr)) {
@@ -8679,12 +8706,9 @@ const Packages = (() => {
       const [maj, min, pat] = verStr.split('.').map(Number);
       const newVersion = `${maj}.${min}.${pat + 1}`;
 
-      // Read the server registry before the first write so an indeterminate read aborts write-free.
-      let regData;
-      const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
-      if (res.ok) regData = await res.json();
-      else if (res.status === 404) regData = { version: 1, packages: [..._registry] };
-      else throw new Error(`registry.json: HTTP ${res.status}`); // don't overwrite the server registry from a local cache
+      // Read the live server registry before the first write so an indeterminate read aborts write-free.
+      // Its sha makes the registry write conditional: a registry changed meanwhile aborts, not overwritten.
+      const { regData, sha: regSha } = await _readRegistry();
 
       UI.progress(5, `Publishing ${id}/hex_database.json…`);
       const hexPayload = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
@@ -8703,8 +8727,11 @@ const Packages = (() => {
       }
 
       UI.progress(80, 'Updating registry.json…');
-      regData.packages = regData.packages.map(p => p.id === id ? { ...p, version: newVersion } : p);
-      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: bump ${id} to ${newVersion}`);
+      if (regData.packages.some(p => p.id === id))
+        regData.packages = regData.packages.map(p => p.id === id ? { ...p, version: newVersion } : p);
+      else  // e.g. removed meanwhile, or created moments ago: publishing must not leave it unlisted
+        regData.packages.push({ id, name: entry.name || id, isDefault: false, version: newVersion });
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: bump ${id} to ${newVersion}`, regSha);
 
       UI.progress(92, `Updating ${id}/package.json…`);
       const pkgJson = JSON.stringify({
@@ -8713,7 +8740,7 @@ const Packages = (() => {
         description: serverPkg?.description ?? entry.description ?? '',
         preview: serverPkg?.preview ?? entry.preview ?? 'preview.png',
       }, null, 2);
-      await GitHubSync._putText(`packages/${id}/package.json`, pkgJson, `publish ${id}: package.json`);
+      await GitHubSync._putText(`packages/${id}/package.json`, pkgJson, `publish ${id}: package.json`, pkgFile ? pkgFile.sha : null);
 
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
@@ -8825,13 +8852,13 @@ const Packages = (() => {
     if (!item) return UI.toast('⚠ Nothing to restore for this package');
     try {
       UI.progress(30, 'Updating registry.json…');
-      const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
-      if (!res.ok) throw new Error(`could not read registry.json (HTTP ${res.status})`);
-      const regData = await res.json();
-      if (!regData || !Array.isArray(regData.packages)) throw new Error('registry.json has no packages array');
+      // Live read (no-store Contents API): the lagging Pages copy can still list an id that was just
+      // deleted, which would skip the write yet clear the trash copy. So we get here only after the
+      // write succeeded or the live registry is confirmed to list the id.
+      const { regData, sha: regSha } = await _readRegistry();
       if (!regData.packages.some(p => p.id === id)) {
         regData.packages.push({ ...(item.entry || { name: id, isDefault: false, version: '1.0.0' }), id });
-        await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: restore ${id}`);
+        await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: restore ${id}`, regSha);
       }
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
@@ -8873,13 +8900,10 @@ const Packages = (() => {
       UI.progress(20, 'Updating registry.json…');
       // Fail closed: if the server registry cannot be read we must not write back a guess
       // built from the local copy (it could drop packages other people published).
-      const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
-      if (!res.ok) throw new Error(`could not read registry.json (HTTP ${res.status})`);
-      const regData = await res.json();
-      if (!regData || !Array.isArray(regData.packages)) throw new Error('registry.json has no packages array');
+      const { regData, sha: regSha } = await _readRegistry();
       regData.packages = regData.packages.filter(p => p.id !== id);
       putStarted = true;
-      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: remove ${id}`);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: remove ${id}`, regSha);
       registryWritten = true;
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
@@ -9098,13 +9122,9 @@ const Packages = (() => {
       // Update registry
       UI.progress(100, 'Updating registry…');
       const newEntry = { id: newId, name, isDefault: false, version: '1.0.0' };
-      let regData;
-      try {
-        const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
-        regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
-      } catch(e) { regData = { version: 1, packages: [..._registry] }; }
+      const { regData, sha: regSha } = await _readRegistry();  // fail closed: no local-cache fallback
       if (!regData.packages.find(p => p.id === newId)) regData.packages.push(newEntry);
-      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${newId}`);
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${newId}`, regSha);
 
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));

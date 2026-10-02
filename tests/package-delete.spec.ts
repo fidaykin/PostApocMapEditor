@@ -183,9 +183,12 @@ test('restore fails closed when the server registry cannot be read: no write, tr
   expect(await hasEntries(page)).toEqual([false, false]);
 });
 
-test('restore when the server registry already lists the id: no write, no overwrite, entries re-added, trash cleared', async ({ page }) => {
+// The decision must come from the live repo, not the lagging Pages copy: Pages is frozen at a state
+// without delpkg, while the live registry (someone else re-added the id) lists it.
+test('restore when the live server registry already lists the id: no write, no overwrite, entries re-added, trash cleared', async ({ page }) => {
   const gh = await setup(page);
   await deleted(page, gh);
+  gh.pagesLag = true;
   gh.setRegistry([{ id: 'delpkg', name: 'Someone Else' }]);
   const before = gh.putPaths().length;
   await page.evaluate(() => Packages.restoreDeleted('delpkg'));

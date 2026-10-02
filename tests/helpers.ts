@@ -31,9 +31,26 @@ export class FakeGitHub {
   private n = 0;
   puts: { path: string; text: string; message: string }[] = [];
   failPut: (p: string) => boolean = () => false;
+  /** Contents API GETs for which this returns true answer HTTP 500 (Pages reads are unaffected). */
+  failGet: (p: string) => boolean = () => false;
+  private pagesSnapshot: Map<string, Buffer> | null = null;
+
+  /**
+   * GitHub Pages lags commits by 30 s to minutes. While pagesLag is on, Pages URLs keep serving
+   * the content as of the moment it was switched on; the Contents API keeps serving the live store.
+   */
+  get pagesLag() { return this.pagesSnapshot !== null; }
+  set pagesLag(on: boolean) { this.pagesSnapshot = on ? new Map(this.overrides) : null; }
 
   read(p: string): Buffer | null {
-    if (this.overrides.has(p)) return this.overrides.get(p)!;
+    return this.readFrom(this.overrides, p);
+  }
+  /** What the GitHub Pages site serves (lagging behind the store while pagesLag is on). */
+  readPages(p: string): Buffer | null {
+    return this.readFrom(this.pagesSnapshot ?? this.overrides, p);
+  }
+  private readFrom(store: Map<string, Buffer>, p: string): Buffer | null {
+    if (store.has(p)) return store.get(p)!;
     const f = path.join(ROOT, p);
     return fs.existsSync(f) && fs.statSync(f).isFile() ? fs.readFileSync(f) : null;
   }
@@ -95,7 +112,7 @@ export async function installFakeGitHub(page: Page, gh: FakeGitHub) {
 
   await page.route(PAGES_RE, (route: Route) => {
     const p = decodeURIComponent(PAGES_RE.exec(route.request().url())![1]);
-    const body = gh.read(p);
+    const body = gh.readPages(p);
     if (!body) return route.fulfill({ status: 404, headers: CORS, body: 'not found' });
     return route.fulfill({ status: 200, contentType: mime(p), headers: CORS, body });
   });
@@ -108,6 +125,7 @@ export async function installFakeGitHub(page: Page, gh: FakeGitHub) {
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     const p = decodeURIComponent(API_RE.exec(req.url())![1]);
     if (req.method() === 'GET') {
+      if (gh.failGet(p)) return json(route, 500, { message: 'forced failure' });
       const body = gh.read(p);
       if (body) return json(route, 200, { name: path.basename(p), path: p, sha: gh.sha(p), content: body.toString('base64') });
       const list = gh.list(p);
