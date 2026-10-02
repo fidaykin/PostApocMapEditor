@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "2ecbadb";
+const COMMIT  = "893292d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8153,6 +8153,15 @@ const Packages = (() => {
     if (ok) publishPackage(id);
   }
 
+  // 404 = never published (null). Any other failure throws so publish aborts before writing anything:
+  // treating it as "absent" would drop description/preview and bump from a stale registry version.
+  async function _fetchPackageJson(id) {
+    const r = await fetch(`${BASE_URL}/packages/${id}/package.json?_=${Date.now()}`);
+    if (r.status === 404) return null;
+    if (!r.ok) throw new Error(`package.json: HTTP ${r.status}`);
+    return r.json();
+  }
+
   async function publishPackage(id) {
     const entry = getEntry(id);
     if (!entry) return UI.toast('⚠ Package not found');
@@ -8162,8 +8171,11 @@ const Packages = (() => {
       const hexes    = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => h.package === id);
       const buildings = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.package === id);
 
-      // Bump version
-      const [maj, min, pat] = (entry.version || '1.0.0').split('.').map(Number);
+      // The published package.json is the commit marker: it is written last, and the next version
+      // is derived from it (not from the registry cache), so a retry after a partial failure
+      // computes the same version again.
+      const serverPkg = await _fetchPackageJson(id);
+      const [maj, min, pat] = (serverPkg?.version || entry.version || '1.0.0').split('.').map(Number);
       const newVersion = `${maj}.${min}.${pat + 1}`;
 
       UI.progress(5, `Publishing ${id}/hex_database.json…`);
@@ -8182,18 +8194,23 @@ const Packages = (() => {
         console.warn(`[Packages] publish ${id}: ${spriteResult.missing.length} sprite(s) not found locally or in postapoc pool:`, spriteResult.missing);
       }
 
-      UI.progress(80, `Updating ${id}/package.json…`);
-      const pkgJson = JSON.stringify({ ...entry, version: newVersion }, null, 2);
-      await GitHubSync._putText(`packages/${id}/package.json`, pkgJson, `publish ${id}: package.json`);
-
-      UI.progress(90, 'Updating registry.json…');
+      UI.progress(80, 'Updating registry.json…');
       let regData;
-      try {
-        const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
-        regData = res.ok ? await res.json() : { version: 1, packages: [..._registry] };
-      } catch(e) { regData = { version: 1, packages: [..._registry] }; }
+      const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+      if (res.ok) regData = await res.json();
+      else if (res.status === 404) regData = { version: 1, packages: [..._registry] };
+      else throw new Error(`registry.json: HTTP ${res.status}`); // don't overwrite the server registry from a local cache
       regData.packages = regData.packages.map(p => p.id === id ? { ...p, version: newVersion } : p);
       await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: bump ${id} to ${newVersion}`);
+
+      UI.progress(92, `Updating ${id}/package.json…`);
+      const pkgJson = JSON.stringify({
+        ...(serverPkg || {}), ...entry,
+        version: newVersion,
+        description: serverPkg?.description ?? entry.description ?? '',
+        preview: serverPkg?.preview ?? entry.preview ?? 'preview.png',
+      }, null, 2);
+      await GitHubSync._putText(`packages/${id}/package.json`, pkgJson, `publish ${id}: package.json`);
 
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
@@ -8202,7 +8219,7 @@ const Packages = (() => {
         : '';
       UI.progressDone(`✅ Package "${entry.name}" v${newVersion} published${spriteNote}`);
       if (spriteResult.missing.length) {
-        UI.toast(`⚠ ${entry.name} v${newVersion} published, but ${spriteResult.missing.length} sprite(s) missing — see console`);
+        UI.toast(`⚠ ${entry.name} v${newVersion} published, but ${spriteResult.missing.length} sprite(s) missing`, { sticky: true, detail: spriteResult.missing.join(', ') });
       } else {
         UI.toast(`✅ ${entry.name} v${newVersion} published${spriteNote}`);
       }

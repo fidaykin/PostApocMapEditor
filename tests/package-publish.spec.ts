@@ -58,3 +58,53 @@ test('a failing read of the published files blocks the dialog and writes nothing
   await expect(page.getByRole('button', { name: 'Cancel' })).toHaveCount(0);
   expect(gh.putPaths()).toEqual([]);
 });
+
+async function setupPublish(page: any, gh: FakeGitHub) {
+  gh.setRegistry([{ id: 'pp', name: 'PP', version: '1.0.0' }]);                 // stale registry version
+  gh.setJson('packages/pp/package.json', { id: 'pp', name: 'PP', version: '1.2.3', description: 'My desc', preview: 'pv.png', isDefault: false });
+  await openEditor(page, { gh, pat: true });
+  await page.waitForFunction(() => !!Packages.getEntry('pp'));
+  await page.evaluate(() => HexDB.addEntries([{ id: 'Pp_Hex_1', package: 'pp', type: 'Plains' }]));
+}
+
+test('publish keeps description and preview, bumps from the server version, writes package.json last', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await setupPublish(page, gh);
+  await page.evaluate(() => Packages.publishPackage('pp'));
+  const pkg = gh.json('packages/pp/package.json');
+  expect(pkg.description).toBe('My desc');
+  expect(pkg.preview).toBe('pv.png');
+  expect(pkg.version).toBe('1.2.4');
+  expect(gh.putPaths().at(-1)).toBe('packages/pp/package.json');
+  expect(gh.putPaths()).toContain('packages/registry.json');
+  expect(gh.json('packages/registry.json').packages.find((p: any) => p.id === 'pp').version).toBe('1.2.4');
+});
+
+test('a failed package.json write is retry-safe: the retry computes the same version', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await setupPublish(page, gh);
+  gh.failPut = p => p === 'packages/pp/package.json';
+  await page.evaluate(() => Packages.publishPackage('pp'));
+  expect(gh.json('packages/pp/package.json').version).toBe('1.2.3');        // untouched: still the old, complete release
+  gh.failPut = () => false;
+  await page.evaluate(() => Packages.publishPackage('pp'));
+  expect(gh.json('packages/pp/package.json').version).toBe('1.2.4');        // not 1.2.5
+});
+
+test('an unreadable server package.json aborts the publish before any write', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await setupPublish(page, gh);
+  await page.route(/packages\/pp\/package\.json/, r => r.fulfill({ status: 500, headers: { 'access-control-allow-origin': '*' }, body: 'boom' }));
+  await page.evaluate(() => Packages.publishPackage('pp'));
+  expect(gh.putPaths()).toEqual([]);
+});
+
+test('an unreadable server registry.json aborts before package.json is written', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await setupPublish(page, gh);
+  await page.route(/packages\/registry\.json/, r => r.fulfill({ status: 500, headers: { 'access-control-allow-origin': '*' }, body: 'boom' }));
+  await page.evaluate(() => Packages.publishPackage('pp'));
+  expect(gh.putPaths()).not.toContain('packages/registry.json');
+  expect(gh.putPaths()).not.toContain('packages/pp/package.json');
+  expect(gh.json('packages/pp/package.json').version).toBe('1.2.3');
+});
