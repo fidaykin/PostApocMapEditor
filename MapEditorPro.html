@@ -2322,7 +2322,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.03";
-const COMMIT  = "ba73cae";
+const COMMIT  = "a5bb9a8";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7709,7 +7709,9 @@ const IO = (() => {
 
   function clearMap() {
     UI.closeAllMenus();
+    if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     UI.showConfirm('Clear Map', 'Clear all terrain? City settlement will be preserved.', () => {
+      if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }   // a fill may have started while the dialog was open
       History.push();
       mapData.fill('Plain_1');
       bridgesData = [];
@@ -7725,8 +7727,10 @@ const IO = (() => {
 
   function fillMap() {
     UI.closeAllMenus();
+    if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     const hexId = UI.getSelectedTerrain();
     UI.showConfirm('Fill Map', `Fill entire map with ${hexId}?`, () => {
+      if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
       History.push();
       mapData.fill(hexId);
       Canvas.render();
@@ -14002,6 +14006,7 @@ const Dev = (() => {
 
   function qaPlaceAllTiles() {
     if (!mapData) return;
+    if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     const entries = HexDB.getAll().filter(h => h.id).sort(_paletteSort);
     if (!entries.length) { UI.toast('No tiles in HexDB'); return; }
 

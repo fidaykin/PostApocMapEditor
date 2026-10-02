@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { openEditor } from './helpers';
 import { VIEWPORT } from './perf-scene';
 
-declare const Canvas: any, UI: any, Tools: any, IO: any, History: any, HexDB: any, Terrain: any, mapData: string[], MAP_WIDTH: number, MAP_HEIGHT: number;
+declare const Canvas: any, UI: any, Tools: any, IO: any, Dev: any, History: any, HexDB: any, Terrain: any, mapData: string[], MAP_WIDTH: number, MAP_HEIGHT: number;
 test.use({ viewport: VIEWPORT });
 
 // Copy of the pre-T1.8 synchronous fill (Array.shift queue, Set of numeric keys); returns the resulting map.
@@ -281,4 +281,27 @@ test('a failing fill unlocks the tools, closes the progress bar and reports', as
   expect(r.busy).toBe(false);
   await page.waitForTimeout(800);   // progressDone hides the bar after 600 ms
   expect(await page.evaluate(() => document.getElementById('progress-wrap')!.classList.contains('active'))).toBe(false);
+});
+
+test('Clear Map, Fill Map and the QA placer are refused while a fill runs', async ({ page }) => {
+  await openEditor(page);
+  const r = await page.evaluate(async () => {
+    IO.newMap(true); mapData.fill('Plain_1');
+    UI.selectTerrain('Forest_1');
+    const toasts: string[] = [];
+    const origToast = UI.toast; UI.toast = (m: string) => { toasts.push(String(m)); };
+    const origConfirm = UI.showConfirm; UI.showConfirm = (_t: string, _m: string, ok: () => void) => ok();   // auto-confirm
+    const undoBefore = History.undoSize();
+    const p = Tools.fill(225, 225);
+    IO.clearMap();
+    IO.fillMap();
+    Dev.qaPlaceAllTiles();
+    const undoDuring = History.undoSize();
+    await p;
+    UI.toast = origToast; UI.showConfirm = origConfirm;
+    return { toasts, undoBefore, undoDuring, forest: mapData.filter(x => x === 'Forest_1').length };
+  });
+  expect(r.toasts.filter(m => m.startsWith('A fill is still running')).length).toBe(3);
+  expect(r.undoDuring).toBe(r.undoBefore);
+  expect(r.forest).toBe(202500);
 });
