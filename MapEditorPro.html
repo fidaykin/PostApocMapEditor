@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "d2b3dc8";
+const COMMIT  = "f150bf9";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2787,6 +2787,10 @@ const Canvas = (() => {
   let _showZones = false;
   let _showCoastline = true;
   let _selectedSlotIdx = -1;
+  // Cheap counters for tests and profiling (render counters reset every frame).
+  const _stats = { tilesVisited: 0, tilesDrawn: 0, overlayRebuilds: 0, minimapRecolored: 0 };
+  function getStats() { return { ..._stats }; }
+  let _fullScan = false;   // test-only: visit every tile (reference behaviour for equivalence tests)
 
   const BLOCK_SIZE  = 20;    // tiles per block (width and height)
   const RULER_TOP   = 20;    // px — height of letter strip at top
@@ -2884,11 +2888,28 @@ const Canvas = (() => {
 
     const _anchorPass = [];   // multi-tile anchors: drawn again in second pass
 
-    for (let row = 0; row < MAP_HEIGHT; row++) {
-      for (let col = 0; col < MAP_WIDTH; col++) {
+    // Visible row/col ranges, widened by one cell. The exact per-tile test below stays the
+    // final authority, so output is identical to the old full-grid loop; draw order
+    // (row ascending, col ascending) is preserved.
+    _stats.tilesVisited = 0; _stats.tilesDrawn = 0;
+    let rowMin = 0, rowMax = MAP_HEIGHT - 1, colMin = 0, colMax = MAP_WIDTH - 1;
+    if (!_fullScan) {
+      const wxMin = (cameraX - padding) / scale, wxMax = (cameraX + canvas.width  + padding) / scale;
+      const wyMin = (cameraY - padding) / scale, wyMax = (cameraY + canvas.height + padding) / scale;
+      const xiMin = Math.ceil(wxMin / COL_PITCH) - 1, xiMax = Math.floor(wxMax / COL_PITCH) + 1;
+      rowMin = Math.max(0, MAP_HEIGHT - 1 - xiMax); rowMax = Math.min(MAP_HEIGHT - 1, MAP_HEIGHT - 1 - xiMin);
+      // y of column col lies in [k*ROW_PITCH, k*ROW_PITCH + STAGGER], k = MAP_WIDTH-1-col (odd-q stagger)
+      const kMin = Math.ceil((wyMin - STAGGER) / ROW_PITCH) - 1, kMax = Math.floor(wyMax / ROW_PITCH) + 1;
+      colMin = Math.max(0, MAP_WIDTH - 1 - kMax); colMax = Math.min(MAP_WIDTH - 1, MAP_WIDTH - 1 - kMin);
+    }
+
+    for (let row = rowMin; row <= rowMax; row++) {
+      for (let col = colMin; col <= colMax; col++) {
+        _stats.tilesVisited++;
         const s = hexScreenPos(col, row);
         if (s.x + padding < 0 || s.x - padding > canvas.width  ||
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
+        _stats.tilesDrawn++;
         const _hid = mapData[row * MAP_WIDTH + col];
         _drawHexTile(s.x, s.y, radius, _hid, col, row);
         const _he = Terrain.byHexId(_hid);
@@ -3937,7 +3958,8 @@ const Canvas = (() => {
   }
 
   return {
-    init, render, drawMinimap, forceRedraw,
+    init, render, drawMinimap, forceRedraw, getStats,
+    _test: { setCamera(x, y) { cameraX = x; cameraY = y; }, setFullScan(v) { _fullScan = !!v; } },
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
