@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "39d68d3";
+const COMMIT  = "866b656";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7714,6 +7714,7 @@ const Satellite = (() => {
 const Packages = (() => {
   const LS_ACTIVE   = 'pkg_active';
   const LS_REGISTRY = 'pkg_registry_cache';
+  const LS_TRASH    = 'pkg_trash';
 
   let _registry = [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }];
   let _active   = 'postapoc';
@@ -7782,6 +7783,16 @@ const Packages = (() => {
           ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" onclick="Packages.confirmDelete('${_esc(p.id)}')">Delete</button>` : ''}
         </td>
       </tr>`).join('');
+    const trash = listTrash();
+    const trashHtml = trash.length ? `
+      <h4 style="color:#cdd6f4;margin:20px 0 8px">Recently deleted</h4>
+      <table><tbody>${trash.map(t => `
+        <tr>
+          <td><code>${_esc(t.id)}</code></td>
+          <td>${t.hexes.length} hex, ${t.buildings.length} buildings</td>
+          <td>${_esc((t.deletedAt || '').slice(0, 10))}</td>
+          <td><button class="hexdb-tool-btn" onclick="Packages.restoreDeleted('${_esc(t.id)}')">Restore</button></td>
+        </tr>`).join('')}</tbody></table>` : '';
     el.innerHTML = `
       <h3 style="color:#cdd6f4;margin:0 0 16px">Content Packages</h3>
       <div style="display:flex;gap:8px;margin-bottom:12px">
@@ -7791,7 +7802,7 @@ const Packages = (() => {
       <table>
         <thead><tr><th>ID</th><th>Name</th><th>Version</th><th>Actions</th></tr></thead>
         <tbody>${rows}</tbody>
-      </table>`;
+      </table>${trashHtml}`;
   }
   function renderBadges() {
     const isPostapoc = (_active === 'postapoc');
@@ -8286,8 +8297,72 @@ const Packages = (() => {
     else if (r.button === 'remove') await deletePackage(id, { removeEntries: true });
   }
 
+  // Restore copies of deleted packages (max 5, newest first). Malformed items are ignored.
+  function listTrash() {
+    try {
+      const a = JSON.parse(localStorage.getItem(LS_TRASH) || '[]');
+      return (Array.isArray(a) ? a : []).filter(t => t && typeof t.id === 'string' && t.id)
+        .map(t => ({ ...t, hexes: Array.isArray(t.hexes) ? t.hexes : [], buildings: Array.isArray(t.buildings) ? t.buildings : [] }));
+    } catch(e) { return []; }
+  }
+  function _writeTrash(items) {
+    try { localStorage.setItem(LS_TRASH, JSON.stringify(items.slice(0, 5))); return true; }
+    catch(e) { console.warn('[Packages] trash write failed:', e.message); return false; }
+  }
+
+  // Fails closed: the registry on the server must be readable and must not already hold the id;
+  // the trash copy is removed only after the registry write and the local entries both succeeded.
+  async function restoreDeleted(id) {
+    const item = listTrash().find(t => t.id === id);
+    if (!item) return UI.toast('⚠ Nothing to restore for this package');
+    if (getEntry(id)) return UI.toast(`⚠ Package "${id}" already exists`);
+    let registryWritten = false;
+    try {
+      UI.progress(30, 'Updating registry.json…');
+      const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
+      if (!res.ok) throw new Error(`could not read registry.json (HTTP ${res.status})`);
+      const regData = await res.json();
+      if (!regData || !Array.isArray(regData.packages)) throw new Error('registry.json has no packages array');
+      if (regData.packages.some(p => p.id === id)) throw new Error(`package "${id}" already exists in the registry`);
+      regData.packages.push({ ...(item.entry || { name: id, isDefault: false, version: '1.0.0' }), id });
+      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: restore ${id}`);
+      registryWritten = true;
+      _registry = regData.packages;
+      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      // Do not overwrite entries the user has since created or edited under the same key.
+      const hKey = h => `${h.package || 'postapoc'}::${h.id}`;
+      const haveH = new Set(HexDB.getAll().map(hKey));
+      const haveB = new Set(BldDB.getAll().map(hKey));
+      const h = HexDB.addEntries(item.hexes.filter(x => !haveH.has(hKey(x))));
+      const b = BldDB.addEntries(item.buildings.filter(x => !haveB.has(hKey(x))));
+      _writeTrash(listTrash().filter(t => t.id !== id));
+      UI.progressDone(`✅ Package "${id}" restored`);
+      UI.toast(`✅ Package "${id}" restored (${h} hex tile(s), ${b} building(s))`);
+    } catch(e) {
+      UI.progressDone('');
+      UI.toast(registryWritten
+        ? `⚠ Package "${id}" is back in the registry, but restoring its entries failed: ${e.message}. The restore copy was kept.`
+        : `⚠ Restore failed: ${e.message}`);
+    }
+    renderPanel();
+    renderActiveDropdowns();
+  }
+
   async function deletePackage(id, opts = {}) {
     if (isDefault(id)) return;
+    // Keep a restore copy first: a package is never deleted without a way back.
+    const prevTrash = listTrash();
+    let saved = false;
+    try {
+      saved = _writeTrash([
+        { id, entry: getEntry(id), deletedAt: new Date().toISOString(),
+          hexes: structuredClone(HexDB.getData().hexes.filter(h => h.package === id)),
+          buildings: structuredClone(BldDB.getAll().filter(b => b.package === id)) },
+        ...prevTrash.filter(t => t.id !== id),
+      ]);
+    } catch(e) { console.warn('[Packages] restore copy failed:', e.message); }
+    if (!saved) return UI.toast('⚠ Could not save a restore copy, so the package was not deleted');
+    let registryWritten = false;
     try {
       UI.progress(20, 'Updating registry.json…');
       // Fail closed: if the server registry cannot be read we must not write back a guess
@@ -8298,6 +8373,7 @@ const Packages = (() => {
       if (!regData || !Array.isArray(regData.packages)) throw new Error('registry.json has no packages array');
       regData.packages = regData.packages.filter(p => p.id !== id);
       await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: remove ${id}`);
+      registryWritten = true;
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
       if (_active === id) setActive('postapoc');
@@ -8311,7 +8387,11 @@ const Packages = (() => {
       renderActiveDropdowns();
     } catch(e) {
       UI.progressDone('');
-      UI.toast(`⚠ Delete failed: ${e.message}`);
+      // Nothing was deleted on the server: drop the restore copy so it is not offered for a live package.
+      if (!registryWritten) _writeTrash(prevTrash);
+      UI.toast(registryWritten
+        ? `⚠ Package "${id}" was removed from the registry, but a local step failed: ${e.message}. Use Restore in the PACKAGES tab to undo.`
+        : `⚠ Delete failed: ${e.message}`);
     }
   }
 
@@ -8541,7 +8621,7 @@ const Packages = (() => {
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
            openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage,
+           openPublishConfirm, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal,
            _rewriteEntries, confirmImport };

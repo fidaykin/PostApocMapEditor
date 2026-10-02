@@ -100,3 +100,106 @@ test('a failed registry write keeps local entries and the registry entry', async
   expect(await hasEntries(page)).toEqual([true, true]);
   expect(await page.evaluate(() => !!Packages.getEntry('delpkg'))).toBe(true);
 });
+
+test('delete saves a restore copy and restoreDeleted brings back registry entry and entries', async ({ page }) => {
+  const gh = await setup(page);
+  await page.evaluate(() => { Packages.confirmDelete('delpkg'); });
+  await page.getByRole('button', { name: 'Delete and remove entries' }).click();
+  await expect.poll(() => registryIds(gh)).not.toContain('delpkg');
+
+  const trash = await page.evaluate(() => Packages.listTrash());
+  expect(trash.length).toBe(1);
+  expect(trash[0].id).toBe('delpkg');
+  expect(trash[0].hexes.map((h: any) => h.id)).toEqual(['Delpkg_H']);
+  expect(await page.evaluate(() => document.getElementById('pkg-panel')!.textContent)).toContain('Recently deleted');
+
+  await page.evaluate(() => Packages.restoreDeleted('delpkg'));
+  expect(registryIds(gh)).toContain('delpkg');
+  expect(await page.evaluate(() => [HexDB.getAll().some(h => h.id === 'Delpkg_H'), BldDB.getAll().some(b => b.id === 'Delpkg_B')])).toEqual([true, true]);
+  expect(await page.evaluate(() => Packages.listTrash().length)).toBe(0);
+});
+
+test('delete is aborted when the restore copy cannot be stored', async ({ page }) => {
+  const gh = await setup(page);
+  await page.evaluate(() => {
+    const orig = Storage.prototype.setItem;
+    Storage.prototype.setItem = function (k: string, v: string) {
+      if (k === 'pkg_trash') throw new DOMException('full', 'QuotaExceededError');
+      return orig.call(this, k, v);
+    };
+  });
+  await page.evaluate(() => Packages.deletePackage('delpkg', { removeEntries: true }));
+  expect(gh.putPaths()).toEqual([]);
+  expect(await page.evaluate(() => HexDB.getAll().some(h => h.id === 'Delpkg_H'))).toBe(true);
+  await expect(page.locator('.toast', { hasText: 'restore copy' })).toBeVisible();
+});
+
+test('a failed delete leaves no restore copy for a package that still exists', async ({ page }) => {
+  const gh = await setup(page);
+  gh.failPut = p => p === 'packages/registry.json';
+  await page.evaluate(() => Packages.deletePackage('delpkg', { removeEntries: true }));
+  await expect(page.locator('.toast', { hasText: 'Delete failed' })).toBeVisible();
+  expect(await page.evaluate(() => Packages.listTrash().length)).toBe(0);
+});
+
+async function deleted(page: any, gh: FakeGitHub) {
+  await page.evaluate(() => Packages.deletePackage('delpkg', { removeEntries: true }));
+  await expect.poll(() => registryIds(gh)).not.toContain('delpkg');
+  expect(await page.evaluate(() => Packages.listTrash().length)).toBe(1);
+}
+
+test('restore fails closed when the server registry cannot be read: no write, trash kept', async ({ page }) => {
+  const gh = await setup(page);
+  await deleted(page, gh);
+  const before = gh.putPaths().length;
+  await page.route('**/packages/registry.json*', r => r.fulfill({ status: 500, body: 'boom' }));
+  await page.evaluate(() => Packages.restoreDeleted('delpkg'));
+  await expect(page.locator('.toast', { hasText: 'Restore failed' })).toBeVisible();
+  expect(gh.putPaths().length).toBe(before);
+  expect(await page.evaluate(() => Packages.listTrash().length)).toBe(1);
+  expect(await hasEntries(page)).toEqual([false, false]);
+});
+
+test('restore refuses when the id is already in the server registry', async ({ page }) => {
+  const gh = await setup(page);
+  await deleted(page, gh);
+  gh.setRegistry([{ id: 'delpkg', name: 'Someone Else' }]);
+  const before = gh.putPaths().length;
+  await page.evaluate(() => Packages.restoreDeleted('delpkg'));
+  await expect(page.locator('.toast', { hasText: 'already exists' })).toBeVisible();
+  expect(gh.putPaths().length).toBe(before);
+  expect(gh.json('packages/registry.json').packages.find((p: any) => p.id === 'delpkg').name).toBe('Someone Else');
+  expect(await page.evaluate(() => Packages.listTrash().length)).toBe(1);
+  expect(await hasEntries(page)).toEqual([false, false]);
+});
+
+test('restore refuses when the id is already in the local registry', async ({ page }) => {
+  const gh = await setup(page);
+  await page.evaluate(() => localStorage.setItem('pkg_trash', JSON.stringify([{ id: 'delpkg', entry: null, hexes: [], buildings: [], deletedAt: '2026-01-01' }])));
+  await page.evaluate(() => Packages.restoreDeleted('delpkg'));
+  await expect(page.locator('.toast', { hasText: 'already exists' })).toBeVisible();
+  expect(gh.putPaths()).toEqual([]);
+  expect(await page.evaluate(() => Packages.listTrash().length)).toBe(1);
+});
+
+test('a failed registry write during restore keeps the trash copy and adds no entries', async ({ page }) => {
+  const gh = await setup(page);
+  await deleted(page, gh);
+  gh.failPut = p => p === 'packages/registry.json';
+  await page.evaluate(() => Packages.restoreDeleted('delpkg'));
+  await expect(page.locator('.toast', { hasText: 'Restore failed' })).toBeVisible();
+  expect(registryIds(gh)).not.toContain('delpkg');
+  expect(await page.evaluate(() => Packages.listTrash().length)).toBe(1);
+  expect(await hasEntries(page)).toEqual([false, false]);
+  expect(await page.evaluate(() => !!Packages.getEntry('delpkg'))).toBe(false);
+});
+
+test('restore does not overwrite an entry the user has since recreated', async ({ page }) => {
+  const gh = await setup(page);
+  await deleted(page, gh);
+  await page.evaluate(() => HexDB.addEntries([{ id: 'Delpkg_H', package: 'delpkg', type: 'Water' }]));
+  await page.evaluate(() => Packages.restoreDeleted('delpkg'));
+  expect(registryIds(gh)).toContain('delpkg');
+  expect(await page.evaluate(() => HexDB.getAll().find(h => h.id === 'Delpkg_H')!.type)).toBe('Water');
+  expect(await page.evaluate(() => Packages.listTrash().length)).toBe(0);
+});
