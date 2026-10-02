@@ -2322,7 +2322,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "e6afb21";
+const COMMIT  = "9e5c1c0";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2774,7 +2774,7 @@ const Coastline = (() => {
 const Canvas = (() => {
   let canvas, ctx, container;
   let cameraX = 0, cameraY = 0;
-  let zoom = 100;                   // percent; range 25–200
+  let zoom = 100;                   // percent; range minZoom()..200
   let isPanning = false;
   let isSpacePan = false;
   let lastPanX = 0, lastPanY = 0;
@@ -3274,13 +3274,26 @@ const Canvas = (() => {
     cameraY = Math.max(-radius * 2, Math.min(maxY + radius * 2, cameraY));
   }
 
+  // Zoom (percent) at which the whole map exactly fits the canvas (0 for a 0-size canvas).
+  function _fitZoomPct() {
+    const mapPixelW = (MAP_HEIGHT - 1) * COL_PITCH + HEX_SIZE * 2;
+    const mapPixelH = (MAP_WIDTH  - 1) * ROW_PITCH + STAGGER   + HEX_SIZE * 2;
+    const f = Math.min(canvas.width / mapPixelW * 100, canvas.height / mapPixelH * 100);
+    return Number.isFinite(f) ? f : 0;
+  }
+  // Dynamic floor: low enough to fit the whole map, never above the legacy 25%, never below 1%.
+  function minZoom() { return Math.max(1, Math.min(25, Math.floor(_fitZoomPct()))); }
+  // Fixed step at normal zoom, proportional at/below 30% so low zooms stay controllable.
+  function _step(frac, fixed) { return zoom <= 30 ? Math.max(1, Math.round(zoom * frac)) : fixed; }
+
   function setZoom(pct, pivotScreenX, pivotScreenY) {
+    if (!Number.isFinite(pct)) return;
     const oldScale = zoom / 100;
     const px = pivotScreenX !== undefined ? pivotScreenX : canvas.width  / 2;
     const py = pivotScreenY !== undefined ? pivotScreenY : canvas.height / 2;
     const worldX = (cameraX + px) / oldScale;
     const worldY = (cameraY + py) / oldScale;
-    zoom = Math.max(25, Math.min(200, Math.round(pct)));
+    zoom = Math.max(minZoom(), Math.min(200, Math.round(pct)));
     const newScale = zoom / 100;
     cameraX = worldX * newScale - px;
     cameraY = worldY * newScale - py;
@@ -3290,8 +3303,8 @@ const Canvas = (() => {
     Canvas.drawMinimap();
   }
 
-  function zoomIn()  { setZoom(zoom + 10); }
-  function zoomOut() { setZoom(zoom - 10); }
+  function zoomIn()  { setZoom(zoom + _step(0.3, 10)); }
+  function zoomOut() { setZoom(zoom - _step(0.3, 10)); }
 
   function centerOnCity() {
     const scale = zoom / 100;
@@ -3306,11 +3319,8 @@ const Canvas = (() => {
   function fitToScreen() {
     const mapPixelW = (MAP_HEIGHT - 1) * COL_PITCH + HEX_SIZE * 2;
     const mapPixelH = (MAP_WIDTH  - 1) * ROW_PITCH + STAGGER   + HEX_SIZE * 2;
-    const fit = Math.floor(Math.min(
-      canvas.width  / mapPixelW * 100,
-      canvas.height / mapPixelH * 100
-    ));
-    zoom = Math.max(25, Math.min(200, fit));
+    const fit = Math.floor(_fitZoomPct());
+    zoom = Math.max(minZoom(), Math.min(200, fit));
     const scale = zoom / 100;
     cameraX = (mapPixelW * scale - canvas.width)  / 2;
     cameraY = (mapPixelH * scale - canvas.height) / 2;
@@ -3487,7 +3497,11 @@ const Canvas = (() => {
     ctx       = canvas.getContext('2d');
     container = document.getElementById('canvas-container');
     _resizeCanvas();
-    window.addEventListener('resize', () => { _resizeCanvas(); render(); drawMinimap(); });
+    window.addEventListener('resize', () => {
+      _resizeCanvas();
+      if (zoom < minZoom()) { zoom = minZoom(); document.getElementById('st-zoom').textContent = zoom + '%'; }
+      clampCamera(); render(); drawMinimap();
+    });
 
     canvas.addEventListener('mousedown',  _onMouseDown);
     canvas.addEventListener('mousemove',  _onMouseMove);
@@ -3627,7 +3641,7 @@ const Canvas = (() => {
   function _onWheel(e) {
     e.preventDefault();
     const rect = canvas.getBoundingClientRect();
-    setZoom(zoom - Math.sign(e.deltaY) * 5, e.clientX - rect.left, e.clientY - rect.top);
+    setZoom(zoom - Math.sign(e.deltaY) * _step(0.15, 5), e.clientX - rect.left, e.clientY - rect.top);
   }
 
   function _onTouchStart(e) {
@@ -4034,7 +4048,7 @@ const Canvas = (() => {
     init, render, drawMinimap, forceRedraw, getStats,
     _test: { /* calling minimapLayer advances the cache and overwrites _stats.minimapRecolored */ minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, setCamera(x, y) { cameraX = x; cameraY = y; }, setFullScan(v) { _fullScan = !!v; } },
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
-    clampCamera, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
+    clampCamera, minZoom, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot,
     jumpToBlock,
