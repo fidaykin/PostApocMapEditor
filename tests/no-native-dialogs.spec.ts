@@ -1,0 +1,106 @@
+import { test, expect } from '@playwright/test';
+import * as fs from 'fs';
+import * as path from 'path';
+import { openEditor, FakeGitHub, ROOT } from './helpers';
+
+const NATIVE = /(^|[^.\w])(alert|prompt)\(|window\.(alert|prompt)\(/;
+for (const file of ['MapEditorPro.html']) {
+  test(`${file} contains no native alert()/prompt()`, () => {
+    const offenders = fs.readFileSync(path.join(ROOT, file), 'utf8').split('\n')
+      .map((l, i) => ({ l: l.trim(), n: i + 1 }))
+      .filter(x => !x.l.startsWith('//') && NATIVE.test(x.l))
+      .map(x => `${file}:${x.n}: ${x.l}`);
+    expect(offenders).toEqual([]);
+  });
+}
+
+async function editorWithPackage() {
+  const gh = new FakeGitHub();
+  gh.setRegistry([{ id: 'rk', name: 'Rk' }]);
+  return gh;
+}
+
+test('a non-JSON map file opens an in-page dialog, not a native alert', async ({ page }) => {
+  const { nativeDialogs } = await openEditor(page);
+  await page.setInputFiles('#file-input', { name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{not json') });
+  await expect(page.locator('#dialog-title')).toHaveText('Could not read map file');
+  await expect(page.locator('#dialog-msg')).toContainText('not valid JSON');
+  expect(nativeDialogs).toEqual([]);
+});
+
+test('a structurally invalid map shows "Failed to load map"', async ({ page }) => {
+  const { nativeDialogs } = await openEditor(page);
+  await page.evaluate(() => IO.loadFromJSON({ width: 'x' }));
+  await expect(page.locator('#dialog-title')).toHaveText('Failed to load map');
+  await expect(page.locator('#dialog-msg')).toHaveText('Invalid map file format');
+  expect(nativeDialogs).toEqual([]);
+});
+
+test('autosave folder without File System Access API shows a dialog', async ({ page }) => {
+  const { nativeDialogs } = await openEditor(page);
+  await page.evaluate(() => { (window as any).showDirectoryPicker = undefined; IO.setAutosaveFolder(); });
+  await expect(page.locator('#dialog-title')).toHaveText('Autosave folder');
+  await expect(page.locator('#dialog-msg')).toContainText('not supported');
+  expect(nativeDialogs).toEqual([]);
+});
+
+test('a duplicate localization key toasts instead of alerting', async ({ page }) => {
+  const { nativeDialogs } = await openEditor(page);
+  await page.evaluate(() => { LocalizationKeys.add('dup_key', 'a', 'b'); LocalizationKeys.add('dup_key', 'c', 'd'); });
+  await expect(page.locator('.toast', { hasText: 'Key "dup_key" already exists' })).toBeVisible();
+  expect(nativeDialogs).toEqual([]);
+});
+
+test('hex reskin picker is a select of postapoc ids and adds the reskin', async ({ page }) => {
+  const gh = await editorWithPackage();
+  const { nativeDialogs } = await openEditor(page, { gh });
+  await page.waitForFunction(() => !!Packages.getEntry('rk'));
+  await page.evaluate(() => { Packages.setActive('rk'); HexDB.promptReskin(); });
+  await expect(page.locator('select#dialog-input')).toBeVisible();
+  await page.locator('#dialog-input').selectOption('Plain_2');
+  await page.getByRole('button', { name: 'OK' }).click();
+  await expect.poll(() => page.evaluate(() => HexDB.getAll().some(h => h.id === 'Plain_2' && h.package === 'rk'))).toBe(true);
+  expect(nativeDialogs).toEqual([]);
+});
+
+test('cancelling the hex reskin picker adds nothing', async ({ page }) => {
+  const gh = await editorWithPackage();
+  await openEditor(page, { gh });
+  await page.waitForFunction(() => !!Packages.getEntry('rk'));
+  const before = await page.evaluate(() => { Packages.setActive('rk'); return HexDB.getAll().length; });
+  await page.evaluate(() => { HexDB.promptReskin(); });
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  expect(await page.evaluate(() => HexDB.getAll().length)).toBe(before);
+});
+
+test('building reskin picker is a select of postapoc ids and adds the reskin', async ({ page }) => {
+  const gh = await editorWithPackage();
+  const { nativeDialogs } = await openEditor(page, { gh });
+  await page.waitForFunction(() => !!Packages.getEntry('rk'));
+  const id = await page.evaluate(() => { Packages.setActive('rk'); BldDB.promptReskin(); return BldDB.getAll()[0].id; });
+  await expect(page.locator('select#dialog-input')).toBeVisible();
+  await page.locator('#dialog-input').selectOption(id);
+  await page.getByRole('button', { name: 'OK' }).click();
+  await expect.poll(() => page.evaluate((i) => BldDB.getAll().some(b => b.id === i && b.package === 'rk'), id)).toBe(true);
+  expect(nativeDialogs).toEqual([]);
+});
+
+test('Publish Map asks for the file name in a dialog', async ({ page }) => {
+  const gh = new FakeGitHub();
+  const { nativeDialogs } = await openEditor(page, { gh, pat: true });
+  await page.evaluate(() => { GitHubSync.publishMap(); });
+  await page.fill('#dialog-input', 'my_map');
+  await page.getByRole('button', { name: 'OK' }).click();
+  await expect.poll(() => gh.putPaths()).toContain('maps/my_map.json');
+  expect(nativeDialogs).toEqual([]);
+});
+
+test('cancelling the Publish Map dialog uploads nothing', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await openEditor(page, { gh, pat: true });
+  await page.evaluate(() => { GitHubSync.publishMap(); });
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.waitForTimeout(300);
+  expect(gh.putPaths().filter(p => p.startsWith('maps/'))).toEqual([]);
+  await expect(page.locator('#dialog-modal.open')).toHaveCount(0);
+});

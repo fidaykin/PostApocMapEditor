@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "ad58049";
+const COMMIT  = "9f5edbd";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5259,7 +5259,7 @@ const GitHubSync = (() => {
     const mapJson = IO.getMapJson();
     if (!mapJson) { UI.toast('No map to publish'); return; }
 
-    const rawName = prompt('Map filename:', _lastMapName || 'current_map');
+    const rawName = await UI.prompt('Publish map', 'Map filename:', _lastMapName || 'current_map');
     if (rawName === null) return;
     const fname = rawName.trim().replace(/\.json$/i, '') || 'current_map';
     _lastMapName = fname;
@@ -6412,7 +6412,7 @@ const IO = (() => {
   async function setAutosaveFolder() {
     UI.closeAllMenus();
     if (!window.showDirectoryPicker) {
-      alert('File System Access API not supported in this browser. Use Chrome or Edge.');
+      UI.alert('Autosave folder', 'The File System Access API is not supported in this browser. Use Chrome or Edge.');
       return;
     }
     try {
@@ -7251,7 +7251,7 @@ const IO = (() => {
         UI.toast('Map loaded, but it could not be checked for missing packages or unknown ids', { sticky: true, detail: String(checkErr && checkErr.message || checkErr) });
       }
     } catch (err) {
-      alert('Failed to load map: ' + err.message);
+      UI.alert('Failed to load map', err.message, String(err.stack || ''));
     }
   }
 
@@ -7327,7 +7327,7 @@ const IO = (() => {
           _loadFromJSON(JSON.parse(ev.target.result));
           _setFileNameFromHandle(file.name);
         }
-        catch(err) { alert('Failed to parse JSON: ' + err.message); }
+        catch(err) { UI.alert('Could not read map file', 'The file is not valid JSON: ' + err.message, file.name); }
       };
       reader.readAsText(file);
       e.target.value = '';
@@ -9421,7 +9421,10 @@ const LocalizationKeys = (() => {
   function add(key, en, uk) {
     key = (key || '').trim();
     if (!key) return;
-    if (_entries.find(e => e.key === key)) { alert(`Key "${key}" already exists.`); return; }
+    if (_entries.find(e => e.key === key)) {
+      UI.toast(`Key "${key}" already exists`, { detail: 'Pick another key or edit the existing entry.', ms: 4000 });
+      return;
+    }
     const group = document.getElementById('loc-add-group')?.value || _addGroup;
     _entries.push({ key, en: en || '', uk: uk || '', group });
     _addGroup = 'Universal Keys';
@@ -10943,12 +10946,15 @@ const HexDB = (() => {
     UI.toast(`Reskinning "${baseId}" for package "${h.package}" — id kept identical, edit spriteName next.`);
   }
 
-  function promptReskin() {
+  async function promptReskin() {
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
     const options = _data.hexes.filter(h => (h.package || 'postapoc') === 'postapoc').map(h => h.id);
-    const baseId = window.prompt(`Reskin which postapoc hex id?\n\n${options.join(', ')}`, options[0] || '');
+    if (!options.length) { UI.toast('⚠ No postapoc hex tiles to reskin'); return; }
+    const baseId = await UI.prompt('Reskin hex tile',
+      'Reskin which postapoc hex id? The new entry keeps the same id, so it overrides that tile at runtime.',
+      options[0], options);
     if (baseId) addReskin(baseId);
   }
 
@@ -12426,12 +12432,15 @@ const BldDB = (() => {
     UI.toast(`Reskinning "${baseId}" for package "${b.package}" — id kept identical, edit spriteName next.`);
   }
 
-  function promptReskin() {
+  async function promptReskin() {
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
     const options = _data.buildings.filter(b => (b.package || 'postapoc') === 'postapoc').map(b => b.id);
-    const baseId = window.prompt(`Reskin which postapoc building id?\n\n${options.join(', ')}`, options[0] || '');
+    if (!options.length) { UI.toast('⚠ No postapoc buildings to reskin'); return; }
+    const baseId = await UI.prompt('Reskin building',
+      'Reskin which postapoc building id? The new entry keeps the same id, so it overrides that building at runtime.',
+      options[0], options);
     if (baseId) addReskin(baseId);
   }
 
