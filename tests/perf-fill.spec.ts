@@ -79,6 +79,8 @@ test('matches the reference synchronous fill on random maps with multi-tile foot
   expect(res.filter(r => r.seed !== 'uniform' && r.changed > 1000).length).toBeGreaterThan(0);   // exercised real regions
   expect(res[res.length - 1].changed).toBeGreaterThan(200000);
 });
+declare const Generator: any, Satellite: any;
+declare function autoPlaceSettlements(): void;
 declare function invalidateSatelliteMap(): void;
 declare function getSatelliteAnchor(c: number, r: number): any;
 
@@ -93,17 +95,29 @@ test('a long fill keeps the main thread responsive', async ({ page }) => {
     const p = Tools.fill(225, 225);
     const busy = Tools.isFillBusy();
     await p;
+    const ticksDuring = ticks, gapDuring = maxGap;   // captured before any extra wait: only what happened DURING the fill
     const ms = performance.now() - t0;
-    await new Promise(res => setTimeout(res, 20));
     clearInterval(iv);
-    return { ticks, maxGap, ms, busy, forest: mapData.filter(x => x === 'Forest_1').length, busyAfter: Tools.isFillBusy() };
+    return { ticksDuring, gapDuring, ms, busy, forest: mapData.filter(x => x === 'Forest_1').length, busyAfter: Tools.isFillBusy() };
   });
-  console.log('fill 450x450 uniform: total ' + r.ms.toFixed(0) + ' ms, ' + r.ticks + ' ticks, max main-thread gap ' + r.maxGap.toFixed(1) + ' ms');
+  console.log('fill 450x450 uniform: total ' + r.ms.toFixed(0) + ' ms, ' + r.ticksDuring + ' ticks, max main-thread gap ' + r.gapDuring.toFixed(1) + ' ms');
   expect(r.busy).toBe(true);
   expect(r.busyAfter).toBe(false);
   expect(r.forest).toBe(202500);
-  expect(r.ticks).toBeGreaterThanOrEqual(3);
-  expect(r.maxGap).toBeLessThan(100);
+  expect(r.ticksDuring).toBeGreaterThanOrEqual(3);
+  expect(r.gapDuring).toBeLessThan(60);
+});
+
+test('fill with the same id is a no-op and leaves the tools unlocked', async ({ page }) => {
+  await openEditor(page);
+  const r = await page.evaluate(async () => {
+    IO.newMap(true); UI.selectTerrain('Plain_1');
+    const p = Tools.fill(5, 5);
+    const busy = Tools.isFillBusy();
+    await p;
+    return { busy, after: Tools.isFillBusy(), all: mapData.every(x => x === 'Plain_1') };
+  });
+  expect(r).toEqual({ busy: false, after: false, all: true });
 });
 
 test('input and undo are ignored while a fill runs; the fill is one undo step', async ({ page }) => {
@@ -162,4 +176,109 @@ test('a fill aborts without writing when the map is replaced mid-fill', async ({
   // a new fill works afterwards
   const again = await page.evaluate(async () => { UI.selectTerrain('Forest_1'); History.push(); await Tools.fill(5, 5); return mapData.filter(x => x === 'Forest_1').length; });
   expect(again).toBe(202500);
+});
+
+const readAutosave = (page: any) => page.evaluate(() => new Promise<string | null>(res => {
+  const o = indexedDB.open('MapEditorPro', 1);
+  o.onsuccess = () => {
+    const g = o.result.transaction('kv').objectStore('kv').get('map_autosave');
+    g.onsuccess = () => res(g.result ?? null);
+  };
+}));
+const countForest = (json: string | null) => json ? JSON.parse(json).data.flat().filter((x: any) => x === 'Forest_1').length : -1;
+
+test('autosave / flush triggers never persist a half-filled map; Save waits for the fill', async ({ page }) => {
+  await openEditor(page);
+  await page.evaluate(async () => {
+    IO.newMap(true); mapData.fill('Plain_1');
+    IO.loadFromJSON(JSON.parse(IO.getMapJson()));   // marks it a user map (autosave is off for the startup placeholder)
+    await IO.autoSave();
+  });
+  expect(await page.evaluate(() => IO.hasUserMap())).toBe(true);
+  const before = await readAutosave(page);
+  expect(before).not.toBeNull();
+  expect(countForest(before)).toBe(0);
+  const mid = await page.evaluate(async () => {
+    UI.selectTerrain('Forest_1');
+    const p = Tools.fill(225, 225);
+    const busy = Tools.isFillBusy();
+    const direct = await IO.autoSave();
+    Object.defineProperty(document, 'hidden', { configurable: true, get: () => true });
+    document.dispatchEvent(new Event('visibilitychange'));
+    window.dispatchEvent(new Event('pagehide'));
+    delete (document as any).hidden;
+    // Save (Ctrl+S) mid-fill must wait for the finished map
+    const saved: string[] = [];
+    const origCreate = URL.createObjectURL;
+    URL.createObjectURL = (b: any) => { saved.push('blob'); (window as any).__blob = b; return 'blob:x'; };
+    HTMLAnchorElement.prototype.click = function () {};
+    IO.saveMap();
+    const savedMid = saved.length;
+    await p;
+    await new Promise(res => setTimeout(res, 50));
+    URL.createObjectURL = origCreate;
+    const text = await (window as any).__blob.text();
+    return { busy, direct, savedMid, savedAfter: saved.length, blobForest: JSON.parse(text).data.flat().filter((x: any) => x === 'Forest_1').length };
+  });
+  expect(mid.busy).toBe(true);
+  expect(mid.direct).toBe(false);
+  expect(mid.savedMid).toBe(0);
+  expect(mid.savedAfter).toBe(1);
+  expect(mid.blobForest).toBe(202500);
+  await page.waitForTimeout(300);   // let any in-flight flush from the hidden-tab events settle
+  // nothing written mid-fill: the stored record is still the pre-fill one, or (after the fill) the finished map
+  const after = await readAutosave(page);
+  expect([0, 202500]).toContain(countForest(after));
+  await page.evaluate(() => IO.autoSave());
+  expect(countForest(await readAutosave(page))).toBe(202500);
+});
+
+test('in-place bulk writers are refused while a fill runs', async ({ page }) => {
+  await openEditor(page);
+  const r = await page.evaluate(async () => {
+    IO.newMap(true); mapData.fill('Plain_1');
+    UI.selectTerrain('Forest_1');
+    const toasts: string[] = [];
+    const origToast = UI.toast; UI.toast = (m: string) => { toasts.push(String(m)); };
+    const undoBefore = History.undoSize();
+    const p = Tools.fill(225, 225);
+    Generator.apply();
+    Satellite.apply();
+    autoPlaceSettlements();
+    const undoDuring = History.undoSize();
+    await p;
+    UI.toast = origToast;
+    return { toasts, undoBefore, undoDuring, forest: mapData.filter(x => x === 'Forest_1').length };
+  });
+  expect(r.toasts.filter(m => m.startsWith('A fill is still running')).length).toBe(3);
+  expect(r.undoDuring).toBe(r.undoBefore);
+  expect(r.forest).toBe(202500);
+});
+
+test('a failing fill unlocks the tools, closes the progress bar and reports', async ({ page }) => {
+  await openEditor(page);
+  const r = await page.evaluate(async () => {
+    IO.newMap(true); mapData.fill('Plain_1');
+    UI.selectTerrain('Forest_1'); Tools.setActive('fill');
+    const toasts: string[] = [];
+    const origToast = UI.toast; UI.toast = (m: string) => { toasts.push(String(m)); };
+    const origRender = Canvas.render; let thrown = false;
+    Canvas.render = () => { if (!thrown) { thrown = true; throw new Error('boom'); } return origRender.call(Canvas); };
+    const origErr = console.error; console.error = () => {};
+    Canvas.setZoom(100); Canvas.centerOnCity();
+    const canvas = document.getElementById('map-canvas') as HTMLCanvasElement;
+    const pos = Canvas.hexScreenPos(225, 225), rc = canvas.getBoundingClientRect();
+    const ev = (t: string) => new MouseEvent(t, { clientX: rc.left + pos.x, clientY: rc.top + pos.y, button: 0, bubbles: true });
+    thrown = false;   // the setZoom/centerOnCity renders above were already done
+    canvas.dispatchEvent(ev('mousedown')); canvas.dispatchEvent(ev('mouseup'));
+    await Tools.whenIdle().catch(() => {});
+    await new Promise(res => setTimeout(res, 20));
+    Canvas.render = origRender; console.error = origErr; UI.toast = origToast;
+    return { toasts, thrown, busy: Tools.isFillBusy(), progressActive: document.getElementById('progress-wrap')!.classList.contains('active') };
+  });
+  expect(r.thrown).toBe(true);
+  expect(r.toasts.some(m => m.startsWith('Fill failed'))).toBe(true);
+  expect(r.busy).toBe(false);
+  await page.waitForTimeout(800);   // progressDone hides the bar after 600 ms
+  expect(await page.evaluate(() => document.getElementById('progress-wrap')!.classList.contains('active'))).toBe(false);
 });

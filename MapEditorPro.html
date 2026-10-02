@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "9e94e3f";
+const COMMIT  = "120112e";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4323,9 +4323,11 @@ const Tools = (() => {
   // Indexed typed-array queue + visited bitmap (no Array.shift / Set of numeric keys), processed in ~8 ms
   // slices so the UI keeps painting. Neighbour table (parity of c; NOTE it is not the true hex adjacency, T2.2
   // revisits that) and the order of the `visited` list handed to _autoResolveEdgesAround match the old version.
-  // Re-entrancy policy: while a fill runs, new tool input (_onDown) and undo/redo are IGNORED (not queued).
-  // Anything that replaces the map under the fill (New Map / load: History.clear bumps the generation, or a
-  // new mapData array / size) makes the fill abort without further writes or edge re-resolution.
+  // Concurrency policy: while a fill runs, new tool input (_onDown), a second fill and undo/redo are IGNORED (not
+  // queued); the in-place bulk writers (Generator/Satellite apply, auto-place settlements) are refused via
+  // isFillBusy(); autosave and Save wait/skip (see IO). Writes go through the captured `md`, and a map REPLACED
+  // under the fill (New Map / load / expand: new mapData array or size) is detected by identity/size after each
+  // yield, aborting without further writes or edge re-resolution.
   let _fillBusy = false;
   let _fillIdle = Promise.resolve();
   function isFillBusy() { return _fillBusy; }
@@ -4341,8 +4343,8 @@ const Tools = (() => {
   }
 
   async function _fillRun(col, row, targetId, fillId) {
-    const md = mapData, W = MAP_WIDTH, H = MAP_HEIGHT, N = W * H, gen = History.generation();
-    const stale = () => mapData !== md || MAP_WIDTH !== W || MAP_HEIGHT !== H || History.generation() !== gen;
+    const md = mapData, W = MAP_WIDTH, H = MAP_HEIGHT, N = W * H;
+    const stale = () => mapData !== md || MAP_WIDTH !== W || MAP_HEIGHT !== H;
     const visited = new Uint8Array(N);
     const queue   = new Int32Array(N);
     let head = 0, tail = 0, sliceStart = performance.now(), showedProgress = false;
@@ -4358,38 +4360,41 @@ const Tools = (() => {
     };
 
     let aborted = false;
-    while (head < tail) {
-      const idx = queue[head++];
-      const c = idx % W, r = (idx - c) / W;
-      if (!getSatelliteAnchor(c, r)) {          // tiles under a multi-tile footprint are skipped (and not expanded)
-        md[idx] = fillId;
-        const even = (c & 1) === 0;
-        enqueue(c,     r - 1);
-        enqueue(c + 1, even ? r - 1 : r);
-        enqueue(c + 1, even ? r : r + 1);
-        enqueue(c,     r + 1);
-        enqueue(c - 1, even ? r : r + 1);
-        enqueue(c - 1, even ? r - 1 : r);
+    try {
+      while (head < tail) {
+        const idx = queue[head++];
+        const c = idx % W, r = (idx - c) / W;
+        if (!getSatelliteAnchor(c, r)) {          // tiles under a multi-tile footprint are skipped (and not expanded)
+          md[idx] = fillId;
+          const even = (c & 1) === 0;
+          enqueue(c,     r - 1);
+          enqueue(c + 1, even ? r - 1 : r);
+          enqueue(c + 1, even ? r : r + 1);
+          enqueue(c,     r + 1);
+          enqueue(c - 1, even ? r : r + 1);
+          enqueue(c - 1, even ? r - 1 : r);
+        }
+        if ((head & 1023) === 0 && performance.now() - sliceStart > 8) {
+          showedProgress = true;
+          UI.progress(Math.min(95, head / N * 100), 'Filling… ' + head + ' tiles');
+          await new Promise(res => setTimeout(res, 0));
+          if (stale()) { aborted = true; break; }
+          sliceStart = performance.now();
+        }
       }
-      if ((head & 1023) === 0 && performance.now() - sliceStart > 8) {
-        showedProgress = true;
-        UI.progress(Math.min(95, head / N * 100), 'Filling… ' + head + ' tiles');
-        await new Promise(res => setTimeout(res, 0));
-        if (stale()) { aborted = true; break; }
-        sliceStart = performance.now();
-      }
-    }
 
-    if (showedProgress) UI.progressDone(aborted ? 'Fill cancelled' : '');
-    if (aborted) return;
-    invalidateSatelliteMap();
-    const cells = new Array(tail);
-    for (let i = 0; i < tail; i++) { const q = queue[i], c = q % W; cells[i] = { col: c, row: (q - c) / W }; }
-    _autoResolveEdgesAround(cells);
-    Canvas.render();
-    Canvas.drawMinimap();
-    IO.scheduleAutoSave();
-    UI.toast('Fill applied');
+      if (aborted) return;
+      invalidateSatelliteMap();
+      const cells = new Array(tail);
+      for (let i = 0; i < tail; i++) { const q = queue[i], c = q % W; cells[i] = { col: c, row: (q - c) / W }; }
+      _autoResolveEdgesAround(cells);
+      Canvas.render();
+      Canvas.drawMinimap();
+      IO.scheduleAutoSave();
+      UI.toast('Fill applied');
+    } finally {
+      if (showedProgress) UI.progressDone(aborted ? 'Fill cancelled' : '');
+    }
   }
 
   // ── Rectangle ──────────────────────────────────────────────
@@ -4597,7 +4602,7 @@ const Tools = (() => {
         break;
       case 'fill':
         History.push();
-        _fill(col, row);
+        _fill(col, row).catch(err => { console.error('[fill]', err); UI.toast('Fill failed — Ctrl+Z restores the map'); });
         _isDown = false;
         break;
       case 'rect':
@@ -4730,7 +4735,8 @@ const Tools = (() => {
     });
   }
 
-  return { init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy, fill: _fill };
+  return { init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
+           fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
 })();
 // ════════════════════════════════════════════════════════════
 // HISTORY MODULE — 50-step string-array undo/redo
@@ -4836,10 +4842,7 @@ const History = (() => {
     UI.toast('Redo');
   }
 
-  let _gen = 0;       // bumped whenever the history is reset (New Map / load), see the Tools fill abort
-  function generation() { return _gen; }
   function clear() {
-    _gen++;
     _undo.length = 0;
     _redo.length = 0;
     _last = null;
@@ -4869,7 +4872,7 @@ const History = (() => {
     });
   }
 
-  return { push, undo, redo, clear, undoSize, redoSize, initKeyboard, debugRowCount, generation };
+  return { push, undo, redo, clear, undoSize, redoSize, initKeyboard, debugRowCount };
 })();
 // ════════════════════════════════════════════════════════════
 // SPRITE STORE — IndexedDB persistence for user-uploaded sprites
@@ -7108,6 +7111,8 @@ const IO = (() => {
   function _autoSave() {
     // Never save the startup placeholder, and never write anything while the recovery dialog is open.
     if (!mapData || !_userMap || _recoveryOpen) return Promise.resolve(false);
+    // A chunked fill is half-written: never persist that. The fill ends with scheduleAutoSave(), which flushes.
+    if (typeof Tools !== 'undefined' && Tools.isFillBusy()) return Promise.resolve(false);
     let built;
     try { built = _stampedJson(); }
     catch(e) { StorageGuard._warn('Map autosave', e); return Promise.resolve(false); }
@@ -7527,6 +7532,7 @@ const IO = (() => {
   function saveMap() {
     UI.closeAllMenus();
     if (!mapData) return;
+    if (Tools.isFillBusy()) { Tools.whenIdle().then(saveMap); return; }   // wait for the fill, then save the finished map
     const blob = new Blob([_buildJson()], { type: 'application/json' });
     const a    = document.createElement('a');
     a.href     = URL.createObjectURL(blob);
@@ -8189,6 +8195,7 @@ const Generator = (() => {
 
   function apply() {
     if (!mapData) return;
+    if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     History.push();
     _generateInto(mapData, _getParams());
     const cityC = getCityCol(), cityR = getCityRow();
@@ -8407,6 +8414,7 @@ const Satellite = (() => {
   }
 
   function apply() {
+    if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     if (!_classified) return;
     History.push();
     const len = MAP_WIDTH * MAP_HEIGHT;
@@ -14192,6 +14200,7 @@ function _fisherYates(arr) {
 }
 
 function autoPlaceSettlements() {
+  if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
   if (!settlementSlots.length) { UI.toast('No settlement slots defined.'); return; }
   History.push();
   settlementsVisible = true;
