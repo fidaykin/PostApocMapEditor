@@ -98,3 +98,27 @@ for (const kind of ['bld', 'hex'] as const) {
     expect(r).toBe(false);
   });
 }
+
+test('Load Hex DB from server asks first; Cancel changes nothing', async ({ page }) => {
+  await openEditor(page);
+  await page.evaluate(() => HexDB.add());
+  const before = await page.evaluate(() => [HexDB.getAll().length, localStorage.getItem('sync_base_hex'), localStorage.getItem('sync_base_bld')]);
+  expect(before[1]).not.toBeNull();
+  await page.evaluate(() => { GitHubSync.loadHexDbIntoEditor(); });
+  await expect(page.locator('#dialog-msg')).toContainText('Replace all local hexes');
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await page.waitForTimeout(300);
+  expect(await page.evaluate(() => [HexDB.getAll().length, localStorage.getItem('sync_base_hex'), localStorage.getItem('sync_base_bld')])).toEqual(before);
+});
+
+test('Load Hex DB from server, confirmed, replaces the hexes and drops both merge bases', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await openEditor(page, { gh });
+  await page.evaluate(() => HexDB.add());
+  await page.evaluate(() => { GitHubSync.loadHexDbIntoEditor(); });
+  await page.getByRole('button', { name: 'Replace', exact: true }).click();
+  await expect.poll(() => page.evaluate(() => HexDB.getAll().some(h => /^NewHex_/.test(h.id)))).toBe(false);
+  expect(await page.evaluate(() => [localStorage.getItem('sync_base_hex'), localStorage.getItem('sync_base_bld')])).toEqual([null, null]);
+  const server = gh.json('packages/postapoc/hex_database.json').hexes.length;
+  expect(await page.evaluate(() => HexDB.getAll().length)).toBeLessThanOrEqual(server);
+});

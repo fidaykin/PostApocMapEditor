@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "4aa485d";
+const COMMIT  = "9033155";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5337,10 +5337,19 @@ const GitHubSync = (() => {
   }
 
   async function loadHexDbIntoEditor() {
+    const ok = await UI.confirm('Load Hex DB from server',
+      "Replace all local hexes with the server copy? Local-only entries and other packages' entries will be lost.",
+      '', 'Replace');
+    if (!ok) return;
     const res = await fetch(`${BASE_URL}/packages/postapoc/hex_database.json?_=${Date.now()}`);
     if (!res.ok) throw new Error(`packages/postapoc/hex_database.json not found (${res.status})`);
     const data = await res.json();
+    if (!data || !Array.isArray(data.hexes)) return UI.toast('Invalid HexDB data');
     HexDB.loadFromObject(data);
+    // The wholesale replace breaks the link between the local copy and the merge bases: drop them so
+    // the next sync re-merges instead of treating every missing entry as deliberately deleted.
+    SyncMerge.clearBase('hex');
+    SyncMerge.clearBase('bld');
     UI.toast('✅ Hex DB loaded from server');
   }
 
