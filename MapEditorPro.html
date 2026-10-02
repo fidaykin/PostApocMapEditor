@@ -1206,6 +1206,7 @@ body.mode-common #map-io    { display: none; }
 
 </style>
 <script src="zone-painter.js?v=8"></script>
+<script src="map-jobs.js?v=1"></script>
 </head>
 <body class="mode-map">
 
@@ -2321,7 +2322,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "120112e";
+const COMMIT  = "17a3fce";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7800,6 +7801,73 @@ const IO = (() => {
 // ════════════════════════════════════════════════════════════
 // GENERATOR MODULE
 // ════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════
+// WORKER JOBS — run MapJobs.* in a Web Worker, fall back to the main thread
+// ════════════════════════════════════════════════════════════
+// The worker is optional: from file:// Chrome refuses `new Worker(url)` (opaque origin), and a deployment may lack the
+// script. ANY failure (constructor throws, script 404 / onerror) degrades to running the very same MapJobs function
+// (map-jobs.js is loaded by a <script> tag) on the main thread, so results are identical either way.
+const WorkerJobs = (() => {
+  let _worker = null, _broken = false, _forceSync = false, _seq = 0;
+  const _pending = new Map();   // id → { resolve, reject, onProgress, retry }
+
+  function _runSync(type, job, onProgress) {
+    return new Promise((resolve, reject) => setTimeout(() => {   // let the progress UI paint first
+      try { resolve(MapJobs[type](job, onProgress)); } catch (e) { reject(e); }
+    }, 0));
+  }
+
+  function _ensure() {
+    if (_worker) return _worker;
+    if (_broken || _forceSync || typeof Worker === 'undefined') return null;
+    let w;
+    try { w = new Worker('map-worker.js?v=1'); } catch (e) { _broken = true; return null; }
+    _worker = w;
+    w.onmessage = ev => {
+      if (_worker !== w) return;
+      const m = ev.data, p = _pending.get(m.id);
+      if (!p) return;
+      if (m.kind === 'progress') { if (p.onProgress) p.onProgress(m.frac); return; }
+      _pending.delete(m.id);
+      if (m.kind === 'result') p.resolve(m.result); else p.reject(new Error(m.message));
+    };
+    w.onerror = () => {                              // e.g. file:// origin or missing script: degrade, don't fail
+      if (_worker !== w) return;
+      _broken = true; _worker = null;
+      try { w.terminate(); } catch (e) {}
+      const jobs = [..._pending.values()]; _pending.clear();
+      jobs.forEach(p => p.retry());
+    };
+    return w;
+  }
+
+  function run(type, job, onProgress) {
+    const w = _ensure();
+    if (!w) return _runSync(type, job, onProgress);
+    return new Promise((resolve, reject) => {
+      const id = ++_seq;
+      _pending.set(id, { resolve, reject, onProgress, retry: () => _runSync(type, job, onProgress).then(resolve, reject) });
+      // Transfer a COPY of the pixel buffer: the caller keeps its own for re-classification.
+      const wire = job.pixels ? { ...job, pixels: job.pixels.slice() } : job;
+      try { w.postMessage({ id, type, job: wire }, wire.pixels ? [wire.pixels.buffer] : []); }
+      catch (e) { _pending.delete(id); _runSync(type, job, onProgress).then(resolve, reject); }
+    });
+  }
+
+  // Terminate the worker and reject every pending job with a `cancelled` error. A fresh worker is made on the next run.
+  function cancelAll() {
+    if (_worker) { try { _worker.terminate(); } catch (e) {} _worker = null; }
+    const jobs = [..._pending.values()]; _pending.clear();
+    jobs.forEach(p => { const e = new Error('cancelled'); e.cancelled = true; p.reject(e); });
+  }
+
+  return {
+    run, cancelAll,
+    usingWorker: () => !!_worker,
+    forceSync: on => { _forceSync = !!on; },
+  };
+})();
+
 const Generator = (() => {
   const GEN_PRESETS = {
     wasteland: { elevScale:0.018, moistScale:0.022, biomeScale:0.020, mountainThr:0.72, hillThr:0.60, waterThr:0.25, rivers:2  },
@@ -8245,100 +8313,48 @@ const Satellite = (() => {
     return _T;
   }
 
-  function _rgbToHsl(r, g, b) {
-    r /= 255; g /= 255; b /= 255;
-    const max = Math.max(r,g,b), min = Math.min(r,g,b);
-    let h = 0, s = 0;
-    const l = (max + min) / 2;
-    if (max !== min) {
-      const d = max - min;
-      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
-      switch (max) {
-        case r: h = ((g - b) / d + (g < b ? 6 : 0)) / 6; break;
-        case g: h = ((b - r) / d + 2) / 6; break;
-        case b: h = ((r - g) / d + 4) / 6; break;
-      }
-    }
-    return [h * 360, s, l];
-  }
-
-  function _sample(col, row, sampleR) {
-    const cx = (col / MAP_WIDTH)  * _w;
-    const cy = (row / MAP_HEIGHT) * _h;
-    let sr = 0, sg = 0, sb = 0, n = 0;
-    for (let dy = -sampleR; dy <= sampleR; dy++) {
-      for (let dx = -sampleR; dx <= sampleR; dx++) {
-        if (dx * dx + dy * dy > sampleR * sampleR) continue;
-        const ix = Math.max(0, Math.min(_w - 1, Math.round(cx + dx)));
-        const iy = Math.max(0, Math.min(_h - 1, Math.round(cy + dy)));
-        const i  = (iy * _w + ix) * 4;
-        sr += _pixels.data[i]; sg += _pixels.data[i+1]; sb += _pixels.data[i+2];
-        n++;
-      }
-    }
-    return [sr / n, sg / n, sb / n];
-  }
-
-  function _classifyColor(r, g, b, sens) {
-    const [h, s, l] = _rgbToHsl(r, g, b);
-    const T = _getT();
-
-    if (l < 0.09) return T.RIFT;
-    if ((h < 25 || h > 335) && s > 0.50 && l > 0.12 && l < 0.55) return T.LAVA;
-
-    const wSatMin = 0.42 - sens * 0.32;
-    if (h >= 170 && h <= 268 && s > wSatMin && l < 0.70) return l < 0.32 ? T.WATER_DARK : T.WATER_LIGHT;
-
-    if (s < 0.18 && l > 0.74 - (1 - sens) * 0.12) return T.MOUNTAIN;
-    if (s < 0.20) {
-      if (l > 0.56) return T.HILLS;
-      if (l > 0.30) return T.RUBBLE_1;
-      return T.RIFT;
-    }
-
-    const fSatMin = 0.28 - sens * 0.20;
-    if (h >= 78 && h <= 168) {
-      if (s > fSatMin) {
-        if (l < 0.22) return T.SWAMP;
-        if (l < 0.37) return T.FOREST_2;
-        if (l < 0.53) return T.FOREST_1;
-        return T.PLAIN_1;
-      }
-      if (l < 0.30) return T.SWAMP;
-      if (l < 0.50) return T.PLAIN_2;
-      return T.PLAIN_1;
-    }
-    if (h >= 50 && h < 78) {
-      if (s > 0.30 && l > 0.52) return T.PLAIN_1;
-      if (s > 0.22 && l > 0.38) return T.PLAIN_2;
-      return T.BARREN;
-    }
-    if (h >= 30 && h < 60 && s > 0.28 && l > 0.56) return T.DESERT;
-    if (h >= 12 && h < 50) {
-      if (l > 0.52 && s > 0.22) return T.BARREN;
-      if (l > 0.36 && s > 0.18) return T.RUBBLE_1;
-      return T.RUBBLE_2;
-    }
-    return T.PLAIN_1;
-  }
-
-  function _classify() {
+  let _classTok = 0, _busy = false;
+  let _classMeta = null;   // { W, H, md } the map the classification was computed for
+  async function _classify() {
     if (!_pixels) return;
-    const W = MAP_WIDTH, H = MAP_HEIGHT;
-    const sampleR = parseInt(document.getElementById('sat-sampleR').value, 10);
-    const sens    = parseInt(document.getElementById('sat-sens').value, 10) / 100;
-    const flipY   = document.getElementById('sat-flipY').checked;
-
-    _classified = new Array(W * H).fill('Plain_1');
-    for (let row = 0; row < H; row++) {
-      for (let col = 0; col < W; col++) {
-        const srcRow = flipY ? H - 1 - row : row;
-        const [r, g, b] = _sample(col, srcRow, sampleR);
-        _classified[row * W + col] = _classifyColor(r, g, b, sens);
+    if (_busy) WorkerJobs.cancelAll();             // supersede the running job (terminates its worker)
+    const tok = ++_classTok;                       // newer request supersedes older ones
+    const W = MAP_WIDTH, H = MAP_HEIGHT, md = mapData;
+    const job = {
+      pixels: _pixels.data, w: _w, h: _h, W, H, T: _getT(),
+      sampleR: parseInt(document.getElementById('sat-sampleR').value, 10),
+      sens:    parseInt(document.getElementById('sat-sens').value, 10) / 100,
+      flipY:   document.getElementById('sat-flipY').checked,
+    };
+    const applyBtn = document.getElementById('sat-apply-btn');
+    applyBtn.disabled = true;
+    _busy = true;
+    UI.progress(0, 'Classifying image…');
+    try {
+      const res = await WorkerJobs.run('satellite', job, f => { if (tok === _classTok) UI.progress(f * 100, 'Classifying image…'); });
+      if (tok !== _classTok) return;
+      if (MAP_WIDTH !== W || MAP_HEIGHT !== H || mapData !== md) {   // New Map / Load happened mid-job
+        _classified = null;
+        UI.toast('Map changed while classifying — result discarded');
+        return;
       }
+      const cls = new Array(W * H);
+      for (let i = 0; i < cls.length; i++) cls[i] = res.names[res.out[i]];
+      _classified = cls;
+      _classMeta = { W, H, md };
+      _renderPreview();
+      applyBtn.disabled = false;
+    } catch (e) {
+      if (tok === _classTok && !e.cancelled) UI.toast('Classification failed: ' + (e && e.message || e));
+    } finally {
+      if (tok === _classTok) { _busy = false; UI.progressDone(_classified ? 'Image classified' : ''); }
     }
-    _renderPreview();
-    document.getElementById('sat-apply-btn').disabled = false;
+  }
+
+  // Abort any running job (modal closed/reopened): terminate the worker and ignore its late result.
+  function _cancel() {
+    _classTok++;
+    if (_busy) { _busy = false; WorkerJobs.cancelAll(); UI.progressDone(''); }
   }
 
   function _renderPreview() {
@@ -8399,6 +8415,7 @@ const Satellite = (() => {
 
   function open() {
     UI.closeAllMenus();
+    _cancel();
     _pixels = null; _classified = null;
     document.getElementById('sat-drop-img').src = '';
     document.getElementById('sat-drop-img').style.display = 'none';
@@ -8410,12 +8427,21 @@ const Satellite = (() => {
   }
 
   function close() {
+    _cancel();
+    _classified = null;
     document.getElementById('sat-modal').classList.remove('open');
   }
 
   function apply() {
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
+    if (_busy) { UI.toast('Classification is still running — try again in a moment'); return; }
     if (!_classified) return;
+    if (!_classMeta || _classMeta.W !== MAP_WIDTH || _classMeta.H !== MAP_HEIGHT || _classMeta.md !== mapData) {
+      _classified = null;
+      document.getElementById('sat-apply-btn').disabled = true;
+      UI.toast('Map changed since classification — result discarded');
+      return;
+    }
     History.push();
     const len = MAP_WIDTH * MAP_HEIGHT;
     for (let i = 0; i < len; i++) mapData[i] = _classified[i];
@@ -8449,7 +8475,7 @@ const Satellite = (() => {
   }
 
   return {
-    open, close, apply,
+    open, close, apply, _getT, reclassify: _classify,
     onDragOver(e)   { e.preventDefault(); document.getElementById('sat-drop').classList.add('dragover'); },
     onDragLeave()   { document.getElementById('sat-drop').classList.remove('dragover'); },
     onDrop(e)       { e.preventDefault(); document.getElementById('sat-drop').classList.remove('dragover'); const f = e.dataTransfer.files[0]; if (f?.type.startsWith('image/')) _loadImage(f); },
