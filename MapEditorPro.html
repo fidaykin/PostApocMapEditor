@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "96e0a54";
+const COMMIT  = "2d03710";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6378,12 +6378,18 @@ const IO = (() => {
     const _open = () => _db ? Promise.resolve(_db) : new Promise((res, rej) => {
       const r = indexedDB.open('MapEditorPro', 1);
       r.onupgradeneeded = e => e.target.result.createObjectStore('kv');
-      r.onsuccess = e => { _db = e.target.result; res(_db); };
-      r.onerror = rej;
+      r.onsuccess = e => {
+        _db = e.target.result;
+        _db.onclose = () => { _db = null; };
+        _db.onversionchange = () => { try { _db.close(); } catch(_) {} _db = null; };
+        res(_db);
+      };
+      r.onerror = () => rej(r.error);
+      r.onblocked = () => rej(new Error('IndexedDB open blocked'));
     });
     return {
       get: async k => { const db = await _open(); return new Promise((res, rej) => { const r = db.transaction('kv').objectStore('kv').get(k); r.onsuccess = () => res(r.result); r.onerror = rej; }); },
-      set: async (k, v) => { const db = await _open(); return new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = res; tx.onerror = rej; }); }
+      set: async (k, v) => { const db = await _open(); return new Promise((res, rej) => { const tx = db.transaction('kv', 'readwrite'); tx.objectStore('kv').put(v, k); tx.oncomplete = () => res(); tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error || new Error('IndexedDB transaction aborted')); }); }
     };
   })();
 
@@ -6532,11 +6538,68 @@ const IO = (() => {
     return JSON.stringify(result);
   }
 
+  // The map JSON is several MB: keep it in IndexedDB so it does not eat the 5 MB localStorage quota.
+  // Safety rules: the legacy localStorage copy is only removed AFTER the IndexedDB transaction has
+  // completed; if IndexedDB fails (or hangs) the map is written to localStorage through StorageGuard instead.
+  // Every saved JSON carries `_autosavedAt` so restore can pick the newest copy when both stores have one.
+  const _IDB_TIMEOUT_MS = 8000;
+  let _lastStamp = 0;
+  function _withTimeout(p, ms, what) {
+    let t;
+    const timeout = new Promise((_, rej) => { t = setTimeout(() => rej(new Error(what + ' timed out')), ms); });
+    return Promise.race([p, timeout]).finally(() => clearTimeout(t));
+  }
+
+  async function _writeAutosave(json) {
+    try {
+      const w = _idb.set('map_autosave', json);
+      w.catch(() => {});
+      await _withTimeout(w, _IDB_TIMEOUT_MS, 'IndexedDB write');
+      // Transaction complete: the new copy is durable, so the legacy copy can go.
+      try { localStorage.removeItem('map_autosave'); } catch(e) {}
+    } catch(err) {
+      // IndexedDB unavailable / blocked / quota / hung: keep the map in localStorage and warn if that fails too.
+      console.warn('[autosave] IndexedDB write failed, falling back to localStorage:', err);
+      StorageGuard.setItem('map_autosave', json, 'Map autosave');
+    }
+  }
+
+  // Returns the JSON string of the newest VALID stored copy (IndexedDB or legacy localStorage), or null.
+  async function _readAutosave() {
+    _restoreProblem = '';
+    const parse = (str, src) => {
+      if (typeof str !== 'string' || !str) return null;
+      try {
+        const j = JSON.parse(str);
+        const okRows = j && Array.isArray(j.data) && j.data.length >= j.height && j.data.slice(0, j.height).every(Array.isArray);
+        if (!j || !(j.width > 0) || !(j.height > 0) || !okRows) throw new Error('missing map data');
+        return { str, src, ts: Number(j._autosavedAt) || 0 };
+      } catch(e) {
+        console.warn('[autosave] ignoring unreadable ' + src + ' copy:', e);
+        _restoreProblem = 'The saved ' + src + ' map copy was unreadable and was skipped.';
+        return null;
+      }
+    };
+    let idbRaw = null, lsRaw = null;
+    try { idbRaw = await _withTimeout(_idb.get('map_autosave'), _IDB_TIMEOUT_MS, 'IndexedDB read'); } catch(e) { console.warn('[autosave] IndexedDB read failed:', e); }
+    try { lsRaw = localStorage.getItem('map_autosave'); } catch(e) {}
+    const cands = [parse(idbRaw, 'IndexedDB'), parse(lsRaw, 'localStorage')].filter(Boolean);
+    if (!cands.length) return null;
+    // newest wins; on a tie IndexedDB (listed first) wins
+    cands.sort((x, y) => y.ts - x.ts);
+    return cands[0].str;
+  }
+
   function _autoSave() {
-    if (!mapData) return;
-    const json = _buildJson();
-    // 1. Always write to localStorage (sync, survives beforeunload)
-    StorageGuard.setItem('map_autosave', json, 'Map autosave');
+    if (!mapData) return Promise.resolve();
+    let json;
+    try {
+      json = _buildJson();
+      _lastStamp = Math.max(Date.now(), _lastStamp + 1);
+      json = json.slice(0, -1) + ',"_autosavedAt":' + _lastStamp + '}';
+    } catch(e) { StorageGuard._warn('Map autosave', e); return Promise.resolve(); }
+    // 1. IndexedDB (localStorage only as fallback)
+    const saved = _writeAutosave(json);
     // 2. Best-effort async write to filesystem folder
     _getFsDir().then(dir => {
       if (!dir) return;
@@ -6544,7 +6607,8 @@ const IO = (() => {
         .then(fh => fh.createWritable())
         .then(w  => w.write(json).then(() => w.close()))
         .catch(() => {});
-    });
+    }).catch(() => {});
+    return saved;
   }
 
   // Debounced autosave — used for high-frequency operations like painting.
@@ -6555,10 +6619,15 @@ const IO = (() => {
 
   // Attempts to restore the last autosaved map. Returns true on success.
   // Safe to call before Canvas.init() — only sets mapData / settlements.
-  function tryRestoreAutosave() {
+  // Async: if the user (or code) installed a map while the read was pending, the restore is dropped
+  // instead of overwriting it.
+  let _restoreProblem = '';
+  async function tryRestoreAutosave() {
     try {
-      const saved = localStorage.getItem('map_autosave');
+      const before = mapData;
+      const saved = await _readAutosave();
       if (!saved) return false;
+      if (mapData !== before) return false;
       const json = JSON.parse(saved);
       if (!json.width || !json.height || !Array.isArray(json.data)) return false;
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
@@ -6630,7 +6699,7 @@ const IO = (() => {
       History.push();
       _setFileName('(autosave)');
       return true;
-    } catch(e) { return false; }
+    } catch(e) { console.warn('[autosave] restore failed:', e); _restoreProblem = 'The saved map could not be restored.'; return false; }
   }
 
   // Called at boot (silent=true) to initialize mapData before Canvas.init().
@@ -7151,7 +7220,7 @@ const IO = (() => {
   return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
            openExpandMap, closeExpandMap, applyExpandMap, _validateExpandInput, _updateExpandPreview,
-           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave,
+           autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave, getRestoreProblem: () => _restoreProblem,
            setAutosaveFolder, resumeFolderAutosave, initFsDir: _initFsDir, getMapJson,
            loadFromJSON: _loadFromJSON, analyzeMap, setFileName: _setFileName,
            openBridgeTerrainModal, closeBridgeTerrainModal, applyBridgeTileUnder, clearBridgeTileUnder };
@@ -13624,7 +13693,7 @@ window.addEventListener('load', async () => {
   ZonePainter.init();
   ZonePainter._uiRebuildZoneList();
   // Restore last session if available, otherwise init a blank map
-  const _mapRestored = IO.tryRestoreAutosave();
+  const _mapRestored = await IO.tryRestoreAutosave();
   if (!_mapRestored) IO.newMap(true);
   Canvas.init();
   UI.init();
@@ -13693,14 +13762,20 @@ window.addEventListener('load', async () => {
   });
   Canvas.centerOnCity();
   if (_mapRestored) { UI.updateSettlementCount(); UI.updateStatusSize(); }
+  if (!_mapRestored && IO.getRestoreProblem()) UI.toast('⚠ ' + IO.getRestoreProblem(), { sticky: true, detail: 'A blank map was started instead. Open a saved map file if you have one.' });
   // Force a canvas redraw when the tab becomes visible again after being
   // inactive — the browser may have discarded the canvas contents while hidden.
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) Canvas.forceRedraw();
   });
   // Autosave map on page unload and every 30 s (covers paint strokes, undo/redo)
-  window.addEventListener('beforeunload', () => IO.autoSave());
-  setInterval(() => IO.autoSave(), 30_000);
+  // Flush triggers must never throw; the snapshot is built synchronously so it holds the latest edit,
+  // and IndexedDB orders overlapping writes, so the newest one always lands last.
+  const _flushAutosave = () => { try { const p = IO.autoSave(); if (p && p.catch) p.catch(() => {}); } catch(e) { console.warn('[autosave] flush failed:', e); } };
+  window.addEventListener('beforeunload', _flushAutosave);
+  window.addEventListener('pagehide', _flushAutosave);
+  document.addEventListener('visibilitychange', () => { if (document.hidden) _flushAutosave(); });
+  setInterval(_flushAutosave, 30_000);
   // Restore filesystem folder handle from IndexedDB (silent if permission already granted)
   IO.initFsDir();
   // Show new-map prompt only when there is nothing to restore
