@@ -49,3 +49,52 @@ test('entries of every registry package are merged; a package without files is n
   expect(r.sum.packages).toEqual(['postapoc', 'extra', 'empty']);
   expect(r.sum.failed).toEqual([]);
 });
+
+// The merge base says "the server had this at the last sync". It is only meaningful together with
+// the local copy it was merged into; without that copy, every base entry would look deleted locally.
+for (const kind of ['bld', 'hex'] as const) {
+  const key = kind === 'bld' ? 'blddb_autosave' : 'hexdb_autosave';
+  const count = kind === 'bld' ? () => BldDB.getAll().length : () => HexDB.getAll().length;
+
+  test(`a corrupt ${key} next to a stored merge base does not drop the server entries`, async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh });
+    const server = kind === 'bld'
+      ? gh.json('packages/postapoc/building_database.json').buildings.length
+      : gh.json('packages/postapoc/hex_database.json').hexes.length;
+    expect(await page.evaluate(k => (SyncMerge.loadBase(k).postapoc || []).length, kind)).toBe(server);
+    await page.evaluate(k => localStorage.setItem(k, '{corrupt'), key);
+    await reloadEditor(page);
+    expect(await page.evaluate(count)).toBeGreaterThanOrEqual(server);
+  });
+
+  test(`a missing ${key} next to a stored merge base does not drop the server entries`, async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh });
+    const server = kind === 'bld'
+      ? gh.json('packages/postapoc/building_database.json').buildings.length
+      : gh.json('packages/postapoc/hex_database.json').hexes.length;
+    await page.evaluate(k => localStorage.removeItem(k), key);
+    await reloadEditor(page);
+    expect(await page.evaluate(count)).toBeGreaterThanOrEqual(server);
+  });
+
+  test(`a failed ${key} write does not advance the ${kind} merge base`, async ({ page }) => {
+    await openEditor(page);
+    const r = await page.evaluate(([k, storeKey]) => {
+      const db: any = k === 'bld' ? BldDB : HexDB;
+      const field = k === 'bld' ? 'buildings' : 'hexes';
+      const server = structuredClone(db.getAll().filter((e: any) => (e.package || 'postapoc') === 'postapoc'));
+      server.push({ id: 'Server_Added_Later', type: 'Plains' });
+      const orig = Storage.prototype.setItem;
+      Storage.prototype.setItem = function (key: string, v: string) {
+        if (key === storeKey) throw new DOMException('full', 'QuotaExceededError');
+        return orig.call(this, key, v);
+      };
+      try { db.mergeFromServer('postapoc', { [field]: server }); }
+      finally { Storage.prototype.setItem = orig; }
+      return (SyncMerge.loadBase(k).postapoc || []).some((e: any) => e.id === 'Server_Added_Later');
+    }, [kind, key]);
+    expect(r).toBe(false);
+  });
+}

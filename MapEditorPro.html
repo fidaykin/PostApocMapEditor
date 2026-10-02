@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "6f38b1e";
+const COMMIT  = "4aa485d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4830,7 +4830,14 @@ const SyncMerge = (() => {
     catch (e) { console.warn('[sync] could not store merge base:', e.message); return false; }
   }
 
-  return { same, keyOf, merge3, diff, loadBase, saveBase };
+  // The base is only meaningful next to the local copy it was merged into. When that copy is lost
+  // (corrupt/missing autosave, or replaced wholesale) drop the base, or every base entry missing
+  // locally would look deliberately deleted and be dropped for good.
+  function clearBase(kind) {
+    try { localStorage.removeItem(_baseKey(kind)); } catch (e) { console.warn('[sync] could not clear merge base:', e.message); }
+  }
+
+  return { same, keyOf, merge3, diff, loadBase, saveBase, clearBase };
 })();
 
 
@@ -9989,7 +9996,7 @@ const HexDB = (() => {
     try { localStorage.setItem('hexdb_sections', JSON.stringify(_secState)); } catch(e) {}
   }
   function _autoSave() {
-    StorageGuard.setItem('hexdb_autosave', JSON.stringify(_data), 'Hex DB autosave');
+    return StorageGuard.setItem('hexdb_autosave', JSON.stringify(_data), 'Hex DB autosave');
   }
 
   function _migrateHexTypes(hexes) {
@@ -10815,11 +10822,13 @@ const HexDB = (() => {
   // ── Public API ────────────────────────────────────────────
   function init() {
     _loadSecState();
+    let restored = false;
     try {
       const saved = localStorage.getItem('hexdb_autosave');
       if (saved) {
         const parsed = JSON.parse(saved);
         if (parsed && Array.isArray(parsed.hexes)) {
+          restored = true;
           _data = parsed;
           if (!_data.common) _data.common = { goldPerTap: 10 };
           _migrateHexTypes(_data.hexes);
@@ -10840,6 +10849,7 @@ const HexDB = (() => {
         }
       }
     } catch(e) {}
+    if (!restored) SyncMerge.clearBase('hex');  // missing/corrupt autosave: the stored base no longer applies
 
     // Merge new tiles from bundled hex_database.json into localStorage data.
     // Runs after localStorage restore: adds tiles present in the static file but
@@ -11207,8 +11217,9 @@ const HexDB = (() => {
       _data.dbVersion = Math.max(_data.dbVersion || 0, serverData.dbVersion || 0);
       _syncCommonUI();
     }
-    SyncMerge.saveBase('hex', pkgId, incoming);
-    _autoSave();
+    // Advance the base only once the merged result is stored: a base ahead of the local copy would
+    // make entries the server added this session look locally deleted at the next sync.
+    if (_autoSave()) SyncMerge.saveBase('hex', pkgId, incoming);
     _selFilt = -1;
     _applyFilter(); _buildList();
     Terrain.applyHexDbOverrides(_data.hexes).then(() => {
@@ -11600,7 +11611,7 @@ const BldDB = (() => {
     localStorage.setItem('blddb-sec', JSON.stringify(_secState));
   }
   function _autoSave() {
-    StorageGuard.setItem('blddb_autosave', JSON.stringify(_data), 'Buildings DB autosave');
+    return StorageGuard.setItem('blddb_autosave', JSON.stringify(_data), 'Buildings DB autosave');
   }
 
   function _applyFilter() {
@@ -12574,6 +12585,7 @@ const BldDB = (() => {
 
   function init() {
     _loadSecState();
+    let restored = false;
     try {
       const saved = localStorage.getItem('blddb_autosave');
       if (saved) {
@@ -12581,9 +12593,11 @@ const BldDB = (() => {
         if (parsed && Array.isArray(parsed.buildings)) {
           parsed.buildings.forEach(_migrate);
           _data = parsed;
+          restored = true;
         }
       }
     } catch(e) {}
+    if (!restored) SyncMerge.clearBase('bld');  // missing/corrupt autosave: the stored base no longer applies
     _applyFilter(); _buildList();
     if (_data.buildings.length) UI.buildPalette();
 
@@ -12712,8 +12726,7 @@ const BldDB = (() => {
     const res = SyncMerge.merge3(_data.buildings.filter(inPkg), incoming, base);
     const others = _data.buildings.filter(b => !inPkg(b));
     _data.buildings = pkgId === 'postapoc' ? [...res.merged, ...others] : [...others, ...res.merged];
-    SyncMerge.saveBase('bld', pkgId, incoming);
-    _autoSave();
+    if (_autoSave()) SyncMerge.saveBase('bld', pkgId, incoming);  // base only after the local copy is stored
     _selFilt = -1;
     _applyFilter(); _buildList();
     UI.buildPalette();
