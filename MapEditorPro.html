@@ -2319,7 +2319,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "866b656";
+const COMMIT  = "7ccf8ce";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7783,6 +7783,15 @@ const Packages = (() => {
           ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" onclick="Packages.confirmDelete('${_esc(p.id)}')">Delete</button>` : ''}
         </td>
       </tr>`).join('');
+    if (!el._trashBound) {
+      el._trashBound = true;
+      el.addEventListener('click', ev => {
+        const b = ev.target.closest && ev.target.closest('[data-trash-act]');
+        if (!b) return;
+        if (b.dataset.trashAct === 'restore') restoreDeleted(b.dataset.id);
+        else if (b.dataset.trashAct === 'discard') discardDeleted(b.dataset.id);
+      });
+    }
     const trash = listTrash();
     const trashHtml = trash.length ? `
       <h4 style="color:#cdd6f4;margin:20px 0 8px">Recently deleted</h4>
@@ -7790,8 +7799,9 @@ const Packages = (() => {
         <tr>
           <td><code>${_esc(t.id)}</code></td>
           <td>${t.hexes.length} hex, ${t.buildings.length} buildings</td>
-          <td>${_esc((t.deletedAt || '').slice(0, 10))}</td>
-          <td><button class="hexdb-tool-btn" onclick="Packages.restoreDeleted('${_esc(t.id)}')">Restore</button></td>
+          <td>${_esc(String(t.deletedAt ?? '').slice(0, 10))}</td>
+          <td><button class="hexdb-tool-btn" data-trash-act="restore" data-id="${_esc(t.id)}">Restore</button>
+              <button class="hexdb-tool-btn" style="color:#f38ba8" data-trash-act="discard" data-id="${_esc(t.id)}">Discard</button></td>
         </tr>`).join('')}</tbody></table>` : '';
     el.innerHTML = `
       <h3 style="color:#cdd6f4;margin:0 0 16px">Content Packages</h3>
@@ -8301,7 +8311,7 @@ const Packages = (() => {
   function listTrash() {
     try {
       const a = JSON.parse(localStorage.getItem(LS_TRASH) || '[]');
-      return (Array.isArray(a) ? a : []).filter(t => t && typeof t.id === 'string' && t.id)
+      return (Array.isArray(a) ? a : []).filter(t => t && typeof t === 'object' && typeof t.id === 'string' && t.id)
         .map(t => ({ ...t, hexes: Array.isArray(t.hexes) ? t.hexes : [], buildings: Array.isArray(t.buildings) ? t.buildings : [] }));
     } catch(e) { return []; }
   }
@@ -8310,23 +8320,44 @@ const Packages = (() => {
     catch(e) { console.warn('[Packages] trash write failed:', e.message); return false; }
   }
 
+  // Store a new trash list; on quota failure drop the oldest copies one by one (never the new first item).
+  // Returns { ok, evicted: [ids] }.
+  function _storeTrash(items) {
+    const kept = items.slice(0, 5);
+    for (let n = kept.length; n >= 1; n--) {
+      try {
+        localStorage.setItem(LS_TRASH, JSON.stringify(kept.slice(0, n)));
+        return { ok: true, evicted: kept.slice(n).map(t => t.id) };
+      } catch(e) { console.warn('[Packages] trash write failed:', e.message); }
+    }
+    return { ok: false, evicted: [] };
+  }
+
+  async function discardDeleted(id) {
+    if (!listTrash().some(t => t.id === id)) return;
+    const ok = await UI.confirm('Discard restore copy', `Permanently discard the restore copy of "${id}"? It cannot be undone.`, '', 'Discard');
+    if (!ok) return;
+    _writeTrash(listTrash().filter(t => t.id !== id));
+    renderPanel();
+  }
+
+  // Resumable: if the registry already lists the id (restored earlier, or a step after the write failed)
+  // only the missing entries are re-added. Without a trash copy there is nothing to restore.
   // Fails closed: the registry on the server must be readable and must not already hold the id;
   // the trash copy is removed only after the registry write and the local entries both succeeded.
   async function restoreDeleted(id) {
     const item = listTrash().find(t => t.id === id);
     if (!item) return UI.toast('⚠ Nothing to restore for this package');
-    if (getEntry(id)) return UI.toast(`⚠ Package "${id}" already exists`);
-    let registryWritten = false;
     try {
       UI.progress(30, 'Updating registry.json…');
       const res = await fetch(`${BASE_URL}/packages/registry.json?_=${Date.now()}`);
       if (!res.ok) throw new Error(`could not read registry.json (HTTP ${res.status})`);
       const regData = await res.json();
       if (!regData || !Array.isArray(regData.packages)) throw new Error('registry.json has no packages array');
-      if (regData.packages.some(p => p.id === id)) throw new Error(`package "${id}" already exists in the registry`);
-      regData.packages.push({ ...(item.entry || { name: id, isDefault: false, version: '1.0.0' }), id });
-      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: restore ${id}`);
-      registryWritten = true;
+      if (!regData.packages.some(p => p.id === id)) {
+        regData.packages.push({ ...(item.entry || { name: id, isDefault: false, version: '1.0.0' }), id });
+        await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: restore ${id}`);
+      }
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
       // Do not overwrite entries the user has since created or edited under the same key.
@@ -8340,9 +8371,7 @@ const Packages = (() => {
       UI.toast(`✅ Package "${id}" restored (${h} hex tile(s), ${b} building(s))`);
     } catch(e) {
       UI.progressDone('');
-      UI.toast(registryWritten
-        ? `⚠ Package "${id}" is back in the registry, but restoring its entries failed: ${e.message}. The restore copy was kept.`
-        : `⚠ Restore failed: ${e.message}`);
+      UI.toast(`⚠ Restore failed: ${e.message}. The restore copy was kept; press Restore again to resume.`);
     }
     renderPanel();
     renderActiveDropdowns();
@@ -8352,16 +8381,18 @@ const Packages = (() => {
     if (isDefault(id)) return;
     // Keep a restore copy first: a package is never deleted without a way back.
     const prevTrash = listTrash();
-    let saved = false;
+    let stored = { ok: false, evicted: [] };
     try {
-      saved = _writeTrash([
+      stored = _storeTrash([
         { id, entry: getEntry(id), deletedAt: new Date().toISOString(),
           hexes: structuredClone(HexDB.getData().hexes.filter(h => h.package === id)),
           buildings: structuredClone(BldDB.getAll().filter(b => b.package === id)) },
         ...prevTrash.filter(t => t.id !== id),
       ]);
     } catch(e) { console.warn('[Packages] restore copy failed:', e.message); }
-    if (!saved) return UI.toast('⚠ Could not save a restore copy, so the package was not deleted');
+    if (!stored.ok) { _writeTrash(prevTrash); return UI.toast('⚠ Could not save a restore copy, so the package was not deleted'); }
+    const evictOpts = stored.evicted.length ? { detail: `Storage was full, so the oldest restore copy was discarded: ${stored.evicted.join(', ')}` } : {};
+    let putStarted = false;
     let registryWritten = false;
     try {
       UI.progress(20, 'Updating registry.json…');
@@ -8372,6 +8403,7 @@ const Packages = (() => {
       const regData = await res.json();
       if (!regData || !Array.isArray(regData.packages)) throw new Error('registry.json has no packages array');
       regData.packages = regData.packages.filter(p => p.id !== id);
+      putStarted = true;
       await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: remove ${id}`);
       registryWritten = true;
       _registry = regData.packages;
@@ -8382,16 +8414,21 @@ const Packages = (() => {
         note = ` (${HexDB.removeByPackage(id)} hex tile(s), ${BldDB.removeByPackage(id)} building(s) removed)`;
       }
       UI.progressDone(`✅ Package "${id}" deleted from registry`);
-      UI.toast(`✅ Package "${id}" removed from registry${note}`);
+      UI.toast(`✅ Package "${id}" removed from registry${note}`, evictOpts);
       renderPanel();
       renderActiveDropdowns();
     } catch(e) {
       UI.progressDone('');
-      // Nothing was deleted on the server: drop the restore copy so it is not offered for a live package.
-      if (!registryWritten) _writeTrash(prevTrash);
+      // Roll the restore copy back only when the server definitely did not commit: the failure came
+      // before the PUT, or the PUT got an explicit 4xx. Anything else may have committed, so keep it.
+      const definite = !putStarted || /GitHub PUT [^:]*: 4\d\d /.test(e.message);
+      if (!registryWritten && definite) _writeTrash(prevTrash);
       UI.toast(registryWritten
         ? `⚠ Package "${id}" was removed from the registry, but a local step failed: ${e.message}. Use Restore in the PACKAGES tab to undo.`
-        : `⚠ Delete failed: ${e.message}`);
+        : definite
+          ? `⚠ Delete failed: ${e.message}`
+          : `⚠ Delete failed: ${e.message}. The package may or may not have been removed on the server; a restore copy was kept in the PACKAGES tab.`, evictOpts);
+      renderPanel();
     }
   }
 
@@ -8621,7 +8658,7 @@ const Packages = (() => {
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
            openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted,
+           openPublishConfirm, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal,
            _rewriteEntries, confirmImport };
