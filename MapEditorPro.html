@@ -2321,7 +2321,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.02";
-const COMMIT  = "0729b22";
+const COMMIT  = "9e94e3f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4320,37 +4320,76 @@ const Tools = (() => {
   }
 
   // ── Fill (hex flood fill) ──────────────────────────────────
+  // Indexed typed-array queue + visited bitmap (no Array.shift / Set of numeric keys), processed in ~8 ms
+  // slices so the UI keeps painting. Neighbour table (parity of c; NOTE it is not the true hex adjacency, T2.2
+  // revisits that) and the order of the `visited` list handed to _autoResolveEdgesAround match the old version.
+  // Re-entrancy policy: while a fill runs, new tool input (_onDown) and undo/redo are IGNORED (not queued).
+  // Anything that replaces the map under the fill (New Map / load: History.clear bumps the generation, or a
+  // new mapData array / size) makes the fill abort without further writes or edge re-resolution.
+  let _fillBusy = false;
+  let _fillIdle = Promise.resolve();
+  function isFillBusy() { return _fillBusy; }
+  function whenIdle() { return _fillIdle; }
+
   function _fill(col, row) {
     const targetId = mapData[row * MAP_WIDTH + col];
     const fillId   = UI.getSelectedTerrain();
-    if (targetId === fillId) return;
+    if (targetId === fillId || _fillBusy) return Promise.resolve();
+    _fillBusy = true;
+    _fillIdle = _fillRun(col, row, targetId, fillId).finally(() => { _fillBusy = false; });
+    return _fillIdle;
+  }
 
-    const visited = new Set();
-    const queue   = [[col, row]];
-    const key = (c, r) => c * 10000 + r;
-    visited.add(key(col, row));
+  async function _fillRun(col, row, targetId, fillId) {
+    const md = mapData, W = MAP_WIDTH, H = MAP_HEIGHT, N = W * H, gen = History.generation();
+    const stale = () => mapData !== md || MAP_WIDTH !== W || MAP_HEIGHT !== H || History.generation() !== gen;
+    const visited = new Uint8Array(N);
+    const queue   = new Int32Array(N);
+    let head = 0, tail = 0, sliceStart = performance.now(), showedProgress = false;
+    const start = row * W + col;
+    queue[tail++] = start; visited[start] = 1;
 
-    while (queue.length) {
-      const [c, r] = queue.shift();
-      if (getSatelliteAnchor(c, r)) continue; // skip tiles under multi-tile footprint
-      mapData[r * MAP_WIDTH + c] = fillId;
-      const even = c % 2 === 0;
-      const nbrs = [
-        [c, r-1], [c+1, even ? r-1 : r], [c+1, even ? r : r+1],
-        [c, r+1], [c-1, even ? r   : r+1], [c-1, even ? r-1 : r]
-      ];
-      nbrs.forEach(([nc, nr]) => {
-        if (nc < 0 || nc >= MAP_WIDTH || nr < 0 || nr >= MAP_HEIGHT) return;
-        const k = key(nc, nr);
-        if (visited.has(k)) return;
-        if (mapData[nr * MAP_WIDTH + nc] !== targetId) return;
-        visited.add(k);
-        queue.push([nc, nr]);
-      });
+    const enqueue = (nc, nr) => {
+      if (nc < 0 || nc >= W || nr < 0 || nr >= H) return;
+      const ni = nr * W + nc;
+      if (visited[ni] || md[ni] !== targetId) return;
+      visited[ni] = 1;
+      queue[tail++] = ni;
+    };
+
+    let aborted = false;
+    while (head < tail) {
+      const idx = queue[head++];
+      const c = idx % W, r = (idx - c) / W;
+      if (!getSatelliteAnchor(c, r)) {          // tiles under a multi-tile footprint are skipped (and not expanded)
+        md[idx] = fillId;
+        const even = (c & 1) === 0;
+        enqueue(c,     r - 1);
+        enqueue(c + 1, even ? r - 1 : r);
+        enqueue(c + 1, even ? r : r + 1);
+        enqueue(c,     r + 1);
+        enqueue(c - 1, even ? r : r + 1);
+        enqueue(c - 1, even ? r - 1 : r);
+      }
+      if ((head & 1023) === 0 && performance.now() - sliceStart > 8) {
+        showedProgress = true;
+        UI.progress(Math.min(95, head / N * 100), 'Filling… ' + head + ' tiles');
+        await new Promise(res => setTimeout(res, 0));
+        if (stale()) { aborted = true; break; }
+        sliceStart = performance.now();
+      }
     }
+
+    if (showedProgress) UI.progressDone(aborted ? 'Fill cancelled' : '');
+    if (aborted) return;
     invalidateSatelliteMap();
-    _autoResolveEdgesAround([...visited].map(k => ({ col: Math.floor(k / 10000), row: k % 10000 })));
+    const cells = new Array(tail);
+    for (let i = 0; i < tail; i++) { const q = queue[i], c = q % W; cells[i] = { col: c, row: (q - c) / W }; }
+    _autoResolveEdgesAround(cells);
     Canvas.render();
+    Canvas.drawMinimap();
+    IO.scheduleAutoSave();
+    UI.toast('Fill applied');
   }
 
   // ── Rectangle ──────────────────────────────────────────────
@@ -4545,6 +4584,7 @@ const Tools = (() => {
 
   // ── Mouse callbacks (registered with Canvas) ───────────────
   function _onDown(sx, sy, e) {
+    if (_fillBusy) return;                      // a fill is still running: ignore new input
     const { col, row } = Canvas.screenToHex(sx, sy);
     if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
     _isDown = true;
@@ -4558,8 +4598,6 @@ const Tools = (() => {
       case 'fill':
         History.push();
         _fill(col, row);
-        Canvas.drawMinimap();
-        UI.toast('Fill applied');
         _isDown = false;
         break;
       case 'rect':
@@ -4692,7 +4730,7 @@ const Tools = (() => {
     });
   }
 
-  return { init, setActive, getActive, selectBuilding, getSelectedBuildingId };
+  return { init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy, fill: _fill };
 })();
 // ════════════════════════════════════════════════════════════
 // HISTORY MODULE — 50-step string-array undo/redo
@@ -4779,7 +4817,7 @@ const History = (() => {
   }
 
   function undo() {
-    if (_undo.length === 0) return;
+    if (Tools.isFillBusy() || _undo.length === 0) return;
     _redo.push(_snapshot());
     _restore(_undo.pop());
     Canvas.render();
@@ -4789,7 +4827,7 @@ const History = (() => {
   }
 
   function redo() {
-    if (_redo.length === 0) return;
+    if (Tools.isFillBusy() || _redo.length === 0) return;
     _undo.push(_snapshot());
     _restore(_redo.pop());
     Canvas.render();
@@ -4798,7 +4836,10 @@ const History = (() => {
     UI.toast('Redo');
   }
 
+  let _gen = 0;       // bumped whenever the history is reset (New Map / load), see the Tools fill abort
+  function generation() { return _gen; }
   function clear() {
+    _gen++;
     _undo.length = 0;
     _redo.length = 0;
     _last = null;
@@ -4828,7 +4869,7 @@ const History = (() => {
     });
   }
 
-  return { push, undo, redo, clear, undoSize, redoSize, initKeyboard, debugRowCount };
+  return { push, undo, redo, clear, undoSize, redoSize, initKeyboard, debugRowCount, generation };
 })();
 // ════════════════════════════════════════════════════════════
 // SPRITE STORE — IndexedDB persistence for user-uploaded sprites
