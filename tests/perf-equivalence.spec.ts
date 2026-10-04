@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import { openEditor } from './helpers';
 import { VIEWPORT, setupScene, frame, hashCanvas, hashMapData, checkBaseline } from './perf-scene';
 
-declare const Canvas: any, UI: any, Tools: any, Generator: any, Satellite: any,
+declare const HexUtils: any, getSatelliteAnchor: any, Canvas: any, UI: any, Tools: any, Generator: any, Satellite: any,
   mapData: string[], MAP_WIDTH: number, MAP_HEIGHT: number;
 
 test.use({ viewport: VIEWPORT });
@@ -41,19 +41,47 @@ async function clickFill(page: any, mode: 'scene' | 'uniform') {
   await page.evaluate(async () => { if (typeof Tools.whenIdle === 'function') await Tools.whenIdle(); });
 }
 
-for (const mode of ['scene', 'uniform'] as const) {
-  test(`fill result (${mode})`, async ({ page }) => {
-    await openEditor(page);
-    await setupScene(page);
-    const before = mode === 'scene' ? await hashMapData(page) : null;
-    await clickFill(page, mode);
-    const after = await hashMapData(page);
-    // a broken click must not record a no-op hash (uniform: the pre-fill map is all Plain_1)
-    if (before) expect(after).not.toBe(before);
-    else expect(await page.evaluate(() => mapData.some(id => id !== 'Plain_1'))).toBe(true);
-    checkBaseline(`fill_${mode}`, after);
-  });
-}
+// T2.2: Fill now floods true hex neighbours (K2), so the stored `fill_scene` baseline (captured with the
+// legacy non-adjacent table) no longer applies and is not asserted. The scene result is checked against an
+// independent HexUtils flood fill instead; `fill_uniform` (whole map one region) is adjacency-independent and
+// still compared against its baseline.
+test('fill result (scene)', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  const before = await hashMapData(page);
+  const snapshot = await page.evaluate(() => mapData.slice());
+  await clickFill(page, 'scene');
+  const after = await hashMapData(page);
+  expect(after).not.toBe(before);   // a broken click must not pass as a no-op
+  const r = await page.evaluate((snap: string[]) => {
+    const W = MAP_WIDTH, H = MAP_HEIGHT, col = Math.floor(W / 2), row = Math.floor((H - 1) / 2);
+    const target = snap[row * W + col], fillId = target === 'Forest_1' ? 'Hills_1' : 'Forest_1';
+    const out = snap.slice(), seen = new Set([row * W + col]), q = [[col, row]];
+    for (let qi = 0; qi < q.length; qi++) {
+      const [c, rr] = q[qi];
+      if (getSatelliteAnchor(c, rr)) continue;
+      out[rr * W + c] = fillId;
+      for (const n of HexUtils.neighbors(c, rr, W, H)) {
+        const k = n.row * W + n.col;
+        if (!seen.has(k) && snap[k] === target) { seen.add(k); q.push([n.col, n.row]); }
+      }
+    }
+    let diff = 0;
+    for (let i = 0; i < out.length; i++) if (out[i] !== mapData[i]) diff++;
+    return { diff, filled: seen.size };
+  }, snapshot);
+  expect(r.filled).toBeGreaterThanOrEqual(1);   // the scene pattern leaves the click cell a tiny region under true adjacency; big regions are covered in perf-fill.spec.ts
+  expect(r.diff).toBe(0);
+});
+
+test('fill result (uniform)', async ({ page }) => {
+  await openEditor(page);
+  await setupScene(page);
+  await clickFill(page, 'uniform');
+  const after = await hashMapData(page);
+  expect(await page.evaluate(() => mapData.some(id => id !== 'Plain_1'))).toBe(true);
+  checkBaseline('fill_uniform', after);
+});
 
 test('generator seed 42', async ({ page }) => {
   await openEditor(page);

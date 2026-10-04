@@ -2323,7 +2323,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.04";
-const COMMIT  = "2357fbc";
+const COMMIT  = "3a4c430";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4369,34 +4369,32 @@ const Tools = (() => {
     return !!entry && entry.type === 'Rivers';
   }
 
-  // If the id just painted at (col,row) belongs to an edge-tiled family
-  // (i.e. it has edgeFaces data — today that's only Water/Rivers), re-resolve
-  // this cell and its 6 neighbors so the correct directional tile is used,
-  // the same way the Generator's river-carving does. Plain terrain (no
-  // edgeFaces) is untouched — this is a no-op for ordinary painting.
+  // Edge-tiled families are Water and Rivers. A cell is "directional" when its HexDB
+  // entry has a non-empty edgeFaces array (River_*, Lake_*); plain flat water has [].
+  const _EDGE_FAMILY = ['Water', 'Rivers'];
+  function _isDirectional(entry) { return !!entry && Array.isArray(entry.edgeFaces) && entry.edgeFaces.length > 0; }
+  function _inEdgeFamily(entry) { return !!entry && _EDGE_FAMILY.includes(entry.type); }
+
+  // cellsPainted: [{col,row,prev?}] where prev is the id the cell held BEFORE the edit.
+  // A directional tile written here re-resolves itself and its water/river neighbours (original rule).
+  // A water/river cell appearing or disappearing here re-resolves its directional neighbours, so erasing or
+  // replacing a river no longer leaves stale sprites next to it. Neighbour discovery uses HexUtils (true
+  // adjacency), not the legacy _DIRS tables (issue K1); EdgeTiling's own adjacency mask is unchanged.
   function _autoResolveEdgesAround(cellsPainted) {
     if (typeof EdgeTiling === 'undefined' || typeof HexDB === 'undefined') return;
-    const familyTypes = ['Water', 'Rivers'];
+    const familyTypes = _EDGE_FAMILY;
     const toResolve = new Set();
-    for (const { col: c, row: r } of cellsPainted) {
+    for (const { col: c, row: r, prev } of cellsPainted) {
       if (c < 0 || c >= MAP_WIDTH || r < 0 || r >= MAP_HEIGHT) continue;
       const entry = Terrain.byHexId(mapData[r * MAP_WIDTH + c]);
-      // Only trigger when the painted cell itself is a directional river/lake
-      // tile (non-empty edgeFaces) — this is the exact condition from the
-      // spec. Plain flat water (Water_1 etc.) has an empty edgeFaces array
-      // despite being type:'Water', so it correctly falls through untouched
-      // here even though 'Water' is in familyTypes below (that broader check
-      // is only for whether a *neighbor* counts toward the adjacency mask,
-      // not for whether the painted cell itself should trigger resolution).
-      if (!entry || !Array.isArray(entry.edgeFaces) || entry.edgeFaces.length === 0) continue;
-      const idx = r * MAP_WIDTH + c;
-      toResolve.add(idx);
-      const dirs = (MAP_HEIGHT - 1 - r) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
-      for (const [dc, dr] of Object.values(dirs)) {
-        const nc = c + dc, nr = r + dr;
-        if (nc < 0 || nc >= MAP_WIDTH || nr < 0 || nr >= MAP_HEIGHT) continue;
-        const nEntry = Terrain.byHexId(mapData[nr * MAP_WIDTH + nc]);
-        if (nEntry && familyTypes.includes(nEntry.type)) toResolve.add(nr * MAP_WIDTH + nc);
+      const prevEntry = prev ? Terrain.byHexId(prev) : null;
+      const nowDirectional = _isDirectional(entry);
+      if (!nowDirectional && !_inEdgeFamily(entry) && !_inEdgeFamily(prevEntry)) continue;
+      if (nowDirectional) toResolve.add(r * MAP_WIDTH + c);
+      for (const n of HexUtils.neighbors(c, r, MAP_WIDTH, MAP_HEIGHT)) {
+        const nEntry = Terrain.byHexId(mapData[n.row * MAP_WIDTH + n.col]);
+        if (_isDirectional(nEntry) || (nowDirectional && nEntry && familyTypes.includes(nEntry.type)))
+          toResolve.add(n.row * MAP_WIDTH + n.col);
       }
     }
     const fallbackIds = [_riverFallbackId('Water_Dirty_1'), _riverFallbackId('Water_1'), _riverFallbackId('Water_Rock_1')];
@@ -4404,6 +4402,28 @@ const Tools = (() => {
       const rr = Math.floor(idx / MAP_WIDTH), rc = idx % MAP_WIDTH;
       mapData[idx] = EdgeTiling.resolveEdgeTile(rc, rr, MAP_WIDTH, MAP_HEIGHT, mapData, familyTypes, Math.random, fallbackIds);
     }
+  }
+
+  // Single entry point for the synchronous terrain-writing tools (Paint, Rectangle). Returns the cells that
+  // really changed, with the previous id. The caller owns History.push(). Fill is time-sliced and writes in
+  // its own loop, but ends in the same _autoResolveEdgesAround. opts.noSymmetry is reserved for T2.5.
+  function _applyTerrainCells(cells, hexId, opts) {
+    const seen = new Set();
+    const touched = [];
+    for (const { col: c, row: r } of cells) {
+      if (c < 0 || c >= MAP_WIDTH || r < 0 || r >= MAP_HEIGHT) continue;
+      const k = r * MAP_WIDTH + c;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      if (getSatelliteAnchor(c, r)) continue;      // never paint under a multi-tile footprint
+      touched.push({ col: c, row: r, prev: mapData[k] });
+      mapData[k] = hexId;
+      const bi = bridgesData.findIndex(b => b.col === c && b.row === r);
+      if (bi >= 0) bridgesData.splice(bi, 1);
+    }
+    invalidateSatelliteMap();
+    _autoResolveEdgesAround(touched);
+    return touched;
   }
 
   function _riverFallbackId(hexId) {
@@ -4433,18 +4453,7 @@ const Tools = (() => {
       Canvas.render();
       return;
     }
-    const tiles = Brush.getAffectedTiles(col, row);
-    const hexId = UI.getSelectedTerrain();
-    tiles.forEach(({ col: c, row: r }) => {
-      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT) {
-        if (getSatelliteAnchor(c, r)) return; // block painting under multi-tile footprint
-        mapData[r * MAP_WIDTH + c] = hexId;
-        const bi = bridgesData.findIndex(b => b.col === c && b.row === r);
-        if (bi >= 0) bridgesData.splice(bi, 1);
-      }
-    });
-    invalidateSatelliteMap();
-    _autoResolveEdgesAround(tiles);
+    _applyTerrainCells(Brush.getAffectedTiles(col, row), UI.getSelectedTerrain());
     Canvas.render();
   }
 
@@ -4464,8 +4473,9 @@ const Tools = (() => {
 
   // ── Fill (hex flood fill) ──────────────────────────────────
   // Indexed typed-array queue + visited bitmap (no Array.shift / Set of numeric keys), processed in ~8 ms
-  // slices so the UI keeps painting. Neighbour table (parity of c; NOTE it is not the true hex adjacency, T2.2
-  // revisits that) and the order of the `visited` list handed to _autoResolveEdgesAround match the old version.
+  // slices so the UI keeps painting. Adjacency is the true hex adjacency (HexUtils, K2): the per-row-parity
+  // offset tables are derived once from HexUtils so the hot loop allocates nothing. opts.legacyAdjacency (TESTS
+  // ONLY) restores the pre-T2.2 table, which is not hex-contiguous, for the legacy equivalence test.
   // Concurrency policy: while a fill runs, new tool input (_onDown), a second fill and undo/redo are IGNORED (not
   // queued); the in-place bulk writers (Generator/Satellite apply, auto-place settlements) are refused via
   // isFillBusy(); autosave and Save wait/skip (see IO). Writes go through the captured `md`, and a map REPLACED
@@ -4476,16 +4486,31 @@ const Tools = (() => {
   function isFillBusy() { return _fillBusy; }
   function whenIdle() { return _fillIdle; }
 
-  function _fill(col, row) {
+  function _fill(col, row, opts) {
     const targetId = mapData[row * MAP_WIDTH + col];
     const fillId   = UI.getSelectedTerrain();
     if (targetId === fillId || _fillBusy) return Promise.resolve();
     _fillBusy = true;
-    _fillIdle = _fillRun(col, row, targetId, fillId).finally(() => { _fillBusy = false; });
+    _fillIdle = _fillRun(col, row, targetId, fillId, opts).finally(() => { _fillBusy = false; });
     return _fillIdle;
   }
 
-  async function _fillRun(col, row, targetId, fillId) {
+  // Neighbour offsets [dCol,dRow] by row parity, from HexUtils (fromCube does not clip, so any sample cell works).
+  function _hexOffsetsByRowParity() {
+    const W = MAP_WIDTH, H = MAP_HEIGHT, out = [];
+    for (let p = 0; p < 2; p++) {
+      const c0 = 100, r0 = 100 + p, cube = HexUtils.toCube(c0, r0, W, H);
+      out.push(HexUtils.CUBE_DIRS.map(d => {
+        const n = HexUtils.fromCube({ q: cube.q + d.q, r: cube.r + d.r, s: cube.s + d.s }, W, H);
+        return [n.col - c0, n.row - r0];
+      }));
+    }
+    return out;
+  }
+
+  async function _fillRun(col, row, targetId, fillId, opts) {
+    const legacy = !!(opts && opts.legacyAdjacency);
+    const offs = legacy ? null : _hexOffsetsByRowParity();
     const md = mapData, W = MAP_WIDTH, H = MAP_HEIGHT, N = W * H;
     const stale = () => mapData !== md || MAP_WIDTH !== W || MAP_HEIGHT !== H;
     const visited = new Uint8Array(N);
@@ -4509,13 +4534,18 @@ const Tools = (() => {
         const c = idx % W, r = (idx - c) / W;
         if (!getSatelliteAnchor(c, r)) {          // tiles under a multi-tile footprint are skipped (and not expanded)
           md[idx] = fillId;
-          const even = (c & 1) === 0;
-          enqueue(c,     r - 1);
-          enqueue(c + 1, even ? r - 1 : r);
-          enqueue(c + 1, even ? r : r + 1);
-          enqueue(c,     r + 1);
-          enqueue(c - 1, even ? r : r + 1);
-          enqueue(c - 1, even ? r - 1 : r);
+          if (legacy) {
+            const even = (c & 1) === 0;
+            enqueue(c,     r - 1);
+            enqueue(c + 1, even ? r - 1 : r);
+            enqueue(c + 1, even ? r : r + 1);
+            enqueue(c,     r + 1);
+            enqueue(c - 1, even ? r : r + 1);
+            enqueue(c - 1, even ? r - 1 : r);
+          } else {
+            const o = offs[r & 1];
+            for (let k = 0; k < 6; k++) enqueue(c + o[k][0], r + o[k][1]);
+          }
         }
         if ((head & 1023) === 0 && performance.now() - sliceStart > 8) {
           showedProgress = true;
@@ -4529,7 +4559,12 @@ const Tools = (() => {
       if (aborted) { IO.scheduleAutoSave(); return; }   // the replacement map must not wait for the 30 s timer
       invalidateSatelliteMap();
       const cells = new Array(tail);
-      for (let i = 0; i < tail; i++) { const q = queue[i], c = q % W; cells[i] = { col: c, row: (q - c) / W }; }
+      for (let i = 0; i < tail; i++) { const q = queue[i], c = q % W; cells[i] = { col: c, row: (q - c) / W, prev: targetId }; }
+      // same rule as _applyTerrainCells: a bridge on a repainted cell is dropped (in place, array identity kept)
+      for (let i = bridgesData.length - 1; i >= 0; i--) {
+        const b = bridgesData[i];
+        if (b.col >= 0 && b.col < W && b.row >= 0 && b.row < H && visited[b.row * W + b.col] && md[b.row * W + b.col] === fillId) bridgesData.splice(i, 1);
+      }
       _autoResolveEdgesAround(cells);
       Canvas.render();
       Canvas.drawMinimap();
@@ -4544,13 +4579,10 @@ const Tools = (() => {
   function _applyRect(c1, r1, c2, r2) {
     const minC = Math.max(0, Math.min(c1, c2)), maxC = Math.min(MAP_WIDTH - 1, Math.max(c1, c2));
     const minR = Math.max(0, Math.min(r1, r2)), maxR = Math.min(MAP_HEIGHT - 1, Math.max(r1, r2));
-    const fillId = UI.getSelectedTerrain();
+    const cells = [];
     for (let c = minC; c <= maxC; c++)
-      for (let r = minR; r <= maxR; r++) {
-        if (getSatelliteAnchor(c, r)) continue;
-        mapData[r * MAP_WIDTH + c] = fillId;
-      }
-    invalidateSatelliteMap();
+      for (let r = minR; r <= maxR; r++) cells.push({ col: c, row: r });
+    _applyTerrainCells(cells, UI.getSelectedTerrain());
     Canvas.render();
   }
 
@@ -4879,6 +4911,8 @@ const Tools = (() => {
   }
 
   return { init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
+           applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
+           fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
 })();
 // ════════════════════════════════════════════════════════════
