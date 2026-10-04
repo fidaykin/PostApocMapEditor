@@ -396,12 +396,14 @@ test('deploy-dev.yml publishes map-jobs.js/map-worker.js into dev/ and rewrites 
   const yml = fs.readFileSync(path.join(ROOT, '.github/workflows/deploy-dev.yml'), 'utf8');
   const html = fs.readFileSync(path.join(ROOT, 'MapEditorPro.html'), 'utf8');
   const pathsLine = (yml.match(/paths:\s*\[([^\]]*)\]/) || [])[1] || '';
-  for (const f of ['map-jobs.js', 'map-worker.js']) {
+  for (const f of ['map-jobs.js', 'map-worker.js', 'hex-utils.js']) {
     expect(pathsLine, f + ' must trigger the workflow').toContain(f);
     expect(yml, f + ' copied into dev/').toMatch(new RegExp('cp\\s+\\S*' + f.replace('.', '\\.') + '\\s+dev/' + f.replace('.', '\\.')));
     expect(yml, f + ' committed').toContain('dev/' + f);
   }
   expect(yml).toContain('src="dev/map-jobs.js');           // script tag rewritten
+  expect(yml).toContain('<script src="dev/hex-utils.js');
+  expect(html).toContain('<script src="hex-utils.js');
   expect(yml).toContain("new Worker('dev/map-worker.js");  // Worker URL rewritten
   // the rewrite patterns must actually match the HTML
   expect(html).toContain('<script src="map-jobs.js');

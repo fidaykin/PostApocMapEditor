@@ -3,7 +3,7 @@ name: Deploy Dev Editor
 on:
   push:
     branches: [dev]
-    paths: ['MapEditorPro.html', 'map-jobs.js', 'map-worker.js']
+    paths: ['MapEditorPro.html', 'map-jobs.js', 'map-worker.js', 'hex-utils.js']
 
 permissions:
   contents: write
@@ -27,11 +27,15 @@ jobs:
           # dev/ rather than whatever prod last published at the root: point the script tag and the Worker URL into dev/.
           # (importScripts inside the worker resolves relative to the worker URL, so it picks up dev/map-jobs.js.)
           sed -i 's|<script src="map-jobs.js|<script src="dev/map-jobs.js|; s|new Worker(.map-worker.js|new Worker('"'"'dev/map-worker.js|' /tmp/MapEditorPro_dev.html
+          # hex-utils.js is new with the editing tools: dev serves its own copy too (prod has none at first deploy).
+          sed -i 's|<script src="hex-utils.js|<script src="dev/hex-utils.js|' /tmp/MapEditorPro_dev.html
+          grep -q 'src="dev/hex-utils.js?v=1"' /tmp/MapEditorPro_dev.html
           # The ?v= (cache-buster) must equal MAP_JOBS_VERSION / MapJobs.VERSION; bump all of them together.
           grep -q 'src="dev/map-jobs.js?v=2"' /tmp/MapEditorPro_dev.html
           grep -q "new Worker('dev/map-worker.js?v=2'" /tmp/MapEditorPro_dev.html
           cp map-jobs.js /tmp/map-jobs.js
           cp map-worker.js /tmp/map-worker.js
+          cp hex-utils.js /tmp/hex-utils.js
 
       - name: Deploy to gh-pages dev/ folder
         run: |
@@ -41,7 +45,8 @@ jobs:
           cp /tmp/MapEditorPro_dev.html dev/MapEditorPro.html
           cp /tmp/map-jobs.js dev/map-jobs.js
           cp /tmp/map-worker.js dev/map-worker.js
-          git add dev/MapEditorPro.html dev/map-jobs.js dev/map-worker.js
+          cp /tmp/hex-utils.js dev/hex-utils.js
+          git add dev/MapEditorPro.html dev/map-jobs.js dev/map-worker.js dev/hex-utils.js
           if git diff --cached --quiet; then
             echo "No changes to deploy"
           else
