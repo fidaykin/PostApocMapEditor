@@ -226,7 +226,30 @@
     return out;
   }
 
+  // Seeded generator (mulberry32): the same seed gives the same sequence of numbers in [0, 1).
+  function makeRng(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a = (a + 0x6D2B79F5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // For each cell, with probability density% (0-100) pick one of ids at random. Consumes rng in cell order: one roll
+  // per cell and, when the cell is taken, one more for the id.
+  function scatterPick(cells, ids, density, rng) {
+    const out = [];
+    if (!ids.length) return out;
+    for (const { col, row } of cells)
+      if (rng() * 100 < density) out.push({ col, row, id: ids[Math.floor(rng() * ids.length)] });
+    return out;
+  }
+
   root.HexUtils = {
+    makeRng, scatterPick,
     CUBE_DIRS, toCube, fromCube, cubeDistance, cubeRound, cubeLine, cubeDisc, cubeRing,
     rotateCube, mirrorCube, inBounds, cellsFromCubes, neighbors, discCells, ringCells, lineCells,
     cubeToPixel, polygonCells, SYMMETRY_MODES, symmetryCubes, symmetryCells,
