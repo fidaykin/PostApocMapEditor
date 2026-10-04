@@ -2321,8 +2321,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.03";
-const COMMIT  = "6e152c4";
+const VERSION = "2026.10.04";
+const COMMIT  = "f828eaa";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2663,6 +2663,7 @@ const EdgeTiling = (() => {
     });
   }
 
+  // Keep in sync: tests/edge-drift.spec.ts (map-jobs.js _resolveEdgeTile is a port used by the Generator worker).
   function resolveEdgeTile(col, row, W, H, dataArr, familyTypes, rng, fallbackIds) {
     const table = _buildEdgeMaskTable(familyTypes);
     const neighbors = _neighborCoords(col, row, W, H);

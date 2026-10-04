@@ -105,6 +105,7 @@
 
 
 // ── Generator core (moved from MapEditorPro.html Generator, then parameterised) ──
+  // Keep in sync: tests/edge-drift.spec.ts (runs this and EdgeTiling.resolveEdgeTile on identical inputs).
   // Port of EdgeTiling.resolveEdgeTile; tables come from the page (HexDB is not visible here). Neighbour order
   // (edge.faceNames), the mask lookup and the rng consumption (one draw per resolved tile) are identical.
   function _resolveEdgeTile(col, row, W, H, dataArr, edge, rng, fallbackIds) {
@@ -402,5 +403,6 @@
     return { names, grid, elev: debugOut ? debugOut.elev : undefined, moist: debugOut ? debugOut.moist : undefined };
   };
 
+  MapJobs._resolveEdgeTile = _resolveEdgeTile;   // test hook for tests/edge-drift.spec.ts
   root.MapJobs = MapJobs;
 })(typeof self !== 'undefined' ? self : this);
