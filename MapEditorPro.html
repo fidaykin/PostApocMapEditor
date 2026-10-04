@@ -1413,7 +1413,7 @@ body.mode-common #map-io    { display: none; }
         </div>
       <div id="symmetry-row" style="display:flex;align-items:center;gap:4px;padding:6px 8px 0">
         <select id="symmetry-select" class="hexdb-input" style="flex:1;min-width:0;font-size:11px" onchange="Tools.setSymmetry(this.value); this.blur()"
-                title="Symmetry (Y cycles): Paint, Rectangle, Line, Circle and Polygon also write the mirrored / rotated copies about the map-centre tile. Not used for Fill, bridges or multi-tile terrain">
+                title="Symmetry (Y cycles): Paint, Rectangle, Line, Circle and Polygon also write the mirrored / rotated copies about the map-centre tile. Not used for Fill, bridges or multi-tile terrain. On even-height maps the mirror centre is the centre CELL, so the outermost column/row copies fall off the map and are not mirrored">
           <option value="none">Symmetry: off</option>
           <option value="h">Mirror left / right</option>
           <option value="v">Mirror top / bottom</option>
@@ -2343,8 +2343,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.04";
-const COMMIT  = "ed4f7f8";
+const VERSION = "2026.10.05";
+const COMMIT  = "e404e09";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3080,18 +3080,20 @@ const Canvas = (() => {
         ctx.restore();
       } else {
         // Standard brush preview (ring brush or non-multi-tile tile)
+        let symExpanded = false;
         let tiles = (tool === 'paint' || tool === 'zone')
           ? Brush.getAffectedTiles(_cursorCol, _cursorRow)
           : [{ col: _cursorCol, row: _cursorRow }];
         // Symmetry: show every copy for the tools that write through Tools.applyTerrainCells
         if (['paint', 'rect', 'line', 'circle', 'polygon'].includes(tool) && !(tool === 'paint' && UI.getSelectedBridgeAxis() >= 0)
             && Tools.getSymmetry() !== 'none' && !(Terrain.byId(UI.getSelectedTerrain())?.occupiedOffsets?.length))
-          tiles = Tools.expandSymmetry(tiles);
+          { tiles = _cursorSymTiles(tool, tiles); symExpanded = true; }
         // One path for the whole brush (a single stroke + fill instead of 2 per tile).
         ctx.save();
         ctx.beginPath();
         for (let k = 0; k < tiles.length; k++) {
           const s = hexScreenPos(tiles[k].col, tiles[k].row);
+          if (symExpanded && lod === 2) { ctx.rect(s.x - 1.5, s.y - 1.5, 3, 3); continue; }   // overview: marks instead of hex outlines
           for (let i = 0; i < 6; i++) {
             const a = (Math.PI / 3) * i;
             const px = s.x + radius * Math.cos(a), py = s.y + radius * Math.sin(a);
@@ -3325,6 +3327,15 @@ const Canvas = (() => {
     if (opts && opts.render === false) _hlDirty = true; else render();
   }
   function hasHighlight(name) { return _highlights.has(name); }
+  function getHighlightPoints(name) { const h = _highlights.get(name); return h ? { n: h.n, xs: Array.from(h.xs), ys: Array.from(h.ys) } : null; }   // read-only snapshot (tests)
+
+  // Expanded hover cursor, cached by (cursor cell, mode, brush radius, map size): pan/zoom renders reuse it.
+  let _symCursorKey = '', _symCursorTiles = null;
+  function _cursorSymTiles(tool, tiles) {
+    const key = _cursorCol + ',' + _cursorRow + '|' + Tools.getSymmetry() + '|' + (tool === 'paint' ? Brush.getSize() : 0) + '|' + MAP_WIDTH + 'x' + MAP_HEIGHT;
+    if (key !== _symCursorKey) { _symCursorTiles = Tools.expandSymmetry(tiles); _symCursorKey = key; }
+    return _symCursorTiles;
+  }
 
   // Symmetry axis / centre overlay (T2.5): 1-2 dashed lines for the mirrors, a ring with spokes for rotations.
   // Drawn only while a mode is active (no change to any other output), at the map-centre cell.
@@ -4301,7 +4312,7 @@ const Canvas = (() => {
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot,
     jumpToBlock,
-    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight, setSymmetryGuide, getSymmetryGuide,
+    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight, getHighlightPoints, setSymmetryGuide, getSymmetryGuide,
     toggleRulers: () => {
       _showRulers = !_showRulers;
       const btn = document.getElementById('btn-toggle-rulers');
@@ -4421,7 +4432,9 @@ const Tools = (() => {
     _symMode = HexUtils.SYMMETRY_MODES.includes(mode) ? mode : 'none';
     const sel = document.getElementById('symmetry-select');
     if (sel) sel.value = _symMode;
-    Canvas.setSymmetryGuide(_symMode);
+    // a rectangle drag in progress: rebuild (or drop) the copies so the preview matches what the commit will write
+    if (_rectStart && _toolsRectPreview && !_shapeStale()) { _previewRectSymmetry(_toolsRectPreview); }
+    Canvas.setSymmetryGuide(_symMode);   // renders
   }
   function getSymmetry() { return _symMode; }
   function cycleSymmetry() {
@@ -4758,7 +4771,7 @@ const Tools = (() => {
   // always drawn, and expanding hundreds of thousands of cells on every mousemove would stall the drag.
   const RECT_SYM_PREVIEW_CAP = 4000;
   function _previewRectSymmetry(rp) {
-    if (_symMode === 'none') return;
+    if (_symMode === 'none') { Canvas.setHighlight('shape', null, null, { render: false }); return; }
     const minC = Math.max(0, Math.min(rp.c1, rp.c2)), maxC = Math.min(MAP_WIDTH - 1, Math.max(rp.c1, rp.c2));
     const minR = Math.max(0, Math.min(rp.r1, rp.r2)), maxR = Math.min(MAP_HEIGHT - 1, Math.max(rp.r1, rp.r2));
     if ((maxC - minC + 1) * (maxR - minR + 1) > RECT_SYM_PREVIEW_CAP) { Canvas.setHighlight('shape', null, null, { render: false }); return; }
@@ -4950,7 +4963,7 @@ const Tools = (() => {
   }
   function _shapeStale() { return _shapeMd !== mapData || _shapeW !== MAP_WIDTH || _shapeH !== MAP_HEIGHT; }
   function _cancelStale() {
-    _isDown = false; _cancelShape();
+    _isDown = false; _rectStart = null; _toolsRectPreview = null; _cancelShape();
     UI.toast('Shape cancelled — the map changed');
   }
   function _beginShape() { _shapeMd = mapData; _shapeW = MAP_WIDTH; _shapeH = MAP_HEIGHT; }
@@ -5036,6 +5049,7 @@ const Tools = (() => {
         _isDown = false;
         break;
       case 'rect':
+        _beginShape();
         _rectStart = { col, row };
         _toolsRectPreview = { c1: col, r1: row, c2: col, r2: row };
         break;
@@ -5106,7 +5120,7 @@ const Tools = (() => {
 
   function _onMove(sx, sy, e) {
     if (_fillBusy) return;
-    if ((_polyVerts.length || _shapeStart) && _shapeStale()) { _cancelStale(); return; }
+    if ((_polyVerts.length || _shapeStart || _rectStart) && _shapeStale()) { _cancelStale(); Canvas.render(); return; }
     // No button is held although a drag is active: the mouseup was lost (released outside the page, focus change...).
     if (_isDown && e && e.type === 'mousemove' && e.buttons === 0) { _onUp({ type: 'mouseup', button: 0, shiftKey: e.shiftKey }); return; }
     if (_active === 'polygon' && _polyVerts.length) {
@@ -5174,6 +5188,7 @@ const Tools = (() => {
     if (_active === 'paint' || _active === 'road' || _active === 'road-connect' || _active === 'erase-road') {
       Canvas.drawMinimap();
     } else if (_active === 'rect' && _rectStart && _toolsRectPreview) {
+      if (_shapeStale()) { _cancelStale(); Canvas.render(); return; }
       History.push();
       _applyRect(_toolsRectPreview.c1, _toolsRectPreview.r1, _toolsRectPreview.c2, _toolsRectPreview.r2);
       Canvas.drawMinimap();
@@ -5193,7 +5208,7 @@ const Tools = (() => {
   function _isTypingOrModal() {
     const a = document.activeElement;
     // range/checkbox/radio inputs and buttons do not take typed text, so they must not swallow the shortcut
-    const nonText = a && (a.tagName === 'BUTTON' || (a.tagName === 'INPUT' && ['range', 'checkbox', 'radio', 'button'].includes(a.type)));
+    const nonText = a && (a.tagName === 'BUTTON' || (a.tagName === 'INPUT' && ['range', 'checkbox', 'radio', 'button'].includes(a.type)) || a.id === 'symmetry-select');
     if (a && !nonText && (['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName) || a.isContentEditable)) return true;
     for (const m of document.querySelectorAll('.modal-overlay, [id$="-modal"]'))
       if (getComputedStyle(m).display !== 'none') return true;

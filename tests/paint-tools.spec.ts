@@ -762,6 +762,20 @@ test.describe('shape tools (T2.4)', () => {
   });
 });
 
+// In-page helpers (evaluated inside page.evaluate): independent pixel-geometry mirror of cells about the centre cell.
+const SYM_HELPERS = `(() => {
+  const key = (x, y) => Math.round(x * 100) + ',' + Math.round(y * 100);
+  const cx = Math.floor(MAP_WIDTH / 2), cy = Math.floor((MAP_HEIGHT - 1) / 2);
+  const mid = Canvas.hexCenterWorld(cx, cy);
+  const byPix = new Map();
+  for (let c = Math.max(0, cx - 60); c <= Math.min(MAP_WIDTH - 1, cx + 60); c++)
+    for (let r = Math.max(0, cy - 60); r <= Math.min(MAP_HEIGHT - 1, cy + 60); r++) { const p = Canvas.hexCenterWorld(c, r); byPix.set(key(p.x, p.y), [c, r]); }
+  const mirrorH = (col, row) => { const p = Canvas.hexCenterWorld(col, row); const h = byPix.get(key(2 * mid.x - p.x, p.y)); return h ? { col: h[0], row: h[1] } : null; };
+  const cellsWith = id => { const o = []; for (let i = 0; i < mapData.length; i++) if (mapData[i] === id) o.push({ col: i % MAP_WIDTH, row: Math.floor(i / MAP_WIDTH) }); return o; };
+  const mirrorClosed = id => { const cs = cellsWith(id); const set = new Set(cs.map(c => c.col + ',' + c.row)); return cs.length > 0 && cs.every(c => { const m = mirrorH(c.col, c.row); return m && set.has(m.col + ',' + m.row); }); };
+  return { key, mid, byPix, mirrorH, cellsWith, mirrorClosed };
+})()`;
+
 test.describe('symmetry (T2.5)', () => {
   test.beforeEach(async ({ page }) => { await freshEditor(page); });
 
@@ -803,7 +817,7 @@ test.describe('symmetry (T2.5)', () => {
 
   // Independent reference: the images of each cell's pixel centre (reflection / clockwise rotation about the
   // centre cell's pixel centre) must be exactly the centres of the cells symmetryCells returns, including clipping.
-  for (const [W, H] of [[12, 10], [13, 9], [9, 13], [10, 12], [451, 451], [450, 451], [451, 450], [450, 450]]) {
+  for (const [W, H] of [[12, 10], [13, 9], [9, 13], [10, 12], [12, 11], [11, 12], [451, 451], [450, 451], [451, 450], [450, 450]]) {
     test(`symmetryCells matches the pixel-geometry reference on ${W}x${H}`, async ({ page }) => {
       const bad = await page.evaluate(([W, H]) => {
         const save = [MAP_WIDTH, MAP_HEIGHT];
@@ -919,7 +933,8 @@ test.describe('symmetry (T2.5)', () => {
       return { a, hasMulti: !!multi, b };
     });
     expect(r.a).toBe(1);
-    if (r.hasMulti) expect(r.b).toBe(1);
+    expect(r.hasMulti).toBe(true);
+    expect(r.b).toBe(1);
   });
 
   test('shape tools and Rectangle write all copies (one step), and the preview shows them', async ({ page }) => {
@@ -933,13 +948,123 @@ test.describe('symmetry (T2.5)', () => {
     expect(res.water).toBe(18);
     expect(res.steps).toBe(before + 1);
     expect(res.hl).toBe(false);   // preview layer dropped after commit
-    // mid-drag: the preview layer holds both copies (9 + 9 cells)
+    // mid-drag: the preview layer holds exactly both copies (9 + 9 cells) at the pixel-geometry positions
     await page.evaluate(() => { mapData.fill('Plain_1'); });
     const pa = await cellPoint(page, 226, 220), pb = await cellPoint(page, 228, 222);
     await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 3 });
-    expect(await page.evaluate(() => Canvas.hasHighlight('shape'))).toBe(true);
+    const pv = await page.evaluate((H) => {
+      const h = eval(H as string);
+      const pts = Canvas.getHighlightPoints('shape');
+      const want = new Set<string>();
+      for (let c = 226; c <= 228; c++) for (let r = 220; r <= 222; r++) {
+        const p = Canvas.hexCenterWorld(c, r);
+        want.add(h.key(p.x, p.y)); want.add(h.key(2 * h.mid.x - p.x, p.y));
+      }
+      const got = new Set<string>();
+      for (let i = 0; i < pts.n; i++) got.add(h.key(pts.xs[i], pts.ys[i]));
+      return { n: pts.n, same: got.size === want.size && [...got].every(k => want.has(k)) };
+    }, SYM_HELPERS);
+    expect(pv).toEqual({ n: 18, same: true });
     await page.mouse.up();
     await page.evaluate(() => { Tools.setSymmetry('none'); Tools.setActive('paint'); });
+  });
+
+  test('turning symmetry off mid-rectangle clears the stale copies and commits only the rectangle', async ({ page }) => {
+    await page.evaluate(() => { Tools.setSymmetry('h'); UI.selectTerrain('Forest_1'); Tools.setActive('rect'); });
+    const pa = await cellPoint(page, 226, 220), pb = await cellPoint(page, 228, 222);
+    await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    expect(await page.evaluate(() => Canvas.getHighlightPoints('shape')?.n)).toBe(18);
+    await page.evaluate(() => Tools.setSymmetry('none'));
+    expect(await page.evaluate(() => Canvas.hasHighlight('shape'))).toBe(false);
+    await page.mouse.move(pb.x + 1, pb.y, { steps: 2 });
+    expect(await page.evaluate(() => Canvas.hasHighlight('shape'))).toBe(false);
+    await page.mouse.up();
+    expect(await page.evaluate(() => mapData.filter((id: string) => id === 'Forest_1').length)).toBe(9);
+  });
+
+  test('a map replaced during a rectangle drag cancels it with a toast (no write, no history step)', async ({ page }) => {
+    await page.evaluate(() => { Tools.setSymmetry('h'); UI.selectTerrain('Forest_1'); Tools.setActive('rect'); });
+    const pa = await cellPoint(page, 226, 220), pb = await cellPoint(page, 228, 222);
+    await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    const before = await page.evaluate(() => { IO.newMap(true); (window as any).__t = 0; return History.undoSize(); });
+    await page.mouse.move(pb.x + 3, pb.y, { steps: 2 });
+    await page.mouse.up();
+    const r = await page.evaluate(() => ({ forest: mapData.filter((id: string) => id === 'Forest_1').length, steps: History.undoSize(), hl: Canvas.hasHighlight('shape'),
+      toast: document.body.innerText.includes('Shape cancelled') }));
+    expect(r.forest).toBe(0);
+    expect(r.steps).toBe(before);
+    expect(r.hl).toBe(false);
+    expect(r.toast).toBe(true);
+  });
+
+  test('Line, Circle and Polygon commits and previews are mirrored, one history step each', async ({ page }) => {
+    await page.evaluate(() => { Tools.setSymmetry('h'); UI.selectTerrain('Forest_1'); });
+    const shapes: Array<[string, any, any]> = [['line', { col: 226, row: 219 }, { col: 230, row: 221 }], ['circle', { col: 228, row: 220 }, { col: 230, row: 220 }]];
+    for (const [tool, a, b] of shapes) {
+      await page.evaluate((t) => { mapData.fill('Plain_1'); Tools.setActive(t as string); }, tool);
+      const before = await page.evaluate(() => History.undoSize());
+      const pa = await cellPoint(page, a.col, a.row), pb = await cellPoint(page, b.col, b.row);
+      await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 4 });
+      const prev = await page.evaluate((H) => { const h = eval(H as string); const pts = Canvas.getHighlightPoints('shape'); const set = new Set<string>(); for (let i = 0; i < pts.n; i++) set.add(h.key(pts.xs[i], pts.ys[i]));
+        let closed = true; for (let i = 0; i < pts.n; i++) if (!set.has(h.key(2 * h.mid.x - pts.xs[i], pts.ys[i]))) closed = false; return { n: pts.n, closed }; }, SYM_HELPERS);
+      await page.mouse.up();
+      const res = await page.evaluate((H) => { const h = eval(H as string); return { n: h.cellsWith('Forest_1').length, closed: h.mirrorClosed('Forest_1'), steps: History.undoSize() }; }, SYM_HELPERS);
+      expect(res.closed, tool).toBe(true);
+      expect(res.steps, tool).toBe(before + 1);
+      expect(prev.closed, tool).toBe(true);
+      expect(prev.n, tool).toBe(res.n);
+      expect(res.n, tool).toBeGreaterThan(4);
+    }
+    // polygon: three corners then Enter; the preview after the third corner already shows both copies
+    await page.evaluate(() => { mapData.fill('Plain_1'); Tools.setActive('polygon'); });
+    const before = await page.evaluate(() => History.undoSize());
+    for (const c of [{ col: 226, row: 219 }, { col: 230, row: 219 }, { col: 228, row: 222 }]) { const p = await cellPoint(page, c.col, c.row); await page.mouse.click(p.x, p.y); }
+    const pv = await page.evaluate((H) => { const h = eval(H as string); const pts = Canvas.getHighlightPoints('shape'); const set = new Set<string>(); for (let i = 0; i < pts.n; i++) set.add(h.key(pts.xs[i], pts.ys[i]));
+      let closed = true; for (let i = 0; i < pts.n; i++) if (!set.has(h.key(2 * h.mid.x - pts.xs[i], pts.ys[i]))) closed = false; return { n: pts.n, closed }; }, SYM_HELPERS);
+    expect(pv.closed).toBe(true);
+    await page.keyboard.press('Enter');
+    const res = await page.evaluate((H) => { const h = eval(H as string); return { n: h.cellsWith('Forest_1').length, closed: h.mirrorClosed('Forest_1'), steps: History.undoSize() }; }, SYM_HELPERS);
+    expect(res.closed).toBe(true);
+    expect(res.steps).toBe(before + 1);
+    expect(res.n).toBeGreaterThan(pv.n - 1);
+    await page.evaluate(() => Tools.setSymmetry('none'));
+  });
+
+  test('an axis cell under hv paints 2 cells, not 4; the centre cell paints 1', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Tools.setSymmetry('hv');
+      const out: number[] = [];
+      for (const c of [{ col: 225, row: 230 }, { col: 232, row: 224 }, { col: 225, row: 224 }]) {
+        mapData.fill('Plain_1');
+        out.push(Tools.applyTerrainCells([c], 'Water_1').length);
+      }
+      Tools.setSymmetry('none');
+      return out;
+    });
+    expect(r).toEqual([2, 2, 1]);
+  });
+
+  test('a far copy has its neighbours re-resolved (directional river tiles), together with the near one', async ({ page }) => {
+    const r = await page.evaluate((H) => {
+      const h = eval(H as string);
+      const W = MAP_WIDTH;
+      const river = HexDB.getAll().find((x: any) => x.type === 'Rivers' && Array.isArray(x.edgeFaces) && x.edgeFaces.length > 0).id;
+      const c = { col: 228, row: 220 }, far = h.mirrorH(c.col, c.row);
+      const nbs = HexUtils.neighbors(c.col, c.row, W, MAP_HEIGHT);
+      const nb = nbs[0], nbFar = h.mirrorH(nb.col, nb.row);
+      for (const p of [c, far, nb, nbFar]) mapData[p.row * W + p.col] = river;
+      const seen: string[] = [];
+      const orig = EdgeTiling.resolveEdgeTile;
+      EdgeTiling.resolveEdgeTile = (col: number, row: number, ...rest: any[]) => { seen.push(col + ',' + row); return orig(col, row, ...rest); };
+      Tools.setSymmetry('h');
+      Tools.applyTerrainCells([c], 'Plain_1');
+      Tools.setSymmetry('none');
+      EdgeTiling.resolveEdgeTile = orig;
+      return { seen, nb: nb.col + ',' + nb.row, nbFar: nbFar.col + ',' + nbFar.row, farPainted: mapData[far.row * W + far.col] };
+    }, SYM_HELPERS);
+    expect(r.farPainted).toBe('Plain_1');
+    expect(r.seen).toContain(r.nb);
+    expect(r.seen).toContain(r.nbFar);
   });
 
   test('hover preview draws every copy in one path; the guide only exists while a mode is active', async ({ page }) => {
@@ -975,45 +1100,79 @@ test.describe('symmetry (T2.5)', () => {
     expect(r.on - r.off).toBe(5);
   });
 
-  test('brush preview tiles include all copies; radius 12 x 6 stays cheap (work counted, not timed)', async ({ page }) => {
+  test('the cursor preview expands once per cursor cell: pan/zoom renders reuse it; radius 12 x rot6 sizes', async ({ page }) => {
+    const p = await cellPoint(page, 230, 220);
+    await page.mouse.move(p.x, p.y);
     const r = await page.evaluate(() => {
+      let calls = 0; const orig = Tools.expandSymmetry;
+      Tools.expandSymmetry = (c: any) => { calls++; return orig(c); };
       Brush.setSize(12);
       const cells = Brush.getAffectedTiles(240, 200);
-      Tools.setSymmetry('rot6');
-      const exp = Tools.expandSymmetry(cells);
+      const exp = HexUtils.symmetryCells(cells, 'rot6', { col: 225, row: 224 }, MAP_WIDTH, MAP_HEIGHT);
+      Tools.setSymmetry('rot6'); Canvas.render();   // the first expansion for this cursor cell / mode / radius
+      const first = calls;
+      for (let i = 0; i < 5; i++) Canvas.render();   // unchanged cursor: cache hits
+      const afterSame = calls;
+      Brush.setSize(11); Canvas.render();            // radius change: a new expansion
+      const afterRadius = calls;
+      Tools.expandSymmetry = orig;
       Tools.setSymmetry('none'); Brush.setSize(0);
-      return { n: cells.length, m: exp.length };
+      return { n: cells.length, m: exp.length, first, afterSame, afterRadius };
     });
     expect(r.n).toBe(469);
     expect(r.m).toBeGreaterThan(469 * 5);
     expect(r.m).toBeLessThanOrEqual(469 * 6);
+    expect(r.first).toBe(1);
+    expect(r.afterSame).toBe(1);
+    expect(r.afterRadius).toBe(2);
   });
 
-  test('palette control sits in the left palette, drives the mode, Y ignored while typing, canvas width unchanged', async ({ page }) => {
-    const w = await page.evaluate(() => document.getElementById('map-canvas')!.getBoundingClientRect().width);
-    const inPalette = await page.evaluate(() => !!document.querySelector('#palette-panel #symmetry-select') && !document.querySelector('#map-tools #symmetry-select'));
-    expect(inPalette).toBe(true);
+  test('palette control sits in the left palette and keeps the perf-hash canvas width (1491 at 1400x900)', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    expect(await page.evaluate(() => !!document.querySelector('#palette-panel #symmetry-select') && !document.querySelector('#map-tools #symmetry-select'))).toBe(true);
+    await page.evaluate(() => Tools.setSymmetry('rot6'));
+    expect(await page.evaluate(() => (document.getElementById('map-canvas') as HTMLCanvasElement).width)).toBe(1491);
+    await page.evaluate(() => Tools.setSymmetry('none'));
+  });
+
+  test('Y cycles (also with the select focused); typing in a text field, Ctrl+Y and modifiers do not', async ({ page }) => {
     await page.selectOption('#symmetry-select', 'rot3');
     expect(await page.evaluate(() => Tools.getSymmetry())).toBe('rot3');
-    await page.keyboard.press('y');
+    await page.focus('#symmetry-select');
+    await page.keyboard.press('y');                       // select focused (opened/closed without change): Y still cycles
     expect(await page.evaluate(() => Tools.getSymmetry())).toBe('rot6');
+    expect(await page.evaluate(() => (document.getElementById('symmetry-select') as HTMLSelectElement).value)).toBe('rot6');
     await page.evaluate(() => { const i = document.createElement('input'); i.id = 'tmp-in'; document.body.appendChild(i); i.focus(); });
     await page.keyboard.press('y');
     expect(await page.evaluate(() => Tools.getSymmetry())).toBe('rot6');
-    await page.keyboard.press('Control+y');
+    await page.evaluate(() => { document.getElementById('tmp-in')!.remove(); (document.activeElement as HTMLElement)?.blur?.(); });
+    await page.keyboard.press('Shift+Y');
+    await page.keyboard.press('Alt+y');
     expect(await page.evaluate(() => Tools.getSymmetry())).toBe('rot6');
-    await page.evaluate(() => { document.getElementById('tmp-in')!.remove(); Tools.setSymmetry('none'); });
-    expect(await page.evaluate(() => document.getElementById('map-canvas')!.getBoundingClientRect().width)).toBe(w);
+    // Ctrl+Y is redo and must leave the mode alone: set up an undone step first
+    await page.evaluate(() => { Tools.setSymmetry('none'); UI.selectTerrain('Forest_1'); History.push(); mapData[0] = 'Forest_1'; History.undo(); Tools.setSymmetry('h'); });
+    expect(await page.evaluate(() => [History.redoSize(), mapData[0]])).toEqual([1, 'Plain_1']);
+    await page.keyboard.press('Control+y');
+    expect(await page.evaluate(() => [History.redoSize(), mapData[0], Tools.getSymmetry()])).toEqual([0, 'Forest_1', 'h']);
+    await page.evaluate(() => Tools.setSymmetry('none'));
   });
 
-  test('map replacement keeps the mode and the centre follows the new map', async ({ page }) => {
-    const r = await page.evaluate(() => {
+  test('map replaced by a DIFFERENT size: the centre follows the live map (pixel reference), mode kept', async ({ page }) => {
+    const r = await page.evaluate((H) => {
       Tools.setSymmetry('h');
-      const before = Tools.expandSymmetry([{ col: 230, row: 220 }]).length;
-      IO.newMap(true);
-      return { before, after: Tools.expandSymmetry([{ col: 230, row: 220 }]).length, mode: Tools.getSymmetry() };
-    });
-    expect(r).toEqual({ before: 2, after: 2, mode: 'h' });
-    await page.evaluate(() => Tools.setSymmetry('none'));
+      const old = Tools.expandSymmetry([{ col: 230, row: 220 }]).map((c: any) => c.col + ',' + c.row);
+      MAP_WIDTH = 12; MAP_HEIGHT = 11; mapData = new Array(132).fill('Plain_1');
+      const h = eval(H as string);                       // pixel geometry of the NEW map
+      const cell = { col: 8, row: 7 };
+      const got = Tools.expandSymmetry([cell]).map((c: any) => c.col + ',' + c.row).sort();
+      const m = h.mirrorH(cell.col, cell.row);
+      const want = [cell.col + ',' + cell.row, m.col + ',' + m.row].sort();
+      return { old, got, want, mode: Tools.getSymmetry(), centre: [h.mid.x, h.mid.y] };
+    }, SYM_HELPERS);
+    expect(r.old.length).toBe(2);
+    expect(r.got).toEqual(r.want);
+    expect(r.got.length).toBe(2);
+    expect(r.mode).toBe('h');
   });
 });
