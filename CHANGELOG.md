@@ -22,6 +22,9 @@ Format: `## [version] — [date]`
 - Maps smaller than the window are now centred instead of pinned to the top-left.
 - Generator, Satellite apply, Clear Map, Fill Map and auto-place settlements refuse to run while a fill is in progress and show a message.
 - Ctrl+S waits for a running fill to finish, then saves the finished map.
+- Rectangle and Fill now re-resolve river and water edge tiles like Paint.
+- Fill uses true hex adjacency (previously two diagonal directions were wrong on some map heights), so a fill may select different tiles than before.
+- Rectangle and Fill drop bridges on repainted cells, like Paint.
 
 ---
 

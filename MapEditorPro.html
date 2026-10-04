@@ -2323,7 +2323,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.04";
-const COMMIT  = "3a4c430";
+const COMMIT  = "d7c4a55";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2682,7 +2682,17 @@ const EdgeTiling = (() => {
 
   function clearCache() { _tableCache.clear(); }
 
-  return { resolveEdgeTile, clearCache, getMaskTable: _buildEdgeMaskTable, FACE_NAMES };
+  // [dCol,dRow] offsets the resolver's mask reads for a cell in this row (legacy _DIRS tables, issue K1), in
+  // FACE_NAMES order. Lets callers find every cell whose mask reads a changed cell, without per-call tables.
+  const _legacyOffsetCache = new Map();
+  function legacyOffsets(row, H) {
+    const even = (H - 1 - row) % 2 !== 0;
+    let t = _legacyOffsetCache.get(even);
+    if (!t) { const dirs = even ? _DIRS_EVEN : _DIRS_ODD; t = FACE_NAMES.map(name => dirs[name]); _legacyOffsetCache.set(even, t); }
+    return t;
+  }
+
+  return { resolveEdgeTile, clearCache, getMaskTable: _buildEdgeMaskTable, FACE_NAMES, legacyOffsets };
 })();
 
 // ═══════════════════════════════════════════════════════════════
@@ -4375,27 +4385,53 @@ const Tools = (() => {
   function _isDirectional(entry) { return !!entry && Array.isArray(entry.edgeFaces) && entry.edgeFaces.length > 0; }
   function _inEdgeFamily(entry) { return !!entry && _EDGE_FAMILY.includes(entry.type); }
 
+  // Neighbour offsets [dCol,dRow] by row parity from HexUtils (fromCube does not clip, so any sample cell works).
+  // Cached per map size.
+  let _hexOffs = null, _hexOffsKey = '';
+  function _hexOffsetsByRowParity() {
+    const W = MAP_WIDTH, H = MAP_HEIGHT, key = W + 'x' + H;
+    if (_hexOffs && _hexOffsKey === key) return _hexOffs;
+    const out = [];
+    for (let p = 0; p < 2; p++) {
+      const c0 = 100, r0 = 100 + p, cube = HexUtils.toCube(c0, r0, W, H);
+      out.push(HexUtils.CUBE_DIRS.map(d => {
+        const n = HexUtils.fromCube({ q: cube.q + d.q, r: cube.r + d.r, s: cube.s + d.s }, W, H);
+        return [n.col - c0, n.row - r0];
+      }));
+    }
+    _hexOffs = out; _hexOffsKey = key;
+    return out;
+  }
+
   // cellsPainted: [{col,row,prev?}] where prev is the id the cell held BEFORE the edit.
   // A directional tile written here re-resolves itself and its water/river neighbours (original rule).
   // A water/river cell appearing or disappearing here re-resolves its directional neighbours, so erasing or
-  // replacing a river no longer leaves stale sprites next to it. Neighbour discovery uses HexUtils (true
-  // adjacency), not the legacy _DIRS tables (issue K1); EdgeTiling's own adjacency mask is unchanged.
+  // replacing a river no longer leaves stale sprites next to it. EdgeTiling's mask still reads the legacy _DIRS
+  // tables (K1), which on some map heights differ from true adjacency in 2 directions, so the cells to re-resolve
+  // are the UNION of true hex neighbours (HexUtils) and the legacy readers (EdgeTiling.legacyOffsets); this is
+  // correct under both adjacencies and costs at most 2 extra cells per written cell.
   function _autoResolveEdgesAround(cellsPainted) {
     if (typeof EdgeTiling === 'undefined' || typeof HexDB === 'undefined') return;
+    const W = MAP_WIDTH, H = MAP_HEIGHT;
     const familyTypes = _EDGE_FAMILY;
     const toResolve = new Set();
+    const hexOffs = _hexOffsetsByRowParity();
     for (const { col: c, row: r, prev } of cellsPainted) {
-      if (c < 0 || c >= MAP_WIDTH || r < 0 || r >= MAP_HEIGHT) continue;
-      const entry = Terrain.byHexId(mapData[r * MAP_WIDTH + c]);
+      if (c < 0 || c >= W || r < 0 || r >= H) continue;
+      const entry = Terrain.byHexId(mapData[r * W + c]);
       const prevEntry = prev ? Terrain.byHexId(prev) : null;
       const nowDirectional = _isDirectional(entry);
       if (!nowDirectional && !_inEdgeFamily(entry) && !_inEdgeFamily(prevEntry)) continue;
-      if (nowDirectional) toResolve.add(r * MAP_WIDTH + c);
-      for (const n of HexUtils.neighbors(c, r, MAP_WIDTH, MAP_HEIGHT)) {
-        const nEntry = Terrain.byHexId(mapData[n.row * MAP_WIDTH + n.col]);
-        if (_isDirectional(nEntry) || (nowDirectional && nEntry && familyTypes.includes(nEntry.type)))
-          toResolve.add(n.row * MAP_WIDTH + n.col);
-      }
+      if (nowDirectional) toResolve.add(r * W + c);
+      const visit = (nc, nr) => {
+        if (nc < 0 || nc >= W || nr < 0 || nr >= H) return;
+        const k = nr * W + nc;
+        if (toResolve.has(k)) return;
+        const nEntry = Terrain.byHexId(mapData[k]);
+        if (_isDirectional(nEntry) || (nowDirectional && nEntry && familyTypes.includes(nEntry.type))) toResolve.add(k);
+      };
+      for (const o of hexOffs[r & 1]) visit(c + o[0], r + o[1]);
+      for (const o of EdgeTiling.legacyOffsets(r, H)) visit(c + o[0], r + o[1]);
     }
     const fallbackIds = [_riverFallbackId('Water_Dirty_1'), _riverFallbackId('Water_1'), _riverFallbackId('Water_Rock_1')];
     for (const idx of toResolve) {
@@ -4404,10 +4440,11 @@ const Tools = (() => {
     }
   }
 
-  // Single entry point for the synchronous terrain-writing tools (Paint, Rectangle). Returns the cells that
-  // really changed, with the previous id. The caller owns History.push(). Fill is time-sliced and writes in
-  // its own loop, but ends in the same _autoResolveEdgesAround. opts.noSymmetry is reserved for T2.5.
-  function _applyTerrainCells(cells, hexId, opts) {
+  // Single entry point for the synchronous terrain-writing tools (Paint, Rectangle). Returns every cell it
+  // wrote (deduplicated, in-bounds, not under a footprint), each with the id it held before; an unchanged id is
+  // still written and returned. The caller owns History.push(). Fill is time-sliced and writes in its own
+  // loop, but ends in the same _autoResolveEdgesAround.
+  function _applyTerrainCells(cells, hexId) {
     const seen = new Set();
     const touched = [];
     for (const { col: c, row: r } of cells) {
@@ -4474,8 +4511,7 @@ const Tools = (() => {
   // ── Fill (hex flood fill) ──────────────────────────────────
   // Indexed typed-array queue + visited bitmap (no Array.shift / Set of numeric keys), processed in ~8 ms
   // slices so the UI keeps painting. Adjacency is the true hex adjacency (HexUtils, K2): the per-row-parity
-  // offset tables are derived once from HexUtils so the hot loop allocates nothing. opts.legacyAdjacency (TESTS
-  // ONLY) restores the pre-T2.2 table, which is not hex-contiguous, for the legacy equivalence test.
+  // offset tables are derived once from HexUtils so the hot loop allocates nothing.
   // Concurrency policy: while a fill runs, new tool input (_onDown), a second fill and undo/redo are IGNORED (not
   // queued); the in-place bulk writers (Generator/Satellite apply, auto-place settlements) are refused via
   // isFillBusy(); autosave and Save wait/skip (see IO). Writes go through the captured `md`, and a map REPLACED
@@ -4486,31 +4522,19 @@ const Tools = (() => {
   function isFillBusy() { return _fillBusy; }
   function whenIdle() { return _fillIdle; }
 
-  function _fill(col, row, opts) {
+  function _fill(col, row) {
     const targetId = mapData[row * MAP_WIDTH + col];
     const fillId   = UI.getSelectedTerrain();
     if (targetId === fillId || _fillBusy) return Promise.resolve();
     _fillBusy = true;
-    _fillIdle = _fillRun(col, row, targetId, fillId, opts).finally(() => { _fillBusy = false; });
+    _fillIdle = _fillRun(col, row, targetId, fillId).finally(() => { _fillBusy = false; });
     return _fillIdle;
   }
 
-  // Neighbour offsets [dCol,dRow] by row parity, from HexUtils (fromCube does not clip, so any sample cell works).
-  function _hexOffsetsByRowParity() {
-    const W = MAP_WIDTH, H = MAP_HEIGHT, out = [];
-    for (let p = 0; p < 2; p++) {
-      const c0 = 100, r0 = 100 + p, cube = HexUtils.toCube(c0, r0, W, H);
-      out.push(HexUtils.CUBE_DIRS.map(d => {
-        const n = HexUtils.fromCube({ q: cube.q + d.q, r: cube.r + d.r, s: cube.s + d.s }, W, H);
-        return [n.col - c0, n.row - r0];
-      }));
-    }
-    return out;
-  }
-
-  async function _fillRun(col, row, targetId, fillId, opts) {
-    const legacy = !!(opts && opts.legacyAdjacency);
-    const offs = legacy ? null : _hexOffsetsByRowParity();
+  async function _fillRun(col, row, targetId, fillId) {
+    const offs = _hexOffsetsByRowParity();
+    const written = new Int32Array(MAP_WIDTH * MAP_HEIGHT);
+    let nWritten = 0;
     const md = mapData, W = MAP_WIDTH, H = MAP_HEIGHT, N = W * H;
     const stale = () => mapData !== md || MAP_WIDTH !== W || MAP_HEIGHT !== H;
     const visited = new Uint8Array(N);
@@ -4534,15 +4558,8 @@ const Tools = (() => {
         const c = idx % W, r = (idx - c) / W;
         if (!getSatelliteAnchor(c, r)) {          // tiles under a multi-tile footprint are skipped (and not expanded)
           md[idx] = fillId;
-          if (legacy) {
-            const even = (c & 1) === 0;
-            enqueue(c,     r - 1);
-            enqueue(c + 1, even ? r - 1 : r);
-            enqueue(c + 1, even ? r : r + 1);
-            enqueue(c,     r + 1);
-            enqueue(c - 1, even ? r : r + 1);
-            enqueue(c - 1, even ? r - 1 : r);
-          } else {
+          written[nWritten++] = idx;
+          {
             const o = offs[r & 1];
             for (let k = 0; k < 6; k++) enqueue(c + o[k][0], r + o[k][1]);
           }
@@ -4558,8 +4575,8 @@ const Tools = (() => {
 
       if (aborted) { IO.scheduleAutoSave(); return; }   // the replacement map must not wait for the 30 s timer
       invalidateSatelliteMap();
-      const cells = new Array(tail);
-      for (let i = 0; i < tail; i++) { const q = queue[i], c = q % W; cells[i] = { col: c, row: (q - c) / W, prev: targetId }; }
+      const cells = new Array(nWritten);   // only cells actually written (footprint-skipped ones are excluded)
+      for (let i = 0; i < nWritten; i++) { const q = written[i], c = q % W; cells[i] = { col: c, row: (q - c) / W, prev: targetId }; }
       // same rule as _applyTerrainCells: a bridge on a repainted cell is dropped (in place, array identity kept)
       for (let i = bridgesData.length - 1; i >= 0; i--) {
         const b = bridgesData[i];

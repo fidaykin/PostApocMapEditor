@@ -5,33 +5,7 @@ import { VIEWPORT } from './perf-scene';
 declare const Canvas: any, UI: any, Tools: any, IO: any, Dev: any, History: any, HexDB: any, Terrain: any, mapData: string[], MAP_WIDTH: number, MAP_HEIGHT: number;
 test.use({ viewport: VIEWPORT });
 
-// LEGACY reference: copy of the pre-T1.8 synchronous fill with the pre-T2.2 (non-hex-adjacent, issue K1/K2)
-// neighbour table. Only compared against Tools.fill(..., { legacyAdjacency: true }).
 const REF = `
-window.__refFill = function (map, anchorOf, col, row, fillId) {
-  const W = MAP_WIDTH, H = MAP_HEIGHT, out = map.slice();
-  const targetId = out[row * W + col];
-  if (targetId === fillId) return out;
-  const visited = new Set(), queue = [[col, row]];
-  const key = (c, r) => c * 10000 + r;
-  visited.add(key(col, row));
-  while (queue.length) {
-    const [c, r] = queue.shift();
-    if (anchorOf(c, r)) continue;
-    out[r * W + c] = fillId;
-    const even = c % 2 === 0;
-    const nbrs = [[c, r-1], [c+1, even ? r-1 : r], [c+1, even ? r : r+1], [c, r+1], [c-1, even ? r : r+1], [c-1, even ? r-1 : r]];
-    nbrs.forEach(([nc, nr]) => {
-      if (nc < 0 || nc >= W || nr < 0 || nr >= H) return;
-      const k = key(nc, nr);
-      if (visited.has(k)) return;
-      if (out[nr * W + nc] !== targetId) return;
-      visited.add(k);
-      queue.push([nc, nr]);
-    });
-  }
-  return out;
-};
 // Current reference: same algorithm, but neighbours come from HexUtils (true hex adjacency).
 window.__refFillHex = function (map, anchorOf, col, row, fillId) {
   const W = MAP_WIDTH, H = MAP_HEIGHT, out = map.slice();
@@ -52,10 +26,10 @@ window.__refFillHex = function (map, anchorOf, col, row, fillId) {
   return out;
 };`;
 
-async function runRandomFills(page: any, legacy: boolean) {
+async function runRandomFills(page: any) {
   await openEditor(page);
   await page.evaluate(REF);
-  const res = await page.evaluate(async (legacy: boolean) => {
+  const res = await page.evaluate(async () => {
     const entry = Terrain.byHexId('Hills_1');
     const saved = entry.occupiedOffsets;
     entry.occupiedOffsets = ['N', 'NE', 'SE', 'S', 'SW', 'NW'];   // Hills_1 becomes a 7-tile footprint
@@ -79,9 +53,9 @@ async function runRandomFills(page: any, legacy: boolean) {
           const fillId = mapData[row * MAP_WIDTH + col] === 'Forest_2' ? 'Plain_2' : 'Forest_2';
           UI.selectTerrain(fillId);
           invalidateSat();
-          const expected = (window as any)[legacy ? '__refFill' : '__refFillHex'](mapData, getSatelliteAnchor, col, row, fillId);
+          const expected = (window as any).__refFillHex(mapData, getSatelliteAnchor, col, row, fillId);
           const before = mapData.slice(), targetId = before[row * MAP_WIDTH + col];
-          await Tools.fill(col, row, legacy ? { legacyAdjacency: true } : undefined);
+          await Tools.fill(col, row);
           out.push({ seed, t, ...props(before, targetId, fillId, col, row), same: expected.length === mapData.length && expected.every((v: string, i: number) => v === mapData[i]), changed: expected.filter((v: string, i: number) => v !== 'x' && v === fillId).length });
         }
       }
@@ -89,9 +63,9 @@ async function runRandomFills(page: any, legacy: boolean) {
       IO.newMap(true); mapData.fill('Plain_1');
       UI.selectTerrain('Forest_1'); Tools.setActive('fill');
       invalidateSat();
-      const expected = (window as any)[legacy ? '__refFill' : '__refFillHex'](mapData, getSatelliteAnchor, 225, 225, 'Forest_1');
+      const expected = (window as any).__refFillHex(mapData, getSatelliteAnchor, 225, 225, 'Forest_1');
       const before = mapData.slice();
-      await Tools.fill(225, 225, legacy ? { legacyAdjacency: true } : undefined);
+      await Tools.fill(225, 225);
       out.push({ seed: 'uniform', ...props(before, 'Plain_1', 'Forest_1', 225, 225), same: expected.every((v: string, i: number) => v === mapData[i]), changed: mapData.filter(x => x === 'Forest_1').length });
     } finally { entry.occupiedOffsets = saved; if (saved === undefined) delete entry.occupiedOffsets; }
     return out;
@@ -99,7 +73,6 @@ async function runRandomFills(page: any, legacy: boolean) {
     // neighbours reaches all of them from the click cell. Maximal: every hex neighbour of a filled cell that still
     // holds targetId is under a multi-tile footprint (skipped by design).
     function props(before: string[], targetId: string, fillId: string, col: number, row: number) {
-      if (legacy) return {};
       const W = MAP_WIDTH, H = MAP_HEIGHT;
       const filled = new Set<number>();
       for (let i = 0; i < before.length; i++) if (before[i] === targetId && mapData[i] === fillId) filled.add(i);
@@ -123,7 +96,7 @@ async function runRandomFills(page: any, legacy: boolean) {
       return { connected, maximal, size: filled.size };
     }
     function invalidateSat() { (window as any).invalidateSatelliteMap?.(); try { invalidateSatelliteMap(); } catch {} }
-  }, legacy);
+  });
   return res;
 }
 
@@ -133,12 +106,8 @@ function expectExercised(res: any[]) {
   expect(res[res.length - 1].changed).toBeGreaterThan(200000);
 }
 
-test('LEGACY adjacency: Tools.fill(..., {legacyAdjacency:true}) matches the verbatim pre-T2.2 fill', async ({ page }) => {
-  expectExercised(await runRandomFills(page, true));
-});
-
 test('hex adjacency: fill equals an independent HexUtils flood fill, is hex-connected and maximal', async ({ page }) => {
-  const res = await runRandomFills(page, false);
+  const res = await runRandomFills(page);
   expectExercised(res);
   for (const r of res) {
     expect(r.connected, 'connected ' + JSON.stringify(r)).toBe(true);
@@ -371,4 +340,23 @@ test('Clear Map, Fill Map and the QA placer are refused while a fill runs', asyn
   expect(r.toasts.filter(m => m.startsWith('A fill is still running')).length).toBe(3);
   expect(r.undoDuring).toBe(r.undoBefore);
   expect(r.forest).toBe(202500);
+});
+
+test('Water to Plain fill on a full map keeps the main thread responsive (edge-resolution tail)', async ({ page }) => {
+  await openEditor(page);
+  const r = await page.evaluate(async () => {
+    IO.newMap(true); mapData.fill('Water_1');
+    UI.selectTerrain('Plain_1'); Tools.setActive('fill');
+    let ticks = 0, maxGap = 0, last = performance.now();
+    const iv = setInterval(() => { const n = performance.now(); ticks++; maxGap = Math.max(maxGap, n - last); last = n; }, 0);
+    const t0 = performance.now();
+    await Tools.fill(225, 225);
+    const ticksDuring = ticks, gapDuring = maxGap, ms = performance.now() - t0;
+    clearInterval(iv);
+    return { ticksDuring, gapDuring, ms, plain: mapData.filter(x => x === 'Plain_1').length };
+  });
+  console.log('fill Water->Plain 450x450: total ' + r.ms.toFixed(0) + ' ms, ' + r.ticksDuring + ' ticks, max gap ' + r.gapDuring.toFixed(1) + ' ms');
+  expect(r.plain).toBe(202500);
+  expect(r.ticksDuring).toBeGreaterThanOrEqual(3);
+  expect(r.gapDuring).toBeLessThan(60);
 });
