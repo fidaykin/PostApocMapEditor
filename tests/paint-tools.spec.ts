@@ -148,3 +148,187 @@ test.describe('terrain apply and edge re-resolution (T2.2)', () => {
     expect(await page.evaluate(() => mapData.every(x => x === 'Plain_1'))).toBe(true);
   });
 });
+
+test.describe('brush sizes and shortcuts (T2.3)', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+
+  // Reference built only from Canvas.hexCenterWorld pixel positions: breadth-first search over pixel adjacency.
+  const REF = `(c0, r0, R) => {
+    const pos = (c, r) => Canvas.hexCenterWorld(c, r);
+    const a = pos(c0, r0), cand = [];
+    for (let c = c0 - 2 * R - 2; c <= c0 + 2 * R + 2; c++) for (let r = r0 - 2 * R - 2; r <= r0 + 2 * R + 2; r++)
+      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT) cand.push([c, r]);
+    let d = Infinity;
+    for (const [c, r] of cand) { const p = pos(c, r), x = Math.hypot(p.x - a.x, p.y - a.y); if (x > 1 && x < d) d = x; }
+    const dist = new Map([[c0 + ',' + r0, 0]]); let frontier = [[c0, r0]];
+    for (let i = 1; i <= R; i++) {
+      const next = [];
+      for (const [fc, fr] of frontier) { const p = pos(fc, fr);
+        for (const [c, r] of cand) { const k = c + ',' + r; if (dist.has(k)) continue;
+          const q = pos(c, r); if (Math.hypot(q.x - p.x, q.y - p.y) < d * 1.05) { dist.set(k, i); next.push([c, r]); } } }
+      frontier = next;
+    }
+    return [...dist.keys()].sort();
+  }`;
+
+  for (const [W, H] of [[450, 450], [451, 451], [13, 9], [9, 13], [450, 451], [451, 450]]) {
+    test(`brush disc equals the pixel-distance reference on ${W}x${H} (K3)`, async ({ page }) => {
+      const res = await page.evaluate(([W, H, ref]) => {
+        const refFn = eval(ref as string);
+        const save = [MAP_WIDTH, MAP_HEIGHT];
+        MAP_WIDTH = W as number; MAP_HEIGHT = H as number;
+        const bad: string[] = [];
+        const key = (t: any) => t.col + ',' + t.row;
+        const cx = (W as number) >> 1, cy = (H as number) >> 1;
+        for (const R of [1, 2, 5]) for (const [c, r] of [[cx, cy], [cx, cy + 1], [cx + 1, cy], [cx + 1, cy + 1]]) {
+          Brush.setSize(R);
+          const got = Brush.getAffectedTiles(c, r).map(key).sort().join('|');
+          const want = refFn(c, r, R).join('|');
+          if (got !== want) bad.push(`R${R}@${c},${r}`);
+        }
+        MAP_WIDTH = save[0]; MAP_HEIGHT = save[1]; Brush.setSize(0);
+        return bad;
+      }, [W, H, REF]);
+      expect(res).toEqual([]);
+    });
+  }
+
+  test('radius 9 gives 271 tiles and is clamped to 0..12', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Brush.setSize(9);
+      const n9 = Brush.getAffectedTiles(225, 224).length;
+      Brush.setSize(99); const hi = Brush.getSize();
+      Brush.setSize(-4); const lo = Brush.getSize();
+      Brush.setSize('x'); const bad = Brush.getSize();
+      Brush.setSize(0);
+      return { n9, hi, lo, bad, max: Brush.MAX_SIZE };
+    });
+    expect(r).toEqual({ n9: 271, hi: 12, lo: 0, bad: 0, max: 12 });
+  });
+
+  test('edge clipping: cells outside the map are dropped, off-map centre gives none', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Brush.setSize(3);
+      const corner = Brush.getAffectedTiles(0, 0);
+      const inside = corner.every((t: any) => t.col >= 0 && t.row >= 0 && t.col < MAP_WIDTH && t.row < MAP_HEIGHT);
+      const off = Brush.getAffectedTiles(-1, 5).length;
+      Brush.setSize(0);
+      return { n: corner.length, inside, off };
+    });
+    expect(r.inside).toBe(true);
+    expect(r.n).toBeLessThan(37);
+    expect(r.n).toBeGreaterThan(8);
+    expect(r.off).toBe(0);
+  });
+
+  test('[ and ] change the size by code, regardless of the layout character', async ({ page }) => {
+    const press = (code: string, key: string) => page.evaluate(([code, key]) => {
+      window.dispatchEvent(new KeyboardEvent('keydown', { code, key, bubbles: true, cancelable: true }));
+    }, [code, key]);
+    await press('BracketRight', 'ї');
+    await press('BracketRight', 'ї');
+    expect(await page.evaluate(() => Brush.getSize())).toBe(2);
+    await press('BracketLeft', 'х');
+    expect(await page.evaluate(() => Brush.getSize())).toBe(1);
+    await press('BracketLeft', 'х'); await press('BracketLeft', 'х');
+    expect(await page.evaluate(() => Brush.getSize())).toBe(0);
+    for (let i = 0; i < 20; i++) await press('BracketRight', ']');
+    expect(await page.evaluate(() => Brush.getSize())).toBe(12);
+    // a key whose character is '[' but a different physical code must do nothing
+    await press('KeyA', '[');
+    expect(await page.evaluate(() => Brush.getSize())).toBe(12);
+    // the slider and label follow
+    expect(await page.evaluate(() => [(document.getElementById('brush-size-range') as HTMLInputElement).value,
+      document.getElementById('brush-size-label')!.textContent])).toEqual(['12', 'Radius 12 (469 tiles)']);
+  });
+
+  test('slider changes the size and unticks the preset buttons', async ({ page }) => {
+    await page.locator('#brush-size-range').fill('7');
+    expect(await page.evaluate(() => Brush.getSize())).toBe(7);
+    expect(await page.locator('.brush-btn.active').count()).toBe(0);
+    await page.locator('.brush-btn[data-brush="2"]').click();
+    expect(await page.evaluate(() => (document.getElementById('brush-size-range') as HTMLInputElement).value)).toBe('2');
+  });
+
+  test('shortcuts do not fire in an input, select, modal, ctrl-combo or outside the map mode', async ({ page }) => {
+    const sz = () => page.evaluate(() => Brush.getSize());
+    // focused input
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = 'tmp-in'; document.body.appendChild(i); i.focus(); });
+    await page.keyboard.press('BracketRight');
+    expect(await sz()).toBe(0);
+    await page.evaluate(() => { document.getElementById('tmp-in')!.remove(); const s = document.createElement('select'); s.id = 'tmp-sel'; document.body.appendChild(s); s.focus(); });
+    await page.keyboard.press('BracketRight');
+    expect(await sz()).toBe(0);
+    await page.evaluate(() => { document.getElementById('tmp-sel')!.remove(); (document.activeElement as HTMLElement).blur(); });
+    // open modal
+    await page.evaluate(() => document.getElementById('newmap-modal')!.classList.add('open'));
+    await page.keyboard.press('BracketRight');
+    expect(await sz()).toBe(0);
+    await page.evaluate(() => document.getElementById('newmap-modal')!.classList.remove('open'));
+    // ctrl combo
+    await page.keyboard.press('Control+BracketRight');
+    expect(await sz()).toBe(0);
+    // other mode
+    await page.evaluate(() => { document.body.classList.remove('mode-map'); });
+    await page.keyboard.press('BracketRight');
+    expect(await sz()).toBe(0);
+    await page.evaluate(() => { document.body.classList.add('mode-map'); });
+    await page.keyboard.press('BracketRight');
+    expect(await sz()).toBe(1);
+  });
+
+  test('hover preview draws exactly the tiles that get painted', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Brush.setSize(3);
+      Canvas.setZoom?.(100);
+      const painted = Brush.getAffectedTiles(225, 224).map((t: any) => t.col + ',' + t.row).sort();
+      // the preview and the paint both call Brush.getAffectedTiles for the cursor cell
+      const calls: string[] = []; const orig = Brush.getAffectedTiles;
+      Brush.getAffectedTiles = (c: number, r: number) => { calls.push(c + ',' + r); return orig(c, r); };
+      Canvas.render();
+      Brush.getAffectedTiles = orig;
+      Brush.setSize(0);
+      return { painted: painted.length, calls: calls.length };
+    });
+    expect(r.painted).toBe(37);
+    expect(r.calls).toBeLessThanOrEqual(1);
+  });
+
+  test('a click with radius 3 paints exactly the brush set, as one undo step', async ({ page }) => {
+    await page.evaluate(() => { UI.selectTerrain('Forest_1'); Brush.setSize(3); });
+    await clickCell(page, 225, 220);
+    const r = await page.evaluate(() => {
+      const want = new Set(Brush.getAffectedTiles(225, 220).map((t: any) => t.col + ',' + t.row));
+      let painted = 0, stray = 0;
+      for (let row = 0; row < MAP_HEIGHT; row++) for (let col = 0; col < MAP_WIDTH; col++)
+        if (mapData[row * MAP_WIDTH + col] === 'Forest_1') { if (want.has(col + ',' + row)) painted++; else stray++; }
+      return { n: want.size, painted, stray };
+    });
+    expect(r).toEqual({ n: 37, painted: 37, stray: 0 });
+    await page.keyboard.press('Control+z');
+    expect(await page.evaluate(() => mapData.filter((id: string) => id === 'Forest_1').length)).toBe(0);
+  });
+
+  test('moving the cursor reuses cached offset patterns (work counter) and avoids string-keyed dedup', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Brush.setSize(12);
+      const b0 = Brush.patternBuilds();
+      let adds = 0; const oa = Set.prototype.add;
+      Set.prototype.add = function (this: any, v: any) { adds++; return oa.call(this, v); };
+      for (let i = 0; i < 400; i++) Brush.getAffectedTiles(100 + (i % 20), 100 + (i >> 4));
+      Set.prototype.add = oa;
+      const builds = Brush.patternBuilds() - b0;
+      // big discs through HexUtils: no dedup Set either
+      adds = 0; Set.prototype.add = function (this: any, v: any) { adds++; return oa.call(this, v); };
+      const n = HexUtils.discCells(225, 224, 150, 450, 450).length;
+      const ring = HexUtils.ringCells(225, 224, 150, 450, 450).length;
+      Set.prototype.add = oa;
+      Brush.setSize(0);
+      return { builds, adds, n, ring };
+    });
+    expect(r.builds).toBeLessThanOrEqual(2);
+    expect(r.adds).toBe(0);
+    expect(r.ring).toBe(900);
+    expect(r.n).toBeGreaterThan(60000);
+  });
+});

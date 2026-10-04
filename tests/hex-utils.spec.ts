@@ -153,3 +153,19 @@ test.describe('HexUtils geometry', () => {
     expect(bad).toBe(0);
   });
 });
+
+test('discCells/ringCells fast path matches the deduplicating reference (in and out of bounds)', async ({ page }) => {
+  await openEditor(page);
+  const bad = await page.evaluate(() => {
+    const out: string[] = [];
+    for (const [W, H] of [[450, 450], [451, 451], [13, 9], [9, 13]])
+      for (const [c, r, R] of [[0, 0, 4], [W - 1, H - 1, 6], [W >> 1, H >> 1, 5], [3, H - 2, 9], [W >> 1, H >> 1, 0]]) {
+        const cube = HexUtils.toCube(c, r, W, H);
+        const k = (a: any[]) => a.map(t => t.col + ',' + t.row).sort().join('|');
+        if (k(HexUtils.discCells(c, r, R, W, H)) !== k(HexUtils.cellsFromCubes(HexUtils.cubeDisc(cube, R), W, H))) out.push('disc' + [W, H, c, r, R]);
+        if (k(HexUtils.ringCells(c, r, R, W, H)) !== k(HexUtils.cellsFromCubes(HexUtils.cubeRing(cube, R), W, H))) out.push('ring' + [W, H, c, r, R]);
+      }
+    return out;
+  });
+  expect(bad).toEqual([]);
+});

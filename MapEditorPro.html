@@ -1444,6 +1444,11 @@ body.mode-common #map-io    { display: none; }
           <button class="brush-btn" data-brush="2" onclick="Brush.setSize(2)" title="~19 tiles">5×5</button>
           <button class="brush-btn" data-brush="3" onclick="Brush.setSize(3)" title="~37 tiles">○7</button>
         </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
+          <input id="brush-size-range" type="range" min="0" max="12" step="1" value="0"
+                 style="flex:1" oninput="Brush.setSize(this.value)" title="Brush radius ([ and ] keys)">
+        </div>
+        <div id="brush-size-label" style="font-size:10px;color:var(--muted);margin-top:2px">Radius 0 (1 tiles)</div>
       </div>
       <div id="right-active-terrain">
         <div class="section-title">Active Terrain</div>
@@ -2323,7 +2328,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.04";
-const COMMIT  = "d7c4a55";
+const COMMIT  = "f9f2ce6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3058,20 +3063,23 @@ const Canvas = (() => {
         const tiles = (tool === 'paint' || tool === 'zone')
           ? Brush.getAffectedTiles(_cursorCol, _cursorRow)
           : [{ col: _cursorCol, row: _cursorRow }];
+        // One path for the whole brush (a single stroke + fill instead of 2 per tile).
         ctx.save();
+        ctx.beginPath();
+        for (let k = 0; k < tiles.length; k++) {
+          const s = hexScreenPos(tiles[k].col, tiles[k].row);
+          for (let i = 0; i < 6; i++) {
+            const a = (Math.PI / 3) * i;
+            const px = s.x + radius * Math.cos(a), py = s.y + radius * Math.sin(a);
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+        }
+        ctx.fillStyle = 'rgba(79,195,247,0.12)';
+        ctx.fill();
         ctx.strokeStyle = 'rgba(79,195,247,0.9)';
         ctx.lineWidth = lw;
-        tiles.forEach(({ col: tc, row: tr }) => {
-          const s = hexScreenPos(tc, tr);
-          hexClipPath(s.x, s.y, radius);
-          ctx.stroke();
-        });
-        ctx.fillStyle = 'rgba(79,195,247,0.12)';
-        tiles.forEach(({ col: tc, row: tr }) => {
-          const s = hexScreenPos(tc, tr);
-          hexClipPath(s.x, s.y, radius);
-          ctx.fill();
-        });
+        ctx.stroke();
         ctx.restore();
       }
     }
@@ -4209,63 +4217,63 @@ const Canvas = (() => {
 // BRUSH MODULE — size/shape, hex neighbor expansion
 // ════════════════════════════════════════════════════════════
 const Brush = (() => {
-  let _size = 0;   // 0=single, 1=r1, 2=r2, 3=r3
+  const MAX_SIZE = 12;
+  let _size = 0;   // hex radius: 0 = single tile, n = disc of radius n (3n(n+1)+1 tiles)
 
-  // 6 neighbors: stagger is per-row (odd worldX = odd row shifts tile up).
-  // Even row: diagonals at (col-1, row±1) and (col, row±1).
-  // Odd  row: diagonals at (col+1, row±1) and (col, row±1).
-  function _neighbors(col, row) {
-    const dc = row % 2 === 0 ? -1 : +1;
-    return [
-      [col,    row - 1],
-      [col+dc, row - 1],
-      [col+1,  row    ],
-      [col-1,  row    ],
-      [col,    row + 1],
-      [col+dc, row + 1],
-    ].filter(([c, r]) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT);
+  // Offset pattern cache. A disc is a fixed set of (dcol, drow) offsets that depends only on the radius and on the
+  // parity of the centre's cube q (= (H-1-row) - floor(H/2), so it folds in both the row parity and the map height
+  // parity: K3). The pattern is built once from HexUtils on a virtual unbounded map (W=0, H=1, centre q=parity) and a
+  // mouse move only translates and clips it.
+  const _patterns = new Map();
+  let _builds = 0;
+  function _pattern(radius, qPar) {
+    const key = radius * 2 + qPar;
+    let p = _patterns.get(key);
+    if (!p) {
+      _builds++;
+      const centre = HexUtils.fromCube({ q: qPar, r: 0, s: -qPar }, 0, 1);
+      const cubes = HexUtils.cubeDisc({ q: qPar, r: 0, s: -qPar }, radius);
+      p = new Int32Array(cubes.length * 2);
+      cubes.forEach((c, i) => {
+        const cell = HexUtils.fromCube(c, 0, 1);
+        p[i * 2] = cell.col - centre.col;
+        p[i * 2 + 1] = cell.row - centre.row;
+      });
+      _patterns.set(key, p);
+    }
+    return p;
   }
 
   function getAffectedTiles(col, row) {
     if (_size === 0) return [{ col, row }];
-
-    const inBounds = (c, r) => c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT;
-    if (!inBounds(col, row)) return [];
-
-    const visited = new Set();
-    const key = (c, r) => c * 10000 + r;
-    const result = [];
-    let frontier = [{ col, row }];
-    visited.add(key(col, row));
-    result.push({ col, row });
-
-    for (let ring = 0; ring < _size; ring++) {
-      const next = [];
-      frontier.forEach(({ col: fc, row: fr }) => {
-        _neighbors(fc, fr).forEach(([nc, nr]) => {
-          const k = key(nc, nr);
-          if (!visited.has(k)) {
-            visited.add(k);
-            result.push({ col: nc, row: nr });
-            next.push({ col: nc, row: nr });
-          }
-        });
-      });
-      frontier = next;
+    if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return [];
+    const q = (MAP_HEIGHT - 1 - row) - Math.floor(MAP_HEIGHT / 2);
+    const p = _pattern(_size, ((q % 2) + 2) % 2);
+    const out = [];
+    for (let i = 0; i < p.length; i += 2) {
+      const c = col + p[i], r = row + p[i + 1];
+      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT) out.push({ col: c, row: r });
     }
-    return result;
+    return out;
   }
 
   function setSize(s) {
-    _size = s;
+    _size = Math.max(0, Math.min(MAX_SIZE, parseInt(s) || 0));
     document.querySelectorAll('.brush-btn').forEach(btn => {
-      btn.classList.toggle('active', parseInt(btn.dataset.brush) === s);
+      btn.classList.toggle('active', parseInt(btn.dataset.brush) === _size);
     });
+    const range = document.getElementById('brush-size-range');
+    if (range) range.value = String(_size);
+    const label = document.getElementById('brush-size-label');
+    if (label) label.textContent = `Radius ${_size} (${3 * _size * (_size + 1) + 1} tiles)`;
   }
 
   function getSize() { return _size; }
+  function grow()   { setSize(_size + 1); }
+  function shrink() { setSize(_size - 1); }
+  function patternBuilds() { return _builds; }
 
-  return { getAffectedTiles, setSize, getSize };
+  return { getAffectedTiles, setSize, getSize, grow, shrink, MAX_SIZE, patternBuilds };
 })();
 // ════════════════════════════════════════════════════════════
 // TOOLS MODULE — paint, fill, rect, eyedropper, settlement, erase
@@ -4908,12 +4916,28 @@ const Tools = (() => {
     _lastRoadPainted   = null;
   }
 
+  // True while a text control, select or any modal/dialog overlay has the user's attention.
+  function _isTypingOrModal() {
+    const a = document.activeElement;
+    if (a && (['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName) || a.isContentEditable)) return true;
+    for (const m of document.querySelectorAll('.modal-overlay, [id$="-modal"]'))
+      if (getComputedStyle(m).display !== 'none') return true;
+    return false;
+  }
+
   function init() {
     Canvas.setMouseCallbacks(_onDown, _onMove, _onUp);
     // Keyboard tool shortcuts
     window.addEventListener('keydown', e => {
       if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
       if (e.ctrlKey || e.metaKey) return;
+      if (e.code === 'BracketLeft' || e.code === 'BracketRight') {   // brush radius, by physical key (layout independent)
+        if (e.altKey || !document.body.classList.contains('mode-map') || _isTypingOrModal()) return;
+        e.preventDefault();
+        if (e.code === 'BracketLeft') Brush.shrink(); else Brush.grow();
+        Canvas.render();
+        return;
+      }
       switch (e.key.toLowerCase()) {
         case 'p': setActive('paint');        break;
         case 'f': setActive('fill');         break;

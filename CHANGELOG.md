@@ -23,6 +23,7 @@ Format: `## [version] — [date]`
 - Generator, Satellite apply, Clear Map, Fill Map and auto-place settlements refuse to run while a fill is in progress and show a message.
 - Ctrl+S waits for a running fill to finish, then saves the finished map.
 - Rectangle and Fill now re-resolve river and water edge tiles like Paint.
+- The brush can be any radius from 0 to 12 (slider in the Brush panel, or [ and ] keys) and is a true hex disc on maps of any height, including odd-sized maps.
 - Fill uses true hex adjacency (previously two diagonal directions were wrong on some map heights), so a fill may select different tiles than before.
 - Rectangle and Fill drop bridges on repainted cells, like Paint.
 
