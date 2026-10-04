@@ -2333,7 +2333,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.04";
-const COMMIT  = "251dba2";
+const COMMIT  = "e281dcb";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4930,6 +4930,7 @@ const Tools = (() => {
   // ── Mouse callbacks (registered with Canvas) ───────────────
   function _onDown(sx, sy, e) {
     if (_fillBusy) return;                      // a fill is still running: ignore new input
+    if (e && e.button !== 0) return;            // side buttons (3/4) never start a tool action (pan buttons never get here)
     const { col, row } = Canvas.screenToHex(sx, sy);
     if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
     _isDown = true;
@@ -5017,6 +5018,8 @@ const Tools = (() => {
   function _onMove(sx, sy, e) {
     if (_fillBusy) return;
     if ((_polyVerts.length || _shapeStart) && _shapeStale()) { _cancelStale(); return; }
+    // No button is held although a drag is active: the mouseup was lost (released outside the page, focus change...).
+    if (_isDown && e && e.type === 'mousemove' && e.buttons === 0) { _onUp({ type: 'mouseup', button: 0, shiftKey: e.shiftKey }); return; }
     if (_active === 'polygon' && _polyVerts.length) {
       const hov = Canvas.screenToHex(sx, sy);
       if (HexUtils.inBounds(hov.col, hov.row, MAP_WIDTH, MAP_HEIGHT)) {
@@ -5073,7 +5076,7 @@ const Tools = (() => {
   function _onUp(e) {
     // Shapes ignore the canvas mouseleave: the drag continues outside the canvas and the window mouseup finishes it.
     if (e && e.type === 'mouseleave' && _shapeStart) return;
-    if (e && e.type === 'mouseup' && e.button !== 0) return;   // a right/middle release (pan) must not end a left-button drag
+    if (e && e.type === 'mouseup' && (e.button === 1 || e.button === 2)) return;   // a middle/right release (pan) must not end a left-button drag
     if (!_isDown) return;
     _isDown = false;
     if ((_active === 'line' || _active === 'circle') && _shapeStart) { _finishDrag(e); return; }

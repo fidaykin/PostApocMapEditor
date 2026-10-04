@@ -676,7 +676,7 @@ test.describe('shape tools (T2.4)', () => {
   });
 
   for (const vp of [{ width: 1400, height: 900 }, { width: 1100, height: 700 }]) {
-    test(`shape tool buttons exist, are visible inside ${vp.width}x${vp.height} and clickable (they must not widen the toolbar)`, async ({ page }) => {
+    test(`shape tool buttons exist, are visible inside ${vp.width}x${vp.height} and clickable (placed outside the toolbar)`, async ({ page }) => {
       await page.setViewportSize(vp);
       await page.evaluate(() => window.dispatchEvent(new Event('resize')));
       for (const tool of ['line', 'circle', 'polygon', 'rect']) {
@@ -689,9 +689,63 @@ test.describe('shape tools (T2.4)', () => {
         expect(await page.evaluate(() => Tools.getActive())).toBe(tool);
         await expect(btn).toHaveClass(/active/);
       }
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1 || document.body.scrollWidth <= window.innerWidth + 200)).toBe(true);
+      // Placement guard: the toolbar's width sets the page (and canvas) width, so the shape buttons must not be in #map-tools.
+      expect(await page.evaluate(() => [!!document.querySelector('#map-tools [data-tool=line]'), !!document.querySelector('#shape-tools [data-tool=line]'),
+        !!document.querySelector('#map-tools [data-tool=polygon]'), !!document.querySelector('#shape-tools [data-tool=polygon]')])).toEqual([false, true, false, true]);
     });
   }
+
+  test('canvas width at 1400x900 equals the perf-hash baseline width (1491)', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    expect(await page.evaluate(() => (document.getElementById('map-canvas') as HTMLCanvasElement).width)).toBe(1491);
+  });
+
+  for (const button of [3, 4]) {
+    test(`side mouse button ${button} down/up never starts Paint or leaves it stuck`, async ({ page }) => {
+      await page.evaluate(() => { UI.selectTerrain('Water_1'); Tools.setActive('paint'); });
+      const before = await undoSize(page);
+      const r = await page.evaluate(async (button) => {
+        const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), p = Canvas.hexScreenPos(225, 224);
+        const ev = (t: string, dx: number, buttons: number, b = 0) => new MouseEvent(t, { clientX: rc.left + p.x + dx, clientY: rc.top + p.y, button: b, buttons, bubbles: true });
+        cv.dispatchEvent(ev('mousedown', 0, 1 << button, button)); cv.dispatchEvent(ev('mouseup', 0, 0, button));
+        for (let i = 0; i < 20; i++) cv.dispatchEvent(ev('mousemove', i * 7, 0));
+        let w = 0; for (const x of mapData) if (x === 'Water_1') w++;
+        return w;
+      }, button);
+      expect(r).toBe(0);
+      expect(await undoSize(page)).toBe(before);
+    });
+  }
+
+  test('side button during Rect leaves no stuck preview', async ({ page }) => {
+    await select(page, 'rect');
+    const r = await page.evaluate(() => {
+      const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), p = Canvas.hexScreenPos(225, 224);
+      const ev = (t: string, dx: number, buttons: number, b = 0) => new MouseEvent(t, { clientX: rc.left + p.x + dx, clientY: rc.top + p.y, button: b, buttons, bubbles: true });
+      cv.dispatchEvent(ev('mousedown', 0, 8, 3)); cv.dispatchEvent(ev('mouseup', 0, 0, 3));
+      for (let i = 0; i < 10; i++) cv.dispatchEvent(ev('mousemove', i * 9, 0));
+      return _toolsRectPreview;
+    });
+    expect(r).toBeNull();
+  });
+
+  test('a lost mouseup (move with no button held) finishes the drag and nothing paints afterwards', async ({ page }) => {
+    await page.evaluate(() => { UI.selectTerrain('Water_1'); Tools.setActive('paint'); });
+    const r = await page.evaluate(() => {
+      const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), p = Canvas.hexScreenPos(225, 224);
+      const ev = (t: string, dx: number, buttons: number) => new MouseEvent(t, { clientX: rc.left + p.x + dx, clientY: rc.top + p.y, button: 0, buttons, bubbles: true });
+      const count = () => { let w = 0; for (const x of mapData) if (x === 'Water_1') w++; return w; };
+      cv.dispatchEvent(ev('mousedown', 0, 1));
+      const down = count();
+      cv.dispatchEvent(ev('mousemove', 70, 0));           // button released elsewhere: no mouseup was delivered
+      const afterLost = count();
+      for (let i = 0; i < 15; i++) cv.dispatchEvent(ev('mousemove', 80 + i * 9, 0));
+      return { down, afterLost, end: count() };
+    });
+    expect(r.down).toBe(1);
+    expect(r.end).toBe(r.afterLost);
+  });
 
   test('L, O, G select the shape tools by physical key and respect text focus', async ({ page }) => {
     for (const [code, tool] of [['KeyL', 'line'], ['KeyO', 'circle'], ['KeyG', 'polygon']]) {
