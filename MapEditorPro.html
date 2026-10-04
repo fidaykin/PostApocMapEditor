@@ -1446,9 +1446,9 @@ body.mode-common #map-io    { display: none; }
         </div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
           <input id="brush-size-range" type="range" min="0" max="12" step="1" value="0"
-                 style="flex:1" oninput="Brush.setSize(this.value)" title="Brush radius ([ and ] keys)">
+                 style="flex:1" oninput="Brush.setSize(this.value)" onchange="this.blur()" title="Brush radius ([ and ] keys)">
         </div>
-        <div id="brush-size-label" style="font-size:10px;color:var(--muted);margin-top:2px">Radius 0 (1 tiles)</div>
+        <div id="brush-size-label" style="font-size:10px;color:var(--muted);margin-top:2px">Radius 0 (1 tile)</div>
       </div>
       <div id="right-active-terrain">
         <div class="section-title">Active Terrain</div>
@@ -2328,7 +2328,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.04";
-const COMMIT  = "f9f2ce6";
+const COMMIT  = "dfcea86";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4265,7 +4265,7 @@ const Brush = (() => {
     const range = document.getElementById('brush-size-range');
     if (range) range.value = String(_size);
     const label = document.getElementById('brush-size-label');
-    if (label) label.textContent = `Radius ${_size} (${3 * _size * (_size + 1) + 1} tiles)`;
+    if (label) { const n = 3 * _size * (_size + 1) + 1; label.textContent = `Radius ${_size} (${n} ${n === 1 ? 'tile' : 'tiles'})`; }
   }
 
   function getSize() { return _size; }
@@ -4919,7 +4919,9 @@ const Tools = (() => {
   // True while a text control, select or any modal/dialog overlay has the user's attention.
   function _isTypingOrModal() {
     const a = document.activeElement;
-    if (a && (['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName) || a.isContentEditable)) return true;
+    // range/checkbox/radio inputs and buttons do not take typed text, so they must not swallow the shortcut
+    const nonText = a && (a.tagName === 'BUTTON' || (a.tagName === 'INPUT' && ['range', 'checkbox', 'radio', 'button'].includes(a.type)));
+    if (a && !nonText && (['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName) || a.isContentEditable)) return true;
     for (const m of document.querySelectorAll('.modal-overlay, [id$="-modal"]'))
       if (getComputedStyle(m).display !== 'none') return true;
     return false;
@@ -4929,15 +4931,16 @@ const Tools = (() => {
     Canvas.setMouseCallbacks(_onDown, _onMove, _onUp);
     // Keyboard tool shortcuts
     window.addEventListener('keydown', e => {
-      if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
       if (e.ctrlKey || e.metaKey) return;
       if (e.code === 'BracketLeft' || e.code === 'BracketRight') {   // brush radius, by physical key (layout independent)
-        if (e.altKey || !document.body.classList.contains('mode-map') || _isTypingOrModal()) return;
+        if (e.altKey || e.repeat || !document.body.classList.contains('mode-map') || _isTypingOrModal()) return;
         e.preventDefault();
+        const before = Brush.getSize();
         if (e.code === 'BracketLeft') Brush.shrink(); else Brush.grow();
-        Canvas.render();
+        if (Brush.getSize() !== before) Canvas.render();
         return;
       }
+      if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
       switch (e.key.toLowerCase()) {
         case 'p': setActive('paint');        break;
         case 'f': setActive('fill');         break;
@@ -14367,6 +14370,7 @@ window.addEventListener('load', async () => {
   Canvas.init();
   UI.init();
   Tools.init();
+  Brush.setSize(Brush.getSize());   // sync slider, label and buttons
   History.initKeyboard();
   IO.initFileInput();
   IO.initKeyboard();

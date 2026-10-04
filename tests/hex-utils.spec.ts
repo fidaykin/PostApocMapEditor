@@ -164,6 +164,8 @@ test('discCells/ringCells fast path matches the deduplicating reference (in and 
         const k = (a: any[]) => a.map(t => t.col + ',' + t.row).sort().join('|');
         if (k(HexUtils.discCells(c, r, R, W, H)) !== k(HexUtils.cellsFromCubes(HexUtils.cubeDisc(cube, R), W, H))) out.push('disc' + [W, H, c, r, R]);
         if (k(HexUtils.ringCells(c, r, R, W, H)) !== k(HexUtils.cellsFromCubes(HexUtils.cubeRing(cube, R), W, H))) out.push('ring' + [W, H, c, r, R]);
+        const ordered = (a: any[]) => a.map(t => t.col + ',' + t.row).join('|');   // walk order, unsorted
+        if (ordered(HexUtils.ringCells(c, r, R, W, H)) !== ordered(HexUtils.cellsFromCubes(HexUtils.cubeRing(cube, R), W, H))) out.push('ringorder' + [W, H, c, r, R]);
       }
     return out;
   });

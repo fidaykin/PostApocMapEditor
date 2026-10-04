@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { freshEditor, clickCell, dragCells } from './editor-helpers';
+import { freshEditor, clickCell, dragCells, cellPoint } from './editor-helpers';
 
 const CITY = { col: 225, row: 224 };
 
@@ -152,39 +152,51 @@ test.describe('terrain apply and edge re-resolution (T2.2)', () => {
 test.describe('brush sizes and shortcuts (T2.3)', () => {
   test.beforeEach(async ({ page }) => { await freshEditor(page); });
 
-  // Reference built only from Canvas.hexCenterWorld pixel positions: breadth-first search over pixel adjacency.
+  // Reference built only from Canvas.hexCenterWorld pixel positions. The six pixel-adjacency vectors are measured
+  // at the centre; a BFS over an UNCLIPPED virtual lattice (pixel-key lookup) gives each cell's hex distance, then the
+  // caller filters by radius and map bounds.
   const REF = `(c0, r0, R) => {
     const pos = (c, r) => Canvas.hexCenterWorld(c, r);
-    const a = pos(c0, r0), cand = [];
-    for (let c = c0 - 2 * R - 2; c <= c0 + 2 * R + 2; c++) for (let r = r0 - 2 * R - 2; r <= r0 + 2 * R + 2; r++)
-      if (c >= 0 && c < MAP_WIDTH && r >= 0 && r < MAP_HEIGHT) cand.push([c, r]);
+    const key = (x, y) => Math.round(x * 4) + ',' + Math.round(y * 4);
+    const a = pos(c0, r0), byPix = new Map(), W2 = 2 * R + 3;
+    for (let c = c0 - W2; c <= c0 + W2; c++) for (let r = r0 - W2; r <= r0 + W2; r++) { const p = pos(c, r); byPix.set(key(p.x, p.y), [c, r]); }
     let d = Infinity;
-    for (const [c, r] of cand) { const p = pos(c, r), x = Math.hypot(p.x - a.x, p.y - a.y); if (x > 1 && x < d) d = x; }
+    for (let c = c0 - 2; c <= c0 + 2; c++) for (let r = r0 - 2; r <= r0 + 2; r++) { const p = pos(c, r), x = Math.hypot(p.x - a.x, p.y - a.y); if (x > 1 && x < d) d = x; }
+    const vecs = [];
+    for (let c = c0 - 2; c <= c0 + 2; c++) for (let r = r0 - 2; r <= r0 + 2; r++) { const p = pos(c, r); if (Math.hypot(p.x - a.x, p.y - a.y) < d * 1.05 && (c !== c0 || r !== r0)) vecs.push([p.x - a.x, p.y - a.y]); }
+    if (vecs.length !== 6) throw new Error('expected 6 adjacency vectors, got ' + vecs.length);
     const dist = new Map([[c0 + ',' + r0, 0]]); let frontier = [[c0, r0]];
     for (let i = 1; i <= R; i++) {
       const next = [];
       for (const [fc, fr] of frontier) { const p = pos(fc, fr);
-        for (const [c, r] of cand) { const k = c + ',' + r; if (dist.has(k)) continue;
-          const q = pos(c, r); if (Math.hypot(q.x - p.x, q.y - p.y) < d * 1.05) { dist.set(k, i); next.push([c, r]); } } }
+        for (const [vx, vy] of vecs) { const n = byPix.get(key(p.x + vx, p.y + vy)); if (!n) continue;
+          const k = n[0] + ',' + n[1]; if (!dist.has(k)) { dist.set(k, i); next.push(n); } } }
       frontier = next;
     }
-    return [...dist.keys()].sort();
+    return dist;
   }`;
 
-  for (const [W, H] of [[450, 450], [451, 451], [13, 9], [9, 13], [450, 451], [451, 450]]) {
-    test(`brush disc equals the pixel-distance reference on ${W}x${H} (K3)`, async ({ page }) => {
+  for (const [W, H] of [[451, 451], [450, 451], [451, 450], [12, 10], [13, 9]]) {
+    test(`brush disc equals the unclipped pixel reference (radii 0..12, corners, edges) on ${W}x${H} (K3)`, async ({ page }) => {
       const res = await page.evaluate(([W, H, ref]) => {
         const refFn = eval(ref as string);
         const save = [MAP_WIDTH, MAP_HEIGHT];
         MAP_WIDTH = W as number; MAP_HEIGHT = H as number;
         const bad: string[] = [];
-        const key = (t: any) => t.col + ',' + t.row;
-        const cx = (W as number) >> 1, cy = (H as number) >> 1;
-        for (const R of [1, 2, 5]) for (const [c, r] of [[cx, cy], [cx, cy + 1], [cx + 1, cy], [cx + 1, cy + 1]]) {
-          Brush.setSize(R);
-          const got = Brush.getAffectedTiles(c, r).map(key).sort().join('|');
-          const want = refFn(c, r, R).join('|');
-          if (got !== want) bad.push(`R${R}@${c},${r}`);
+        const w = W as number, h = H as number, cx = w >> 1, cy = h >> 1;
+        const centres = [[0, 0], [w - 1, 0], [0, h - 1], [w - 1, h - 1], [cx, 0], [cx, h - 1], [0, cy], [w - 1, cy], [cx, cy], [cx, cy + 1], [cx + 1, cy]];
+        for (const [c, r] of centres) {
+          const dist = refFn(c, r, 12);
+          for (let R = 0; R <= 12; R++) {
+            Brush.setSize(R);
+            const got = Brush.getAffectedTiles(c, r).map((t: any) => t.col + ',' + t.row).sort().join('|');
+            const want = [...dist].filter(([k, d]: any) => {
+              if (d > R) return false;
+              const [kc, kr] = k.split(',').map(Number);
+              return kc >= 0 && kc < w && kr >= 0 && kr < h;
+            }).map(([k]: any) => k).sort().join('|');
+            if (got !== want) bad.push(`R${R}@${c},${r}`);
+          }
         }
         MAP_WIDTH = save[0]; MAP_HEIGHT = save[1]; Brush.setSize(0);
         return bad;
@@ -277,21 +289,28 @@ test.describe('brush sizes and shortcuts (T2.3)', () => {
     expect(await sz()).toBe(1);
   });
 
-  test('hover preview draws exactly the tiles that get painted', async ({ page }) => {
-    const r = await page.evaluate(() => {
-      Brush.setSize(3);
-      Canvas.setZoom?.(100);
-      const painted = Brush.getAffectedTiles(225, 224).map((t: any) => t.col + ',' + t.row).sort();
-      // the preview and the paint both call Brush.getAffectedTiles for the cursor cell
-      const calls: string[] = []; const orig = Brush.getAffectedTiles;
-      Brush.getAffectedTiles = (c: number, r: number) => { calls.push(c + ',' + r); return orig(c, r); };
+  test('hover preview draws the painted set as one path (fill/stroke counts) and only with a cursor', async ({ page }) => {
+    const pt = await cellPoint(page, 225, 224);
+    await page.evaluate(() => { Brush.setSize(3); Canvas.setZoom(100); });
+    const count = () => page.evaluate(() => {
+      const P = CanvasRenderingContext2D.prototype, of = P.fill, os = P.stroke, oa = Brush.getAffectedTiles;
+      let f = 0, s = 0, calls = 0;
+      P.fill = function (this: any, ...a: any[]) { f++; return of.apply(this, a as any); };
+      P.stroke = function (this: any, ...a: any[]) { s++; return os.apply(this, a as any); };
+      Brush.getAffectedTiles = (c: number, r: number) => { calls++; return oa(c, r); };
       Canvas.render();
-      Brush.getAffectedTiles = orig;
-      Brush.setSize(0);
-      return { painted: painted.length, calls: calls.length };
+      P.fill = of; P.stroke = os; Brush.getAffectedTiles = oa;
+      return { f, s, calls };
     });
-    expect(r.painted).toBe(37);
-    expect(r.calls).toBeLessThanOrEqual(1);
+    await page.evaluate(() => document.getElementById('map-canvas')!.dispatchEvent(new MouseEvent('mouseleave')));
+    const off = await count();
+    await page.mouse.move(pt.x, pt.y);
+    const on = await count();
+    expect(off.calls).toBe(0);
+    expect(on.calls).toBe(1);
+    expect(on.f - off.f).toBe(1);
+    expect(on.s - off.s).toBe(1);
+    expect(await page.evaluate(() => Brush.getAffectedTiles(225, 224).length)).toBe(37);
   });
 
   test('a click with radius 3 paints exactly the brush set, as one undo step', async ({ page }) => {
@@ -330,5 +349,27 @@ test.describe('brush sizes and shortcuts (T2.3)', () => {
     expect(r.adds).toBe(0);
     expect(r.ring).toBe(900);
     expect(r.n).toBeGreaterThan(60000);
+  });
+
+  test('the shortcut still works right after using the slider (focus is not trapped)', async ({ page }) => {
+    await page.locator('#brush-size-range').fill('7');
+    await page.keyboard.press('BracketRight');
+    expect(await page.evaluate(() => Brush.getSize())).toBe(8);
+    // even if the slider keeps focus, range inputs do not swallow the key
+    await page.evaluate(() => (document.getElementById('brush-size-range') as HTMLInputElement).focus());
+    await page.keyboard.press('BracketLeft');
+    expect(await page.evaluate(() => Brush.getSize())).toBe(7);
+  });
+
+  test('a real text input still blocks the shortcut', async ({ page }) => {
+    await page.evaluate(() => { const i = document.createElement('input'); i.type = 'text'; document.body.appendChild(i); i.focus(); });
+    await page.keyboard.press('BracketRight');
+    expect(await page.evaluate(() => Brush.getSize())).toBe(0);
+  });
+
+  test('label uses the singular for one tile; held key (repeat) is ignored', async ({ page }) => {
+    expect(await page.evaluate(() => document.getElementById('brush-size-label')!.textContent)).toBe('Radius 0 (1 tile)');
+    await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'BracketRight', key: ']', repeat: true, bubbles: true })));
+    expect(await page.evaluate(() => Brush.getSize())).toBe(0);
   });
 });

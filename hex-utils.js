@@ -98,17 +98,16 @@
     return out;
   }
 
-  // Fast path for inputs whose cubes are already pairwise distinct (disc, ring): fromCube is a bijection, so
+  // Fast path for inputs whose cubes are already pairwise distinct (disc): fromCube is a bijection, so
   // no dedup is needed. Avoids the string-keyed Set and the intermediate cube objects.
-  function _distinctCells(center, radius, ringOnly, W, H) {
+  function _distinctCells(center, radius, W, H) {
     const out = [], hh = Math.floor(H / 2), wh = Math.floor(W / 2);
     for (let dq = -radius; dq <= radius; dq++) {
       const q = center.q + dq, row = H - 1 - (q + hh);
       if (row < 0 || row >= H) continue;
       const half = (q - _par(q)) / 2 + wh;
       const lo = Math.max(-radius, -dq - radius), hi = Math.min(radius, -dq + radius);
-      const edge = ringOnly && Math.abs(dq) !== radius;
-      for (let dr = lo; dr <= hi; dr += (edge && dr === lo && hi > lo) ? hi - lo : 1) {
+      for (let dr = lo; dr <= hi; dr++) {
         const col = center.r + dr + half;
         if (col >= 0 && col < W) out.push({ col, row });
       }
@@ -122,11 +121,16 @@
     return cellsFromCubes(CUBE_DIRS.map(d => _add(c, d)), W, H);
   }
   function discCells(col, row, radius, W, H) {
-    return _distinctCells(toCube(col, row, W, H), radius, false, W, H);
+    return _distinctCells(toCube(col, row, W, H), radius, W, H);
   }
+  // Ring cubes are pairwise distinct, so no dedup: clip in the original cubeRing walk order.
   function ringCells(col, row, radius, W, H) {
-    if (radius === 0) return _distinctCells(toCube(col, row, W, H), 0, false, W, H);
-    return _distinctCells(toCube(col, row, W, H), radius, true, W, H);
+    const out = [];
+    for (const c of cubeRing(toCube(col, row, W, H), radius)) {
+      const p = fromCube(c, W, H);
+      if (inBounds(p.col, p.row, W, H)) out.push(p);
+    }
+    return out;
   }
   function lineCells(a, b, W, H) {
     return cellsFromCubes(cubeLine(toCube(a.col, a.row, W, H), toCube(b.col, b.row, W, H)), W, H);
