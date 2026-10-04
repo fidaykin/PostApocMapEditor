@@ -1410,6 +1410,7 @@ body.mode-common #map-io    { display: none; }
           <button class="tool-btn" data-tool="line" onclick="Tools.setActive('line')" title="Line (L) - drag, thickness = brush size">╱</button>
           <button class="tool-btn" data-tool="circle" onclick="Tools.setActive('circle')" title="Circle (O) - drag from centre, Shift = filled">◯</button>
           <button class="tool-btn" data-tool="polygon" onclick="Tools.setActive('polygon')" title="Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline">⬠</button>
+          <button class="tool-btn" data-tool="eraser" onclick="Tools.setActive('eraser')" title="Eraser (X) - drag to reset tiles to Plain_1 and remove buildings, roads, bridges and under-terrain. Brush size applies, symmetry mirrors it like Paint, Esc cancels the stroke. Zones and settlements are not touched">⌫</button>
         </div>
       <div id="symmetry-row" style="display:flex;align-items:center;gap:4px;padding:6px 8px 0">
         <select id="symmetry-select" class="hexdb-input" style="flex:1;min-width:0;font-size:11px" onchange="Tools.setSymmetry(this.value); this.blur()"
@@ -2344,7 +2345,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "e404e09";
+const COMMIT  = "77292d5";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3078,6 +3079,8 @@ const Canvas = (() => {
         ctx.lineWidth = lw * 2;
         ctx.stroke();
         ctx.restore();
+      } else if (tool === 'eraser') {
+        // the 'eraser' highlight layer (brush disc + symmetric copies) is the cursor
       } else {
         // Standard brush preview (ring brush or non-multi-tile tile)
         let symExpanded = false;
@@ -4410,10 +4413,10 @@ const Tools = (() => {
     settlement: 'Place Settlement', erase: 'Erase Settlement',
     zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object',
     'road-connect': 'Connect Road',
-    line: 'Line', circle: 'Circle', polygon: 'Polygon',
+    line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser',
   };
   // Physical-key tool shortcuts (layout independent). Later tasks add entries.
-  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon' };
+  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser' };
   let _shapeStart = null;     // { col, row } while dragging a line or circle
   let _shapeEnd   = null;
   let _shapeKey   = '';       // last previewed end cell + modifier, so unchanged moves do no work
@@ -4434,6 +4437,7 @@ const Tools = (() => {
     if (sel) sel.value = _symMode;
     // a rectangle drag in progress: rebuild (or drop) the copies so the preview matches what the commit will write
     if (_rectStart && _toolsRectPreview && !_shapeStale()) { _previewRectSymmetry(_toolsRectPreview); }
+    _updateEraserHover(_hoverCell);
     Canvas.setSymmetryGuide(_symMode);   // renders
   }
   function getSymmetry() { return _symMode; }
@@ -4457,6 +4461,7 @@ const Tools = (() => {
     _isDown = false;                    // a drag started with the old tool must not keep writing with the new one
     _lastPainted = null; _lastZonePainted = null; _lastObjectPainted = null; _lastRoadPainted = null;
     _cancelShape();
+    _eraseStroke = false; _clearEraserHover();
     document.querySelectorAll('.tool-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tool === name);
     });
@@ -4847,6 +4852,61 @@ const Tools = (() => {
     }
   }
 
+  // ── Eraser (T2.6) ──────────────────────────────────────────
+  // Resets cells to DEFAULT_TILE_ID and drops what sat on them: building (with the satellites it spawned), road,
+  // bridge and under-terrain. Zones and the settlements list are NOT touched (they have their own tools; the
+  // settlement/city markers stay where they are). Like Paint it is mirrored by the active symmetry mode unless
+  // opts.noSymmetry. A cell inside a multi-tile footprint is skipped unless the footprint's anchor is erased in the
+  // same call (then the whole footprint goes). The caller owns History.push(). Returns the number of cells reset.
+  function _resetCells(cells, opts) {
+    if (_fillBusy) return 0;
+    const list = opts && opts.noSymmetry ? cells : _expandSymmetry(cells);
+    const inSet = new Set(), uniq = [];
+    for (const c of list) {
+      if (c.col < 0 || c.col >= MAP_WIDTH || c.row < 0 || c.row >= MAP_HEIGHT) continue;
+      const i = c.row * MAP_WIDTH + c.col;
+      if (inSet.has(i)) continue;
+      inSet.add(i); uniq.push(c);
+    }
+    const touched = [], erased = new Set();
+    for (const { col, row } of uniq) {
+      const anc = getSatelliteAnchor(col, row);       // the satellite map is only refreshed after the loop
+      if (anc && !inSet.has(anc.row * MAP_WIDTH + anc.col)) continue;
+      const idx = row * MAP_WIDTH + col, k = col + ',' + row;
+      touched.push({ col, row, prev: mapData[idx] });
+      erased.add(idx);
+      mapData[idx] = DEFAULT_TILE_ID;
+      const bld = objectsData[k];
+      if (bld) { delete objectsData[k]; _removeSatellites(col, row, bld); }
+      delete roadsData[k];
+      delete tileExtras[k];
+    }
+    for (let i = bridgesData.length - 1; i >= 0; i--)
+      if (erased.has(bridgesData[i].row * MAP_WIDTH + bridgesData[i].col)) bridgesData.splice(i, 1);
+    invalidateSatelliteMap();
+    _autoResolveEdgesAround(touched);
+    return touched.length;
+  }
+
+  let _eraseStroke = false;            // a stroke is in progress (History step pushed, cells being erased)
+  let _eraseMd = null, _eraseW = 0, _eraseH = 0;
+  let _eraserHoverKey = '', _hoverCell = null;
+  const ERASER_STYLE = { stroke: 'rgba(239,83,80,0.9)', fill: 'rgba(239,83,80,0.18)' };
+  function _clearEraserHover() { _eraserHoverKey = ''; Canvas.setHighlight('eraser', null, null, { render: false }); }
+  // Hover preview: the brush disc plus its symmetric copies. Recomputed only when the cell, radius, mode or map changes.
+  function _updateEraserHover(cell) {
+    if (_active !== 'eraser' || !cell) return;
+    const key = cell.col + ',' + cell.row + '|' + Brush.getSize() + '|' + _symMode + '|' + MAP_WIDTH + 'x' + MAP_HEIGHT;
+    if (key === _eraserHoverKey && Canvas.hasHighlight('eraser')) return;
+    _eraserHoverKey = key;
+    Canvas.setHighlight('eraser', _expandSymmetry(Brush.getAffectedTiles(cell.col, cell.row)), ERASER_STYLE, { render: false });
+  }
+  function _eraseStale() { return _eraseMd !== mapData || _eraseW !== MAP_WIDTH || _eraseH !== MAP_HEIGHT; }
+  function _eraseAt(col, row) {
+    _resetCells(Brush.getAffectedTiles(col, row));
+    Canvas.render();
+  }
+
   function _placeObject(col, row) {
     const bldId = _selectedBuildingId;
     if (!bldId) return;
@@ -5069,6 +5129,12 @@ const Tools = (() => {
         _polyVerts.push({ col, row });
         _previewPolygon(null);
         break;
+      case 'eraser':
+        History.push();           // before the first write
+        _eraseStroke = true; _eraseMd = mapData; _eraseW = MAP_WIDTH; _eraseH = MAP_HEIGHT;
+        _eraseAt(col, row);
+        _lastPainted = { col, row };
+        break;
       case 'select':
         Canvas.selectTile(col, row);
         _isDown = false;
@@ -5130,11 +5196,26 @@ const Tools = (() => {
         if (k !== _shapeKey) { _shapeKey = k; _previewPolygon(hov); }
       }
     }
+    if (_active === 'eraser') {
+      const hv = Canvas.screenToHex(sx, sy);
+      if (HexUtils.inBounds(hv.col, hv.row, MAP_WIDTH, MAP_HEIGHT)) { _hoverCell = hv; _updateEraserHover(hv); }
+    }
+    if (_active === 'eraser' && _eraseStroke && _eraseStale()) {   // the map was replaced mid-stroke: stop, write nothing
+      _eraseStroke = false; _isDown = false; _lastPainted = null; _clearEraserHover();
+      UI.toast('Eraser stopped — the map changed');
+      Canvas.render();
+      return;
+    }
     if (!_isDown) return;
     const { col, row } = Canvas.screenToHex(sx, sy);
     if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
 
     switch (_active) {
+      case 'eraser':
+        if (_lastPainted && _lastPainted.col === col && _lastPainted.row === row) break;
+        _eraseAt(col, row);
+        _lastPainted = { col, row };
+        break;
       case 'line':
       case 'circle':
         if (_shapeStart) {
@@ -5181,11 +5262,13 @@ const Tools = (() => {
     // Shapes ignore the canvas mouseleave: the drag continues outside the canvas and the window mouseup finishes it.
     if (e && e.type === 'mouseleave' && _shapeStart) return;
     if (e && e.type === 'mouseup' && (e.button === 1 || e.button === 2)) return;   // a middle/right release (pan) must not end a left-button drag
+    if (e && e.type === 'mouseleave' && _active === 'eraser') { _hoverCell = null; _clearEraserHover(); }
     if (!_isDown) return;
     _isDown = false;
+    _eraseStroke = false;
     if ((_active === 'line' || _active === 'circle') && _shapeStart) { _finishDrag(e); return; }
 
-    if (_active === 'paint' || _active === 'road' || _active === 'road-connect' || _active === 'erase-road') {
+    if (_active === 'paint' || _active === 'eraser' || _active === 'road' || _active === 'road-connect' || _active === 'erase-road') {
       Canvas.drawMinimap();
     } else if (_active === 'rect' && _rectStart && _toolsRectPreview) {
       if (_shapeStale()) { _cancelStale(); Canvas.render(); return; }
@@ -5218,8 +5301,8 @@ const Tools = (() => {
   function init() {
     Canvas.setMouseCallbacks(_onDown, _onMove, _onUp);
     // A button released outside the canvas (or the window) still finishes the shape: no stuck tool state.
-    window.addEventListener('mouseup', e => { if (_shapeStart && e.button === 0) _onUp(e); });
-    window.addEventListener('blur', () => { if (_shapeStart) { _isDown = false; _cancelShape(); } });
+    window.addEventListener('mouseup', e => { if ((_shapeStart || _eraseStroke) && e.button === 0) _onUp(e); });
+    window.addEventListener('blur', () => { if (_shapeStart) { _isDown = false; _cancelShape(); } if (_active === 'eraser') { _isDown = false; _eraseStroke = false; _lastPainted = null; _hoverCell = null; _clearEraserHover(); Canvas.render(); } });
     // Keyboard tool shortcuts
     window.addEventListener('keydown', e => {
       if (e.ctrlKey || e.metaKey) return;
@@ -5228,10 +5311,16 @@ const Tools = (() => {
         e.preventDefault();
         const before = Brush.getSize();
         if (e.code === 'BracketLeft') Brush.shrink(); else Brush.grow();
-        if (Brush.getSize() !== before) Canvas.render();
+        if (Brush.getSize() !== before) { _updateEraserHover(_hoverCell); Canvas.render(); }
         return;
       }
       const mapMode = document.body.classList.contains('mode-map');
+      if (e.key === 'Escape' && _eraseStroke) {      // cancel the stroke: roll its History step back, no step is left
+        _eraseStroke = false; _isDown = false; _lastPainted = null;
+        if (!_eraseStale()) History.rollback();
+        Canvas.render(); Canvas.drawMinimap();
+        return;
+      }
       if (e.key === 'Escape' && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
       if (e.key === 'Enter' && _active === 'polygon' && _polyVerts.length && mapMode && !e.altKey && !_isTypingOrModal()) {
         e.preventDefault();
@@ -5257,7 +5346,7 @@ const Tools = (() => {
     });
   }
 
-  return { setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
+  return { eraseCells: _resetCells, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
            applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
@@ -5370,6 +5459,15 @@ const History = (() => {
     UI.toast('Redo');
   }
 
+  // Drop the most recent undo step and restore it, leaving no redo entry (cancelling a gesture, Escape).
+  function rollback() {
+    if (_undo.length === 0) return;
+    const snap = _undo.pop();
+    _restore(snap);
+    _last = snap;
+    UI.updateMenuHistoryState();
+  }
+
   function clear() {
     _undo.length = 0;
     _redo.length = 0;
@@ -5400,7 +5498,7 @@ const History = (() => {
     });
   }
 
-  return { push, undo, redo, clear, undoSize, redoSize, initKeyboard, debugRowCount };
+  return { push, undo, redo, rollback, clear, undoSize, redoSize, initKeyboard, debugRowCount };
 })();
 // ════════════════════════════════════════════════════════════
 // SPRITE STORE — IndexedDB persistence for user-uploaded sprites
@@ -14485,6 +14583,7 @@ let settlementPriority2 = ['Forest_1', 'Barren_1', 'Hills_1', 'Swamp_1'];
 let settlementsVisible = true;
 let _toolsRectPreview = null;
 
+const DEFAULT_TILE_ID = 'Plain_1';   // blank-map tile; the Eraser resets cells to it
 const HEX_SIZE  = 40;
 const SQRT3     = Math.sqrt(3);
 const COL_PITCH = HEX_SIZE * 1.5;
