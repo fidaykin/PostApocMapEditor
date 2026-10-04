@@ -1326,9 +1326,6 @@ body.mode-common #map-io    { display: none; }
       <button class="tool-btn active" data-tool="paint" onclick="Tools.setActive('paint')">✏️<span class="tooltip">Paint (P)</span></button>
       <button class="tool-btn" data-tool="fill"  onclick="Tools.setActive('fill')">🪣<span class="tooltip">Fill (F)</span></button>
       <button class="tool-btn" data-tool="rect"  onclick="Tools.setActive('rect')">▭<span class="tooltip">Rectangle (R)</span></button>
-      <button class="tool-btn" data-tool="line" onclick="Tools.setActive('line')">╱<span class="tooltip">Line (L) - drag, thickness = brush size</span></button>
-      <button class="tool-btn" data-tool="circle" onclick="Tools.setActive('circle')">◯<span class="tooltip">Circle (O) - drag from centre, Shift = filled</span></button>
-      <button class="tool-btn" data-tool="polygon" onclick="Tools.setActive('polygon')">⬠<span class="tooltip">Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline</span></button>
       <button class="tool-btn" data-tool="eye"   onclick="Tools.setActive('eye')">💧<span class="tooltip">Eyedropper (E)</span></button>
       <button class="tool-btn" data-tool="select" onclick="Tools.setActive('select')">🔍<span class="tooltip">Select Tile (S)</span></button>
       <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (T)</span></button>
@@ -1409,6 +1406,11 @@ body.mode-common #map-io    { display: none; }
 
     <!-- Left palette -->
     <div id="palette-panel">
+      <div id="shape-tools" style="display:flex;gap:4px;padding:6px 8px 0">
+          <button class="tool-btn" data-tool="line" onclick="Tools.setActive('line')" title="Line (L) - drag, thickness = brush size">╱</button>
+          <button class="tool-btn" data-tool="circle" onclick="Tools.setActive('circle')" title="Circle (O) - drag from centre, Shift = filled">◯</button>
+          <button class="tool-btn" data-tool="polygon" onclick="Tools.setActive('polygon')" title="Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline">⬠</button>
+        </div>
       <div class="pkg-filter-row" id="pkg-filter-terrain"></div>
       <div id="palette-scroll"></div>
       <div id="palette-selected">
@@ -2331,7 +2333,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.04";
-const COMMIT  = "79e33e6";
+const COMMIT  = "a328e8c";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks

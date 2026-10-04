@@ -675,6 +675,24 @@ test.describe('shape tools (T2.4)', () => {
     expect(await water(page)).toEqual([]);
   });
 
+  for (const vp of [{ width: 1400, height: 900 }, { width: 1100, height: 700 }]) {
+    test(`shape tool buttons exist, are visible inside ${vp.width}x${vp.height} and clickable (they must not widen the toolbar)`, async ({ page }) => {
+      await page.setViewportSize(vp);
+      await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+      for (const tool of ['line', 'circle', 'polygon', 'rect']) {
+        const btn = page.locator(`.tool-btn[data-tool="${tool}"]`);
+        await expect(btn).toBeVisible();
+        const box = (await btn.boundingBox())!;
+        expect(box.x).toBeGreaterThanOrEqual(0); expect(box.y).toBeGreaterThanOrEqual(0);
+        expect(box.x + box.width).toBeLessThanOrEqual(vp.width); expect(box.y + box.height).toBeLessThanOrEqual(vp.height);
+        await btn.click();
+        expect(await page.evaluate(() => Tools.getActive())).toBe(tool);
+        await expect(btn).toHaveClass(/active/);
+      }
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1 || document.body.scrollWidth <= window.innerWidth + 200)).toBe(true);
+    });
+  }
+
   test('L, O, G select the shape tools by physical key and respect text focus', async ({ page }) => {
     for (const [code, tool] of [['KeyL', 'line'], ['KeyO', 'circle'], ['KeyG', 'polygon']]) {
       await page.keyboard.press(code);
