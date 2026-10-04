@@ -1326,6 +1326,9 @@ body.mode-common #map-io    { display: none; }
       <button class="tool-btn active" data-tool="paint" onclick="Tools.setActive('paint')">✏️<span class="tooltip">Paint (P)</span></button>
       <button class="tool-btn" data-tool="fill"  onclick="Tools.setActive('fill')">🪣<span class="tooltip">Fill (F)</span></button>
       <button class="tool-btn" data-tool="rect"  onclick="Tools.setActive('rect')">▭<span class="tooltip">Rectangle (R)</span></button>
+      <button class="tool-btn" data-tool="line" onclick="Tools.setActive('line')">╱<span class="tooltip">Line (L) - drag, thickness = brush size</span></button>
+      <button class="tool-btn" data-tool="circle" onclick="Tools.setActive('circle')">◯<span class="tooltip">Circle (O) - drag from centre, Shift = filled</span></button>
+      <button class="tool-btn" data-tool="polygon" onclick="Tools.setActive('polygon')">⬠<span class="tooltip">Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels</span></button>
       <button class="tool-btn" data-tool="eye"   onclick="Tools.setActive('eye')">💧<span class="tooltip">Eyedropper (E)</span></button>
       <button class="tool-btn" data-tool="select" onclick="Tools.setActive('select')">🔍<span class="tooltip">Select Tile (S)</span></button>
       <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (T)</span></button>
@@ -2328,7 +2331,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.04";
-const COMMIT  = "dfcea86";
+const COMMIT  = "77d5ebf";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3019,6 +3022,8 @@ const Canvas = (() => {
       _drawRectPreview(_toolsRectPreview, radius, lod);
     }
 
+    _drawHighlights(radius, lod, scale);
+
     // Brush cursor preview
     if (_cursorCol >= 0 && _cursorRow >= 0 && Tools && Tools.getActive) {
       const tool = Tools.getActive();
@@ -3279,6 +3284,52 @@ const Canvas = (() => {
       ctx.lineWidth = Math.max(2, radius * 0.08);
       ctx.stroke();
     }
+    ctx.restore();
+  }
+
+  // Named overlay layers drawn by tools (shape previews, selection, paste ghost). World-space centres are cached
+  // when the layer is set, so a frame allocates nothing per cell and all cells go into ONE path.
+  const _highlights = new Map();   // name -> { n, xs, ys, stroke, fill, md, W, H }
+  function setHighlight(name, cells, style) {
+    if (!cells || cells.length === 0) {
+      if (!_highlights.delete(name)) return;
+    } else {
+      const n = cells.length, xs = new Float64Array(n), ys = new Float64Array(n);
+      for (let i = 0; i < n; i++) { const w = hexCenterWorld(cells[i].col, cells[i].row); xs[i] = w.x; ys[i] = w.y; }
+      _highlights.set(name, {
+        n, xs, ys, md: mapData, W: MAP_WIDTH, H: MAP_HEIGHT,
+        stroke: (style && style.stroke) || 'rgba(79,195,247,0.9)',
+        fill: (style && style.fill) || null,
+      });
+    }
+    render();
+  }
+  function hasHighlight(name) { return _highlights.has(name); }
+  function _drawHighlights(radius, lod, scale) {
+    if (_highlights.size === 0) return;
+    // A replaced map (load / new / resize) invalidates every layer (cell coordinates mean something else now).
+    _highlights.forEach((h, k) => { if (h.md !== mapData || h.W !== MAP_WIDTH || h.H !== MAP_HEIGHT) _highlights.delete(k); });
+    if (_highlights.size === 0) return;
+    ctx.save();
+    const cw = canvas.width, ch = canvas.height, pad = radius * 2;
+    _highlights.forEach(h => {
+      ctx.beginPath();
+      for (let i = 0; i < h.n; i++) {
+        const x = h.xs[i] * scale - cameraX, y = h.ys[i] * scale - cameraY;
+        if (x < -pad || x > cw + pad || y < -pad || y > ch + pad) continue;
+        if (lod === 2) { ctx.rect(x - 1.5, y - 1.5, 3, 3); continue; }   // overview: sub-4px hexes become 3px marks
+        for (let k = 0; k < 6; k++) {
+          const a = (Math.PI / 3) * k, px = x + radius * Math.cos(a), py = y + radius * Math.sin(a);
+          k === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+        }
+        ctx.closePath();
+      }
+      if (lod === 2) { ctx.fillStyle = h.stroke; ctx.fill(); return; }
+      if (h.fill) { ctx.fillStyle = h.fill; ctx.fill(); }
+      ctx.strokeStyle = h.stroke;
+      ctx.lineWidth = Math.max(1.5, radius * 0.08);
+      ctx.stroke();
+    });
     ctx.restore();
   }
 
@@ -4197,7 +4248,7 @@ const Canvas = (() => {
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot,
     jumpToBlock,
-    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder,
+    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight,
     toggleRulers: () => {
       _showRulers = !_showRulers;
       const btn = document.getElementById('btn-toggle-rulers');
@@ -4295,13 +4346,22 @@ const Tools = (() => {
     settlement: 'Place Settlement', erase: 'Erase Settlement',
     zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object',
     'road-connect': 'Connect Road',
+    line: 'Line', circle: 'Circle', polygon: 'Polygon',
   };
+  // Physical-key tool shortcuts (layout independent). Later tasks add entries.
+  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon' };
+  let _shapeStart = null;     // { col, row } while dragging a line or circle
+  let _shapeEnd   = null;
+  let _shapeKey   = '';       // last previewed end cell + modifier, so unchanged moves do no work
+  let _polyVerts  = [];       // pending polygon corners
+  let _shapeMd = null, _shapeW = 0, _shapeH = 0;   // map identity the shape was started on
 
   function setActive(name) {
     if (_active !== name && name !== 'road-connect') _roadConnectStart = null;
     _active = name;
     _rectStart = null;
     _toolsRectPreview = null;
+    _cancelShape();
     document.querySelectorAll('.tool-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tool === name);
     });
@@ -4787,6 +4847,75 @@ const Tools = (() => {
     }
   }
 
+  // ── Shapes (Line, Circle, Polygon) ─────────────────────────
+  function _cancelShape() {
+    _shapeStart = null; _shapeEnd = null; _shapeKey = ''; _polyVerts = [];
+    Canvas.setHighlight('shape', null);
+  }
+  function _shapeStale() { return _shapeMd !== mapData || _shapeW !== MAP_WIDTH || _shapeH !== MAP_HEIGHT; }
+  function _beginShape() { _shapeMd = mapData; _shapeW = MAP_WIDTH; _shapeH = MAP_HEIGHT; }
+
+  // Thickness: every shape cell expands to the brush disc (radius 0 = the cell itself).
+  function _expandByBrush(cells) {
+    if (Brush.getSize() === 0) return cells;
+    const seen = new Set(), out = [];
+    for (const c of cells)
+      for (const t of Brush.getAffectedTiles(c.col, c.row)) {
+        const k = t.row * MAP_WIDTH + t.col;
+        if (!seen.has(k)) { seen.add(k); out.push(t); }
+      }
+    return out;
+  }
+
+  function _shapeCells(tool, a, b, filled) {
+    const W = MAP_WIDTH, H = MAP_HEIGHT;
+    if (tool === 'line') return _expandByBrush(HexUtils.lineCells(a, b, W, H));
+    const radius = HexUtils.cubeDistance(HexUtils.toCube(a.col, a.row, W, H), HexUtils.toCube(b.col, b.row, W, H));
+    return filled ? HexUtils.discCells(a.col, a.row, radius, W, H)
+                  : _expandByBrush(HexUtils.ringCells(a.col, a.row, radius, W, H));
+  }
+
+  function _polyCells(verts, outlineOnly) {
+    const cubes = verts.map(v => HexUtils.toCube(v.col, v.row, MAP_WIDTH, MAP_HEIGHT));
+    return HexUtils.polygonCells(cubes, MAP_WIDTH, MAP_HEIGHT, !outlineOnly);
+  }
+
+  function _previewShape(filled) {
+    Canvas.setHighlight('shape', _shapeCells(_active, _shapeStart, _shapeEnd, filled), { fill: 'rgba(79,195,247,0.12)' });
+  }
+
+  function _previewPolygon(cursor) {
+    const verts = cursor ? _polyVerts.concat([cursor]) : _polyVerts;
+    Canvas.setHighlight('shape', _polyCells(verts, true), { fill: 'rgba(79,195,247,0.12)' });
+  }
+
+  // One History step per shape; nothing is pushed for an empty result.
+  function _commitCells(cells) {
+    if (cells.length === 0 || _fillBusy) return false;
+    History.push();
+    _applyTerrainCells(cells, UI.getSelectedTerrain());
+    Canvas.drawMinimap();
+    return true;
+  }
+
+  function _commitPolygon(outlineOnly) {
+    const stale = _shapeStale();
+    const verts = _polyVerts.filter((v, i, a) => i === 0 || v.col !== a[i - 1].col || v.row !== a[i - 1].row);
+    if (verts.length > 1 && verts[0].col === verts[verts.length - 1].col && verts[0].row === verts[verts.length - 1].row) verts.pop();
+    _cancelShape();
+    if (stale || verts.length < 2) return;      // a single corner is not a polygon: discard, no history step
+    _commitCells(_polyCells(verts, outlineOnly));
+    Canvas.render();
+  }
+
+  function _finishDrag(e) {
+    const start = _shapeStart, end = _shapeEnd || _shapeStart, stale = _shapeStale();
+    const tool = _active, filled = tool === 'circle' && !!(e && e.shiftKey);
+    _cancelShape();
+    if (stale) return;
+    if (_commitCells(_shapeCells(tool, start, end, filled))) Canvas.render();
+  }
+
   // ── Mouse callbacks (registered with Canvas) ───────────────
   function _onDown(sx, sy, e) {
     if (_fillBusy) return;                      // a fill is still running: ignore new input
@@ -4808,6 +4937,22 @@ const Tools = (() => {
       case 'rect':
         _rectStart = { col, row };
         _toolsRectPreview = { c1: col, r1: row, c2: col, r2: row };
+        break;
+      case 'line':
+      case 'circle':
+        if (e && e.button !== 0) { _isDown = false; break; }
+        _beginShape();
+        _shapeStart = { col, row }; _shapeEnd = { col, row };
+        _previewShape(false);
+        break;
+      case 'polygon':
+        _isDown = false;
+        if (e && e.button !== 0) break;
+        if (_polyVerts.length && _shapeStale()) _cancelShape();
+        if (e && e.detail >= 2 && _polyVerts.length >= 2) { _commitPolygon(e.shiftKey); break; }
+        if (!_polyVerts.length) _beginShape();
+        _polyVerts.push({ col, row });
+        _previewPolygon(null);
         break;
       case 'select':
         Canvas.selectTile(col, row);
@@ -4859,11 +5004,29 @@ const Tools = (() => {
   }
 
   function _onMove(sx, sy, e) {
+    if (_fillBusy) return;
+    if (_active === 'polygon' && _polyVerts.length) {
+      const hov = Canvas.screenToHex(sx, sy);
+      if (HexUtils.inBounds(hov.col, hov.row, MAP_WIDTH, MAP_HEIGHT)) {
+        const k = hov.col + ',' + hov.row;
+        if (k !== _shapeKey) { _shapeKey = k; _previewPolygon(hov); }
+      }
+    }
     if (!_isDown) return;
     const { col, row } = Canvas.screenToHex(sx, sy);
     if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
 
     switch (_active) {
+      case 'line':
+      case 'circle':
+        if (_shapeStart) {
+          const filled = _active === 'circle' && !!e.shiftKey;
+          const k = col + ',' + row + (filled ? 'f' : '');
+          if (k === _shapeKey) break;           // same end cell: nothing to recompute
+          _shapeKey = k; _shapeEnd = { col, row };
+          _previewShape(filled);
+        }
+        break;
       case 'paint':
         if (_lastPainted && _lastPainted.col === col && _lastPainted.row === row) break;
         _paint(col, row);
@@ -4896,8 +5059,11 @@ const Tools = (() => {
   }
 
   function _onUp(e) {
+    // Shapes ignore the canvas mouseleave: the drag continues outside the canvas and the window mouseup finishes it.
+    if (e && e.type === 'mouseleave' && _shapeStart) return;
     if (!_isDown) return;
     _isDown = false;
+    if ((_active === 'line' || _active === 'circle') && _shapeStart) { _finishDrag(e); return; }
 
     if (_active === 'paint' || _active === 'road' || _active === 'road-connect' || _active === 'erase-road') {
       Canvas.drawMinimap();
@@ -4929,6 +5095,9 @@ const Tools = (() => {
 
   function init() {
     Canvas.setMouseCallbacks(_onDown, _onMove, _onUp);
+    // A button released outside the canvas (or the window) still finishes the shape: no stuck tool state.
+    window.addEventListener('mouseup', e => { if (_shapeStart && e.button === 0) _onUp(e); });
+    window.addEventListener('blur', () => { if (_shapeStart) { _isDown = false; _cancelShape(); } });
     // Keyboard tool shortcuts
     window.addEventListener('keydown', e => {
       if (e.ctrlKey || e.metaKey) return;
@@ -4938,6 +5107,17 @@ const Tools = (() => {
         const before = Brush.getSize();
         if (e.code === 'BracketLeft') Brush.shrink(); else Brush.grow();
         if (Brush.getSize() !== before) Canvas.render();
+        return;
+      }
+      const mapMode = document.body.classList.contains('mode-map');
+      if (e.key === 'Escape' && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
+      if (e.key === 'Enter' && _active === 'polygon' && _polyVerts.length && mapMode && !e.altKey && !_isTypingOrModal()) {
+        e.preventDefault();
+        if (_fillBusy) _cancelShape(); else _commitPolygon(e.shiftKey);
+        return;
+      }
+      if (CODE_TOOLS[e.code] && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal()) {
+        setActive(CODE_TOOLS[e.code]);
         return;
       }
       if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;

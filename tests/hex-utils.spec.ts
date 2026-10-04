@@ -171,3 +171,118 @@ test('discCells/ringCells fast path matches the deduplicating reference (in and 
   });
   expect(bad).toEqual([]);
 });
+
+test.describe('HexUtils shapes (T2.4)', () => {
+  test.beforeEach(async ({ page }) => { await openEditor(page); });
+
+  test('polygonCells: hexagon corners give a filled 37-cell disc, outline gives the 18-cell ring', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = 450, H = 450;
+      const a = HexUtils.toCube(225, 224, W, H);
+      const ring = HexUtils.cubeRing(a, 3);
+      const corners = [0, 3, 6, 9, 12, 15].map(i => ring[i]);
+      return {
+        filled: HexUtils.polygonCells(corners, W, H, true).length,
+        outline: HexUtils.polygonCells(corners, W, H, false).length,
+      };
+    });
+    expect(r.filled).toBe(37);
+    expect(r.outline).toBe(18);
+  });
+
+  // Independent reference: true cell-centre pixels from Canvas.hexCenterWorld.
+  for (const [W, H] of [[450, 450], [451, 451], [450, 451], [451, 450]]) {
+    test(`lineCells vs pixel geometry on ${W}x${H}`, async ({ page }) => {
+      const r = await page.evaluate(([W, H]) => {
+        const oW = MAP_WIDTH, oH = MAP_HEIGHT; MAP_WIDTH = W; MAP_HEIGHT = H;
+        try {
+          const bad: string[] = [];
+          const pairs = [[{ col: 100, row: 100 }, { col: 140, row: 190 }], [{ col: 150, row: 90 }, { col: 150, row: 200 }],
+                         [{ col: 120, row: 101 }, { col: 60, row: 130 }], [{ col: 90, row: 90 }, { col: 90, row: 90 }],
+                         [{ col: 200, row: 200 }, { col: 201, row: 200 }], [{ col: 80, row: 160 }, { col: 160, row: 100 }]];
+          for (const [a, b] of pairs) {
+            const cells = HexUtils.lineCells(a, b, W, H);
+            const P = (c: any) => Canvas.hexCenterWorld(c.col, c.row);
+            const pa = P(a), pb = P(b);
+            const dist = HexUtils.cubeDistance(HexUtils.toCube(a.col, a.row, W, H), HexUtils.toCube(b.col, b.row, W, H));
+            if (cells.length !== dist + 1) bad.push('len');
+            if (cells[0].col !== a.col || cells[0].row !== a.row) bad.push('start');
+            const e = cells[cells.length - 1]; if (e.col !== b.col || e.row !== b.row) bad.push('end');
+            for (let i = 1; i < cells.length; i++) {
+              const p = P(cells[i - 1]), q = P(cells[i]);
+              if (Math.abs(Math.hypot(p.x - q.x, p.y - q.y) - ROW_PITCH) > 0.01) bad.push('adjacent@' + i);
+            }
+            const L2 = (pb.x - pa.x) ** 2 + (pb.y - pa.y) ** 2;
+            for (const c of cells) {
+              const p = P(c);
+              const t = L2 === 0 ? 0 : Math.max(0, Math.min(1, ((p.x - pa.x) * (pb.x - pa.x) + (p.y - pa.y) * (pb.y - pa.y)) / L2));
+              const d = Math.hypot(p.x - (pa.x + t * (pb.x - pa.x)), p.y - (pa.y + t * (pb.y - pa.y)));
+              if (d > HEX_SIZE + 0.01) bad.push('far');
+            }
+          }
+          return bad;
+        } finally { MAP_WIDTH = oW; MAP_HEIGHT = oH; }
+      }, [W, H]);
+      expect(r).toEqual([]);
+    });
+
+    test(`polygonCells fill vs pixel-centre point-in-polygon on ${W}x${H} (concave + convex)`, async ({ page }) => {
+      const r = await page.evaluate(([W, H]) => {
+        const oW = MAP_WIDTH, oH = MAP_HEIGHT; MAP_WIDTH = W; MAP_HEIGHT = H;
+        try {
+          const res: any = {};
+          const shapes: any = {
+            convex: [[100, 100], [100, 140], [130, 160], [160, 140], [150, 100]],
+            concave: [[100, 100], [100, 150], [140, 120], [180, 150], [180, 100], [140, 80]],   // arrow / notch
+          };
+          for (const name of Object.keys(shapes)) {
+            const verts = shapes[name].map(([c, r]: number[]) => ({ col: c, row: r }));
+            const cubes = verts.map((v: any) => HexUtils.toCube(v.col, v.row, W, H));
+            const got = new Set(HexUtils.polygonCells(cubes, W, H, true).map((c: any) => c.col + ',' + c.row));
+            const outline = new Set(HexUtils.polygonCells(cubes, W, H, false).map((c: any) => c.col + ',' + c.row));
+            const poly = verts.map((v: any) => Canvas.hexCenterWorld(v.col, v.row));
+            const inside = (p: any) => {
+              let ins = false;
+              for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+                const a = poly[i], b = poly[j];
+                if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) ins = !ins;
+              }
+              return ins;
+            };
+            let diff = 0, nInside = 0;
+            for (let col = 60; col < 220; col++) for (let row = 60; row < 220; row++) {
+              const k = col + ',' + row;
+              const want = inside(Canvas.hexCenterWorld(col, row));
+              if (want) nInside++;
+              if (outline.has(k)) { if (!got.has(k)) diff++; continue; }   // outline cells are always included
+              if (want !== got.has(k)) diff++;
+            }
+            res[name] = { diff, nInside, size: got.size };
+          }
+          return res;
+        } finally { MAP_WIDTH = oW; MAP_HEIGHT = oH; }
+      }, [W, H]);
+      for (const n of ['convex', 'concave']) { expect(r[n].diff).toBe(0); expect(r[n].nInside).toBeGreaterThan(500); }
+    });
+  }
+
+  test('degenerate shapes do not throw and are clipped to the map', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = 450, H = 450, c = (col: number, row: number) => HexUtils.toCube(col, row, W, H);
+      return {
+        single: HexUtils.polygonCells([c(10, 10)], W, H, true).length,
+        two: HexUtils.polygonCells([c(10, 10), c(10, 14)], W, H, true).length,
+        collinear: HexUtils.polygonCells([c(10, 10), c(10, 14), c(10, 20)], W, H, true).length,
+        none: HexUtils.polygonCells([], W, H, true).length,
+        clipped: HexUtils.polygonCells([c(-30, 5), c(-10, 5), c(-20, 25)], W, H, true).length,
+        edge: HexUtils.polygonCells([c(0, 0), c(0, 30), c(30, 0)], W, H, true).every((p: any) => HexUtils.inBounds(p.col, p.row, W, H)),
+      };
+    });
+    expect(r.single).toBe(1);
+    expect(r.two).toBe(5);
+    expect(r.collinear).toBeGreaterThan(0);
+    expect(r.none).toBe(0);
+    expect(r.clipped).toBe(0);
+    expect(r.edge).toBe(true);
+  });
+});

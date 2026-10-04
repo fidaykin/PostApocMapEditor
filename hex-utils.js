@@ -136,8 +136,46 @@
     return cellsFromCubes(cubeLine(toCube(a.col, a.row, W, H), toCube(b.col, b.row, W, H)), W, H);
   }
 
+  // Unit-size flat-top pixel centre (screen y points down). Matches hexCenterWorld up to a constant offset.
+  function cubeToPixel(c) { return { x: 1.5 * c.q, y: -Math.sqrt(3) * (c.r + c.q / 2) }; }
+
+  function _inPoly(p, poly) {
+    let inside = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const a = poly[i], b = poly[j];
+      if ((a.y > p.y) !== (b.y > p.y) && p.x < (b.x - a.x) * (p.y - a.y) / (b.y - a.y) + a.x) inside = !inside;
+    }
+    return inside;
+  }
+
+  // Cells on the outline (cube lines between consecutive vertices) plus, when filled, every cell whose
+  // centre is inside the polygon (even-odd rule, so concave polygons are exact). Clipped to the map.
+  function polygonCells(verts, W, H, filled) {
+    const out = new Map();
+    const add = c => out.set(c.q + ',' + c.r, c);
+    if (verts.length === 1) add(verts[0]);
+    else for (let i = 0; i < verts.length; i++) {
+      for (const c of cubeLine(verts[i], verts[(i + 1) % verts.length])) add(c);
+      if (verts.length === 2) break;
+    }
+    if (filled !== false && verts.length >= 3) {
+      const px = verts.map(cubeToPixel);
+      let qMin = Infinity, qMax = -Infinity, rMin = Infinity, rMax = -Infinity;
+      for (const v of verts) { qMin = Math.min(qMin, v.q); qMax = Math.max(qMax, v.q); rMin = Math.min(rMin, v.r); rMax = Math.max(rMax, v.r); }
+      // The bounding box in (q, r) is a superset of the polygon: r spans at most the vertex r range plus half the q range.
+      const rLo = rMin - Math.ceil((qMax - qMin) / 2) - 1, rHi = rMax + Math.ceil((qMax - qMin) / 2) + 1;
+      for (let q = qMin; q <= qMax; q++)
+        for (let r = rLo; r <= rHi; r++) {
+          const c = { q, r, s: 0 - q - r };
+          if (!out.has(q + ',' + r) && _inPoly(cubeToPixel(c), px)) add(c);
+        }
+    }
+    return cellsFromCubes([...out.values()], W, H);
+  }
+
   root.HexUtils = {
     CUBE_DIRS, toCube, fromCube, cubeDistance, cubeRound, cubeLine, cubeDisc, cubeRing,
     rotateCube, mirrorCube, inBounds, cellsFromCubes, neighbors, discCells, ringCells, lineCells,
+    cubeToPixel, polygonCells,
   };
 })(typeof self !== 'undefined' ? self : this);

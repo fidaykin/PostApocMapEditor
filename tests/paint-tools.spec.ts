@@ -373,3 +373,248 @@ test.describe('brush sizes and shortcuts (T2.3)', () => {
     expect(await page.evaluate(() => Brush.getSize())).toBe(0);
   });
 });
+
+test.describe('shape tools (T2.4)', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+  const water = async (page: any) => page.evaluate(() => {
+    const out: string[] = [];
+    for (let i = 0; i < mapData.length; i++) if (mapData[i] === 'Water_1') out.push((i % MAP_WIDTH) + ',' + Math.floor(i / MAP_WIDTH));
+    return out.sort();
+  });
+  const undoSize = (page: any) => page.evaluate(() => History.undoSize());
+  const hl = (page: any) => page.evaluate(() => Canvas.hasHighlight('shape'));
+  const select = (page: any, tool: string) => page.evaluate((t: string) => { UI.selectTerrain('Water_1'); Tools.setActive(t); }, tool);
+  const triangle = (page: any) => page.evaluate(() => {
+    const a = HexUtils.toCube(225, 224, MAP_WIDTH, MAP_HEIGHT);
+    return [a, { q: a.q + 5, r: a.r, s: a.s - 5 }, { q: a.q, r: a.r + 5, s: a.s - 5 }].map(c => HexUtils.fromCube(c, MAP_WIDTH, MAP_HEIGHT));
+  });
+
+  test('Line tool paints exactly HexUtils.lineCells and undoes in one step', async ({ page }) => {
+    const a = { col: 222, row: 219 }, b = { col: 228, row: 228 };
+    await select(page, 'line');
+    const before = await undoSize(page);
+    await dragCells(page, a, b);
+    const want = await page.evaluate(([a, b]) =>
+      HexUtils.lineCells(a, b, MAP_WIDTH, MAP_HEIGHT).map((c: any) => c.col + ',' + c.row).sort(), [a, b]);
+    expect(await water(page)).toEqual(want);
+    expect(await undoSize(page)).toBe(before + 1);
+    expect(await hl(page)).toBe(false);
+    await page.evaluate(() => History.undo());
+    expect(await water(page)).toEqual([]);
+  });
+
+  test('Line thickness follows the brush radius', async ({ page }) => {
+    await page.evaluate(() => Brush.setSize(1));
+    await select(page, 'line');
+    await dragCells(page, { col: 222, row: 219 }, { col: 228, row: 228 });
+    const want = await page.evaluate(() => {
+      const s = new Set<string>();
+      for (const c of HexUtils.lineCells({ col: 222, row: 219 }, { col: 228, row: 228 }, MAP_WIDTH, MAP_HEIGHT))
+        for (const t of HexUtils.discCells(c.col, c.row, 1, MAP_WIDTH, MAP_HEIGHT)) s.add(t.col + ',' + t.row);
+      return [...s].sort();
+    });
+    expect(await water(page)).toEqual(want);
+  });
+
+  test('Circle tool draws a ring of 6*radius cells and Shift fills the disc', async ({ page }) => {
+    await select(page, 'circle');
+    const edge = await page.evaluate(() => {
+      const c = HexUtils.toCube(225, 224, MAP_WIDTH, MAP_HEIGHT);
+      return HexUtils.fromCube({ q: c.q - 4, r: c.r, s: c.s + 4 }, MAP_WIDTH, MAP_HEIGHT);
+    });
+    await dragCells(page, { col: 225, row: 224 }, edge);
+    expect((await water(page)).length).toBe(24);
+    expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 225])).toBe('Plain_1');
+    await page.evaluate(() => History.undo());
+    await dragCells(page, { col: 225, row: 224 }, edge, { shift: true });
+    expect((await water(page)).length).toBe(61);
+  });
+
+  test('Polygon tool: three clicks and Enter fill the triangle, one undo step', async ({ page }) => {
+    await select(page, 'polygon');
+    const verts = await triangle(page);
+    const before = await undoSize(page);
+    for (const v of verts) await clickCell(page, v.col, v.row);
+    expect(await hl(page)).toBe(true);
+    expect(await undoSize(page)).toBe(before);
+    await page.keyboard.press('Enter');
+    const want = await page.evaluate((verts) => {
+      const cubes = verts.map((v: any) => HexUtils.toCube(v.col, v.row, MAP_WIDTH, MAP_HEIGHT));
+      return HexUtils.polygonCells(cubes, MAP_WIDTH, MAP_HEIGHT, true).map((c: any) => c.col + ',' + c.row).sort();
+    }, verts);
+    expect(await water(page)).toEqual(want);
+    expect(want.length).toBeGreaterThan(20);
+    expect(await undoSize(page)).toBe(before + 1);
+    expect(await hl(page)).toBe(false);
+    await page.evaluate(() => History.undo());
+    expect(await water(page)).toEqual([]);
+  });
+
+  test('Polygon: Shift+Enter draws the outline only; double-click closes', async ({ page }) => {
+    await select(page, 'polygon');
+    const verts = await triangle(page);
+    for (const v of verts) await clickCell(page, v.col, v.row);
+    await page.keyboard.down('Shift'); await page.keyboard.press('Enter'); await page.keyboard.up('Shift');
+    const outline = await water(page);
+    const want = await page.evaluate((verts) => {
+      const cubes = verts.map((v: any) => HexUtils.toCube(v.col, v.row, MAP_WIDTH, MAP_HEIGHT));
+      return HexUtils.polygonCells(cubes, MAP_WIDTH, MAP_HEIGHT, false).map((c: any) => c.col + ',' + c.row).sort();
+    }, verts);
+    expect(outline).toEqual(want);
+    await page.evaluate(() => History.undo());
+    const before = await undoSize(page);
+    await clickCell(page, verts[0].col, verts[0].row);
+    await clickCell(page, verts[1].col, verts[1].row);
+    const p = await cellPoint(page, verts[2].col, verts[2].row);
+    await page.mouse.dblclick(p.x, p.y);
+    expect((await water(page)).length).toBeGreaterThan(20);
+    expect(await undoSize(page)).toBe(before + 1);
+  });
+
+  test('Escape cancels every shape without a history step and clears the highlight', async ({ page }) => {
+    const before = await undoSize(page);
+    await select(page, 'polygon');
+    const verts = await triangle(page);
+    for (const v of verts) await clickCell(page, v.col, v.row);
+    expect(await hl(page)).toBe(true);
+    await page.keyboard.press('Escape');
+    expect(await hl(page)).toBe(false);
+    await page.keyboard.press('Enter');          // nothing pending any more
+    await select(page, 'line');
+    const pa = await cellPoint(page, 222, 219), pb = await cellPoint(page, 228, 228);
+    await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    expect(await hl(page)).toBe(true);
+    await page.keyboard.press('Escape');
+    expect(await hl(page)).toBe(false);
+    await page.mouse.up();
+    expect(await water(page)).toEqual([]);
+    expect(await undoSize(page)).toBe(before);
+  });
+
+  test('tool switch clears the preview and drops pending polygon corners', async ({ page }) => {
+    await select(page, 'polygon');
+    const verts = await triangle(page);
+    for (const v of verts) await clickCell(page, v.col, v.row);
+    await page.keyboard.press('KeyL');
+    expect(await hl(page)).toBe(false);
+    await page.keyboard.press('KeyG');
+    await page.keyboard.press('Enter');
+    expect(await water(page)).toEqual([]);
+  });
+
+  test('mouseup outside the canvas finishes the line cleanly (no stuck state)', async ({ page }) => {
+    await select(page, 'line');
+    const before = await undoSize(page);
+    const pa = await cellPoint(page, 222, 219), pb = await cellPoint(page, 228, 228);
+    await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    await page.mouse.move(pb.x, 5000, { steps: 3 });         // leave the canvas / window while held
+    await page.mouse.up();
+    expect(await undoSize(page)).toBe(before + 1);
+    expect(await hl(page)).toBe(false);
+    expect((await water(page)).length).toBeGreaterThan(5);
+    await page.mouse.move(pa.x, pa.y);                        // moving afterwards draws nothing
+    await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    expect(await hl(page)).toBe(false);
+    expect(await undoSize(page)).toBe(before + 1);
+  });
+
+  test('a zero-length line paints one cell; clicks off the map or with the right button do nothing', async ({ page }) => {
+    await select(page, 'line');
+    const before = await undoSize(page);
+    await clickCell(page, 225, 224);
+    expect(await water(page)).toEqual(['225,224']);
+    expect(await undoSize(page)).toBe(before + 1);
+    const p = await cellPoint(page, 230, 230);
+    await page.mouse.move(p.x, p.y); await page.mouse.down({ button: 'right' }); await page.mouse.move(p.x + 40, p.y, { steps: 3 }); await page.mouse.up({ button: 'right' });
+    expect(await undoSize(page)).toBe(before + 1);
+    expect(await hl(page)).toBe(false);
+  });
+
+  test('a single polygon corner plus Enter is discarded without a history step', async ({ page }) => {
+    await select(page, 'polygon');
+    const before = await undoSize(page);
+    await clickCell(page, 225, 224);
+    await page.keyboard.press('Enter');
+    expect(await undoSize(page)).toBe(before);
+    expect(await hl(page)).toBe(false);
+    expect(await water(page)).toEqual([]);
+  });
+
+  test('shape input is ignored while a fill runs', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      UI.selectTerrain('Forest_1');
+      const canvas = document.getElementById('map-canvas')!, rc = canvas.getBoundingClientRect();
+      const ev = (t: string, c: number, rw: number) => { const p = Canvas.hexScreenPos(c, rw); return new MouseEvent(t, { clientX: rc.left + p.x, clientY: rc.top + p.y, button: 0, bubbles: true }); };
+      const p = Tools.fill(225, 225);                      // whole blank map: runs time-sliced
+      const busy = Tools.isFillBusy();
+      const before = History.undoSize();
+      const out: any = { busy, hl: [] as boolean[] };
+      for (const tool of ['line', 'circle', 'polygon']) {
+        Tools.setActive(tool);
+        canvas.dispatchEvent(ev('mousedown', 222, 219)); canvas.dispatchEvent(ev('mousemove', 228, 228));
+        out.hl.push(Canvas.hasHighlight('shape'));
+        canvas.dispatchEvent(ev('mouseup', 228, 228));
+        window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+      }
+      out.sizeDuring = History.undoSize() - before;
+      await p;
+      out.hlAfter = Canvas.hasHighlight('shape');
+      return out;
+    });
+    expect(r.busy).toBe(true);
+    expect(r.hl).toEqual([false, false, false]);
+    expect(r.sizeDuring).toBe(0);
+    expect(r.hlAfter).toBe(false);
+  });
+
+  test('highlight draws at every LOD in one path (a 675-cell diagonal)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const cells = HexUtils.lineCells({ col: 0, row: 0 }, { col: 449, row: 449 }, MAP_WIDTH, MAP_HEIGHT);
+      const ctx = Canvas.getCtx(); const out: any = { n: cells.length };
+      let strokes = 0, fills = 0;
+      const os = ctx.stroke.bind(ctx), of = ctx.fill.bind(ctx);
+      Canvas.setHighlight('shape', cells, { stroke: 'rgba(255,0,0,1)' });
+      for (const lod of [0, 1, 2]) {
+        Canvas._test.setLod(lod);
+        Canvas.setZoom(lod === 2 ? 5 : lod === 1 ? 15 : 100);
+        strokes = 0; fills = 0;
+        ctx.stroke = () => { strokes++; os(); }; ctx.fill = () => { fills++; of(); };
+        const t = performance.now(); Canvas.render(); const ms = performance.now() - t;
+        ctx.stroke = os; ctx.fill = of;
+        out['lod' + lod] = { highlightOps: lod === 2 ? fills : strokes, ms };
+      }
+      Canvas._test.setLod(null);
+      Canvas.setHighlight('shape', null);
+      return out;
+    });
+    expect(r.n).toBeGreaterThanOrEqual(450);
+    expect(r.lod0.highlightOps).toBeGreaterThanOrEqual(1);
+    expect(r.lod1.highlightOps).toBeGreaterThanOrEqual(1);
+    expect(r.lod2.highlightOps).toBeGreaterThanOrEqual(1);
+  });
+
+  test('replacing the map clears a pending shape preview', async ({ page }) => {
+    await select(page, 'polygon');
+    const verts = await triangle(page);
+    for (const v of verts) await clickCell(page, v.col, v.row);
+    expect(await hl(page)).toBe(true);
+    await page.evaluate(() => { IO.newMap(true); Canvas.render(); });
+    expect(await hl(page)).toBe(false);
+    await page.keyboard.press('Enter');
+    expect(await water(page)).toEqual([]);
+  });
+
+  test('L, O, G select the shape tools by physical key and respect text focus', async ({ page }) => {
+    for (const [code, tool] of [['KeyL', 'line'], ['KeyO', 'circle'], ['KeyG', 'polygon']]) {
+      await page.keyboard.press(code);
+      expect(await page.evaluate(() => Tools.getActive())).toBe(tool);
+    }
+    await page.evaluate(() => Tools.setActive('paint'));
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = 'tmp-in'; document.body.appendChild(i); i.focus(); });
+    await page.keyboard.press('KeyL');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    await page.evaluate(() => document.getElementById('tmp-in')!.remove());
+    await page.keyboard.press('Control+KeyL');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+  });
+});

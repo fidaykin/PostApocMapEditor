@@ -26,6 +26,7 @@ Format: `## [version] — [date]`
 - The brush can be any radius from 0 to 12 (slider in the Brush panel, or [ and ] keys) and is a true hex disc on maps of any height, including odd-sized maps. The 3×3, 5×5 and ○7 buttons are radius 1, 2 and 3.
 - Fill uses true hex adjacency (previously two diagonal directions were wrong on some map heights), so a fill may select different tiles than before.
 - Rectangle and Fill drop bridges on repainted cells, like Paint.
+- New Line (L), Circle (O) and Polygon (G) tools with a live preview. Line and Circle are drag shapes (thickness = brush radius; Shift on Circle fills the disc); Polygon takes clicks, then Enter or a double-click fills it (Shift = outline only) and Esc cancels. Each shape is one undo step and re-resolves river and water edges like Paint.
 
 ---
 
