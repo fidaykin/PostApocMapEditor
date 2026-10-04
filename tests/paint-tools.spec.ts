@@ -761,3 +761,259 @@ test.describe('shape tools (T2.4)', () => {
     expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
   });
 });
+
+test.describe('symmetry (T2.5)', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+
+  test('each mode multiplies a single off-axis stroke', async ({ page }) => {
+    const counts = await page.evaluate(() => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT;
+      const c = HexUtils.toCube(225, 224, W, H);
+      const p = HexUtils.fromCube({ q: c.q + 3, r: c.r - 1, s: c.s - 2 }, W, H);
+      const out: Record<string, number> = {};
+      for (const mode of ['none', 'h', 'v', 'hv', 'rot3', 'rot6']) {
+        mapData.fill('Plain_1');
+        Tools.setSymmetry(mode);
+        Tools.applyTerrainCells([p], 'Water_1');
+        out[mode] = mapData.filter((id: string) => id === 'Water_1').length;
+      }
+      Tools.setSymmetry('none');
+      return out;
+    });
+    expect(counts).toEqual({ none: 1, h: 2, v: 2, hv: 4, rot3: 3, rot6: 6 });
+  });
+
+  test("mode 'h' is a true left/right mirror in screen pixels, and Y cycles", async ({ page }) => {
+    const ok = await page.evaluate(() => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT;
+      const c = HexUtils.toCube(225, 224, W, H);
+      const p = HexUtils.fromCube({ q: c.q + 3, r: c.r - 1, s: c.s - 2 }, W, H);
+      Tools.setSymmetry('h');
+      Tools.applyTerrainCells([p], 'Water_1');
+      const pts: any[] = [];
+      mapData.forEach((id: string, i: number) => { if (id === 'Water_1') pts.push(Canvas.hexCenterWorld(i % W, Math.floor(i / W))); });
+      const mid = Canvas.hexCenterWorld(225, 224);
+      Tools.setSymmetry('none');
+      return pts.length === 2 && Math.abs((pts[0].x + pts[1].x) / 2 - mid.x) < 1e-6 && Math.abs(pts[0].y - pts[1].y) < 1e-6;
+    });
+    expect(ok).toBe(true);
+    await page.keyboard.press('y');
+    expect(await page.evaluate(() => Tools.getSymmetry())).toBe('h');
+  });
+
+  // Independent reference: the images of each cell's pixel centre (reflection / clockwise rotation about the
+  // centre cell's pixel centre) must be exactly the centres of the cells symmetryCells returns, including clipping.
+  for (const [W, H] of [[12, 10], [13, 9], [9, 13], [10, 12], [451, 451], [450, 451], [451, 450], [450, 450]]) {
+    test(`symmetryCells matches the pixel-geometry reference on ${W}x${H}`, async ({ page }) => {
+      const bad = await page.evaluate(([W, H]) => {
+        const save = [MAP_WIDTH, MAP_HEIGHT];
+        MAP_WIDTH = W as number; MAP_HEIGHT = H as number;
+        const w = W as number, h = H as number, cx = Math.floor(w / 2), cy = Math.floor((h - 1) / 2);
+        const key = (x: number, y: number) => Math.round(x * 100) + ',' + Math.round(y * 100);
+        const byPix = new Map<string, number[]>();
+        const big = w > 100;
+        const c0 = big ? cx - 40 : 0, c1 = big ? cx + 40 : w - 1, r0 = big ? cy - 40 : 0, r1 = big ? cy + 40 : h - 1;
+        for (let c = c0; c <= c1; c++) for (let r = r0; r <= r1; r++) { const p = Canvas.hexCenterWorld(c, r); byPix.set(key(p.x, p.y), [c, r]); }
+        const mid = Canvas.hexCenterWorld(cx, cy);
+        const imgs = (mode: string, x: number, y: number) => {
+          const dx = x - mid.x, dy = y - mid.y;
+          const rot = (k: number) => { const a = k * Math.PI / 3, co = Math.cos(a), si = Math.sin(a); return [mid.x + co * dx - si * dy, mid.y + si * dx + co * dy]; };
+          switch (mode) {
+            case 'h': return [[x, y], [mid.x - dx, y]];
+            case 'v': return [[x, y], [x, mid.y - dy]];
+            case 'hv': return [[x, y], [mid.x - dx, y], [x, mid.y - dy], [mid.x - dx, mid.y - dy]];
+            case 'rot3': return [rot(0), rot(2), rot(4)];
+            default: return [0, 1, 2, 3, 4, 5].map(rot);
+          }
+        };
+        const bad: string[] = [];
+        const span = big ? 20 : 99;
+        const cells: any[] = [];
+        for (let c = Math.max(c0, cx - span); c <= Math.min(c1, cx + span); c += big ? 3 : 1)
+          for (let r = Math.max(r0, cy - span); r <= Math.min(r1, cy + span); r += big ? 3 : 1) cells.push({ col: c, row: r });
+        for (const mode of ['h', 'v', 'hv', 'rot3', 'rot6']) {
+          for (const cell of cells) {
+            const p = Canvas.hexCenterWorld(cell.col, cell.row);
+            const want = new Set<string>();
+            for (const [x, y] of imgs(mode, p.x, p.y)) { const hit = byPix.get(key(x, y)); if (hit) want.add(hit.join(',')); }
+            const got = HexUtils.symmetryCells([cell], mode, { col: cx, row: cy }, w, h).map((t: any) => t.col + ',' + t.row);
+            if (new Set(got).size !== got.length || got.length !== want.size || got.some((g: string) => !want.has(g))) bad.push(`${mode}@${cell.col},${cell.row}`);
+          }
+        }
+        MAP_WIDTH = save[0]; MAP_HEIGHT = save[1];
+        return bad.slice(0, 10);
+      }, [W, H]);
+      expect(bad).toEqual([]);
+    });
+  }
+
+  test('symmetryCells agrees with the cube-based symmetryCubes and dedups a multi-cell brush', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT, ctr = { col: 225, row: 224 };
+      Brush.setSize(12);
+      const cells = Brush.getAffectedTiles(ctr.col + 4, ctr.row - 5);
+      Brush.setSize(0);
+      const bad: string[] = [];
+      for (const mode of ['h', 'v', 'hv', 'rot3', 'rot6']) {
+        const got = HexUtils.symmetryCells(cells, mode, ctr, W, H);
+        const cen = HexUtils.toCube(ctr.col, ctr.row, W, H);
+        const ref = HexUtils.cellsFromCubes(cells.flatMap((c: any) => HexUtils.symmetryCubes(HexUtils.toCube(c.col, c.row, W, H), mode, cen)), W, H);
+        const a = got.map((t: any) => t.col + ',' + t.row).sort().join('|'), b = ref.map((t: any) => t.col + ',' + t.row).sort().join('|');
+        if (a !== b || new Set(got.map((t: any) => t.col + ',' + t.row)).size !== got.length) bad.push(mode);
+      }
+      return { bad, n: cells.length, none: HexUtils.symmetryCells(cells, 'none', ctr, W, H) === cells };
+    });
+    expect(r).toEqual({ bad: [], n: 469, none: true });
+  });
+
+  test('a brush on the axis and on the centre is not doubled; one undo step for all copies', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Tools.setSymmetry('rot6');
+      mapData.fill('Plain_1');
+      Tools.applyTerrainCells([{ col: 225, row: 224 }], 'Water_1');
+      const centre = mapData.filter((id: string) => id === 'Water_1').length;
+      Tools.setSymmetry('none');
+      return centre;
+    });
+    expect(r).toBe(1);
+    await page.evaluate(() => { Tools.setSymmetry('hv'); mapData.fill('Plain_1'); });
+    const before = await page.evaluate(() => History.undoSize());
+    await clickCell(page, 230, 220);
+    expect(await page.evaluate(() => History.undoSize())).toBe(before + 1);
+    expect(await page.evaluate(() => mapData.filter((id: string) => id === 'Plain_1').length)).toBe(450 * 450);   // Plain_1 selected: same id; use water below
+    await page.evaluate(() => UI.selectTerrain('Water_1'));
+    await clickCell(page, 230, 220);
+    expect(await page.evaluate(() => mapData.filter((id: string) => id === 'Water_1').length)).toBe(4);
+    expect(await page.evaluate(() => History.undoSize())).toBe(before + 2);
+    await page.evaluate(() => History.undo());
+    expect(await page.evaluate(() => mapData.filter((id: string) => id === 'Water_1').length)).toBe(0);
+    await page.evaluate(() => Tools.setSymmetry('none'));
+  });
+
+  test('copies that fall off the map are skipped, the rest still painted', async ({ page }) => {
+    const n = await page.evaluate(() => {
+      mapData.fill('Plain_1');
+      Tools.setSymmetry('rot6');
+      const p = { col: 0, row: 0 };   // map corner: most rotations fall outside
+      const want = HexUtils.symmetryCells([p], 'rot6', { col: 225, row: 224 }, MAP_WIDTH, MAP_HEIGHT).length;
+      const wrote = Tools.applyTerrainCells([p], 'Water_1').length;
+      Tools.setSymmetry('none');
+      return { want, wrote, water: mapData.filter((id: string) => id === 'Water_1').length };
+    });
+    expect(n.wrote).toBe(n.want);
+    expect(n.water).toBe(n.want);
+    expect(n.want).toBeLessThan(6);
+    expect(n.want).toBeGreaterThan(0);
+  });
+
+  test('opts.noSymmetry and multi-tile terrain bypass the expansion', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Tools.setSymmetry('h');
+      mapData.fill('Plain_1');
+      const p = { col: 230, row: 220 };
+      const a = Tools.applyTerrainCells([p], 'Water_1', { noSymmetry: true }).length;
+      const multi = HexDB.getAll().find((h: any) => Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length > 0);
+      let b = -1;
+      if (multi) { Tools.setSymmetry('h'); b = Tools.applyTerrainCells([p], multi.id).length; }
+      Tools.setSymmetry('none');
+      return { a, hasMulti: !!multi, b };
+    });
+    expect(r.a).toBe(1);
+    if (r.hasMulti) expect(r.b).toBe(1);
+  });
+
+  test('shape tools and Rectangle write all copies (one step), and the preview shows them', async ({ page }) => {
+    await page.evaluate(() => { Tools.setSymmetry('h'); UI.selectTerrain('Forest_1'); Tools.setActive('rect'); });
+    const before = await page.evaluate(() => History.undoSize());
+    await dragCells(page, { col: 226, row: 220 }, { col: 228, row: 222 });
+    const res = await page.evaluate(() => ({
+      water: mapData.filter((id: string) => id === 'Forest_1').length, steps: History.undoSize(),
+      hl: Canvas.hasHighlight('shape'),
+    }));
+    expect(res.water).toBe(18);
+    expect(res.steps).toBe(before + 1);
+    expect(res.hl).toBe(false);   // preview layer dropped after commit
+    // mid-drag: the preview layer holds both copies (9 + 9 cells)
+    await page.evaluate(() => { mapData.fill('Plain_1'); });
+    const pa = await cellPoint(page, 226, 220), pb = await cellPoint(page, 228, 222);
+    await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    expect(await page.evaluate(() => Canvas.hasHighlight('shape'))).toBe(true);
+    await page.mouse.up();
+    await page.evaluate(() => { Tools.setSymmetry('none'); Tools.setActive('paint'); });
+  });
+
+  test('hover preview draws every copy in one path; the guide only exists while a mode is active', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const ctx = (document.getElementById('map-canvas') as HTMLCanvasElement).getContext('2d')!;
+      const counts = { stroke: 0, dash: 0 };
+      const os = ctx.stroke.bind(ctx), od = ctx.setLineDash.bind(ctx);
+      ctx.stroke = () => { counts.stroke++; return os(); };
+      ctx.setLineDash = (d: number[]) => { if (d.length) counts.dash++; return od(d); };
+      const run = (mode: string) => { Tools.setSymmetry(mode); counts.stroke = 0; counts.dash = 0; Canvas.render(); return { ...counts }; };
+      const off = run('none'), on = run('hv'), rot = run('rot6');
+      Tools.setSymmetry('none');
+      return { off, on, rot, guide: Canvas.getSymmetryGuide() };
+    });
+    expect(r.on.dash).toBe(r.off.dash + 1);
+    expect(r.rot.dash).toBe(r.off.dash + 1);
+    expect(r.on.stroke).toBe(r.off.stroke + 2);   // guide lines + centre ring
+    expect(r.guide).toBe('none');
+  });
+
+  test('the hover cursor draws the copies: +3 hexes (1 moveTo each) and +2 guide lines for hv', async ({ page }) => {
+    const p = await cellPoint(page, 230, 220);
+    await page.mouse.move(p.x, p.y);
+    const r = await page.evaluate(() => {
+      const ctx = (document.getElementById('map-canvas') as HTMLCanvasElement).getContext('2d')!;
+      let n = 0; const om = ctx.moveTo.bind(ctx);
+      ctx.moveTo = (x: number, y: number) => { n++; return om(x, y); };
+      const run = (m: string) => { Tools.setSymmetry(m); n = 0; Canvas.render(); return n; };
+      const off = run('none'), on = run('hv');
+      Tools.setSymmetry('none');
+      return { off, on };
+    });
+    expect(r.on - r.off).toBe(5);
+  });
+
+  test('brush preview tiles include all copies; radius 12 x 6 stays cheap (work counted, not timed)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Brush.setSize(12);
+      const cells = Brush.getAffectedTiles(240, 200);
+      Tools.setSymmetry('rot6');
+      const exp = Tools.expandSymmetry(cells);
+      Tools.setSymmetry('none'); Brush.setSize(0);
+      return { n: cells.length, m: exp.length };
+    });
+    expect(r.n).toBe(469);
+    expect(r.m).toBeGreaterThan(469 * 5);
+    expect(r.m).toBeLessThanOrEqual(469 * 6);
+  });
+
+  test('palette control sits in the left palette, drives the mode, Y ignored while typing, canvas width unchanged', async ({ page }) => {
+    const w = await page.evaluate(() => document.getElementById('map-canvas')!.getBoundingClientRect().width);
+    const inPalette = await page.evaluate(() => !!document.querySelector('#palette-panel #symmetry-select') && !document.querySelector('#map-tools #symmetry-select'));
+    expect(inPalette).toBe(true);
+    await page.selectOption('#symmetry-select', 'rot3');
+    expect(await page.evaluate(() => Tools.getSymmetry())).toBe('rot3');
+    await page.keyboard.press('y');
+    expect(await page.evaluate(() => Tools.getSymmetry())).toBe('rot6');
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = 'tmp-in'; document.body.appendChild(i); i.focus(); });
+    await page.keyboard.press('y');
+    expect(await page.evaluate(() => Tools.getSymmetry())).toBe('rot6');
+    await page.keyboard.press('Control+y');
+    expect(await page.evaluate(() => Tools.getSymmetry())).toBe('rot6');
+    await page.evaluate(() => { document.getElementById('tmp-in')!.remove(); Tools.setSymmetry('none'); });
+    expect(await page.evaluate(() => document.getElementById('map-canvas')!.getBoundingClientRect().width)).toBe(w);
+  });
+
+  test('map replacement keeps the mode and the centre follows the new map', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Tools.setSymmetry('h');
+      const before = Tools.expandSymmetry([{ col: 230, row: 220 }]).length;
+      IO.newMap(true);
+      return { before, after: Tools.expandSymmetry([{ col: 230, row: 220 }]).length, mode: Tools.getSymmetry() };
+    });
+    expect(r).toEqual({ before: 2, after: 2, mode: 'h' });
+    await page.evaluate(() => Tools.setSymmetry('none'));
+  });
+});

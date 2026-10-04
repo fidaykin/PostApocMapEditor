@@ -1411,6 +1411,17 @@ body.mode-common #map-io    { display: none; }
           <button class="tool-btn" data-tool="circle" onclick="Tools.setActive('circle')" title="Circle (O) - drag from centre, Shift = filled">◯</button>
           <button class="tool-btn" data-tool="polygon" onclick="Tools.setActive('polygon')" title="Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline">⬠</button>
         </div>
+      <div id="symmetry-row" style="display:flex;align-items:center;gap:4px;padding:6px 8px 0">
+        <select id="symmetry-select" class="hexdb-input" style="flex:1;min-width:0;font-size:11px" onchange="Tools.setSymmetry(this.value); this.blur()"
+                title="Symmetry (Y cycles): Paint, Rectangle, Line, Circle and Polygon also write the mirrored / rotated copies about the map-centre tile. Not used for Fill, bridges or multi-tile terrain">
+          <option value="none">Symmetry: off</option>
+          <option value="h">Mirror left / right</option>
+          <option value="v">Mirror top / bottom</option>
+          <option value="hv">Both mirrors</option>
+          <option value="rot3">3-fold rotation</option>
+          <option value="rot6">6-fold rotation</option>
+        </select>
+      </div>
       <div class="pkg-filter-row" id="pkg-filter-terrain"></div>
       <div id="palette-scroll"></div>
       <div id="palette-selected">
@@ -2333,7 +2344,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.04";
-const COMMIT  = "e281dcb";
+const COMMIT  = "ed4f7f8";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3026,6 +3037,7 @@ const Canvas = (() => {
     }
 
     _drawHighlights(radius, lod, scale);
+    _drawSymmetryGuide(radius, scale);
 
     // Brush cursor preview
     if (_cursorCol >= 0 && _cursorRow >= 0 && Tools && Tools.getActive) {
@@ -3068,9 +3080,13 @@ const Canvas = (() => {
         ctx.restore();
       } else {
         // Standard brush preview (ring brush or non-multi-tile tile)
-        const tiles = (tool === 'paint' || tool === 'zone')
+        let tiles = (tool === 'paint' || tool === 'zone')
           ? Brush.getAffectedTiles(_cursorCol, _cursorRow)
           : [{ col: _cursorCol, row: _cursorRow }];
+        // Symmetry: show every copy for the tools that write through Tools.applyTerrainCells
+        if (['paint', 'rect', 'line', 'circle', 'polygon'].includes(tool) && !(tool === 'paint' && UI.getSelectedBridgeAxis() >= 0)
+            && Tools.getSymmetry() !== 'none' && !(Terrain.byId(UI.getSelectedTerrain())?.occupiedOffsets?.length))
+          tiles = Tools.expandSymmetry(tiles);
         // One path for the whole brush (a single stroke + fill instead of 2 per tile).
         ctx.save();
         ctx.beginPath();
@@ -3309,6 +3325,38 @@ const Canvas = (() => {
     if (opts && opts.render === false) _hlDirty = true; else render();
   }
   function hasHighlight(name) { return _highlights.has(name); }
+
+  // Symmetry axis / centre overlay (T2.5): 1-2 dashed lines for the mirrors, a ring with spokes for rotations.
+  // Drawn only while a mode is active (no change to any other output), at the map-centre cell.
+  let _symGuide = 'none';
+  function setSymmetryGuide(mode) { _symGuide = mode || 'none'; if (mapData) render(); }
+  function getSymmetryGuide() { return _symGuide; }
+  function _drawSymmetryGuide(radius, scale) {
+    if (_symGuide === 'none') return;
+    const w = hexCenterWorld(Math.floor(MAP_WIDTH / 2), Math.floor((MAP_HEIGHT - 1) / 2));
+    const x = w.x * scale - cameraX, y = w.y * scale - cameraY;
+    const cw = canvas.width, ch = canvas.height;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,196,0,0.85)';
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([8, 6]);
+    ctx.beginPath();
+    if (_symGuide === 'h' || _symGuide === 'hv') { ctx.moveTo(x, 0); ctx.lineTo(x, ch); }
+    if (_symGuide === 'v' || _symGuide === 'hv') { ctx.moveTo(0, y); ctx.lineTo(cw, y); }
+    if (_symGuide === 'rot3' || _symGuide === 'rot6') {
+      const n = _symGuide === 'rot3' ? 3 : 6, len = Math.max(24, radius * 4);
+      for (let k = 0; k < n; k++) {
+        const a = (2 * Math.PI / n) * k - Math.PI / 2;
+        ctx.moveTo(x, y); ctx.lineTo(x + len * Math.cos(a), y + len * Math.sin(a));
+      }
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.arc(x, y, Math.max(3, radius * 0.25), 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.restore();
+  }
   function _drawHighlights(radius, lod, scale) {
     if (_highlights.size === 0) return;
     // A replaced map (load / new / resize) invalidates every layer (cell coordinates mean something else now).
@@ -4253,7 +4301,7 @@ const Canvas = (() => {
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot,
     jumpToBlock,
-    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight,
+    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight, setSymmetryGuide, getSymmetryGuide,
     toggleRulers: () => {
       _showRulers = !_showRulers;
       const btn = document.getElementById('btn-toggle-rulers');
@@ -4360,6 +4408,33 @@ const Tools = (() => {
   let _shapeKey   = '';       // last previewed end cell + modifier, so unchanged moves do no work
   let _polyVerts  = [];       // pending polygon corners
   let _shapeMd = null, _shapeW = 0, _shapeH = 0;   // map identity the shape was started on
+
+  // Symmetry (T2.5): every terrain-writing call (Paint, Rectangle, Line, Circle, Polygon) is expanded by the active
+  // mode about the map-centre CELL before writing, so all copies are one History step and one edge re-resolution.
+  // Session state (not saved with the map); the centre follows the live map size, so map replacement needs no reset.
+  let _symMode = 'none';
+  function _symCenter() { return { col: Math.floor(MAP_WIDTH / 2), row: Math.floor((MAP_HEIGHT - 1) / 2) }; }
+  function _expandSymmetry(cells) {
+    return _symMode === 'none' ? cells : HexUtils.symmetryCells(cells, _symMode, _symCenter(), MAP_WIDTH, MAP_HEIGHT);
+  }
+  function setSymmetry(mode) {
+    _symMode = HexUtils.SYMMETRY_MODES.includes(mode) ? mode : 'none';
+    const sel = document.getElementById('symmetry-select');
+    if (sel) sel.value = _symMode;
+    Canvas.setSymmetryGuide(_symMode);
+  }
+  function getSymmetry() { return _symMode; }
+  function cycleSymmetry() {
+    const m = HexUtils.SYMMETRY_MODES;
+    setSymmetry(m[(m.indexOf(_symMode) + 1) % m.length]);
+    UI.toast('Symmetry: ' + _symMode);
+  }
+  // A multi-tile terrain cannot be mirrored (its footprint would not follow), so it is written unexpanded.
+  function _symmetryApplies(hexId) {
+    if (_symMode === 'none') return false;
+    const e = Terrain.byId(hexId);
+    return !(e && Array.isArray(e.occupiedOffsets) && e.occupiedOffsets.length > 0);
+  }
 
   function setActive(name) {
     if (_active !== name && name !== 'road-connect') _roadConnectStart = null;
@@ -4519,7 +4594,8 @@ const Tools = (() => {
   // wrote (deduplicated, in-bounds, not under a footprint), each with the id it held before; an unchanged id is
   // still written and returned. The caller owns History.push(). Fill is time-sliced and writes in its own
   // loop, but ends in the same _autoResolveEdgesAround.
-  function _applyTerrainCells(cells, hexId) {
+  function _applyTerrainCells(cells, hexId, opts) {
+    if (!(opts && opts.noSymmetry) && _symmetryApplies(hexId)) cells = _expandSymmetry(cells);
     const seen = new Set();
     const touched = [];
     for (const { col: c, row: r } of cells) {
@@ -4676,6 +4752,19 @@ const Tools = (() => {
       for (let r = minR; r <= maxR; r++) cells.push({ col: c, row: r });
     _applyTerrainCells(cells, UI.getSelectedTerrain());
     Canvas.render();
+  }
+
+  // Copies of the dragged rectangle (symmetry). Skipped above a cell cap: the outline of the real rectangle is
+  // always drawn, and expanding hundreds of thousands of cells on every mousemove would stall the drag.
+  const RECT_SYM_PREVIEW_CAP = 4000;
+  function _previewRectSymmetry(rp) {
+    if (_symMode === 'none') return;
+    const minC = Math.max(0, Math.min(rp.c1, rp.c2)), maxC = Math.min(MAP_WIDTH - 1, Math.max(rp.c1, rp.c2));
+    const minR = Math.max(0, Math.min(rp.r1, rp.r2)), maxR = Math.min(MAP_HEIGHT - 1, Math.max(rp.r1, rp.r2));
+    if ((maxC - minC + 1) * (maxR - minR + 1) > RECT_SYM_PREVIEW_CAP) { Canvas.setHighlight('shape', null, null, { render: false }); return; }
+    const cells = [];
+    for (let c = minC; c <= maxC; c++) for (let r = minR; r <= maxR; r++) cells.push({ col: c, row: r });
+    Canvas.setHighlight('shape', _expandSymmetry(cells), { fill: 'rgba(79,195,247,0.12)' }, { render: false });
   }
 
   // ── Objects (pre-placed buildings) ────────────────────────
@@ -4892,12 +4981,12 @@ const Tools = (() => {
   }
 
   function _previewShape(filled, noRender) {
-    Canvas.setHighlight('shape', _shapeCells(_active, _shapeStart, _shapeEnd, filled), { fill: 'rgba(79,195,247,0.12)' }, { render: noRender === true ? false : true });
+    Canvas.setHighlight('shape', _expandSymmetry(_shapeCells(_active, _shapeStart, _shapeEnd, filled)), { fill: 'rgba(79,195,247,0.12)' }, { render: noRender === true ? false : true });
   }
 
   function _previewPolygon(cursor) {
     const verts = cursor ? _polyVerts.concat([cursor]) : _polyVerts;
-    Canvas.setHighlight('shape', _polyCells(verts, true), { fill: 'rgba(79,195,247,0.12)' }, { render: !cursor });
+    Canvas.setHighlight('shape', _expandSymmetry(_polyCells(verts, true)), { fill: 'rgba(79,195,247,0.12)' }, { render: !cursor });
   }
 
   // One History step per shape; nothing is pushed for an empty result.
@@ -5050,6 +5139,7 @@ const Tools = (() => {
       case 'rect':
         if (_rectStart) {
           _toolsRectPreview = { c1: _rectStart.col, r1: _rectStart.row, c2: col, r2: row };
+          _previewRectSymmetry(_toolsRectPreview);
           Canvas.render();
         }
         break;
@@ -5090,6 +5180,7 @@ const Tools = (() => {
       UI.toast('Rectangle applied');
       _rectStart = null;
       _toolsRectPreview = null;
+      Canvas.setHighlight('shape', null, null, { render: false });
       Canvas.render();
     }
     _lastPainted       = null;
@@ -5132,6 +5223,7 @@ const Tools = (() => {
         if (_fillBusy) _cancelShape(); else _commitPolygon(e.shiftKey);
         return;
       }
+      if (e.code === 'KeyY' && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal()) { cycleSymmetry(); return; }
       if (CODE_TOOLS[e.code] && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal()) {
         setActive(CODE_TOOLS[e.code]);
         return;
@@ -5150,7 +5242,7 @@ const Tools = (() => {
     });
   }
 
-  return { init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
+  return { setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
            applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };

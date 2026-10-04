@@ -173,9 +173,62 @@
     return cellsFromCubes([...out.values()], W, H);
   }
 
+  // Symmetry about a CELL centre (the map-centre cell, cube origin for every W,H). Modes: mirrors 'h' (left/right) and
+  // 'v' (top/bottom), 'hv' (both mirrors = group of 4 incl. the 180 degree turn), 'rot3', 'rot6' (screen-clockwise).
+  const SYMMETRY_MODES = ['none', 'h', 'v', 'hv', 'rot3', 'rot6'];
+  // Transform codes: 0..5 = rotateCube steps, 6 = mirror h, 7 = mirror v.
+  const _SYM_OPS = { h: [0, 6], v: [0, 7], hv: [0, 6, 7, 3], rot3: [0, 2, 4], rot6: [0, 1, 2, 3, 4, 5] };
+
+  // Every image of cube c under the symmetry group about `center`, de-duplicated.
+  function symmetryCubes(c, mode, center) {
+    const rel = { q: c.q - center.q, r: c.r - center.r, s: c.s - center.s };
+    const ops = _SYM_OPS[mode] || [0];
+    const seen = new Set(), out = [];
+    for (const op of ops) {
+      const x = op < 6 ? rotateCube(rel, op) : mirrorCube(rel, op === 6 ? 'h' : 'v');
+      const k = x.q + ',' + x.r;
+      if (seen.has(k)) continue;
+      seen.add(k);
+      out.push({ q: center.q + x.q, r: center.r + x.r, s: center.s + x.s });
+    }
+    return out;
+  }
+
+  // All images of `cells` (in-bounds, de-duplicated; originals included, in input order first). Allocation-light:
+  // numeric (q, r) arithmetic and a numeric Set, no cube objects (a radius-12 brush x 6 copies is ~2800 cells).
+  function symmetryCells(cells, mode, centerCell, W, H) {
+    const ops = _SYM_OPS[mode];
+    if (!ops) return cells;
+    const halfW = Math.floor(W / 2), halfH = Math.floor(H / 2);
+    const cq = (H - 1 - centerCell.row) - halfH;
+    const cr = (centerCell.col - halfW) - (cq - _par(cq)) / 2;
+    const out = [], seen = new Set();
+    for (let op = 0; op < ops.length; op++) {
+      const o = ops[op];
+      for (let i = 0; i < cells.length; i++) {
+        const col = cells[i].col, row = cells[i].row;
+        const q0 = (H - 1 - row) - halfH;
+        const r0 = (col - halfW) - (q0 - _par(q0)) / 2;
+        let q = q0 - cq, r = r0 - cr, s = -q - r;
+        if (o === 6) { const nq = -q, nr = -s; q = nq; r = nr; s = -q - r; }
+        else if (o === 7) { r = s; }
+        else for (let k = 0; k < o; k++) { const nq = -s, nr = -q; q = nq; r = nr; s = -q - r; }
+        q += cq; r += cr;
+        const nrow = H - 1 - (q + halfH);
+        const ncol = r + (q - _par(q)) / 2 + halfW;
+        if (ncol < 0 || ncol >= W || nrow < 0 || nrow >= H) continue;
+        const key = nrow * W + ncol;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        out.push({ col: ncol + 0, row: nrow + 0 });
+      }
+    }
+    return out;
+  }
+
   root.HexUtils = {
     CUBE_DIRS, toCube, fromCube, cubeDistance, cubeRound, cubeLine, cubeDisc, cubeRing,
     rotateCube, mirrorCube, inBounds, cellsFromCubes, neighbors, discCells, ringCells, lineCells,
-    cubeToPixel, polygonCells,
+    cubeToPixel, polygonCells, SYMMETRY_MODES, symmetryCubes, symmetryCells,
   };
 })(typeof self !== 'undefined' ? self : this);

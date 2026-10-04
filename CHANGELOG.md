@@ -27,6 +27,7 @@ Format: `## [version] — [date]`
 - Fill uses true hex adjacency (previously two diagonal directions were wrong on some map heights), so a fill may select different tiles than before.
 - Rectangle and Fill drop bridges on repainted cells, like Paint.
 - New Line (L), Circle (O) and Polygon (G) tools with a live preview; their buttons are at the top of the terrain palette (left panel). Line and Circle are drag shapes (thickness = brush radius; Shift on Circle fills the disc); Polygon takes clicks, then Enter or a double-click fills it (Shift = outline only) and Esc cancels; two corners draw a line and collinear corners only their outline. Each shape is one undo step and re-resolves river and water edges like Paint.
+- New symmetric painting: a Symmetry selector at the top of the terrain palette (left panel; Y cycles) with mirror left/right, mirror top/bottom, both mirrors, 3-fold and 6-fold rotation about the map-centre tile. Paint, Rectangle, Line, Circle and Polygon write every copy as one undo step; the cursor and shape previews show all copies and a dashed guide marks the axis or centre. Copies outside the map are skipped; Fill, bridges and multi-tile terrain are not mirrored.
 
 ---
 
