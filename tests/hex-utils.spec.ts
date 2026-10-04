@@ -273,6 +273,7 @@ test.describe('HexUtils shapes (T2.4)', () => {
         single: HexUtils.polygonCells([c(10, 10)], W, H, true).length,
         two: HexUtils.polygonCells([c(10, 10), c(10, 14)], W, H, true).length,
         collinear: HexUtils.polygonCells([c(10, 10), c(10, 14), c(10, 20)], W, H, true).length,
+        collinearLine: HexUtils.lineCells({ col: 10, row: 10 }, { col: 10, row: 20 }, W, H).length,
         none: HexUtils.polygonCells([], W, H, true).length,
         clipped: HexUtils.polygonCells([c(-30, 5), c(-10, 5), c(-20, 25)], W, H, true).length,
         edge: HexUtils.polygonCells([c(0, 0), c(0, 30), c(30, 0)], W, H, true).every((p: any) => HexUtils.inBounds(p.col, p.row, W, H)),
@@ -280,7 +281,7 @@ test.describe('HexUtils shapes (T2.4)', () => {
     });
     expect(r.single).toBe(1);
     expect(r.two).toBe(5);
-    expect(r.collinear).toBeGreaterThan(0);
+    expect(r.collinear).toBe(r.collinearLine);
     expect(r.none).toBe(0);
     expect(r.clipped).toBe(0);
     expect(r.edge).toBe(true);

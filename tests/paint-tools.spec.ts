@@ -567,40 +567,111 @@ test.describe('shape tools (T2.4)', () => {
     expect(r.hlAfter).toBe(false);
   });
 
-  test('highlight draws at every LOD in one path (a 675-cell diagonal)', async ({ page }) => {
+  test('highlight adds exactly one path (one fill, one stroke) at LOD 0/1 and one fill at LOD 2 (675-cell diagonal)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const cells = HexUtils.lineCells({ col: 0, row: 0 }, { col: 449, row: 449 }, MAP_WIDTH, MAP_HEIGHT);
       const ctx = Canvas.getCtx(); const out: any = { n: cells.length };
-      let strokes = 0, fills = 0;
       const os = ctx.stroke.bind(ctx), of = ctx.fill.bind(ctx);
-      Canvas.setHighlight('shape', cells, { stroke: 'rgba(255,0,0,1)' });
+      const count = () => {
+        let strokes = 0, fills = 0;
+        ctx.stroke = () => { strokes++; os(); }; ctx.fill = () => { fills++; of(); };
+        Canvas.render();
+        ctx.stroke = os; ctx.fill = of;
+        return { strokes, fills };
+      };
       for (const lod of [0, 1, 2]) {
         Canvas._test.setLod(lod);
         Canvas.setZoom(lod === 2 ? 5 : lod === 1 ? 15 : 100);
-        strokes = 0; fills = 0;
-        ctx.stroke = () => { strokes++; os(); }; ctx.fill = () => { fills++; of(); };
-        const t = performance.now(); Canvas.render(); const ms = performance.now() - t;
-        ctx.stroke = os; ctx.fill = of;
-        out['lod' + lod] = { highlightOps: lod === 2 ? fills : strokes, ms };
+        Canvas.setHighlight('shape', null);
+        Canvas.render();
+        const base = count();
+        Canvas.setHighlight('shape', cells, { stroke: 'rgba(255,0,0,1)', fill: 'rgba(255,0,0,0.2)' });
+        const withHl = count();
+        out['lod' + lod] = { dStrokes: withHl.strokes - base.strokes, dFills: withHl.fills - base.fills };
+        Canvas.setHighlight('shape', null);
       }
       Canvas._test.setLod(null);
-      Canvas.setHighlight('shape', null);
       return out;
     });
-    expect(r.n).toBeGreaterThanOrEqual(450);
-    expect(r.lod0.highlightOps).toBeGreaterThanOrEqual(1);
-    expect(r.lod1.highlightOps).toBeGreaterThanOrEqual(1);
-    expect(r.lod2.highlightOps).toBeGreaterThanOrEqual(1);
+    expect(r.n).toBe(675);
+    expect(r.lod0).toEqual({ dStrokes: 1, dFills: 1 });
+    expect(r.lod1).toEqual({ dStrokes: 1, dFills: 1 });
+    expect(r.lod2).toEqual({ dStrokes: 0, dFills: 1 });
   });
 
-  test('replacing the map clears a pending shape preview', async ({ page }) => {
+  for (const tool of ['line', 'circle', 'rect']) {
+    test(`switching tool mid ${tool} drag leaves no stuck drag (Paint writes nothing, no stray history)`, async ({ page }) => {
+      await select(page, tool);
+      const before = await undoSize(page);
+      const pa = await cellPoint(page, 222, 219), pm = await cellPoint(page, 225, 224), pb = await cellPoint(page, 228, 228);
+      await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pm.x, pm.y, { steps: 3 });
+      await page.keyboard.press('KeyP');
+      expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+      await page.mouse.move(pb.x, pb.y, { steps: 5 });
+      await page.mouse.up();
+      expect(await water(page)).toEqual([]);
+      expect(await undoSize(page)).toBe(before);
+      expect(await hl(page)).toBe(false);
+    });
+  }
+
+  test('one mousemove during a line drag or a polygon hover is ONE full render', async ({ page }) => {
+    const fullRenders = () => page.evaluate(() => (window as any).__full);
+    await page.evaluate(() => {
+      const ctx = Canvas.getCtx(), cv = document.getElementById('map-canvas') as HTMLCanvasElement, of = ctx.fillRect.bind(ctx);
+      (window as any).__full = 0;
+      ctx.fillRect = (x: number, y: number, w: number, h: number) => { if (x === 0 && y === 0 && w === cv.width && h === cv.height) (window as any).__full++; of(x, y, w, h); };
+    });
+    await select(page, 'line');
+    const pa = await cellPoint(page, 222, 219), pb = await cellPoint(page, 228, 228);
+    await page.mouse.move(pa.x, pa.y); await page.mouse.down();
+    const b0 = await fullRenders();
+    await page.mouse.move(pb.x, pb.y);
+    expect((await fullRenders()) - b0).toBe(1);
+    await page.mouse.up();
+    await select(page, 'polygon');
+    await clickCell(page, 222, 219);
+    const b1 = await fullRenders();
+    await page.mouse.move(pb.x, pb.y);
+    expect((await fullRenders()) - b1).toBe(1);
+  });
+
+  test('a right-button release during a left drag does not commit the shape early', async ({ page }) => {
+    await select(page, 'line');
+    const before = await undoSize(page);
+    const pa = await cellPoint(page, 222, 219), pb = await cellPoint(page, 228, 228);
+    await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' });
+    expect(await undoSize(page)).toBe(before);
+    expect(await hl(page)).toBe(true);
+    await page.mouse.up();
+    expect(await undoSize(page)).toBe(before + 1);      // (the right click is the eyedropper, so the terrain may have changed)
+    expect(await hl(page)).toBe(false);
+  });
+
+  test('replacing the map clears a pending shape preview, mouse moves do not resurrect it, Enter says why', async ({ page }) => {
+    await select(page, 'polygon');
+    const verts = await triangle(page);
+    for (const v of verts.slice(0, 2)) await clickCell(page, v.col, v.row);
+    expect(await hl(page)).toBe(true);
+    await page.evaluate(() => { (window as any).__toasts = []; const t = UI.toast; UI.toast = (m: string) => { (window as any).__toasts.push(m); return t.call(UI, m); }; });
+    await page.evaluate(() => { IO.newMap(true); Canvas.render(); });
+    expect(await hl(page)).toBe(false);
+    const p = await cellPoint(page, 230, 230);
+    await page.mouse.move(p.x, p.y); await page.mouse.move(p.x + 30, p.y + 10, { steps: 3 });
+    expect(await hl(page)).toBe(false);
+    expect(await page.evaluate(() => (window as any).__toasts)).toContain('Shape cancelled — the map changed');
+    await page.keyboard.press('Enter');
+    expect(await water(page)).toEqual([]);
+  });
+
+  test('Enter after a map replacement (no mouse move) cancels with a message', async ({ page }) => {
     await select(page, 'polygon');
     const verts = await triangle(page);
     for (const v of verts) await clickCell(page, v.col, v.row);
-    expect(await hl(page)).toBe(true);
-    await page.evaluate(() => { IO.newMap(true); Canvas.render(); });
-    expect(await hl(page)).toBe(false);
+    await page.evaluate(() => { (window as any).__toasts = []; const t = UI.toast; UI.toast = (m: string) => { (window as any).__toasts.push(m); return t.call(UI, m); }; IO.newMap(true); Canvas.render(); });
     await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => (window as any).__toasts)).toContain('Shape cancelled — the map changed');
     expect(await water(page)).toEqual([]);
   });
 

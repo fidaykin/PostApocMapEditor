@@ -1328,7 +1328,7 @@ body.mode-common #map-io    { display: none; }
       <button class="tool-btn" data-tool="rect"  onclick="Tools.setActive('rect')">▭<span class="tooltip">Rectangle (R)</span></button>
       <button class="tool-btn" data-tool="line" onclick="Tools.setActive('line')">╱<span class="tooltip">Line (L) - drag, thickness = brush size</span></button>
       <button class="tool-btn" data-tool="circle" onclick="Tools.setActive('circle')">◯<span class="tooltip">Circle (O) - drag from centre, Shift = filled</span></button>
-      <button class="tool-btn" data-tool="polygon" onclick="Tools.setActive('polygon')">⬠<span class="tooltip">Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels</span></button>
+      <button class="tool-btn" data-tool="polygon" onclick="Tools.setActive('polygon')">⬠<span class="tooltip">Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline</span></button>
       <button class="tool-btn" data-tool="eye"   onclick="Tools.setActive('eye')">💧<span class="tooltip">Eyedropper (E)</span></button>
       <button class="tool-btn" data-tool="select" onclick="Tools.setActive('select')">🔍<span class="tooltip">Select Tile (S)</span></button>
       <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (T)</span></button>
@@ -2331,7 +2331,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.04";
-const COMMIT  = "77d5ebf";
+const COMMIT  = "79e33e6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2911,6 +2911,7 @@ const Canvas = (() => {
   // ── Rendering ────────────────────────────────────────────
   function render() {
     if (!canvas || !mapData) return;
+    _hlDirty = false;
     ctx.fillStyle = '#0a0a0a';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -3290,7 +3291,8 @@ const Canvas = (() => {
   // Named overlay layers drawn by tools (shape previews, selection, paste ghost). World-space centres are cached
   // when the layer is set, so a frame allocates nothing per cell and all cells go into ONE path.
   const _highlights = new Map();   // name -> { n, xs, ys, stroke, fill, md, W, H }
-  function setHighlight(name, cells, style) {
+  let _hlDirty = false;   // a layer changed with {render:false}; the mousemove handler renders once if nothing else did
+  function setHighlight(name, cells, style, opts) {
     if (!cells || cells.length === 0) {
       if (!_highlights.delete(name)) return;
     } else {
@@ -3302,7 +3304,7 @@ const Canvas = (() => {
         fill: (style && style.fill) || null,
       });
     }
-    render();
+    if (opts && opts.render === false) _hlDirty = true; else render();
   }
   function hasHighlight(name) { return _highlights.has(name); }
   function _drawHighlights(radius, lod, scale) {
@@ -3794,6 +3796,7 @@ const Canvas = (() => {
         render();
       }
     }
+    if (_hlDirty) render();   // a tool changed its preview without rendering and the cursor render did not happen
   }
 
   function _onMouseUp(e) {
@@ -4361,6 +4364,8 @@ const Tools = (() => {
     _active = name;
     _rectStart = null;
     _toolsRectPreview = null;
+    _isDown = false;                    // a drag started with the old tool must not keep writing with the new one
+    _lastPainted = null; _lastZonePainted = null; _lastObjectPainted = null; _lastRoadPainted = null;
     _cancelShape();
     document.querySelectorAll('.tool-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tool === name);
@@ -4853,6 +4858,10 @@ const Tools = (() => {
     Canvas.setHighlight('shape', null);
   }
   function _shapeStale() { return _shapeMd !== mapData || _shapeW !== MAP_WIDTH || _shapeH !== MAP_HEIGHT; }
+  function _cancelStale() {
+    _isDown = false; _cancelShape();
+    UI.toast('Shape cancelled — the map changed');
+  }
   function _beginShape() { _shapeMd = mapData; _shapeW = MAP_WIDTH; _shapeH = MAP_HEIGHT; }
 
   // Thickness: every shape cell expands to the brush disc (radius 0 = the cell itself).
@@ -4880,13 +4889,13 @@ const Tools = (() => {
     return HexUtils.polygonCells(cubes, MAP_WIDTH, MAP_HEIGHT, !outlineOnly);
   }
 
-  function _previewShape(filled) {
-    Canvas.setHighlight('shape', _shapeCells(_active, _shapeStart, _shapeEnd, filled), { fill: 'rgba(79,195,247,0.12)' });
+  function _previewShape(filled, noRender) {
+    Canvas.setHighlight('shape', _shapeCells(_active, _shapeStart, _shapeEnd, filled), { fill: 'rgba(79,195,247,0.12)' }, { render: noRender === true ? false : true });
   }
 
   function _previewPolygon(cursor) {
     const verts = cursor ? _polyVerts.concat([cursor]) : _polyVerts;
-    Canvas.setHighlight('shape', _polyCells(verts, true), { fill: 'rgba(79,195,247,0.12)' });
+    Canvas.setHighlight('shape', _polyCells(verts, true), { fill: 'rgba(79,195,247,0.12)' }, { render: !cursor });
   }
 
   // One History step per shape; nothing is pushed for an empty result.
@@ -4899,20 +4908,20 @@ const Tools = (() => {
   }
 
   function _commitPolygon(outlineOnly) {
-    const stale = _shapeStale();
+    if (_shapeStale()) { _cancelStale(); return; }
     const verts = _polyVerts.filter((v, i, a) => i === 0 || v.col !== a[i - 1].col || v.row !== a[i - 1].row);
     if (verts.length > 1 && verts[0].col === verts[verts.length - 1].col && verts[0].row === verts[verts.length - 1].row) verts.pop();
     _cancelShape();
-    if (stale || verts.length < 2) return;      // a single corner is not a polygon: discard, no history step
+    if (verts.length < 2) return;      // a single corner is not a polygon: discard, no history step
     _commitCells(_polyCells(verts, outlineOnly));
     Canvas.render();
   }
 
   function _finishDrag(e) {
-    const start = _shapeStart, end = _shapeEnd || _shapeStart, stale = _shapeStale();
+    if (_shapeStale()) { _cancelStale(); return; }
+    const start = _shapeStart, end = _shapeEnd || _shapeStart;
     const tool = _active, filled = tool === 'circle' && !!(e && e.shiftKey);
     _cancelShape();
-    if (stale) return;
     if (_commitCells(_shapeCells(tool, start, end, filled))) Canvas.render();
   }
 
@@ -4948,7 +4957,7 @@ const Tools = (() => {
       case 'polygon':
         _isDown = false;
         if (e && e.button !== 0) break;
-        if (_polyVerts.length && _shapeStale()) _cancelShape();
+        if (_polyVerts.length && _shapeStale()) _cancelStale();
         if (e && e.detail >= 2 && _polyVerts.length >= 2) { _commitPolygon(e.shiftKey); break; }
         if (!_polyVerts.length) _beginShape();
         _polyVerts.push({ col, row });
@@ -5005,6 +5014,7 @@ const Tools = (() => {
 
   function _onMove(sx, sy, e) {
     if (_fillBusy) return;
+    if ((_polyVerts.length || _shapeStart) && _shapeStale()) { _cancelStale(); return; }
     if (_active === 'polygon' && _polyVerts.length) {
       const hov = Canvas.screenToHex(sx, sy);
       if (HexUtils.inBounds(hov.col, hov.row, MAP_WIDTH, MAP_HEIGHT)) {
@@ -5024,7 +5034,7 @@ const Tools = (() => {
           const k = col + ',' + row + (filled ? 'f' : '');
           if (k === _shapeKey) break;           // same end cell: nothing to recompute
           _shapeKey = k; _shapeEnd = { col, row };
-          _previewShape(filled);
+          _previewShape(filled, true);
         }
         break;
       case 'paint':
@@ -5061,6 +5071,7 @@ const Tools = (() => {
   function _onUp(e) {
     // Shapes ignore the canvas mouseleave: the drag continues outside the canvas and the window mouseup finishes it.
     if (e && e.type === 'mouseleave' && _shapeStart) return;
+    if (e && e.type === 'mouseup' && e.button !== 0) return;   // a right/middle release (pan) must not end a left-button drag
     if (!_isDown) return;
     _isDown = false;
     if ((_active === 'line' || _active === 'circle') && _shapeStart) { _finishDrag(e); return; }
