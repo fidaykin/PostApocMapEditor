@@ -1,4 +1,4 @@
-import { Page, Route } from '@playwright/test';
+import { Page, Route, test } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -144,14 +144,120 @@ export async function installFakeGitHub(page: Page, gh: FakeGitHub) {
   });
 }
 
-export async function waitForEditor(page: Page) {
-  // Signal-based waits with a generous explicit cap (slow startup under load must not trip the 30 s default).
-  const cap = { timeout: 90_000 };
-  await page.waitForFunction(() =>
-    typeof HexDB !== 'undefined' && typeof mapData !== 'undefined' && !!mapData && HexDB.getAll().length > 0, undefined, cap);
-  await page.waitForFunction(() => !!(window as any).__startupSyncDone, undefined, cap);
-  await page.evaluate(() => (window as any).__startupSyncDone);
-  await page.waitForLoadState('networkidle', cap);
+// ── Editor startup (task T2.H) ──────────────────────────────────────────────────────────────────────────────────────
+// Root cause of the old "intermittent startup stall" was macOS idle/maintenance sleep, not the editor: with the user
+// away the machine runs in ~45 s dark-wake windows every ~9 min, so any wait that spans a sleep ends ~8 min later
+// (tests/global-setup.ts now keeps the machine awake during a run). What stays here is a bounded, diagnosable startup:
+// every attempt has one deadline (STARTUP_CAP_MS); a failed attempt names the step it was waiting for, the page state,
+// the requests still in flight and whether the test process was frozen (asleep); openEditor retries a failed launch once and records it.
+
+/** Per-attempt startup cap. A launch takes ~1 s (p95 1.1 s at load average ~40, 5 s with the renderer throttled 30x),
+ *  so 20 s is generous yet leaves room for one retry inside the 60 s default test timeout. */
+export const STARTUP_CAP_MS = Number(process.env.HARNESS_STARTUP_CAP_MS || 20_000);
+
+export class EditorStartupError extends Error {
+  constructor(message: string) { super(message); this.name = 'EditorStartupError'; }
+}
+
+type Tracker = { inflight: Map<any, { url: string; t: number }>; failed: string[]; errors: string[] };
+const trackers = new WeakMap<Page, Tracker>();
+/** Records in-flight requests and console/page errors so a startup failure can say what it was waiting for. */
+function track(page: Page): Tracker {
+  startHeartbeat();
+  let t = trackers.get(page);
+  if (t) return t;
+  const tr: Tracker = { inflight: new Map(), failed: [], errors: [] };
+  page.on('request', r => tr.inflight.set(r, { url: r.url(), t: Date.now() }));
+  page.on('requestfinished', r => tr.inflight.delete(r));
+  page.on('requestfailed', r => { tr.inflight.delete(r); tr.failed.push(`${r.url()} (${r.failure()?.errorText})`); });
+  page.on('console', m => { if (m.type() === 'error') tr.errors.push(m.text().slice(0, 200)); });
+  page.on('pageerror', e => tr.errors.push('pageerror: ' + e.message.slice(0, 200)));
+  // A new document: whatever the previous one left pending (e.g. a request the navigation cancelled) is not its business.
+  page.on('framenavigated', f => { if (f === page.mainFrame()) { tr.inflight.clear(); tr.failed.length = 0; tr.errors.length = 0; } });
+  trackers.set(page, tr);
+  return tr;
+}
+
+function raceDeadline<T>(p: Promise<T>, ms: number, what: string): Promise<T> {
+  let timer: NodeJS.Timeout;
+  return Promise.race([
+    p.finally(() => clearTimeout(timer)),
+    new Promise<T>((_, rej) => { timer = setTimeout(() => rej(new Error(`${what}: no answer within ${ms} ms`)), ms); }),
+  ]);
+}
+
+// Freeze detector: a 1 s heartbeat; a gap far longer than 1 s means this process did not run (machine asleep, process
+// suspended or a fully starved event loop). Wall-clock based on purpose: Node's timers keep counting through a sleep.
+const gaps: { end: number; ms: number }[] = [];
+let lastBeat = 0;
+function startHeartbeat() {
+  if (lastBeat) return;
+  lastBeat = Date.now();
+  setInterval(() => {
+    const now = Date.now();
+    if (now - lastBeat > 5000) { gaps.push({ end: now, ms: now - lastBeat - 1000 }); if (gaps.length > 50) gaps.shift(); }
+    lastBeat = now;
+  }, 1000).unref();
+}
+/** Milliseconds this process was frozen since `since` (wall clock); includes a freeze still in progress. */
+function frozenMsSince(since: number) {
+  const now = Date.now();
+  return gaps.filter(g => g.end > since).reduce((a, g) => a + g.ms, 0) + Math.max(0, now - lastBeat - 1000);
+}
+
+async function startupDiagnostic(page: Page, step: string, start: number, cap: number, cause: unknown) {
+  const tr = trackers.get(page);
+  const state = await raceDeadline(page.evaluate(() => {
+    const w = window as any;
+    return {
+      url: location.pathname, readyState: document.readyState,
+      HexDB: typeof HexDB === 'undefined' ? 'undefined' : HexDB.getAll().length + ' rows',
+      mapData: typeof mapData === 'undefined' ? 'undefined' : mapData ? mapData.length + ' cells' : String(mapData),
+      startupSyncDone: !!w.__startupSyncDone, lastSyncSummary: !!w.__lastSyncSummary,
+      openModals: [...document.querySelectorAll('.modal.open, [id$="-modal"].open')].map(e => e.id),
+    };
+  }), 3000, 'page.evaluate').catch(e => `unavailable (${String(e).split('\n')[0]})`);
+  const now = Date.now();
+  const frozen = frozenMsSince(start);
+  const lines = [
+    `editor startup not ready after ${((now - start) / 1000).toFixed(1)} s (cap ${(cap / 1000).toFixed(1)} s); waiting for: ${step}`,
+    `  page: ${typeof state === 'string' ? state : JSON.stringify(state)}`,
+    `  requests in flight: ${tr ? JSON.stringify([...tr.inflight.values()].map(r => `${r.url} (${now - r.t} ms)`).slice(0, 15)) : 'not tracked'}`,
+    `  failed requests: ${tr ? JSON.stringify(tr.failed.slice(-10)) : 'not tracked'}`,
+    `  console/page errors: ${tr ? JSON.stringify(tr.errors.slice(-10)) : 'not tracked'}`,
+    `  cause: ${String(cause).split('\n')[0]}`,
+  ];
+  if (frozen > 4000)
+    lines.push(`  NOTE: the test process was frozen for ~${Math.round(frozen / 1000)} s during this wait (machine asleep, process suspended `
+      + `or a starved event loop), so the timeout is not evidence of an editor problem`);
+  return lines.join('\n');
+}
+
+/**
+ * Waits until the editor finished starting: modules + HexDB loaded, the load handler ran to its end
+ * (window.__startupSyncDone is assigned there), the startup content sync resolved, and the startup sprite/data
+ * requests settled (network idle). Throws EditorStartupError with a diagnostic after `cap` ms.
+ */
+export async function waitForEditor(page: Page, cap = STARTUP_CAP_MS) {
+  track(page);
+  const start = Date.now();
+  const left = () => Math.max(1, cap - (Date.now() - start));
+  // polling: 100 → re-checked on a timer, independent of the page producing animation frames.
+  let step = 'editor modules loaded (HexDB with rows, mapData)';
+  try {
+    await page.waitForFunction(() =>
+      typeof HexDB !== 'undefined' && typeof mapData !== 'undefined' && !!mapData && HexDB.getAll().length > 0,
+      undefined, { timeout: left(), polling: 100 });
+    step = 'load handler finished (window.__startupSyncDone assigned)';
+    await page.waitForFunction(() => !!(window as any).__startupSyncDone, undefined, { timeout: left(), polling: 100 });
+    step = 'startup content sync resolved (await window.__startupSyncDone)';
+    await raceDeadline(page.evaluate(() => (window as any).__startupSyncDone.then(() => true)), left(), 'startup sync');
+    step = 'startup requests settled (network idle for 500 ms)';
+    await page.waitForLoadState('networkidle', { timeout: left() });
+  } catch (e) {
+    if (page.isClosed()) throw e;
+    throw new EditorStartupError(await startupDiagnostic(page, step, start, cap, e));
+  }
 }
 
 export interface OpenOptions {
@@ -161,12 +267,25 @@ export interface OpenOptions {
   storage?: Record<string, string>;
 }
 
+/** Navigates and waits for startup within one STARTUP_CAP_MS deadline. */
+async function launch(page: Page) {
+  const start = Date.now();
+  try {
+    await page.goto('/MapEditorPro.html', { timeout: STARTUP_CAP_MS });
+  } catch (e) {
+    if (page.isClosed()) throw e;
+    throw new EditorStartupError(await startupDiagnostic(page, 'page.goto (document load)', start, STARTUP_CAP_MS, e));
+  }
+  await waitForEditor(page, Math.max(1000, STARTUP_CAP_MS - (Date.now() - start)));
+}
+
 export async function openEditor(page: Page, opts: OpenOptions = {}) {
   const gh = opts.gh ?? new FakeGitHub();
   const nativeDialogs: string[] = [];
   const pageErrors: string[] = [];
   page.on('dialog', d => { nativeDialogs.push(`${d.type()}: ${d.message()}`); d.dismiss().catch(() => {}); });
   page.on('pageerror', e => pageErrors.push(e.message));
+  track(page);
   await installFakeGitHub(page, gh);
   const seed = { ...(opts.pat ? { gh_sync_pat: 'test-token' } : {}), ...(opts.storage ?? {}) };
   // Seed localStorage once per browser context so reloads keep whatever the test changed.
@@ -175,8 +294,30 @@ export async function openEditor(page: Page, opts: OpenOptions = {}) {
     localStorage.setItem('__seeded', '1');
     for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v);
   }, seed);
-  await page.goto('/MapEditorPro.html');
-  await waitForEditor(page);
+  const fresh = page.url() === 'about:blank';
+  try {
+    await launch(page);
+  } catch (e) {
+    // Startup-only retry, once, and only for a launch on a fresh page: the origin's storage is wiped so the second
+    // attempt starts exactly like the first (the seed init script re-seeds localStorage). A second failure fails the
+    // test with its diagnostic. Every retry is recorded as a 'startup-retry' annotation and a [harness] log line.
+    if (!(e instanceof EditorStartupError) || !fresh) throw e;
+    const first = e.message;
+    try { test.info().annotations.push({ type: 'startup-retry', description: first.slice(0, 2000) }); } catch (_) { /* outside a test */ }
+    console.warn(`[harness] startup retry: ${first.split('\n')[0]}`);
+    const origin = new URL(page.url() !== 'about:blank' ? page.url() : (test.info().project.use.baseURL || 'http://localhost:4173')).origin;
+    await page.goto('about:blank', { timeout: 5000 }).catch(() => {});
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send('Storage.clearDataForOrigin', { origin, storageTypes: 'all' }).catch(() => {});
+    await cdp.detach().catch(() => {});
+    nativeDialogs.length = 0;
+    pageErrors.length = 0;
+    try { await launch(page); }
+    catch (e2) {
+      if (e2 instanceof EditorStartupError) e2.message = `${e2.message}\n(retried once; first attempt: ${first})`;
+      throw e2;
+    }
+  }
   if (opts.blankMap !== false) {
     await page.evaluate(() => {
       if (document.getElementById('newmap-modal')!.classList.contains('open')) {
@@ -189,6 +330,14 @@ export async function openEditor(page: Page, opts: OpenOptions = {}) {
 }
 
 export async function reloadEditor(page: Page) {
-  await page.reload();
-  await waitForEditor(page);
+  // No retry here: a reload is part of what the test checks (state across sessions), so a stall fails it, with the
+  // same bounded diagnostic.
+  const start = Date.now();
+  try {
+    await page.reload({ timeout: STARTUP_CAP_MS });
+  } catch (e) {
+    if (page.isClosed()) throw e;
+    throw new EditorStartupError(await startupDiagnostic(page, 'page.reload (document load)', start, STARTUP_CAP_MS, e));
+  }
+  await waitForEditor(page, Math.max(1000, STARTUP_CAP_MS - (Date.now() - start)));
 }
