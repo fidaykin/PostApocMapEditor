@@ -1503,7 +1503,7 @@ test.describe('eraser (T2.6)', () => {
     expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 229])).toBe('Forest_1');
   });
 
-  test('a lost mouseup finishes the stroke; mouseup outside the canvas and window blur end it cleanly', async ({ page }) => {
+  test('a lost mouseup finishes the stroke; leaving the canvas (mouseleave) and window blur end it cleanly', async ({ page }) => {
     await page.evaluate(() => { mapData.fill('Forest_1'); Tools.setActive('eraser'); });
     const lost = await page.evaluate(() => {
       const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), p = Canvas.hexScreenPos(225, 224);
@@ -1518,7 +1518,7 @@ test.describe('eraser (T2.6)', () => {
     });
     expect(lost.down).toBe(1);
     expect(lost.end).toBe(lost.afterLost);
-    // mouseup outside the window: stroke ends, later moves erase nothing
+    // pointer leaves the page with the button held: Chrome fires mouseleave on the canvas first, which ends the stroke
     await page.evaluate(() => mapData.fill('Forest_1'));
     const u = await undoSize(page);
     const p = await cellPoint(page, 225, 224);
@@ -1541,15 +1541,21 @@ test.describe('eraser (T2.6)', () => {
   });
 
   test('Escape cancels a stroke: terrain and buildings restored, no history step and no redo entry', async ({ page }) => {
-    await page.evaluate(() => { mapData.fill('Forest_1'); objectsData['225,224'] = 'Grain_1'; roadsData['226,224'] = { type: 'road_hex' }; Tools.setActive('eraser'); });
+    await page.evaluate(() => {
+      mapData.fill('Forest_1'); objectsData['225,224'] = 'Grain_1'; roadsData['226,224'] = { type: 'road_hex' };
+      bridgesData.push({ col: 226, row: 224, axis: 1 }); tileExtras['227,224'] = { underTerrainId: 'Water_1' };
+      ZonePainter.getZoneLayer()[224 * MAP_WIDTH + 228] = 4;
+      Tools.setActive('eraser');
+    });
     const u = await undoSize(page);
     const p = await cellPoint(page, 225, 224);
     await press(page, p);
     await page.mouse.move(p.x + 60, p.y, { steps: 4 });
     expect(await forestCount(page)).toBeLessThan(450 * 450);
     await page.keyboard.press('Escape');
-    const r = await page.evaluate(() => ({ forest: mapData.filter((x: string) => x === 'Forest_1').length, o: '225,224' in objectsData, rd: '226,224' in roadsData, steps: History.undoSize(), redo: History.redoSize() }));
-    expect(r).toEqual({ forest: 450 * 450, o: true, rd: true, steps: u, redo: 0 });
+    const r = await page.evaluate(() => ({ forest: mapData.filter((x: string) => x === 'Forest_1').length, o: '225,224' in objectsData, rd: '226,224' in roadsData, steps: History.undoSize(), redo: History.redoSize(),
+      br: JSON.stringify(bridgesData), x: JSON.stringify(tileExtras), z: ZonePainter.getZoneLayer()[224 * MAP_WIDTH + 228] }));
+    expect(r).toEqual({ forest: 450 * 450, o: true, rd: true, steps: u, redo: 0, br: JSON.stringify([{ col: 226, row: 224, axis: 1 }]), x: JSON.stringify({ '227,224': { underTerrainId: 'Water_1' } }), z: 4 });
     await page.mouse.move(p.x + 120, p.y, { steps: 4 });         // the stroke is over even though the button is held
     await page.mouse.up();
     expect(await forestCount(page)).toBe(450 * 450);
@@ -1594,8 +1600,21 @@ test.describe('eraser (T2.6)', () => {
     expect(await page.evaluate(() => Canvas.getHighlightPoints('eraser')!.n)).toBe(19);
     await page.evaluate(() => { Tools.setSymmetry('hv'); });
     await page.mouse.move(p.x + 80, p.y + 60);
-    const n = await page.evaluate(() => Canvas.getHighlightPoints('eraser')!.n);
-    expect(n).toBe(await page.evaluate(() => Tools.expandSymmetry(Brush.getAffectedTiles(Canvas.screenToHex(80 + Canvas.hexScreenPos(225, 224).x, 60 + Canvas.hexScreenPos(225, 224).y).col, Canvas.screenToHex(80 + Canvas.hexScreenPos(225, 224).x, 60 + Canvas.hexScreenPos(225, 224).y).row)).length));
+    const got = await page.evaluate(() => { const h = Canvas.getHighlightPoints('eraser')!; return { n: h.n, keys: h.xs.map((x: number, i: number) => Math.round(x * 100) + ',' + Math.round(h.ys[i] * 100)).sort() }; });
+    // independent reference: pixel disc about the hovered cell (DISC_REF), each cell's centre mirrored in x and/or y about the centre cell's pixel
+    const want = await page.evaluate(([ref]) => {
+      const refFn = eval(ref as string);
+      const q = Canvas.hexScreenPos(225, 224);
+      const h = Canvas.screenToHex(q.x + 80, q.y + 60);
+      const mid = Canvas.hexCenterWorld(225, 224), keys = new Set<string>();
+      for (const k of refFn(h.col, h.row, 2).keys()) {
+        const [c, r] = k.split(',').map(Number), w = Canvas.hexCenterWorld(c, r);
+        for (const [x, y] of [[w.x, w.y], [2 * mid.x - w.x, w.y], [w.x, 2 * mid.y - w.y], [2 * mid.x - w.x, 2 * mid.y - w.y]]) keys.add(Math.round(x * 100) + ',' + Math.round(y * 100));
+      }
+      return [...keys].sort();
+    }, [DISC_REF]);
+    const n = got.n;
+    expect(got.keys).toEqual(want);
     expect(n).toBeGreaterThan(19);
     await page.evaluate(() => Tools.setSymmetry('none'));
     // brush resize refreshes the preview
@@ -1651,5 +1670,178 @@ test.describe('eraser (T2.6)', () => {
       return { settle: settlements.some((s: any) => s.col === 230), city: settlements.some((s: any) => s.type === 'city') };
     });
     expect(r).toEqual({ settle: false, city: true });
+  });
+
+  test('Ctrl+Z / undo is ignored during an eraser stroke, so Escape cancels only its own step', async ({ page }) => {
+    await page.evaluate(() => { UI.selectTerrain('Water_1'); });
+    await clickCell(page, 230, 230);                                  // an earlier gesture (Paint)
+    await page.evaluate(() => { mapData.fill('Forest_1'); mapData[230 * MAP_WIDTH + 230] = 'Water_1'; Tools.setActive('eraser'); });
+    const u = await undoSize(page);
+    const p = await cellPoint(page, 225, 224);
+    await press(page, p);
+    await page.keyboard.press('Control+KeyZ');                       // mid-stroke: ignored
+    await page.evaluate(() => History.undo());                       // also through the API
+    expect(await undoSize(page)).toBe(u + 1);
+    await page.mouse.move(p.x + 60, p.y, { steps: 3 });
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    expect(await undoSize(page)).toBe(u);
+    expect(await forestCount(page)).toBe(450 * 450 - 1);              // state before the stroke, previous step intact
+    expect(await page.evaluate(() => mapData[230 * MAP_WIDTH + 230])).toBe('Water_1');
+    await page.evaluate(() => History.undo());                        // the earlier Paint step is still undoable
+    expect(await page.evaluate(() => mapData[230 * MAP_WIDTH + 230])).toBe('Plain_1');   // the Paint step's pre-state
+  });
+
+  test('History.rollback(token) acts only on its own step (undone / overtaken steps are left alone)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      mapData.fill('Forest_1');
+      History.push(); mapData[0] = 'Water_1';                          // an earlier user step
+      const t = History.push(); mapData[1] = 'Water_1';
+      History.undo();                                                  // the token's step is gone
+      const sizeAfterUndo = History.undoSize(), redoAfterUndo = History.redoSize();
+      const a = History.rollback(t);
+      const unchanged = History.undoSize() === sizeAfterUndo && History.redoSize() === redoAfterUndo;
+      const t2 = History.push(); History.push();                       // overtaken by another push
+      const b = History.rollback(t2);
+      return { a, unchanged, b, none: History.rollback(null) };
+    });
+    expect(r).toEqual({ a: false, unchanged: true, b: false, none: false });
+  });
+
+  test('Escape with a full history restores the evicted oldest step; the redo stack survives an escaped stroke', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      mapData.fill('Plain_1');
+      History.clear();
+      for (let i = 0; i < 50; i++) { History.push(); mapData[i] = 'Forest_1'; }     // bottom snapshot has 0 forests
+      Tools.setActive('eraser');
+      const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), q = Canvas.hexScreenPos(225, 224);
+      const o = { clientX: rc.left + q.x, clientY: rc.top + q.y, button: 0, buttons: 1, bubbles: true };
+      const full = History.undoSize();
+      cv.dispatchEvent(new MouseEvent('mousedown', o));
+      const during = History.undoSize();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+      const after = History.undoSize();
+      for (let i = 0; i < 50; i++) History.undo();
+      let forests = 0; for (const x of mapData) if (x === 'Forest_1') forests++;
+      cv.dispatchEvent(new MouseEvent('mouseup', { ...o, buttons: 0 }));
+      return { full, during, after, forests, redo: History.redoSize() };
+    });
+    expect(r).toEqual({ full: 50, during: 50, after: 50, forests: 0, redo: 50 });
+    // redo preserved by an escaped stroke
+    const r2 = await page.evaluate(() => {
+      mapData.fill('Plain_1'); History.clear();
+      History.push(); mapData[0] = 'Forest_1'; History.undo();
+      const before = History.redoSize();
+      Tools.setActive('eraser');
+      const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), q = Canvas.hexScreenPos(225, 224);
+      const o = { clientX: rc.left + q.x, clientY: rc.top + q.y, button: 0, buttons: 1, bubbles: true };
+      cv.dispatchEvent(new MouseEvent('mousedown', o));
+      const during = History.redoSize();
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+      cv.dispatchEvent(new MouseEvent('mouseup', { ...o, buttons: 0 }));
+      const after = History.redoSize();
+      History.redo();
+      return { before, during, after, redone: mapData[0] };
+    });
+    expect(r2).toEqual({ before: 1, during: 0, after: 1, redone: 'Forest_1' });
+  });
+
+  test('Escape after erasing a multi-tile anchor restores the footprint map (Paint cannot write under it)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const multi = HexDB.getAll().find((h: any) => Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length > 0);
+      const A = { col: 225, row: 230 };
+      mapData.fill('Plain_1'); mapData[A.row * MAP_WIDTH + A.col] = multi.id; invalidateSatelliteMap();
+      let sat: any = null;
+      for (let c = A.col - 2; c <= A.col + 2 && !sat; c++) for (let r = A.row - 3; r <= A.row + 3; r++) { const an = getSatelliteAnchor(c, r); if (an && an.col === A.col && an.row === A.row) { sat = { col: c, row: r }; break; } }
+      Tools.setActive('eraser');
+      const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), q = Canvas.hexScreenPos(A.col, A.row);
+      const o = { clientX: rc.left + q.x, clientY: rc.top + q.y, button: 0, buttons: 1, bubbles: true };
+      cv.dispatchEvent(new MouseEvent('mousedown', o));
+      const goneDuring = getSatelliteAnchor(sat.col, sat.row) === null;      // rebuilds the map without A
+      window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true }));
+      cv.dispatchEvent(new MouseEvent('mouseup', { ...o, buttons: 0 }));
+      const back = getSatelliteAnchor(sat.col, sat.row);
+      const painted = Tools.applyTerrainCells([sat], 'Water_1').length;
+      return { goneDuring, back: back && back.col === A.col && back.row === A.row, painted, satTerrain: mapData[sat.row * MAP_WIDTH + sat.col] };
+    });
+    expect(r).toEqual({ goneDuring: true, back: true, painted: 0, satTerrain: 'Plain_1' });
+  });
+
+  test('undo and redo also refresh the footprint map (restore invalidates it)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const multi = HexDB.getAll().find((h: any) => Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length > 0);
+      const A = { col: 225, row: 230 };
+      mapData.fill('Plain_1'); invalidateSatelliteMap();
+      History.push();
+      mapData[A.row * MAP_WIDTH + A.col] = multi.id; invalidateSatelliteMap();
+      let sat: any = null;
+      for (let c = A.col - 2; c <= A.col + 2 && !sat; c++) for (let r = A.row - 3; r <= A.row + 3; r++) if (getSatelliteAnchor(c, r)) { sat = { col: c, row: r }; break; }
+      History.undo();
+      const afterUndo = getSatelliteAnchor(sat.col, sat.row);
+      History.redo();
+      return { afterUndo, afterRedo: !!getSatelliteAnchor(sat.col, sat.row) };
+    });
+    expect(r).toEqual({ afterUndo: null, afterRedo: true });
+  });
+
+  test('satellite buildings: erasing the anchor removes its satellite ring only; erasing a satellite keeps the anchor', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const orig = BldDB.getAll;
+      BldDB.getAll = () => orig.call(BldDB).concat([{ id: 'T_A', spawnsSatellites: [{ buildingId: 'T_S', radius: 1, maxCount: 6 }] }, { id: 'T_S', canBuild: false }] as any);
+      try {
+        const A = { col: 225, row: 224 };
+        const ring = HexUtils.neighbors(A.col, A.row, MAP_WIDTH, MAP_HEIGHT);
+        const setup = () => {
+          for (const k of Object.keys(objectsData)) delete objectsData[k];
+          objectsData['225,224'] = 'T_A';
+          ring.forEach((n: any, i: number) => { objectsData[n.col + ',' + n.row] = i === 0 ? 'Grain_1' : 'T_S'; });
+          objectsData['230,224'] = 'T_S';                                  // a satellite-type object far outside the ring
+        };
+        setup();
+        Tools.eraseCells([A]);
+        const ringLeft = ring.filter((n: any, i: number) => i > 0 && (n.col + ',' + n.row) in objectsData).length;
+        const out: any = { anchorGone: !('225,224' in objectsData), ringLeft, grainKept: objectsData[ring[0].col + ',' + ring[0].row] === 'Grain_1', farKept: objectsData['230,224'] === 'T_S' };
+        setup();
+        Tools.eraseCells([ring[1]]);
+        out.anchorKept = objectsData['225,224'] === 'T_A';
+        out.ringOthers = ring.filter((n: any, i: number) => i > 1 && objectsData[n.col + ',' + n.row] === 'T_S').length;
+        return out;
+      } finally { BldDB.getAll = orig; }
+    });
+    expect(r).toEqual({ anchorGone: true, ringLeft: 0, grainKept: true, farKept: true, anchorKept: true, ringOthers: 4 });
+  });
+
+  test('hover recompute happens once per cursor-cell change (not per mousemove) and the symmetric hover is cached', async ({ page }) => {
+    await page.evaluate(() => { Tools.setActive('eraser'); Brush.setSize(2); Tools.setSymmetry('hv'); (window as any).__calls = 0; const oa = Brush.getAffectedTiles; Brush.getAffectedTiles = (c: number, r: number) => { (window as any).__calls++; return oa(c, r); }; });
+    const calls = () => page.evaluate(() => (window as any).__calls);
+    const p = await cellPoint(page, 226, 222);
+    await page.mouse.move(p.x, p.y);
+    const c1 = await calls();
+    for (let i = 0; i < 6; i++) await page.mouse.move(p.x + (i % 3) - 1, p.y + 1);   // sub-pixel jitter inside the same cell
+    expect(await calls()).toBe(c1);
+    expect(c1).toBeGreaterThan(0);
+    const p2 = await cellPoint(page, 228, 222);
+    await page.mouse.move(p2.x, p2.y);
+    expect(await calls()).toBe(c1 + 1);
+    await page.mouse.move(p2.x + 1, p2.y);
+    expect(await calls()).toBe(c1 + 1);
+    await page.evaluate(() => { Tools.setSymmetry('none'); Brush.getAffectedTiles = Object.getPrototypeOf(Brush).getAffectedTiles || Brush.getAffectedTiles; });
+  });
+
+  test('plain-terrain strokes never rebuild the footprint map (radius 12, rot6); erasing a multi-tile anchor does', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Brush.setSize(12); Tools.setSymmetry('rot6');
+      const orig = invalidateSatelliteMap; let n = 0;
+      invalidateSatelliteMap = () => { n++; orig(); };
+      try {
+        for (const [c, rw] of [[226, 222], [230, 226], [224, 228]]) { Tools.eraseCells(Brush.getAffectedTiles(c, rw)); }
+        const plain = n;
+        const multi = HexDB.getAll().find((h: any) => Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length > 0);
+        mapData[230 * MAP_WIDTH + 225] = multi.id;
+        Tools.eraseCells([{ col: 225, row: 230 }]);
+        return { plain, withAnchor: n - plain };
+      } finally { invalidateSatelliteMap = orig; Tools.setSymmetry('none'); Brush.setSize(0); }
+    });
+    expect(r).toEqual({ plain: 0, withAnchor: 1 });
   });
 });

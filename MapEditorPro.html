@@ -2345,7 +2345,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "77292d5";
+const COMMIT  = "fa20b86";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4869,12 +4869,15 @@ const Tools = (() => {
       inSet.add(i); uniq.push(c);
     }
     const touched = [], erased = new Set();
+    let footprints = false;              // an erased cell held a multi-tile terrain: the satellite map must be rebuilt
     for (const { col, row } of uniq) {
       const anc = getSatelliteAnchor(col, row);       // the satellite map is only refreshed after the loop
       if (anc && !inSet.has(anc.row * MAP_WIDTH + anc.col)) continue;
       const idx = row * MAP_WIDTH + col, k = col + ',' + row;
-      touched.push({ col, row, prev: mapData[idx] });
+      const prev = mapData[idx];
+      touched.push({ col, row, prev });
       erased.add(idx);
+      if (!footprints && prev) { const te = Terrain.byHexId(prev); if (te && Array.isArray(te.occupiedOffsets) && te.occupiedOffsets.length) footprints = true; }
       mapData[idx] = DEFAULT_TILE_ID;
       const bld = objectsData[k];
       if (bld) { delete objectsData[k]; _removeSatellites(col, row, bld); }
@@ -4883,11 +4886,12 @@ const Tools = (() => {
     }
     for (let i = bridgesData.length - 1; i >= 0; i--)
       if (erased.has(bridgesData[i].row * MAP_WIDTH + bridgesData[i].col)) bridgesData.splice(i, 1);
-    invalidateSatelliteMap();
+    if (footprints) invalidateSatelliteMap();
     _autoResolveEdgesAround(touched);
     return touched.length;
   }
 
+  let _eraseToken = null;              // History.push() token of the stroke's own step
   let _eraseStroke = false;            // a stroke is in progress (History step pushed, cells being erased)
   let _eraseMd = null, _eraseW = 0, _eraseH = 0;
   let _eraserHoverKey = '', _hoverCell = null;
@@ -5130,7 +5134,7 @@ const Tools = (() => {
         _previewPolygon(null);
         break;
       case 'eraser':
-        History.push();           // before the first write
+        _eraseToken = History.push();           // before the first write
         _eraseStroke = true; _eraseMd = mapData; _eraseW = MAP_WIDTH; _eraseH = MAP_HEIGHT;
         _eraseAt(col, row);
         _lastPainted = { col, row };
@@ -5188,7 +5192,7 @@ const Tools = (() => {
     if (_fillBusy) return;
     if ((_polyVerts.length || _shapeStart || _rectStart) && _shapeStale()) { _cancelStale(); Canvas.render(); return; }
     // No button is held although a drag is active: the mouseup was lost (released outside the page, focus change...).
-    if (_isDown && e && e.type === 'mousemove' && e.buttons === 0) { _onUp({ type: 'mouseup', button: 0, shiftKey: e.shiftKey }); return; }
+    if (_isDown && e && e.type === 'mousemove' && e.buttons === 0) { _onUp({ type: 'mouseup', button: 0, shiftKey: e.shiftKey }); IO.scheduleAutoSave(); return; }
     if (_active === 'polygon' && _polyVerts.length) {
       const hov = Canvas.screenToHex(sx, sy);
       if (HexUtils.inBounds(hov.col, hov.row, MAP_WIDTH, MAP_HEIGHT)) {
@@ -5301,8 +5305,16 @@ const Tools = (() => {
   function init() {
     Canvas.setMouseCallbacks(_onDown, _onMove, _onUp);
     // A button released outside the canvas (or the window) still finishes the shape: no stuck tool state.
-    window.addEventListener('mouseup', e => { if ((_shapeStart || _eraseStroke) && e.button === 0) _onUp(e); });
-    window.addEventListener('blur', () => { if (_shapeStart) { _isDown = false; _cancelShape(); } if (_active === 'eraser') { _isDown = false; _eraseStroke = false; _lastPainted = null; _hoverCell = null; _clearEraserHover(); Canvas.render(); } });
+    // (an eraser stroke never needs this: leaving the canvas fires mouseleave first and ends it)
+    window.addEventListener('mouseup', e => { if (_shapeStart && e.button === 0) _onUp(e); });
+    window.addEventListener('blur', () => {
+      if (_shapeStart) { _isDown = false; _cancelShape(); }
+      if (_active === 'eraser') {
+        const had = _eraseStroke || Canvas.hasHighlight('eraser');
+        _isDown = false; _eraseStroke = false; _lastPainted = null; _hoverCell = null; _clearEraserHover();
+        if (had) { IO.scheduleAutoSave(); Canvas.render(); }
+      }
+    });
     // Keyboard tool shortcuts
     window.addEventListener('keydown', e => {
       if (e.ctrlKey || e.metaKey) return;
@@ -5315,9 +5327,11 @@ const Tools = (() => {
         return;
       }
       const mapMode = document.body.classList.contains('mode-map');
-      if (e.key === 'Escape' && _eraseStroke) {      // cancel the stroke: roll its History step back, no step is left
+      if (e.key === 'Escape' && _eraseStroke) {      // cancel the stroke: roll back ITS History step (no-op if it is no longer on top)
         _eraseStroke = false; _isDown = false; _lastPainted = null;
-        if (!_eraseStale()) History.rollback();
+        if (!_eraseStale()) History.rollback(_eraseToken);
+        _eraseToken = null;
+        IO.scheduleAutoSave();
         Canvas.render(); Canvas.drawMinimap();
         return;
       }
@@ -5346,7 +5360,8 @@ const Tools = (() => {
     });
   }
 
-  return { eraseCells: _resetCells, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
+  function isStroking() { return _eraseStroke; }
+  return { isStroking, eraseCells: _resetCells, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
            applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
@@ -5425,18 +5440,23 @@ const History = (() => {
     tileExtras  = snap.tileExtras ? JSON.parse(JSON.stringify(snap.tileExtras))        : {};
     roadsData   = snap.roads      ? Object.assign({}, snap.roads)                      : {};
     UI.updateSettlementCount();
+    invalidateSatelliteMap();      // mapData changed in place: the derived footprint map is stale
     if (UI.rebuildSlotPanel) UI.rebuildSlotPanel();
   }
 
+  // Returns a token that lets the caller roll THIS step back (see rollback); other callers ignore it.
   function push() {
-    if (_undo.length >= MAX) _undo.shift();  // evict oldest
-    _undo.push(_snapshot());
+    const evicted = _undo.length >= MAX ? _undo.shift() : null;   // evict oldest
+    const snap = _snapshot();
+    _undo.push(snap);
+    const redo = _redo.slice();
     _redo.length = 0;   // clear redo on new action
     UI.updateMenuHistoryState();
+    return { snap, evicted, redo };
   }
 
   function undo() {
-    if (Tools.isFillBusy() || _undo.length === 0) return;
+    if (Tools.isFillBusy() || Tools.isStroking() || _undo.length === 0) return;
     _redo.push(_snapshot());
     const snap = _undo.pop();
     _restore(snap);
@@ -5448,7 +5468,7 @@ const History = (() => {
   }
 
   function redo() {
-    if (Tools.isFillBusy() || _redo.length === 0) return;
+    if (Tools.isFillBusy() || Tools.isStroking() || _redo.length === 0) return;
     _undo.push(_snapshot());
     const snap = _redo.pop();
     _restore(snap);
@@ -5459,13 +5479,19 @@ const History = (() => {
     UI.toast('Redo');
   }
 
-  // Drop the most recent undo step and restore it, leaving no redo entry (cancelling a gesture, Escape).
-  function rollback() {
-    if (_undo.length === 0) return;
-    const snap = _undo.pop();
-    _restore(snap);
-    _last = snap;
+  // Cancel a gesture: undo ONLY the step that push() returned the token for, leaving the history exactly as it was
+  // before that push (evicted oldest step and redo stack come back). If that step is no longer on top (undone,
+  // overtaken by another push, history cleared) nothing is touched. Returns true when it rolled back.
+  function rollback(token) {
+    if (!token || _undo.length === 0 || _undo[_undo.length - 1] !== token.snap) return false;
+    _undo.pop();
+    _restore(token.snap);
+    _last = token.snap;
+    if (token.evicted) _undo.unshift(token.evicted);
+    _redo.length = 0;
+    for (const r of token.redo) _redo.push(r);
     UI.updateMenuHistoryState();
+    return true;
   }
 
   function clear() {
