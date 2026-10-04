@@ -39,7 +39,6 @@ for (let i = 0; i < N; i++) {
         return {
           readyState: document.readyState,
           startupSyncDone: !!w.__startupSyncDone,
-          editorReady: !!w.__editorReady,
           lastSync: !!w.__lastSyncSummary,
           hexDb: typeof w.HexDB !== 'undefined' ? (() => { try { return w.HexDB.getAll().length; } catch (e) { return 'err'; } })() : 'undef',
           mapData: typeof w.mapData !== 'undefined' && !!w.mapData,

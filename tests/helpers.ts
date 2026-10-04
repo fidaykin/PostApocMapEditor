@@ -301,14 +301,16 @@ export async function openEditor(page: Page, opts: OpenOptions = {}) {
     // Startup-only retry, once, and only for a launch on a fresh page: the origin's storage is wiped so the second
     // attempt starts exactly like the first (the seed init script re-seeds localStorage). A second failure fails the
     // test with its diagnostic. Every retry is recorded as a 'startup-retry' annotation and a [harness] log line.
-    if (!(e instanceof EditorStartupError) || !fresh) throw e;
+    // HARNESS_NO_STARTUP_RETRY=1 (stall hunting): the first failure fails the test with its diagnostic.
+    if (!(e instanceof EditorStartupError) || !fresh || process.env.HARNESS_NO_STARTUP_RETRY === '1') throw e;
     const first = e.message;
     try { test.info().annotations.push({ type: 'startup-retry', description: first.slice(0, 2000) }); } catch (_) { /* outside a test */ }
     console.warn(`[harness] startup retry: ${first.split('\n')[0]}`);
-    const origin = new URL(page.url() !== 'about:blank' ? page.url() : (test.info().project.use.baseURL || 'http://localhost:4173')).origin;
+    // Always the project's origin: after a refused connection page.url() is chrome-error://chromewebdata/.
+    const origin = new URL(test.info().project.use.baseURL!).origin;
     await page.goto('about:blank', { timeout: 5000 }).catch(() => {});
-    const cdp = await page.context().newCDPSession(page);
-    await cdp.send('Storage.clearDataForOrigin', { origin, storageTypes: 'all' }).catch(() => {});
+    const cdp = await raceDeadline(page.context().newCDPSession(page), 5000, 'newCDPSession');
+    await raceDeadline(cdp.send('Storage.clearDataForOrigin', { origin, storageTypes: 'all' }), 5000, 'Storage.clearDataForOrigin');
     await cdp.detach().catch(() => {});
     nativeDialogs.length = 0;
     pageErrors.length = 0;

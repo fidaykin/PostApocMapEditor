@@ -8,10 +8,10 @@ import { spawn } from 'child_process';
  * a sleep (startup readiness, the test timeout itself) ends only at the next wake, ~8 minutes later, so a 2-3 minute
  * suite took 20+ minutes with a burst of timeouts after each wake. `caffeinate -i -s -w <runner pid>` holds
  * PreventUserIdleSystemSleep + PreventSystemSleep (the latter applies on AC power) until the runner exits.
- * Set PW_ALLOW_SLEEP=1 to skip.
+ * Set PW_ALLOW_SLEEP=1 (or NO_CAFFEINATE=1) to skip.
  */
 export default function globalSetup() {
-  if (process.platform !== 'darwin' || process.env.PW_ALLOW_SLEEP) return;
+  if (process.platform !== 'darwin' || process.env.PW_ALLOW_SLEEP === '1' || process.env.NO_CAFFEINATE === '1') return;
   const child = spawn('caffeinate', ['-i', '-s', '-w', String(process.pid)], { stdio: 'ignore' });
   child.on('error', () => { /* caffeinate unavailable: run without it */ });
   child.unref();
