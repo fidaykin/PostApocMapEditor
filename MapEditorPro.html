@@ -2369,7 +2369,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "bbfee64";
+const COMMIT  = "8f8857d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4758,14 +4758,15 @@ const Selection = (() => {
 const Clipboard = (() => {
   let _buf = null;
   const _geomCache = new WeakMap();   // buf -> Map(transform signature -> geom): geometry depends on the buffer AND the float transform
-  const _xfIdentity = xf => xf == null || (!xf.rot && !xf.mh && !xf.mv);
   // Canonical signature: the 24 (rot, mh, mv) combinations are only 12 distinct transforms (mirror h then v = rotation by
   // 3, mirror v = mirror h + rotation by 3), so equivalent ones share one cached geometry: (mh xor mv, rot + 3 if mv).
   const _xfSig = xf => {
-    if (_xfIdentity(xf)) return 'id';
+    if (xf == null) return 'id';
     const rot = ((((xf.rot | 0) + (xf.mv ? 3 : 0)) % 6) + 6) % 6, m = !!xf.mh !== !!xf.mv;
     return rot === 0 && !m ? 'id' : rot + ',' + m;
   };
+  // Identity-EQUIVALENT transforms (e.g. rot 3 + mirror h + mirror v) behave exactly like no transform.
+  const _xfIdentity = xf => _xfSig(xf) === 'id';
   const GEOM_CACHE_MAX = 6;   // geometries kept per buffer (LRU)
 
   // Bridge axes (bridgesData; the UI labels are 0 = N<->S, 1 = NE<->SW, 2 = NW<->SE). Rotation by k steps (60 degrees
@@ -4841,7 +4842,27 @@ const Clipboard = (() => {
   // the surviving set only, so the result does not depend on buffer order); only when none is left are overlaps
   // BETWEEN pasted footprints resolved (the earlier buffer cell wins), with claims recomputed from the survivors, and
   // the loop starts again (a dropped anchor can free a footprint cell another one was blocked on).
+  // Under a rotation / mirror the SOURCE footprint cells (`sat`) of an anchor that is in the buffer are not planned as
+  // terrain (the destination footprint derives from the anchor), but their zone and road travel to the transformed cell
+  // position: items.carry = [{col,row,idx,e}] (in-map targets holding a zone and/or a road). items.dropped counts what
+  // cannot follow: objects, bridges and extras on those cells, and zone/road that fall off the map.
   function plan(buf, target, xf) {
+    const items = _plan(buf, target, xf);
+    items.carry = []; items.dropped = 0;
+    if (_xfIdentity(xf)) return items;
+    const W = MAP_WIDTH, H = MAP_HEIGHT, t0 = HexUtils.toCube(target.col, target.row, W, H);
+    for (const e of buf.cells) {
+      if (!e.sat) continue;
+      const lostLayer = e.o || e.b !== undefined || e.x;
+      if (lostLayer) items.dropped++;
+      if (!e.rd && !e.z) continue;
+      const p = _target(e, t0, xf);
+      if (HexUtils.inBounds(p.col, p.row, W, H)) items.carry.push({ col: p.col, row: p.row, idx: p.row * W + p.col, e });
+      else if (!lostLayer) items.dropped++;
+    }
+    return items;
+  }
+  function _plan(buf, target, xf) {
     const W = MAP_WIDTH, H = MAP_HEIGHT, t0 = HexUtils.toCube(target.col, target.row, W, H);
     let items = [];
     const moved = !_xfIdentity(xf);
@@ -4937,11 +4958,17 @@ const Clipboard = (() => {
         if (!inP.has(nr * W + nc)) { touched.push({ col: it.col, row: it.row, prev: prevs[n] }); break; }
       }
     });
-    Tools.autoResolveEdgesAround(touched);
+    if (layers.terrain !== false) Tools.autoResolveEdgesAround(touched);   // edges depend on terrain only
     return items.length;
   }
 
-  function place(buf, target, xf, layers, beforeWrite) { return write(plan(buf, target, xf), layers, beforeWrite, xf); }
+  // Writes the carried zone / road of source footprint cells (plan().carry) as part of the SAME step: terrain, objects,
+  // bridges and extras of those cells never travel.
+  function writeCarry(items) {
+    return items.carry && items.carry.length ? write(items.carry, { terrain: false, objects: false }, null, null) : 0;
+  }
+
+  function place(buf, target, xf, layers, beforeWrite) { const items = plan(buf, target, xf), n = write(items, layers, beforeWrite, xf); if (n) writeCarry(items); return n; }
 
   // ── Ghost geometry: world-space offsets from the anchor cell centre, built ONCE per buffer (translation invariant) ──
   function ghostGeometry(buf, xf) {
@@ -5003,7 +5030,7 @@ const Clipboard = (() => {
 
   function get() { return _buf; }
   function set(buf) { _buf = buf; }
-  return { capture, previewCells, plan, write, place, ghostGeometry, ghostLayer, get, set, _geomCacheSize: buf => (_geomCache.get(buf) || { size: 0 }).size };
+  return { capture, previewCells, plan, write, writeCarry, isIdentity: _xfIdentity, place, ghostGeometry, ghostLayer, get, set, _geomCacheSize: buf => (_geomCache.get(buf) || { size: 0 }).size };
 })();
 // ════════════════════════════════════════════════════════════
 // TOOLS MODULE — paint, fill, rect, eyedropper, settlement, erase
@@ -5934,7 +5961,7 @@ const Tools = (() => {
     Canvas.render();
   }
   // The float transform handed to Clipboard (null = identity, so the identity geometry stays shared).
-  function _xfOf() { const x = _float && _float.xf; return !x || (!x.rot && !x.mh && !x.mv) ? null : { rot: x.rot, mh: x.mh, mv: x.mv }; }
+  function _xfOf() { const x = _float && _float.xf; return !x || Clipboard.isIdentity(x) ? null : { rot: x.rot, mh: x.mh, mv: x.mv }; }
   function _hoverFloat(col, row) {
     const k = col + ',' + row;
     if (k === _floatKey) return;
@@ -5990,12 +6017,12 @@ const Tools = (() => {
   // id, a road, a bridge, extras and the zone value. The drop compares it with the one taken at lift time, so an in-place
   // writer (Clear Map, Fill Map, Satellite apply, QA placer, anything) that changed the source behind the float is caught.
   function _moveSig(cells) {
-    const W = MAP_WIDTH, zl = ZonePainter.getZoneLayer(), bridges = new Set(bridgesData.map(b => b.row * W + b.col));
+    const W = MAP_WIDTH, zl = ZonePainter.getZoneLayer(), bridges = new Map(bridgesData.map(b => [b.row * W + b.col, b.axis]));
     let h1 = 0x811c9dc5, h2 = 0x9747b28c;
     const mix = str => { for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619); h2 = Math.imul(h2 + c, 0x85ebca6b) ^ (h2 >>> 13); } };
     for (const { col, row } of cells) {
       const idx = row * W + col, k = col + ',' + row;
-      mix(String(mapData[idx])); mix('|' + (objectsData[k] || '') + (roadsData[k] ? 'r' : '-') + (bridges.has(idx) ? 'b' : '-') + (tileExtras[k] ? 'x' : '-') + (zl ? zl[idx] : 0) + ';');
+      mix(String(mapData[idx])); mix('|' + (objectsData[k] || '') + (roadsData[k] ? 'r' + JSON.stringify(roadsData[k]) : '-') + (bridges.has(idx) ? 'b' + bridges.get(idx) : '-') + (tileExtras[k] ? 'x' + JSON.stringify(tileExtras[k]) : '-') + (zl ? zl[idx] : 0) + ';');
     }
     return cells.length + ':' + (h1 >>> 0) + ':' + (h2 >>> 0);
   }
@@ -6022,6 +6049,7 @@ const Tools = (() => {
       return 0;
     }
     Clipboard.write(items, null, null, xf);
+    Clipboard.writeCarry(items);                           // zone / road of the source footprint cells, same step
     // Cells that did not make it: off the map (clipped) or skipped by the plan (clipped / overlapping anchors). The source
     // footprint cells of an anchor under a transform are not carried by design (the destination footprint is derived).
     const lost = buf.cells.length - (xf ? buf.cells.filter(e => e.sat).length : 0) - items.length;
@@ -6031,6 +6059,7 @@ const Tools = (() => {
     Selection.setCells(cells);
     if (lost > 0) UI.toast(lost + (lost === 1 ? ' cell' : ' cells') + ' fell off the map or ' + (lost === 1 ? 'was' : 'were') + ' skipped (undo restores them)');
     if (xf && items.some(i => i.fp)) UI.toast('Multi-tile terrain keeps its orientation');
+    if (items.dropped) UI.toast(items.dropped + ' objects/bridges/extras on multi-tile footprints were not carried (undo restores them)');
     Canvas.drawMinimap(); Canvas.render(); IO.scheduleAutoSave();
     return items.length;
   }
@@ -6042,9 +6071,11 @@ const Tools = (() => {
     const items = Clipboard.plan(_float.buf, { col, row }, xf);
     const n = Clipboard.write(items, null, () => History.push(), xf);   // the History step is pushed before the first write
     if (!n) return 0;
+    Clipboard.writeCarry(items);
     Selection.setCells(items.map(i => ({ col: i.col, row: i.row })));
     // multi-tile terrain cannot rotate: it keeps its id and its own footprint (checked at the destination by plan)
     if (xf && items.some(i => i.fp)) UI.toast('Multi-tile terrain keeps its orientation');
+    if (items.dropped) UI.toast(items.dropped + ' objects/bridges/extras on multi-tile footprints were not carried');
     Canvas.drawMinimap(); Canvas.render(); IO.scheduleAutoSave();
     return n;
   }

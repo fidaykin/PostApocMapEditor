@@ -2552,3 +2552,166 @@ test.describe('transform and move: fix round 1 (T2.10)', () => {
     expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 1, mh: false, mv: false });
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------------
+// Fix round 2 (T2.10): zone / road of multi-tile footprint cells travel under a transform; identity-equivalent
+// transforms are the identity; the drop-time signature sees road type, extras content and bridge axis.
+// ---------------------------------------------------------------------------------------------------------------
+test.describe('transform and move: fix round 2 (T2.10)', () => {
+  const FP = 'Rabbit_Flat_1';
+  test.beforeEach(async ({ page }) => { await freshEditor(page); await toastsOn(page); });
+  const snap = (page: Page) => page.evaluate(() => JSON.stringify({ m: mapData.join('|'), o: objectsData, r: roadsData, b: bridgesData, x: tileExtras, z: Array.from(ZonePainter.getZoneLayer()).join('') }));
+  const toasts = (page: Page) => page.evaluate(() => (window as any).__toasts as string[]);
+
+  /** Seeds a Rabbit_Flat_1 anchor at (200,200) in a Forest disc, zones / roads / objects / bridge / extras on its footprint
+   *  cells and an ordinary zone on a plain neighbour. Selects the disc. Returns the cell lists (strings "col,row"). */
+  const seed = (page: Page, withLost: boolean) => page.evaluate(([FP, withLost]) => {
+    const W = MAP_WIDTH, H = MAP_HEIGHT, entry = Terrain.byHexId(FP as string);
+    const disc = HexUtils.discCells(200, 200, 3, W, H);
+    disc.forEach((c: any) => { mapData[c.row * W + c.col] = 'Forest_1'; });
+    mapData[200 * W + 200] = FP as string; invalidateSatelliteMap();
+    const fp = footprintCells(200, 200, entry), zl = ZonePainter.getZoneLayer();
+    fp.forEach((f: any, i: number) => { if (i !== 1) zl[f.row * W + f.col] = 3 + i; });   // fp[1]: road only (no zone)
+    zl[200 * W + 200] = 2;
+    roadsData[fp[0].col + ',' + fp[0].row] = { type: 'road_hex', tag: 'a' };
+    roadsData[fp[2].col + ',' + fp[2].row] = { type: 'road_hex', tag: 'b' };
+    roadsData[fp[1].col + ',' + fp[1].row] = { type: 'road_hex', tag: 'c' };
+    const plainN = disc.find((c: any) => !(c.col === 200 && c.row === 200) && !fp.some((f: any) => f.col === c.col && f.row === c.row));
+    zl[plainN.row * W + plainN.col] = 9; roadsData[plainN.col + ',' + plainN.row] = { type: 'road_hex', tag: 'n' };
+    if (withLost) {
+      objectsData[fp[1].col + ',' + fp[1].row] = 'Grain_1';
+      bridgesData.push({ col: fp[2].col, row: fp[2].row, axis: 1 });
+      tileExtras[fp[0].col + ',' + fp[0].row] = { under: 'Water_1' };
+    }
+    // data far away from the move: must never change
+    zl[300 * W + 300] = 11; roadsData['300,300'] = { type: 'road_hex', tag: 'far' }; mapData[300 * W + 300] = 'Desert_1';
+    Selection.setCells(disc);
+    return { fp: fp.map((f: any) => f.col + ',' + f.row), plain: plainN.col + ',' + plainN.row };
+  }, [FP, withLost] as [string, boolean]);
+
+  /** Independent expectation: for every source cell, its destination under (rot, mh, mv) found from PIXEL geometry. */
+  const expectedDest = (page: Page, keys: string[], origin: { col: number; row: number }, drop: { col: number; row: number }, xf: { rot: number; mh: boolean; mv: boolean }) => page.evaluate(([keys, o, d, xf]: any) => {
+    const W = MAP_WIDTH, H = MAP_HEIGHT, c0 = Canvas.hexCenterWorld(o.col, o.row), d0 = Canvas.hexCenterWorld(d.col, d.row);
+    const ref = (v: { x: number; y: number }) => {
+      const x = xf.mh ? -v.x : v.x, y = xf.mv ? -v.y : v.y, a = Math.PI / 3 * xf.rot, cs = Math.cos(a), sn = Math.sin(a);
+      return { x: x * cs - y * sn, y: x * sn + y * cs };
+    };
+    const area = HexUtils.discCells(d.col, d.row, 8, W, H), out: Record<string, string> = {};
+    for (const k of keys) {
+      const [c, r] = k.split(',').map(Number), p = Canvas.hexCenterWorld(c, r), v = ref({ x: p.x - c0.x, y: p.y - c0.y });
+      const hit = area.find((a: any) => { const q = Canvas.hexCenterWorld(a.col, a.row); return Math.abs(q.x - d0.x - v.x) < 1e-3 && Math.abs(q.y - d0.y - v.y) < 1e-3; });
+      out[k] = hit ? hit.col + ',' + hit.row : 'none';
+    }
+    return out;
+  }, [keys, origin, drop, xf]);
+
+  const XFS: { rot: number; mh: boolean; mv: boolean }[] = [{ rot: 1, mh: false, mv: false }, { rot: 2, mh: true, mv: false }, { rot: 4, mh: false, mv: true }, { rot: 5, mh: true, mv: true }];
+  const lay = (page: Page, key: string) => page.evaluate((key) => { const [c, r] = key.split(',').map(Number); return { z: ZonePainter.getZoneLayer()[r * MAP_WIDTH + c], rd: (roadsData[key] || {}).tag || null, o: objectsData[key] || null, x: !!tileExtras[key], b: bridgesData.some((b: any) => b.col === c && b.row === r) }; }, key);
+
+  for (const xf of XFS) {
+    test(`a rotated / mirrored MOVE carries zones and roads of footprint cells to their transformed cells (rot ${xf.rot}, mh ${xf.mh}, mv ${xf.mv}); one step; nothing else changes`, async ({ page }) => {
+      const s = await seed(page, false);
+      const base = await snap(page), s0 = await page.evaluate(() => History.undoSize());
+      const origin = await page.evaluate(() => Clipboard.capture(Selection.getCells()).origin);
+      const drop = { col: 150, row: 150 };
+      const dest = await expectedDest(page, [...s.fp, s.plain, '200,200'], origin, drop, xf);
+      expect(Object.values(dest).every(v => v !== 'none')).toBe(true);
+      const farBase = await page.evaluate(() => [ZonePainter.getZoneLayer()[300 * MAP_WIDTH + 300], JSON.stringify(roadsData['300,300']), mapData[300 * MAP_WIDTH + 300]]);
+      await page.evaluate((xf) => { Tools.beginMove(); Tools.setFloatTransform(xf); Tools.dropFloat(150, 150); }, xf);
+      // zones (ids 3,4,5 on the footprint cells, 2 on the anchor, 9 on the plain neighbour)
+      expect(await lay(page, dest[s.fp[0]])).toMatchObject({ z: 3, rd: 'a' });
+      expect(await lay(page, dest[s.fp[1]])).toMatchObject({ z: 0, rd: 'c' });
+      expect(await lay(page, dest[s.fp[2]])).toMatchObject({ z: 5, rd: 'b' });
+      expect(await lay(page, dest[s.plain])).toMatchObject({ z: 9, rd: 'n' });
+      expect(await lay(page, dest['200,200'])).toMatchObject({ z: 2 });
+      expect(await lay(page, '150,150')).toMatchObject({ z: 2 });       // the anchor lands on the drop cell
+      // the source is vacated, the far data is untouched, no object / bridge appeared
+      for (const k of [...s.fp, '200,200', s.plain]) expect(await lay(page, k)).toMatchObject({ z: 0, rd: null });
+      expect(await page.evaluate(() => [ZonePainter.getZoneLayer()[300 * MAP_WIDTH + 300], JSON.stringify(roadsData['300,300']), mapData[300 * MAP_WIDTH + 300]])).toEqual(farBase);
+      expect(await page.evaluate(() => [History.undoSize(), mapData[150 * MAP_WIDTH + 150]])).toEqual([s0 + 1, FP]);
+      await page.evaluate(() => History.undo());
+      expect(await snap(page)).toBe(base);
+    });
+  }
+
+  test('objects, bridges and extras on footprint cells cannot follow a fixed-orientation footprint: they are dropped, counted in a toast, restored by undo; zone and road still travel', async ({ page }) => {
+    const s = await seed(page, true);
+    const base = await snap(page);
+    const origin = await page.evaluate(() => Clipboard.capture(Selection.getCells()).origin);
+    const xf = { rot: 1, mh: false, mv: false };
+    const dest = await expectedDest(page, s.fp, origin, { col: 150, row: 150 }, xf);
+    await page.evaluate((xf) => { Tools.beginMove(); Tools.setFloatTransform(xf); Tools.dropFloat(150, 150); }, xf);
+    expect(await page.evaluate(() => [Object.keys(objectsData).filter(k => objectsData[k] === 'Grain_1').length, bridgesData.length, Object.keys(tileExtras).length])).toEqual([0, 0, 0]);
+    expect(await lay(page, dest[s.fp[0]])).toMatchObject({ z: 3, rd: 'a', x: false });
+    expect(await lay(page, dest[s.fp[2]])).toMatchObject({ z: 5, rd: 'b', b: false });
+    const t = (await toasts(page)).find(x => /multi-tile footprints were not carried/.test(x));
+    expect(t).toMatch(/^3 objects\/bridges\/extras on multi-tile footprints were not carried/);
+    expect((await toasts(page)).some(x => /fell off|skipped/.test(x))).toBe(false);
+    await page.evaluate(() => History.undo());
+    expect(await snap(page)).toBe(base);
+  });
+
+  test('a transformed PASTE carries zone and road of footprint cells too (source intact, one step), and reports dropped objects', async ({ page }) => {
+    const s = await seed(page, true);
+    const origin = await page.evaluate(() => { Tools.copySelection(); return Clipboard.get().origin; });
+    const base = await snap(page), s0 = await page.evaluate(() => History.undoSize());
+    const xf = { rot: 2, mh: true, mv: false };
+    const dest = await expectedDest(page, [...s.fp, '200,200'], origin, { col: 150, row: 150 }, xf);
+    await page.evaluate((xf) => { Tools.beginPaste(Clipboard.get()); Tools.setFloatTransform(xf); Tools.dropFloat(150, 150); }, xf);
+    expect(await lay(page, dest[s.fp[0]])).toMatchObject({ z: 3, rd: 'a' });
+    expect(await lay(page, dest[s.fp[1]])).toMatchObject({ z: 0, rd: 'c' });
+    expect(await lay(page, dest[s.fp[2]])).toMatchObject({ z: 5, rd: 'b' });
+    expect(await lay(page, s.fp[0])).toMatchObject({ z: 3, rd: 'a' });           // the source is untouched
+    expect(await page.evaluate(() => History.undoSize())).toBe(s0 + 1);
+    expect((await toasts(page)).some(x => /^3 objects\/bridges\/extras on multi-tile footprints were not carried/.test(x))).toBe(true);
+    await page.evaluate(() => History.undo());
+    expect(await snap(page)).toBe(base);
+  });
+
+  test('an identity-EQUIVALENT transform (/ ; and . x3 = rot 3 + both mirrors) behaves as no transform: dropped where it was = nothing, no orientation toast', async ({ page }) => {
+    await seed(page, false);
+    const base = await snap(page), s0 = await page.evaluate(() => History.undoSize());
+    await page.keyboard.press('Enter');
+    for (const k of ['/', ';', '.', '.', '.']) await page.keyboard.press(k);
+    expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 3, mh: true, mv: true });
+    const o = await page.evaluate(() => Clipboard.capture(Selection.getCells()).origin);
+    expect(await page.evaluate(([c, r]) => Tools.dropFloat(c, r), [o.col, o.row])).toBe(0);
+    expect(await snap(page)).toBe(base);
+    expect(await page.evaluate(() => [History.undoSize(), Tools.isMoving(), Tools.isPasting()])).toEqual([s0, false, false]);
+    expect((await toasts(page)).filter(x => /orientation|not carried|fell off/.test(x))).toEqual([]);
+  });
+
+  test('an identity-equivalent move to ANOTHER cell is a pure translation: footprint cells keep zone and road at the translated cells, no orientation toast', async ({ page }) => {
+    const s = await seed(page, false);
+    const origin = await page.evaluate(() => Clipboard.capture(Selection.getCells()).origin);
+    const dest = await expectedDest(page, s.fp, origin, { col: 150, row: 150 }, { rot: 0, mh: false, mv: false });
+    await page.evaluate(() => { Tools.beginMove(); Tools.setFloatTransform({ rot: 3, mh: true, mv: true }); Tools.dropFloat(150, 150); });
+    expect(await lay(page, dest[s.fp[0]])).toMatchObject({ z: 3, rd: 'a' });
+    expect(await lay(page, dest[s.fp[2]])).toMatchObject({ z: 5, rd: 'b' });
+    expect((await toasts(page)).filter(x => /orientation|not carried/.test(x))).toEqual([]);
+  });
+
+  // ---- drop-time signature: road type, extras content, bridge axis ------------------------------------
+  const sigCases: [string, string][] = [
+    ['a road changes its TYPE (presence unchanged)', `roadsData['222,220'] = { type: 'other_road' }`],
+    ['extras change their CONTENT (presence unchanged)', `tileExtras['223,220'] = { under: 'Desert_1' }`],
+    ['a bridge changes its AXIS (presence unchanged)', `bridgesData.find(b => b.col === 224 && b.row === 220).axis = 2`],
+  ];
+  for (const [name, code] of sigCases) {
+    test(`drop-time signature: ${name} behind the float cancels the move`, async ({ page }) => {
+      await page.evaluate(() => {
+        const cells = Tools._rectCells(222, 220, 226, 222);
+        roadsData['222,220'] = { type: 'road_hex' }; tileExtras['223,220'] = { under: 'Water_1' }; bridgesData.push({ col: 224, row: 220, axis: 0 });
+        Selection.setCells(cells);
+      });
+      await page.keyboard.press('Enter');
+      expect(await page.evaluate(() => Tools.isMoving())).toBe(true);
+      await page.evaluate(new Function(code) as any);
+      const base = await snap(page), s0 = await page.evaluate(() => History.undoSize());
+      expect(await page.evaluate(() => Tools.dropFloat(225, 190))).toBe(0);
+      expect(await snap(page)).toBe(base);
+      expect(await page.evaluate(() => History.undoSize())).toBe(s0);
+      expect((await toasts(page)).some(t => /map changed while the region was lifted/i.test(t))).toBe(true);
+    });
+  }
+});
