@@ -2442,7 +2442,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "4146e94";
+const COMMIT  = "95d4e5a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5734,7 +5734,18 @@ const Tools = (() => {
     return !(e && Array.isArray(e.occupiedOffsets) && e.occupiedOffsets.length > 0);
   }
 
+  // The Bridge button is disabled (with a reason in its tooltip) while no loaded package has Bridge buildings.
+  function refreshBridgeButton() {
+    const b = document.querySelector('.tool-btn[data-tool="bridge"]');
+    if (!b) return;
+    const none = !_bridgeBuildings().length;
+    if (!b.dataset.title0) b.dataset.title0 = b.title;
+    b.disabled = none;
+    b.title = none ? 'No bridge buildings in the loaded packages: load or enable a package that has Bridge buildings' : b.dataset.title0;
+  }
+
   function setActive(name) {
+    refreshBridgeButton();
     if (name === 'bridge' && !_bridgeBuildings().length) { UI.toast('No bridge buildings available'); return; }   // the tool stays inactive
     if (_active !== name && name !== 'road-connect') _clearRoadStart(true);   // a pending Connect Road start never survives a tool switch
     _active = name;
@@ -5826,7 +5837,10 @@ const Tools = (() => {
     if (_active === 'bridge') {                                   // the Bridge tool is active: this is ITS selection
       if (!_bridgeBuildings().some(b => b.id === id)) { UI.toast('Not a bridge building: ' + id); return; }
       _selectedBridgeId = id;
-    } else _selectedBuildingId = id;
+    } else {
+      if (_bridgeBuildings().some(b => b.id === id)) { UI.toast('Not a building for this tool'); return; }   // bridges belong to the Bridge tool
+      _selectedBuildingId = id;
+    }
     document.querySelectorAll('.bld-card').forEach(c => c.classList.toggle('selected', c.dataset.bldId === id));
     _updateBuildingLabel();
   }
@@ -6541,10 +6555,13 @@ const Tools = (() => {
   function _placeBridge(col, row) {
     const bridgeId = _selectedBridgeId;
     if (!bridgeId) return false;
-    if (!_isRiverTile(col, row)) return _objRefuse('Bridges can only be built on river tiles');
-    if (getSatelliteAnchor(col, row)) return _objRefuse('Cannot place a building on a multi-tile terrain footprint');
     const key = col + ',' + row;
     const old = objectsData[key];
+    // removing the same bridge can never break the river rule, so it works wherever the bridge stands (even on land / a footprint)
+    if (old !== bridgeId) {
+      if (!_isRiverTile(col, row)) return _objRefuse('Bridges can only be built on river tiles');
+      if (getSatelliteAnchor(col, row)) return _objRefuse('Cannot place a building on a multi-tile terrain footprint');
+    }
     _pushOnce();
     if (old) _removeSatellites(col, row, old);
     if (old === bridgeId) delete objectsData[key];
@@ -7109,7 +7126,7 @@ const Tools = (() => {
         _lastObjectPainted = { col, row };
         break;
       case 'bridge':
-        if (!_selectedBridgeId) { UI.toast('Pick a bridge first'); _isDown = false; break; }
+        if (!_selectedBridgeId || !_bridgeBuildings().some(b => b.id === _selectedBridgeId)) { _selectedBridgeId = null; UI.toast('Pick a bridge first'); _isDown = false; break; }   // also when the selection vanished with a package change
         _beginLazyStroke();
         _placeBridge(col, row);
         break;
@@ -7399,7 +7416,7 @@ const Tools = (() => {
   function isStroking() { return _eraseStroke || isMoving(); }   // undo / redo are ignored while a lifted selection floats
   function isPasting() { return !!_float; }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, whenIdle, isFillBusy, isStrokeActive,
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive,
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
@@ -8554,6 +8571,7 @@ const UI = (() => {
   }
 
   function buildPalette() {
+    if (typeof Tools !== 'undefined' && Tools.refreshBridgeButton) Tools.refreshBridgeButton();   // package changes rebuild the palette
     if (typeof Packages !== 'undefined') Packages.renderFilterChips();
     const scroll = document.getElementById('palette-scroll');
     scroll.innerHTML = '';

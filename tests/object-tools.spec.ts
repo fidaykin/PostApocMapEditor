@@ -1133,6 +1133,54 @@ test.describe('bridge tool (T2.16)', () => {
   const obj = (page: Page, k: string) => page.evaluate((key) => objectsData[key] || null, k);
   const display = (page: Page) => page.evaluate(() => getComputedStyle(document.getElementById('obj-building-picker')!).display);
 
+  // ── cleanup A4 ──
+  test('a bridge standing on non-river land can be toggled off by the bridge tool in one step; placing on land is still refused', async ({ page }) => {
+    await page.evaluate(() => { objectsData['228,224'] = 'Road_Bridge_NS_1'; });
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const s0 = await undoSize(page);
+    await clickCell(page, 228, 224);                                  // Plain_1 with the SAME bridge: removal
+    expect(await obj(page, '228,224')).toBe(null);
+    expect(await undoSize(page)).toBe(s0 + 1);
+    expect((await toasts(page)).filter(t => t === 'Bridges can only be built on river tiles').length).toBe(0);
+    await page.evaluate(() => { objectsData['229,224'] = 'Road_Bridge_SENW_1'; });
+    await clickCell(page, 229, 224);                                  // a DIFFERENT bridge on land is a replace: still refused
+    expect(await obj(page, '229,224')).toBe('Road_Bridge_SENW_1');
+    await clickCell(page, 230, 224);                                  // empty land: refused
+    expect(await obj(page, '230,224')).toBe(null);
+    expect((await toasts(page)).filter(t => t === 'Bridges can only be built on river tiles').length).toBe(2);
+    expect(await undoSize(page)).toBe(s0 + 1);
+  });
+
+  test('a selected bridge that no longer exists in BldDB is refused with "Pick a bridge first" and writes nothing', async ({ page }) => {
+    await river(page);
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    await page.evaluate(() => { const o = BldDB.getAll; BldDB.getAll = () => o.call(BldDB).filter((b: any) => b.id !== 'Road_Bridge_NS_1'); });
+    const s0 = await undoSize(page);
+    await clickCell(page, 227, 224);
+    expect(await obj(page, '227,224')).toBe(null);
+    expect(await undoSize(page)).toBe(s0);
+    expect((await toasts(page)).filter(t => t === 'Pick a bridge first').length).toBe(1);
+  });
+
+  test('object mode refuses Bridge-category ids in selectBuilding', async ({ page }) => {
+    await page.evaluate(() => { Tools.setActive('object'); Tools.selectBuilding('Artefact_Test_1'); });
+    await page.evaluate(() => Tools.selectBuilding('Road_Bridge_NS_1'));
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe('Artefact_Test_1');
+    expect((await toasts(page)).filter(t => t === 'Not a building for this tool').length).toBe(1);
+  });
+
+  test('with no Bridge buildings loaded the bridge button is disabled with an explaining tooltip, and enables again', async ({ page }) => {
+    const state = () => page.evaluate(() => { const b = document.querySelector('.tool-btn[data-tool="bridge"]') as HTMLButtonElement; return { disabled: b.disabled, title: b.title }; });
+    expect((await state()).disabled).toBe(false);
+    await page.evaluate(() => { (window as any).__o = BldDB.getAll; BldDB.getAll = () => (window as any).__o.call(BldDB).filter((b: any) => b.buildingCategory !== 'Bridge'); UI.buildPalette(); });
+    const off = await state();
+    expect(off.disabled).toBe(true);
+    expect(off.title).toContain('No bridge buildings');
+    await page.evaluate(() => { BldDB.getAll = (window as any).__o; UI.buildPalette(); });
+    expect((await state()).disabled).toBe(false);
+    expect((await state()).title).toContain('Place Bridge');
+  });
+
   test('U places a bridge on a river tile, the same bridge again removes it, land is refused with a toast and no step', async ({ page }) => {
     await river(page);
     await page.keyboard.press('u');
@@ -1352,15 +1400,20 @@ test.describe('bridge tool (T2.16)', () => {
     expect(await obj(page, '230,224')).toBe('Road_Bridge_NEWS_1');
   });
 
-  test('a bridge that sits on a non-river tile (stamped / pasted / legacy) renders, survives copy-paste with its id, is refused by the bridge tool and removable by Erase Building', async ({ page }) => {
+  test('a bridge that sits on a non-river tile (stamped / pasted / legacy) renders, survives copy-paste with its id, cannot receive a new bridge from the bridge tool (it can toggle it off) and is removable by Erase Building', async ({ page }) => {
     const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
     await page.evaluate(() => { objectsData['227,224'] = 'Road_Bridge_NS_1'; Canvas.render(); });
     await bridgeTool(page, 'Road_Bridge_NS_1');
     const s0 = await undoSize(page);
-    await clickCell(page, 227, 224);                                   // land, bridge already there: refused, kept
-    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+    await clickCell(page, 228, 224);                                   // empty land: placing is refused
+    expect(await obj(page, '228,224')).toBe(null);
     expect(await undoSize(page)).toBe(s0);
     expect((await toasts(page)).some(t => /river tiles/.test(t))).toBe(true);
+    await clickCell(page, 227, 224);                                   // cleanup A4: the same bridge on land is toggled OFF (one step)
+    expect(await obj(page, '227,224')).toBe(null);
+    expect(await undoSize(page)).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
     // copy + paste to another land cell keeps the id
     await page.evaluate(() => { Tools.setActive('paint'); Selection.setCells([{ col: 227, row: 224 }]); Tools.copySelection(); Tools.beginPaste(Clipboard.get()); });
     await clickCell(page, 231, 224);
