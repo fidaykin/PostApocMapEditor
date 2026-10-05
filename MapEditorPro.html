@@ -2425,7 +2425,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "5a2ac5b";
+const COMMIT  = "db0c51f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5626,7 +5626,7 @@ const Tools = (() => {
     grid.innerHTML = buildings.map(b => {
       const src = _bldSpriteUrl(b);
       const sel = b.id === _selectedBuildingId ? ' selected' : '';
-      return `<div class="bld-card${sel}" data-bld-id="${b.id}" tabindex="0" role="button" onclick="Tools.selectBuilding('${b.id.replace(/'/g,"\\'")}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); Tools.selectBuilding(this.dataset.bldId); }">` +
+      return `<div class="bld-card${sel}" data-bld-id="${b.id}" tabindex="0" role="button" onclick="Tools.selectBuilding('${b.id.replace(/'/g,"\\'")}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); Tools.selectBuilding(this.dataset.bldId); }">` +
         `<img src="${src}" alt="" onerror="this.style.visibility='hidden'">` +
         `<span>${b.id}</span></div>`;
     }).join('');
@@ -7002,6 +7002,12 @@ const Tools = (() => {
     return false;
   }
 
+  // True when the key event targets (or the focus is on) an element that handles its own keys: a role=button / tabindex
+  // control such as a building-picker card. Enter / transform keys there act on that control, not on the selection.
+  function _ownsOwnKeys(e) {
+    return [document.activeElement, e && e.target].some(a => a && a.closest && a.closest('[role=button], .bld-card, [tabindex]'));
+  }
+
   function init() {
     Canvas.setMouseCallbacks(_onDown, _onMove, _onUp);
     // the scatter variant chips follow the selected terrain (UI.selectTerrain updates this label)
@@ -7067,12 +7073,12 @@ const Tools = (() => {
         Canvas.render(); Canvas.drawMinimap();
         return;
       }
-      if (e.key === 'Escape' && _active === 'object' && _buildingPickerOpen()) { e.preventDefault(); _closeBuildingPicker(); return; }   // closes the picker only: the tool stays and the selection is kept
+      if (e.key === 'Escape' && _active === 'object' && _buildingPickerOpen() && !e.defaultPrevented && !_isTypingOrModal(e)) { e.preventDefault(); _closeBuildingPicker(); return; }   // closes the picker only: the tool stays and the selection is kept
       if (e.key === 'Escape' && _float && !e.defaultPrevented && mapMode && !_isTypingOrModal()) { _endPaste(); return; }   // ends the paste only; the selection stays
       if (e.key === 'Escape' && !e.defaultPrevented && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
       if (e.key === 'Escape' && _active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); return; }   // cancels the drag only
       if (e.key === 'Escape' && !e.defaultPrevented && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { Selection.clear(); return; }   // an Esc that closed a menu / picker (UI marks it) must not wipe the selection
-      if (_float && mapMode && !e.shiftKey && !e.altKey && !e.repeat && !_isTypingOrModal(e)) {   // transform keys: only while a float is active
+      if (_float && mapMode && !e.defaultPrevented && !_ownsOwnKeys(e) && !e.shiftKey && !e.altKey && !e.repeat && !_isTypingOrModal(e)) {   // transform keys: only while a float is active
         const k = e.code;
         if (k === 'Period' || k === 'Comma' || k === 'Slash' || k === 'Semicolon') {
           e.preventDefault();
@@ -7080,7 +7086,7 @@ const Tools = (() => {
           return;
         }
       }
-      if (e.key === 'Enter' && !_float && !_isDown && _active !== 'polygon' && mapMode && !e.altKey && !e.shiftKey && !e.repeat && !Selection.isEmpty() && !_isTypingOrModal(e)
+      if (e.key === 'Enter' && !e.defaultPrevented && !_ownsOwnKeys(e) && !_float && !_isDown && _active !== 'polygon' && mapMode && !e.altKey && !e.shiftKey && !e.repeat && !Selection.isEmpty() && !_isTypingOrModal(e)
           && ![document.activeElement, e.target].some(a => a && ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(a.tagName))) { e.preventDefault(); beginMove(); return; }   // Enter on a focused button / link / any control (also one that just blurred itself) acts on that control instead
       if (e.key === 'Enter' && _active === 'polygon' && _polyVerts.length && mapMode && !e.altKey && !_isTypingOrModal()) {
         e.preventDefault();

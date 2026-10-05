@@ -588,3 +588,63 @@ test.describe('building tools (T2.14)', () => {
     expect((await toasts(page)).some(t => /map changed/i.test(t))).toBe(true);
   });
 });
+
+// T2.14 re-review findings N1 / N3 (landed with T2.15 as its own first commit)
+test.describe('building picker keyboard hygiene (N1, N3)', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+  const pickerDisplay = (page: Page) => page.evaluate(() => getComputedStyle(document.getElementById('obj-building-picker')!).display);
+
+  test('N1: Enter on a focused building card selects the building and does NOT lift the active selection', async ({ page }) => {
+    await page.evaluate(() => { Selection.setCells([{ col: 224, row: 224 }, { col: 225, row: 224 }, { col: 226, row: 224 }], 'replace'); Tools.setActive('object'); });
+    const target = await page.evaluate(() => {
+      const ids = Array.from(document.querySelectorAll('#obj-building-picker-grid .bld-card')).map(c => (c as HTMLElement).dataset.bldId!);
+      return ids.find(i => i !== Tools.getSelectedBuildingId())!;
+    });
+    await page.focus(`#obj-building-picker-grid .bld-card[data-bld-id="${target}"]`);
+    await page.keyboard.press('Enter');
+    const r = await page.evaluate(() => ({ sel: Tools.getSelectedBuildingId(), moving: Tools.isMoving(), pasting: Tools.isPasting(), n: Selection.size(), tool: Tools.getActive() }));
+    expect(r).toEqual({ sel: target, moving: false, pasting: false, n: 3, tool: 'object' });
+  });
+
+  test('N1: Enter on the map (no focused control) still lifts the selection', async ({ page }) => {
+    await page.evaluate(() => { Selection.setCells([{ col: 224, row: 224 }, { col: 225, row: 224 }], 'replace'); Tools.setActive('paint'); (document.activeElement as HTMLElement | null)?.blur(); });
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(true);
+  });
+
+  test('N1: a keydown the page already handled (defaultPrevented) or aimed at a role=button element does not lift', async ({ page }) => {
+    await page.evaluate(() => { Selection.setCells([{ col: 224, row: 224 }, { col: 225, row: 224 }], 'replace'); Tools.setActive('paint'); (document.activeElement as HTMLElement | null)?.blur(); });
+    await page.evaluate(() => {
+      const d = document.createElement('div'); d.id = 'tmp-rb'; d.setAttribute('role', 'button'); d.tabIndex = 0; document.body.appendChild(d);
+      d.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+      d.remove();
+      const h = (e: KeyboardEvent) => { if (e.key === 'Enter') e.preventDefault(); };
+      document.addEventListener('keydown', h, { once: true });
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+    });
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(false);
+  });
+
+  test('N3: an Escape that closes an open menu, a modal or a text field does not also close the picker', async ({ page }) => {
+    await page.click('.tool-btn[data-tool="object"]');
+    expect(await pickerDisplay(page)).toBe('block');
+    // an open menu: the menu handler closes it and marks the event handled
+    await page.evaluate(() => { document.querySelector('.menu-item')!.classList.add('open'); });
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => document.querySelectorAll('.menu-item.open').length)).toBe(0);
+    expect(await pickerDisplay(page)).toBe('block');
+    // a modal overlay on screen
+    await page.evaluate(() => { const m = document.createElement('div'); m.id = 'tmp-modal'; document.body.appendChild(m); });
+    await page.keyboard.press('Escape');
+    expect(await pickerDisplay(page)).toBe('block');
+    await page.evaluate(() => document.getElementById('tmp-modal')!.remove());
+    // a focused text field
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = 'tmp-text'; i.type = 'text'; document.body.appendChild(i); i.focus(); });
+    await page.keyboard.press('Escape');
+    expect(await pickerDisplay(page)).toBe('block');
+    await page.evaluate(() => document.getElementById('tmp-text')!.remove());
+    // with nothing else open, Escape closes it
+    await page.keyboard.press('Escape');
+    expect(await pickerDisplay(page)).toBe('none');
+  });
+});
