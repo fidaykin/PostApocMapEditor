@@ -155,6 +155,16 @@ test.describe('stamp store (T2.12)', () => {
     ['rd not an object', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","rd":"road"}]}]')],
     ['b not an integer', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","b":"1"}]}]')],
     ['z not an integer', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","z":1.5}]}]')],
+    ['z 256 (Uint8 zone layer would wrap it to 0)', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","z":256}]}]')],
+    ['z 300', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","z":300}]}]')],
+    ['z negative', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","z":-1}]}]')],
+    ['road carries col/row (would move on Save/Load)', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","rd":{"type":"road_hex","col":0,"row":0}}]}]')],
+    ['road carries only row', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","rd":{"type":"road_hex","row":3}}]}]')],
+    ['extras carry col/row', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","x":{"underTerrainId":"Water_1","col":0,"row":0}}]}]')],
+    ['extras carry only col', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","x":{"col":2}}]}]')],
+    ['road without a type', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","rd":{}}]}]')],
+    ['road type not a string', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","rd":{"type":5}}]}]')],
+    ['road type empty', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","rd":{"type":""}}]}]')],
     ['duplicate cell', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A"},{"dq":0,"dr":0,"t":"B"}]}]')],
     ['__proto__ on a cell', wrap('[{"name":"x","cells":[{"dq":0,"dr":0,"t":"A","__proto__":{"polluted":1}}]}]')],
     ['__proto__ on a stamp', wrap(`[{"name":"x","__proto__":{"polluted":1},"cells":[${okCell}]}]`)],
@@ -305,7 +315,7 @@ test.describe('stamp store (T2.12)', () => {
     expect(names.filter((n: string) => n.length === 1)).toEqual(['c', 'b', 'a']);
   });
 
-  test('list orders equal creation times by id, newest id first, identically every time', async ({ page }) => {
+  test('list orders equal creation times by id (deterministic, identical every time)', async ({ page }) => {
     await freshEditor(page);
     const r = await page.evaluate(async () => {
       const cell = '{"dq":0,"dr":0,"t":"A"}';
@@ -493,10 +503,13 @@ test.describe('stamp store (T2.12)', () => {
       const d = Stamps.thumbnail(noId), e = Stamps.thumbnail(noId);
       document.createElement = realCreate;
       await Stamps.remove(rec.id);
+      let fresh = 0; const rc2 = document.createElement.bind(document);
+      document.createElement = ((tag: string, o?: any) => { if (String(tag).toLowerCase() === 'canvas') fresh++; return rc2(tag, o); }) as any;
       const f = Stamps.thumbnail(rec);                                     // after remove the cache entry is gone: a fresh render, same pixels
+      document.createElement = rc2;
       const big = Stamps.thumbnail(rec, 100000), tiny = Stamps.thumbnail(rec, -5), junk = Stamps.thumbnail(rec, NaN);
       const img = (u: string) => new Promise<number[]>(res => { const i = new Image(); i.onload = () => res([i.width, i.height]); i.src = u; });
-      return { png: a.startsWith('data:image/png;base64,'), same: a === b, sized: c === c2 && c !== a, twoRenders: afterCached, dEq: d === e && d === a, f: f === a, dims: [await img(a), await img(c), await img(big), await img(tiny), await img(junk)] };
+      return { png: a.startsWith('data:image/png;base64,'), same: a === b, sized: c === c2 && c !== a, twoRenders: afterCached, dEq: d === e && d === a, f: f === a, fresh, dims: [await img(a), await img(c), await img(big), await img(tiny), await img(junk)] };
     });
     expect(r.png).toBe(true);
     expect(r.same).toBe(true);
@@ -504,11 +517,105 @@ test.describe('stamp store (T2.12)', () => {
     expect(r.twoRenders).toBe(2);                                          // 48 and 64, each rendered once
     expect(r.dEq).toBe(true);
     expect(r.f).toBe(true);
+    expect(r.fresh).toBe(1);                                               // remove really invalidated: the canvas was rebuilt
     expect(r.dims[0]).toEqual([48, 48]);
     expect(r.dims[1]).toEqual([64, 64]);
     expect(r.dims[2][0]).toBeLessThanOrEqual(512);
     expect(r.dims[3][0]).toBeGreaterThanOrEqual(8);
     expect(r.dims[4]).toEqual([48, 48]);
+  });
+
+  // ---------- layer values must survive paste AND map save/load ---------------------------------
+  test('save rejects the same corrupting buffers and accepts the boundary values (z 255, real road/extras)', async ({ page }) => {
+    await freshEditor(page);
+    const r = await page.evaluate(async () => {
+      const mk = (extra: any) => ({ v: 1, origin: null, cells: [Object.assign({ dq: 0, dr: 0, t: 'A' }, extra)] });
+      const out: any = {};
+      for (const [k, extra] of [['z256', { z: 256 }], ['rdcol', { rd: { type: 'road_hex', col: 0, row: 0 } }], ['xrow', { x: { row: 1 } }], ['notype', { rd: {} }]] as any) {
+        try { await Stamps.save('bad', mk(extra)); out[k] = 'saved'; } catch (e: any) { out[k] = /^Invalid stamp/.test(e.message); }
+      }
+      const ok = await Stamps.save('ok', mk({ z: 255, rd: { type: 'road_alt', extra: 1 }, x: { underTerrainId: 'Water_1', tag: 7 } }));
+      out.n = (await Stamps.list()).length; out.okZ = ok.cells[0].z;
+      return out;
+    });
+    expect(r).toEqual({ z256: true, rdcol: true, xrow: true, notype: true, n: 1, okZ: 255 });
+  });
+
+  test('import accepts the boundary values a real capture can hold (z 255, a plain road_hex) unchanged', async ({ page }) => {
+    await freshEditor(page);
+    const r = await page.evaluate(async () => {
+      const text = '{"format":"mapeditor-stamps","version":1,"stamps":[{"name":"s","cells":[{"dq":0,"dr":0,"t":"Plain_1","z":255,"rd":{"type":"road_hex"}}]}]}';
+      await Stamps.importJson(text);
+      const rec = (await Stamps.list())[0];
+      return { z: rec.cells[0].z, rd: rec.cells[0].rd };
+    });
+    expect(r).toEqual({ z: 255, rd: { type: 'road_hex' } });
+  });
+
+  // ---------- created / ids / thumbnails (fix round 1) --------------------------------------------
+  test('an imported future `created` is clamped to now so it cannot pin a stamp to the top', async ({ page }) => {
+    await freshEditor(page);
+    const r = await page.evaluate(async () => {
+      const cell = '{"dq":0,"dr":0,"t":"A"}';
+      const before = Date.now();
+      await Stamps.importJson('{"format":"mapeditor-stamps","version":1,"stamps":[{"name":"future","created":8000000000000000,"cells":[' + cell + ']},{"name":"past","created":5,"cells":[' + cell + ']}]}');
+      const l = await Stamps.list();
+      const fut = l.find((s: any) => s.name === 'future'), past = l.find((s: any) => s.name === 'past');
+      await Stamps.save('later', { v: 1, origin: null, cells: [{ dq: 0, dr: 0, t: 'A' }] });
+      return { futureClamped: fut.created >= before && fut.created <= Date.now() + 1, past: past.created, top: (await Stamps.list())[0].name };
+    });
+    expect(r).toEqual({ futureClamped: true, past: 5, top: 'later' });
+  });
+
+  test('ids sort lexically in creation order across the base-36 counter rollover (36 -> 10 digits)', async ({ page }) => {
+    await freshEditor(page);
+    const r = await page.evaluate(async () => {
+      const cell = '{"dq":0,"dr":0,"t":"A"}';
+      const names = Array.from({ length: 80 }, (_, i) => 'n' + String(i).padStart(2, '0'));
+      await Stamps.importJson('{"format":"mapeditor-stamps","version":1,"stamps":[' + names.map(n => '{"name":"' + n + '","created":42,"cells":[' + cell + ']}').join(',') + ']}');
+      return (await Stamps.list()).map((s: any) => s.name);
+    });
+    // equal `created`: the newest id (= last imported) comes first, for every stamp including those after id counter 35
+    expect(r).toEqual(Array.from({ length: 80 }, (_, i) => 'n' + String(79 - i).padStart(2, '0')));
+  });
+
+  test('a database deleted or upgraded elsewhere (versionchange) is not blocked and the next call reopens', async ({ page }) => {
+    await freshEditor(page);
+    const r = await page.evaluate(async () => {
+      const buf = { v: 1, origin: null, cells: [{ dq: 0, dr: 0, t: 'A' }] };
+      await Stamps.save('before', buf);
+      let blocked = false;
+      await new Promise<void>((res, rej) => {
+        const q = indexedDB.deleteDatabase('MapEditorStamps');
+        q.onblocked = () => { blocked = true; };
+        q.onsuccess = () => res(); q.onerror = () => rej(q.error);
+      });
+      const afterDelete = (await Stamps.list()).length;
+      await Stamps.save('after', buf);
+      return { blocked, afterDelete, names: (await Stamps.list()).map((s: any) => s.name) };
+    });
+    expect(r).toEqual({ blocked: false, afterDelete: 0, names: ['after'] });
+  });
+
+  test('thumbnail work is bounded for huge stamps and exact for small ones', async ({ page }) => {
+    await freshEditor(page);
+    const r = await page.evaluate(() => {
+      const proto = CanvasRenderingContext2D.prototype as any, orig = proto.beginPath; let paths = 0;
+      proto.beginPath = function () { paths++; return orig.apply(this, arguments as any); };
+      const mk = (n: number) => ({ id: 'h' + n, cells: Array.from({ length: n }, (_, i) => ({ dq: i % 500, dr: Math.floor(i / 500), t: 'Forest_1' })) });
+      const out: any = {};
+      try {
+        Stamps.thumbnail(mk(40), 48); out.small = paths; paths = 0;
+        const edge = mk(2 * 48 * 48); Stamps.thumbnail(edge, 48); out.edge = paths; paths = 0;   // exactly 2 cells per pixel: still drawn in full
+        const url = Stamps.thumbnail(mk(250000), 48); out.huge = paths; out.png = url.startsWith('data:image/png;base64,'); paths = 0;
+      } finally { proto.beginPath = orig; }
+      return out;
+    });
+    expect(r.small).toBe(40);
+    expect(r.edge).toBe(2 * 48 * 48);
+    expect(r.png).toBe(true);
+    expect(r.huge).toBeGreaterThan(0);
+    expect(r.huge).toBeLessThanOrEqual(48 * 48);
   });
 
   test('thumbnail pixels match the independent hexCenterWorld geometry (colours at known offsets)', async ({ page }) => {

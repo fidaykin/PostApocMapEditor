@@ -2390,7 +2390,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "44419e0";
+const COMMIT  = "3843c71";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5125,7 +5125,8 @@ const Stamps = (() => {
     let rnd = '';
     try { const a = new Uint32Array(3); crypto.getRandomValues(a); rnd = Array.from(a, n => n.toString(36)).join(''); }
     catch (e) { rnd = Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2); }
-    return 's' + Date.now().toString(36) + (++_seq).toString(36) + '-' + rnd;
+    // time and counter are zero-padded (fixed width) so the ids sort lexically in creation order
+    return 's' + Date.now().toString(36).padStart(9, '0') + (++_seq).toString(36).padStart(6, '0') + '-' + rnd;
   }
   // strictly increasing within a session so saves in the same millisecond still list newest first
   function _stamp() { _lastCreated = Math.max(Date.now(), _lastCreated + 1); return _lastCreated; }
@@ -5160,6 +5161,14 @@ const Stamps = (() => {
     }
     throw _bad('unsupported value', label);
   }
+  // Road records and tile extras: the map exporter writes `{ col, row, ...record }` and the loader keys the record by those
+  // two fields, so a record holding `col`/`row` would move on Save/Load (live data never has them: the loader strips them).
+  // Roads must carry a string `type` (the editor writes 'road_hex'; every road the loader accepts has one).
+  function _cleanRecord(v, label, what, needType) {
+    for (const k of Object.keys(v)) if (k === 'col' || k === 'row') throw _bad(what + ' has a position field "' + k + '"', label);
+    if (needType && (typeof v.type !== 'string' || !v.type.length || v.type.length > MAX_STR)) throw _bad(what + ' has no type', label);
+    return _cleanJson(v, 0, label);
+  }
   const _isInt = (n, lo, hi) => Number.isInteger(n) && n >= lo && n <= hi;
   // Returns a clean copy holding ONLY the known fields (unknown ones are ignored), or throws.
   function _cleanCells(cells, label) {
@@ -5178,10 +5187,10 @@ const Stamps = (() => {
       const e = { dq: c.dq, dr: c.dr, t: c.t };
       if (c.sat !== undefined) { if (typeof c.sat !== 'boolean') throw _bad('cell ' + i + ' has a bad footprint flag', label); if (c.sat) e.sat = true; }
       if (c.o !== undefined) { if (typeof c.o !== 'string' || c.o.length > MAX_STR) throw _bad('cell ' + i + ' has a bad object id', label); e.o = c.o; }
-      if (c.rd !== undefined) { if (!c.rd || typeof c.rd !== 'object' || Array.isArray(c.rd)) throw _bad('cell ' + i + ' has a bad road', label); e.rd = _cleanJson(c.rd, 0, label); }
+      if (c.rd !== undefined) { if (!c.rd || typeof c.rd !== 'object' || Array.isArray(c.rd)) throw _bad('cell ' + i + ' has a bad road', label); e.rd = _cleanRecord(c.rd, label, 'cell ' + i + ' road', true); }
       if (c.b !== undefined) { if (!_isInt(c.b, -1000, 1000)) throw _bad('cell ' + i + ' has a bad bridge axis', label); e.b = c.b; }
-      if (c.x !== undefined) { if (!c.x || typeof c.x !== 'object' || Array.isArray(c.x)) throw _bad('cell ' + i + ' has bad extras', label); e.x = _cleanJson(c.x, 0, label); }
-      if (c.z !== undefined) { if (!_isInt(c.z, 0, 65535)) throw _bad('cell ' + i + ' has a bad zone', label); e.z = c.z; }
+      if (c.x !== undefined) { if (!c.x || typeof c.x !== 'object' || Array.isArray(c.x)) throw _bad('cell ' + i + ' has bad extras', label); e.x = _cleanRecord(c.x, label, 'cell ' + i + ' extras', false); }
+      if (c.z !== undefined) { if (!_isInt(c.z, 0, 255)) throw _bad('cell ' + i + ' has a bad zone', label); e.z = c.z; }
       out[i] = e;
     }
     return out;
@@ -5217,7 +5226,7 @@ const Stamps = (() => {
     return list().then(a => JSON.stringify({ format: 'mapeditor-stamps', version: 1, stamps: a }));
   }
   // importJson(text) -> count. Validates EVERYTHING first (nothing is written for malformed input), then adds all stamps in
-  // one transaction (all or nothing). Imported stamps get fresh ids (importing twice adds copies), keep a valid `created`.
+  // one transaction (all or nothing). Imported stamps get fresh ids (importing twice adds copies), keep a valid `created` (a future one counts as invalid: it would pin the stamp to the top).
   function importJson(text) {
     return _guard(() => {
       const L = 'Invalid stamp file';
@@ -5236,7 +5245,7 @@ const Stamps = (() => {
         const cells = _cleanCells(s.cells, L + ', stamp "' + s.name.slice(0, 40) + '"');
         total += cells.length;
         if (total > MAX_TOTAL_CELLS) throw _bad('too many cells in total (limit ' + MAX_TOTAL_CELLS + ')', L);
-        return { name: _cleanName(s.name), created: Number.isFinite(s.created) && s.created >= 0 && s.created < 8.64e15 ? s.created : null, cells };
+        return { name: _cleanName(s.name), created: Number.isFinite(s.created) && s.created >= 0 && s.created <= Date.now() ? s.created : null, cells };
       });
       if (!recs.length) return 0;
       return _run('readwrite', (st, set, fail) => {
@@ -5271,13 +5280,15 @@ const Stamps = (() => {
     const cells = rec && Array.isArray(rec.cells) ? rec.cells : [];
     if (cells.length) {
       const cx = cv.getContext('2d');
-      const pts = cells.map(c => ({ x: COL_PITCH * c.dq, y: -ROW_PITCH * (c.dr + c.dq / 2), t: c.t }));
+      const px = c => COL_PITCH * c.dq, py = c => -ROW_PITCH * (c.dr + c.dq / 2);
       let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-      for (const p of pts) { if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x; if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y; }
+      for (const c of cells) { const X = px(c), Y = py(c); if (X < minX) minX = X; if (X > maxX) maxX = X; if (Y < minY) minY = Y; if (Y > maxY) maxY = Y; }
+      // more than two cells per pixel: draw a deterministic every-Nth sample (about size*size cells) instead of every cell
+      const step = cells.length > size * size * 2 ? Math.ceil(cells.length / (size * size)) : 1;
       const bw = maxX - minX + 2 * HEX_SIZE, bh = maxY - minY + ROW_PITCH, sc = size / Math.max(bw, bh);
       const ox = (size - bw * sc) / 2, oy = (size - bh * sc) / 2, R = HEX_SIZE * sc;
-      for (const p of pts) {
-        const [r, g, b] = Terrain.color(p.t), x = ox + (p.x - minX + HEX_SIZE) * sc, y = oy + (p.y - minY + ROW_PITCH / 2) * sc;
+      for (let i = 0; i < cells.length; i += step) {
+        const c = cells[i], [r, g, b] = Terrain.color(c.t), x = ox + (px(c) - minX + HEX_SIZE) * sc, y = oy + (py(c) - minY + ROW_PITCH / 2) * sc;
         cx.fillStyle = cx.strokeStyle = 'rgb(' + r + ',' + g + ',' + b + ')';
         cx.lineWidth = 0.75;                                   // hides hairline seams between neighbours at small sizes
         cx.beginPath();
