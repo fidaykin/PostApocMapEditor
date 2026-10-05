@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openEditor } from './helpers';
-import { freshEditor } from './editor-helpers';
+import { freshEditor, clickCell } from './editor-helpers';
 
 declare let settlementSlots: any[];
 
@@ -214,9 +214,15 @@ test.describe('layers: visibility (T2.17)', () => {
     await page.evaluate(() => { roadsData['226,224'] = { type: 'road_hex' }; Layers.setVisible('roads', false); Canvas.render(); });
     const box = await page.evaluate(() => { const p = Canvas.hexScreenPos(226, 224); const b = document.getElementById('map-canvas')!.getBoundingClientRect(); return { x: b.left + p.x, y: b.top + p.y }; });
     await page.mouse.move(box.x, box.y);
-    const txt = await page.evaluate(() => document.getElementById('st-tile')!.textContent);
-    expect(txt).toBe('226, 224');
-    expect(await page.evaluate(() => /road/i.test(document.getElementById('statusbar')?.textContent || document.body.querySelector('.status-item')?.parentElement?.textContent || ''))).toBe(false);
+    const status = () => page.evaluate(() => document.getElementById('statusbar')!.textContent || '');
+    expect(await page.evaluate(() => document.getElementById('st-tile')!.textContent)).toBe('226, 224');
+    const hidden = await status();
+    // positive control: the status bar text really is read (it contains the hovered coordinates) ...
+    expect(hidden).toContain('226, 224');
+    // ... and with the road layer visible again the very same text comes out, so nothing depends on layer content
+    await page.evaluate(() => { Layers.setVisible('roads', true); });
+    await page.mouse.move(box.x + 30, box.y + 30); await page.mouse.move(box.x, box.y);
+    expect(await status()).toBe(hidden);
   });
 });
 
@@ -450,4 +456,55 @@ test.describe('layers: the palette stays reachable (T2.17)', () => {
       }
     });
   }
+});
+
+// ── T2.17 review follow-ups ────────────────────────────────────────────────────────────────────────
+test.describe('layers: review fixes after T2.17', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+
+  test('picking the Settlement tool while the Settlements layer is hidden shows the layer, so a placed settlement is visible', async ({ page }) => {
+    await page.evaluate(() => { Layers.setVisible('settlements', false); });
+    expect(await page.evaluate(() => Layers.isVisible('settlements'))).toBe(false);
+    await page.evaluate(() => Tools.setActive('settlement'));
+    expect(await page.evaluate(() => Layers.isVisible('settlements'))).toBe(true);
+    await expect(page.locator('#toast-container')).toContainText('Settlements layer shown');
+    await clickCell(page, 230, 224);
+    expect(await page.evaluate(() => settlements.some((s: any) => s.col === 230 && s.row === 224))).toBe(true);
+    // the marker is really drawn: the cell centre differs from the same render with the layer hidden
+    const px = await page.evaluate(() => {
+      const p = Canvas.hexScreenPos(230, 224), c = (document.getElementById('map-canvas') as HTMLCanvasElement).getContext('2d')!;
+      const grab = () => Array.from(c.getImageData(Math.round(p.x) - 12, Math.round(p.y) - 12, 24, 24).data).join(',');
+      Canvas.render(); const shown = grab();
+      Layers.setVisible('settlements', false); Canvas.render(); const hid = grab();
+      Layers.setVisible('settlements', true);
+      return shown !== hid;
+    });
+    expect(px).toBe(true);
+  });
+
+  test('Auto-place settlements while the Settlements layer is hidden shows the layer', async ({ page }) => {
+    await page.evaluate(() => {
+      settlementSlots.length = 0;
+      settlementSlots.push({ minDist: 10, maxDist: 20, count: 1, type: 'settlement', tapMultiplier: 1, level: 1, minSpacing: 2, nearPct: 20, midPct: 30, farPct: 50 });
+      Layers.setVisible('settlements', false);
+      autoPlaceSettlements();
+    });
+    expect(await page.evaluate(() => settlements.filter((s: any) => s.type !== 'city').length)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => Layers.isVisible('settlements'))).toBe(true);
+    await expect(page.locator('#toast-container')).toContainText('Settlements layer shown');
+  });
+
+  test('a visible Settlements layer is left alone by the Settlement tool (no toast)', async ({ page }) => {
+    await page.evaluate(() => { Tools.setActive('settlement'); });
+    await expect(page.locator('#toast-container')).not.toContainText('Settlements layer shown');
+  });
+
+  test('the zone-painter random fill keeps the Layers row and the stored state in step', async ({ page }) => {
+    await page.evaluate(() => { Layers.setVisible('zones', false); });
+    await expect(page.locator('.layer-row[data-layer="zones"] .layer-eye')).toHaveAttribute('aria-pressed', 'false');
+    await page.evaluate(() => ZonePainter._randomizeFillUI());
+    expect(await page.evaluate(() => Layers.isVisible('zones'))).toBe(true);
+    await expect(page.locator('.layer-row[data-layer="zones"] .layer-eye')).toHaveAttribute('aria-pressed', 'true');
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('layer_state_v1')!).zones.visible)).toBe(true);
+  });
 });

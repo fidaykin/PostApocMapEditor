@@ -2442,7 +2442,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "fe432dc";
+const COMMIT  = "052ea04";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3979,16 +3979,17 @@ const Canvas = (() => {
   // Low-zoom overview: the same layer at full resolution, one pixel per tile (px = column of the world grid, py = row).
   const _overviewLayer = _makeColorLayer('overviewRecolored');
 
-  // Draws the whole terrain from the cached layer. Pixel (px,py) is the tile centred at world x = px*COL_PITCH,
-  // y = py*ROW_PITCH + STAGGER - stg(px), so each pixel column is drawn as its own strip and shifted by the odd/even
-  // stagger exactly like hexCenterWorld, which makes the overview register with the sprite rendering.
-  // Terrain hidden at the flat-overview level: one flat rectangle over the map area (same extent as the overview texture).
+  // Terrain hidden at the flat-overview level: one flat rectangle over the map area. It is the bounding box of the
+  // staggered strips (up to STAGGER*scale taller than the hex outline) and is NOT pixel-rounded like _drawOverview.
   function _drawFlatMap(scale) {
     const x0 = -0.5 * COL_PITCH * scale - cameraX, x1 = (MAP_HEIGHT - 0.5) * COL_PITCH * scale - cameraX;
     const y0 = -0.5 * ROW_PITCH * scale - cameraY, y1 = ((MAP_WIDTH - 0.5) * ROW_PITCH + STAGGER) * scale - cameraY;
     ctx.fillStyle = '#1b1b1b';
     ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
   }
+  // Draws the whole terrain from the cached layer. Pixel (px,py) is the tile centred at world x = px*COL_PITCH,
+  // y = py*ROW_PITCH + STAGGER - stg(px), so each pixel column is drawn as its own strip and shifted by the odd/even
+  // stagger exactly like hexCenterWorld, which makes the overview register with the sprite rendering.
   function _drawOverview(scale) {
     const tex = _overviewLayer(MAP_HEIGHT, MAP_WIDTH);
     const cp = COL_PITCH * scale, rp = ROW_PITCH * scale;
@@ -5701,9 +5702,11 @@ const Tools = (() => {
     UI.updateStatusTool(TOOL_NAMES[name] || name);
     if (name !== 'select') Canvas.clearSelection();
     // Settlement tools require settlements to be visible
-    if ((name === 'settlement' || name === 'erase') && !settlementsVisible) {
-      settlementsVisible = true;
-      Canvas.render();
+    if (name === 'settlement' || name === 'erase') {
+      let changed = false;
+      if (!settlementsVisible) { settlementsVisible = true; changed = true; }
+      if (!Layers.isVisible('settlements')) { Layers.setVisible('settlements', true); UI.toast('Settlements layer shown'); changed = true; }   // the render ANDs both switches
+      if (changed) Canvas.render();
     }
     // Object tool: show/hide building picker panel
     const picker = document.getElementById('obj-building-picker');
@@ -16684,6 +16687,7 @@ function autoPlaceSettlements() {
   if (!settlementSlots.length) { UI.toast('No settlement slots defined.'); return; }
   History.push();
   settlementsVisible = true;
+  if (!Layers.isVisible('settlements')) { Layers.setVisible('settlements', true); UI.toast('Settlements layer shown'); }   // never place invisibly
 
   // Remove all non-city settlements, keep city marker
   settlements = settlements.filter(s => s.type === 'city');
