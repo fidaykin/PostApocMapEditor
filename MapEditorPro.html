@@ -2362,7 +2362,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "21ba6d5";
+const COMMIT  = "b05bbcc";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3510,11 +3510,13 @@ const Canvas = (() => {
   // Paste ghost (T2.9): published by Clipboard.ghostLayer. Geometry (offsets from the anchor centre) is built once per
   // buffer; moving the cursor only changes (ox, oy). Per-frame cost: <= _GHOST_HEX_MAX hex paths (exact, LOD 0), otherwise
   // ONE stroke of the boundary segments (O(boundary)), clipped to the map rectangle when the buffer may cross the edge.
-  let _ghost = null, _ghostGeomSeen = null;
-  const _ghostStats = { sets: 0, builds: 0, cellsTested: 0, segsTested: 0 };
+  let _ghost = null;
+  const _ghostGeomsSeen = new WeakSet();   // weak: a finished paste keeps no geometry alive through the Canvas
+  const _ghostStats = { sets: 0, builds: 0, masks: 0, cellsTested: 0, segsTested: 0 };   // masks: per-cell validity masks received
   const _GHOST_HEX_MAX = 1500;
   function setGhost(layer, opts) {
-    if (layer && layer.geom !== _ghostGeomSeen) { _ghostGeomSeen = layer.geom; _ghostStats.builds++; }
+    if (layer && !_ghostGeomsSeen.has(layer.geom)) { _ghostGeomsSeen.add(layer.geom); _ghostStats.builds++; }
+    if (layer && layer.valid) _ghostStats.masks++;
     if (!layer && !_ghost) return;
     _ghost = layer || null;
     _ghostStats.sets++;
@@ -3526,11 +3528,11 @@ const Canvas = (() => {
     const out = [], g = L.geom, ox = L.ox, oy = L.oy;
     // world centre -> cell via the inverse of hexCenterWorld
     for (let i = 0; i < g.n; i++) {
-      if (L.valid && !L.valid[i]) continue;
       const x = ox + g.rx[i], y = oy + g.ry[i];
       const xi = Math.round(x / COL_PITCH), row = MAP_HEIGHT - 1 - xi;
       const stg = (((xi - Math.floor(MAP_HEIGHT / 2)) % 2) !== 0) ? STAGGER : 0;
       const col = MAP_WIDTH - 1 - Math.round((y - STAGGER + stg) / ROW_PITCH);
+      if (L.crosses && (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT)) continue;
       out.push({ col, row });
     }
     return out;
@@ -3560,7 +3562,7 @@ const Canvas = (() => {
       ctx.fillStyle = FILL; ctx.fill();
       ctx.strokeStyle = STROKE; ctx.lineWidth = Math.max(1.5, radius * 0.08); ctx.stroke();
     } else {
-      if (L.valid) {   // the buffer crosses the map edge: clip the outline to the map rectangle
+      if (L.crosses) {   // the buffer crosses the map edge: clip the outline to the map rectangle
         const x0 = Canvas_hexX(MAP_HEIGHT - 1) - HEX_SIZE, x1 = Canvas_hexX(0) + HEX_SIZE;
         const y0 = -STAGGER, y1 = (MAP_WIDTH - 1) * ROW_PITCH + STAGGER + ROW_PITCH / 2;
         ctx.beginPath(); ctx.rect(x0 * scale - cameraX, y0 * scale - cameraY, (x1 - x0) * scale, (y1 - y0) * scale); ctx.clip();
@@ -4748,7 +4750,8 @@ const Selection = (() => {
 // ════════════════════════════════════════════════════════════
 const Clipboard = (() => {
   let _buf = null;
-  const _geomCache = new WeakMap();   // buf -> { key, geom }
+  const _geomCache = new WeakMap();   // buf -> Map(transform signature -> geom): geometry depends on the buffer AND the float transform
+  const _xfSig = xf => xf == null ? 'id' : JSON.stringify(xf);
 
   function capture(cells) {
     if (!cells || !cells.length) return null;
@@ -4788,59 +4791,60 @@ const Clipboard = (() => {
     return out;
   }
 
-  // Cells of a multi-tile terrain's footprint (same direction tables the satellite map uses).
-  function _footprint(col, row, entry) {
-    const dirs = (MAP_HEIGHT - 1 - row) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD, out = [];
-    for (const d of entry.occupiedOffsets) { const o = dirs[d]; if (o) out.push({ col: col + o[0], row: row + o[1] }); }
-    return out;
+  function _anchorEntry(id) {
+    const te = id ? Terrain.byHexId(id) : null;
+    return te && Array.isArray(te.occupiedOffsets) && te.occupiedOffsets.length ? te : null;
   }
 
   // Decides which buffer cells are written. A cell is dropped when it is outside the map, when it lies in the footprint
   // of an existing anchor that survives (anchor not overwritten), or when it is a multi-tile anchor whose footprint is
-  // clipped / overlaps another surviving or pasted footprint. Iterated to a fixed point (a dropped anchor keeps its footprint).
+  // clipped, covers an existing anchor / footprint that stays, or overlaps another pasted footprint.
+  // Fixed point, no iteration cap (the item set only shrinks): each pass first drops the HARD failures (they depend on
+  // the surviving set only, so the result does not depend on buffer order); only when none is left are overlaps
+  // BETWEEN pasted footprints resolved (the earlier buffer cell wins), with claims recomputed from the survivors, and
+  // the loop starts again (a dropped anchor can free a footprint cell another one was blocked on).
   function plan(buf, target, xf) {
     const W = MAP_WIDTH, H = MAP_HEIGHT, t0 = HexUtils.toCube(target.col, target.row, W, H);
     let items = [];
     for (const e of buf.cells) {
       const p = _target(e, t0, xf);
-      if (HexUtils.inBounds(p.col, p.row, W, H)) items.push({ col: p.col, row: p.row, e, idx: p.row * W + p.col });
+      if (HexUtils.inBounds(p.col, p.row, W, H)) items.push({ col: p.col, row: p.row, e, idx: p.row * W + p.col, fp: null });
     }
-    for (let guard = 0; guard < 20; guard++) {
-      const inP = new Set(items.map(i => i.idx));
-      const claimed = new Set();           // footprint cells of pasted anchors accepted so far
-      const keep = [];
+    while (true) {
+      const keepSet = new Set(items.map(i => i.idx));
+      const hard = [];
       for (const it of items) {
         const anc = getSatelliteAnchor(it.col, it.row);
-        if (anc && !inP.has(anc.row * W + anc.col)) continue;
-        keep.push(it);
-      }
-      const keepSet = new Set(keep.map(i => i.idx));
-      const finalItems = [];
-      for (const it of keep) {
-        const te = it.e.t ? Terrain.byHexId(it.e.t) : null;
-        if (te && Array.isArray(te.occupiedOffsets) && te.occupiedOffsets.length) {
-          let ok = !claimed.has(it.idx);
-          const fp = ok ? _footprint(it.col, it.row, te) : [];
+        if (anc && !keepSet.has(anc.row * W + anc.col)) continue;       // a cell of an existing footprint whose anchor stays
+        const te = _anchorEntry(it.e.t);
+        if (te) {
+          const fp = footprintCells(it.col, it.row, te);
+          let ok = true;
           for (const f of fp) {
-            if (!ok) break;
             if (!HexUtils.inBounds(f.col, f.row, W, H)) { ok = false; break; }
             const fi = f.row * W + f.col;
-            if (claimed.has(fi)) { ok = false; break; }
             const fa = getSatelliteAnchor(f.col, f.row);
-            if (fa && !keepSet.has(fa.row * W + fa.col) ) { ok = false; break; }
-            const fe = mapData[fi] ? Terrain.byHexId(mapData[fi]) : null;
-            const fIsAnchor = fe && Array.isArray(fe.occupiedOffsets) && fe.occupiedOffsets.length;
-            if (fIsAnchor && !keepSet.has(fi)) { ok = false; break; }   // an existing anchor outside the paste stays
+            if (fa && !keepSet.has(fa.row * W + fa.col)) { ok = false; break; }       // an existing footprint that stays
+            if (_anchorEntry(mapData[fi]) && !keepSet.has(fi)) { ok = false; break; } // an existing anchor outside the paste stays
           }
           if (!ok) continue;
-          claimed.add(it.idx); for (const f of fp) claimed.add(f.row * W + f.col);
+          it.fp = fp;
         }
-        finalItems.push(it);
+        hard.push(it);
       }
-      if (finalItems.length === items.length) { items = finalItems; break; }
-      items = finalItems;
+      if (hard.length !== items.length) { items = hard; continue; }
+      const claimed = new Set(), out = [];
+      for (const it of items) {
+        if (it.fp) {
+          const own = it.row * W + it.col;
+          if (claimed.has(own) || it.fp.some(f => claimed.has(f.row * W + f.col))) continue;
+          claimed.add(own); for (const f of it.fp) claimed.add(f.row * W + f.col);
+        }
+        out.push(it);
+      }
+      if (out.length === items.length) return items;
+      items = out;
     }
-    return items;
   }
 
   // Writes a plan. Terrain always overwrites; building / road / zone only where the buffer has one; extras and a bridge
@@ -4854,16 +4858,21 @@ const Clipboard = (() => {
     const wantB = layers.terrain !== false;
     const written = new Set(items.map(i => i.idx));
     if (wantB && bridgesData.length) for (let i = bridgesData.length - 1; i >= 0; i--) if (written.has(bridgesData[i].row * W + bridgesData[i].col)) bridgesData.splice(i, 1);
+    // A building replaced by another takes the satellites it spawned with it (same helper the Eraser uses). Done before
+    // any write, so a pasted building landing on a former satellite cell simply overwrites it. Pasted buildings do not
+    // carry or respawn satellites (the buffer holds the selected cells only; _spawnSatellites is repaired in T2.14).
+    if (layers.objects !== false)
+      for (const it of items) { const old = it.e.o && objectsData[it.col + ',' + it.row]; if (old) Tools.removeSatellites(it.col, it.row, old); }
     const prevs = new Array(items.length);
     items.forEach((it, n) => {
       const e = it.e, k = it.col + ',' + it.row;
       prevs[n] = mapData[it.idx];
-      if (layers.terrain !== false) { mapData[it.idx] = e.t; if (e.b !== undefined) bridgesData.push({ col: it.col, row: it.row, axis: e.b }); }
-      if (layers.objects !== false) {
-        if (e.o) objectsData[k] = e.o;
-        delete tileExtras[k];
+      if (layers.terrain !== false) {
+        mapData[it.idx] = e.t; if (e.b !== undefined) bridgesData.push({ col: it.col, row: it.row, axis: e.b });
+        delete tileExtras[k];      // under-terrain belongs to the terrain layer: replaced by the source's (none clears it)
         if (e.x) tileExtras[k] = JSON.parse(JSON.stringify(e.x));
       }
+      if (layers.objects !== false && e.o) objectsData[k] = e.o;
       if (layers.roads !== false && e.rd) roadsData[k] = Object.assign({}, e.rd);
       if (layers.zones !== false && zl && e.z) zl[it.idx] = e.z;
     });
@@ -4890,7 +4899,9 @@ const Clipboard = (() => {
 
   // ── Ghost geometry: world-space offsets from the anchor cell centre, built ONCE per buffer (translation invariant) ──
   function ghostGeometry(buf, xf) {
-    const hit = _geomCache.get(buf);
+    let per = _geomCache.get(buf);
+    if (!per) _geomCache.set(buf, per = new Map());
+    const sig = _xfSig(xf), hit = per.get(sig);
     if (hit) return hit;
     const n = buf.cells.length, rx = new Float64Array(n), ry = new Float64Array(n);
     const dq = new Int32Array(n), dr = new Int32Array(n);
@@ -4919,18 +4930,20 @@ const Clipboard = (() => {
       });
     }
     const geom = { n, rx, ry, dq, dr, segs: Float64Array.from(segs), minDq, maxDq, minV, maxV };
-    _geomCache.set(buf, geom);
+    per.set(sig, geom);
     return geom;
   }
 
-  // Ghost layer for Canvas.setGhost at `target`. `valid` (Uint8Array) only when the buffer may cross the map edge.
+  // Ghost layer for Canvas.setGhost at `target`. `crosses` = the buffer may cross the map edge. The per-cell `valid` mask
+  // (Uint8Array) is built only then AND only for buffers drawn cell by cell (<= Canvas ghost hex cap): the segment path
+  // for big buffers just clips to the map rectangle, so a full-map ghost costs no O(n) work per cursor cell.
   function ghostLayer(buf, target, xf) {
     const g = ghostGeometry(buf, xf), W = MAP_WIDTH, H = MAP_HEIGHT;
     const o = Canvas.hexCenterWorld(target.col, target.row);
     const lo = target.col + Math.floor(g.minV - 1), hi = target.col + Math.ceil(g.maxV + 1);
     const inside = target.row - g.maxDq >= 0 && target.row - g.minDq <= H - 1 && lo >= 0 && hi <= W - 1;
     let valid = null;
-    if (!inside) {
+    if (!inside && g.n <= 1500) {
       valid = new Uint8Array(g.n);
       const t0 = HexUtils.toCube(target.col, target.row, W, H);
       for (let i = 0; i < g.n; i++) {
@@ -4938,7 +4951,7 @@ const Clipboard = (() => {
         valid[i] = HexUtils.inBounds(p.col, p.row, W, H) ? 1 : 0;
       }
     }
-    return { geom: g, ox: o.x, oy: o.y, valid, md: mapData, W, H };
+    return { geom: g, ox: o.x, oy: o.y, valid, crosses: !inside, md: mapData, W, H };
   }
 
   function get() { return _buf; }
@@ -4972,6 +4985,7 @@ const Tools = (() => {
   let _float = null;          // paste mode: { buf, md, W, H } (the map it was started on)
   let _prevTool = 'paint';    // tool restored when a paste ends
   let _floatKey = '';         // last cell the ghost was built for
+  let _floatCell = null;      // ... and that cell itself (null while the ghost is hidden), to refresh the ghost in place
   let _shapeStart = null;     // { col, row } while dragging a line or circle
   let _shapeEnd   = null;
   let _shapeKey   = '';       // last previewed end cell + modifier, so unchanged moves do no work
@@ -5017,7 +5031,7 @@ const Tools = (() => {
     _lastPainted = null; _lastZonePainted = null; _lastObjectPainted = null; _lastRoadPainted = null;
     _cancelShape();
     _eraseStroke = false; _eraseToken = null; _scatterRun = null; _clearEraserHover();
-    if (name !== 'paste') { _float = null; _floatKey = ''; Canvas.setGhost(null); }
+    if (name !== 'paste') { _float = null; _floatKey = ''; _floatCell = null; Canvas.setGhost(null); }
     _showScatterRow(name === 'scatter');
     document.querySelectorAll('.tool-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tool === name);
@@ -5424,21 +5438,26 @@ const Tools = (() => {
   // settlement/city markers stay where they are). Like Paint it is mirrored by the active symmetry mode unless
   // opts.noSymmetry. A cell inside a multi-tile footprint is skipped unless the footprint's anchor is erased in the
   // same call (then the whole footprint goes). The caller owns History.push(). Returns the number of cells reset.
-  function _resetCells(cells, opts) {
-    if (_fillBusy) return 0;
-    const list = opts && opts.noSymmetry ? cells : _expandSymmetry(cells);
+  // The cells a reset really touches: in-map, unique, minus cells of a footprint whose anchor is not in the list (judged
+  // on the satellite map as it is NOW, which is how _resetCells sees it too). Cut / Delete use it so that what is
+  // captured, cleared and zeroed is exactly what is reset.
+  function _resettable(cells) {
     const inSet = new Set(), uniq = [];
-    for (const c of list) {
+    for (const c of cells) {
       if (c.col < 0 || c.col >= MAP_WIDTH || c.row < 0 || c.row >= MAP_HEIGHT) continue;
       const i = c.row * MAP_WIDTH + c.col;
       if (inSet.has(i)) continue;
       inSet.add(i); uniq.push(c);
     }
+    return uniq.filter(({ col, row }) => { const anc = getSatelliteAnchor(col, row); return !anc || inSet.has(anc.row * MAP_WIDTH + anc.col); });
+  }
+  function _resetCells(cells, opts) {
+    if (_fillBusy) return 0;
+    const list = opts && opts.noSymmetry ? cells : _expandSymmetry(cells);
+    const uniq = _resettable(list);     // the satellite map is only refreshed after the loop below
     const touched = [], erased = new Set();
     let footprints = false;              // an erased cell held a multi-tile terrain: the satellite map must be rebuilt
     for (const { col, row } of uniq) {
-      const anc = getSatelliteAnchor(col, row);       // the satellite map is only refreshed after the loop
-      if (anc && !inSet.has(anc.row * MAP_WIDTH + anc.col)) continue;
       const idx = row * MAP_WIDTH + col, k = col + ',' + row;
       const prev = mapData[idx];
       touched.push({ col, row, prev });
@@ -5789,14 +5808,29 @@ const Tools = (() => {
   }
   function _opBlocked() {
     if (_fillBusy) { UI.toast('Wait for the fill to finish'); return true; }
+    // Copy / Cut / Delete while a paste is floating are ignored: Copy / Cut would swap the buffer under the float and
+    // Cut / Delete would edit the map behind the ghost.
+    if (_float) { UI.toast('Finish the paste first (Esc)'); return true; }
     return _isDown || _eraseStroke;
   }
-  // Delete semantics = the eraser's (_resetCells: footprints, bridges, satellite map), never mirrored; also clears zones.
+  // Delete semantics = the eraser's (_resetCells: footprints, bridges, satellite map; spawned satellites of a removed
+  // building go too), never mirrored; also clears zones. `cells` must come from _resettable().
   function _clearCells(cells) {
     _resetCells(cells, { noSymmetry: true });
     const zl = ZonePainter.getZoneLayer();
     if (zl) for (const { col, row } of cells) zl[row * MAP_WIDTH + col] = 0;
   }
+  // Would clearing these cells change anything? (a Cut / Delete that cannot must not push a History step)
+  function _hasContent(cells) {
+    const zl = ZonePainter.getZoneLayer(), bridges = new Set(bridgesData.map(b => b.row * MAP_WIDTH + b.col));
+    return cells.some(({ col, row }) => {
+      const idx = row * MAP_WIDTH + col, k = col + ',' + row;
+      return mapData[idx] !== DEFAULT_TILE_ID || objectsData[k] || roadsData[k] || tileExtras[k] || bridges.has(idx) || (zl && zl[idx]);
+    });
+  }
+  // Copy keeps the whole selection (a footprint cell whose anchor is outside is dropped again when pasting).
+  // The key handler calls preventDefault() on Ctrl/Cmd+C only in map mode outside text fields and modals, so it also
+  // suppresses the native page-text copy there (a deliberate trade for a single, unconditional shortcut).
   function copySelection() {
     if (_opBlocked()) return false;
     const cells = _selectionOrToast();
@@ -5805,28 +5839,36 @@ const Tools = (() => {
     UI.toast('Copied ' + cells.length + ' tiles');
     return true;
   }
+  // Cut = move: only the cells a reset really touches are captured and cleared (a selection that clips a multi-tile
+  // footprint without its anchor leaves those cells, with all their layers and zones, in place and out of the buffer).
   function cutSelection() {
     if (_opBlocked()) return false;
-    const cells = _selectionOrToast();
-    if (!cells) return false;
+    const sel = _selectionOrToast();
+    if (!sel) return false;
+    const cells = _resettable(sel);
+    if (!cells.length) { UI.toast('Nothing to cut (the selection only covers part of a multi-tile footprint)'); return false; }
     Clipboard.set(Clipboard.capture(cells));
-    History.push();
-    _clearCells(cells);
-    Canvas.drawMinimap(); Canvas.render(); IO.scheduleAutoSave();
+    if (_hasContent(cells)) {
+      History.push();                       // before the first change
+      _clearCells(cells);
+      Canvas.drawMinimap(); Canvas.render(); IO.scheduleAutoSave();
+    }
     UI.toast('Cut ' + cells.length + ' tiles');
     return true;
   }
   function deleteSelection() {
     if (_opBlocked()) return false;
-    const cells = _selectionOrToast();
-    if (!cells) return false;
-    History.push();
+    const sel = _selectionOrToast();
+    if (!sel) return false;
+    const cells = _resettable(sel);
+    if (!_hasContent(cells)) return false;
+    History.push();                         // before the first change
     _clearCells(cells);
     Canvas.drawMinimap(); Canvas.render(); IO.scheduleAutoSave();
     return true;
   }
   function _floatStale() { return !_float || _float.md !== mapData || _float.W !== MAP_WIDTH || _float.H !== MAP_HEIGHT; }
-  function _clearGhost() { _floatKey = ''; Canvas.setGhost(null); }
+  function _clearGhost() { _floatKey = ''; _floatCell = null; Canvas.setGhost(null); }
   function beginPaste(buf) {
     if (_fillBusy) { UI.toast('Wait for the fill to finish'); return; }
     if (!buf) { UI.toast('Clipboard is empty'); return; }
@@ -5834,6 +5876,7 @@ const Tools = (() => {
     setActive('paste');
     _float = { buf, md: mapData, W: MAP_WIDTH, H: MAP_HEIGHT };
     _floatKey = '';
+    if (_floatCell) { _hoverFloat(_floatCell.col, _floatCell.row); Canvas.render(); }   // Ctrl+V again with a new buffer: the ghost follows at once
   }
   function _endPaste(msg) {
     const t = _prevTool || 'paint';
@@ -5844,7 +5887,7 @@ const Tools = (() => {
   function _hoverFloat(col, row) {
     const k = col + ',' + row;
     if (k === _floatKey) return;
-    _floatKey = k;
+    _floatKey = k; _floatCell = { col, row };
     Canvas.setGhost(Clipboard.ghostLayer(_float.buf, { col, row }, null), { render: false });
   }
   function dropFloat(col, row) {
@@ -6187,7 +6230,7 @@ const Tools = (() => {
         Canvas.render(); Canvas.drawMinimap();
         return;
       }
-      if (e.key === 'Escape' && _float && mapMode && !_isTypingOrModal()) { _endPaste(); return; }   // ends the paste only; the selection stays
+      if (e.key === 'Escape' && _float && !e.defaultPrevented && mapMode && !_isTypingOrModal()) { _endPaste(); return; }   // ends the paste only; the selection stays
       if (e.key === 'Escape' && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
       if (e.key === 'Escape' && _active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); return; }   // cancels the drag only
       if (e.key === 'Escape' && !e.defaultPrevented && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { Selection.clear(); return; }   // an Esc that closed a menu / picker (UI marks it) must not wipe the selection
@@ -6196,7 +6239,7 @@ const Tools = (() => {
         if (_fillBusy) _cancelShape(); else _commitPolygon(e.shiftKey);
         return;
       }
-      if ((e.code === 'Delete' || e.code === 'Backspace') && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal() && !_float && !Selection.isEmpty()) { e.preventDefault(); deleteSelection(); return; }
+      if ((e.code === 'Delete' || e.code === 'Backspace') && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { e.preventDefault(); deleteSelection(); return; }
       if (e.code === 'KeyY' && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal()) { cycleSymmetry(); return; }
       if (CODE_TOOLS[e.code] && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal()) {
         setActive(CODE_TOOLS[e.code]);
@@ -6218,7 +6261,7 @@ const Tools = (() => {
 
   function isStroking() { return _eraseStroke; }
   function isPasting() { return !!_float; }
-  return { isStroking, isPasting, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
+  return { isStroking, isPasting, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
@@ -15436,21 +15479,28 @@ let _satelliteMap = null;
 const _DIRS_EVEN = { N:[+1,0], S:[-1,0], NE:[0,-1],  SE:[+1,-1], NW:[0,+1],  SW:[+1,+1] };
 const _DIRS_ODD  = { N:[+1,0], S:[-1,0], NE:[-1,-1], SE:[0,-1],  NW:[-1,+1], SW:[0,+1] };
 
+// Footprint cells (NOT bounds-filtered) of a multi-tile terrain `entry` anchored at (col,row). The ONE definition of a
+// footprint: the satellite map and the clipboard (Clipboard.plan) both use it.
+function footprintCells(col, row, entry) {
+  const dirs = (MAP_HEIGHT - 1 - row) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD, out = [];
+  for (const dir of entry.occupiedOffsets) {
+    const off = dirs[dir]; if (!off) continue;
+    out.push({ col: col + off[0], row: row + off[1] });
+  }
+  return out;
+}
+
 function _buildSatelliteMap() {
   _satelliteMap = {};
   if (!mapData) return;
   for (let r = 0; r < MAP_HEIGHT; r++) {
-    const dirs = (MAP_HEIGHT - 1 - r) % 2 !== 0 ? _DIRS_EVEN : _DIRS_ODD;
     for (let c = 0; c < MAP_WIDTH; c++) {
       const id = mapData[r * MAP_WIDTH + c];
       const entry = id ? Terrain.byHexId(id) : null;
       if (!entry || !Array.isArray(entry.occupiedOffsets) || !entry.occupiedOffsets.length) continue;
-      for (const dir of entry.occupiedOffsets) {
-        const off = dirs[dir]; if (!off) continue;
-        const [dCol, dRow] = off;
-        const sc = c + dCol, sr = r + dRow;
-        if (sc >= 0 && sc < MAP_WIDTH && sr >= 0 && sr < MAP_HEIGHT)
-          _satelliteMap[sc + '_' + sr] = { col: c, row: r };
+      for (const f of footprintCells(c, r, entry)) {
+        if (f.col >= 0 && f.col < MAP_WIDTH && f.row >= 0 && f.row < MAP_HEIGHT)
+          _satelliteMap[f.col + '_' + f.row] = { col: c, row: r };
       }
     }
   }
