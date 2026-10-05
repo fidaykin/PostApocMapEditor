@@ -1234,6 +1234,7 @@ body.mode-common #map-io    { display: none; }
         <div class="separator"></div>
         <button onclick="IO.clearMap()">Clear Map</button>
         <button onclick="IO.fillMap()">Fill Map</button>
+        <button onclick="Tools.openReplace()">Replace Tile…</button>
         <div class="separator"></div>
         <button onclick="IO.openExpandMap()">Expand Map…</button>
       </div>
@@ -1413,6 +1414,7 @@ body.mode-common #map-io    { display: none; }
           <button class="tool-btn" data-tool="eraser" onclick="Tools.setActive('eraser')" title="Eraser (X) - drag to reset tiles to Plain_1 and remove buildings, roads, bridges and under-terrain. Brush size applies, symmetry mirrors it like Paint, Esc cancels the stroke. Zones and settlements are not touched">⌫</button>
           <button class="tool-btn" data-tool="marquee" onclick="Tools.setActive('marquee')" title="Select Region (M) - drag a rectangle of cells; Shift adds, Alt subtracts, Esc clears, Ctrl+A selects all, Ctrl+D deselects">⛶</button>
           <button class="tool-btn" data-tool="scatter" onclick="Tools.setActive('scatter')" title="Scatter (A) - drag to sprinkle random variants of the selected terrain inside the brush, at the density below. Directional river/lake pieces are not scattered. Same seed gives the same result for the same drag; symmetry mirrors the area (each cell rolls on its own), Esc cancels the stroke">⁘</button>
+          <button class="tool-btn" data-tool="replace" onclick="Tools.setActive('replace')" title="Replace (H) - click a tile to replace every tile of that id with the active terrain (inside the selection when there is one; the whole map otherwise). Edit > Replace Tile... picks both ids. One undo step">⇄</button>
         </div>
       <div id="selection-row" style="display:none;align-items:center;gap:6px;padding:6px 8px 0;font-size:11px;color:var(--muted)">
         <span id="selection-info" style="flex:1;min-width:0;color:#f5c518"></span>
@@ -2054,6 +2056,25 @@ body.mode-common #map-io    { display: none; }
   </div>
 </div>
 
+<!-- Replace tile modal -->
+<div class="modal-overlay" id="replace-modal">
+  <div class="modal-box" style="max-width:360px">
+    <h3 style="margin:0 0 8px">Replace tile</h3>
+    <datalist id="replace-id-list"></datalist>
+    <div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px">
+      <label style="font-size:11px;color:var(--muted)">Replace
+        <input id="replace-from" class="hexdb-input" type="text" list="replace-id-list" style="width:100%" placeholder="e.g. Rubble_1"></label>
+      <label style="font-size:11px;color:var(--muted)">With
+        <input id="replace-to" class="hexdb-input" type="text" list="replace-id-list" style="width:100%"></label>
+      <label style="font-size:12px"><input id="replace-sel-only" type="checkbox"> Selection only</label>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="Tools.closeReplace()">Cancel</button>
+      <button class="btn btn-primary" id="replace-apply" onclick="Tools.applyReplace()">Replace</button>
+    </div>
+  </div>
+</div>
+
 <!-- Bridge tile under-terrain picker -->
 <div class="modal-overlay" id="bridge-terrain-modal">
   <div class="modal-box" style="max-width:340px">
@@ -2369,7 +2390,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "8fc1686";
+const COMMIT  = "924c690";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5052,10 +5073,10 @@ const Tools = (() => {
     settlement: 'Place Settlement', erase: 'Erase Settlement',
     zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object',
     'road-connect': 'Connect Road',
-    line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser', scatter: 'Scatter', marquee: 'Select Region', paste: 'Paste',
+    line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser', scatter: 'Scatter', marquee: 'Select Region', paste: 'Paste', replace: 'Replace Tile',
   };
   // Physical-key tool shortcuts (layout independent). Later tasks add entries.
-  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee' };
+  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee', KeyH: 'replace' };
   let _float = null;          // paste mode: { buf, md, W, H, xf:{rot,mh,mv}, move:null|{cells} } (md/W/H = the map it was started on)
   let _prevTool = 'paint';    // tool restored when a paste ends
   let _floatKey = '';         // last cell the ghost was built for
@@ -5506,6 +5527,143 @@ const Tools = (() => {
         if (satDef && satDef.canBuild === false) delete objectsData[k];
       }
     }
+  }
+
+  // ── Replace (T2.11) ────────────────────────────────────────
+  // Replace every cell holding exactly `fromId` (case-sensitive, as stored in mapData) with `toId` (must exist in the
+  // tile database; resolved to its canonical id), over the whole map (cells null) or only over `cells`. Terrain only:
+  // zones, buildings, roads, under-terrain stay; a bridge on a replaced cell goes (like Paint). Symmetry is NOT applied
+  // (a global operation). Cells under another anchor's footprint are never touched. Multi-tile ANCHORS follow the
+  // shared footprintCells(): replacing an anchor with a single tile frees its footprint, replacing with a (different)
+  // multi-tile id derives the new footprint from the cell; a new anchor whose footprint would be clipped by the map edge,
+  // cover a surviving anchor / footprint, or overlap another new footprint (the earlier cell, row-major, wins) is
+  // SKIPPED and stays what it was (counted in replaceInfo().skipped). Planning happens first and writes nothing; the
+  // optional opts.beforeWrite runs once, right before the first write, and only when something will change (callers push
+  // their ONE History step there, so an operation that changes nothing leaves no step). One pass: the whole map is
+  // scanned once, a selection scope examines only its own cells; edge re-resolution is the shared one, over the cells
+  // that were written. Refused (returns 0) while a fill runs. Returns the number of cells replaced.
+  let _replaceInfo = { scanned: 0, matched: 0, replaced: 0, skipped: 0 };
+  function replaceInfo() { return Object.assign({}, _replaceInfo); }
+  function _multiEntry(id) {
+    const te = id ? Terrain.byHexId(id) : null;
+    return te && Array.isArray(te.occupiedOffsets) && te.occupiedOffsets.length ? te : null;
+  }
+  function _planReplace(fromId, toId, cells) {
+    const W = MAP_WIDTH, H = MAP_HEIGHT, N = W * H;
+    const info = { scanned: 0, matched: 0, replaced: 0, skipped: 0 };
+    const out = { info, list: [], to: null };
+    const toE = (typeof toId === 'string' && toId) ? Terrain.byHexId(toId) : null;
+    if (!toE || !fromId || typeof fromId !== 'string' || fromId === toE.id) return out;
+    out.to = toE.id;
+    const cand = [];
+    const take = i => { if (mapData[i] === fromId && !getSatelliteAnchor(i % W, (i / W) | 0)) cand.push(i); };
+    if (cells) {
+      const seen = new Uint8Array(N);
+      for (const c of cells) {
+        const col = c.col, row = c.row;
+        if (!Number.isInteger(col) || !Number.isInteger(row) || col < 0 || col >= W || row < 0 || row >= H) continue;
+        const i = row * W + col;
+        if (seen[i]) continue;
+        seen[i] = 1; info.scanned++;
+        take(i);
+      }
+      cand.sort((a, b) => a - b);                     // row-major: the earlier cell wins an overlap
+    } else {
+      info.scanned = N;
+      for (let i = 0; i < N; i++) take(i);
+    }
+    info.matched = cand.length;
+    let items = cand.map(i => ({ i, col: i % W, row: (i / W) | 0 }));
+    if (_multiEntry(toE.id) && items.length) {
+      for (;;) {                                      // a skipped anchor keeps its own footprint, which may block another: fixed point
+        const keep = new Set(items.map(it => it.i)), ok = [];
+        for (const it of items) {
+          let fine = true;
+          const fp = footprintCells(it.col, it.row, toE);
+          for (const f of fp) {
+            if (!HexUtils.inBounds(f.col, f.row, W, H)) { fine = false; break; }
+            const fi = f.row * W + f.col, fa = getSatelliteAnchor(f.col, f.row);
+            if (fa && !keep.has(fa.row * W + fa.col)) { fine = false; break; }       // the footprint of an anchor that stays
+            if (_multiEntry(mapData[fi]) && !keep.has(fi)) { fine = false; break; }  // an anchor that stays
+          }
+          if (fine) { it.fp = fp; ok.push(it); }
+        }
+        if (ok.length === items.length) break;
+        items = ok;
+      }
+      const claimed = new Set(), kept = [];
+      for (const it of items) {
+        const own = it.i;
+        if (claimed.has(own) || it.fp.some(f => claimed.has(f.row * W + f.col))) continue;
+        claimed.add(own); for (const f of it.fp) claimed.add(f.row * W + f.col);
+        kept.push(it);
+      }
+      items = kept;
+    }
+    out.list = items;
+    info.replaced = items.length;
+    info.skipped = info.matched - items.length;
+    return out;
+  }
+  function replaceTerrain(fromId, toId, cells, opts) {
+    _replaceInfo = { scanned: 0, matched: 0, replaced: 0, skipped: 0 };
+    if (_fillBusy || isStroking()) return 0;      // a fill, a stroke or a lifted region is working on the map
+    const plan = _planReplace(fromId, toId, cells);
+    _replaceInfo = plan.info;
+    if (!plan.list.length) return 0;
+    if (opts && typeof opts.beforeWrite === 'function') opts.beforeWrite();
+    const W = MAP_WIDTH, touched = new Array(plan.list.length);
+    for (let n = 0; n < plan.list.length; n++) {
+      const it = plan.list[n];
+      touched[n] = { col: it.col, row: it.row, prev: fromId };
+      mapData[it.i] = plan.to;
+    }
+    if (bridgesData.length) {
+      const gone = new Set(plan.list.map(it => it.i));
+      for (let k = bridgesData.length - 1; k >= 0; k--) if (gone.has(bridgesData[k].row * W + bridgesData[k].col)) bridgesData.splice(k, 1);
+    }
+    invalidateSatelliteMap();
+    _autoResolveEdgesAround(touched);
+    return touched.length;
+  }
+
+  // The user-facing run shared by the dialog and the H tool: refusals toast and write nothing; ONE History step.
+  function _runReplace(fromId, toId, cells) {
+    if (_fillBusy) { UI.toast('Wait for the fill to finish'); return -1; }
+    if (isStroking()) { UI.toast('Finish the move first (Esc)'); return -1; }
+    if (!Terrain.byHexId(toId)) { UI.toast('Unknown tile id: ' + toId); return -1; }
+    const n = replaceTerrain(fromId, toId, cells, { beforeWrite: () => History.push() });
+    if (n > 0) { Canvas.drawMinimap(); Canvas.render(); IO.scheduleAutoSave(); }
+    const sk = _replaceInfo.skipped;
+    if (n === 0) UI.toast(sk ? `Nothing replaced: ${sk} ${sk === 1 ? 'tile' : 'tiles'} of ${fromId} skipped (the new footprint would be clipped or overlap)`
+                             : `No ${fromId} tiles to replace${cells ? ' in the selection' : ''}`);
+    else UI.toast(`Replaced ${n} ${n === 1 ? 'tile' : 'tiles'}` + (sk ? `, ${sk} skipped (the new footprint would be clipped or overlap)` : ''));
+    return n;
+  }
+  let _replaceModal = null;            // { md, W, H }: the map the dialog was opened on
+  function openReplace() {
+    if (_fillBusy) { UI.toast('Wait for the fill to finish'); return; }
+    if (isStroking()) { UI.toast('Finish the move first (Esc)'); return; }
+    const dl = document.getElementById('replace-id-list');
+    if (dl) dl.innerHTML = HexDB.getAll().map(h => `<option value="${h.id}">`).join('');
+    document.getElementById('replace-to').value = UI.getSelectedTerrain();
+    document.getElementById('replace-sel-only').checked = !Selection.isEmpty();
+    _replaceModal = { md: mapData, W: MAP_WIDTH, H: MAP_HEIGHT };
+    document.getElementById('replace-modal').classList.add('open');
+    UI.closeAllMenus();
+    const f = document.getElementById('replace-from'); if (f) f.focus();
+  }
+  function closeReplace() { _replaceModal = null; document.getElementById('replace-modal').classList.remove('open'); }
+  function applyReplace() {
+    const from = document.getElementById('replace-from').value.trim();
+    const to   = document.getElementById('replace-to').value.trim();
+    const m = _replaceModal;
+    if (m && (m.md !== mapData || m.W !== MAP_WIDTH || m.H !== MAP_HEIGHT)) { closeReplace(); UI.toast('Replace cancelled: the map changed while the dialog was open'); return; }
+    if (!from || !to || from === to) { UI.toast('Pick two different tile ids'); return; }
+    const selOnly = document.getElementById('replace-sel-only').checked;
+    if (selOnly && Selection.isEmpty()) { UI.toast('Select a region first (M)'); return; }
+    const n = _runReplace(from, to, selOnly ? Selection.getCells() : null);
+    if (n > 0) closeReplace();               // nothing replaced / refused: stay open so the ids can be fixed
   }
 
   // ── Eraser (T2.6) ──────────────────────────────────────────
@@ -6168,6 +6326,14 @@ const Tools = (() => {
         if (!_scatterBegin(col, row)) { _isDown = false; break; }
         _lastPainted = { col, row };
         break;
+      case 'replace': {
+        _isDown = false;
+        const rAnc = getSatelliteAnchor(col, row);                 // a footprint cell stands for its anchor (like the eyedropper)
+        const fromId = mapData[(rAnc ? rAnc.row : row) * MAP_WIDTH + (rAnc ? rAnc.col : col)], toId = UI.getSelectedTerrain();
+        if (fromId === toId) { UI.toast('Active terrain is already ' + toId); break; }
+        _runReplace(fromId, toId, Selection.isEmpty() ? null : Selection.getCells());
+        break;
+      }
       case 'select':
         Canvas.selectTile(col, row);
         _isDown = false;
@@ -6381,6 +6547,13 @@ const Tools = (() => {
         if (had) { IO.scheduleAutoSave(); Canvas.render(); }
       }
     });
+    // Replace dialog: Escape closes it (wherever the focus is), Enter in a text field applies it
+    document.addEventListener('keydown', e => {
+      const rm = document.getElementById('replace-modal');
+      if (!rm || !rm.classList.contains('open')) return;
+      if (e.key === 'Escape') { e.preventDefault(); closeReplace(); }
+      else if (e.key === 'Enter' && e.target && e.target.tagName === 'INPUT' && e.target.type === 'text' && rm.contains(e.target)) { e.preventDefault(); applyReplace(); }
+    });
     // Ctrl+A select all, Ctrl+D deselect (map mode only; text fields and modals keep their own behaviour)
     window.addEventListener('keydown', e => {
       if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
@@ -6435,7 +6608,7 @@ const Tools = (() => {
       }
       if ((e.code === 'Delete' || e.code === 'Backspace') && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { e.preventDefault(); deleteSelection(); return; }
       if (e.code === 'KeyY' && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal()) { cycleSymmetry(); return; }
-      if (CODE_TOOLS[e.code] && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal()) {
+      if (CODE_TOOLS[e.code] && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal(e)) {
         setActive(CODE_TOOLS[e.code]);
         return;
       }
@@ -6455,7 +6628,7 @@ const Tools = (() => {
 
   function isStroking() { return _eraseStroke || isMoving(); }   // undo / redo are ignored while a lifted selection floats
   function isPasting() { return !!_float; }
-  return { isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
