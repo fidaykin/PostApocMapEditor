@@ -530,7 +530,8 @@ test.describe('building tools (T2.14)', () => {
     const inside = () => page.evaluate(() => { const r = document.getElementById('obj-building-picker')!.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: innerWidth, h: innerHeight }; });
     let r = await inside();
     expect(r.l).toBeGreaterThanOrEqual(0); expect(r.t).toBeGreaterThanOrEqual(0); expect(r.r).toBeLessThanOrEqual(r.w); expect(r.b).toBeLessThanOrEqual(r.h);
-    await page.setViewportSize({ width: 1100, height: 520 });
+    await page.setViewportSize({ width: 1100, height: 340 });          // the real resize event repositions and re-caps the picker
+    await page.waitForFunction(() => document.getElementById('obj-building-picker')!.getBoundingClientRect().bottom <= innerHeight, null, { timeout: 3000 }).catch(() => {});
     r = await inside();
     expect(r.b).toBeLessThanOrEqual(r.h);
     expect(r.t).toBeGreaterThanOrEqual(0);
