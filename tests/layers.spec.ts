@@ -1486,6 +1486,7 @@ test.describe('Clear Map clears every layer (T2.19)', () => {
     expect(await snap(page)).toBe(seeded);
     expect(await steps(page)).toBe(s0);
     expect((await lockedToasts(page)).length).toBe(1);
+    expect((await toastLog(page)).some(t => /Nothing to clear/.test(t)), 'the lock refusal, not the nothing-to-clear toast').toBe(false);
   });
 
   test('clearing twice: the second is a no-op with a toast, no dialog and no History step', async ({ page }) => {
@@ -1580,5 +1581,67 @@ test.describe('Clear Map clears every layer (T2.19)', () => {
     await clearOk(page);
     expect(await page.evaluate(() => JSON.stringify(settlementSlots))).toBe(slots);
     expect(await page.evaluate(() => JSON.stringify(ZonePainter.getZones()))).toBe(zones);
+  });
+
+  test('refused while a fill runs (entry): no dialog; the fill still completes', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      UI.selectTerrain('Forest_1'); Tools.setActive('fill');
+      const p = Tools.fill(240, 240);
+      const busy = Tools.isFillBusy();
+      IO.clearMap();
+      const open = document.getElementById('confirm-modal')!.classList.contains('open');
+      await p;
+      return { busy, open };
+    });
+    expect(r.busy, 'positive control: the fill was running').toBe(true);
+    expect(r.open).toBe(false);
+  });
+
+  test('a fill started while the dialog is open: confirming clears nothing', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      IO.clearMap();
+      const open = document.getElementById('confirm-modal')!.classList.contains('open');
+      UI.selectTerrain('Forest_1'); Tools.setActive('fill');
+      const p = Tools.fill(240, 240);
+      const busy = Tools.isFillBusy();
+      document.getElementById('confirm-ok')!.click();
+      const kept = Object.keys(objectsData).length + Object.keys(roadsData).length + Object.keys(tileExtras).length;
+      await p;
+      return { open, busy, kept };
+    });
+    expect(r.open).toBe(true);
+    expect(r.busy).toBe(true);
+    expect(r.kept).toBe(3);
+  });
+
+  test('a stroke started while the dialog is open: confirming clears nothing', async ({ page }) => {
+    const p = await cellPoint(page, 228, 224);
+    await page.evaluate(() => IO.clearMap());
+    const r = await page.evaluate((pt) => {
+      const cv = document.getElementById('map-canvas')!;
+      cv.dispatchEvent(new MouseEvent('mousedown', { clientX: pt.x, clientY: pt.y, button: 0, bubbles: true }));
+      const active = Tools.isStrokeActive();
+      document.getElementById('confirm-ok')!.click();
+      return { active, kept: Object.keys(objectsData).length + Object.keys(roadsData).length };
+    }, p);
+    expect(r.active, 'positive control: the stroke started').toBe(true);
+    expect(r.kept).toBe(2);
+    await page.mouse.up();
+  });
+
+  test('the satellite-footprint cache is invalidated: no stale anchors after the clear', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const entry = (Terrain as any).byHexId('Water_1'), saved = entry.occupiedOffsets;
+      entry.occupiedOffsets = ['N', 'S'];
+      try {
+        invalidateSatelliteMap();
+        const fp = footprintCells(226, 224, entry).filter((f: any) => getSatelliteAnchor(f.col, f.row));
+        IO.clearMap(); document.getElementById('confirm-ok')!.click();
+        const after = footprintCells(226, 224, entry).filter((f: any) => getSatelliteAnchor(f.col, f.row));
+        return { before: fp.length, after: after.length };
+      } finally { if (saved === undefined) delete entry.occupiedOffsets; else entry.occupiedOffsets = saved; invalidateSatelliteMap(); }
+    });
+    expect(r.before, 'positive control').toBe(2);
+    expect(r.after).toBe(0);
   });
 });
