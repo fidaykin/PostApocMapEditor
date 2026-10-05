@@ -468,13 +468,13 @@ test.describe('stamp store (T2.12)', () => {
     await seedPond(page);
     const r = await page.evaluate(async () => {
       await Stamps.save('a', Clipboard.capture(Selection.getCells()));
-      const orig = IDBDatabase.prototype.transaction; let thrown = 0;
-      IDBDatabase.prototype.transaction = function (...a: any[]) { if (thrown++ === 0) throw new DOMException('closing', 'InvalidStateError'); return orig.apply(this, a as any); };
+      const orig = IDBDatabase.prototype.transaction; let thrown = 0, calls = 0;
+      IDBDatabase.prototype.transaction = function (...a: any[]) { if (calls++ === 0) { thrown++; throw new DOMException('closing', 'InvalidStateError'); } return orig.apply(this, a as any); };
       const names = (await Stamps.list()).map((s: any) => s.name);
       IDBDatabase.prototype.transaction = orig;
-      return { names, thrown };
+      return { names, thrown, calls };
     });
-    expect(r).toEqual({ names: ['a'], thrown: 1 });
+    expect(r).toEqual({ names: ['a'], thrown: 1, calls: 2 });
   });
 
   // ---------- thumbnails -----------------------------------------------------------------------
