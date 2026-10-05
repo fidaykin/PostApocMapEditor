@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
-import { freshEditor } from './editor-helpers';
+import { freshEditor, clickCell } from './editor-helpers';
+import * as fs from 'fs';
 
 // Region used by the plain tests: two cells next to the city.
 async function seedPond(page: Page) {
@@ -640,5 +641,348 @@ test.describe('stamp store (T2.12)', () => {
     expect(r.corner[3]).toBe(0);                                         // outside every hex: transparent
     expect(r.off.map((p: number[]) => p[3])).toEqual([255, 255, 255]);   // just inside the hex edge still painted
     expect(r.sc).toBeGreaterThan(0.3);                                   // the picture really is large enough to probe
+  });
+});
+
+// ───────────────────────── T2.13: the Stamps panel ─────────────────────────
+const toasts = (page: Page) => page.locator('#toast-container .toast').allTextContents();
+const lastToast = async (page: Page) => { const t = await toasts(page); return t[t.length - 1] || ''; };
+const names = (page: Page) => page.evaluate(async () => (await Stamps.list()).map((s: any) => s.name));
+async function saveNamed(page: Page, name: string) {
+  await page.fill('#stamp-name', name);
+  await page.click('#stamp-save-btn');
+  await expect(page.locator('#stamp-name')).toHaveValue('');
+}
+/** Imports `n` one-cell stamps named s0..s{n-1} (created ascending, so sN-1 is the newest) through the store. */
+async function importMany(page: Page, n: number) {
+  await page.evaluate(async n => {
+    const stamps = Array.from({ length: n }, (_, i) => ({ name: 's' + i, created: 1000 + i, v: 1, cells: [{ dq: 0, dr: 0, t: 'Forest_1' }] }));
+    await Stamps.importJson(JSON.stringify({ format: 'mapeditor-stamps', version: 1, stamps }));
+    await Stamps.refresh();
+  }, n);
+}
+
+test.describe('stamps panel (T2.13)', () => {
+  test('save the selection, place it with a click, delete it (cancel keeps it, only that stamp goes)', async ({ page }) => {
+    await freshEditor(page);
+    await seedPond(page);
+    await saveNamed(page, '  pond  ');
+    await expect(page.locator('.stamp-row')).toHaveCount(1);
+    await expect(page.locator('.stamp-row')).toContainText('pond');
+    expect(await names(page)).toEqual(['pond']);                       // trimmed
+    await page.click('.stamp-row .stamp-name');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paste');
+    const before = await page.evaluate(() => mapData.slice());
+    await clickCell(page, 225, 219);
+    const diff = await page.evaluate(b => { const o: any[] = []; for (let i = 0; i < mapData.length; i++) if (mapData[i] !== b[i]) o.push({ col: i % MAP_WIDTH, row: Math.floor(i / MAP_WIDTH), t: mapData[i] }); return o; }, before);
+    expect(diff.map((d: any) => d.t).sort()).toEqual(['Forest_1', 'Mountain_1']);
+    const cubes = await page.evaluate(d => d.map((c: any) => HexUtils.toCube(c.col, c.row, MAP_WIDTH, MAP_HEIGHT)), diff);
+    expect(Math.max(Math.abs(cubes[0].q - cubes[1].q), Math.abs(cubes[0].r - cubes[1].r), Math.abs(cubes[0].s - cubes[1].s))).toBe(1);   // still adjacent
+    expect(Math.abs(diff[0].row - 219) + Math.abs(diff[1].row - 219)).toBeLessThanOrEqual(2);                                               // landed at the click
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => Tools.getActive())).not.toBe('paste');
+    // second stamp; deleting one removes only that one; cancel keeps it
+    await seedPond(page);
+    await saveNamed(page, 'second');
+    await expect(page.locator('.stamp-row')).toHaveCount(2);
+    await expect(page.locator('.stamp-row').first()).toContainText('second');   // newest first
+    await page.locator('.stamp-row').first().locator('.stamp-del').click();
+    await expect(page.locator('#dialog-modal')).toHaveClass(/open/);
+    await page.locator('#dialog-actions button[data-value="cancel"]').click();
+    await expect(page.locator('.stamp-row')).toHaveCount(2);
+    expect(await names(page)).toEqual(['second', 'pond']);
+    await page.locator('.stamp-row').first().locator('.stamp-del').click();
+    await page.locator('#dialog-actions button[data-value="ok"]').click();
+    await expect(page.locator('.stamp-row')).toHaveCount(1);
+    await expect(page.locator('.stamp-row')).toContainText('pond');
+    expect(await names(page)).toEqual(['pond']);
+    await page.locator('.stamp-row .stamp-del').click();
+    await page.locator('#dialog-actions button[data-value="ok"]').click();
+    await expect(page.locator('.stamp-row')).toHaveCount(0);
+    await expect(page.locator('#stamp-list')).toContainText('No stamps yet');
+  });
+
+  test('the panel lives in the right panel, adds nothing to the toolbar and keeps the canvas size (1491x808 at 1400x900)', async ({ page }) => {
+    await freshEditor(page);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    const r = await page.evaluate(() => {
+      const c = document.getElementById('map-canvas') as HTMLCanvasElement;
+      const p = document.getElementById('stamp-panel')!, rp = document.getElementById('right-panel')!.getBoundingClientRect(), b = p.getBoundingClientRect();
+      return { cw: c.width, ch: c.height, inRight: !!p.closest('#right-panel'), inToolbar: !!p.closest('#map-tools, #map-io, header'), fits: b.left >= rp.left - 0.5 && b.right <= rp.right + 0.5,
+               after: !!(document.getElementById('brush-panel')!.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(p.compareDocumentPosition(document.getElementById('right-active-terrain')!) & Node.DOCUMENT_POSITION_FOLLOWING) };
+    });
+    expect(r).toEqual({ cw: 1491, ch: 808, inRight: true, inToolbar: false, fits: true, after: true });
+  });
+
+  test('usable at 1100x700: the save button is in view and every row can be reached and placed', async ({ page }) => {
+    await freshEditor(page);
+    await page.setViewportSize({ width: 1100, height: 700 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await expect(page.locator('#stamp-save-btn')).toBeInViewport();
+    await expect(page.locator('#stamp-name')).toBeInViewport();
+    await importMany(page, 12);
+    await expect(page.locator('.stamp-row')).toHaveCount(12);
+    const last = page.locator('.stamp-row').last();                    // oldest: s0
+    await last.scrollIntoViewIfNeeded();
+    await expect(last).toBeInViewport();
+    await last.locator('.stamp-name').click();
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paste');
+    const sc = await page.evaluate(() => { const b = document.getElementById('right-scroll-body')!, l = document.getElementById('stamp-list')!; return { body: getComputedStyle(b).overflowY, hOverflow: l.scrollWidth > l.clientWidth }; });
+    expect(sc).toEqual({ body: 'auto', hOverflow: false });
+  });
+
+  test('names render as text only (markup, 80 characters) and never run script or widen the panel', async ({ page }) => {
+    await freshEditor(page);
+    await seedPond(page);
+    const evil = '<img src=x onerror="window.__xss=1"><b>bold</b>';
+    await saveNamed(page, evil);
+    const long80 = 'W'.repeat(80);
+    await saveNamed(page, long80 + 'IGNORED');
+    await expect(page.locator('.stamp-row')).toHaveCount(2);
+    const r = await page.evaluate(() => {
+      const l = document.getElementById('stamp-list')!;
+      return { xss: (window as any).__xss, imgsWithSrcX: l.querySelectorAll('img[src="x"]').length, bold: l.querySelectorAll('b').length, texts: Array.from(l.querySelectorAll('.stamp-name')).map(e => e.textContent), hOverflow: l.scrollWidth > l.clientWidth };
+    });
+    expect(r.xss).toBeUndefined();
+    expect(r.imgsWithSrcX).toBe(0);
+    expect(r.bold).toBe(0);
+    expect(r.texts).toEqual([long80, evil]);
+    expect(r.hOverflow).toBe(false);
+    expect((await names(page))).toEqual([long80, evil]);                   // stored: 80 characters, newest first
+    // delete confirm shows the name as text too
+    await page.locator('.stamp-row').last().locator('.stamp-del').click();
+    expect(await page.evaluate(() => ({ msg: document.getElementById('dialog-msg')!.textContent, imgs: document.querySelectorAll('#dialog-modal img').length }))).toEqual({ msg: expect.stringContaining(evil), imgs: 0 });
+    await page.locator('#dialog-actions button[data-value="cancel"]').click();
+  });
+
+  test('save refuses with a clear toast: empty selection, stale map (selection dropped), a running fill', async ({ page }) => {
+    await freshEditor(page);
+    await page.fill('#stamp-name', 'keepme');
+    await page.click('#stamp-save-btn');
+    expect(await lastToast(page)).toMatch(/select a region/i);
+    expect(await names(page)).toEqual([]);
+    await expect(page.locator('#stamp-name')).toHaveValue('keepme');           // refused: the typed name stays
+    await seedPond(page);
+    await page.evaluate(() => IO.newMap(true));                                  // map replaced: the selection is gone
+    await page.click('#stamp-save-btn');
+    expect(await names(page)).toEqual([]);
+    expect(await lastToast(page)).toMatch(/select a region/i);
+    // fill busy: save and place are both refused
+    await seedPond(page);
+    await saveNamed(page, 'base');
+    await page.evaluate(() => { Selection.setCells([{ col: 225, row: 224 }]); UI.selectTerrain('Forest_1'); });
+    const r = await page.evaluate(async () => {
+      const p = Tools.fill(225, 225);
+      const busy = Tools.isFillBusy();
+      (document.getElementById('stamp-name') as HTMLInputElement).value = 'during';
+      (document.getElementById('stamp-save-btn') as HTMLElement).click();
+      (document.querySelector('.stamp-row .stamp-name') as HTMLElement).click();
+      const out = { busy, active: Tools.getActive(), toast: Array.from(document.querySelectorAll('#toast-container .toast')).map(t => t.textContent), name: (document.getElementById('stamp-name') as HTMLInputElement).value };
+      await p;
+      return out;
+    });
+    expect(r.busy).toBe(true);
+    expect(r.active).not.toBe('paste');
+    expect(r.name).toBe('during');
+    expect(r.toast.join('|')).toMatch(/fill/i);
+    expect(await names(page)).toEqual(['base']);
+  });
+
+  test('storage failure shows the error in a toast, keeps the typed name, and a later save works', async ({ page }) => {
+    await page.addInitScript(() => {
+      const open = IDBFactory.prototype.open;
+      IDBFactory.prototype.open = function (name: string, ...a: any[]) { if (name === 'MapEditorStamps' && (window as any).__stampFail) throw new Error('boom: blocked'); return (open as any).call(this, name, ...a); };
+      (window as any).__stampFail = true;
+    });
+    await freshEditor(page);
+    await expect(page.locator('#stamp-list')).toContainText(/unavailable/i);
+    await seedPond(page);
+    await page.fill('#stamp-name', 'typed');
+    await page.click('#stamp-save-btn');
+    await expect.poll(() => lastToast(page)).toMatch(/unavailable.*boom/i);
+    await expect(page.locator('#stamp-name')).toHaveValue('typed');
+    await page.evaluate(() => { (window as any).__stampFail = false; });
+    await page.click('#stamp-save-btn');
+    await expect(page.locator('.stamp-row')).toHaveCount(1);
+    await expect(page.locator('#stamp-name')).toHaveValue('');
+  });
+
+  test('typing a name never triggers a shortcut; Enter saves once and does not lift the selection', async ({ page }) => {
+    await freshEditor(page);
+    await seedPond(page);
+    await page.locator('#stamp-name').focus();
+    await page.keyboard.type('Spare maps');
+    await page.keyboard.press('Backspace'); await page.keyboard.press('Delete'); await page.keyboard.type('s');
+    for (const k of ['BracketLeft', 'BracketRight', 'Comma', 'Period', 'Slash', 'Semicolon']) await page.keyboard.press(k);
+    await page.keyboard.press('Escape');
+    const mid = await page.evaluate(() => ({ tool: Tools.getActive(), sel: Selection.size(), v: (document.getElementById('stamp-name') as HTMLInputElement).value, forest: mapData[224 * MAP_WIDTH + 225], brush: Brush.getSize(), sym: Tools.getSymmetry() }));
+    expect(mid.tool).toBe('paint');
+    expect(mid.sel).toBe(2);                                                   // Delete/Backspace/Esc did not touch the selection
+    expect(mid.forest).toBe('Forest_1');
+    expect(mid.brush).toBe(0);
+    expect(mid.sym).toBe('none');
+    // the field shows exactly what was typed (Backspace removed the s, Delete at the end is a no-op, then s, then the punctuation keys typed their characters)
+    expect(mid.v).toBe('Spare maps[],./;');
+    // Enter inside the field saves and does not lift
+    await page.locator('#stamp-name').fill('via enter');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('.stamp-row')).toHaveCount(1);
+    const after = await page.evaluate(() => ({ moving: Tools.isMoving(), pasting: Tools.isPasting(), tool: Tools.getActive(), sel: Selection.size() }));
+    expect(after).toEqual({ moving: false, pasting: false, tool: 'paint', sel: 2 });
+    expect(await names(page)).toEqual(['via enter']);
+    // two Enters in the same task save once (double-submit guard)
+    await page.evaluate(() => {
+      const i = document.getElementById('stamp-name') as HTMLInputElement; i.value = 'dup'; i.focus();
+      for (let k = 0; k < 2; k++) i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+    });
+    await expect(page.locator('.stamp-row')).toHaveCount(2);
+    await page.waitForTimeout(150);
+    expect(await names(page)).toEqual(['dup', 'via enter']);
+  });
+
+  test('a focused row place button starts the paste with Enter or Space (no lift, no pan), Esc cancels', async ({ page }) => {
+    await freshEditor(page);
+    await seedPond(page);
+    await saveNamed(page, 'pond');
+    await page.locator('.stamp-row .stamp-place').focus();
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => ({ t: Tools.getActive(), mv: Tools.isMoving() }))).toEqual({ t: 'paste', mv: false });
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    await page.locator('.stamp-row .stamp-place').focus();
+    await page.keyboard.press('Space');
+    expect(await page.evaluate(() => ({ t: Tools.getActive(), mv: Tools.isMoving() }))).toEqual({ t: 'paste', mv: false });
+    // labels and tooltips for assistive tech
+    const a = await page.evaluate(() => ({ tags: ['stamp-save-btn', 'stamp-export-btn', 'stamp-import-btn'].map(id => document.getElementById(id)!.tagName), label: document.getElementById('stamp-name')!.getAttribute('aria-label'), del: document.querySelector('.stamp-del')!.getAttribute('aria-label') }));
+    expect(a.tags).toEqual(['BUTTON', 'BUTTON', 'BUTTON']);
+    expect(a.label).toBeTruthy();
+    expect(a.del).toMatch(/delete/i);
+  });
+
+  test('a row refuses while a move is lifted and the buffer is built once per paste session', async ({ page }) => {
+    await freshEditor(page);
+    await seedPond(page);
+    await saveNamed(page, 'pond');
+    const r = await page.evaluate(() => {
+      let calls = 0; const orig = Stamps.toBuffer; Stamps.toBuffer = (rec: any) => { calls++; return orig(rec); };
+      const row = () => document.querySelector('.stamp-row .stamp-name') as HTMLElement;
+      Tools.beginMove();
+      row().click();
+      const lifted = { moving: Tools.isMoving(), calls };
+      Tools.cancelFloat();
+      row().click(); const b1 = calls; row().click(); const b2 = calls;     // second click while still pasting the same stamp: same buffer
+      Tools.setActive('paint');
+      row().click();                                                         // a later session of the same stamp reuses it too
+      Stamps.toBuffer = orig;
+      return { lifted, b1, b2, b3: calls };
+    });
+    expect(r.lifted).toEqual({ moving: true, calls: 0 });
+    expect([r.b1, r.b2, r.b3]).toEqual([1, 1, 1]);   // one deep copy per stamp: the same buffer keeps its geometry cache
+  });
+
+  test('pasting a stamp with ids that are not loaded toasts the count and still pastes', async ({ page }) => {
+    await freshEditor(page);
+    await page.evaluate(async () => {
+      await Stamps.importJson(JSON.stringify({ format: 'mapeditor-stamps', version: 1, stamps: [{ name: 'alien', cells: [{ dq: 0, dr: 0, t: 'Forest_1' }, { dq: 1, dr: 0, t: 'NoSuchPkg_Tile' }, { dq: 0, dr: 1, t: 'Other_Missing' }] }] }));
+      await Stamps.refresh();
+    });
+    await page.click('.stamp-row .stamp-name');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paste');
+    expect(await toasts(page)).toContain('2 cells use tiles that are not loaded');
+    await page.click('.stamp-row .stamp-name');                                // same session: no second warning
+    expect((await toasts(page)).filter(t => /not loaded/.test(t)).length).toBe(1);
+    await seedPond(page);
+    await saveNamed(page, 'fine');
+    await page.locator('.stamp-row').first().locator('.stamp-name').click();
+    expect((await toasts(page)).filter(t => /not loaded/.test(t)).length).toBe(1);   // a stamp whose ids are all loaded stays quiet
+  });
+
+  test('export downloads stamps-YYYY-MM-DD.json holding exactly the stored stamps; empty library toasts', async ({ page }) => {
+    await freshEditor(page);
+    await page.click('#stamp-export-btn');
+    expect(await lastToast(page)).toMatch(/no stamps/i);
+    await seedPond(page);
+    await saveNamed(page, 'pond');
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#stamp-export-btn')]);
+    const today = await page.evaluate(() => { const d = new Date(), p = (n: number) => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); });
+    expect(dl.suggestedFilename()).toBe(`stamps-${today}.json`);
+    const text = fs.readFileSync(await dl.path(), 'utf8');
+    const j = JSON.parse(text);
+    expect([j.format, j.version, j.stamps.length, j.stamps[0].name, j.stamps[0].cells.length]).toEqual(['mapeditor-stamps', 1, 1, 'pond', 2]);
+  });
+
+  test('import: a valid file adds stamps and a count toast, the same file again works (input reset), bad files add nothing', async ({ page }) => {
+    await freshEditor(page);
+    await seedPond(page);
+    await saveNamed(page, 'pond');
+    const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#stamp-export-btn')]);
+    const file = await dl.path();
+    await page.setInputFiles('#stamp-import-file', file);
+    await expect(page.locator('.stamp-row')).toHaveCount(2);
+    expect(await toasts(page)).toContain('Imported 1 stamp');
+    expect(await page.evaluate(() => (document.getElementById('stamp-import-file') as HTMLInputElement).value)).toBe('');
+    await page.setInputFiles('#stamp-import-file', file);                      // the very same file again
+    await expect(page.locator('.stamp-row')).toHaveCount(3);
+    // a broken file: error message toast, nothing changes
+    await page.setInputFiles('#stamp-import-file', { name: 'bad.json', mimeType: 'application/json', buffer: Buffer.from('{"format":"nope"}') });
+    await expect.poll(() => lastToast(page)).toMatch(/Invalid stamp file/);
+    // one bad stamp among good ones: nothing is imported
+    const mixed = { format: 'mapeditor-stamps', version: 1, stamps: [{ name: 'ok', cells: [{ dq: 0, dr: 0, t: 'Forest_1' }] }, { name: 'bad', cells: [{ dq: 0, dr: 0, t: 'Forest_1', z: 999 }] }] };
+    await page.setInputFiles('#stamp-import-file', { name: 'mixed.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(mixed)) });
+    await expect.poll(() => lastToast(page)).toMatch(/Invalid stamp file/);
+    await expect(page.locator('.stamp-row')).toHaveCount(3);
+    expect((await names(page)).length).toBe(3);
+  });
+
+  test('more than 100 stamps: a page of rows with Show more, newest first, thumbnails only for rows near the viewport', async ({ page }) => {
+    await freshEditor(page);
+    await page.evaluate(() => { (window as any).__thumbCanvases = 0; const o = HTMLCanvasElement.prototype.toDataURL; HTMLCanvasElement.prototype.toDataURL = function (...a: any[]) { (window as any).__thumbCanvases++; return (o as any).apply(this, a); }; });
+    await importMany(page, 250);
+    await expect(page.locator('.stamp-row')).toHaveCount(100);
+    await expect(page.locator('.stamp-row .stamp-name').first()).toContainText('s249');
+    await expect(page.locator('#stamp-more')).toContainText('150');
+    await page.waitForTimeout(200);
+    const made = await page.evaluate(() => (window as any).__thumbCanvases);
+    expect(made).toBeGreaterThan(0);
+    expect(made).toBeLessThan(40);                                              // only the visible part of the list got a thumbnail
+    await page.click('#stamp-more');
+    await expect(page.locator('.stamp-row')).toHaveCount(200);
+    await page.click('#stamp-more');
+    await expect(page.locator('.stamp-row')).toHaveCount(250);
+    await expect(page.locator('#stamp-more')).toHaveCount(0);
+    await page.waitForTimeout(200);
+    expect(await page.evaluate(() => (window as any).__thumbCanvases)).toBeLessThan(80);
+    // scrolling reveals more thumbnails lazily
+    const before = await page.evaluate(() => (window as any).__thumbCanvases);
+    await page.evaluate(() => { const l = document.getElementById('stamp-list')!; l.scrollTop = l.scrollHeight; });
+    await expect.poll(() => page.evaluate(() => (window as any).__thumbCanvases)).toBeGreaterThan(before);
+  });
+
+  test('stamps survive a real reload and the panel shows them without any click', async ({ page }) => {
+    await freshEditor(page);
+    await seedPond(page);
+    await saveNamed(page, 'persisted');
+    await page.reload();
+    await page.waitForFunction(() => typeof Stamps !== 'undefined' && HexDB.getAll().length > 0);
+    await expect(page.locator('.stamp-row')).toHaveCount(1);
+    await expect(page.locator('.stamp-row')).toContainText('persisted');
+    await page.locator('.stamp-row .stamp-name').click();
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paste');
+  });
+
+  test('the panel never touches the map: saving, importing and deleting leave map data, history and autosave alone', async ({ page }) => {
+    await freshEditor(page);
+    await seedPond(page);
+    const snap = () => page.evaluate(() => ({ same: (window as any).__m === undefined ? ((window as any).__m = mapData.join('|'), true) : (window as any).__m === mapData.join('|'), u: History.undoSize(), sel: Selection.size() }));
+    const a = await snap();
+    await page.evaluate(() => { (window as any).__as = 0; const o = IO.scheduleAutoSave; IO.scheduleAutoSave = (...a: any[]) => { (window as any).__as++; return o.apply(IO, a); }; });
+    await saveNamed(page, 'x');
+    await importMany(page, 2);
+    await page.locator('.stamp-row').first().locator('.stamp-del').click();
+    await page.locator('#dialog-actions button[data-value="ok"]').click();
+    await expect(page.locator('.stamp-row')).toHaveCount(2);
+    expect(await snap()).toEqual(a);
+    expect(await page.evaluate(() => (window as any).__as)).toBe(0);
   });
 });
