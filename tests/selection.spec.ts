@@ -2371,6 +2371,21 @@ test.describe('transform and move: fix round 1 (T2.10)', () => {
     expect(rot).toEqual({ rot: 0, mh: false, mv: false });
   });
 
+  test('a focusable container (tabindex=-1 div) does not disable Enter-lift or the transform keys; a role=button and a building card still own Enter (cleanup A2)', async ({ page }) => {
+    await seedBlock(page);
+    await page.evaluate(() => { const d = document.createElement('div'); d.id = 'zz-box'; d.tabIndex = -1; document.body.appendChild(d); d.focus(); });
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(true);
+    await page.keyboard.press('Escape');
+    await page.evaluate(() => { Tools.copySelection(); Tools.beginPaste(Clipboard.get()); document.getElementById('zz-box')!.focus(); });
+    await page.keyboard.press('Period');
+    expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 1, mh: false, mv: false });
+    // positive controls: Enter on a role=button element is that element's key
+    await page.evaluate(() => { Tools.setActive('paint'); const b = document.createElement('div'); b.id = 'zz-rb'; b.tabIndex = 0; b.setAttribute('role', 'button'); document.body.appendChild(b); b.focus(); });
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(false);
+  });
+
   // ---------- I3: in-place writers while a region is lifted ---------------------------------------
   const lift = (page: Page) => page.evaluate(() => { const ok = Tools.beginMove(); return ok && Tools.isMoving(); });
   async function writerCase(page: Page, run: () => Promise<void>) {

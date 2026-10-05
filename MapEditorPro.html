@@ -2442,7 +2442,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "06da0c7";
+const COMMIT  = "61b0171";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7285,10 +7285,10 @@ const Tools = (() => {
     return false;
   }
 
-  // True when the key event targets (or the focus is on) an element that handles its own keys: a role=button / tabindex
-  // control such as a building-picker card. Enter / transform keys there act on that control, not on the selection.
+  // True when the key event targets (or the focus is on) an element that handles its own Enter: a role=button control such as a
+  // building-picker card, a button, link or form field. (A bare focusable container, tabindex=-1, does not count.)
   function _ownsOwnKeys(e) {
-    return [document.activeElement, e && e.target].some(a => a && a.closest && a.closest('[role=button], .bld-card, [tabindex]'));
+    return [document.activeElement, e && e.target].some(a => a && a.closest && a.closest('[role=button], .bld-card, button, a, input, select, textarea'));
   }
 
   function init() {
@@ -7363,7 +7363,7 @@ const Tools = (() => {
       if (e.key === 'Escape' && !e.defaultPrevented && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
       if (e.key === 'Escape' && _active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); return; }   // cancels the drag only
       if (e.key === 'Escape' && !e.defaultPrevented && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { Selection.clear(); return; }   // an Esc that closed a menu / picker (UI marks it) must not wipe the selection
-      if (_float && mapMode && !e.defaultPrevented && !_ownsOwnKeys(e) && !e.shiftKey && !e.altKey && !e.repeat && !_isTypingOrModal(e)) {   // transform keys: only while a float is active
+      if (_float && mapMode && !e.defaultPrevented && !e.shiftKey && !e.altKey && !e.repeat && !_isTypingOrModal(e)) {   // transform keys: only while a float is active
         const k = e.code;
         if (k === 'Period' || k === 'Comma' || k === 'Slash' || k === 'Semicolon') {
           e.preventDefault();
