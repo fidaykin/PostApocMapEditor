@@ -248,10 +248,23 @@
     return out;
   }
 
+  // Member of `cubes` closest to their mean; ties go to the first (stable).
+  function anchorOf(cubes) {
+    let q = 0, r = 0, s = 0;
+    for (const c of cubes) { q += c.q; r += c.r; s += c.s; }
+    const n = cubes.length, m = { q: q / n, r: r / n, s: s / n };
+    let best = cubes[0], bd = Infinity;
+    for (const c of cubes) {
+      const d = Math.hypot(c.q - m.q, c.r - m.r, c.s - m.s);
+      if (d < bd - 1e-9) { bd = d; best = c; }
+    }
+    return best;
+  }
+
   root.HexUtils = {
     makeRng, scatterPick,
     CUBE_DIRS, toCube, fromCube, cubeDistance, cubeRound, cubeLine, cubeDisc, cubeRing,
     rotateCube, mirrorCube, inBounds, cellsFromCubes, neighbors, discCells, ringCells, lineCells,
-    cubeToPixel, polygonCells, SYMMETRY_MODES, symmetryCubes, symmetryCells,
+    cubeToPixel, anchorOf, polygonCells, SYMMETRY_MODES, symmetryCubes, symmetryCells,
   };
 })(typeof self !== 'undefined' ? self : this);
