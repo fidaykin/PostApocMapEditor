@@ -2390,7 +2390,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "29db7d4";
+const COMMIT  = "9c42778";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5575,30 +5575,31 @@ const Tools = (() => {
     info.matched = cand.length;
     let items = cand.map(i => ({ i, col: i % W, row: (i / W) | 0 }));
     if (_multiEntry(toE.id) && items.length) {
-      for (;;) {                                      // a skipped anchor keeps its own footprint, which may block another: fixed point
-        const keep = new Set(items.map(it => it.i)), ok = [];
+      // Plan = a set S of anchors that really become toE. Every candidate left out of S stays an X anchor, so its old
+      // footprint and its cell stay occupied. A candidate is dropped when its new footprint leaves the map, lands on an
+      // anchor or footprint that stays, or loses an overlap claim (row-major: the earlier anchor wins). A drop turns
+      // that anchor into one that stays, which can invalidate others, so passes repeat until nothing changes (drops
+      // only ever grow, so it terminates; each pass is linear in the footprint cells of the survivors).
+      const inS = new Set(items.map(it => it.i));
+      for (const it of items) it.fp = footprintCells(it.col, it.row, toE);
+      for (let changed = true; changed;) {
+        changed = false;
+        const claimed = new Set();
         for (const it of items) {
-          let fine = true;
-          const fp = footprintCells(it.col, it.row, toE);
-          for (const f of fp) {
+          if (!inS.has(it.i)) continue;
+          let fine = !claimed.has(it.i);
+          if (fine) for (const f of it.fp) {
             if (!HexUtils.inBounds(f.col, f.row, W, H)) { fine = false; break; }
             const fi = f.row * W + f.col, fa = getSatelliteAnchor(f.col, f.row);
-            if (fa && !keep.has(fa.row * W + fa.col)) { fine = false; break; }       // the footprint of an anchor that stays
-            if (_multiEntry(mapData[fi]) && !keep.has(fi)) { fine = false; break; }  // an anchor that stays
+            if (claimed.has(fi)) { fine = false; break; }
+            if (fa && !inS.has(fa.row * W + fa.col)) { fine = false; break; }          // the footprint of an anchor that stays
+            if (_multiEntry(mapData[fi]) && !inS.has(fi)) { fine = false; break; }     // an anchor that stays
           }
-          if (fine) { it.fp = fp; ok.push(it); }
+          if (!fine) { inS.delete(it.i); changed = true; continue; }
+          claimed.add(it.i); for (const f of it.fp) claimed.add(f.row * W + f.col);
         }
-        if (ok.length === items.length) break;
-        items = ok;
       }
-      const claimed = new Set(), kept = [];
-      for (const it of items) {
-        const own = it.i;
-        if (claimed.has(own) || it.fp.some(f => claimed.has(f.row * W + f.col))) continue;
-        claimed.add(own); for (const f of it.fp) claimed.add(f.row * W + f.col);
-        kept.push(it);
-      }
-      items = kept;
+      items = items.filter(it => inS.has(it.i));
     }
     out.list = items;
     info.replaced = items.length;
@@ -5631,7 +5632,9 @@ const Tools = (() => {
   function _runReplace(fromId, toId, cells) {
     if (_fillBusy) { UI.toast('Wait for the fill to finish'); return -1; }
     if (isStroking()) { UI.toast('Finish the move first (Esc)'); return -1; }
-    if (!Terrain.byHexId(toId)) { UI.toast('Unknown tile id: ' + toId); return -1; }
+    const toE = Terrain.byHexId(toId);
+    if (!toE) { UI.toast('Unknown tile id: ' + toId); return -1; }
+    if (toE.id === fromId) { UI.toast('Pick two different tile ids'); return -1; }   // canonical id: 'rubble_1' is Rubble_1
     const n = replaceTerrain(fromId, toId, cells, { beforeWrite: () => History.push() });
     if (n > 0) { Canvas.drawMinimap(); Canvas.render(); IO.scheduleAutoSave(); }
     const sk = _replaceInfo.skipped;
@@ -5659,7 +5662,8 @@ const Tools = (() => {
     const to   = document.getElementById('replace-to').value.trim();
     const m = _replaceModal;
     if (m && (m.md !== mapData || m.W !== MAP_WIDTH || m.H !== MAP_HEIGHT)) { closeReplace(); UI.toast('Replace cancelled: the map changed while the dialog was open'); return; }
-    if (!from || !to || from === to) { UI.toast('Pick two different tile ids'); return; }
+    const toCanon = Terrain.byHexId(to);
+    if (!from || !to || from === to || (toCanon && toCanon.id === from)) { UI.toast('Pick two different tile ids'); return; }
     const selOnly = document.getElementById('replace-sel-only').checked;
     if (selOnly && Selection.isEmpty()) { UI.toast('Select a region first (M)'); return; }
     const n = _runReplace(from, to, selOnly ? Selection.getCells() : null);
@@ -6588,7 +6592,7 @@ const Tools = (() => {
         return;
       }
       if (e.key === 'Escape' && _float && !e.defaultPrevented && mapMode && !_isTypingOrModal()) { _endPaste(); return; }   // ends the paste only; the selection stays
-      if (e.key === 'Escape' && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
+      if (e.key === 'Escape' && !e.defaultPrevented && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
       if (e.key === 'Escape' && _active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); return; }   // cancels the drag only
       if (e.key === 'Escape' && !e.defaultPrevented && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { Selection.clear(); return; }   // an Esc that closed a menu / picker (UI marks it) must not wipe the selection
       if (_float && mapMode && !e.shiftKey && !e.altKey && !e.repeat && !_isTypingOrModal(e)) {   // transform keys: only while a float is active

@@ -2800,7 +2800,7 @@ test.describe('replace (T2.11)', () => {
     expect(await page.locator('#replace-sel-only').isChecked()).toBe(false);
   });
 
-  test('a selected scope only reads and writes selected cells (work counter: 3 cells examined, not the map); whole map examines every cell', async ({ page }) => {
+  test('a selected scope examines and replaces only the selected cells (work counter: 3 examined, not the map; plain tiles have no edges, so nothing outside changes); whole map examines every cell', async ({ page }) => {
     const r = await page.evaluate(() => {
       const outside = mapData.slice();
       Tools.replaceTerrain('Rubble_1', 'Plain_2', Selection.getCells());
@@ -2850,6 +2850,7 @@ test.describe('replace (T2.11)', () => {
     const s0 = await steps(page), snap0 = await snapshot(page);
     const cases: [string, string, boolean, RegExp][] = [
       ['Rubble_1', 'Rubble_1', false, /different/i],
+      ['Rubble_1', 'rubble_1', false, /different/i],       // the same tile in another letter case: canonical ids are compared, no dishonest 'no tiles' toast
       ['', 'Plain_2', false, /different|pick/i],
       ['Rubble_1', 'No_Such_Tile', false, /unknown/i],
       ['Forest_1', 'Plain_2', false, /no .*Forest_1|nothing/i],
@@ -2970,13 +2971,23 @@ test.describe('replace (T2.11)', () => {
 
   test('anchor with another anchor id: the old footprint goes, the new (larger, 6-cell) one is derived', async ({ page }) => {
     await page.evaluate(([RB]) => { mapData[200 * MAP_WIDTH + 200] = RB; invalidateSatelliteMap(); }, [RB]);
-    expect((await satsOf(page, 200, 200)).length).toBe(3);
+    const rabbitSats = await satsOf(page, 200, 200);
+    expect(rabbitSats.length).toBe(3);
+    expect(await pitchOk(page, 200, 200)).toBe(true);        // even row: the Rabbit's 3 cells are true neighbours (pixel geometry)
     const n = await page.evaluate(([RB, DR]) => Tools.replaceTerrain(RB, DR, null), [RB, DR]);
     expect(n).toBe(1);
     const want = await page.evaluate(([DR]) => Terrain.byHexId(DR).occupiedOffsets.length, [DR]);
     expect(want).toBe(6);
     expect((await satsOf(page, 200, 200)).length).toBe(want);
-    expect(await satsOf(page, 200, 200)).toEqual(await sharedFp(page, 200, 200));   // the shared definition (legacy tables: SE/SW are not true adjacency, K1)
+    expect(await satsOf(page, 200, 200)).toEqual(await sharedFp(page, 200, 200));   // the shared definition
+    // Independent reference on an EVEN row: the Dragon keeps the Rabbit's pixel-verified cells and adds 3 distinct new ones.
+    // The 3 added offsets (SE, S, SW) are NOT pixel-checked: on this row the legacy table puts SW/SE 2 steps away
+    // (pre-existing K1 defect, outside this task); on odd rows some of NW/N/NE are off too (see the Rabbit test above), so
+    // there the shared footprint definition, which the satellite map itself uses (asserted above), is the only reference.
+    const dragonSats = await satsOf(page, 200, 200);
+    expect(rabbitSats.every(c => dragonSats.includes(c))).toBe(true);
+    expect(new Set(dragonSats).size).toBe(6);
+    expect(dragonSats.includes('200,200')).toBe(false);
     expect(await page.evaluate(() => mapData[200 * MAP_WIDTH + 200])).toBe('Dragon_Flat_1');
   });
 
@@ -3084,7 +3095,7 @@ test.describe('replace (T2.11)', () => {
   });
 
   // ---- edges ----
-  test('water/river edges are re-resolved after a replace: only the cells next to the replaced ones, and they match resolveEdgeTile on the final map', async ({ page }) => {
+  test('water/river edges are re-resolved after a replace: only the cells next to the replaced ones (these neighbours lie OUTSIDE the replaced cell list and ARE rewritten), and they match resolveEdgeTile on the final map', async ({ page }) => {
     const r = await page.evaluate(() => {
       const W = MAP_WIDTH, H = MAP_HEIGHT;
       const rivers = HexDB.getAll().filter((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0);
@@ -3181,27 +3192,189 @@ test.describe('replace (T2.11)', () => {
     expect(r.resolves).toBe(0);                // nothing directional anywhere: nothing to re-resolve
   });
 
+  // ---- multi-tile X and multi-tile Y: the plan must leave a consistent satellite map (fix round 1) ----
+  /** Installs window.__inv(c0, c1, r0, r1): violations of the footprint invariants inside the window (anchors up to 6 cells
+   *  outside it are included): a cell claimed by two anchors' footprints (an anchor's own cell counts), a footprint cell
+   *  that is not registered to its anchor in the satellite map, a satellite whose anchor is not a multi-tile tile or
+   *  whose footprint does not contain it. Reads only footprintCells / the live satellite map. */
+  const installInv = (page: Page) => page.evaluate(() => {
+    (window as any).__inv = (c0: number, c1: number, r0: number, r1: number) => {
+      const W = MAP_WIDTH, bad: string[] = [], owner = new Map<string, string>();
+      const multi = (id: string) => { const e = Terrain.byHexId(id); return !!(e && Array.isArray(e.occupiedOffsets) && e.occupiedOffsets.length); };
+      const claim = (c: number, r: number, who: string) => { const k = c + ',' + r; if (owner.has(k)) bad.push(`cell ${k} claimed by ${owner.get(k)} and ${who}`); else owner.set(k, who); };
+      for (let r = r0 - 6; r <= r1 + 6; r++) for (let c = c0 - 6; c <= c1 + 6; c++) {
+        const id = mapData[r * W + c];
+        if (!multi(id)) continue;
+        const who = `${id}@${c},${r}`, e = Terrain.byHexId(id);
+        claim(c, r, who);
+        for (const f of footprintCells(c, r, e)) {
+          if (f.col < 0 || f.col >= W || f.row < 0 || f.row >= MAP_HEIGHT) { bad.push(who + ' footprint leaves the map'); continue; }
+          claim(f.col, f.row, who);
+          const a = getSatelliteAnchor(f.col, f.row);
+          if (!a || a.col !== c || a.row !== r) bad.push(`${who} footprint cell ${f.col},${f.row} is registered to ${a ? a.col + ',' + a.row : 'nobody'}`);
+        }
+      }
+      for (let r = r0; r <= r1; r++) for (let c = c0; c <= c1; c++) {
+        const a = getSatelliteAnchor(c, r);
+        if (!a) continue;
+        const id = mapData[a.row * W + a.col];
+        if (!multi(id) || !footprintCells(a.col, a.row, Terrain.byHexId(id)).some((f: any) => f.col === c && f.row === r)) bad.push(`orphan satellite ${c},${r} (anchor ${a.col},${a.row} = ${id})`);
+      }
+      return bad;
+    };
+  });
+
+  test('two multi-tile anchors with disjoint footprints, X to a larger multi-tile Y: no cell is claimed twice, no orphan satellite (the reported corruption)', async ({ page }) => {
+    await installInv(page);
+    const r = await page.evaluate(([RB, DR]) => {
+      mapData.fill('Plain_1');
+      const W = MAP_WIDTH;
+      mapData[200 * W + 200] = RB; mapData[202 * W + 201] = RB; invalidateSatelliteMap();
+      const before = (window as any).__inv(195, 206, 195, 206);
+      const n = Tools.replaceTerrain(RB, DR, null), info = Tools.replaceInfo();
+      return { before, n, info, bad: (window as any).__inv(195, 206, 195, 206), ids: [mapData[200 * W + 200], mapData[202 * W + 201]] };
+    }, [RB, DR]);
+    expect(r.before).toEqual([]);                 // the fixture itself is valid
+    expect(r.bad).toEqual([]);
+    expect(r.n + r.info.skipped).toBe(2);
+    expect(r.ids.filter((x: string) => x === DR).length).toBe(r.n);
+    expect(r.ids.filter((x: string) => x === RB).length).toBe(r.info.skipped);
+  });
+
+  test('a winner whose new footprint covers another X anchor\'s own cell: that anchor is not left standing under the footprint', async ({ page }) => {
+    await installInv(page);
+    const r = await page.evaluate(([RB, DR]) => {
+      mapData.fill('Plain_1');
+      const W = MAP_WIDTH, dr = Terrain.byHexId(DR), rb = Terrain.byHexId(RB);
+      // In the real database every Y footprint that is larger than X's is adjacent to X, so two valid X anchors can never
+      // stand on each other's new cells. Shrink this page's Rabbit to ONE satellite (NW) to make that reachable.
+      rb.occupiedOffsets.length = 0; rb.occupiedOffsets.push('NW'); invalidateSatelliteMap();
+      // B sits on one cell of A's DRAGON footprint, with an RB footprint that is valid and disjoint from A's; A is tried
+      // on both row parities (the legacy footprint tables differ between them)
+      for (const A of [{ col: 200, row: 200 }, { col: 200, row: 201 }]) {
+      const oldA = footprintCells(A.col, A.row, rb).map((f: any) => f.col + ',' + f.row);
+      for (const f of footprintCells(A.col, A.row, dr)) {
+        const k = f.col + ',' + f.row; if (oldA.includes(k)) continue;
+        const bFp = footprintCells(f.col, f.row, rb).map((q: any) => q.col + ',' + q.row);
+        if (bFp.includes(A.col + ',' + A.row) || bFp.some((x: string) => oldA.includes(x))) continue;
+        mapData.fill('Plain_1'); mapData[A.row * W + A.col] = RB; mapData[f.row * W + f.col] = RB; invalidateSatelliteMap();
+        if ((window as any).__inv(190, 215, 190, 215).length) continue;
+        const n = Tools.replaceTerrain(RB, DR, null), info = Tools.replaceInfo();
+        return { found: true, n, info, bad: (window as any).__inv(190, 215, 190, 215), B: k };
+      }
+      }
+      return { found: false };
+    }, [RB, DR]);
+    expect(r.found).toBe(true);
+    expect(r.bad).toEqual([]);
+    expect(r.n! + r.info!.skipped).toBe(2);
+  });
+
+  test('cascade: three anchors where each new footprint covers the next anchor; the plan re-checks until stable (invariants hold, counts add up)', async ({ page }) => {
+    await installInv(page);
+    const r = await page.evaluate(([RB, DR]) => {
+      mapData.fill('Plain_1');
+      const W = MAP_WIDTH, dr = Terrain.byHexId(DR), rb = Terrain.byHexId(RB);
+      // In the real database every Y footprint that is larger than X's is adjacent to X, so two valid X anchors can never
+      // stand on each other's new cells. Shrink this page's Rabbit to ONE satellite (NW) to make that reachable.
+      rb.occupiedOffsets.length = 0; rb.occupiedOffsets.push('NW'); invalidateSatelliteMap();
+      const keys = (a: any[]) => a.map((q: any) => q.col + ',' + q.row);
+      // search a chain A -> B -> C: B on a cell of A's dragon footprint, C on a cell of B's; every old RB footprint valid and disjoint
+      for (const A of [{ col: 200, row: 200 }, { col: 200, row: 201 }]) for (const fb of footprintCells(A.col, A.row, dr)) for (const fc of footprintCells(fb.col, fb.row, dr)) {
+        const pts = [A, fb, fc];
+        if (new Set(keys(pts)).size !== 3) continue;
+        mapData.fill('Plain_1');
+        for (const q of pts) mapData[q.row * W + q.col] = RB;
+        invalidateSatelliteMap();
+        if ((window as any).__inv(190, 215, 190, 215).length) continue;
+        const n = Tools.replaceTerrain(RB, DR, null), info = Tools.replaceInfo();
+        return { found: true, n, info, bad: (window as any).__inv(190, 215, 190, 215), pts: keys(pts) };
+      }
+      return { found: false };
+    }, [RB, DR]);
+    expect(r.found).toBe(true);
+    expect(r.info!.matched).toBe(3);
+    expect(r.bad).toEqual([]);
+    expect(r.n! + r.info!.skipped).toBe(3);
+  });
+
+  test('seeded random layouts of X and Y anchors (200 on a 20x20 region): the invariants hold after every replace, in both directions', async ({ page }) => {
+    await installInv(page);
+    const r = await page.evaluate(([RB, DR]) => {
+      let seed = 20260705;
+      const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+      const W = MAP_WIDTH, C0 = 200, R0 = 200, S = 20;
+      const fails: string[] = [];
+      let replacedTotal = 0, skippedTotal = 0;
+      for (let layout = 0; layout < 200; layout++) {
+        mapData.fill('Plain_1');
+        const used = new Set<string>();
+        const tries = 6 + Math.floor(rnd() * 30);
+        for (let t = 0; t < tries; t++) {
+          const id = rnd() < 0.5 ? RB : DR, c = C0 + 3 + Math.floor(rnd() * (S - 6)), r = R0 + 3 + Math.floor(rnd() * (S - 6));
+          const cells = [{ col: c, row: r }].concat(footprintCells(c, r, Terrain.byHexId(id)));
+          if (cells.some((q: any) => used.has(q.col + ',' + q.row))) continue;
+          for (const q of cells) used.add(q.col + ',' + q.row);
+          mapData[r * W + c] = id;
+        }
+        invalidateSatelliteMap();
+        const [from, to] = layout % 2 ? [RB, DR] : [DR, RB];
+        const matched = mapData.filter((x: string) => x === from).length, toBefore = mapData.filter((x: string) => x === to).length;
+        const n = Tools.replaceTerrain(from, to, null), info = Tools.replaceInfo();
+        const bad = (window as any).__inv(C0, C0 + S, R0, R0 + S);
+        const toAfter = mapData.filter((x: string) => x === to).length;
+        if (bad.length) fails.push(`layout ${layout} ${from}->${to}: ${bad[0]}`);
+        if (info.matched !== matched || n + info.skipped !== matched || toAfter !== toBefore + n) fails.push(`layout ${layout}: counts ${JSON.stringify(info)} n=${n} matched=${matched}`);
+        replacedTotal += n; skippedTotal += info.skipped;
+      }
+      return { fails: fails.slice(0, 5), replacedTotal, skippedTotal };
+    }, [RB, DR]);
+    expect(r.fails).toEqual([]);
+    expect(r.replacedTotal).toBeGreaterThan(100);       // the sweep really replaces ...
+    expect(r.skippedTotal).toBeGreaterThan(20);         // ... and really hits the skip paths
+  });
+
   // ---- busy / stale / state ----
-  test('refused while a fill runs: API, modal and H tool write nothing and add no step', async ({ page }) => {
+  test('refused while a fill runs: the API returns 0 and openReplace refuses with its own toast; nothing is written, no step', async ({ page }) => {
     await toastsOn(page);
     const r = await page.evaluate(async () => {
       UI.selectTerrain('Water_1');
       const p = Tools.fillAt(100, 100);                      // starts a time-sliced fill of the Plain region
       const busy = Tools.isFillBusy();
-      const s0 = History.undoSize(), snap = mapData.join('|');
+      const s0 = History.undoSize(), snap = mapData.join('|'), t0 = (window as any).__toasts.length;
       const api = Tools.replaceTerrain('Rubble_1', 'Plain_2', null);
+      const apiToasts = (window as any).__toasts.slice(t0);
       Tools.openReplace();
+      const toasts = (window as any).__toasts.slice(t0);     // read BEFORE the fill ends (it toasts 'Fill applied' itself)
       const modalOpen = document.getElementById('replace-modal')!.classList.contains('open');
-      Tools.applyReplace();
       const same = mapData.join('|') === snap && History.undoSize() === s0;
       await p;
-      return { busy, api, modalOpen, same, toast: (window as any).__toasts.slice(-1)[0] };
+      return { busy, api, apiToasts, toasts, modalOpen, same };
     });
     expect(r.busy).toBe(true);
     expect(r.api).toBe(0);
+    expect(r.apiToasts).toEqual([]);
+    expect(r.toasts).toEqual(['Wait for the fill to finish']);
     expect(r.modalOpen).toBe(false);
     expect(r.same).toBe(true);
-    expect(r.toast).toMatch(/fill/i);
+  });
+
+  test('applyReplace with filled fields while a fill runs reaches the _runReplace guard: its toast, nothing written, no step, the dialog stays open', async ({ page }) => {
+    await toastsOn(page);
+    await open(page, 'Rubble_1', 'Plain_2', false);          // dialog opened (and fields filled) BEFORE the fill starts
+    const r = await page.evaluate(async () => {
+      UI.selectTerrain('Water_1');
+      const p = Tools.fillAt(100, 100);
+      const busy = Tools.isFillBusy();
+      const s0 = History.undoSize(), snap = mapData.join('|'), t0 = (window as any).__toasts.length;
+      Tools.applyReplace();
+      const toasts = (window as any).__toasts.slice(t0);     // read BEFORE the fill ends
+      const stillOpen = document.getElementById('replace-modal')!.classList.contains('open');
+      const same = mapData.join('|') === snap && History.undoSize() === s0;
+      await p;
+      return { busy, toasts, stillOpen, same };
+    });
+    expect(r).toEqual({ busy: true, toasts: ['Wait for the fill to finish'], stillOpen: true, same: true });
   });
 
   test('H click while a fill runs is ignored (synthetic mousedown dispatched while busy)', async ({ page }) => {
@@ -3233,13 +3406,33 @@ test.describe('replace (T2.11)', () => {
     await expect(page.locator('#replace-modal')).toBeHidden();
   });
 
-  test('selection-only with a selection from a replaced map is refused (the selection is gone)', async ({ page }) => {
+  test('Escape in the dialog closes only the dialog: a pending polygon survives and still commits with Enter', async ({ page }) => {
+    await page.evaluate(() => { Selection.clear(); UI.selectTerrain('Plain_2'); Tools.setActive('polygon'); });
+    const tri = await page.evaluate(() => {              // a triangle around the view centre, like the paint-tools polygon tests
+      const a = HexUtils.toCube(225, 224, MAP_WIDTH, MAP_HEIGHT);
+      return [a, { q: a.q + 5, r: a.r, s: a.s - 5 }, { q: a.q, r: a.r + 5, s: a.s - 5 }].map(c => HexUtils.fromCube(c, MAP_WIDTH, MAP_HEIGHT));
+    });
+    for (const v of tri) await clickCell(page, v.col, v.row);
+    await page.evaluate(() => Tools.openReplace());
+    await expect(page.locator('#replace-modal')).toBeVisible();
+    await page.focus('#replace-from');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#replace-modal')).toBeHidden();
+    const s0 = await steps(page);
+    await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+    await page.keyboard.press('Enter');                       // commits the polygon only if Escape did not cancel it
+    expect(await steps(page)).toBe(s0 + 1);
+    expect(await page.evaluate(([c, r]) => mapData[r * MAP_WIDTH + c], [tri[0].col, tri[0].row])).toBe('Plain_2');
+  });
+
+  test('Selection-only with the map array replaced (same size) while the dialog is open: the stale-map check cancels the replace, nothing is written', async ({ page }) => {
     await toastsOn(page);
     await open(page, 'Plain_1', 'Plain_2', true);
     await page.evaluate(() => { mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1'); });
     const snap0 = await snapshot(page);
     await page.click('#replace-apply');
     expect(await snapshot(page)).toBe(snap0);
+    expect(await page.evaluate(() => (window as any).__toasts.slice(-1)[0])).toMatch(/map changed/i);
   });
 
   test('refused while a lifted selection is moving', async ({ page }) => {
