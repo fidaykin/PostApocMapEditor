@@ -1070,6 +1070,44 @@ test.describe('road tools (T2.15)', () => {
     await ev(page, 'mousedown', 222, 224, { button: 3 }); await ev(page, 'mouseup', 222, 224, { button: 3 });
     expect(await startOf(page)).toBe(null);
   });
+
+  // ── cleanup A3: the pending start must not survive in-place rewrites of the map ──
+  const setStart = async (page: Page) => { await roadTool(page, 'road-connect'); await clickCell(page, 222, 224); expect(await startOf(page)).toEqual({ col: 222, row: 224 }); };
+  const noStart = async (page: Page, what: string) => {
+    expect(await startOf(page), what).toBe(null);
+    expect(await page.evaluate(() => Canvas.hasHighlight('road-start')), what + ' highlight').toBe(false);
+  };
+
+  test('Connect Road: undo and redo drop a pending start (history restores rewrite the map in place)', async ({ page }) => {
+    await page.evaluate(() => { History.push(); mapData[1] = 'Water_1'; });          // something to undo, then redo
+    await setStart(page);
+    await page.evaluate(() => History.undo());
+    await noStart(page, 'undo');
+    await page.evaluate(() => { Tools.setActive('road-connect'); });
+    await clickCell(page, 222, 224);
+    await page.evaluate(() => History.redo());
+    await noStart(page, 'redo');
+  });
+
+  test('Connect Road: Clear Map and Fill Map drop a pending start', async ({ page }) => {
+    await page.evaluate(() => { roadsData['230,224'] = { type: 'road_hex' }; });
+    await setStart(page);
+    await page.evaluate(() => IO.fillMap()); await page.click('#confirm-ok');
+    expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 100])).toBe('Plain_1');
+    await noStart(page, 'Fill Map');
+    await page.evaluate(() => { Tools.setActive('road-connect'); });
+    await clickCell(page, 222, 224);
+    await page.evaluate(() => IO.clearMap()); await page.click('#confirm-ok');
+    expect(await page.evaluate(() => Object.keys(roadsData).length)).toBe(0);
+    await noStart(page, 'Clear Map');
+  });
+
+  test('Connect Road: Escape with only a pending start is consumed (preventDefault) and keeps the tool', async ({ page }) => {
+    await setStart(page);
+    const prevented = await page.evaluate(() => { const ev = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }); window.dispatchEvent(ev); return ev.defaultPrevented; });
+    expect(prevented).toBe(true);
+    await noStart(page, 'Escape');
+  });
 });
 
 // ── T2.16: Bridge tool (U) ───────────────────────────────────────────────────────────────────────────────────────

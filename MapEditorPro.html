@@ -2442,7 +2442,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "61b0171";
+const COMMIT  = "4146e94";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7357,7 +7357,7 @@ const Tools = (() => {
         Canvas.render(); Canvas.drawMinimap();
         return;
       }
-      if (e.key === 'Escape' && _active === 'road-connect' && _roadConnectStart && !e.defaultPrevented && mapMode && !_isTypingOrModal(e)) { _clearRoadStart(true); return; }   // cancels the pending start only: no step, the tool stays
+      if (e.key === 'Escape' && _active === 'road-connect' && _roadConnectStart && !e.defaultPrevented && mapMode && !_isTypingOrModal(e)) { e.preventDefault(); _clearRoadStart(true); return; }   // cancels the pending start only: no step, the tool stays
       if (e.key === 'Escape' && (_active === 'object' || _active === 'bridge') && _buildingPickerOpen() && !e.defaultPrevented && !_isTypingOrModal(e)) { e.preventDefault(); _closeBuildingPicker(); return; }   // closes the picker only: the tool stays and the selection is kept
       if (e.key === 'Escape' && _float && !e.defaultPrevented && mapMode && !_isTypingOrModal()) { _endPaste(); return; }   // ends the paste only; the selection stays
       if (e.key === 'Escape' && !e.defaultPrevented && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
@@ -7399,7 +7399,7 @@ const Tools = (() => {
   function isStroking() { return _eraseStroke || isMoving(); }   // undo / redo are ignored while a lifted selection floats
   function isPasting() { return !!_float; }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, whenIdle, isFillBusy, isStrokeActive,
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, whenIdle, isFillBusy, isStrokeActive,
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
@@ -7464,6 +7464,7 @@ const History = (() => {
   }
 
   function _restore(snap) {
+    Tools.clearRoadStart(false);   // undo / redo / rollback rewrite the map in place: a pending Connect Road start would point at changed data
     _copyRows(mapData, snap.gridRows);
     settlements = (snap.settlements || []).map(s => Object.assign({}, s));
     settlementSlots = (snap.slots || []).map(s => Object.assign({}, s));
@@ -10307,6 +10308,7 @@ const IO = (() => {
       if (!pl.anyFree) { Layers.refuse('terrain'); return; }
       if (!pl.change) { UI.toast('Nothing to clear'); return; }   // no empty History step
       Tools.cancelFloat();                    // a lifted region would otherwise drop its old content back
+      Tools.clearRoadStart(false);
       History.push();                         // ONE step for every layer, before the first write
       if (pl.terrain) { mapData.fill(DEFAULT_TILE_ID); tileExtras = {}; }
       if (pl.bridges) bridgesData = [];
@@ -10338,6 +10340,7 @@ const IO = (() => {
       if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
       if (Layers.refuse('terrain')) return;
       Tools.cancelFloat();
+      Tools.clearRoadStart(false);
       History.push();
       mapData.fill(hexId);
       Canvas.render();
@@ -10843,6 +10846,7 @@ const Generator = (() => {
       if (Tools.isFillBusy()) { UI.toast('A fill started while generating — result discarded'); return; }
       if (Tools.isStrokeActive()) { UI.toast('A stroke started while generating — result discarded'); return; }
       if (Layers.isLocked('terrain')) { UI.toast('Terrain layer was locked while generating — result discarded'); return; }
+      Tools.clearRoadStart(false);
       History.push();                            // pre-state, taken right before we overwrite
       const names = res.names, grid = res.grid, md = mapData;
       for (let i = 0; i < grid.length; i++) md[i] = names[grid[i]];
@@ -11041,6 +11045,7 @@ const Satellite = (() => {
       return;
     }
     Tools.cancelFloat();
+    Tools.clearRoadStart(false);
     History.push();
     const len = MAP_WIDTH * MAP_HEIGHT;
     for (let i = 0; i < len; i++) mapData[i] = _classified[i];
@@ -16650,6 +16655,7 @@ const Dev = (() => {
     }
 
     Tools.cancelFloat();
+    Tools.clearRoadStart(false);
     History.push();
     entries.forEach((entry, i) => {
       const { c, r } = positions[i];
