@@ -10303,7 +10303,7 @@ If Phase 0 landed with slightly different parameter names, adapt the call sites 
 
 ## Phase 4: Navigation and feedback
 
-Adds go-to coordinates, bookmarks, a larger minimap with zone and settlement overlays, a keyboard shortcut registry with a help panel, a map validator (results list, jump to cell, gate before export), PNG export, a documented decision about the game's map format, and a history panel.
+Adds go-to coordinates, bookmarks, a larger minimap with zone and settlement overlays, a keyboard shortcut registry with a help panel, a map validator (results list, jump to cell, gate before export), PNG export, a documented decision about the game's map format, a history panel, and (added after the T2.13 review) a narrow-window layout fix that needs an owner decision before implementation (T4.11).
 
 ### Files touched in Phase 4
 
@@ -11974,6 +11974,43 @@ git commit -m "feat(history): labelled history panel with click-to-jump" -m "Co-
 ```
 
 - **Review focus:** parallel `_undoMeta/_redoMeta` stay in lockstep with the snapshot stacks in every path (push, evict, undo, redo, clear); `jumpBy` relies only on public undo/redo.
+
+### Task T4.11: Narrow-window layout (decision point: make the right panels reachable below 1931 px)
+
+**Why this exists:** found during T2.13 review. The app has a fixed ~1931 px layout (`html, body { overflow: hidden }`, `#app` is a one-column `1fr` grid whose width is pushed by the non-wrapping toolbar row, `#main` is `220px 1fr 220px`). At 1400x900 the canvas is 1491 px wide and the whole right panel (minimap, brush, active terrain, anything placed there) starts at x≈1711, completely off-screen. Until this task is done, new controls go in the LEFT palette (standing rule). The owner chooses the option before any code is written.
+
+**Decision point (owner picks one; the controller does not rule on this one because it changes canvas geometry and the perf baselines):**
+
+| Option | What changes | Cost |
+|---|---|---|
+| A. Let the toolbar wrap | Toolbar becomes multi-row below ~1931 px | Canvas height/width change at common viewports, so every perf hash and canvas-size assertion (1491x808 at 1400x900) changes; baselines must be re-recorded by the owner |
+| B. Collapsible / drawer side panels (recommended) | Right panel (and optionally the left palette) can be collapsed to a thin rail; the canvas fills the freed width; the toolbar scrolls horizontally instead of widening the page | More work, but the canvas size at the default expanded state can stay identical, so baselines stay valid; adds a persisted per-viewer collapsed state |
+| C. No change | Right panels stay as they are; document the minimum useful window width | None; the minimap/brush/active-terrain panels stay unreachable below ~1930 px |
+
+**Files (option B; adjust if the owner picks A):**
+- Modify: `MapEditorPro.html` (CSS for `#main`, `#right-panel`, `#toolbar` overflow; panel toggle buttons; persisted collapsed state with try/catch around storage)
+- Create: `tests/layout-narrow.spec.ts`
+
+**Interfaces:**
+- Consumes: the existing `#right-panel` children (`#minimap`, brush panel, `#right-active-terrain`).
+- Produces: `#right-panel-toggle` (button, keyboard-activatable, `aria-expanded`), a persisted collapsed flag, and a rule that no control is ever unreachable at 1100x700 (either visible, scrollable into view, or behind a visible toggle).
+
+- [ ] **Step 1: Write the failing tests** in `tests/layout-narrow.spec.ts`
+  - At 1100x700, 1280x720, 1400x900 and 1920x1080: the minimap, brush panel and active-terrain panel can each be brought fully inside the viewport (expanded, or via the toggle) and clicked with a real mouse click.
+  - Canvas size at 1400x900 with the right panel EXPANDED is unchanged (1491x808) for option B; with it collapsed the canvas is exactly the freed width wider.
+  - No horizontal page scroll appears at any of the four viewports.
+  - The toggle is keyboard-operable, restores focus to the map shortcuts, and persists across reload (storage unavailable: the page still renders).
+- [ ] **Step 2: Run, confirm failure** against the current layout.
+- [ ] **Step 3: Implement** the owner's choice. Keep `tests/perf-baseline.json` untouched; if the choice changes canvas geometry, stop and ask the owner to re-record baselines (never regenerate them from the harness).
+- [ ] **Step 4: Run the full default suite once.** Pre-existing canvas-size assertions must stay green for option B.
+- [ ] **Step 5: Commit**
+
+```bash
+git add MapEditorPro.html tests/layout-narrow.spec.ts
+git commit -m "feat(layout): reachable side panels in narrow windows" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
+```
+
+- **Review focus:** nothing becomes unreachable at 1100x700; canvas coordinates, hit-testing and the ruler strips stay correct when the panel collapses (resize observer / `Canvas.resize` called once per toggle, not per frame); minimap redraw after toggling; the collapsed state never blocks startup when storage throws; once this task lands, the Stamps panel may optionally move back to the right panel (separate owner decision).
 
 ---
 
