@@ -3036,6 +3036,19 @@ test.describe('replace (T2.11)', () => {
     expect((await satsOf(page, 200, 200)).length).toBe(3);
   });
 
+  test('the overlap winner does not depend on the order of the cells passed in (row-major wins, even for a reversed list)', async ({ page }) => {
+    const r = await page.evaluate(([RB]) => {
+      const W = MAP_WIDTH;
+      mapData.fill('Plain_1');
+      mapData[200 * W + 200] = 'Rubble_2'; mapData[200 * W + 201] = 'Rubble_2';
+      const n = Tools.replaceTerrain('Rubble_2', RB, [{ col: 201, row: 200 }, { col: 200, row: 200 }]);
+      return { n, a: mapData[200 * W + 200], b: mapData[200 * W + 201] };
+    }, [RB]);
+    expect(r.n).toBe(1);
+    expect(r.a).toBe(RB);
+    expect(r.b).toBe('Rubble_2');
+  });
+
   test('a candidate lying under another anchor footprint is not replaced (nothing is painted under a footprint)', async ({ page }) => {
     const r = await page.evaluate(([RB]) => {
       const W = MAP_WIDTH;
