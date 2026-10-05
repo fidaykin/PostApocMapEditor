@@ -328,16 +328,17 @@ test.describe('layers: panel (T2.17)', () => {
     expect(await page.evaluate(() => Tools.isPasting() || Tools.isMoving())).toBe(false);   // Enter did not lift the selection
   });
 
-  test('a pointer click on a panel button hands the focus back: Space pans again', async ({ page }) => {
-    await page.click('.layer-row[data-layer="roads"] .layer-eye');
-    await page.click('.layer-row[data-layer="roads"] .layer-lock');
-    expect(await page.evaluate(() => document.activeElement === document.body || !document.activeElement!.closest('#layers-panel'))).toBe(true);
-    await page.keyboard.down('Space');
-    expect(await page.evaluate(() => (document.getElementById('map-canvas') as HTMLElement).style.cursor)).toBe('grab');
-    await page.keyboard.up('Space');
-    await page.keyboard.press('KeyF');
-    expect(await page.evaluate(() => Tools.getActive())).toBe('fill');
-  });
+  for (const which of ['eye', 'lock']) {
+    test(`a pointer click on the ${which} button hands the focus back: Space pans again`, async ({ page }) => {
+      await page.click(`.layer-row[data-layer="roads"] .layer-${which}`);
+      expect(await page.evaluate(() => !document.activeElement!.closest('#layers-panel'))).toBe(true);
+      await page.keyboard.down('Space');
+      expect(await page.evaluate(() => (document.getElementById('map-canvas') as HTMLElement).style.cursor)).toBe('grab');
+      await page.keyboard.up('Space');
+      await page.keyboard.press('KeyF');
+      expect(await page.evaluate(() => Tools.getActive())).toBe('fill');
+    });
+  }
 
   test('toggling during a stroke does not disturb it; the stroke still ends as one step', async ({ page }) => {
     const r = await page.evaluate(async () => {
