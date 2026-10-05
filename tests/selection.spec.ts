@@ -2715,3 +2715,601 @@ test.describe('transform and move: fix round 2 (T2.10)', () => {
     });
   }
 });
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+// Replace X with Y (T2.11)
+// ════════════════════════════════════════════════════════════════════════════════════════════════
+test.describe('replace (T2.11)', () => {
+  const RB = 'Rabbit_Flat_1', DR = 'Dragon_Flat_1';   // multi-tile anchors with 3 and 5 satellite offsets
+  test.beforeEach(async ({ page }) => {
+    await freshEditor(page);
+    await page.evaluate(() => {
+      const W = MAP_WIDTH;
+      for (const [c, r] of [[225, 224], [226, 224], [227, 224], [225, 230], [226, 230]]) mapData[r * W + c] = 'Rubble_1';
+      Selection.setCells([{ col: 225, row: 224 }, { col: 226, row: 224 }, { col: 227, row: 224 }]);
+    });
+  });
+  const rubble = (page: Page) => page.evaluate(() => mapData.filter((x: string) => x === 'Rubble_1').length);
+  const snapshot = (page: Page) => page.evaluate(() => mapData.join('|'));
+  const steps = (page: Page) => page.evaluate(() => History.undoSize());
+  const open = async (page: Page, from: string, to: string, selOnly: boolean) => {
+    await page.evaluate(() => Tools.openReplace());
+    await page.fill('#replace-from', from);
+    await page.fill('#replace-to', to);
+    await page.locator('#replace-sel-only').setChecked(selOnly);
+  };
+  /** satellite cells registered to the anchor at (c,r), found by scanning a window (independent of footprintCells) */
+  const satsOf = (page: Page, c: number, r: number) => page.evaluate(([c, r]) => {
+    const out: string[] = [];
+    for (let rr = r - 4; rr <= r + 4; rr++) for (let cc = c - 4; cc <= c + 4; cc++) { const a = getSatelliteAnchor(cc, rr); if (a && a.col === c && a.row === r) out.push(cc + ',' + rr); }
+    return out.sort();
+  }, [c, r]);
+  /** pixel reference: every registered satellite is exactly one hex pitch (centre to centre) from its anchor */
+  const pitchOk = (page: Page, c: number, r: number) => page.evaluate(([c, r]) => {
+    const a = Canvas.hexCenterWorld(c, r), pitch = Math.sqrt(3) * 40;
+    const sats: string[] = [];
+    for (let rr = r - 4; rr <= r + 4; rr++) for (let cc = c - 4; cc <= c + 4; cc++) { const q = getSatelliteAnchor(cc, rr); if (q && q.col === c && q.row === r) sats.push(cc + ',' + rr); }
+    return sats.length > 0 && sats.every(s => { const [x, y] = s.split(',').map(Number); const p = Canvas.hexCenterWorld(x, y); return Math.abs(Math.hypot(p.x - a.x, p.y - a.y) - pitch) < 1; });
+  }, [c, r]);
+
+  // ---- brief tests (adapted) ----
+  test('replaceTerrain honours the selection scope and the whole-map scope', async ({ page }) => {
+    const n = await page.evaluate(() => Tools.replaceTerrain('Rubble_1', 'Plain_2', Selection.getCells()));
+    expect(n).toBe(3);
+    expect(await rubble(page)).toBe(2);
+    const m = await page.evaluate(() => Tools.replaceTerrain('Rubble_1', 'Plain_2', null));
+    expect(m).toBe(2);
+    expect(await rubble(page)).toBe(0);
+    expect(await page.evaluate(() => mapData.filter((x: string) => x === 'Plain_2').length)).toBe(5);
+  });
+
+  test('Edit > Replace modal replaces inside the selection and undoes in one step', async ({ page }) => {
+    await page.evaluate(() => Tools.openReplace());
+    await page.fill('#replace-from', 'Rubble_1');
+    await page.fill('#replace-to', 'Water_1');
+    await page.check('#replace-sel-only');
+    const before = await steps(page);
+    await page.click('#replace-apply');
+    expect(await rubble(page)).toBe(2);
+    expect(await steps(page)).toBe(before + 1);
+    await page.evaluate(() => History.undo());
+    expect(await rubble(page)).toBe(5);
+  });
+
+  test('H tool replaces the clicked tile id with the active terrain', async ({ page }) => {
+    await page.evaluate(() => { Selection.clear(); UI.selectTerrain('Plain_2'); });
+    await page.keyboard.press('h');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('replace');
+    await clickCell(page, 226, 224);
+    expect(await rubble(page)).toBe(0);
+  });
+
+  // ---- scope, exactness, guards ----
+  test('the Edit menu entry opens the modal; the modal pre-fills the active terrain and the selection scope', async ({ page }) => {
+    await page.click('#menu-edit');
+    await page.getByRole('button', { name: /Replace Tile/ }).click();
+    await expect(page.locator('#replace-modal')).toBeVisible();
+    expect(await page.inputValue('#replace-to')).toBe('Plain_1');
+    expect(await page.locator('#replace-sel-only').isChecked()).toBe(true);
+    await page.evaluate(() => { Tools.closeReplace(); Selection.clear(); Tools.openReplace(); });
+    expect(await page.locator('#replace-sel-only').isChecked()).toBe(false);
+  });
+
+  test('a selected scope only reads and writes selected cells (work counter: 3 cells examined, not the map); whole map examines every cell', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const outside = mapData.slice();
+      Tools.replaceTerrain('Rubble_1', 'Plain_2', Selection.getCells());
+      const a = Tools.replaceInfo();
+      let leaked = 0;
+      for (let i = 0; i < mapData.length; i++) if (mapData[i] !== outside[i] && !Selection.has(i % MAP_WIDTH, Math.floor(i / MAP_WIDTH))) leaked++;
+      Tools.replaceTerrain('Plain_2', 'Plain_3', null);
+      const b = Tools.replaceInfo();
+      return { a, b, leaked, W: MAP_WIDTH * MAP_HEIGHT };
+    });
+    expect(r.leaked).toBe(0);
+    expect(r.a.scanned).toBe(3);
+    expect(r.a.replaced).toBe(3);
+    expect(r.b.scanned).toBe(r.W);
+    expect(r.b.replaced).toBe(3);
+  });
+
+  test('ids are compared exactly (case-sensitive); the target must exist in the tile database; same ids and no-ops write nothing', async ({ page }) => {
+    const before = await snapshot(page);
+    const r = await page.evaluate(() => ({
+      lower: Tools.replaceTerrain('rubble_1', 'Plain_2', null),
+      unknownTo: Tools.replaceTerrain('Rubble_1', 'No_Such_Tile', null),
+      same: Tools.replaceTerrain('Rubble_1', 'Rubble_1', null),
+      absent: Tools.replaceTerrain('Forest_1', 'Plain_2', null),
+      empty: Tools.replaceTerrain('', 'Plain_2', null),
+    }));
+    expect(r).toEqual({ lower: 0, unknownTo: 0, same: 0, absent: 0, empty: 0 });
+    expect(await snapshot(page)).toBe(before);
+    // a lower-case TARGET resolves to the canonical id
+    await page.evaluate(() => Tools.replaceTerrain('Rubble_1', 'water_1', null));
+    expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 225])).toBe('Water_1');
+  });
+
+  test('out-of-map and duplicate cells in the scope are ignored; each cell is replaced once', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const cells = [{ col: 225, row: 224 }, { col: 225, row: 224 }, { col: -1, row: 3 }, { col: 9999, row: 0 }, { col: 3, row: -5 }, { col: 226, row: 224 }];
+      const n = Tools.replaceTerrain('Rubble_1', 'Plain_2', cells);
+      return { n, info: Tools.replaceInfo() };
+    });
+    expect(r.n).toBe(2);
+    expect(r.info.scanned).toBe(2);
+    expect(await rubble(page)).toBe(3);
+  });
+
+  test('modal: nothing to replace, same ids, unknown target, empty selection and an empty field each toast and write no History step', async ({ page }) => {
+    await toastsOn(page);
+    const s0 = await steps(page), snap0 = await snapshot(page);
+    const cases: [string, string, boolean, RegExp][] = [
+      ['Rubble_1', 'Rubble_1', false, /different/i],
+      ['', 'Plain_2', false, /different|pick/i],
+      ['Rubble_1', 'No_Such_Tile', false, /unknown/i],
+      ['Forest_1', 'Plain_2', false, /no .*Forest_1|nothing/i],
+    ];
+    for (const [f, t, so, re] of cases) {
+      await open(page, f, t, so);
+      await page.click('#replace-apply');
+      const last = await page.evaluate(() => (window as any).__toasts.slice(-1)[0]);
+      expect(last).toMatch(re);
+    }
+    await page.evaluate(() => { Tools.closeReplace(); Selection.clear(); });
+    await open(page, 'Rubble_1', 'Plain_2', true);
+    await page.click('#replace-apply');
+    expect(await page.evaluate(() => (window as any).__toasts.slice(-1)[0])).toMatch(/select a region/i);
+    expect(await steps(page)).toBe(s0);
+    expect(await snapshot(page)).toBe(snap0);
+  });
+
+  test('Escape closes the modal without a step; Enter in a field applies; a modal open blocks the H shortcut', async ({ page }) => {
+    const s0 = await steps(page);
+    await open(page, 'Rubble_1', 'Plain_2', false);
+    await page.keyboard.press('h');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#replace-modal')).toBeHidden();
+    expect(await steps(page)).toBe(s0);
+    expect(await rubble(page)).toBe(5);
+    await open(page, 'Rubble_1', 'Plain_2', false);
+    await page.focus('#replace-to');
+    await page.keyboard.press('Enter');
+    await expect(page.locator('#replace-modal')).toBeHidden();
+    expect(await rubble(page)).toBe(0);
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+
+  test('one undo step per operation, redo reapplies, the selection survives and is not a History step', async ({ page }) => {
+    const s0 = await steps(page), snap0 = await snapshot(page);
+    await page.evaluate(() => Tools.replaceTerrain('Rubble_1', 'Plain_2', null, { beforeWrite: () => History.push() }));
+    expect(await steps(page)).toBe(s0 + 1);
+    const snap1 = await snapshot(page);
+    expect(snap1).not.toBe(snap0);
+    expect(await sel(page)).toBe(3);
+    await page.evaluate(() => History.undo());
+    expect(await snapshot(page)).toBe(snap0);
+    await page.evaluate(() => History.redo());
+    expect(await snapshot(page)).toBe(snap1);
+  });
+
+  test('beforeWrite runs exactly once, only when something will change (no empty step)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      let calls = 0, mapAtCall = '';
+      const cb = () => { calls++; mapAtCall = mapData.join('|'); };
+      const none = Tools.replaceTerrain('Forest_1', 'Plain_2', null, { beforeWrite: cb });
+      const callsNone = calls;
+      const before = mapData.join('|');
+      const n = Tools.replaceTerrain('Rubble_1', 'Plain_2', null, { beforeWrite: cb });
+      return { none, callsNone, n, calls, preState: mapAtCall === before };
+    });
+    expect(r).toEqual({ none: 0, callsNone: 0, n: 5, calls: 1, preState: true });
+  });
+
+  test('replace is terrain-only: zones, buildings, roads and under-terrain stay; symmetry is not applied', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, k = '225,224', zl = ZonePainter.getZoneLayer();
+      zl[224 * W + 225] = 3; roadsData[k] = { type: 'dirt' }; objectsData[k] = 'Ruins_1'; tileExtras[k] = { under: 'x' };
+      Tools.setSymmetry('hv');
+      Tools.replaceTerrain('Rubble_1', 'Plain_2', [{ col: 225, row: 224 }]);
+      Tools.setSymmetry('none');
+      return { zone: zl[224 * W + 225], road: roadsData[k], obj: objectsData[k], ex: tileExtras[k], plain2: mapData.filter((x: string) => x === 'Plain_2').length, rub: mapData.filter((x: string) => x === 'Rubble_1').length };
+    });
+    expect(r).toEqual({ zone: 3, road: { type: 'dirt' }, obj: 'Ruins_1', ex: { under: 'x' }, plain2: 1, rub: 4 });
+  });
+
+  test('a replaced river cell loses its bridge; other bridges stay (single pass, no per-cell bridge search)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH;
+      mapData[224 * W + 225] = 'Water_1'; mapData[224 * W + 226] = 'Water_1';
+      bridgesData.length = 0;
+      bridgesData.push({ col: 225, row: 224, axis: 0 }, { col: 226, row: 224, axis: 1 }, { col: 300, row: 300, axis: 2 });
+      Tools.replaceTerrain('Water_1', 'Plain_2', [{ col: 225, row: 224 }]);
+      return bridgesData.map((b: any) => b.col + ',' + b.row);
+    });
+    expect(r).toEqual(['226,224', '300,300']);
+  });
+
+  // ---- footprints ----
+  test('replacing a multi-tile anchor with a plain tile removes its footprint; the satellite cells keep their terrain', async ({ page }) => {
+    const r = await page.evaluate(([RB]) => {
+      const W = MAP_WIDTH;
+      mapData[200 * W + 200] = RB; invalidateSatelliteMap();
+      const sats: any[] = [];
+      for (let r = 196; r <= 204; r++) for (let c = 196; c <= 204; c++) if (getSatelliteAnchor(c, r)) sats.push([c, r, mapData[r * W + c]]);
+      const n = Tools.replaceTerrain(RB, 'Plain_2', null);
+      let left = 0;
+      for (let r = 196; r <= 204; r++) for (let c = 196; c <= 204; c++) if (getSatelliteAnchor(c, r)) left++;
+      return { n, sats, left, anchor: mapData[200 * W + 200], satTerrain: sats.map(s => mapData[s[1] * W + s[0]]) };
+    }, [RB]);
+    expect(r.n).toBe(1);
+    expect(r.sats.length).toBe(3);
+    expect(r.left).toBe(0);
+    expect(r.anchor).toBe('Plain_2');
+    expect(r.satTerrain).toEqual(r.sats.map((s: any) => s[2]));
+  });
+
+  test('replacing a plain tile with a multi-tile anchor registers its real footprint (pixel reference: neighbours at one hex pitch)', async ({ page }) => {
+    for (const row of [200, 201]) {            // both row parities
+      await page.evaluate(([row, RB]) => { mapData[row * MAP_WIDTH + 200] = 'Rubble_2'; Tools.replaceTerrain('Rubble_2', RB, null); }, [row, RB]);
+      expect(await page.evaluate((row) => mapData[row * MAP_WIDTH + 200], row)).toBe(RB);
+      expect((await satsOf(page, 200, row)).length).toBe(3);
+      expect(await pitchOk(page, 200, row)).toBe(true);
+    }
+  });
+
+  test('anchor with another anchor id: the old footprint goes, the new (larger) one is derived', async ({ page }) => {
+    await page.evaluate(([RB]) => { mapData[200 * MAP_WIDTH + 200] = RB; invalidateSatelliteMap(); }, [RB]);
+    expect((await satsOf(page, 200, 200)).length).toBe(3);
+    const n = await page.evaluate(([RB, DR]) => Tools.replaceTerrain(RB, DR, null), [RB, DR]);
+    expect(n).toBe(1);
+    expect((await satsOf(page, 200, 200)).length).toBe(5);
+    expect(await pitchOk(page, 200, 200)).toBe(true);
+    expect(await page.evaluate(() => mapData[200 * MAP_WIDTH + 200])).toBe('Dragon_Flat_1');
+  });
+
+  test('a new footprint that would be clipped, or overlaps a surviving footprint or anchor, is skipped and counted; others still replace', async ({ page }) => {
+    await toastsOn(page);
+    const r = await page.evaluate(([RB]) => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT;
+      mapData.fill('Plain_1');
+      const T = 'Rubble_2';
+      for (const [c, rr] of [[0, 0], [W - 1, H - 1], [100, 100], [100, 101], [300, 300], [400, 100]]) mapData[rr * W + c] = T;
+      mapData[100 * W + 101] = RB;                       // an existing anchor right next to (100,100)
+      mapData[101 * W + 100] = T; mapData[101 * W + 100] = T;
+      invalidateSatelliteMap();
+      const n = Tools.replaceTerrain(T, RB, null);
+      const info = Tools.replaceInfo();
+      const id = (c: number, rr: number) => mapData[rr * W + c];
+      return { n, info, corner0: id(0, 0), corner1: id(W - 1, H - 1), ok1: id(300, 300), ok2: id(400, 100), overl: [id(100, 100), id(100, 101)] };
+    }, [RB]);
+    expect(r.corner0).toBe('Rubble_2');                  // skipped: stays what it was
+    expect(r.corner1).toBe('Rubble_2');
+    expect(r.ok1).toBe(RB);
+    expect(r.ok2).toBe(RB);
+    expect(r.info.skipped).toBe(r.info.matched - r.n);
+    expect(r.info.skipped).toBeGreaterThanOrEqual(2);
+    expect(r.n + r.info.skipped).toBe(r.info.matched);
+    // every anchor placed has all its satellites registered to it, and no cell is claimed twice
+    expect(await page.evaluate(() => {
+      const W = MAP_WIDTH, claimed = new Map<string, string>();
+      let bad = 0;
+      for (let i = 0; i < mapData.length; i++) {
+        const e = Terrain.byHexId(mapData[i]);
+        if (!e || !e.occupiedOffsets || !e.occupiedOffsets.length) continue;
+        const c = i % W, rr = Math.floor(i / W);
+        for (const f of footprintCells(c, rr, e)) {
+          if (f.col < 0 || f.col >= W || f.row < 0 || f.row >= MAP_HEIGHT) { bad++; continue; }
+          const key = f.col + ',' + f.row, a = getSatelliteAnchor(f.col, f.row);
+          if (claimed.has(key) || !a || a.col !== c || a.row !== rr) bad++;
+          claimed.set(key, c + ',' + rr);
+        }
+      }
+      return bad;
+    })).toBe(0);
+  });
+
+  test('two candidates whose new footprints overlap: the earlier cell (row-major) wins, the other stays; no orphans', async ({ page }) => {
+    const r = await page.evaluate(([RB]) => {
+      const W = MAP_WIDTH;
+      mapData.fill('Plain_1');
+      mapData[200 * W + 200] = 'Rubble_2'; mapData[200 * W + 201] = 'Rubble_2';   // neighbours: footprints collide
+      const n = Tools.replaceTerrain('Rubble_2', RB, null);
+      return { n, a: mapData[200 * W + 200], b: mapData[200 * W + 201], info: Tools.replaceInfo() };
+    }, [RB]);
+    expect(r.n).toBe(1);
+    expect(r.a).toBe(RB);
+    expect(r.b).toBe('Rubble_2');
+    expect(r.info.skipped).toBe(1);
+    expect((await satsOf(page, 200, 200)).length).toBe(3);
+  });
+
+  test('a candidate lying under another anchor footprint is not replaced (nothing is painted under a footprint)', async ({ page }) => {
+    const r = await page.evaluate(([RB]) => {
+      const W = MAP_WIDTH;
+      mapData.fill('Plain_1');
+      mapData[200 * W + 200] = RB; invalidateSatelliteMap();
+      const sat = (() => { for (let rr = 196; rr <= 204; rr++) for (let c = 196; c <= 204; c++) if (getSatelliteAnchor(c, rr)) return { c, rr }; return null; })()!;
+      mapData[sat.rr * W + sat.c] = 'Rubble_2';
+      const n = Tools.replaceTerrain('Rubble_2', 'Water_1', null);
+      return { n, kept: mapData[sat.rr * W + sat.c] };
+    }, [RB]);
+    expect(r).toEqual({ n: 0, kept: 'Rubble_2' });
+  });
+
+  test('replacing within a selection that covers only a satellite cell does not touch the anchor; one that covers the anchor takes the footprint along', async ({ page }) => {
+    const r = await page.evaluate(([RB]) => {
+      const W = MAP_WIDTH;
+      mapData.fill('Plain_1'); mapData[200 * W + 200] = RB; invalidateSatelliteMap();
+      const sat = (() => { for (let rr = 196; rr <= 204; rr++) for (let c = 196; c <= 204; c++) if (getSatelliteAnchor(c, rr)) return { col: c, row: rr }; return null; })()!;
+      const a = Tools.replaceTerrain(RB, 'Plain_2', [sat]);
+      const b = Tools.replaceTerrain(RB, 'Plain_2', [{ col: 200, row: 200 }]);
+      return { a, b };
+    }, [RB]);
+    expect(r).toEqual({ a: 0, b: 1 });
+  });
+
+  test('H tool on a footprint cell uses the anchor id (like the eyedropper)', async ({ page }) => {
+    await page.evaluate(([RB]) => { Selection.clear(); mapData[200 * MAP_WIDTH + 200] = RB; invalidateSatelliteMap(); UI.selectTerrain('Plain_2'); Tools.setActive('replace'); }, [RB]);
+    const sat = (await satsOf(page, 200, 200))[0].split(',').map(Number);
+    await clickCell(page, sat[0], sat[1]);
+    expect(await page.evaluate(() => mapData[200 * MAP_WIDTH + 200])).toBe('Plain_2');
+    expect((await satsOf(page, 200, 200)).length).toBe(0);
+  });
+
+  // ---- edges ----
+  test('water/river edges are re-resolved after a replace (neighbours match resolveEdgeTile on the final map, and do change)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT;
+      const rivers = HexDB.getAll().filter((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0);
+      const faces = (id: string) => { const e = Terrain.byHexId(id); return e && Array.isArray(e.edgeFaces) ? e.edgeFaces.slice().sort().join('') : ''; };
+      const fallback = HexDB.getAll().find((h: any) => h.id === 'Water_1').id;
+      const origRandom = Math.random; Math.random = () => 0.5;
+      const out: any = {};
+      try {
+        mapData.fill('Plain_1');
+        const band: any[] = [];
+        for (let row = 218; row <= 232; row++) for (let col = 224; col <= 226; col++) band.push({ col, row });
+        for (const b of band) mapData[b.row * W + b.col] = rivers[0].id;
+        Tools.autoResolveEdgesAround(band);
+        const before = band.map(b => faces(mapData[b.row * W + b.col]));
+        // replace the river pieces that are directional with land, only in the middle rows
+        const mid = band.filter(b => b.row >= 222 && b.row <= 226);
+        const ids = new Set(mid.map(b => mapData[b.row * W + b.col]));
+        let n = 0;
+        for (const id of ids) n += Tools.replaceTerrain(id, 'Plain_1', mid);
+        out.n = n;
+        let changed = 0, bad = 0, checked = 0;
+        band.forEach((b, i) => {
+          const id = mapData[b.row * W + b.col];
+          if (id === 'Plain_1') return;
+          checked++;
+          const want = faces(EdgeTiling.resolveEdgeTile(b.col, b.row, W, H, mapData, ['Water', 'Rivers'], () => 0, [fallback]));
+          if (faces(id) !== want) bad++;
+          if (faces(id) !== before[i]) changed++;
+        });
+        out.checked = checked; out.changed = changed; out.bad = bad; out.mid = mid.length;
+      } finally { Math.random = origRandom; }
+      return out;
+    });
+    expect(r.n).toBe(r.mid);
+    expect(r.checked).toBeGreaterThan(10);
+    expect(r.changed).toBeGreaterThan(0);
+    expect(r.bad).toBe(0);
+  });
+
+  test('replacing land with a directional river tile re-resolves it and its river neighbours', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT;
+      const river = HexDB.getAll().find((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0).id;
+      mapData.fill('Plain_1');
+      const c = { col: 225, row: 224 }, nb = HexUtils.neighbors(c.col, c.row, W, H)[0];
+      mapData[nb.row * W + nb.col] = river;
+      mapData[c.row * W + c.col] = 'Rubble_2';
+      const seen: string[] = [];
+      const orig = EdgeTiling.resolveEdgeTile;
+      EdgeTiling.resolveEdgeTile = (col: number, row: number, ...rest: any[]) => { seen.push(col + ',' + row); return orig(col, row, ...rest); };
+      try { Tools.replaceTerrain('Rubble_2', river, null); } finally { EdgeTiling.resolveEdgeTile = orig; }
+      return { seen, c: c.col + ',' + c.row, nb: nb.col + ',' + nb.row };
+    });
+    expect(r.seen).toContain(r.c);
+    expect(r.seen).toContain(r.nb);
+  });
+
+  // ---- large maps: one O(map) pass, counted ----
+  test('whole-map replace on 450x450 is one pass: every cell examined once, one footprint-map lookup per match, no edge work for non-water ids, one History step', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      let resolves = 0; const orig = EdgeTiling.resolveEdgeTile;
+      EdgeTiling.resolveEdgeTile = (...a: any[]) => { resolves++; return orig(...a); };
+      const s0 = History.undoSize();
+      let n = 0;
+      try { n = Tools.replaceTerrain('Plain_1', 'Plain_2', null, { beforeWrite: () => History.push() }); } finally { EdgeTiling.resolveEdgeTile = orig; }
+      const info = Tools.replaceInfo();
+      return { n, info, resolves, steps: History.undoSize() - s0, total: MAP_WIDTH * MAP_HEIGHT, left: mapData.filter((x: string) => x === 'Plain_1').length, rubble: mapData.filter((x: string) => x === 'Rubble_1').length };
+    });
+    expect(r.total).toBe(202500);
+    expect(r.info.scanned).toBe(r.total);
+    expect(r.n).toBe(r.total - 5);
+    expect(r.info.matched).toBe(r.n);
+    expect(r.left).toBe(0);
+    expect(r.rubble).toBe(5);
+    expect(r.resolves).toBe(0);
+    expect(r.steps).toBe(1);
+  });
+
+  test('a big water replace re-resolves only the cells next to the replaced river pieces (work bounded by the touched cells)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH;
+      mapData.fill('Water_1');
+      let resolves = 0; const orig = EdgeTiling.resolveEdgeTile;
+      EdgeTiling.resolveEdgeTile = (...a: any[]) => { resolves++; return orig(...a); };
+      let n = 0;
+      try { n = Tools.replaceTerrain('Water_1', 'Plain_1', null); } finally { EdgeTiling.resolveEdgeTile = orig; }
+      return { n, resolves, total: W * MAP_HEIGHT };
+    });
+    expect(r.n).toBe(r.total);
+    expect(r.resolves).toBe(0);                // nothing directional anywhere: nothing to re-resolve
+  });
+
+  // ---- busy / stale / state ----
+  test('refused while a fill runs: API, modal and H tool write nothing and add no step', async ({ page }) => {
+    await toastsOn(page);
+    const r = await page.evaluate(async () => {
+      UI.selectTerrain('Water_1');
+      const p = Tools.fillAt(100, 100);                      // starts a time-sliced fill of the Plain region
+      const busy = Tools.isFillBusy();
+      const s0 = History.undoSize(), snap = mapData.join('|');
+      const api = Tools.replaceTerrain('Rubble_1', 'Plain_2', null);
+      Tools.openReplace();
+      const modalOpen = document.getElementById('replace-modal')!.classList.contains('open');
+      Tools.applyReplace();
+      const same = mapData.join('|') === snap && History.undoSize() === s0;
+      await p;
+      return { busy, api, modalOpen, same, toast: (window as any).__toasts.slice(-1)[0] };
+    });
+    expect(r.busy).toBe(true);
+    expect(r.api).toBe(0);
+    expect(r.modalOpen).toBe(false);
+    expect(r.same).toBe(true);
+    expect(r.toast).toMatch(/fill/i);
+  });
+
+  test('H click while a fill runs is ignored (synthetic mousedown dispatched while busy)', async ({ page }) => {
+    await page.evaluate(() => { Selection.clear(); UI.selectTerrain('Water_1'); Tools.setActive('replace'); });
+    const r = await page.evaluate(async () => {
+      const s0 = History.undoSize();
+      const p = Tools.fillAt(100, 100);
+      const busy = Tools.isFillBusy();
+      const q = Canvas.hexScreenPos(226, 224), cv = document.getElementById('map-canvas')!, b = cv.getBoundingClientRect();
+      const opts = { clientX: b.left + q.x, clientY: b.top + q.y, button: 0, buttons: 1, bubbles: true };
+      cv.dispatchEvent(new MouseEvent('mousedown', opts));
+      cv.dispatchEvent(new MouseEvent('mouseup', opts));
+      const during = mapData[224 * MAP_WIDTH + 226], stepsDuring = History.undoSize() - s0;
+      await p;
+      return { busy, during, stepsDuring };
+    });
+    expect(r).toEqual({ busy: true, during: 'Rubble_1', stepsDuring: 0 });
+  });
+
+  test('the modal cancels with a toast when the map was replaced while it was open', async ({ page }) => {
+    await toastsOn(page);
+    await open(page, 'Plain_1', 'Plain_2', false);
+    await page.evaluate(() => { IO.newMap(true); });
+    const s0 = await steps(page), snap0 = await snapshot(page);
+    await page.click('#replace-apply');
+    expect(await snapshot(page)).toBe(snap0);
+    expect(await steps(page)).toBe(s0);
+    expect(await page.evaluate(() => (window as any).__toasts.slice(-1)[0])).toMatch(/map changed/i);
+    await expect(page.locator('#replace-modal')).toBeHidden();
+  });
+
+  test('selection-only with a selection from a replaced map is refused (the selection is gone)', async ({ page }) => {
+    await toastsOn(page);
+    await open(page, 'Plain_1', 'Plain_2', true);
+    await page.evaluate(() => { mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1'); });
+    const snap0 = await snapshot(page);
+    await page.click('#replace-apply');
+    expect(await snapshot(page)).toBe(snap0);
+  });
+
+  test('refused while a lifted selection is moving', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Tools.beginMove();
+      const moving = Tools.isMoving();
+      const s0 = History.undoSize(), snap = mapData.join('|');
+      Tools.openReplace();
+      const open = document.getElementById('replace-modal')!.classList.contains('open');
+      const n = Tools.replaceTerrain('Rubble_1', 'Plain_2', null);
+      return { moving, open, n, same: mapData.join('|') === snap && History.undoSize() === s0 };
+    });
+    expect(r).toEqual({ moving: true, open: false, n: 0, same: true });
+  });
+
+  // ---- H tool input ----
+  test('H tool: scoped to the selection when one exists, whole map otherwise; one step per click', async ({ page }) => {
+    await page.evaluate(() => { UI.selectTerrain('Plain_2'); Tools.setActive('replace'); });
+    const s0 = await steps(page);
+    await clickCell(page, 226, 224);                         // selection (3 cells) exists
+    expect(await rubble(page)).toBe(2);
+    expect(await steps(page)).toBe(s0 + 1);
+    await page.evaluate(() => Selection.clear());
+    await clickCell(page, 225, 230);
+    expect(await rubble(page)).toBe(0);
+    expect(await steps(page)).toBe(s0 + 2);
+    await page.evaluate(() => History.undo());
+    expect(await rubble(page)).toBe(2);
+  });
+
+  test('H tool: clicking a tile that already is the active terrain does nothing (no step, toast); a click with nothing to replace in the selection adds no step', async ({ page }) => {
+    await toastsOn(page);
+    await page.evaluate(() => { UI.selectTerrain('Rubble_1'); Tools.setActive('replace'); });
+    const s0 = await steps(page);
+    await clickCell(page, 226, 224);
+    expect(await steps(page)).toBe(s0);
+    expect(await page.evaluate(() => (window as any).__toasts.slice(-1)[0])).toMatch(/already/i);
+    await page.evaluate(() => { UI.selectTerrain('Plain_2'); });
+    await clickCell(page, 225, 230);                         // Rubble outside the 3-cell selection: nothing to replace inside it
+    expect(await rubble(page)).toBe(5);
+    expect(await steps(page)).toBe(s0);
+  });
+
+  test('H tool ignores the right, middle and side buttons', async ({ page }) => {
+    await page.evaluate(() => { Selection.clear(); UI.selectTerrain('Plain_2'); Tools.setActive('replace'); });
+    const s0 = await steps(page);
+    const p = await cellPoint(page, 226, 224);
+    await page.mouse.move(p.x, p.y);
+    for (const button of ['right', 'middle'] as const) { await page.mouse.down({ button }); await page.mouse.up({ button }); }
+    await page.evaluate(([x, y]) => {
+      const c = document.getElementById('map-canvas')!;
+      for (const b of [3, 4]) { c.dispatchEvent(new MouseEvent('mousedown', { clientX: x, clientY: y, button: b, buttons: 1 << b, bubbles: true })); c.dispatchEvent(new MouseEvent('mouseup', { clientX: x, clientY: y, button: b, bubbles: true })); }
+    }, [p.x, p.y]);
+    expect(await rubble(page)).toBe(5);
+    expect(await steps(page)).toBe(s0);
+  });
+
+  test('H shortcut: by physical key (any layout), not with modifiers, not while typing, no other shortcut changed', async ({ page }) => {
+    const press = (init: any) => page.evaluate((i) => { window.dispatchEvent(new KeyboardEvent('keydown', Object.assign({ bubbles: true }, i))); return Tools.getActive(); }, init);
+    expect(await press({ code: 'KeyH', key: 'р' })).toBe('replace');         // Ukrainian layout: code only
+    await page.evaluate(() => Tools.setActive('paint'));
+    expect(await press({ code: 'KeyH', key: 'h', shiftKey: true })).toBe('paint');
+    expect(await press({ code: 'KeyH', key: 'h', altKey: true })).toBe('paint');
+    expect(await press({ code: 'KeyH', key: 'h', ctrlKey: true })).toBe('paint');
+    expect(await press({ code: 'KeyH', key: 'h', repeat: true })).toBe('paint');
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = '__t'; document.body.appendChild(i); i.focus(); });
+    expect(await press({ code: 'KeyH', key: 'h' })).toBe('paint');
+    await page.evaluate(() => document.getElementById('__t')!.remove());
+    // event TARGET counts too (a field that blurred itself before the event bubbled)
+    const viaTarget = await page.evaluate(() => {
+      const i = document.createElement('input'); document.body.appendChild(i);
+      i.dispatchEvent(new KeyboardEvent('keydown', { code: 'KeyH', key: 'h', bubbles: true }));
+      i.remove(); return Tools.getActive();
+    });
+    expect(viaTarget).toBe('paint');
+    // map-mode only
+    await page.evaluate(() => { document.body.classList.remove('mode-map'); });
+    expect(await press({ code: 'KeyH', key: 'h' })).toBe('paint');
+    await page.evaluate(() => { document.body.classList.add('mode-map'); });
+    // the neighbours still work
+    for (const [code, key, tool] of [['KeyP', 'p', 'paint'], ['KeyF', 'f', 'fill'], ['KeyR', 'r', 'rect'], ['KeyE', 'e', 'eye'], ['KeyL', 'l', 'line'], ['KeyM', 'm', 'marquee'], ['KeyX', 'x', 'eraser'], ['KeyA', 'a', 'scatter']])
+      expect(await press({ code, key })).toBe(tool);
+  });
+
+  test('tool switch while H is active leaves no state; the palette button activates the tool', async ({ page }) => {
+    await page.click('#shape-tools [data-tool="replace"]');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('replace');
+    await expect(page.locator('#shape-tools [data-tool="replace"]')).toHaveClass(/active/);
+    await page.keyboard.press('p');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    await expect(page.locator('#shape-tools [data-tool="replace"]')).not.toHaveClass(/active/);
+  });
+
+  test('layout: the control lives in the left palette; the canvas stays 1491x808 at 1400x900', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    const r = await page.evaluate(() => {
+      const c = document.getElementById('map-canvas')!, b = document.querySelector('[data-tool="replace"]')!;
+      return { w: c.clientWidth, h: c.clientHeight, inPalette: !!b.closest('#palette-panel'), inToolbar: !!document.querySelector('#toolbar [data-tool="replace"]') };
+    });
+    expect(r).toEqual({ w: 1491, h: 808, inPalette: true, inToolbar: false });
+  });
+});
