@@ -322,6 +322,7 @@ test.describe('building tools (T2.14)', () => {
 
   test('only the left button acts: right, middle and side buttons place nothing', async ({ page }) => {
     await useTool(page, 'object', 'Artefact_Test_1');
+    const s0 = await undoSize(page);
     const p = await cellPoint(page, 227, 224);
     await page.mouse.move(p.x, p.y);
     await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' });
@@ -334,7 +335,7 @@ test.describe('building tools (T2.14)', () => {
     await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' });
     await ev(page, 'mousedown', 227, 224, { button: 3 }); await ev(page, 'mouseup', 227, 224, { button: 3 });
     expect(await objs(page)).toEqual({ '227,224': 'Artefact_Test_1' });
-    expect(await undoSize(page)).toBe(0);
+    expect(await undoSize(page)).toBe(s0);
   });
 
   test('a right/middle release during a left drag does not end it', async ({ page }) => {
@@ -349,6 +350,7 @@ test.describe('building tools (T2.14)', () => {
 
   test('switching tool mid-stroke stops the stroke (no more writes, the step stays)', async ({ page }) => {
     await useTool(page, 'object', 'Artefact_Test_1');
+    const s0 = await undoSize(page);
     const a = await cellPoint(page, 226, 224), b = await cellPoint(page, 229, 224);
     await page.mouse.move(a.x, a.y); await page.mouse.down();
     await page.evaluate(() => Tools.setActive('paint'));
@@ -356,18 +358,19 @@ test.describe('building tools (T2.14)', () => {
     await page.mouse.up();
     expect(await objs(page)).toEqual({ '226,224': 'Artefact_Test_1' });
     expect(await page.evaluate(() => Array.from(new Set(mapData)).length)).toBe(1);   // paint did not write either (no mouse down for it)
-    expect(await undoSize(page)).toBe(1);
+    expect(await undoSize(page)).toBe(s0 + 1);
   });
 
   test('a lost mouse-up (move with no button held) ends the stroke', async ({ page }) => {
     await useTool(page, 'object', 'Artefact_Test_1');
+    const s0 = await undoSize(page);
     const a = await cellPoint(page, 226, 224);
     await page.mouse.move(a.x, a.y); await page.mouse.down();
     await ev(page, 'mousemove', 228, 224, { buttons: 0 });
     await ev(page, 'mousemove', 230, 224, { buttons: 1 });      // a stale "pressed" move afterwards must not write either
     await page.mouse.up();
     expect(Object.keys(await objs(page))).toEqual(['226,224']);
-    expect(await undoSize(page)).toBe(1);
+    expect(await undoSize(page)).toBe(s0 + 1);
   });
 
   test('leaving the canvas ends the stroke; re-entering with the button still down places nothing', async ({ page }) => {
@@ -382,13 +385,14 @@ test.describe('building tools (T2.14)', () => {
 
   test('window blur ends the stroke cleanly', async ({ page }) => {
     await useTool(page, 'object', 'Artefact_Test_1');
+    const s0 = await undoSize(page);
     const a = await cellPoint(page, 226, 224), b = await cellPoint(page, 229, 224);
     await page.mouse.move(a.x, a.y); await page.mouse.down();
     await page.evaluate(() => window.dispatchEvent(new Event('blur')));
     await page.mouse.move(b.x, b.y, { steps: 3 });
     await page.mouse.up();
     expect(Object.keys(await objs(page))).toEqual(['226,224']);
-    expect(await undoSize(page)).toBe(1);
+    expect(await undoSize(page)).toBe(s0 + 1);
   });
 
   test('Escape mid-stroke cancels it WITHOUT a History step (objects restored, redo stack kept)', async ({ page }) => {
@@ -453,10 +457,11 @@ test.describe('building tools (T2.14)', () => {
 
   test('clicks outside the map (above the first row) do nothing', async ({ page }) => {
     await useTool(page, 'object', 'Artefact_Test_1');
+    const s0 = await undoSize(page);
     await ev(page, 'mousedown', 225, -3); await ev(page, 'mouseup', 225, -3);
     await ev(page, 'mousedown', 225, 453); await ev(page, 'mouseup', 225, 453);
     expect(await objs(page)).toEqual({});
-    expect(await undoSize(page)).toBe(0);
+    expect(await undoSize(page)).toBe(s0);
   });
 
   test('autosave is scheduled after a change and the placed building is drawn (canvas differs from the empty map)', async ({ page }) => {

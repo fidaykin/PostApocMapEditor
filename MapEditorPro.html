@@ -1433,6 +1433,9 @@ body.mode-common #map-io    { display: none; }
           <button class="tool-btn" data-tool="marquee" onclick="Tools.setActive('marquee')" title="Select Region (M) - drag a rectangle of cells; Shift adds, Alt subtracts, Esc clears, Ctrl+A selects all, Ctrl+D deselects">⛶</button>
           <button class="tool-btn" data-tool="scatter" onclick="Tools.setActive('scatter')" title="Scatter (A) - drag to sprinkle random variants of the selected terrain inside the brush, at the density below. Directional river/lake pieces are not scattered. Same seed gives the same result for the same drag; symmetry mirrors the area (each cell rolls on its own), Esc cancels the stroke">⁘</button>
           <button class="tool-btn" data-tool="replace" onclick="Tools.setActive('replace')" title="Replace (H) - click a tile to replace every tile of that id with the active terrain (inside the selection when there is one; the whole map otherwise). Edit > Replace Tile... picks both ids. One undo step">⇄</button>
+          <button class="tool-btn" data-tool="object" onclick="Tools.setActive('object')" title="Place Building (B) - click or drag to place the building picked in the picker; replaces a building already there. Buildings that spawn satellites (e.g. Farm_Test_1 with Grain_1) get them on the free neighbouring cells. Esc cancels the stroke">🏗</button>
+          <button class="tool-btn" data-tool="erase-object" onclick="Tools.setActive('erase-object')" title="Erase Building - click or drag to remove buildings (and the satellites they spawned). Esc cancels the stroke">🗑</button>
+          <span id="obj-building-label" style="display:none;flex:1 0 100%;font-size:11px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
         </div>
       <div id="selection-row" style="display:none;align-items:center;gap:6px;padding:6px 8px 0;font-size:11px;color:var(--muted)">
         <span id="selection-info" style="flex:1;min-width:0;color:#f5c518"></span>
@@ -2422,7 +2425,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "3b696b1";
+const COMMIT  = "b222a40";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4976,7 +4979,7 @@ const Clipboard = (() => {
     if (wantB && bridgesData.length) for (let i = bridgesData.length - 1; i >= 0; i--) if (written.has(bridgesData[i].row * W + bridgesData[i].col)) bridgesData.splice(i, 1);
     // A building replaced by another takes the satellites it spawned with it (same helper the Eraser uses). Done before
     // any write, so a pasted building landing on a former satellite cell simply overwrites it. Pasted buildings do not
-    // carry or respawn satellites (the buffer holds the selected cells only; _spawnSatellites is repaired in T2.14).
+    // carry or respawn satellites (the buffer holds the selected cells only).
     if (layers.objects !== false)
       for (const it of items) { const old = it.e.o && objectsData[it.col + ',' + it.row]; if (old) Tools.removeSatellites(it.col, it.row, old); }
     const prevs = new Array(items.length);
@@ -5506,12 +5509,12 @@ const Tools = (() => {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
     eye: 'Eyedropper', select: 'Select Tile',
     settlement: 'Place Settlement', erase: 'Erase Settlement',
-    zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object',
+    zone: 'Zone Painter', object: 'Place Building', 'erase-object': 'Erase Building',
     'road-connect': 'Connect Road',
     line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser', scatter: 'Scatter', marquee: 'Select Region', paste: 'Paste', replace: 'Replace Tile',
   };
   // Physical-key tool shortcuts (layout independent). Later tasks add entries.
-  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee', KeyH: 'replace' };
+  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee', KeyH: 'replace', KeyB: 'object' };
   let _float = null;          // paste mode: { buf, md, W, H, xf:{rot,mh,mv}, move:null|{cells} } (md/W/H = the map it was started on)
   let _prevTool = 'paint';    // tool restored when a paste ends
   let _floatKey = '';         // last cell the ghost was built for
@@ -5583,9 +5586,10 @@ const Tools = (() => {
       if (picker) {
         const btn = document.querySelector('.tool-btn[data-tool="object"]');
         if (btn) {
-          const r = btn.getBoundingClientRect();
-          picker.style.left = r.left + 'px';
-          picker.style.top  = (r.bottom + 4) + 'px';
+          // the button is in the left palette: open the picker to the right of the palette, level with the button
+          const r = btn.getBoundingClientRect(), pal = document.getElementById('palette-panel');
+          picker.style.left = ((pal ? pal.getBoundingClientRect().right : r.right) + 4) + 'px';
+          picker.style.top  = Math.max(4, Math.min(r.top, window.innerHeight - 200)) + 'px';
         }
         picker.style.display = 'block';
       }
@@ -5899,27 +5903,21 @@ const Tools = (() => {
 
   // ── Objects (pre-placed buildings) ────────────────────────
 
-  // Flat-top odd-q offset hex distance (matches Unity HexUtils.Distance)
-  function _satelliteHexDist(ax, ay, bx, by) {
-    const toQ = (c) => c;
-    const toR = (c, r) => r - Math.floor((c - (c & 1)) / 2);
-    const aq = toQ(ax), ar = toR(ax, ay), as_ = -aq - ar;
-    const bq = toQ(bx), br = toR(bx, by), bs  = -bq - br;
-    return (Math.abs(aq - bq) + Math.abs(ar - br) + Math.abs(as_ - bs)) / 2;
-  }
-
-  // Returns all (col,row) pairs within radius of (cx,cy), excluding center
+  // Cells within `radius` of (cx,cy), centre excluded, clipped to the map, nearest first (true hex distance via
+  // HexUtils cube math; ties keep the disc order, so the result is deterministic). The legacy odd-q distance used here
+  // before missed one true neighbour at radius 1 and never clipped to the map.
   function _satelliteTilesInRadius(cx, cy, radius) {
-    const result = [];
-    for (let dx = -(radius + 1); dx <= radius + 1; dx++) {
-      for (let dy = -(radius + 1); dy <= radius + 1; dy++) {
-        if ((dx !== 0 || dy !== 0) && _satelliteHexDist(cx, cy, cx + dx, cy + dy) <= radius)
-          result.push({ col: cx + dx, row: cy + dy });
-      }
-    }
-    return result;
+    const rad = Number.isFinite(radius) ? Math.max(0, Math.floor(radius)) : 0;
+    if (!rad || !HexUtils.inBounds(cx, cy, MAP_WIDTH, MAP_HEIGHT)) return [];
+    const c0 = HexUtils.toCube(cx, cy, MAP_WIDTH, MAP_HEIGHT);
+    return HexUtils.discCells(cx, cy, rad, MAP_WIDTH, MAP_HEIGHT)
+      .filter(p => p.col !== cx || p.row !== cy)
+      .map(p => ({ col: p.col, row: p.row, d: HexUtils.cubeDistance(c0, HexUtils.toCube(p.col, p.row, MAP_WIDTH, MAP_HEIGHT)) }))
+      .sort((a, b) => a.d - b.d);
   }
 
+  // Spawns the satellites of building `bldId` placed at (col,row): per rule, the nearest free cells within the radius
+  // (up to maxCount, 0 = all). A cell is free when it holds no building and is not under a multi-tile terrain footprint.
   function _spawnSatellites(col, row, bldId) {
     if (typeof BldDB === 'undefined') return;
     const def = BldDB.getAll().find(b => b.id === bldId);
@@ -5927,17 +5925,14 @@ const Tools = (() => {
 
     for (const rule of def.spawnsSatellites) {
       if (!rule.buildingId) continue;
-      const candidates = _satelliteTilesInRadius(col, row, rule.radius);
-      // Sort by distance so closest tiles fill first
-      candidates.sort((a, b) =>
-        _satelliteHexDist(col, row, a.col, a.row) - _satelliteHexDist(col, row, b.col, b.row));
+      const candidates = _satelliteTilesInRadius(col, row, rule.radius);   // nearest first
       let placed = 0;
       const limit = rule.maxCount > 0 ? rule.maxCount : candidates.length;
       for (const pos of candidates) {
         if (placed >= limit) break;
         const k = pos.col + ',' + pos.row;
-        if (objectsData[k]) continue;             // already occupied by a building
-        if (hexData[k] !== undefined) continue;   // skip if hex tool is active on that cell
+        if (objectsData[k]) continue;                              // already occupied by a building
+        if (getSatelliteAnchor(pos.col, pos.row)) continue;        // belongs to another multi-tile terrain
         objectsData[k] = rule.buildingId;
         placed++;
       }
@@ -6292,25 +6287,42 @@ const Tools = (() => {
     }
   }
 
+  // One undo entry per stroke, taken lazily right before the first real mutation (no empty steps). The token lives in
+  // _eraseToken, so Escape (History.rollback), undo gating (isStroking) and the stale-map check are the eraser's.
+  function _pushOnce() { if (!_eraseToken) _eraseToken = History.push(); }
+  let _objToasted = false;           // one refusal toast per stroke
+  function _objRefuse(msg) { if (!_objToasted) { _objToasted = true; UI.toast(msg); } return false; }
+
+  // Place the selected building at (col,row); returns true when something changed. Replaces a different building
+  // already there (its spawned satellites are removed first); the same id again is a no-op. Refused (toast) outside the
+  // map and on a cell under another multi-tile terrain's footprint.
   function _placeObject(col, row) {
     const bldId = _selectedBuildingId;
-    if (!bldId) return;
+    if (!bldId) return false;
+    if (!HexUtils.inBounds(col, row, MAP_WIDTH, MAP_HEIGHT)) return _objRefuse('Cannot place a building outside the map');
+    if (getSatelliteAnchor(col, row)) return _objRefuse('Cannot place a building on a multi-tile terrain footprint');
     const key = col + ',' + row;
-    if (objectsData[key] === bldId) return;
+    const old = objectsData[key];
+    if (old === bldId) return false;
+    _pushOnce();
+    if (old) _removeSatellites(col, row, old);
     objectsData[key] = bldId;
     _spawnSatellites(col, row, bldId);
     IO.scheduleAutoSave();
     Canvas.render();
+    return true;
   }
 
   function _eraseObject(col, row) {
     const key = col + ',' + row;
-    if (!objectsData[key]) return;
+    if (!objectsData[key]) return false;
+    _pushOnce();
     const erasedId = objectsData[key];
     delete objectsData[key];
     _removeSatellites(col, row, erasedId);
     IO.scheduleAutoSave();
     Canvas.render();
+    return true;
   }
 
   // ── Roads ──────────────────────────────────────────────────
@@ -6798,12 +6810,11 @@ const Tools = (() => {
         _lastZonePainted = { col, row };
         break;
       case 'object':
-        History.push();
-        _placeObject(col, row);
-        _lastObjectPainted = { col, row };
-        break;
       case 'erase-object':
-        _eraseObject(col, row);
+        if (_active === 'object' && !_selectedBuildingId) { UI.toast('Pick a building first'); _isDown = false; break; }
+        _eraseToken = null; _objToasted = false;
+        _eraseStroke = true; _eraseMd = mapData; _eraseW = MAP_WIDTH; _eraseH = MAP_HEIGHT;
+        if (_active === 'object') _placeObject(col, row); else _eraseObject(col, row);
         _lastObjectPainted = { col, row };
         break;
       case 'road':
@@ -6845,9 +6856,9 @@ const Tools = (() => {
       const hv = Canvas.screenToHex(sx, sy);
       if (HexUtils.inBounds(hv.col, hv.row, MAP_WIDTH, MAP_HEIGHT)) { _hoverCell = hv; _updateEraserHover(hv); }
     }
-    if ((_active === 'eraser' || _active === 'scatter') && _eraseStroke && _eraseStale()) {   // the map was replaced mid-stroke: stop, write nothing
-      _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _clearEraserHover();
-      UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : 'Eraser stopped — the map changed');
+    if ((_active === 'eraser' || _active === 'scatter' || _active === 'object' || _active === 'erase-object') && _eraseStroke && _eraseStale()) {   // the map was replaced mid-stroke: stop, write nothing
+      _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _lastObjectPainted = null; _clearEraserHover();
+      UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : _active === 'eraser' ? 'Eraser stopped — the map changed' : 'Building tool stopped — the map changed');
       Canvas.render();
       return;
     }
@@ -6900,12 +6911,12 @@ const Tools = (() => {
         _lastZonePainted = { col, row };
         break;
       case 'object':
-        if (_lastObjectPainted && _lastObjectPainted.col === col && _lastObjectPainted.row === row) break;
+        if (!_eraseStroke || (_lastObjectPainted && _lastObjectPainted.col === col && _lastObjectPainted.row === row)) break;
         _placeObject(col, row);
         _lastObjectPainted = { col, row };
         break;
       case 'erase-object':
-        if (_lastObjectPainted && _lastObjectPainted.col === col && _lastObjectPainted.row === row) break;
+        if (!_eraseStroke || (_lastObjectPainted && _lastObjectPainted.col === col && _lastObjectPainted.row === row)) break;
         _eraseObject(col, row);
         _lastObjectPainted = { col, row };
         break;
@@ -6981,6 +6992,11 @@ const Tools = (() => {
       if (_active === 'paste') _clearGhost();
       if (_shapeStart) { _isDown = false; _cancelShape(); }
       if (_active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); }
+      if (_active === 'object' || _active === 'erase-object') {
+        const had = _eraseStroke;
+        _isDown = false; _eraseStroke = false; _eraseToken = null; _lastObjectPainted = null;
+        if (had) { IO.scheduleAutoSave(); Canvas.render(); }
+      }
       if (_active === 'eraser' || _active === 'scatter') {
         const had = _eraseStroke || Canvas.hasHighlight(_active);
         _isDown = false; _eraseStroke = false; _eraseToken = null; _scatterRun = null; _lastPainted = null; _hoverCell = null; _clearEraserHover();
