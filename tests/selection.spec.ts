@@ -1854,7 +1854,6 @@ test.describe('transform and move (T2.10)', () => {
         if (!eq(T(c, 2, true, false), HexUtils.rotateCube(HexUtils.mirrorCube(c, 'h'), 2))) out.push('order');
         // rotate-then-mirror equals mirror-then-rotate by the opposite angle
         if (!eq(HexUtils.mirrorCube(HexUtils.rotateCube(c, 2), 'h'), T(c, -2, true, false))) out.push('conj');
-        if (eq(T(c, 1, true, false), HexUtils.mirrorCube(HexUtils.rotateCube(c, 1), 'h')) && !(q === 0 && r === 0) && !eq(T(c, 1, true, false), c) && false) out.push('x');
       }
       return out;
     });
@@ -1924,7 +1923,7 @@ test.describe('transform and move (T2.10)', () => {
           [0, true, true], [1, true, true], [2, true, true], [3, true, true], [4, true, true], [5, true, true]] as [number, boolean, boolean][]) {
           for (const [tc, tr] of targets) {
             Tools.beginPaste(buf);
-            Tools.rotateFloat(rot); if (mh) Tools.mirrorFloat('h'); if (mv) Tools.mirrorFloat('v');
+            Tools.setFloatTransform({ rot, mh, mv });
             Tools.dropFloat(tc, tr);
             const pt = cw(tc, tr), got = new Map<number, { col: number; row: number }>();
             for (const k in tileExtras) {
@@ -1971,7 +1970,7 @@ test.describe('transform and move (T2.10)', () => {
           mapData[224 * MAP_WIDTH + 225] = 'Road_Bridge_' + ID[a] + '_1'; objectsData['225,224'] = 'Road_Bridge_' + ID[a] + '_1';
           bridgesData.push({ col: 225, row: 224, axis: a });
           Selection.setCells([{ col: 225, row: 224 }]); Tools.copySelection();
-          Tools.beginPaste(Clipboard.get()); Tools.rotateFloat(rot); if (mh) Tools.mirrorFloat('h'); if (mv) Tools.mirrorFloat('v');
+          Tools.beginPaste(Clipboard.get()); Tools.setFloatTransform({ rot, mh, mv });
           Tools.dropFloat(100, 100);
           // line direction in screen pixels (y down): angle of the vector (cos, -sin) of the math angle
           const th = ANG[a] * Math.PI / 180, v = ref({ x: Math.cos(th), y: -Math.sin(th) }, rot, mh, mv);
@@ -2051,7 +2050,7 @@ test.describe('transform and move (T2.10)', () => {
       const orphanCheck = () => { let o = 0; for (let r = 90; r <= 110; r++) for (let c = 90; c <= 110; c++) { const a = getSatelliteAnchor(c, r); if (a && !(Terrain.byHexId(id(a.col, a.row)) || {}).occupiedOffsets) o++; } return o; };
       res.ok = []; res.orphans = 0;
       for (let rot = 0; rot < 6; rot++) {
-        Tools.beginPaste(buf); Tools.rotateFloat(rot); Tools.mirrorFloat('h'); Tools.dropFloat(100, 100);
+        Tools.beginPaste(buf); Tools.setFloatTransform({ rot, mh: true, mv: false }); Tools.dropFloat(100, 100);
         const real = footprintCells(100, 100, entry);
         res.ok.push(id(100, 100) === FP && real.every((f: any) => { const a = getSatelliteAnchor(f.col, f.row); return a && a.col === 100 && a.row === 100; }));
         res.orphans += orphanCheck();
@@ -2105,7 +2104,7 @@ test.describe('transform and move (T2.10)', () => {
     expect(s2.sets - s1.sets).toBe(6);
     expect(s2.builds - s1.builds).toBe(0);
     for (const [keys, rot, mh, mv] of [[['.'], 1, false, false], [['/'], 0, true, false], [[';', ','], 5, false, true]] as [string[], number, boolean, boolean][]) {
-      await page.evaluate(() => { while (Tools.getFloatTransform().rot || Tools.getFloatTransform().mh || Tools.getFloatTransform().mv) { Tools.mirrorFloat(Tools.getFloatTransform().mh ? 'h' : 'v'); if (!Tools.getFloatTransform().mh && !Tools.getFloatTransform().mv) Tools.rotateFloat(-Tools.getFloatTransform().rot); } });
+      await page.evaluate(() => Tools.setFloatTransform({ rot: 0, mh: false, mv: false }));
       for (const k of keys) await page.keyboard.press(k);
       const r = await page.evaluate(([rot, mh, mv]) => {
         const buf = Clipboard.get(), cw = Canvas.hexCenterWorld, o = buf.origin, po = cw(o.col, o.row), pt = cw(225, 214), ref = (window as any).__ref;
@@ -2141,7 +2140,7 @@ test.describe('transform and move (T2.10)', () => {
     await page.keyboard.press('Shift+.'); await page.keyboard.press('Alt+,');
     expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 0, mh: false, mv: false });
     await page.keyboard.press('.'); await page.keyboard.press('/'); await page.keyboard.press(';'); await page.keyboard.press(';');
-    expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 1, mh: true, mv: false });
+    expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 5, mh: true, mv: false });   // screen mirrors: '.' then '/' = mirror, rotate -1; ';' twice cancels
     await page.keyboard.press('Escape');
     await page.keyboard.press('f');
     expect(await page.evaluate(() => Tools.getActive())).toBe('fill');
@@ -2221,7 +2220,7 @@ test.describe('transform and move (T2.10)', () => {
     await clickCell(page, 225, 219);
     expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 225])).toBe('Plain_1');
     const { src, dst } = await vectors(page);
-    const m = await page.evaluate(([vx, vy]) => (window as any).__ref({ x: vx, y: vy }, 1, true, false), [src.x, src.y]);
+    const m = await page.evaluate(([vx, vy]) => (window as any).__ref({ x: vx, y: vy }, 5, true, false), [src.x, src.y]);
     expect(dst.x).toBeCloseTo(m.x, 4); expect(dst.y).toBeCloseTo(m.y, 4);
     await page.evaluate(() => History.undo());
     expect(await layers(page)).toBe(base);

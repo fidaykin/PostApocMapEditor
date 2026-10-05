@@ -83,6 +83,15 @@
       : { q: _z(c.q), r: _z(c.s), s: _z(c.r) };
   }
 
+  // Float transform of a cube offset: mirror left/right (mh), then mirror top/bottom (mv), then rotate `rot`
+  // screen-clockwise 60-degree steps, all about the origin cell (offset 0,0).
+  function transformOffset(c, rot, mh, mv) {
+    let o = c;
+    if (mh) o = mirrorCube(o, 'h');
+    if (mv) o = mirrorCube(o, 'v');
+    return rotateCube(o, rot || 0);
+  }
+
   function inBounds(col, row, W, H) { return col >= 0 && col < W && row >= 0 && row < H; }
 
   function cellsFromCubes(cubes, W, H) {
@@ -264,7 +273,7 @@
   root.HexUtils = {
     makeRng, scatterPick,
     CUBE_DIRS, toCube, fromCube, cubeDistance, cubeRound, cubeLine, cubeDisc, cubeRing,
-    rotateCube, mirrorCube, inBounds, cellsFromCubes, neighbors, discCells, ringCells, lineCells,
+    rotateCube, mirrorCube, transformOffset, inBounds, cellsFromCubes, neighbors, discCells, ringCells, lineCells,
     cubeToPixel, anchorOf, polygonCells, SYMMETRY_MODES, symmetryCubes, symmetryCells,
   };
 })(typeof self !== 'undefined' ? self : this);
