@@ -2,6 +2,8 @@ import { test, expect } from '@playwright/test';
 import { openEditor } from './helpers';
 import { freshEditor } from './editor-helpers';
 
+declare let settlementSlots: any[];
+
 // ── Layer visibility (T2.17) ───────────────────────────────────────────────────────────────────────
 // Reference method: a layer hidden must render EXACTLY like a map that never had that layer's data,
 // compared on the canvas pixels (toDataURL), at every level of detail. A visible render with the data is
@@ -90,6 +92,27 @@ test.describe('layers: visibility (T2.17)', () => {
       }
     });
   }
+
+  test('hiding "settlements" also hides the slot distance rings (lod 0, 1, 2)', async ({ page }) => {
+    const r = await page.evaluate((levels) => {
+      const savedSlots = settlementSlots, savedSettlements = settlements.slice();
+      settlements.length = 0;
+      const out: any[] = [];
+      for (const lod of levels as number[]) {
+        settlementSlots = [];
+        const reference = (window as any).__snap(lod);
+        settlementSlots = [{ minDist: 4, maxDist: 6, count: 1, type: 'settlement' }];
+        const shown = (window as any).__snap(lod);
+        Layers.setVisible('settlements', false);
+        const hidden = (window as any).__snap(lod);
+        Layers.setVisible('settlements', true);
+        out.push({ lod, shownDiffers: shown !== reference, hiddenEqualsReference: hidden === reference });
+      }
+      settlementSlots = savedSlots; savedSettlements.forEach(x => settlements.push(x));
+      return out;
+    }, LEVELS);
+    for (const x of r) expect(x, `lod ${x.lod}`).toEqual({ lod: x.lod, shownDiffers: true, hiddenEqualsReference: true });
+  });
 
   test('hiding "terrain" renders the same whatever the terrain is (lod 0, 1, 2) and differs when shown', async ({ page }) => {
     const r = await page.evaluate((levels) => {
@@ -241,12 +264,12 @@ test.describe('layers: persistence (T2.17)', () => {
 
   test('unknown layer names in storage are ignored, known ones are kept', async ({ page }) => {
     await page.addInitScript(() => {
-      localStorage.setItem('layer_state_v1', JSON.stringify({ roads: { visible: false, locked: true }, ghosts: { visible: false, locked: true }, terrain: { visible: true } }));
+      localStorage.setItem('layer_state_v1', JSON.stringify({ roads: { visible: false, locked: true }, ghosts: { visible: false, locked: true }, terrain: { visible: true }, objects: { locked: true } }));
     });
     await openEditor(page);
-    const r = await page.evaluate(() => ({ roads: [Layers.isVisible('roads'), Layers.isLocked('roads')], terrain: Layers.isVisible('terrain'),
+    const r = await page.evaluate(() => ({ roads: [Layers.isVisible('roads'), Layers.isLocked('roads')], terrain: Layers.isVisible('terrain'), objects: [Layers.isVisible('objects'), Layers.isLocked('objects')],
                                            names: Layers.NAMES.slice(), rows: document.querySelectorAll('#layers-panel .layer-row').length }));
-    expect(r).toEqual({ roads: [false, true], terrain: true, names: ['terrain', 'objects', 'roads', 'settlements', 'zones'], rows: 5 });
+    expect(r).toEqual({ roads: [false, true], terrain: true, objects: [true, true], names: ['terrain', 'objects', 'roads', 'settlements', 'zones'], rows: 5 });
   });
 
   test('blocked storage: the page still starts with every layer visible and toggling does not throw', async ({ page }) => {
@@ -288,20 +311,30 @@ test.describe('layers: panel (T2.17)', () => {
     }
   });
 
-  test('keyboard: Space and Enter on a focused eye toggle it and keep focus', async ({ page }) => {
+  test('keyboard: Space and Enter on a focused eye toggle it, keep focus and do not pan or lift', async ({ page }) => {
     const eye = page.locator('.layer-row[data-layer="roads"] .layer-eye');
+    const cursor = () => page.evaluate(() => (document.getElementById('map-canvas') as HTMLElement).style.cursor);
+    await page.evaluate(() => { Selection.setCells([{ col: 225, row: 224 }]); });
     await eye.focus();
-    await page.keyboard.press('Space');
+    await page.keyboard.down('Space');
+    expect(await cursor()).not.toBe('grab');          // the global Space-pan handler never saw the key
+    await page.keyboard.up('Space');
     expect(await page.evaluate(() => Layers.isVisible('roads'))).toBe(false);
     await expect(eye).toHaveAttribute('aria-pressed', 'false');
     await expect(eye).toBeFocused();
     await page.keyboard.press('Enter');
     expect(await page.evaluate(() => Layers.isVisible('roads'))).toBe(true);
     await expect(eye).toHaveAttribute('aria-pressed', 'true');
+    expect(await page.evaluate(() => Tools.isPasting() || Tools.isMoving())).toBe(false);   // Enter did not lift the selection
   });
 
-  test('a panel click does not leave tool shortcuts dead (focus released from the button)', async ({ page }) => {
+  test('a pointer click on a panel button hands the focus back: Space pans again', async ({ page }) => {
     await page.click('.layer-row[data-layer="roads"] .layer-eye');
+    await page.click('.layer-row[data-layer="roads"] .layer-lock');
+    expect(await page.evaluate(() => document.activeElement === document.body || !document.activeElement!.closest('#layers-panel'))).toBe(true);
+    await page.keyboard.down('Space');
+    expect(await page.evaluate(() => (document.getElementById('map-canvas') as HTMLElement).style.cursor)).toBe('grab');
+    await page.keyboard.up('Space');
     await page.keyboard.press('KeyF');
     expect(await page.evaluate(() => Tools.getActive())).toBe('fill');
   });
