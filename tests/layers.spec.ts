@@ -925,6 +925,8 @@ test.describe('layers: locks on eraser, selection commands, paste and replace (T
       await seedMove(page);
       if (when === 'lift') await setLocks(page, ['objects']);
       expect(await lift(page)).toBe(true);
+      // what floats (and is previewed) does not hold a layer that was locked at the lift
+      expect(await page.evaluate(() => Tools.getFloatBuffer().cells.some((e: any) => e.o !== undefined))).toBe(when === 'drop');
       if (when === 'drop') await setLocks(page, ['objects']);
       const s0 = await steps(page);
       await page.evaluate((d: any) => Tools.dropFloat(d.col, d.row), D_);
@@ -1072,10 +1074,13 @@ test.describe('layers: locks on bulk operations and panels (T2.18)', () => {
   test('Generate map: refused on a locked terrain layer; discarded when the lock is set while it generates; a locked settlements layer is not rewritten', async ({ page }) => {
     await setLocks(page, ['terrain']);
     let before = await snap(page), s0 = await steps(page);
+    await page.evaluate(() => { (window as any).__prog = 0; const p = UI.progress; UI.progress = (...a: any[]) => { (window as any).__prog++; return p.apply(UI, a); }; });
     await page.evaluate(async () => { await Generator.apply(); });
     expect(await snap(page)).toBe(before);
     expect(await steps(page)).toBe(s0);
     expect((await lockedToasts(page)).length).toBe(1);
+    expect(await page.evaluate(() => (window as any).__prog), 'refused up front: no generation work was started').toBe(0);
+    expect((await toastLog(page)).some(t => /result discarded/.test(t))).toBe(false);
     // lock set while the (asynchronous) generation runs: the result is discarded
     await unlockAll(page);
     await page.evaluate(async () => { const p = Generator.apply(); Layers.setLocked('terrain', true); await p; });
