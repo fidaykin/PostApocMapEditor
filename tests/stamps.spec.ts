@@ -337,16 +337,18 @@ test.describe('stamp store (T2.12)', () => {
     const r = await page.evaluate(async () => {
       const buf = Clipboard.capture(Selection.getCells());
       const a = await Stamps.save('a', buf), b = await Stamps.save('b', buf);
-      buf.cells[0].t = 'MUTATED';                                       // the stored stamp is a copy
+      buf.cells[0].t = 'MUTATED'; buf.cells[1].foo = 1;                 // the stored stamp is a copy, cleaned of unknown fields
+      const sav = await Stamps.save('c', { cells: [{ dq: 0, dr: 0, t: 'Forest_1', foo: 'x' }] });
       const stored = (await Stamps.list()).find((s: any) => s.name === 'a');
       const tb = Stamps.toBuffer(stored); tb.cells[0].t = 'MUTATED2';     // so is every buffer
       const stored2 = (await Stamps.list()).find((s: any) => s.name === 'a');
       await Stamps.remove('nope');
       await Stamps.remove(a.id);
-      return { t: [stored.cells[0].t, stored2.cells[0].t], names: (await Stamps.list()).map((s: any) => s.name), left: b.id };
+      return { ret: [a.cells[0].t, a.cells[1].t, 'foo' in a.cells[1], sav.cells[0].foo === undefined], t: [stored.cells[0].t, stored2.cells[0].t], names: (await Stamps.list()).map((s: any) => s.name), left: b.id };
     });
     expect(r.t).toEqual(['Forest_1', 'Forest_1']);
-    expect(r.names).toEqual(['b']);
+    expect(r.ret).toEqual(['Forest_1', 'Mountain_1', false, true]);
+    expect(r.names).toEqual(['c', 'b']);
   });
 
   // ---------- buffers --------------------------------------------------------------------------
