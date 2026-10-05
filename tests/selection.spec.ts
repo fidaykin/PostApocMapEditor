@@ -1244,26 +1244,35 @@ test.describe('clipboard (T2.9)', () => {
     expect(await page.evaluate(() => Canvas.getGhostCells().length)).toBe(0);
   });
 
-  test('a 202,500 cell clipboard: ghost updates cost O(boundary) per frame, not O(cells)', async ({ page }) => {
+  test('a 202,500 cell clipboard: ghost updates cost O(boundary) per frame, not O(cells), and build neither geometry nor masks per move', async ({ page }) => {
     const r = await page.evaluate(() => {
       Selection.selectAll(); Tools.copySelection(); Selection.clear();
       Tools.beginPaste(Clipboard.get());
-      const t0 = Canvas.getGhostStats().builds;
-      const out: any = {};
-      const cv = document.getElementById('map-canvas')!.getBoundingClientRect();
-      const mv = (c: number, rr: number) => { const p = Canvas.hexScreenPos(c, rr); cv.constructor; document.getElementById('map-canvas')!.dispatchEvent(new MouseEvent('mousemove', { clientX: cv.left + p.x, clientY: cv.top + p.y, bubbles: true })); };
-      mv(225, 224); mv(226, 225); mv(227, 225);
-      const st = Canvas.getGhostStats();
-      out.builds = st.builds - t0;            // geometry is built once per clipboard, not per move
-      out.tested = st.cellsTested;            // per-cell work in the last frame
-      out.segs = st.segsTested;
-      out.n = Clipboard.get().cells.length;
+      const s0 = Canvas.getGhostStats();
+      const cvEl = document.getElementById('map-canvas')!, cv = cvEl.getBoundingClientRect();
+      const mv = (c: number, rr: number) => { const p = Canvas.hexScreenPos(c, rr); cvEl.dispatchEvent(new MouseEvent('mousemove', { clientX: cv.left + p.x, clientY: cv.top + p.y, bubbles: true })); };
+      const out: any = { n: Clipboard.get().cells.length };
+      mv(225, 224); mv(226, 225); mv(227, 225);                 // three different cursor cells (each one crosses the map edge)
+      Canvas.render();
+      const s1 = Canvas.getGhostStats();
+      out.setsDelta = s1.sets - s0.sets; out.builds = s1.builds - s0.builds; out.masks = s1.masks - s0.masks;
+      out.cellsTested = s1.cellsTested; out.segs = s1.segsTested;
+      mv(227, 225); mv(227, 225);                                // the same cell again: nothing is rebuilt
+      const s2 = Canvas.getGhostStats();
+      out.sameCell = [s2.sets - s1.sets, s2.builds - s1.builds, s2.masks - s1.masks];
       return out;
     });
     expect(r.n).toBe(450 * 450);
-    expect(r.builds).toBeLessThanOrEqual(1);
-    expect(r.tested).toBeLessThanOrEqual(1500);
-    expect(r.segs).toBeLessThan(5000);
+    expect(r.setsDelta).toBe(3);                                 // one ghost per cursor-cell change
+    expect(r.builds).toBe(1);                                    // geometry built exactly once for this buffer
+    expect(r.masks).toBe(0);                                     // no O(n) validity mask for the segment path
+    expect(r.cellsTested).toBe(0);                               // never per-cell for > 1500 cells ...
+    // ... and the outline really was walked: boundary of the full 450 x 450 map = 6n - 2 * (adjacent pairs), where the
+    // pairs are 450 * 449 inside the 450 columns plus 449 * (2 * 450 - 1) between neighbouring staggered columns
+    const boundary = 6 * 450 * 450 - 2 * (450 * 449 + 449 * (2 * 450 - 1));
+    expect(boundary).toBe(3598);
+    expect(r.segs).toBe(boundary);
+    expect(r.sameCell).toEqual([0, 0, 0]);
   });
 
   test('capture and a full-map paste of 202,500 cells are interactive: bounded work counters, correct result, one step', async ({ page }) => {
@@ -1287,11 +1296,9 @@ test.describe('clipboard (T2.9)', () => {
     expect(await page.evaluate(() => Tools.getActive())).toBe('paste');
     await page.keyboard.press('p');
     expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
-    const before = await layers(page);
     await clickCell(page, 225, 219);                                            // paint tool: paints, does not paste
     expect(await count(page, 'Water_1')).toBe(1);
     expect(await page.evaluate(() => Canvas.getGhostCells().length)).toBe(0);
-    void before;
   });
 
   test('Esc returns to the tool that was active before the paste', async ({ page }) => {
@@ -1303,15 +1310,16 @@ test.describe('clipboard (T2.9)', () => {
 
   test('right / middle / side buttons never paste; a left click does', async ({ page }) => {
     await page.keyboard.press('Control+c'); await page.keyboard.press('Control+v');
+    const steps0 = await page.evaluate(() => History.undoSize());
     const n = await page.evaluate(() => {
       const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), p = Canvas.hexScreenPos(225, 219);
       const ev = (type: string, b: number) => cv.dispatchEvent(new MouseEvent(type, { clientX: rc.left + p.x, clientY: rc.top + p.y, button: b, buttons: type === 'mouseup' ? 0 : 1 << b, bubbles: true }));
       for (const b of [1, 2, 3, 4]) { ev('mousedown', b); ev('mouseup', b); }
       Canvas.centerOnCity();
-      return mapData.filter(x => x === 'Water_1').length + History.undoSize() * 100;
+      return mapData.filter(x => x === 'Water_1').length;
     });
-    expect(n % 100).toBe(1);
-    expect(Math.floor(n / 100)).toBe(await page.evaluate(() => History.undoSize()));
+    expect(n).toBe(1);                                                          // nothing was pasted by a non-left button
+    expect(await page.evaluate(() => History.undoSize())).toBe(steps0);        // and no History step was pushed
     await clickCell(page, 225, 219);
     expect(await count(page, 'Water_1')).toBe(2);
   });
@@ -1353,19 +1361,28 @@ test.describe('clipboard (T2.9)', () => {
 
   test('a running fill blocks Cut, Delete, Paste and the ghost', async ({ page }) => {
     await page.evaluate(() => { Tools.copySelection(); });
+    await page.evaluate(() => { Tools.beginPaste(Clipboard.get()); });
+    const p0 = await cellPoint(page, 225, 214);
+    await page.mouse.move(p0.x - 2, p0.y); await page.mouse.move(p0.x, p0.y);
+    const ghost0 = await page.evaluate(() => JSON.stringify([Canvas.getGhostCells(), Canvas.getGhostStats().sets]));
     const r = await page.evaluate(async () => {
       UI.selectTerrain('Water_1');
-      const before = JSON.stringify([mapData.join('|'), History.undoSize()]);
+      const steps0 = History.undoSize();
       Tools.fill(10, 10);                                   // starts a fill; busy until it finishes
       const busy = Tools.isFillBusy();
-      Tools.cutSelection(); Tools.deleteSelection(); Tools.beginPaste(Clipboard.get());
-      const act = Tools.getActive();
+      const cvEl = document.getElementById('map-canvas')!, rc = cvEl.getBoundingClientRect(), q = Canvas.hexScreenPos(230, 214);
+      Tools.cutSelection(); Tools.deleteSelection();
+      cvEl.dispatchEvent(new MouseEvent('mousemove', { clientX: rc.left + q.x, clientY: rc.top + q.y, bubbles: true }));   // ghost must not follow
+      cvEl.dispatchEvent(new MouseEvent('mousedown', { clientX: rc.left + q.x, clientY: rc.top + q.y, button: 0, buttons: 1, bubbles: true }));
+      cvEl.dispatchEvent(new MouseEvent('mouseup', { clientX: rc.left + q.x, clientY: rc.top + q.y, button: 0, buttons: 0, bubbles: true }));
+      const ghostBusy = JSON.stringify([Canvas.getGhostCells(), Canvas.getGhostStats().sets]);
       await Tools.whenIdle();
-      return { busy, act, unchanged: History.undoSize() };
+      return { busy, ghostBusy, steps: History.undoSize() - steps0 };
     });
     expect(r.busy).toBe(true);
-    expect(r.act).not.toBe('paste');
-    expect(await count(page, 'Forest_1')).toBe(1);          // cut/delete did not run
+    expect(r.ghostBusy).toBe(ghost0);                        // the ghost neither moved nor was rebuilt, and the click pasted nothing
+    expect(r.steps).toBe(0);                                 // cut / delete / paste pushed no History step
+    expect(await page.evaluate(() => [objectsData['225,224'], Object.keys(roadsData).length])).toEqual(['Grain_1', 1]);   // Cut / Delete would have removed these (a fill never touches them)
   });
 
   test('copy/paste adds no UI that changes the canvas width, and the default render is untouched', async ({ page }) => {
@@ -1445,5 +1462,262 @@ test.describe('clipboard (T2.9)', () => {
     expect(r.same).toBe(true);
     expect(r.n).toBeLessThan(r.full);
     expect(r.n).toBeGreaterThan(0);
+  });
+
+  // ---------- fix round: satellites, clipped footprints, plan fixed point, paste-mode keys ----------------
+
+  test('pasting a building over a spawner removes the old building\'s satellite ring (no orphans); a pasted building on a ring cell wins', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const __o = BldDB.getAll; BldDB.getAll = () => __o.call(BldDB).concat([{ id: 'T_A', spawnsSatellites: [{ buildingId: 'T_S', radius: 1, maxCount: 6 }] }, { id: 'T_S', canBuild: false }] as any);   // fabricated entries
+      try {
+        const A = { col: 225, row: 224 }, ring = HexUtils.neighbors(A.col, A.row, MAP_WIDTH, MAP_HEIGHT).slice(1);   // ring[0] omitted: the existing _removeSatellites (legacy _satelliteHexDist) misses that one true neighbour (T2.14)
+        const setup = () => { for (const k of Object.keys(objectsData)) delete objectsData[k]; objectsData['225,224'] = 'T_A'; for (const n of ring) objectsData[n.col + ',' + n.row] = 'T_S'; objectsData['300,224'] = 'T_S'; };
+        const countS = () => Object.values(objectsData).filter(v => v === 'T_S').length;
+        objectsData['300,300'] = 'Grain_1'; Selection.setCells([{ col: 300, row: 300 }]); Tools.copySelection();
+        setup(); Tools.beginPaste(Clipboard.get()); Tools.dropFloat(225, 224);
+        const out: any = { anchor: objectsData['225,224'], sLeft: countS() };            // ring gone, only the far one stays
+        // two cells: the anchor and ring[0]; the pasted building on the ring cell must survive the cleanup
+        const c0 = HexUtils.toCube(225, 224, MAP_WIDTH, MAP_HEIGHT), c1 = HexUtils.toCube(ring[0].col, ring[0].row, MAP_WIDTH, MAP_HEIGHT);
+        const buf = { v: 1, origin: A, cells: [{ dq: 0, dr: 0, t: 'Plain_1', o: 'Grain_1' }, { dq: c1.q - c0.q, dr: c1.r - c0.r, t: 'Plain_1', o: 'Grain_2' }] };
+        setup(); Tools.setActive('paint'); Tools.beginPaste(buf); Tools.dropFloat(225, 224);
+        out.ring0 = objectsData[ring[0].col + ',' + ring[0].row]; out.sLeft2 = countS();
+        return out;
+      } finally { BldDB.getAll = __o; }
+    });
+    expect(r).toEqual({ anchor: 'Grain_1', sLeft: 1, ring0: 'Grain_2', sLeft2: 1 });
+  });
+
+  test('cutting a spawner removes its ring (also outside the selection) and paste does not duplicate or respawn it', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const __o = BldDB.getAll; BldDB.getAll = () => __o.call(BldDB).concat([{ id: 'T_A', spawnsSatellites: [{ buildingId: 'T_S', radius: 1, maxCount: 6 }] }, { id: 'T_S', canBuild: false }] as any);   // fabricated entries
+      try {
+        const A = { col: 225, row: 224 }, ring = HexUtils.neighbors(A.col, A.row, MAP_WIDTH, MAP_HEIGHT).slice(1);   // ring[0] omitted: the existing _removeSatellites (legacy _satelliteHexDist) misses that one true neighbour (T2.14)
+        objectsData['225,224'] = 'T_A'; for (const n of ring) objectsData[n.col + ',' + n.row] = 'T_S';
+        const countS = () => Object.values(objectsData).filter(v => v === 'T_S').length;
+        Selection.setCells([A]); Tools.cutSelection();
+        const afterCut = { anchor: objectsData['225,224'], s: countS(), clip: Clipboard.get().cells.length };
+        Tools.beginPaste(Clipboard.get()); Tools.dropFloat(150, 150);
+        return { afterCut, pasted: objectsData['150,150'], s: countS(), around: HexUtils.neighbors(150, 150, MAP_WIDTH, MAP_HEIGHT).filter((n: any) => objectsData[n.col + ',' + n.row]).length };
+      } finally { BldDB.getAll = __o; }
+    });
+    expect(r).toEqual({ afterCut: { s: 0, clip: 1 }, pasted: 'T_A', s: 0, around: 0 });
+  });
+
+  test('Cut and Delete over a selection that clips a footprint without its anchor leave those cells (terrain, building, road, extras, zone) and keep them out of the clipboard', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, zl = ZonePainter.getZoneLayer();
+      mapData[200 * W + 200] = 'Rabbit_Flat_1'; invalidateSatelliteMap();
+      const sats: any[] = [];
+      for (let rr = 197; rr <= 203; rr++) for (let c = 197; c <= 203; c++) { const a = getSatelliteAnchor(c, rr); if (a && a.col === 200 && a.row === 200) sats.push({ col: c, row: rr }); }
+      for (const q of sats) { const k = q.col + ',' + q.row; objectsData[k] = 'Grain_1'; roadsData[k] = { type: 'road_hex' }; tileExtras[k] = { underTerrainId: 'Water_1' }; zl[q.row * W + q.col] = 3; }
+      mapData[210 * W + 210] = 'Water_1'; zl[210 * W + 210] = 2;
+      const snap = () => JSON.stringify(sats.map(q => { const k = q.col + ',' + q.row; return [mapData[q.row * W + q.col], objectsData[k], roadsData[k], tileExtras[k], zl[q.row * W + q.col]]; }));
+      const before = snap();
+      const sel = sats.concat([{ col: 210, row: 210 }]);
+      const out: any = { nSats: sats.length };
+      Selection.setCells(sel); Tools.cutSelection();
+      out.cutKept = snap() === before; out.cutPlain = [mapData[210 * W + 210], zl[210 * W + 210]];
+      out.clip = Clipboard.get().cells.map((e: any) => e.t);
+      out.anchorStays = mapData[200 * W + 200];
+      Selection.setCells(sel); const s0 = History.undoSize(); mapData[210 * W + 210] = 'Water_1'; Tools.deleteSelection();
+      out.delKept = snap() === before; out.delPlain = mapData[210 * W + 210]; out.delStep = History.undoSize() - s0;
+      Selection.setCells(sats); const s1 = History.undoSize(); Tools.cutSelection();
+      out.onlySatsStep = History.undoSize() - s1; out.onlySatsKept = snap() === before;
+      return out;
+    });
+    expect(r).toEqual({ nSats: 3, cutKept: true, cutPlain: ['Plain_1', 0], clip: ['Water_1'], anchorStays: 'Rabbit_Flat_1', delKept: true, delPlain: 'Plain_1', delStep: 1, onlySatsStep: 0, onlySatsKept: true });
+  });
+
+  test('a Cut or Delete that changes nothing pushes no History step (Cut still fills the clipboard)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Selection.setCells(Tools._rectCells(300, 300, 302, 302));
+      const s0 = History.undoSize();
+      const d = Tools.deleteSelection(); const c = Tools.cutSelection();
+      return { d, c, steps: History.undoSize() - s0, clip: Clipboard.get().cells.length };
+    });
+    expect(r).toEqual({ d: false, c: true, steps: 0, clip: 9 });
+  });
+
+  test('plan(): footprint clipping cascades to a fixed point however long the chain (no iteration cap), writes nothing and pushes no step', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, FPID = 'Rabbit_Flat_1', R0 = 100, C0 = 100, N = 30;
+      // existing anchors D, p1..pN in a row: each one's N footprint cell is the next one (col + 1)
+      for (let i = 0; i <= N; i++) mapData[R0 * W + C0 - 1 + i] = FPID;
+      invalidateSatelliteMap();
+      let chain = true;
+      for (let i = 1; i <= N; i++) { const a = getSatelliteAnchor(C0 + i - 1, R0); chain = chain && !!a && a.col === C0 + i - 2 && a.row === R0; }
+      const c0 = HexUtils.toCube(C0, R0, W, MAP_HEIGHT);
+      const cells = []; for (let i = 0; i < N; i++) { const q = HexUtils.toCube(C0 + i, R0, W, MAP_HEIGHT); cells.push({ dq: q.q - c0.q, dr: q.r - c0.r, t: 'Water_1' }); }
+      const buf = { v: 1, origin: { col: C0, row: R0 }, cells };
+      const water0 = mapData.filter(x => x === 'Water_1').length, items = Clipboard.plan(buf, { col: C0, row: R0 }, null);
+      const s0 = History.undoSize(); Tools.beginPaste(buf); Tools.dropFloat(C0, R0);
+      return { chain, kept: items.length, steps: History.undoSize() - s0, water: mapData.filter(x => x === 'Water_1').length - water0 };
+    });
+    expect(r).toEqual({ chain: true, kept: 0, steps: 0, water: 0 });
+  });
+
+  test('two pasted anchors whose footprints overlap: the earlier cell wins, no orphan satellites, one step', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, FPID = 'Rabbit_Flat_1', c0 = HexUtils.toCube(100, 100, W, MAP_HEIGHT), c1 = HexUtils.toCube(101, 100, W, MAP_HEIGHT);
+      const mk = (order: number[]) => ({ v: 1, origin: { col: 100, row: 100 }, cells: order.map(i => i === 0 ? { dq: 0, dr: 0, t: FPID } : { dq: c1.q - c0.q, dr: c1.r - c0.r, t: FPID }) });
+      const s0 = History.undoSize();
+      Tools.beginPaste(mk([0, 1])); Tools.dropFloat(100, 100);
+      const sat: string[] = [];
+      for (let rr = 97; rr <= 103; rr++) for (let c = 97; c <= 103; c++) { const a = getSatelliteAnchor(c, rr); if (a) sat.push(a.col + ',' + a.row); }
+      return { first: mapData[100 * W + 100], second: mapData[100 * W + 101], sat, steps: History.undoSize() - s0 };
+    });
+    expect(r).toEqual({ first: 'Rabbit_Flat_1', second: 'Plain_1', sat: ['100,100', '100,100', '100,100'], steps: 1 });
+  });
+
+  test('a pasted footprint that would cover an existing anchor outside the paste is skipped', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, FPID = 'Rabbit_Flat_1';
+      mapData[100 * W + 101] = FPID; invalidateSatelliteMap();               // existing anchor at (101,100), N of (100,100)
+      const buf = { v: 1, origin: { col: 100, row: 100 }, cells: [{ dq: 0, dr: 0, t: FPID }] };
+      const s0 = History.undoSize(); Tools.beginPaste(buf); Tools.dropFloat(100, 100);
+      return { written: mapData[100 * W + 100], existing: mapData[100 * W + 101], steps: History.undoSize() - s0 };
+    });
+    expect(r).toEqual({ written: 'Plain_1', existing: 'Rabbit_Flat_1', steps: 0 });
+  });
+
+  test('footprintCells is the shared footprint definition: it reproduces the satellite map for both row parities', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, FPID = 'Rabbit_Flat_1', te = Terrain.byHexId(FPID), out: any[] = [];
+      for (const [c, rr] of [[200, 200], [200, 201], [301, 300], [301, 301]]) {
+        mapData[rr * W + c] = FPID; invalidateSatelliteMap();
+        const fromMap: string[] = [];
+        for (let y = rr - 2; y <= rr + 2; y++) for (let x = c - 2; x <= c + 2; x++) { const a = getSatelliteAnchor(x, y); if (a && a.col === c && a.row === rr) fromMap.push(x + ',' + y); }
+        const fc = footprintCells(c, rr, te).map((q: any) => q.col + ',' + q.row);
+        out.push(JSON.stringify(fc.slice().sort()) === JSON.stringify(fromMap.sort()) && fc.length === 3);
+        mapData[rr * W + c] = 'Plain_1';
+      }
+      return out;
+    });
+    expect(r).toEqual([true, true, true, true]);
+  });
+
+  test('paste across map sizes: a 451 x 451 buffer pasted onto a 450 x 450 map is clipped, one step, selection = written cells', async ({ page }) => {
+    await resize(page, 451, 451);
+    await page.evaluate(() => { mapData.fill('Forest_1'); Selection.selectAll(); Tools.copySelection(); });
+    await resize(page, 450, 450);
+    const r = await page.evaluate(() => {
+      const buf = Clipboard.get(), s0 = History.undoSize();
+      Tools.beginPaste(buf);
+      const n = Tools.dropFloat(225, 224);
+      const forest = mapData.filter(x => x === 'Forest_1').length;
+      return { cells: buf.cells.length, n, sel: Selection.size(), forest, outside: mapData.length, steps: History.undoSize() - s0, preview: Clipboard.previewCells(buf, { col: 225, row: 224 }, null).length };
+    });
+    expect(r.cells).toBe(451 * 451);
+    expect(r.outside).toBe(450 * 450);
+    expect(r.n).toBe(r.preview);
+    expect(r.sel).toBe(r.n);
+    expect(r.forest).toBe(r.n);
+    expect(r.n).toBeLessThanOrEqual(450 * 450);
+    expect(r.n).toBeGreaterThan(450 * 450 * 0.9);
+    expect(r.steps).toBe(1);
+  });
+
+  test('undo while pasting keeps paste mode, ghost and selection; the next click pastes again on the restored map', async ({ page }) => {
+    await page.keyboard.press('Control+c'); await page.keyboard.press('Control+v');
+    await clickCell(page, 225, 219);
+    expect(await count(page, 'Water_1')).toBe(2);
+    await page.keyboard.press('Control+z');
+    const r = await page.evaluate(() => ({ water: mapData.filter(x => x === 'Water_1').length, tool: Tools.getActive(), pasting: Tools.isPasting(), sel: Selection.size(), has: Selection.has(225, 219) }));
+    expect(r).toEqual({ water: 1, tool: 'paste', pasting: true, sel: 2, has: true });   // documented: the selection (the pasted region) is not an undo target
+    const p = await cellPoint(page, 225, 214);
+    await page.mouse.move(p.x - 2, p.y); await page.mouse.move(p.x, p.y);
+    expect(await page.evaluate(() => Canvas.getGhostCells().length)).toBe(2);
+    await clickCell(page, 225, 219);
+    expect(await count(page, 'Water_1')).toBe(2);
+  });
+
+  test('Cmd (Meta) + C / X / V work in map mode like Ctrl', async ({ page }) => {
+    await page.keyboard.press('Meta+c');
+    expect(await page.evaluate(() => Clipboard.get().cells.length)).toBe(2);
+    await page.keyboard.press('Meta+v');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paste');
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('Meta+x');
+    expect(await page.evaluate(() => [mapData.filter(x => x === 'Water_1').length, Object.keys(objectsData).length])).toEqual([0, 0]);
+  });
+
+  test('while pasting, Ctrl+C / Ctrl+X / Delete are ignored with a toast; Ctrl+V with a new buffer refreshes the ghost at once', async ({ page }) => {
+    await toastsOn(page);
+    await page.keyboard.press('Control+c'); await page.keyboard.press('Control+v');
+    const p = await cellPoint(page, 225, 214);
+    await page.mouse.move(p.x - 2, p.y); await page.mouse.move(p.x, p.y);
+    const before = await layers(page), steps = await page.evaluate(() => History.undoSize());
+    const buf0 = await page.evaluate(() => { (window as any).__b0 = Clipboard.get(); return Clipboard.get().cells.length; });
+    await page.evaluate(() => Selection.setCells(Tools._rectCells(222, 220, 226, 223)));
+    await page.keyboard.press('Control+c'); await page.keyboard.press('Control+x'); await page.keyboard.press('Delete');
+    expect(await page.evaluate(() => Clipboard.get() === (window as any).__b0)).toBe(true);
+    expect(await layers(page)).toBe(before);
+    expect(await page.evaluate(() => History.undoSize())).toBe(steps);
+    expect(await page.evaluate(() => (window as any).__toasts.filter((t: string) => /Finish the paste first/.test(t)).length)).toBe(3);
+    expect(buf0).toBe(2);
+    // a different buffer + Ctrl+V: the ghost shows it without moving the mouse
+    await page.evaluate(() => { const b = Clipboard.get(); Clipboard.set({ v: 1, origin: b.origin, cells: b.cells.concat([{ dq: 2, dr: 0, t: 'Plain_1' }]) }); });
+    await page.keyboard.press('Control+v');
+    expect(await page.evaluate(() => Canvas.getGhostCells().length)).toBe(3);
+  });
+
+  test('an Escape another handler already consumed (defaultPrevented) does not end the paste', async ({ page }) => {
+    await page.keyboard.press('Control+c'); await page.keyboard.press('Control+v');
+    await page.evaluate(() => { (window as any).__eat = (e: KeyboardEvent) => e.preventDefault(); window.addEventListener('keydown', (window as any).__eat, true); });
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paste');
+    await page.evaluate(() => window.removeEventListener('keydown', (window as any).__eat, true));
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => Tools.getActive())).not.toBe('paste');
+  });
+
+  test('under-terrain belongs to the terrain layer: terrain=false keeps the destination extras, objects=false still replaces them', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      tileExtras['225,224'] = { underTerrainId: 'Water_1' }; Selection.setCells([{ col: 225, row: 224 }]); Tools.copySelection();
+      const buf = Clipboard.get();
+      tileExtras['100,100'] = { underTerrainId: 'Forest_1' }; delete objectsData['100,100'];
+      Clipboard.write(Clipboard.plan(buf, { col: 100, row: 100 }, null), { terrain: false });
+      const kept = tileExtras['100,100'].underTerrainId;
+      delete objectsData['100,100'];
+      Clipboard.write(Clipboard.plan(buf, { col: 100, row: 100 }, null), { objects: false });
+      return { kept, replaced: tileExtras['100,100'].underTerrainId, obj: objectsData['100,100'] };
+    });
+    expect(r).toEqual({ kept: 'Forest_1', replaced: 'Water_1', obj: undefined });
+  });
+
+  test('ghost geometry is cached per (buffer, transform signature) and masks are only built for small edge-crossing buffers', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Tools.copySelection(); const buf = Clipboard.get();
+      const a = Clipboard.ghostGeometry(buf, null), b = Clipboard.ghostGeometry(buf, null), c = Clipboard.ghostGeometry(buf, { rot: 1 }), d = Clipboard.ghostGeometry(buf, { rot: 1 });
+      const m0 = Canvas.getGhostStats().masks;
+      Canvas.setGhost(Clipboard.ghostLayer(buf, { col: 0, row: 0 }, null)); const m1 = Canvas.getGhostStats().masks;
+      Canvas.setGhost(Clipboard.ghostLayer(buf, { col: 225, row: 224 }, null)); const m2 = Canvas.getGhostStats().masks;
+      Canvas.setGhost(null);
+      return { same: a === b && c === d, differ: a !== c, edgeMask: m1 - m0, inside: m2 - m1 };
+    });
+    expect(r).toEqual({ same: true, differ: true, edgeMask: 1, inside: 0 });
+  });
+
+  test('the ghost is tinted exactly on the cells a click would write (pixel check at hexScreenPos centres, neighbours untouched)', async ({ page }) => {
+    await page.evaluate(() => { Selection.setCells(Tools._rectCells(222, 220, 225, 222)); Tools.copySelection(); Selection.clear(); Tools.beginPaste(Clipboard.get()); });
+    const p = await cellPoint(page, 225, 214);
+    await page.mouse.move(p.x - 2, p.y); await page.mouse.move(p.x, p.y);
+    const r = await page.evaluate(() => {
+      const cv = document.getElementById('map-canvas') as HTMLCanvasElement, k = cv.width / cv.getBoundingClientRect().width;
+      const px = (c: number, rr: number) => { const q = Canvas.hexScreenPos(c, rr); return Array.from(cv.getContext('2d')!.getImageData(Math.round(q.x * k), Math.round(q.y * k), 1, 1).data).slice(0, 3); };
+      const exp = Clipboard.previewCells(Clipboard.get(), { col: 225, row: 214 }, null);
+      const inSet = new Set(exp.map((q: any) => q.col + ',' + q.row));
+      const outside: any[] = [];
+      for (const q of exp) for (const n of HexUtils.neighbors(q.col, q.row, MAP_WIDTH, MAP_HEIGHT)) if (!inSet.has(n.col + ',' + n.row)) outside.push(n);
+      Canvas.render(); const withG = { i: exp.map((q: any) => px(q.col, q.row)), o: outside.map((q: any) => px(q.col, q.row)) };
+      Canvas.setGhost(null);
+      const without = { i: exp.map((q: any) => px(q.col, q.row)), o: outside.map((q: any) => px(q.col, q.row)) };
+      const d = (a: number[], b: number[]) => Math.max(...a.map((v, i) => Math.abs(v - b[i])));   // largest channel difference
+      return { n: exp.length, minIn: Math.min(...withG.i.map((v: number[], i: number) => d(v, without.i[i]))), maxOut: Math.max(...withG.o.map((v: number[], i: number) => d(v, without.o[i]))), nOut: outside.length };
+    });
+    expect(r.n).toBe(12);
+    expect(r.minIn).toBeGreaterThan(10);   // every ghost cell centre is tinted (alpha .22 of the green over the terrain)
+    expect(r.nOut).toBeGreaterThan(5);
+    expect(r.maxOut).toBeLessThanOrEqual(3); // cells just outside the ghost are not (<= 3 levels: antialiasing of the neighbouring outline)
   });
 });
