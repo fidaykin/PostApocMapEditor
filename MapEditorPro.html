@@ -1232,7 +1232,7 @@ body.mode-common #map-io    { display: none; }
 
 </style>
 <script src="hex-utils.js?v=1"></script>
-<script src="zone-painter.js?v=9"></script>
+<script src="zone-painter.js?v=10"></script>
 <script src="map-jobs.js?v=2"></script>
 </head>
 <body class="mode-map">
@@ -2442,7 +2442,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "052ea04";
+const COMMIT  = "d256e56";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2942,7 +2942,8 @@ const Layers = (() => {
       eye.setAttribute('aria-label', eye.title);
       eye.classList.toggle('off', !vis);
       lock.setAttribute('aria-pressed', String(lk));
-      lock.title = (lk ? 'Unlock ' : 'Lock ') + label + ' (editing)';
+      lock.title = lk ? 'Unlock ' + label + ' (allow editing it again)'
+                      : 'Lock ' + label + ' (tools, paste, cut/delete and fills will not change it; undo still works)';
       lock.setAttribute('aria-label', lock.title);
       lock.textContent = lk ? '\u{1F512}' : '\u{1F513}';
     });
@@ -2965,6 +2966,14 @@ const Layers = (() => {
     if (!_state[n]) return;
     _state[n].locked = !!v; _save(); _refreshRows();
   }
+  // The shared lock gate (T2.18): true (and a toast) when the layer is locked. Every user-facing writer asks it BEFORE it
+  // pushes a History step, so a refused action leaves no step.
+  function refuse(n) {
+    if (!isLocked(n)) return false;
+    if (typeof UI !== 'undefined') UI.toast((LABELS[n] || n) + ' layer is locked: unlock it in the Layers panel to edit it');
+    return true;
+  }
+  function label(n) { return LABELS[n] || String(n); }
 
   function initPanel() {
     const box = document.getElementById('layers-list');
@@ -2993,7 +3002,7 @@ const Layers = (() => {
     _refreshRows();
   }
 
-  return { NAMES, isVisible, isLocked, setVisible, setLocked, initPanel, sync };
+  return { NAMES, isVisible, isLocked, setVisible, setLocked, refuse, label, initPanel, sync };
 })();
 
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
@@ -4691,8 +4700,10 @@ const Canvas = (() => {
     if (objId) document.getElementById('tile-insp-obj-id').textContent = objId;
   }
 
+  // Under-terrain extras belong to the terrain layer (same rule as the clipboard).
   function applyTileInspectorUnder() {
     if (_selCol < 0) return;
+    if (Layers.refuse('terrain')) return;
     const val = document.getElementById('tile-insp-under').value.trim();
     const key = _selCol + ',' + _selRow;
     if (val) {
@@ -4705,6 +4716,7 @@ const Canvas = (() => {
   }
 
   function clearTileInspectorUnder() {
+    if (Layers.refuse('terrain')) return;
     const key = _selCol + ',' + _selRow;
     if (tileExtras[key]) delete tileExtras[key].underTerrainId;
     document.getElementById('tile-insp-under').value = '';
@@ -5094,15 +5106,24 @@ const Clipboard = (() => {
 
   // Writes a plan. Terrain always overwrites; building / road / zone only where the buffer has one; extras and a bridge
   // are replaced by the source's (a repainted cell drops its old bridge). Writes mapData directly (no symmetry).
+  // `layers` = { terrain, objects, roads, zones }: false = that layer is not written (a locked layer). Bridges belong to the
+  // objects layer and sit on terrain, so a bridge is written or removed only when BOTH are writable. Nothing to write for the
+  // allowed layers: returns 0 before beforeWrite, so no History step is pushed for a paste that would change nothing.
+  // The live lock state is applied HERE too (a locked layer is never written, whatever the caller passed), so no caller can bypass it.
   function write(items, layers, beforeWrite, xf) {
     layers = layers || {};
+    layers = { terrain: layers.terrain !== false && !Layers.isLocked('terrain'), objects: layers.objects !== false && !Layers.isLocked('objects'),
+               roads: layers.roads !== false && !Layers.isLocked('roads'), zones: layers.zones !== false && !Layers.isLocked('zones') };
     if (!items.length) return 0;
+    const zl0 = typeof ZonePainter !== 'undefined' ? ZonePainter.getZoneLayer() : null;
+    if (layers.terrain === false && !items.some(it => (layers.objects !== false && it.e.o) || (layers.roads !== false && it.e.rd) || (layers.zones !== false && zl0 && it.e.z))) return 0;
     if (beforeWrite) beforeWrite();
     const W = MAP_WIDTH, H = MAP_HEIGHT;
     const zl = typeof ZonePainter !== 'undefined' ? ZonePainter.getZoneLayer() : null;
     const wantB = layers.terrain !== false;
+    const wantBr = wantB && layers.objects !== false;      // bridges: terrain AND objects
     const written = new Set(items.map(i => i.idx));
-    if (wantB && bridgesData.length) for (let i = bridgesData.length - 1; i >= 0; i--) if (written.has(bridgesData[i].row * W + bridgesData[i].col)) bridgesData.splice(i, 1);
+    if (wantBr && bridgesData.length) for (let i = bridgesData.length - 1; i >= 0; i--) if (written.has(bridgesData[i].row * W + bridgesData[i].col)) bridgesData.splice(i, 1);
     // A building replaced by another takes the satellites it spawned with it (same helper the Eraser uses). Done before
     // any write, so a pasted building landing on a former satellite cell simply overwrites it. Pasted buildings do not
     // carry or respawn satellites (the buffer holds the selected cells only).
@@ -5113,7 +5134,7 @@ const Clipboard = (() => {
       const e = it.e, k = it.col + ',' + it.row;
       prevs[n] = mapData[it.idx];
       if (layers.terrain !== false) {
-        mapData[it.idx] = e.t; if (e.b !== undefined) bridgesData.push({ col: it.col, row: it.row, axis: e.b });
+        mapData[it.idx] = e.t; if (wantBr && e.b !== undefined) bridgesData.push({ col: it.col, row: it.row, axis: e.b });
         delete tileExtras[k];      // under-terrain belongs to the terrain layer: replaced by the source's (none clears it)
         if (e.x) tileExtras[k] = JSON.parse(JSON.stringify(e.x));
       }
@@ -5146,11 +5167,11 @@ const Clipboard = (() => {
 
   // Writes the carried zone / road of source footprint cells (plan().carry) as part of the SAME step: terrain, objects,
   // bridges and extras of those cells never travel.
-  function writeCarry(items) {
-    return items.carry && items.carry.length ? write(items.carry, { terrain: false, objects: false }, null, null) : 0;
+  function writeCarry(items, layers) {
+    return items.carry && items.carry.length ? write(items.carry, { terrain: false, objects: false, roads: layers ? layers.roads : undefined, zones: layers ? layers.zones : undefined }, null, null) : 0;
   }
 
-  function place(buf, target, xf, layers, beforeWrite) { const items = plan(buf, target, xf), n = write(items, layers, beforeWrite, xf); if (n) writeCarry(items); return n; }
+  function place(buf, target, xf, layers, beforeWrite) { const items = plan(buf, target, xf), n = write(items, layers, beforeWrite, xf); if (n) writeCarry(items, layers); return n; }
 
   // ── Ghost geometry: world-space offsets from the anchor cell centre, built ONCE per buffer (translation invariant) ──
   function ghostGeometry(buf, xf) {
@@ -5640,6 +5661,35 @@ const Tools = (() => {
     road: 'Draw Road', 'road-connect': 'Connect Road', 'erase-road': 'Erase Road', bridge: 'Place Bridge',
     line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser', scatter: 'Scatter', marquee: 'Select Region', paste: 'Paste', replace: 'Replace Tile',
   };
+  // Which layer each tool EDITS (T2.18). _onDown refuses a press on a locked layer before any stroke state or History step.
+  // A tool that never writes the map is listed in NON_WRITING_TOOLS instead; a tool in neither table is a bug (tested:
+  // every registered tool must be in exactly one). 'paste' writes at the drop (dropFloat), which asks the lock per layer.
+  const TOOL_LAYER = {
+    paint: 'terrain', fill: 'terrain', rect: 'terrain', line: 'terrain', circle: 'terrain', polygon: 'terrain',
+    scatter: 'terrain', eraser: 'terrain', replace: 'terrain',
+    object: 'objects', 'erase-object': 'objects', bridge: 'objects',
+    road: 'roads', 'road-connect': 'roads', 'erase-road': 'roads',
+    settlement: 'settlements', erase: 'settlements',
+    zone: 'zones',
+  };
+  const NON_WRITING_TOOLS = new Set(['eye', 'select', 'marquee', 'paste']);
+  // Paint in bridge mode (a bridge axis is selected in the palette) edits the bridge overlay, which is the objects layer.
+  function _toolLayer(tool) {
+    if (tool === 'paint' && UI.getSelectedBridgeAxis() >= 0) return 'objects';
+    return TOOL_LAYER[tool] || null;
+  }
+  const _DRAG_WRITERS = new Set(['paint', 'eraser', 'scatter', 'object', 'erase-object', 'zone', 'road', 'erase-road']);   // tools whose _onMove writes
+  let _lockToasted = false;     // one lock toast per press / command
+  // True (with ONE toast per press or command) when the layer is locked. `fresh` starts a new command (cut, delete ...).
+  function _layerLocked(layer, fresh) {
+    if (fresh) _lockToasted = false;
+    if (!Layers.isLocked(layer)) return false;
+    if (!_lockToasted) { _lockToasted = true; Layers.refuse(layer); }
+    return true;
+  }
+  function _locks() { return { terrain: Layers.isLocked('terrain'), objects: Layers.isLocked('objects'), roads: Layers.isLocked('roads'), zones: Layers.isLocked('zones') }; }
+  function _allowed(lk) { return { terrain: !lk.terrain, objects: !lk.objects, roads: !lk.roads, zones: !lk.zones }; }
+  function _lockedNames(lk, keys) { return keys.filter(k => lk[k]).map(k => Layers.label(k)); }
   // Physical-key tool shortcuts (layout independent). Later tasks add entries.
   const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee', KeyH: 'replace', KeyB: 'object', KeyW: 'road', KeyC: 'road-connect', KeyQ: 'erase-road', KeyU: 'bridge' };
   let _float = null;          // paste mode: { buf, md, W, H, xf:{rot,mh,mv}, move:null|{cells} } (md/W/H = the map it was started on)
@@ -5874,6 +5924,7 @@ const Tools = (() => {
   function _writeTerrain(cells, hexId) {
     const seen = new Set();
     const touched = [];
+    const keepBridges = Layers.isLocked('objects');   // a locked objects layer keeps its bridge overlays
     for (const { col: c, row: r, id } of cells) {
       if (c < 0 || c >= MAP_WIDTH || r < 0 || r >= MAP_HEIGHT) continue;
       const k = r * MAP_WIDTH + c;
@@ -5882,7 +5933,7 @@ const Tools = (() => {
       if (getSatelliteAnchor(c, r)) continue;      // never paint under a multi-tile footprint
       touched.push({ col: c, row: r, prev: mapData[k] });
       mapData[k] = hexId || id;
-      const bi = bridgesData.findIndex(b => b.col === c && b.row === r);
+      const bi = keepBridges ? -1 : bridgesData.findIndex(b => b.col === c && b.row === r);
       if (bi >= 0) bridgesData.splice(bi, 1);
     }
     invalidateSatelliteMap();
@@ -6005,7 +6056,7 @@ const Tools = (() => {
       const cells = new Array(nWritten);   // only cells actually written (footprint-skipped ones are excluded)
       for (let i = 0; i < nWritten; i++) { const q = written[i], c = q % W; cells[i] = { col: c, row: (q - c) / W, prev: targetId }; }
       // same rule as _applyTerrainCells: a bridge on a repainted cell is dropped (in place, array identity kept)
-      for (let i = bridgesData.length - 1; i >= 0; i--) {
+      for (let i = bridgesData.length - 1; i >= 0 && !Layers.isLocked('objects'); i--) {
         const b = bridgesData[i];
         if (b.col >= 0 && b.col < W && b.row >= 0 && b.row < H && visited[b.row * W + b.col] && md[b.row * W + b.col] === fillId) bridgesData.splice(i, 1);
       }
@@ -6185,6 +6236,7 @@ const Tools = (() => {
   function replaceTerrain(fromId, toId, cells, opts) {
     _replaceInfo = { scanned: 0, matched: 0, replaced: 0, skipped: 0 };
     if (_fillBusy || isStroking()) return 0;      // a fill, a stroke or a lifted region is working on the map
+    if (Layers.isLocked('terrain')) return 0;     // replace edits terrain (callers toast: see _runReplace)
     const plan = _planReplace(fromId, toId, cells);
     _replaceInfo = plan.info;
     if (!plan.list.length) return 0;
@@ -6195,7 +6247,7 @@ const Tools = (() => {
       touched[n] = { col: it.col, row: it.row, prev: fromId };
       mapData[it.i] = plan.to;
     }
-    if (bridgesData.length) {
+    if (bridgesData.length && !Layers.isLocked('objects')) {
       const gone = new Set(plan.list.map(it => it.i));
       for (let k = bridgesData.length - 1; k >= 0; k--) if (gone.has(bridgesData[k].row * W + bridgesData[k].col)) bridgesData.splice(k, 1);
     }
@@ -6208,6 +6260,7 @@ const Tools = (() => {
   function _runReplace(fromId, toId, cells) {
     if (_fillBusy) { UI.toast('Wait for the fill to finish'); return -1; }
     if (isStroking()) { UI.toast('Finish the move first (Esc)'); return -1; }
+    if (_layerLocked('terrain', true)) return -1;
     const toE = Terrain.byHexId(toId);
     if (!toE) { UI.toast('Unknown tile id: ' + toId); return -1; }
     if (toE.id === fromId) { UI.toast('Pick two different tile ids'); return -1; }   // canonical id: 'rubble_1' is Rubble_1
@@ -6265,8 +6318,11 @@ const Tools = (() => {
     }
     return uniq.filter(({ col, row }) => { const anc = getSatelliteAnchor(col, row); return !anc || inSet.has(anc.row * MAP_WIDTH + anc.col); });
   }
+  // A locked objects layer keeps its buildings (and the satellites they spawned) and bridge overlays, a locked roads layer
+  // keeps its roads (opts.locks overrides the live lock state: a lifted move uses the union of lift and drop time).
   function _resetCells(cells, opts) {
     if (_fillBusy) return 0;
+    const lk = (opts && opts.locks) || _locks();
     const list = opts && opts.noSymmetry ? cells : _expandSymmetry(cells);
     const uniq = _resettable(list);     // the satellite map is only refreshed after the loop below
     const touched = [], erased = new Set();
@@ -6279,11 +6335,11 @@ const Tools = (() => {
       if (!footprints && prev) { const te = Terrain.byHexId(prev); if (te && Array.isArray(te.occupiedOffsets) && te.occupiedOffsets.length) footprints = true; }
       mapData[idx] = DEFAULT_TILE_ID;
       const bld = objectsData[k];
-      if (bld) { delete objectsData[k]; _removeSatellites(col, row, bld); }
-      delete roadsData[k];
-      delete tileExtras[k];
+      if (bld && !lk.objects) { delete objectsData[k]; _removeSatellites(col, row, bld); }
+      if (!lk.roads) delete roadsData[k];
+      delete tileExtras[k];          // under-terrain belongs to the terrain layer (the cell is being reset, so terrain is unlocked here)
     }
-    for (let i = bridgesData.length - 1; i >= 0; i--)
+    for (let i = bridgesData.length - 1; i >= 0 && !lk.objects; i--)
       if (erased.has(bridgesData[i].row * MAP_WIDTH + bridgesData[i].col)) bridgesData.splice(i, 1);
     if (footprints) invalidateSatelliteMap();
     _autoResolveEdgesAround(touched);
@@ -6661,6 +6717,7 @@ const Tools = (() => {
   // One History step per shape; nothing is pushed for an empty result.
   function _commitCells(cells) {
     if (cells.length === 0 || _fillBusy) return false;
+    if (_layerLocked('terrain', true)) return false;     // locked since the drag began: nothing is written, no step
     History.push();
     _applyTerrainCells(cells, UI.getSelectedTerrain());
     Canvas.drawMinimap();
@@ -6702,17 +6759,19 @@ const Tools = (() => {
   }
   // Delete semantics = the eraser's (_resetCells: footprints, bridges, satellite map; spawned satellites of a removed
   // building go too), never mirrored; also clears zones. `cells` must come from _resettable().
-  function _clearCells(cells) {
-    _resetCells(cells, { noSymmetry: true });
+  function _clearCells(cells, lk) {
+    lk = lk || _locks();
+    _resetCells(cells, { noSymmetry: true, locks: lk });
     const zl = ZonePainter.getZoneLayer();
-    if (zl) for (const { col, row } of cells) zl[row * MAP_WIDTH + col] = 0;
+    if (zl && !lk.zones) for (const { col, row } of cells) zl[row * MAP_WIDTH + col] = 0;
   }
   // Would clearing these cells change anything? (a Cut / Delete that cannot must not push a History step)
-  function _hasContent(cells) {
+  function _hasContent(cells, lk) {
+    lk = lk || _locks();
     const zl = ZonePainter.getZoneLayer(), bridges = new Set(bridgesData.map(b => b.row * MAP_WIDTH + b.col));
     return cells.some(({ col, row }) => {
       const idx = row * MAP_WIDTH + col, k = col + ',' + row;
-      return mapData[idx] !== DEFAULT_TILE_ID || objectsData[k] || roadsData[k] || tileExtras[k] || bridges.has(idx) || (zl && zl[idx]);
+      return mapData[idx] !== DEFAULT_TILE_ID || (!lk.objects && (objectsData[k] || bridges.has(idx))) || (!lk.roads && roadsData[k]) || tileExtras[k] || (!lk.zones && zl && zl[idx]);
     });
   }
   // Copy keeps the whole selection (a footprint cell whose anchor is outside is dropped again when pasting).
@@ -6732,26 +6791,34 @@ const Tools = (() => {
     if (_opBlocked()) return false;
     const sel = _selectionOrToast();
     if (!sel) return false;
+    if (_layerLocked('terrain', true)) return false;   // cut = copy + delete; use Copy on a locked terrain layer
     const cells = _resettable(sel);
     if (!cells.length) { UI.toast('Nothing to cut (the selection only covers part of a multi-tile footprint)'); return false; }
     Clipboard.set(Clipboard.capture(cells));
-    if (_hasContent(cells)) {
+    const lk = _locks(), kept = _lockedNames(lk, ['objects', 'roads', 'zones']);
+    if (_hasContent(cells, lk)) {
       History.push();                       // before the first change
-      _clearCells(cells);
+      _clearCells(cells, lk);               // the delete half skips locked layers: their content stays (it is still copied)
       Canvas.drawMinimap(); Canvas.render(); IO.scheduleAutoSave();
     }
-    UI.toast('Cut ' + cells.length + ' tiles');
+    UI.toast('Cut ' + cells.length + ' tiles' + (kept.length ? '; locked layers were copied but not removed: ' + kept.join(', ') : ''));
     return true;
   }
   function deleteSelection() {
     if (_opBlocked()) return false;
     const sel = _selectionOrToast();
     if (!sel) return false;
+    if (_layerLocked('terrain', true)) return false;
     const cells = _resettable(sel);
-    if (!_hasContent(cells)) return false;
+    const lk = _locks(), kept = _lockedNames(lk, ['objects', 'roads', 'zones']);
+    if (!_hasContent(cells, lk)) {
+      if (kept.length && _hasContent(cells, { objects: false, roads: false, zones: false })) UI.toast('Nothing deleted: ' + kept.join(', ') + ' locked');
+      return false;
+    }
     History.push();                         // before the first change
-    _clearCells(cells);
+    _clearCells(cells, lk);
     Canvas.drawMinimap(); Canvas.render(); IO.scheduleAutoSave();
+    if (kept.length) UI.toast('Deleted; locked layers were kept: ' + kept.join(', '));
     return true;
   }
   function _floatStale() { return !_float || _float.md !== mapData || _float.W !== MAP_WIDTH || _float.H !== MAP_HEIGHT; }
@@ -6817,11 +6884,21 @@ const Tools = (() => {
     if (_opBlocked()) return false;
     const sel = _selectionOrToast();
     if (!sel) return false;
+    if (_layerLocked('terrain', true)) return false;
     const cells = _resettable(sel);
     if (!cells.length) { UI.toast('Nothing to move (the selection only covers part of a multi-tile footprint)'); return false; }
-    beginPaste(Clipboard.capture(cells));
+    // A layer locked at lift time is not lifted: its cells stay where they are and are neither removed nor duplicated.
+    const lk = _locks(), buf = Clipboard.capture(cells);
+    for (const e of buf.cells) {
+      if (lk.objects) { delete e.o; delete e.b; }
+      if (lk.roads) delete e.rd;
+      if (lk.zones) delete e.z;
+    }
+    beginPaste(buf);
     if (!_float) return false;
-    _float.move = { cells, sig: _moveSig(cells) };
+    _float.move = { cells, sig: _moveSig(cells), locked: { objects: lk.objects, roads: lk.roads, zones: lk.zones } };
+    const stay = _lockedNames(lk, ['objects', 'roads', 'zones']);
+    if (stay.length) UI.toast('Locked layers stay in place: ' + stay.join(', '));
     _hoverFloat(_float.buf.origin.col, _float.buf.origin.row);   // the ghost starts over the source
     Canvas.render();
     return true;
@@ -6852,8 +6929,13 @@ const Tools = (() => {
     if (_moveSig(f.move.cells) !== f.move.sig) { _endPaste('The map changed while the region was lifted — move cancelled'); return 0; }
     if (!inMap) return 0;
     if (!xf && col === buf.origin.col && row === buf.origin.row) { _endPaste(); return 0; }   // dropped where it was: nothing to do
+    // Lock state is re-read now (locking is not a map change, so the signature above does not see it): terrain locked since the
+    // lift keeps the float (unlock and drop again); a secondary layer locked at the lift OR now stays at the source and is
+    // not written at the destination (never removed without being carried, never duplicated).
+    if (_layerLocked('terrain', true)) return 0;
+    const now = _locks(), skip = { terrain: false, objects: now.objects || f.move.locked.objects, roads: now.roads || f.move.locked.roads, zones: now.zones || f.move.locked.zones };
     const token = History.push();                          // before the first write; cut and paste share this one step
-    _clearCells(_resettable(f.move.cells));
+    _clearCells(_resettable(f.move.cells), skip);
     const items = Clipboard.plan(buf, { col, row }, xf);   // planned on the map WITHOUT the source (overlap works)
     if (!items.length) {
       History.rollback(token);
@@ -6861,8 +6943,8 @@ const Tools = (() => {
       Canvas.drawMinimap(); Canvas.render();
       return 0;
     }
-    Clipboard.write(items, null, null, xf);
-    Clipboard.writeCarry(items);                           // zone / road of the source footprint cells, same step
+    Clipboard.write(items, _allowed(skip), null, xf);
+    Clipboard.writeCarry(items, _allowed(skip));           // zone / road of the source footprint cells, same step
     // Cells that did not make it: off the map (clipped) or skipped by the plan (clipped / overlapping anchors). The source
     // footprint cells of an anchor under a transform are not carried by design (the destination footprint is derived).
     const lost = buf.cells.length - (xf ? buf.cells.filter(e => e.sat).length : 0) - items.length;
@@ -6882,9 +6964,11 @@ const Tools = (() => {
     const xf = _xfOf();
     if (_float.move) return _dropMove(col, row, xf);
     const items = Clipboard.plan(_float.buf, { col, row }, xf);
-    const n = Clipboard.write(items, null, () => History.push(), xf);   // the History step is pushed before the first write
-    if (!n) return 0;
-    Clipboard.writeCarry(items);
+    const lk = _locks(), allowed = _allowed(lk), skipped = _lockedNames(lk, ['terrain', 'objects', 'roads', 'zones']);
+    const n = Clipboard.write(items, allowed, () => History.push(), xf);   // the History step is pushed before the first write
+    if (!n) { if (items.length && skipped.length) UI.toast('Nothing pasted: ' + skipped.join(', ') + ' locked'); return 0; }
+    Clipboard.writeCarry(items, allowed);
+    if (skipped.length) UI.toast('Pasted; locked layers were not changed: ' + skipped.join(', '));
     Selection.setCells(items.map(i => ({ col: i.col, row: i.row })));
     // multi-tile terrain cannot rotate: it keeps its id and its own footprint (checked at the destination by plan)
     if (xf && items.some(i => i.fp)) UI.toast('Multi-tile terrain keeps its orientation');
@@ -6935,6 +7019,10 @@ const Tools = (() => {
     const { col, row } = Canvas.screenToHex(sx, sy);
     if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
     if ((_active === 'rect' || _active === 'marquee') && !_clampedCell(sx, sy).inside) return;   // a drag never starts off the map
+    // Layer lock gate: refuse BEFORE any stroke state, History step or write (a refused press leaves nothing behind).
+    _lockToasted = false;
+    const _lockLayer = _toolLayer(_active);
+    if (_lockLayer && _layerLocked(_lockLayer)) return;
     _isDown = true;
 
     switch (_active) {
@@ -7073,6 +7161,8 @@ const Tools = (() => {
       return;
     }
     if (!_isDown) return;
+    // Locked mid-stroke: the running stroke refuses its next write (its step, if any, keeps what was written before).
+    if (_DRAG_WRITERS.has(_active)) { const ml = _toolLayer(_active); if (ml && _layerLocked(ml)) return; }
     const { col, row } = (_active === 'rect' || _active === 'marquee') ? _clampedCell(sx, sy) : Canvas.screenToHex(sx, sy);
     if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
 
@@ -7150,6 +7240,12 @@ const Tools = (() => {
       Canvas.drawMinimap();
     } else if (_active === 'rect' && _rectStart && _toolsRectPreview) {
       if (_shapeStale()) { _cancelStale(); Canvas.render(); return; }
+      if (_layerLocked('terrain', true)) {              // locked since the drag began: nothing is written, no step
+        _rectStart = null; _toolsRectPreview = null;
+        Canvas.setHighlight('shape', null, null, { render: false });
+        Canvas.render();
+        return;
+      }
       History.push();
       _applyRect(_toolsRectPreview.c1, _toolsRectPreview.r1, _toolsRectPreview.c2, _toolsRectPreview.r2);
       Canvas.drawMinimap();
@@ -7303,7 +7399,7 @@ const Tools = (() => {
   function isStroking() { return _eraseStroke || isMoving(); }   // undo / redo are ignored while a lifted selection floats
   function isPasting() { return !!_float; }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, whenIdle, isFillBusy, isStrokeActive,
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, whenIdle, isFillBusy, isStrokeActive,
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
@@ -8755,6 +8851,12 @@ const UI = (() => {
     const container = document.getElementById('slot-rows');
     if (!container) return;
     container.innerHTML = '';
+    if (!container._lockGuard) {     // T2.18: slot fields are settlements-layer data; a locked layer refuses edits (capture phase, before the field handlers)
+      container._lockGuard = true;
+      const guard = e => { if (Layers.isLocked('settlements') && e.target.closest && e.target.closest('.slot-row')) { e.stopImmediatePropagation(); Layers.refuse('settlements'); rebuildSlotPanel(); } };
+      container.addEventListener('change', guard, true);
+      container.addEventListener('input', guard, true);
+    }
     settlementSlots.forEach((slot, idx) => {
       container.appendChild(_buildSlotRow(slot, idx));
     });
@@ -8838,6 +8940,7 @@ const UI = (() => {
     });
     document.querySelectorAll('.slot-remove').forEach(btn => {
       btn.addEventListener('click', () => {
+        if (Layers.refuse('settlements')) return;
         History.push();
         const idx = parseInt(btn.dataset.slotIdx);
         settlementSlots.splice(idx, 1);
@@ -8848,6 +8951,7 @@ const UI = (() => {
     if (addBtn) {
       addBtn.replaceWith(addBtn.cloneNode(true)); // remove old listener
       document.getElementById('slot-add').addEventListener('click', () => {
+        if (Layers.refuse('settlements')) return;
         History.push();
         settlementSlots.push({ minDist: 10, maxDist: 20, count: 1, type: 'settlement', tapMultiplier: 1, level: 1, minSpacing: 2, nearPct: 20, midPct: 30, farPct: 50 });
         rebuildSlotPanel(); IO.scheduleAutoSave(); Canvas.render();
@@ -10164,19 +10268,27 @@ const IO = (() => {
     UI.closeAllMenus();
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
+    if (Layers.isLocked('terrain') && Layers.isLocked('settlements')) { Layers.refuse('terrain'); return; }   // everything it may clear is locked: no dialog
     UI.showConfirm('Clear Map', 'Clear all terrain? City settlement will be preserved.', () => {
       if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }   // a fill may have started while the dialog was open
       if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
+      // Locks (T2.18): a locked layer is skipped. Clear Map resets terrain, the bridge overlays (objects layer) and the
+      // non-city settlements; T2.19 widens it to every layer with the same skipping rule.
+      const clrTerrain = !Layers.isLocked('terrain'), clrBridges = !Layers.isLocked('objects'), clrSett = !Layers.isLocked('settlements');
+      if (!clrTerrain && !clrSett) { Layers.refuse('terrain'); return; }   // nothing it may clear: no step
       Tools.cancelFloat();                    // a lifted region would otherwise drop its old content back
       History.push();
-      mapData.fill('Plain_1');
-      bridgesData = [];
-      settlements = settlements.filter(s => s.type === 'city');
-      if (settlements.length === 0) settlements.push({ col: getCityCol(), row: getCityRow(), type: 'city' });
+      if (clrTerrain) mapData.fill('Plain_1');
+      if (clrBridges && clrTerrain) bridgesData = [];       // bridges sit on terrain: they go with it, and only when both are free
+      if (clrSett) {
+        settlements = settlements.filter(s => s.type === 'city');
+        if (settlements.length === 0) settlements.push({ col: getCityCol(), row: getCityRow(), type: 'city' });
+      }
       UI.updateSettlementCount();
       Canvas.render();
       Canvas.drawMinimap();
-      UI.toast('Map cleared');
+      const keptL = [!clrTerrain && 'Terrain', !clrBridges && clrTerrain && 'Buildings & bridges', !clrSett && 'Settlements'].filter(Boolean);
+      UI.toast('Map cleared' + (keptL.length ? '; locked layers kept: ' + keptL.join(', ') : ''));
       _autoSave();
     });
   }
@@ -10185,10 +10297,12 @@ const IO = (() => {
     UI.closeAllMenus();
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
+    if (Layers.refuse('terrain')) return;
     const hexId = UI.getSelectedTerrain();
     UI.showConfirm('Fill Map', `Fill entire map with ${hexId}?`, () => {
       if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
       if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
+      if (Layers.refuse('terrain')) return;
       Tools.cancelFloat();
       History.push();
       mapData.fill(hexId);
@@ -10251,6 +10365,7 @@ const IO = (() => {
 
   function applyBridgeTileUnder() {
     if (_bridgeTerrainCol < 0) return;
+    if (Layers.refuse('terrain')) { closeBridgeTerrainModal(); return; }
     const val = document.getElementById('bridge-terrain-input').value.trim();
     const key = _bridgeTerrainCol + ',' + _bridgeTerrainRow;
     if (val) {
@@ -10677,6 +10792,7 @@ const Generator = (() => {
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     if (Satellite.isBusy()) { UI.toast('Satellite classification is still running — try again in a moment'); return; }
     if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
+    if (Layers.refuse('terrain')) return;          // generating writes the terrain layer
     _applying = true;
     clearTimeout(_debounce);
     _previewTok++;
@@ -10692,12 +10808,15 @@ const Generator = (() => {
       }
       if (Tools.isFillBusy()) { UI.toast('A fill started while generating — result discarded'); return; }
       if (Tools.isStrokeActive()) { UI.toast('A stroke started while generating — result discarded'); return; }
+      if (Layers.isLocked('terrain')) { UI.toast('Terrain layer was locked while generating — result discarded'); return; }
       History.push();                            // pre-state, taken right before we overwrite
       const names = res.names, grid = res.grid, md = mapData;
       for (let i = 0; i < grid.length; i++) md[i] = names[grid[i]];
       const cityC = getCityCol(), cityR = getCityRow();
-      settlements = settlements.filter(s => s.type !== 'city');
-      settlements.unshift({ col: cityC, row: cityR, type: 'city' });
+      if (!Layers.isLocked('settlements')) {     // a locked settlements layer keeps its markers (the city marker included)
+        settlements = settlements.filter(s => s.type !== 'city');
+        settlements.unshift({ col: cityC, row: cityR, type: 'city' });
+      }
       UI.updateSettlementCount();
       close();
       Canvas.render();
@@ -10878,6 +10997,7 @@ const Satellite = (() => {
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     if (_busy) { UI.toast('Classification is still running — try again in a moment'); return; }
     if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
+    if (Layers.refuse('terrain')) return;          // applying writes the terrain layer
     if (!_classified) return;
     if (!_classMeta || _classMeta.W !== MAP_WIDTH || _classMeta.H !== MAP_HEIGHT || _classMeta.md !== mapData) {
       _classified = null;
@@ -10910,8 +11030,10 @@ const Satellite = (() => {
       }
     }
 
-    settlements = settlements.filter(s => s.type !== 'city');
-    settlements.unshift({ col: cityC, row: cityR, type: 'city' });
+    if (!Layers.isLocked('settlements')) {         // a locked settlements layer keeps its markers
+      settlements = settlements.filter(s => s.type !== 'city');
+      settlements.unshift({ col: cityC, row: cityR, type: 'city' });
+    }
     UI.updateSettlementCount();
     close();
     Canvas.render();
@@ -16471,6 +16593,7 @@ const Dev = (() => {
     if (!mapData) return;
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
+    if (Layers.refuse('terrain')) return;
     const entries = HexDB.getAll().filter(h => h.id).sort(_paletteSort);
     if (!entries.length) { UI.toast('No tiles in HexDB'); return; }
 
@@ -16685,6 +16808,7 @@ function autoPlaceSettlements() {
   if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
   if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
   if (!settlementSlots.length) { UI.toast('No settlement slots defined.'); return; }
+  if (Layers.refuse('settlements')) return;          // refused before the History step
   History.push();
   settlementsVisible = true;
   if (!Layers.isVisible('settlements')) { Layers.setVisible('settlements', true); UI.toast('Settlements layer shown'); }   // never place invisibly

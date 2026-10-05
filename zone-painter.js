@@ -495,14 +495,27 @@ const ZonePainter = (() => {
     toAdd.forEach(([col, row]) => settlements.push({col, row, type: 'settlement'}));
   }
 
+  // Layer locks (T2.18): filling writes terrain and settlements, each skipped when its layer is locked; with both locked the
+  // action is refused before any History step. (Layers may be missing when this file is used on its own.)
+  function _isLocked(n) { return typeof Layers !== 'undefined' && Layers.isLocked(n); }
+  function _refuse(n) { return typeof Layers !== 'undefined' && Layers.refuse(n); }
+  function _lockedFill() {
+    const t = _isLocked('terrain'), s = _isLocked('settlements');
+    if (t && s) { _refuse('terrain'); return null; }
+    return { terrain: !t, settlements: !s };
+  }
+  function _fillZone(id, allow) {
+    if (allow.terrain) fillZoneTerrain(id, mapData);
+    if (allow.settlements) fillZoneSettlements(id, mapData, settlements);
+  }
+
   function _fillAllZones() {
     const zones = _zones;
     if (zones.length === 0) { UI.toast('⚠ No zones defined. Add a zone first.', { ms: 3000 }); return; }
+    const allow = _lockedFill();
+    if (!allow) return;
     if (typeof History !== 'undefined') History.push();
-    zones.forEach(z => {
-      fillZoneTerrain(z.id, mapData);
-      fillZoneSettlements(z.id, mapData, settlements);
-    });
+    zones.forEach(z => _fillZone(z.id, allow));
     Canvas.render();
     Canvas.drawMinimap();
     IO.scheduleAutoSave();
@@ -567,6 +580,9 @@ const ZonePainter = (() => {
   // Randomizes zone territories then immediately fills terrain for all zones.
   function _randomizeFillUI() {
     if (typeof mapData === 'undefined' || !mapData) { UI.toast('⚠ No map loaded'); return; }
+    if (_refuse('zones')) return;                 // it replaces the zone list and the zone layer
+    const allow = _lockedFill();
+    if (!allow) return;
 
     // Build one zone per available preset (builtins + any user presets).
     // This replaces the current zone list so the panel reflects what was used.
@@ -585,10 +601,7 @@ const ZonePainter = (() => {
     _randomizeZoneLayer(seed, scale);
 
     if (typeof History !== 'undefined') History.push();
-    _zones.forEach(z => {
-      fillZoneTerrain(z.id, mapData);
-      fillZoneSettlements(z.id, mapData, settlements);
-    });
+    _zones.forEach(z => _fillZone(z.id, allow));
 
     _showOverlay = true;
     const btn = document.getElementById('btn-zone-overlay');
@@ -612,6 +625,7 @@ const ZonePainter = (() => {
   }
 
   function _clearZonesUI() {
+    if (_refuse('zones')) return;
     if (!confirm('Clear all zone assignments? Terrain already filled is kept.')) return;
     clearZoneLayer();
     Canvas.render();
@@ -676,6 +690,7 @@ const ZonePainter = (() => {
   }
 
   function _uiDeleteZone(id) {
+    if (_refuse('zones')) return;                 // removing a zone clears its assignments
     if (!confirm('Delete this zone? Zone assignments will be cleared.')) return;
     removeZone(id);
     if (_selectedZoneId === id) _selectedZoneId = _zones[0]?.id || 0;
@@ -796,9 +811,10 @@ const ZonePainter = (() => {
 
   function _uiFillThisZone() {
     if (!_selectedZoneId) return;
+    const allow = _lockedFill();
+    if (!allow) return;
     if (typeof History !== 'undefined') History.push();
-    fillZoneTerrain(_selectedZoneId, mapData);
-    fillZoneSettlements(_selectedZoneId, mapData, settlements);
+    _fillZone(_selectedZoneId, allow);
     if (typeof Canvas !== 'undefined') { Canvas.render(); Canvas.drawMinimap(); }
     if (typeof IO !== 'undefined') IO.scheduleAutoSave();
   }

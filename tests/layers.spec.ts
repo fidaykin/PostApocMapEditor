@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openEditor } from './helpers';
-import { freshEditor, clickCell } from './editor-helpers';
+import { freshEditor, clickCell, dragCells, cellPoint } from './editor-helpers';
 
 declare let settlementSlots: any[];
 
@@ -507,4 +507,887 @@ test.describe('layers: review fixes after T2.17', () => {
     await expect(page.locator('.layer-row[data-layer="zones"] .layer-eye')).toHaveAttribute('aria-pressed', 'true');
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('layer_state_v1')!).zones.visible)).toBe(true);
   });
+});
+
+// ── Layer locks (T2.18) ────────────────────────────────────────────────────────────────────────────
+// A locked layer is never written by any user-facing writer. Reference method: the WHOLE map state (terrain, buildings, roads,
+// bridges, extras, zones, settlements, slots, zone list) is serialised before and after; a refused action must leave it
+// string-equal, push no History step and leave no stroke state. Every refusal has a positive control (the same gesture with the
+// layer unlocked changes the map by exactly one step) and a wrong-layer control (every OTHER layer locked: it still works).
+
+const SNAPFN = `window.__lockSnap = () => JSON.stringify({ m: mapData.join('|'), o: objectsData, r: roadsData, b: bridgesData, x: tileExtras,
+  z: Array.from(ZonePainter.getZoneLayer()).join(''), s: settlements, sl: settlementSlots, zs: ZonePainter.getZones() });`;
+const SPY = `window.__toasts = []; if (!UI.__spied) { UI.__spied = true; const t = UI.toast; UI.toast = (m, o) => { window.__toasts.push(String(m)); return t.call(UI, m, o); }; }`;
+
+async function lockEditor(page: any) {
+  await freshEditor(page);
+  await page.evaluate(SNAPFN);
+  await page.evaluate(SPY);
+  await page.waitForFunction(() => UI._bridgeSprites.every((i: any) => i.complete));
+}
+const snap = (page: any): Promise<string> => page.evaluate(() => (window as any).__lockSnap());
+const steps = (page: any): Promise<number> => page.evaluate(() => History.undoSize());
+const toastLog = (page: any): Promise<string[]> => page.evaluate(() => (window as any).__toasts.slice());
+const lockedToasts = async (page: any) => (await toastLog(page)).filter(t => /locked/i.test(t));
+const unlockAll = (page: any) => page.evaluate(() => Layers.NAMES.forEach((n: string) => Layers.setLocked(n, false)));
+const setLocks = (page: any, names: string[], on = true) => page.evaluate(([n, v]: any) => n.forEach((x: string) => Layers.setLocked(x, v)), [names, on]);
+/** A fresh blank map with no locks, the Paint tool and a clean toast log (History is cleared by New Map). */
+async function resetMap(page: any) {
+  await page.evaluate(() => {
+    Layers.NAMES.forEach((n: string) => Layers.setLocked(n, false));
+    IO.newMap(true); Tools.setActive('paint'); Brush.setSize(0); UI.selectTerrain('Plain_1'); Canvas.centerOnCity();
+    (window as any).__toasts = [];
+  });
+}
+const cellId = (page: any, c: number, r: number): Promise<string> => page.evaluate(([c, r]: any) => mapData[r * MAP_WIDTH + c], [c, r]);
+const hidePickerL = (page: any) => page.evaluate(() => { document.getElementById('obj-building-picker')!.style.display = 'none'; });
+
+type Scenario = { name: string; tool: string; layer: string; prep: string; act: (p: any) => Promise<void> };
+const CELL = { col: 228, row: 224 };
+const click = (p: any, c = CELL) => clickCell(p, c.col, c.row);
+const SCENARIOS: Scenario[] = [
+  { name: 'Paint', tool: 'paint', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('paint');`, act: p => click(p) },
+  { name: 'Paint in bridge mode (edits the bridge overlay)', tool: 'paint', layer: 'objects', prep: `mapData[224 * MAP_WIDTH + 228] = 'River_L_1'; UI.selectBridge(0); Tools.setActive('paint');`, act: p => click(p) },
+  { name: 'Fill', tool: 'fill', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('fill');`, act: async p => { await click(p); await p.evaluate(() => Tools.whenIdle()); } },
+  { name: 'Rectangle', tool: 'rect', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('rect');`, act: p => dragCells(p, CELL, { col: 230, row: 226 }) },
+  { name: 'Line', tool: 'line', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('line');`, act: p => dragCells(p, CELL, { col: 230, row: 225 }) },
+  { name: 'Circle', tool: 'circle', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('circle');`, act: p => dragCells(p, CELL, { col: 230, row: 224 }) },
+  { name: 'Polygon', tool: 'polygon', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('polygon');`, act: async p => {
+      for (const v of [{ col: 228, row: 224 }, { col: 230, row: 224 }, { col: 229, row: 227 }]) await click(p, v);
+      await p.keyboard.press('Enter'); } },
+  { name: 'Scatter', tool: 'scatter', layer: 'terrain', prep: `UI.selectTerrain('Forest_1'); Tools.setActive('scatter'); document.getElementById('scatter-density').value = '100'; document.getElementById('scatter-seed').value = '4242';`, act: p => click(p) },
+  { name: 'Eraser', tool: 'eraser', layer: 'terrain', prep: `mapData[224 * MAP_WIDTH + 228] = 'Water_1'; Tools.setActive('eraser');`, act: p => click(p) },
+  { name: 'Replace tool', tool: 'replace', layer: 'terrain', prep: `mapData[224 * MAP_WIDTH + 228] = 'Water_1'; UI.selectTerrain('Plain_1'); Tools.setActive('replace');`, act: p => click(p) },
+  { name: 'Place Building', tool: 'object', layer: 'objects', prep: `Tools.setActive('object'); Tools.selectBuilding('Artefact_Test_1');`, act: async p => { await hidePickerL(p); await click(p); } },
+  { name: 'Erase Building', tool: 'erase-object', layer: 'objects', prep: `objectsData['228,224'] = 'Artefact_Test_1'; Tools.setActive('erase-object');`, act: p => click(p) },
+  { name: 'Place Bridge', tool: 'bridge', layer: 'objects', prep: `mapData[224 * MAP_WIDTH + 228] = 'River_L_1'; Tools.setActive('bridge'); Tools.selectBuilding('Road_Bridge_NEWS_1');`, act: async p => { await hidePickerL(p); await click(p); } },
+  { name: 'Draw Road', tool: 'road', layer: 'roads', prep: `Tools.setActive('road');`, act: async p => { const n = await p.evaluate(() => Roads.getNeighbors(225, 224)[0]); await clickCell(p, n.col, n.row); } },
+  { name: 'Connect Road', tool: 'road-connect', layer: 'roads', prep: `Tools.setActive('road-connect');`, act: async p => { await click(p); await click(p, { col: 230, row: 224 }); } },
+  { name: 'Erase Road', tool: 'erase-road', layer: 'roads', prep: `roadsData['228,224'] = { type: 'road_hex' }; Tools.setActive('erase-road');`, act: p => click(p) },
+  { name: 'Place Settlement', tool: 'settlement', layer: 'settlements', prep: `Tools.setActive('settlement');`, act: p => click(p) },
+  { name: 'Erase Settlement', tool: 'erase', layer: 'settlements', prep: `settlements.push({ col: 228, row: 224, type: 'settlement' }); Tools.setActive('erase');`, act: p => click(p) },
+  { name: 'Zone Painter', tool: 'zone', layer: 'zones', prep: `const zid = ZonePainter.addZone('Z'); ZonePainter.setSelectedZoneId(zid); Tools.setActive('zone');`, act: p => click(p) },
+];
+
+test.describe('layers: locks gate every tool (T2.18)', () => {
+  test.beforeEach(async ({ page }) => { await lockEditor(page); });
+
+  test('inventory: every registered tool is a writer with a layer or an explicit non-writer; no tool is in both', async ({ page }) => {
+    const inv = await page.evaluate(() => {
+      const t = Tools.toolLayers();
+      const dom = Array.from(document.querySelectorAll('.tool-btn[data-tool]')).map((b: any) => b.dataset.tool);
+      return { map: t.map, non: t.nonWriting, names: t.registered, dom, code: t.codeTools, layers: Layers.NAMES };
+    });
+    const all = new Set<string>([...inv.names, ...inv.dom, ...inv.code]);
+    expect(all.size).toBeGreaterThan(20);                                        // the registry is really read
+    for (const name of all) {
+      const writer = name in inv.map, non = inv.non.includes(name);
+      expect(writer !== non, `tool "${name}" must be in exactly one of TOOL_LAYER / NON_WRITING_TOOLS`).toBe(true);
+    }
+    for (const [tool, layer] of Object.entries(inv.map)) expect(inv.layers, `layer of ${tool}`).toContain(layer as string);
+    for (const name of inv.non) expect(all.has(name), `non-writer ${name} is a registered tool`).toBe(true);
+    // every writer is exercised by the behaviour matrix below (a new writer must add a scenario)
+    for (const tool of Object.keys(inv.map)) expect(SCENARIOS.some(s => s.tool === tool), `a scenario for ${tool}`).toBe(true);
+    for (const s of SCENARIOS) expect(inv.map[s.tool] === s.layer || s.tool === 'paint', `scenario ${s.name} layer`).toBe(true);
+  });
+
+  test('the non-writing tools never refuse and never write, even with every layer locked', async ({ page }) => {
+    await setLocks(page, ['terrain', 'objects', 'roads', 'settlements', 'zones']);
+    const before = await snap(page), s0 = await steps(page);
+    for (const tool of ['eye', 'select', 'marquee']) {
+      await page.evaluate((t: string) => Tools.setActive(t), tool);
+      await click(page);
+      await dragCells(page, CELL, { col: 230, row: 226 });
+    }
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect(await lockedToasts(page)).toEqual([]);
+    // the same gesture with a writer: refused (positive control that the locks are really on)
+    await page.evaluate(() => { UI.selectTerrain('Water_1'); Tools.setActive('paint'); });
+    await click(page);
+    expect((await lockedToasts(page)).length).toBe(1);
+  });
+
+  for (const sc of SCENARIOS) {
+    test(`${sc.name}: refused on a locked ${sc.layer} layer, works with it unlocked, unaffected by every other lock`, async ({ page }) => {
+      const run = async (locked: string[]) => {
+        await resetMap(page);
+        await page.evaluate(`(() => { ${sc.prep} })()`);
+        await setLocks(page, locked);
+        const before = await snap(page), s0 = await steps(page);
+        await sc.act(page);
+        return await page.evaluate(([b, s]: any) => ({
+          same: (window as any).__lockSnap() === b, steps: History.undoSize() - s, stroke: Tools.isStrokeActive(), shape: Canvas.hasHighlight('shape'),
+          start: Tools.getRoadConnectStart(), locked: (window as any).__toasts.filter((t: string) => /locked/i.test(t)).length,
+        }), [before, s0]);
+      };
+      const refused = await run([sc.layer]);
+      expect(refused.same, 'whole map unchanged').toBe(true);
+      expect(refused.steps, 'no History step').toBe(0);
+      expect([refused.stroke, refused.shape, refused.start], 'no stroke state left behind').toEqual([false, false, null]);
+      expect(refused.locked, 'a lock toast').toBeGreaterThanOrEqual(1);
+      const control = await run([]);
+      expect(control.same, 'positive control: the same gesture changes the map').toBe(false);
+      expect(control.steps).toBe(1);
+      expect(control.locked).toBe(0);
+      const others = await run(Layers_NAMES.filter(n => n !== sc.layer));
+      expect(others.same, 'locking the OTHER layers does not stop it').toBe(false);
+      expect(others.steps).toBe(1);
+      expect(others.locked).toBe(0);
+    });
+  }
+});
+const Layers_NAMES = ['terrain', 'objects', 'roads', 'settlements', 'zones'];
+
+// ── secondary layers: eraser, paste, stamp, cut, delete, move, replace ─────────────────────────────
+const W_ = 450;
+const idx = (c: number, r: number) => r * W_ + c;
+const S_ = { col: 226, row: 224 }, D_ = { col: 229, row: 226 };
+
+/** Cell (c,r) with a distinct value on every layer; the fabricated satellite spawner is registered once per page. */
+const fill = (page: any, c: number, r: number, v: { t?: string; o?: string; rd?: string; b?: number; x?: string; z?: number }) => page.evaluate(([c, r, v]: any) => {
+  const k = c + ',' + r, zl = ZonePainter.getZoneLayer();
+  if (v.t) mapData[r * MAP_WIDTH + c] = v.t;
+  if (v.o) objectsData[k] = v.o;
+  if (v.rd) roadsData[k] = { type: v.rd };
+  if (v.b !== undefined) bridgesData.push({ col: c, row: r, axis: v.b });
+  if (v.x) tileExtras[k] = { underTerrainId: v.x };
+  if (v.z) zl[r * MAP_WIDTH + c] = v.z;
+}, [c, r, v]);
+const read = (page: any, c: number, r: number) => page.evaluate(([c, r]: any) => {
+  const k = c + ',' + r;
+  return { t: mapData[r * MAP_WIDTH + c], o: objectsData[k] || null, rd: roadsData[k] ? roadsData[k].type : null,
+           b: bridgesData.some((b: any) => b.col === c && b.row === r), x: tileExtras[k] ? tileExtras[k].underTerrainId : null, z: ZonePainter.getZoneLayer()[r * MAP_WIDTH + c] };
+}, [c, r]);
+const FULL = { t: 'Water_1', o: 'Grain_1', rd: 'road_hex', b: 1, x: 'Water_1', z: 3 };
+const PLAIN = { t: 'Plain_1', o: null, rd: null, b: false, x: null, z: 0 };
+const CONTENT = (c: number, r: number) => ({ t: 'Water_1', o: 'Grain_1', rd: 'road_hex', b: true, x: 'Water_1', z: 3, c, r });
+
+test.describe('layers: locks on eraser, selection commands, paste and replace (T2.18)', () => {
+  test.beforeEach(async ({ page }) => { await lockEditor(page); });
+
+  test('the Eraser skips a locked buildings layer (and bridges, satellites) but resets terrain, roads and extras, in one step', async ({ page }) => {
+    // fabricated spawner with one satellite ring (same technique as the building tests)
+    await page.evaluate(() => {
+      const o = BldDB.getAll;
+      BldDB.getAll = () => o.call(BldDB).concat([{ id: 'T_A', spawnsSatellites: [{ buildingId: 'T_S', radius: 1, maxCount: 0 }] }, { id: 'T_S', canBuild: false }] as any);
+    });
+    for (const [locked, want] of [
+      [['objects'], { t: 'Plain_1', o: 'T_A', rd: null, b: true, x: null, z: 3, ring: true }],
+      [['roads'], { t: 'Plain_1', o: null, rd: 'road_hex', b: false, x: null, z: 3, ring: false }],
+      [['zones'], { t: 'Plain_1', o: null, rd: null, b: false, x: null, z: 3, ring: false }],    // the eraser never touches zones
+      [[], { t: 'Plain_1', o: null, rd: null, b: false, x: null, z: 3, ring: false }],
+    ] as any[]) {
+      await resetMap(page);
+      await fill(page, 226, 224, { ...FULL, o: 'T_A' });
+      const ring = await page.evaluate(() => { const ns = HexUtils.neighbors(226, 224, MAP_WIDTH, MAP_HEIGHT).slice(1, 4); ns.forEach((n: any) => { objectsData[n.col + ',' + n.row] = 'T_S'; }); return ns; });
+      await setLocks(page, locked);
+      await page.evaluate(() => Tools.setActive('eraser'));
+      const s0 = await steps(page), before = await snap(page);
+      await clickCell(page, 226, 224);
+      const r: any = await read(page, 226, 224);
+      const ringLeft = await page.evaluate((ns: any) => ns.every((n: any) => objectsData[n.col + ',' + n.row] === 'T_S'), ring);
+      expect({ t: r.t, o: r.o, rd: r.rd, b: r.b, x: r.x, z: r.z, ring: ringLeft }, 'locked: ' + locked.join('+')).toEqual(want);
+      expect(await steps(page)).toBe(s0 + 1);
+      await page.evaluate(() => History.undo());
+      expect(await snap(page), 'one undo restores the whole map').toBe(before);
+    }
+  });
+
+  test('the Eraser on a locked terrain layer is refused even when buildings and roads are unlocked', async ({ page }) => {
+    await fill(page, 226, 224, FULL);
+    await setLocks(page, ['terrain']);
+    await page.evaluate(() => Tools.setActive('eraser'));
+    const before = await snap(page), s0 = await steps(page);
+    await clickCell(page, 226, 224);
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await lockedToasts(page)).length).toBe(1);
+  });
+
+  test('Paint and Fill over a legacy bridge: a locked buildings layer keeps the bridge, an unlocked one drops it', async ({ page }) => {
+    for (const mode of ['paint', 'fill']) for (const locked of [true, false]) {
+      await resetMap(page);
+      await fill(page, 228, 224, { t: 'River_L_1', b: 0 });
+      await page.evaluate((m: string) => { UI.selectTerrain('Water_1'); Tools.setActive(m); }, mode);
+      await setLocks(page, locked ? ['objects'] : []);
+      await clickCell(page, 228, 224);
+      await page.evaluate(() => Tools.whenIdle());
+      expect((await read(page, 228, 224)).t, mode + ' wrote the terrain').not.toBe('River_L_1');
+      expect((await read(page, 228, 224)).b, `${mode} locked=${locked}`).toBe(locked);
+    }
+  });
+
+  test('a locked terrain layer refuses multi-tile terrain (no anchor, no footprint); building satellites follow the buildings lock only', async ({ page }) => {
+    const foot = () => page.evaluate(() => { const a = (getSatelliteAnchor as any); const ns = HexUtils.neighbors(228, 224, MAP_WIDTH, MAP_HEIGHT); return { id: mapData[224 * MAP_WIDTH + 228], fp: ns.filter((n: any) => a(n.col, n.row)).length }; });
+    await page.evaluate(() => { UI.selectTerrain('Rabbit_Flat_1'); });
+    await setLocks(page, ['terrain']);
+    await clickCell(page, 228, 224);
+    expect(await foot()).toEqual({ id: 'Plain_1', fp: 0 });
+    await unlockAll(page);
+    await clickCell(page, 228, 224);
+    const placed = await foot();
+    expect(placed.id).toBe('Rabbit_Flat_1');
+    expect(placed.fp, 'positive control: the footprint exists').toBeGreaterThan(0);
+    // satellites of a building are OBJECTS: terrain locked does not stop them, buildings locked does
+    await page.evaluate(() => {
+      const o = BldDB.getAll;
+      BldDB.getAll = () => o.call(BldDB).concat([{ id: 'T_A', spawnsSatellites: [{ buildingId: 'T_S', radius: 1, maxCount: 0 }] }, { id: 'T_S', canBuild: false }] as any);
+      Tools.setActive('object'); Tools.selectBuilding('T_A'); document.getElementById('obj-building-picker')!.style.display = 'none';
+    });
+    await setLocks(page, ['terrain']);
+    await clickCell(page, 226, 222);
+    expect(await page.evaluate(() => Object.values(objectsData).filter(v => v === 'T_S').length), 'terrain lock does not stop satellite objects').toBeGreaterThan(0);
+    await resetMap(page);
+    await page.evaluate(() => { Tools.setActive('object'); Tools.selectBuilding('T_A'); document.getElementById('obj-building-picker')!.style.display = 'none'; });
+    await setLocks(page, ['objects']);
+    await clickCell(page, 226, 222);
+    expect(await page.evaluate(() => Object.keys(objectsData).length)).toBe(0);
+  });
+
+  // ── paste and stamps ─────────────────────────────────────────────────────────────────────────
+  const pasteCases: [string, string[], any][] = [
+    ['nothing locked', [], { t: 'Water_1', o: 'Grain_1', rd: 'road_hex', z: 3 }],
+    ['terrain locked', ['terrain'], { t: 'Mountain_1', o: 'Grain_1', rd: 'road_hex', z: 3 }],
+    ['buildings locked', ['objects'], { t: 'Water_1', o: 'Old_Obj', rd: 'road_hex', z: 3 }],
+    ['roads locked', ['roads'], { t: 'Water_1', o: 'Grain_1', rd: 'road_alt', z: 3 }],
+    ['zones locked', ['zones'], { t: 'Water_1', o: 'Grain_1', rd: 'road_hex', z: 9 }],
+  ];
+  for (const [label, locked, want] of pasteCases) {
+    test(`paste with ${label}: only the unlocked layers are written, in one step; undo restores the whole map`, async ({ page }) => {
+      await fill(page, S_.col, S_.row, { t: 'Water_1', o: 'Grain_1', rd: 'road_hex', z: 3 });
+      await fill(page, D_.col, D_.row, { t: 'Mountain_1', o: 'Old_Obj', rd: 'road_alt', z: 9 });
+      await page.evaluate((s: any) => { Selection.setCells([s]); Tools.copySelection(); Tools.beginPaste(Clipboard.get()); }, S_);
+      await setLocks(page, locked);
+      const before = await snap(page), s0 = await steps(page);
+      await clickCell(page, D_.col, D_.row);
+      const r: any = await read(page, D_.col, D_.row);
+      expect({ t: r.t, o: r.o, rd: r.rd, z: r.z }).toEqual(want);
+      expect(await steps(page)).toBe(s0 + 1);
+      expect(await snap(page)).not.toBe(before);
+      await page.evaluate(() => { Layers.NAMES.forEach((n: string) => Layers.setLocked(n, false)); History.undo(); });
+      expect(await snap(page)).toBe(before);
+    });
+  }
+
+  test('paste with every paste layer locked: refused with a toast, no step, the float stays; a locked-layer paste of terrain-only content is refused too', async ({ page }) => {
+    await fill(page, S_.col, S_.row, { t: 'Water_1', o: 'Grain_1', rd: 'road_hex', z: 3 });
+    await page.evaluate((s: any) => { Selection.setCells([s]); Tools.copySelection(); Tools.beginPaste(Clipboard.get()); }, S_);
+    await setLocks(page, ['terrain', 'objects', 'roads', 'zones']);
+    const before = await snap(page), s0 = await steps(page);
+    await clickCell(page, D_.col, D_.row);
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await toastLog(page)).some(t => /Nothing pasted/.test(t))).toBe(true);
+    expect(await page.evaluate(() => Tools.isPasting())).toBe(true);
+    // terrain-only buffer, terrain locked, the other layers unlocked: nothing to write, so no empty step
+    await page.evaluate(() => { Tools.setActive('paint'); Layers.setLocked('objects', false); Layers.setLocked('roads', false); Layers.setLocked('zones', false); mapData[224 * MAP_WIDTH + 227] = 'Forest_1'; Selection.setCells([{ col: 227, row: 224 }]); Tools.copySelection(); Tools.beginPaste(Clipboard.get()); });
+    const b2 = await snap(page), s1 = await steps(page);
+    await clickCell(page, D_.col, D_.row);
+    expect(await snap(page)).toBe(b2);
+    expect(await steps(page)).toBe(s1);
+  });
+
+  test('a stamp placed from the Stamps panel obeys the locks; saving a stamp and Copy work on locked layers', async ({ page }) => {
+    await fill(page, S_.col, S_.row, { t: 'Water_1', o: 'Grain_1', rd: 'road_hex', z: 3 });
+    await setLocks(page, ['terrain', 'objects', 'roads', 'zones']);
+    // reading is fine on locked layers
+    await page.evaluate(async (s: any) => { Selection.setCells([s]); await Stamps.save('locked', Clipboard.capture(Selection.getCells())); await Stamps.refresh(); }, S_);
+    expect(await page.evaluate(() => Tools.copySelection())).toBe(true);
+    expect(await page.evaluate(() => Clipboard.get().cells[0].t)).toBe('Water_1');
+    expect(await lockedToasts(page)).toEqual([]);
+    const before = await snap(page), s0 = await steps(page);
+    await page.locator('.stamp-row .stamp-place').first().click();
+    await clickCell(page, D_.col, D_.row);
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await toastLog(page)).some(t => /Nothing pasted/.test(t))).toBe(true);
+    await unlockAll(page);
+    await setLocks(page, ['zones', 'roads', 'objects']);       // terrain unlocked: the stamp's terrain lands, nothing else
+    await clickCell(page, D_.col, D_.row);
+    expect(await read(page, D_.col, D_.row)).toMatchObject({ t: 'Water_1', o: null, rd: null, z: 0 });
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+
+  test('Clipboard.place itself applies the live locks: no caller can write a locked layer', async ({ page }) => {
+    await fill(page, S_.col, S_.row, { t: 'Water_1', o: 'Grain_1', rd: 'road_hex', z: 3 });
+    await setLocks(page, ['terrain', 'roads']);
+    const n = await page.evaluate(([s, d]: any) => Clipboard.place(Clipboard.capture([s]), d, null, {}), [S_, D_]);
+    expect(n).toBeGreaterThan(0);
+    expect(await read(page, D_.col, D_.row)).toMatchObject({ t: 'Plain_1', o: 'Grain_1', rd: null, z: 3 });
+  });
+
+  // ── cut and delete ───────────────────────────────────────────────────────────────────────────
+  const sel3 = [{ col: 226, row: 224 }, { col: 227, row: 224 }, { col: 228, row: 224 }];
+  const seed3 = async (page: any) => {
+    await resetMap(page);
+    for (const c of sel3) await fill(page, c.col, c.row, FULL);
+    await page.evaluate((c: any) => { Selection.setCells(c); Tools.setActive('marquee'); }, sel3);
+  };
+  test('Delete and Cut refuse on a locked terrain layer (no step, map and clipboard untouched); Copy still works', async ({ page }) => {
+    await seed3(page);
+    await setLocks(page, ['terrain']);
+    const before = await snap(page), s0 = await steps(page);
+    await page.keyboard.press('Delete');
+    await page.keyboard.press('Control+x');
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect(await page.evaluate(() => Clipboard.get())).toBe(null);
+    expect((await lockedToasts(page)).length).toBe(2);
+    await page.keyboard.press('Control+c');
+    expect(await page.evaluate(() => Clipboard.get().cells.length)).toBe(3);
+    await unlockAll(page);
+    await page.keyboard.press('Delete');                         // positive control
+    expect(await read(page, 226, 224)).toMatchObject(PLAIN);
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+
+  for (const [label, locked] of [['buildings', ['objects']], ['roads', ['roads']], ['zones', ['zones']], ['roads and zones', ['roads', 'zones']]] as [string, string[]][]) {
+    test(`Delete with ${label} locked removes the rest in ONE step, keeps the locked content and says so`, async ({ page }) => {
+      await seed3(page);
+      await setLocks(page, locked);
+      const before = await snap(page), s0 = await steps(page);
+      await page.keyboard.press('Delete');
+      for (const c of sel3) {
+        const r: any = await read(page, c.col, c.row);
+        expect({ t: r.t, o: r.o, rd: r.rd, b: r.b, x: r.x, z: r.z }).toEqual({
+          t: 'Plain_1', x: null,
+          o: locked.includes('objects') ? 'Grain_1' : null, b: locked.includes('objects'),
+          rd: locked.includes('roads') ? 'road_hex' : null, z: locked.includes('zones') ? 3 : 0 });
+      }
+      expect(await steps(page)).toBe(s0 + 1);
+      expect((await toastLog(page)).some(t => /locked layers were kept/.test(t))).toBe(true);
+      await page.evaluate(() => History.undo());
+      expect(await snap(page)).toBe(before);
+    });
+    test(`Cut with ${label} locked copies everything but removes only the unlocked layers, in ONE step`, async ({ page }) => {
+      await seed3(page);
+      await setLocks(page, locked);
+      const before = await snap(page), s0 = await steps(page);
+      await page.keyboard.press('Control+x');
+      const clip = await page.evaluate(() => Clipboard.get().cells.map((e: any) => ({ t: e.t, o: e.o, rd: e.rd && e.rd.type, z: e.z })));
+      expect(clip, 'the clipboard holds every layer (reading a locked layer is allowed)').toEqual(sel3.map(() => ({ t: 'Water_1', o: 'Grain_1', rd: 'road_hex', z: 3 })));
+      const r: any = await read(page, 226, 224);
+      expect(r.o === 'Grain_1').toBe(locked.includes('objects'));
+      expect(r.rd === 'road_hex').toBe(locked.includes('roads'));
+      expect(r.z === 3).toBe(locked.includes('zones'));
+      expect(r.t).toBe('Plain_1');
+      expect(await steps(page)).toBe(s0 + 1);
+      expect((await toastLog(page)).some(t => /copied but not removed/.test(t))).toBe(true);
+      await page.evaluate(() => History.undo());
+      expect(await snap(page)).toBe(before);
+    });
+  }
+
+  test('Delete where only locked content exists: no empty step, a toast explains', async ({ page }) => {
+    await resetMap(page);
+    await fill(page, 226, 224, { o: 'Grain_1' });
+    await page.evaluate(() => { Selection.setCells([{ col: 226, row: 224 }]); });
+    await setLocks(page, ['objects']);
+    const s0 = await steps(page);
+    await page.keyboard.press('Delete');
+    expect(await steps(page)).toBe(s0);
+    expect((await toastLog(page)).some(t => /Nothing deleted/.test(t))).toBe(true);
+    expect((await read(page, 226, 224)).o).toBe('Grain_1');
+  });
+
+  // ── move (lift + drop) ───────────────────────────────────────────────────────────────────────
+  const lift = (page: any) => page.evaluate((c: any) => { Selection.setCells([c]); return Tools.beginMove(); }, S_);
+  const MOVE_SRC = { t: 'Water_1', o: 'Grain_1', rd: 'road_hex', z: 3 };
+  const seedMove = async (page: any) => {
+    await resetMap(page);
+    await fill(page, S_.col, S_.row, MOVE_SRC);
+    await fill(page, D_.col, D_.row, { t: 'Mountain_1', o: 'Old_Obj', rd: 'road_alt', z: 9 });
+  };
+  const rd = async (page: any) => ({ s: (await read(page, S_.col, S_.row)) as any, d: (await read(page, D_.col, D_.row)) as any });
+
+  test('move with nothing locked: the source is cleared and every layer arrives (positive control)', async ({ page }) => {
+    await seedMove(page);
+    expect(await lift(page)).toBe(true);
+    const s0 = await steps(page);
+    await page.evaluate((d: any) => Tools.dropFloat(d.col, d.row), D_);
+    const r = await rd(page);
+    expect([r.s.t, r.s.o, r.s.rd, r.s.z]).toEqual(['Plain_1', null, null, 0]);
+    expect([r.d.t, r.d.o, r.d.rd, r.d.z]).toEqual(['Water_1', 'Grain_1', 'road_hex', 3]);
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+
+  test('move on a locked terrain layer: the lift is refused (nothing floats)', async ({ page }) => {
+    await seedMove(page);
+    await setLocks(page, ['terrain']);
+    expect(await lift(page)).toBe(false);
+    expect(await page.evaluate(() => [Tools.isPasting(), Tools.isMoving()])).toEqual([false, false]);
+    expect((await lockedToasts(page)).length).toBe(1);
+  });
+
+  for (const [label, when] of [['at lift time', 'lift'], ['between lift and drop', 'drop']] as const) {
+    test(`move with the buildings layer locked ${label}: the building stays at the source, is not duplicated and the destination building is untouched; the rest moves`, async ({ page }) => {
+      await seedMove(page);
+      if (when === 'lift') await setLocks(page, ['objects']);
+      expect(await lift(page)).toBe(true);
+      if (when === 'drop') await setLocks(page, ['objects']);
+      const s0 = await steps(page);
+      await page.evaluate((d: any) => Tools.dropFloat(d.col, d.row), D_);
+      const r = await rd(page);
+      expect([r.s.t, r.s.o, r.s.b, r.s.rd, r.s.z], 'source').toEqual(['Plain_1', 'Grain_1', false, null, 0]);
+      expect([r.d.t, r.d.o, r.d.rd, r.d.z], 'destination').toEqual(['Water_1', 'Old_Obj', 'road_hex', 3]);
+      expect(await page.evaluate(() => Object.values(objectsData).filter(v => v === 'Grain_1').length), 'not duplicated').toBe(1);
+      expect(await steps(page)).toBe(s0 + 1);
+    });
+  }
+
+  test('move with roads locked at lift and unlocked before the drop: the road is never removed without being carried', async ({ page }) => {
+    await seedMove(page);
+    await setLocks(page, ['roads']);
+    expect(await lift(page)).toBe(true);
+    await setLocks(page, ['roads'], false);
+    await page.evaluate((d: any) => Tools.dropFloat(d.col, d.row), D_);
+    const r = await rd(page);
+    expect(r.s.rd, 'the source road stays').toBe('road_hex');
+    expect(r.d.rd, 'the destination road is untouched').toBe('road_alt');
+    expect([r.d.t, r.d.o, r.d.z]).toEqual(['Water_1', 'Grain_1', 3]);
+    expect(r.s.t).toBe('Plain_1');
+  });
+
+  test('move with the zones layer locked between lift and drop: the zone stays at the source and is not copied', async ({ page }) => {
+    await seedMove(page);
+    expect(await lift(page)).toBe(true);
+    await setLocks(page, ['zones']);
+    await page.evaluate((d: any) => Tools.dropFloat(d.col, d.row), D_);
+    const r = await rd(page);
+    expect([r.s.z, r.d.z]).toEqual([3, 9]);
+    expect([r.d.t, r.d.o, r.d.rd]).toEqual(['Water_1', 'Grain_1', 'road_hex']);
+  });
+
+  test('terrain locked between lift and drop: the drop is refused, no step, the float stays, and dropping after unlocking works', async ({ page }) => {
+    await seedMove(page);
+    expect(await lift(page)).toBe(true);
+    await setLocks(page, ['terrain']);
+    const before = await snap(page), s0 = await steps(page);
+    expect(await page.evaluate((d: any) => Tools.dropFloat(d.col, d.row), D_)).toBe(0);
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect(await page.evaluate(() => [Tools.isPasting(), Tools.isMoving()])).toEqual([true, true]);
+    expect((await lockedToasts(page)).length).toBe(1);
+    await setLocks(page, ['terrain'], false);
+    expect(await page.evaluate((d: any) => Tools.dropFloat(d.col, d.row), D_)).toBeGreaterThan(0);
+    expect((await read(page, D_.col, D_.row)).t).toBe('Water_1');
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+
+  // ── replace ──────────────────────────────────────────────────────────────────────────────────
+  test('the Replace dialog and API refuse on a locked terrain layer (no step, the dialog stays open); a locked buildings layer keeps bridges', async ({ page }) => {
+    await fill(page, 228, 224, { t: 'Water_1' });
+    await fill(page, 230, 224, { t: 'Water_1', b: 0 });
+    await page.evaluate(() => { Tools.openReplace(); (document.getElementById('replace-from') as HTMLInputElement).value = 'Water_1'; (document.getElementById('replace-to') as HTMLInputElement).value = 'Plain_1'; (document.getElementById('replace-sel-only') as HTMLInputElement).checked = false; });
+    await setLocks(page, ['terrain']);
+    const before = await snap(page), s0 = await steps(page);
+    await page.evaluate(() => Tools.applyReplace());
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect(await page.evaluate(() => document.getElementById('replace-modal')!.classList.contains('open'))).toBe(true);
+    expect((await lockedToasts(page)).length).toBe(1);
+    expect(await page.evaluate(() => Tools.replaceTerrain('Water_1', 'Plain_1', null))).toBe(0);
+    expect(await snap(page)).toBe(before);
+    await setLocks(page, ['terrain'], false);
+    await setLocks(page, ['objects']);                           // buildings locked: terrain replaced, bridge overlay kept
+    await page.evaluate(() => Tools.applyReplace());
+    expect([(await read(page, 228, 224)).t, (await read(page, 230, 224)).t]).toEqual(['Plain_1', 'Plain_1']);
+    expect((await read(page, 230, 224)).b).toBe(true);
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+});
+
+// ── bulk operations and panels ─────────────────────────────────────────────────────────────────────
+const SLOT = { minDist: 10, maxDist: 20, count: 1, type: 'settlement', tapMultiplier: 1, level: 1, minSpacing: 2, nearPct: 20, midPct: 30, farPct: 50 };
+const confirmOpen = (page: any) => page.evaluate(() => document.getElementById('confirm-modal')!.classList.contains('open'));
+
+test.describe('layers: locks on bulk operations and panels (T2.18)', () => {
+  test.beforeEach(async ({ page }) => { await lockEditor(page); });
+
+  test('Fill Map is refused on a locked terrain layer without opening the dialog; unlocked it fills (control)', async ({ page }) => {
+    await page.evaluate(() => UI.selectTerrain('Water_1'));
+    await setLocks(page, ['terrain']);
+    const before = await snap(page), s0 = await steps(page);
+    await page.evaluate(() => IO.fillMap());
+    expect(await confirmOpen(page)).toBe(false);
+    expect(await snap(page)).toBe(before);
+    expect((await lockedToasts(page)).length).toBe(1);
+    await unlockAll(page);
+    await page.evaluate(() => IO.fillMap());
+    expect(await confirmOpen(page)).toBe(true);
+    await page.click('#confirm-ok');
+    expect(await page.evaluate(() => mapData.every((x: string) => x === 'Water_1'))).toBe(true);
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+
+  test('Fill Map: a lock toggled while the dialog is open is honoured at confirm time (no step, no write)', async ({ page }) => {
+    await page.evaluate(() => UI.selectTerrain('Water_1'));
+    await page.evaluate(() => IO.fillMap());
+    expect(await confirmOpen(page)).toBe(true);
+    await setLocks(page, ['terrain']);
+    const before = await snap(page), s0 = await steps(page);
+    await page.click('#confirm-ok');
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+  });
+
+  const clearSeed = async (page: any) => {
+    await resetMap(page);
+    await fill(page, 226, 224, { t: 'Water_1', b: 1 });
+    await page.evaluate(() => { settlements.push({ col: 230, row: 224, type: 'settlement' }); });
+  };
+  const clearState = (page: any) => page.evaluate(() => ({ water: mapData.filter((x: string) => x === 'Water_1').length, bridges: bridgesData.length,
+    sett: settlements.filter((s: any) => s.type !== 'city').length, city: settlements.filter((s: any) => s.type === 'city').length }));
+  for (const [label, locked, want] of [
+    ['nothing locked', [], { water: 0, bridges: 0, sett: 0, city: 1 }],
+    ['terrain locked', ['terrain'], { water: 1, bridges: 1, sett: 0, city: 1 }],
+    ['buildings locked', ['objects'], { water: 0, bridges: 1, sett: 0, city: 1 }],
+    ['settlements locked', ['settlements'], { water: 0, bridges: 0, sett: 1, city: 1 }],
+  ] as [string, string[], any][]) {
+    test(`Clear Map with ${label}: locked layers are skipped, one step, undo restores`, async ({ page }) => {
+      await clearSeed(page);
+      await setLocks(page, locked);
+      const before = await snap(page), s0 = await steps(page);
+      await page.evaluate(() => IO.clearMap());
+      await page.click('#confirm-ok');
+      expect(await clearState(page)).toEqual(want);
+      expect(await steps(page)).toBe(s0 + 1);
+      await unlockAll(page);
+      await page.evaluate(() => History.undo());
+      expect(await snap(page)).toBe(before);
+    });
+  }
+  test('Clear Map with terrain AND settlements locked has nothing it may clear: no dialog, no step', async ({ page }) => {
+    await clearSeed(page);
+    await setLocks(page, ['terrain', 'settlements']);
+    const before = await snap(page), s0 = await steps(page);
+    await page.evaluate(() => IO.clearMap());
+    expect(await confirmOpen(page)).toBe(false);
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await lockedToasts(page)).length).toBe(1);
+  });
+
+  test('Generate map: refused on a locked terrain layer; discarded when the lock is set while it generates; a locked settlements layer is not rewritten', async ({ page }) => {
+    await setLocks(page, ['terrain']);
+    let before = await snap(page), s0 = await steps(page);
+    await page.evaluate(async () => { await Generator.apply(); });
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await lockedToasts(page)).length).toBe(1);
+    // lock set while the (asynchronous) generation runs: the result is discarded
+    await unlockAll(page);
+    await page.evaluate(async () => { const p = Generator.apply(); Layers.setLocked('terrain', true); await p; });
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await toastLog(page)).some(t => /result discarded/.test(t))).toBe(true);
+    // control: unlocked, it generates (one step); settlements array rewritten
+    await unlockAll(page);
+    const same = await page.evaluate(async () => { const ref = settlements; await Generator.apply(); return ref === settlements; });
+    expect(same).toBe(false);
+    expect(await snap(page)).not.toBe(before);
+    expect(await steps(page)).toBe(s0 + 1);
+    // settlements locked: terrain is generated, the settlements array is left alone
+    await resetMap(page);
+    await setLocks(page, ['settlements']);
+    const kept = await page.evaluate(async () => { const ref = settlements; await Generator.apply(); return ref === settlements; });
+    expect(kept).toBe(true);
+    expect(await page.evaluate(() => mapData.some((x: string) => x !== 'Plain_1'))).toBe(true);
+  });
+
+  test('Satellite apply is refused on a locked terrain layer (modal stays, no step); unlocked it applies', async ({ page }) => {
+    const png = await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d')!;
+      for (let j = 0; j < 64; j += 8) for (let i = 0; i < 64; i += 8) { x.fillStyle = `hsl(${(i * 7 + j * 3) % 360},50%,${20 + (j % 5) * 12}%)`; x.fillRect(i, j, 8, 8); }
+      return c.toDataURL('image/png');
+    });
+    await page.evaluate(() => Satellite.open());
+    await page.locator('#sat-modal input[type=file]').setInputFiles({ name: 'sat.png', mimeType: 'image/png', buffer: Buffer.from(png.split(',')[1], 'base64') });
+    await page.waitForFunction(() => !(document.getElementById('sat-apply-btn') as HTMLButtonElement).disabled);
+    await setLocks(page, ['terrain']);
+    const before = await snap(page), s0 = await steps(page);
+    await page.evaluate(() => Satellite.apply());
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect(await page.evaluate(() => document.getElementById('sat-modal')!.classList.contains('open'))).toBe(true);
+    expect((await lockedToasts(page)).length).toBe(1);
+    await unlockAll(page);
+    await page.evaluate(() => Satellite.apply());
+    expect(await snap(page)).not.toBe(before);
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+
+  test('the QA placer is refused on a locked terrain layer; unlocked it places the tiles', async ({ page }) => {
+    await setLocks(page, ['terrain']);
+    const before = await snap(page), s0 = await steps(page);
+    await page.evaluate(() => Dev.qaPlaceAllTiles());
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await lockedToasts(page)).length).toBe(1);
+    await unlockAll(page);
+    await page.evaluate(() => Dev.qaPlaceAllTiles());
+    expect(await snap(page)).not.toBe(before);
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+
+  test('Auto-place settlements is refused on a locked settlements layer (no step); unlocked it places', async ({ page }) => {
+    await page.evaluate((sl: any) => { settlementSlots.length = 0; settlementSlots.push(Object.assign({}, sl)); }, SLOT);
+    await setLocks(page, ['settlements']);
+    const before = await snap(page), s0 = await steps(page);
+    await page.evaluate(() => autoPlaceSettlements());
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await lockedToasts(page)).length).toBe(1);
+    await unlockAll(page);
+    await page.evaluate(() => autoPlaceSettlements());
+    expect(await page.evaluate(() => settlements.filter((s: any) => s.type !== 'city').length)).toBeGreaterThan(0);
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+
+  test('settlement slots (add, remove, field edits) are refused on a locked settlements layer', async ({ page }) => {
+    await page.evaluate((sl: any) => { settlementSlots.length = 0; settlementSlots.push(Object.assign({}, sl)); UI.rebuildSlotPanel(); }, SLOT);
+    await setLocks(page, ['settlements']);
+    const before = await snap(page), s0 = await steps(page);
+    await page.evaluate(() => { (document.getElementById('slot-add') as HTMLElement).click(); (document.querySelector('.slot-remove') as HTMLElement).click(); });
+    const edit = () => page.evaluate(() => { const el = document.querySelector('.slot-min') as HTMLInputElement; el.value = '77'; el.dispatchEvent(new Event('change', { bubbles: true })); return (document.querySelector('.slot-min') as HTMLInputElement).value; });
+    expect(await edit(), 'the field is put back').toBe('10');
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await lockedToasts(page)).length).toBe(3);
+    await unlockAll(page);                                      // controls
+    expect(await edit()).toBe('77');
+    expect(await page.evaluate(() => settlementSlots[0].minDist)).toBe(77);
+    await page.evaluate(() => (document.getElementById('slot-add') as HTMLElement).click());
+    expect(await page.evaluate(() => settlementSlots.length)).toBe(2);
+    await page.evaluate(() => (document.querySelector('.slot-remove') as HTMLElement).click());
+    expect(await page.evaluate(() => settlementSlots.length)).toBe(1);
+    expect(await steps(page)).toBe(s0 + 2);
+  });
+
+  test('the tile inspector under-terrain editors (extras) are refused on a locked terrain layer', async ({ page }) => {
+    await page.evaluate(() => { Canvas.selectTile(228, 224); (document.getElementById('tile-insp-under') as HTMLInputElement).value = 'Water_1'; });
+    await setLocks(page, ['terrain']);
+    const before = await snap(page);
+    await page.evaluate(() => Canvas.applyTileInspectorUnder());
+    await page.evaluate(() => { IO.openBridgeTerrainModal(228, 224); (document.getElementById('bridge-terrain-input') as HTMLInputElement).value = 'Water_1'; IO.applyBridgeTileUnder(); });
+    expect(await snap(page)).toBe(before);
+    expect((await lockedToasts(page)).length).toBe(2);
+    expect(await page.evaluate(() => document.getElementById('bridge-terrain-modal')!.classList.contains('open'))).toBe(false);
+    await unlockAll(page);
+    await page.evaluate(() => Canvas.applyTileInspectorUnder());
+    expect(await page.evaluate(() => tileExtras['228,224'])).toEqual({ underTerrainId: 'Water_1' });
+    await setLocks(page, ['terrain']);
+    await page.evaluate(() => Canvas.clearTileInspectorUnder());
+    expect(await page.evaluate(() => tileExtras['228,224'])).toEqual({ underTerrainId: 'Water_1' });
+  });
+});
+
+// ── Zone Painter ───────────────────────────────────────────────────────────────────────────────────
+test.describe('layers: locks on the Zone Painter actions (T2.18)', () => {
+  test.beforeEach(async ({ page }) => {
+    await lockEditor(page);
+    await page.evaluate(() => { window.confirm = () => true; });
+  });
+  const zoneSeed = async (page: any) => {
+    await resetMap(page);
+    await page.evaluate(() => {
+      const id = ZonePainter.addZone('Z'); ZonePainter.setSelectedZoneId(id);
+      const zl = ZonePainter.getZoneLayer();
+      for (let r = 215; r < 235; r++) for (let c = 215; c < 235; c++) zl[r * MAP_WIDTH + c] = id;
+    });
+  };
+  const terrainKinds = (page: any) => page.evaluate(() => new Set(mapData).size);
+  const zoneCells = (page: any) => page.evaluate(() => { let n = 0; for (const v of ZonePainter.getZoneLayer()) if (v) n++; return n; });
+
+  for (const action of ['_fillAllZones', '_uiFillThisZone']) {
+    test(`${action}: terrain locked keeps the terrain, terrain AND settlements locked is refused with no step; unlocked it writes (control)`, async ({ page }) => {
+      await zoneSeed(page);
+      await setLocks(page, ['terrain']);
+      const s0 = await steps(page);
+      await page.evaluate((a: string) => (ZonePainter as any)[a](), action);
+      expect(await terrainKinds(page), 'terrain untouched').toBe(1);
+      await unlockAll(page);
+      await setLocks(page, ['terrain', 'settlements']);
+      const before = await snap(page), s1 = await steps(page);
+      await page.evaluate((a: string) => (ZonePainter as any)[a](), action);
+      expect(await snap(page)).toBe(before);
+      expect(await steps(page)).toBe(s1);
+      await unlockAll(page);
+      await page.evaluate((a: string) => (ZonePainter as any)[a](), action);
+      expect(await terrainKinds(page), 'positive control: the zone fill writes terrain').toBeGreaterThan(1);
+      expect(await steps(page)).toBe(s1 + 1);
+      expect(s1).toBe(s0 + 1);                                  // the terrain-locked run still took its (settlement) step
+    });
+  }
+
+  test('random fill: a locked zones layer refuses it entirely; a locked terrain layer still randomizes the zones but keeps the terrain', async ({ page }) => {
+    await resetMap(page);
+    await setLocks(page, ['zones']);
+    const before = await snap(page), s0 = await steps(page);
+    await page.evaluate(() => ZonePainter._randomizeFillUI());
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await lockedToasts(page)).length).toBe(1);
+    await unlockAll(page);
+    await setLocks(page, ['terrain']);
+    await page.evaluate(() => ZonePainter._randomizeFillUI());
+    expect(await zoneCells(page), 'zones randomized').toBeGreaterThan(1000);
+    expect(await terrainKinds(page), 'terrain untouched').toBe(1);
+    await resetMap(page);
+    await page.evaluate(() => ZonePainter._randomizeFillUI());
+    expect(await terrainKinds(page), 'control: unlocked it also fills terrain').toBeGreaterThan(1);
+  });
+
+  test('Clear zone assignments and Delete zone are refused on a locked zones layer; unlocked they work', async ({ page }) => {
+    await zoneSeed(page);
+    await setLocks(page, ['zones']);
+    const before = await snap(page);
+    await page.evaluate(() => { ZonePainter._clearZonesUI(); ZonePainter._uiDeleteZone(ZonePainter.getSelectedZoneId()); });
+    expect(await snap(page)).toBe(before);
+    expect((await lockedToasts(page)).length).toBe(2);
+    await unlockAll(page);
+    await page.evaluate(() => ZonePainter._uiDeleteZone(ZonePainter.getSelectedZoneId()));
+    expect(await zoneCells(page)).toBe(0);
+    await zoneSeed(page);
+    await page.evaluate(() => ZonePainter._clearZonesUI());
+    expect(await zoneCells(page)).toBe(0);
+  });
+});
+
+// ── persistence, undo, mid-stroke, UI ──────────────────────────────────────────────────────────────
+test.describe('layers: lock state, undo and strokes (T2.18)', () => {
+  test.beforeEach(async ({ page }) => { await lockEditor(page); });
+
+  test('a locked layer stays locked after a reload and still refuses; locking is editor-only state (no map change, no step, no autosave)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      let saves = 0; const orig = IO.scheduleAutoSave; IO.scheduleAutoSave = (...a: any[]) => { saves++; return orig(...a); };
+      const b = (window as any).__lockSnap(), s = History.undoSize();
+      Layers.setLocked('terrain', true); Layers.setLocked('roads', true);
+      const out = { same: (window as any).__lockSnap() === b, steps: History.undoSize() === s, saves, stored: JSON.parse(localStorage.getItem('layer_state_v1')!) };
+      IO.scheduleAutoSave = orig;
+      return out;
+    });
+    expect(r).toMatchObject({ same: true, steps: true, saves: 0 });
+    expect([r.stored.terrain.locked, r.stored.roads.locked, r.stored.objects.locked]).toEqual([true, true, false]);
+    await lockEditor(page);                                      // a full reload
+    expect(await page.evaluate(() => Layers.NAMES.map((n: string) => Layers.isLocked(n)))).toEqual([true, false, true, false, false]);
+    await expect(page.locator('.layer-row[data-layer="terrain"] .layer-lock')).toHaveAttribute('aria-pressed', 'true');
+    await page.evaluate(() => { UI.selectTerrain('Water_1'); Tools.setActive('paint'); });
+    const before = await snap(page);
+    await clickCell(page, 228, 224);
+    expect(await snap(page)).toBe(before);
+    expect((await lockedToasts(page)).length).toBe(1);
+  });
+
+  test('undo and redo are not blocked by locks', async ({ page }) => {
+    await page.evaluate(() => { UI.selectTerrain('Water_1'); });
+    await clickCell(page, 228, 224);
+    expect(await cellId(page, 228, 224)).toBe('Water_1');
+    await setLocks(page, ['terrain', 'objects', 'roads', 'settlements', 'zones']);
+    await page.keyboard.press('Control+z');
+    expect(await cellId(page, 228, 224)).toBe('Plain_1');
+    await page.keyboard.press('Control+y');
+    expect(await cellId(page, 228, 224)).toBe('Water_1');
+    expect(await lockedToasts(page)).toEqual([]);
+  });
+
+  test('the lock buttons say what a lock does (tooltip), keep their markup, and the layout is unchanged', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const b = document.querySelector('.layer-row[data-layer="roads"] .layer-lock') as HTMLButtonElement;
+      const before = b.title; Layers.setLocked('roads', true); const after = b.title; Layers.setLocked('roads', false);
+      const cv = document.getElementById('map-canvas')!.getBoundingClientRect();
+      return { before, after, type: b.type, pressed: b.getAttribute('aria-pressed'), label: !!b.getAttribute('aria-label') };
+    });
+    expect(r.before).toMatch(/will not change/);
+    expect(r.before).toMatch(/Roads/);
+    expect(r.after).toMatch(/^Unlock Roads/);
+    expect([r.type, r.pressed, r.label]).toEqual(['button', 'false', true]);
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    const box = await page.evaluate(() => { const c = document.getElementById('map-canvas') as HTMLCanvasElement; return [c.width, c.height]; });
+    expect(box).toEqual([1491, 808]);
+  });
+
+  const pt = (page: any, c: number, r: number) => cellPoint(page, c, r);
+  const downAt = async (page: any, c: number, r: number) => { const p = await pt(page, c, r); await page.mouse.move(p.x, p.y); await page.mouse.down(); };
+  const moveTo = async (page: any, c: number, r: number) => { const p = await pt(page, c, r); await page.mouse.move(p.x, p.y, { steps: 3 }); };
+
+  test('Paint: a lock set mid-stroke stops the next writes, one toast, ONE step that undo reverts, no stuck state', async ({ page }) => {
+    await page.evaluate(() => UI.selectTerrain('Water_1'));
+    const before = await snap(page), s0 = await steps(page);
+    await downAt(page, 226, 224);
+    await setLocks(page, ['terrain']);
+    await moveTo(page, 227, 224); await moveTo(page, 228, 224); await moveTo(page, 229, 224);
+    await page.mouse.up();
+    expect(await page.evaluate(() => [226, 227, 228, 229].map(c => mapData[224 * MAP_WIDTH + c]))).toEqual(['Water_1', 'Plain_1', 'Plain_1', 'Plain_1']);
+    expect(await steps(page)).toBe(s0 + 1);
+    expect((await lockedToasts(page)).length, 'one toast for the whole stroke').toBe(1);
+    expect(await page.evaluate(() => Tools.isStrokeActive())).toBe(false);
+    await page.evaluate(() => History.undo());
+    expect(await snap(page)).toBe(before);
+    await unlockAll(page);                                       // the next stroke works
+    await downAt(page, 226, 225); await moveTo(page, 227, 225); await page.mouse.up();
+    expect(await page.evaluate(() => [226, 227].map(c => mapData[225 * MAP_WIDTH + c]))).toEqual(['Water_1', 'Water_1']);
+  });
+
+  test('Eraser: a lock set mid-stroke keeps the cells not yet reached; one step', async ({ page }) => {
+    await page.evaluate(() => { for (const c of [226, 227, 228]) mapData[224 * MAP_WIDTH + c] = 'Water_1'; Tools.setActive('eraser'); });
+    const before = await snap(page), s0 = await steps(page);
+    await downAt(page, 226, 224);
+    await setLocks(page, ['terrain']);
+    await moveTo(page, 227, 224); await moveTo(page, 228, 224);
+    await page.mouse.up();
+    expect(await page.evaluate(() => [226, 227, 228].map(c => mapData[224 * MAP_WIDTH + c]))).toEqual(['Plain_1', 'Water_1', 'Water_1']);
+    expect(await steps(page)).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    expect(await snap(page)).toBe(before);
+  });
+
+  test('Place Building: locking before the stroke wrote anything leaves NO empty step', async ({ page }) => {
+    await page.evaluate(() => { objectsData['226,224'] = 'Artefact_Test_1'; Tools.setActive('object'); Tools.selectBuilding('Artefact_Test_1'); document.getElementById('obj-building-picker')!.style.display = 'none'; });
+    const before = await snap(page), s0 = await steps(page);
+    await downAt(page, 226, 224);                                // same building: nothing to write, no step yet
+    await setLocks(page, ['objects']);
+    await moveTo(page, 227, 224); await moveTo(page, 228, 224);
+    await page.mouse.up();
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect(await page.evaluate(() => Tools.isStrokeActive())).toBe(false);
+    expect((await lockedToasts(page)).length).toBe(1);
+    await unlockAll(page);                                       // positive control: the same drag places buildings
+    await downAt(page, 226, 224); await moveTo(page, 227, 224); await page.mouse.up();
+    expect(await page.evaluate(() => Object.keys(objectsData).sort())).toEqual(['226,224', '227,224']);
+    expect(await steps(page)).toBe(s0 + 1);
+  });
+
+  test('Zone Painter brush: a lock set mid-stroke stops the next cells', async ({ page }) => {
+    await page.evaluate(() => { const id = ZonePainter.addZone('Z'); ZonePainter.setSelectedZoneId(id); Tools.setActive('zone'); });
+    await downAt(page, 226, 224);
+    await setLocks(page, ['zones']);
+    await moveTo(page, 227, 224); await moveTo(page, 228, 224);
+    await page.mouse.up();
+    expect(await page.evaluate(() => [226, 227, 228].map(c => ZonePainter.getZoneLayer()[224 * MAP_WIDTH + c] > 0))).toEqual([true, false, false]);
+  });
+
+  for (const tool of ['rect', 'line']) {
+    test(`${tool}: a lock set during the drag refuses the commit (no write, no step, the preview is cleared)`, async ({ page }) => {
+      await page.evaluate((t: string) => { UI.selectTerrain('Water_1'); Tools.setActive(t); }, tool);
+      const before = await snap(page), s0 = await steps(page);
+      await downAt(page, 226, 224);
+      await moveTo(page, 229, 225);
+      if (tool === 'line') expect(await page.evaluate(() => Canvas.hasHighlight('shape')), 'the line preview is showing').toBe(true);
+      await setLocks(page, ['terrain']);
+      await page.mouse.up();
+      expect(await snap(page)).toBe(before);
+      expect(await steps(page)).toBe(s0);
+      expect(await page.evaluate(() => Canvas.hasHighlight('shape'))).toBe(false);
+      expect((await lockedToasts(page)).length).toBe(1);
+      expect(await page.evaluate(() => Tools.isStrokeActive())).toBe(false);
+      await unlockAll(page);                                     // positive control: the same drag now writes
+      await downAt(page, 226, 224); await moveTo(page, 229, 225); await page.mouse.up();
+      expect(await snap(page)).not.toBe(before);
+      expect(await steps(page)).toBe(s0 + 1);
+    });
+  }
 });
