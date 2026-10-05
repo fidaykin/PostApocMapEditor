@@ -1165,6 +1165,24 @@ test.describe('bridge tool (T2.16)', () => {
     expect(Object.values(await objs(page)).filter(v => v === 'Grain_1').length).toBe(6);
   });
 
+  test('a river tile that lies under another multi-tile terrain footprint is refused with a toast and no step', async ({ page }) => {
+    const fp = await page.evaluate(() => {
+      mapData[224 * MAP_WIDTH + 228] = 'Rabbit_Flat_1'; invalidateSatelliteMap();
+      const out: string[] = [];
+      for (let c = 225; c <= 231; c++) for (let r = 221; r <= 227; r++) if (getSatelliteAnchor(c, r)) out.push(c + ',' + r);
+      return out;
+    });
+    expect(fp.length).toBeGreaterThan(0);
+    const [fc, fr] = fp[0].split(',').map(Number);
+    await river(page, fc, fr);
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const s0 = await undoSize(page);
+    await clickCell(page, fc, fr);
+    expect(await objs(page)).toEqual({});
+    expect(await undoSize(page)).toBe(s0);
+    expect((await toasts(page)).some(t => /multi-tile|footprint/i.test(t))).toBe(true);
+  });
+
   test('the button lives in the left palette (not the top toolbar); canvas keeps 1491 px at 1400x900; registered as a lazy stroke tool', async ({ page }) => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
