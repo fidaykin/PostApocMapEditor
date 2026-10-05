@@ -2369,7 +2369,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "939ae58";
+const COMMIT  = "bbfee64";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4759,31 +4759,29 @@ const Clipboard = (() => {
   let _buf = null;
   const _geomCache = new WeakMap();   // buf -> Map(transform signature -> geom): geometry depends on the buffer AND the float transform
   const _xfIdentity = xf => xf == null || (!xf.rot && !xf.mh && !xf.mv);
-  const _xfSig = xf => _xfIdentity(xf) ? 'id' : (((xf.rot % 6) + 6) % 6) + ',' + !!xf.mh + ',' + !!xf.mv;
+  // Canonical signature: the 24 (rot, mh, mv) combinations are only 12 distinct transforms (mirror h then v = rotation by
+  // 3, mirror v = mirror h + rotation by 3), so equivalent ones share one cached geometry: (mh xor mv, rot + 3 if mv).
+  const _xfSig = xf => {
+    if (_xfIdentity(xf)) return 'id';
+    const rot = ((((xf.rot | 0) + (xf.mv ? 3 : 0)) % 6) + 6) % 6, m = !!xf.mh !== !!xf.mv;
+    return rot === 0 && !m ? 'id' : rot + ',' + m;
+  };
+  const GEOM_CACHE_MAX = 6;   // geometries kept per buffer (LRU)
 
-  // Bridge axes (0 = N-S, 1 = NE-SW, 2 = NW-SE; Road_Bridge_NS / NEWS / SENW ids follow the same order). Rotation by
-  // k steps (60 degrees clockwise) adds k (mod 3: a line comes back after 180 degrees); either mirror (left-right or
-  // top-bottom) swaps the two diagonals, so an odd number of mirrors negates the axis (mod 3) BEFORE the rotation.
-  // An axis outside 0..2 is carried over unchanged.
-  const _BRIDGE_IDS = ['NS', 'NEWS', 'SENW'];
+  // Bridge axes (bridgesData; the UI labels are 0 = N<->S, 1 = NE<->SW, 2 = NW<->SE). Rotation by k steps (60 degrees
+  // clockwise) adds k (mod 3: a line comes back after 180 degrees); either mirror (left-right or top-bottom) swaps the two
+  // diagonals, so an odd number of mirrors negates the axis (mod 3) BEFORE the rotation. An axis outside 0..2 is carried
+  // over unchanged. Road_Bridge BUILDINGS (terrain / object ids) are NOT re-mapped: they keep their id and orientation.
   function _axisXf(a, xf) {
     if (!Number.isInteger(a) || a < 0 || a > 2) return a;
     const odd = ((xf.mh ? 1 : 0) + (xf.mv ? 1 : 0)) % 2 === 1;
     return ((odd ? (3 - a) % 3 : a) + (((xf.rot % 6) + 6) % 6)) % 3;
   }
-  function _bridgeIdXf(id, xf) {
-    const m = typeof id === 'string' && /^(Road_Bridge_)(NS|NEWS|SENW)(_.*)$/.exec(id);
-    return m ? m[1] + _BRIDGE_IDS[_axisXf(_BRIDGE_IDS.indexOf(m[2]), xf)] + m[3] : id;
-  }
-  // The buffer cell as it lands under transform xf: bridge axis and Road_Bridge ids are re-oriented. Everything else is
-  // orientation free (roads autotile from neighbours; directional water is re-resolved after the write).
+  // The buffer cell as it lands under transform xf: only the bridge axis is re-oriented. Everything else is orientation
+  // free (roads autotile from neighbours; directional water is re-resolved after the write).
   function _xfEntry(e, xf) {
-    if (_xfIdentity(xf)) return e;
-    const out = Object.assign({}, e);
-    if (e.b !== undefined) out.b = _axisXf(e.b, xf);
-    out.t = _bridgeIdXf(e.t, xf);
-    if (e.o) out.o = _bridgeIdXf(e.o, xf);
-    return out;
+    if (_xfIdentity(xf) || e.b === undefined) return e;
+    return Object.assign({}, e, { b: _axisXf(e.b, xf) });
   }
 
   function capture(cells) {
@@ -4794,9 +4792,12 @@ const Clipboard = (() => {
     const zl = typeof ZonePainter !== 'undefined' ? ZonePainter.getZoneLayer() : null;
     const bridges = new Map();
     for (const b of bridgesData) bridges.set(b.col + ',' + b.row, b.axis);
+    const inSet = new Set(cells.map(c => c.row * W + c.col));
     const out = cells.map((c, i) => {
       const k = c.col + ',' + c.row, idx = c.row * W + c.col;
       const e = { dq: cubes[i].q - anchor.q, dr: cubes[i].r - anchor.r, t: mapData[idx] };
+      const own = getSatelliteAnchor(c.col, c.row);
+      if (own && inSet.has(own.row * W + own.col)) e.sat = true;     // satellite cell of a footprint whose anchor is in the buffer
       if (objectsData[k]) e.o = objectsData[k];
       if (roadsData[k]) e.rd = Object.assign({}, roadsData[k]);
       if (bridges.has(k)) e.b = bridges.get(k);
@@ -4843,7 +4844,11 @@ const Clipboard = (() => {
   function plan(buf, target, xf) {
     const W = MAP_WIDTH, H = MAP_HEIGHT, t0 = HexUtils.toCube(target.col, target.row, W, H);
     let items = [];
+    const moved = !_xfIdentity(xf);
     for (const e of buf.cells) {
+      // Under a rotation / mirror the source footprint cells of an anchor that is in the buffer would land away from the
+      // destination footprint (which is derived from the anchor): they are not carried (no stray tiles).
+      if (moved && e.sat) continue;
       const p = _target(e, t0, xf);
       if (HexUtils.inBounds(p.col, p.row, W, H)) items.push({ col: p.col, row: p.row, e: _xfEntry(e, xf), idx: p.row * W + p.col, fp: null });
     }
@@ -4943,7 +4948,7 @@ const Clipboard = (() => {
     let per = _geomCache.get(buf);
     if (!per) _geomCache.set(buf, per = new Map());
     const sig = _xfSig(xf), hit = per.get(sig);
-    if (hit) return hit;
+    if (hit) { per.delete(sig); per.set(sig, hit); return hit; }      // refresh: most recently used last
     const n = buf.cells.length, rx = new Float64Array(n), ry = new Float64Array(n);
     const dq = new Int32Array(n), dr = new Int32Array(n);
     let minDq = Infinity, maxDq = -Infinity, minV = Infinity, maxV = -Infinity;
@@ -4972,6 +4977,7 @@ const Clipboard = (() => {
     }
     const geom = { n, rx, ry, dq, dr, segs: Float64Array.from(segs), minDq, maxDq, minV, maxV };
     per.set(sig, geom);
+    while (per.size > GEOM_CACHE_MAX) per.delete(per.keys().next().value);   // evict the least recently used
     return geom;
   }
 
@@ -4997,7 +5003,7 @@ const Clipboard = (() => {
 
   function get() { return _buf; }
   function set(buf) { _buf = buf; }
-  return { capture, previewCells, plan, write, place, ghostGeometry, ghostLayer, get, set };
+  return { capture, previewCells, plan, write, place, ghostGeometry, ghostLayer, get, set, _geomCacheSize: buf => (_geomCache.get(buf) || { size: 0 }).size };
 })();
 // ════════════════════════════════════════════════════════════
 // TOOLS MODULE — paint, fill, rect, eyedropper, settlement, erase
@@ -5975,13 +5981,35 @@ const Tools = (() => {
     if (!cells.length) { UI.toast('Nothing to move (the selection only covers part of a multi-tile footprint)'); return false; }
     beginPaste(Clipboard.capture(cells));
     if (!_float) return false;
-    _float.move = { cells };
+    _float.move = { cells, sig: _moveSig(cells) };
     _hoverFloat(_float.buf.origin.col, _float.buf.origin.row);   // the ghost starts over the source
     Canvas.render();
     return true;
   }
+  // Compact signature (two 32-bit FNV-1a style hashes + count) of what the lifted cells hold NOW: terrain id, the building
+  // id, a road, a bridge, extras and the zone value. The drop compares it with the one taken at lift time, so an in-place
+  // writer (Clear Map, Fill Map, Satellite apply, QA placer, anything) that changed the source behind the float is caught.
+  function _moveSig(cells) {
+    const W = MAP_WIDTH, zl = ZonePainter.getZoneLayer(), bridges = new Set(bridgesData.map(b => b.row * W + b.col));
+    let h1 = 0x811c9dc5, h2 = 0x9747b28c;
+    const mix = str => { for (let i = 0; i < str.length; i++) { const c = str.charCodeAt(i); h1 = Math.imul(h1 ^ c, 16777619); h2 = Math.imul(h2 + c, 0x85ebca6b) ^ (h2 >>> 13); } };
+    for (const { col, row } of cells) {
+      const idx = row * W + col, k = col + ',' + row;
+      mix(String(mapData[idx])); mix('|' + (objectsData[k] || '') + (roadsData[k] ? 'r' : '-') + (bridges.has(idx) ? 'b' : '-') + (tileExtras[k] ? 'x' : '-') + (zl ? zl[idx] : 0) + ';');
+    }
+    return cells.length + ':' + (h1 >>> 0) + ':' + (h2 >>> 0);
+  }
+  // Cancels a lifted (moving) selection at once; nothing was written at lift time, so there is nothing to restore. Called
+  // by the in-place map writers (Clear Map, Fill Map, Satellite apply, QA placer). A plain paste float stays valid (its
+  // buffer is a snapshot) and is left alone.
+  function cancelFloat(msg) {
+    if (!_float || !_float.move) return false;
+    _endPaste(msg || 'The map changed while the region was lifted — move cancelled');
+    return true;
+  }
   function _dropMove(col, row, xf) {
     const f = _float, buf = f.buf, inMap = Clipboard.previewCells(buf, { col, row }, xf).length;
+    if (_moveSig(f.move.cells) !== f.move.sig) { _endPaste('The map changed while the region was lifted — move cancelled'); return 0; }
     if (!inMap) return 0;
     if (!xf && col === buf.origin.col && row === buf.origin.row) { _endPaste(); return 0; }   // dropped where it was: nothing to do
     const token = History.push();                          // before the first write; cut and paste share this one step
@@ -5994,13 +6022,15 @@ const Tools = (() => {
       return 0;
     }
     Clipboard.write(items, null, null, xf);
-    const lost = inMap - items.length;
+    // Cells that did not make it: off the map (clipped) or skipped by the plan (clipped / overlapping anchors). The source
+    // footprint cells of an anchor under a transform are not carried by design (the destination footprint is derived).
+    const lost = buf.cells.length - (xf ? buf.cells.filter(e => e.sat).length : 0) - items.length;
     const cells = items.map(i => ({ col: i.col, row: i.row }));
     const t = _prevTool || 'marquee';
     setActive(t === 'paste' ? 'marquee' : t);
     Selection.setCells(cells);
-    if (lost > 0) UI.toast(lost + ' tile(s) could not be placed (undo restores them)');
-    else if (xf && items.some(i => i.fp)) UI.toast('Multi-tile terrain keeps its orientation');
+    if (lost > 0) UI.toast(lost + (lost === 1 ? ' cell' : ' cells') + ' fell off the map or ' + (lost === 1 ? 'was' : 'were') + ' skipped (undo restores them)');
+    if (xf && items.some(i => i.fp)) UI.toast('Multi-tile terrain keeps its orientation');
     Canvas.drawMinimap(); Canvas.render(); IO.scheduleAutoSave();
     return items.length;
   }
@@ -6284,11 +6314,16 @@ const Tools = (() => {
   }
 
   // True while a text control, select or any modal/dialog overlay has the user's attention.
-  function _isTypingOrModal() {
-    const a = document.activeElement;
-    // range/checkbox/radio inputs and buttons do not take typed text, so they must not swallow the shortcut
-    const nonText = a && (a.tagName === 'BUTTON' || (a.tagName === 'INPUT' && ['range', 'checkbox', 'radio', 'button'].includes(a.type)) || a.id === 'symmetry-select');
-    if (a && !nonText && (['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName) || a.isContentEditable)) return true;
+  // `e` (optional): the key event. Its TARGET counts too: a field that blurs itself on a key (Enter in the scatter density /
+  // seed or the zone name) has already lost the focus when the event bubbles up to the window listener.
+  function _isTypingOrModal(e) {
+    const targets = [document.activeElement];
+    if (e && e.target && e.target !== document.activeElement) targets.push(e.target);
+    for (const a of targets) {
+      // range/checkbox/radio inputs and buttons do not take typed text, so they must not swallow the shortcut
+      const nonText = a && (a.tagName === 'BUTTON' || (a.tagName === 'INPUT' && ['range', 'checkbox', 'radio', 'button'].includes(a.type)) || a.id === 'symmetry-select');
+      if (a && !nonText && (['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName) || a.isContentEditable)) return true;
+    }
     for (const m of document.querySelectorAll('.modal-overlay, [id$="-modal"]'))
       if (getComputedStyle(m).display !== 'none') return true;
     return false;
@@ -6352,7 +6387,7 @@ const Tools = (() => {
       if (e.key === 'Escape' && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
       if (e.key === 'Escape' && _active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); return; }   // cancels the drag only
       if (e.key === 'Escape' && !e.defaultPrevented && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { Selection.clear(); return; }   // an Esc that closed a menu / picker (UI marks it) must not wipe the selection
-      if (_float && mapMode && !e.shiftKey && !e.altKey && !e.repeat && !_isTypingOrModal()) {   // transform keys: only while a float is active
+      if (_float && mapMode && !e.shiftKey && !e.altKey && !e.repeat && !_isTypingOrModal(e)) {   // transform keys: only while a float is active
         const k = e.code;
         if (k === 'Period' || k === 'Comma' || k === 'Slash' || k === 'Semicolon') {
           e.preventDefault();
@@ -6360,8 +6395,8 @@ const Tools = (() => {
           return;
         }
       }
-      if (e.key === 'Enter' && !_float && !_isDown && _active !== 'polygon' && mapMode && !e.altKey && !e.shiftKey && !e.repeat && !Selection.isEmpty() && !_isTypingOrModal()
-          && !(document.activeElement && ['BUTTON', 'A'].includes(document.activeElement.tagName))) { e.preventDefault(); beginMove(); return; }   // Enter on a focused button activates the button instead
+      if (e.key === 'Enter' && !_float && !_isDown && _active !== 'polygon' && mapMode && !e.altKey && !e.shiftKey && !e.repeat && !Selection.isEmpty() && !_isTypingOrModal(e)
+          && ![document.activeElement, e.target].some(a => a && ['BUTTON', 'A', 'INPUT', 'SELECT', 'TEXTAREA'].includes(a.tagName))) { e.preventDefault(); beginMove(); return; }   // Enter on a focused button / link / any control (also one that just blurred itself) acts on that control instead
       if (e.key === 'Enter' && _active === 'polygon' && _polyVerts.length && mapMode && !e.altKey && !_isTypingOrModal()) {
         e.preventDefault();
         if (_fillBusy) _cancelShape(); else _commitPolygon(e.shiftKey);
@@ -6389,7 +6424,7 @@ const Tools = (() => {
 
   function isStroking() { return _eraseStroke || isMoving(); }   // undo / redo are ignored while a lifted selection floats
   function isPasting() { return !!_float; }
-  return { isStroking, isPasting, isMoving, rotateFloat, mirrorFloat, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
+  return { isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
@@ -9250,6 +9285,7 @@ const IO = (() => {
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     UI.showConfirm('Clear Map', 'Clear all terrain? City settlement will be preserved.', () => {
       if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }   // a fill may have started while the dialog was open
+      Tools.cancelFloat();                    // a lifted region would otherwise drop its old content back
       History.push();
       mapData.fill('Plain_1');
       bridgesData = [];
@@ -9269,6 +9305,7 @@ const IO = (() => {
     const hexId = UI.getSelectedTerrain();
     UI.showConfirm('Fill Map', `Fill entire map with ${hexId}?`, () => {
       if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
+      Tools.cancelFloat();
       History.push();
       mapData.fill(hexId);
       Canvas.render();
@@ -9962,6 +9999,7 @@ const Satellite = (() => {
       _classify();
       return;
     }
+    Tools.cancelFloat();
     History.push();
     const len = MAP_WIDTH * MAP_HEIGHT;
     for (let i = 0; i < len; i++) mapData[i] = _classified[i];
@@ -15566,6 +15604,7 @@ const Dev = (() => {
       return;
     }
 
+    Tools.cancelFloat();
     History.push();
     entries.forEach((entry, i) => {
       const { c, r } = positions[i];

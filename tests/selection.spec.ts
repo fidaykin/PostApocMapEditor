@@ -1958,28 +1958,38 @@ test.describe('transform and move (T2.10)', () => {
   }
 
   // ---------- bridges -------------------------------------------------------------------------
-  test('bridge axes and Road_Bridge ids follow the transform (axis angles from pixel geometry)', async ({ page }) => {
+  test('bridge axes follow the transform (expected axis derived from the pixel directions of the cells it connects); Road_Bridge buildings keep their id', async ({ page }) => {
     const r = await page.evaluate(() => {
-      const ref = (window as any).__ref, bad: string[] = [];
-      // axis -> direction angle (degrees, math orientation, mod 180) of the line it connects: N-S = 90, NE-SW = 30, NW-SE = 150
-      const ANG = [90, 30, 150], ID = ['NS', 'NEWS', 'SENW'];
-      const mod = (a: number) => ((Math.round(a) % 180) + 180) % 180;
-      const axisOf = (deg: number) => ANG.indexOf(mod(deg));
-      for (const [rot, mh, mv] of [[0, false, false], [1, false, false], [2, false, false], [3, false, false], [4, false, false], [5, false, false], [0, true, false], [1, true, false], [2, true, false], [3, true, false], [4, true, false], [5, true, false], [0, false, true], [1, false, true], [2, false, true], [3, false, true], [4, false, true], [5, false, true], [0, true, true], [1, true, true], [2, true, true], [3, true, true], [4, true, true], [5, true, true]] as [number, boolean, boolean][]) {
+      const ref = (window as any).__ref, bad: string[] = [], cw = Canvas.hexCenterWorld, W = MAP_WIDTH;
+      // Independent of the code under test: the six neighbours of a cell are the cells at the minimum pixel distance;
+      // a bridge axis connects the cell with the neighbour in the direction named by the UI label (N<->S, NE<->SW, NW<->SE).
+      const c0 = { col: 225, row: 224 }, p0 = cw(c0.col, c0.row), nbs: { x: number; y: number }[] = [];
+      let min = Infinity;
+      for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) { if (!dc && !dr) continue; const p = cw(c0.col + dc, c0.row + dr); min = Math.min(min, Math.hypot(p.x - p0.x, p.y - p0.y)); }
+      for (let dr = -2; dr <= 2; dr++) for (let dc = -2; dc <= 2; dc++) { if (!dc && !dr) continue; const p = cw(c0.col + dc, c0.row + dr); if (Math.hypot(p.x - p0.x, p.y - p0.y) < min + 1e-6) nbs.push({ x: p.x - p0.x, y: p.y - p0.y }); }
+      if (nbs.length !== 6) bad.push('neighbours ' + nbs.length);
+      const eps = 1e-6;
+      const upN = nbs.find(v => Math.abs(v.x) < eps && v.y < 0)!;       // N
+      const upNE = nbs.find(v => v.x > eps && v.y < 0)!;                 // NE (screen y grows downwards)
+      const upNW = nbs.find(v => v.x < -eps && v.y < 0)!;                // NW
+      const dirOf = [upN, upNE, upNW];                                   // axis 0 N-S, 1 NE-SW, 2 NW-SE
+      // classify a pixel vector back into an axis: vertical = 0; up-right / down-left = 1; up-left / down-right = 2
+      const axisOf = (v: { x: number; y: number }) => Math.abs(v.x) < eps ? 0 : v.x * v.y < 0 ? 1 : 2;
+      dirOf.forEach((v, a) => { if (axisOf(v) !== a) bad.push('classifier ' + a); });
+      for (let rot = 0; rot < 6; rot++) for (const mh of [false, true]) for (const mv of [false, true]) {
         for (let a = 0; a < 3; a++) {
           mapData.fill('Plain_1'); bridgesData.length = 0; objectsData = {};
-          mapData[224 * MAP_WIDTH + 225] = 'Road_Bridge_' + ID[a] + '_1'; objectsData['225,224'] = 'Road_Bridge_' + ID[a] + '_1';
+          mapData[224 * W + 225] = 'Road_Bridge_NEWS_1'; objectsData['225,224'] = 'Road_Bridge_NEWS_1';
           bridgesData.push({ col: 225, row: 224, axis: a });
           Selection.setCells([{ col: 225, row: 224 }]); Tools.copySelection();
           Tools.beginPaste(Clipboard.get()); Tools.setFloatTransform({ rot, mh, mv });
           Tools.dropFloat(100, 100);
-          // line direction in screen pixels (y down): angle of the vector (cos, -sin) of the math angle
-          const th = ANG[a] * Math.PI / 180, v = ref({ x: Math.cos(th), y: -Math.sin(th) }, rot, mh, mv);
-          const want = axisOf(Math.atan2(-v.y, v.x) * 180 / Math.PI);
+          const want = axisOf(ref(dirOf[a], rot, mh, mv));
           const b = bridgesData.find((x: any) => x.col === 100 && x.row === 100);
-          if (want < 0 || !b || b.axis !== want) bad.push(`axis ${a} ${rot}${mh}${mv}: want ${want} got ${b && b.axis}`);
-          if (mapData[100 * MAP_WIDTH + 100] !== 'Road_Bridge_' + ID[want] + '_1') bad.push(`terrain id ${a} ${rot}${mh}${mv}: ${mapData[100 * MAP_WIDTH + 100]}`);
-          if (objectsData['100,100'] !== 'Road_Bridge_' + ID[want] + '_1') bad.push(`object id ${a} ${rot}${mh}${mv}`);
+          if (!b || b.axis !== want) bad.push(`axis ${a} ${rot}${mh}${mv}: want ${want} got ${b && b.axis}`);
+          // building ids are NOT re-mapped: the bridge building keeps its orientation
+          if (mapData[100 * W + 100] !== 'Road_Bridge_NEWS_1') bad.push(`terrain id ${a} ${rot}${mh}${mv}: ${mapData[100 * W + 100]}`);
+          if (objectsData['100,100'] !== 'Road_Bridge_NEWS_1') bad.push(`object id ${a} ${rot}${mh}${mv}: ${objectsData['100,100']}`);
           Tools.setActive('paint');
         }
       }
@@ -1991,6 +2001,7 @@ test.describe('transform and move (T2.10)', () => {
     expect(r.bad).toEqual([]);
     expect(r.odd).toBe(7);
   });
+
 
   // ---------- directional water ---------------------------------------------------------------
   test('a transformed paste re-resolves EVERY water / river cell of the region (masks equal resolveEdgeTile on the final map)', async ({ page }) => {
@@ -2007,7 +2018,6 @@ test.describe('transform and move (T2.10)', () => {
         for (const b of band) mapData[b.row * W + b.col] = rivers[0].id;
         Tools.autoResolveEdgesAround(band);
         Selection.setCells(Tools._rectCells(222, 215, 228, 235)); Tools.copySelection();
-        const copied = new Map(Selection.getCells().map((c: any) => [c.col + ',' + c.row, faces(mapData[c.row * W + c.col])]));
         const out: any = {};
         for (const [name, rot] of [['identity', 0], ['rot1', 1], ['rot2', 2]] as [string, number][]) {
           Tools.beginPaste(Clipboard.get()); Tools.rotateFloat(rot); Tools.dropFloat(100, 100);
@@ -2021,11 +2031,7 @@ test.describe('transform and move (T2.10)', () => {
             checked++; if (faces(id) !== '') dir++;
             if (faces(id) !== faces(EdgeTiling.resolveEdgeTile(c.col, c.row, W, H, mapData, ['Water', 'Rivers'], () => 0, [fallback]))) bad++;
           }
-          let interiorSame = 0;
-          const srcCells = Selection.getCells();
-          out[name] = { checked, bad, dir, n: placed.length, srcCells: srcCells.length };
-          let diff = 0; for (const p of placed) if (!copied.has(p.col + ',' + p.row) && faces(mapData[p.row * W + p.col]) !== '') diff++;
-          out[name].directional = diff;
+          out[name] = { checked, bad, dir, n: placed.length };
           Tools.setActive('paint'); History.undo();
           Selection.setCells(Tools._rectCells(222, 215, 228, 235));
         }
@@ -2034,7 +2040,8 @@ test.describe('transform and move (T2.10)', () => {
     });
     expect(r.rot1.checked).toBeGreaterThan(10); expect(r.rot1.dir).toBeGreaterThanOrEqual(8); expect(r.rot1.bad).toBe(0);
     expect(r.rot2.checked).toBeGreaterThan(10); expect(r.rot2.dir).toBeGreaterThanOrEqual(8); expect(r.rot2.bad).toBe(0);
-    expect(r.identity.checked).toBeGreaterThan(10);   // (an identity paste keeps copied interiors as before; at another row parity they may differ from a fresh resolve under K1, which is not this task's concern)
+    expect([r.identity.n, r.rot1.n, r.rot2.n]).toEqual([147, 147, 147]);   // 7 x 21 cells land each time
+    expect(r.identity.checked).toBeGreaterThan(10); expect(r.identity.dir).toBeGreaterThanOrEqual(8);   // (an identity paste keeps copied interiors as before; at another row parity they may differ from a fresh resolve under K1, which is not this task's concern)
   });
 
   // ---------- multi-tile footprints -----------------------------------------------------------
@@ -2293,5 +2300,255 @@ test.describe('transform and move (T2.10)', () => {
     expect(await layers(page)).toBe(before);
     expect(await page.evaluate(() => (window as any).__toasts.some((t: string) => /map changed/i.test(t)))).toBe(true);
     expect(await page.evaluate(() => Tools.isMoving())).toBe(false);
+  });
+});
+
+
+// ====================================================================================================
+// T2.10 fix round 1
+// ====================================================================================================
+test.describe('transform and move: fix round 1 (T2.10)', () => {
+  const FP = 'Rabbit_Flat_1';
+  test.beforeEach(async ({ page }) => {
+    await freshEditor(page);
+    await toastsOn(page);
+    await page.evaluate(() => {
+      (window as any).__ref = (v: { x: number; y: number }, rot: number, mh: boolean, mv: boolean) => {
+        const x = mh ? -v.x : v.x, y = mv ? -v.y : v.y, a = Math.PI / 3 * rot, cs = Math.cos(a), sn = Math.sin(a);
+        return { x: x * cs - y * sn, y: x * sn + y * cs };
+      };
+    });
+  });
+  const snap = (page: Page) => page.evaluate(() => JSON.stringify({ m: mapData.join('|'), o: objectsData, r: roadsData, b: bridgesData, x: tileExtras, z: Array.from(ZonePainter.getZoneLayer()).join('') }));
+  const toasts = (page: Page) => page.evaluate(() => (window as any).__toasts as string[]);
+  /** A 5 x 4 block of varied content, selected (cells 222..226 x 220..223). */
+  const seedBlock = (page: Page) => page.evaluate(() => {
+    const W = MAP_WIDTH, cells = Tools._rectCells(222, 220, 226, 223);
+    cells.forEach((c: any, i: number) => { mapData[c.row * W + c.col] = ['Water_1', 'Forest_1', 'Hills_1'][i % 3]; if ((c.col + c.row) % 2 === 0) objectsData[c.col + ',' + c.row] = 'Grain_1'; });
+    Selection.setCells(cells);
+    return cells.length;
+  });
+
+  // ---------- I2: Enter in a field that blurs itself ---------------------------------------------
+  for (const id of ['scatter-density', 'scatter-seed']) {
+    test(`Enter in #${id} (which blurs itself) does not lift the selection`, async ({ page }) => {
+      await seedBlock(page);
+      await page.evaluate(() => Tools.setActive('scatter'));
+      const base = await snap(page), s0 = await page.evaluate(() => History.undoSize());
+      await page.fill('#' + id, id === 'scatter-density' ? '60' : '123');
+      await page.press('#' + id, 'Enter');
+      expect(await page.evaluate(() => [Tools.getActive(), Tools.isPasting(), Tools.isMoving(), History.undoSize(), Selection.size()])).toEqual(['scatter', false, false, s0, 20]);
+      expect(await snap(page)).toBe(base);
+    });
+  }
+
+  test('Enter on a self-blurring field target that is not in the DOM focus path (zone-config-name keydown) does not lift', async ({ page }) => {
+    await seedBlock(page);
+    const r = await page.evaluate(() => {
+      const el = document.getElementById('zone-config-name') as HTMLElement;
+      el.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true }));
+      return { ok: !!el, moving: Tools.isMoving(), pasting: Tools.isPasting() };
+    });
+    expect(r).toEqual({ ok: true, moving: false, pasting: false });
+  });
+
+  test('Enter on a focused input[type=button] activates it and does not lift; the transform keys ignore a text-field target too', async ({ page }) => {
+    await seedBlock(page);
+    await page.evaluate(() => {
+      const b = document.createElement('input'); b.type = 'button'; b.id = 'zz-btn'; (window as any).__clicks = 0;
+      b.onclick = () => { (window as any).__clicks++; };
+      document.body.appendChild(b); b.focus();
+    });
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => [(window as any).__clicks, Tools.isMoving(), Tools.isPasting()])).toEqual([1, false, false]);
+    // a text field target blurring itself on a transform key must not rotate a float either
+    await page.evaluate(() => { document.getElementById('zz-btn')!.remove(); Tools.copySelection(); Tools.beginPaste(Clipboard.get()); });
+    const rot = await page.evaluate(() => {
+      const i = document.createElement('input'); i.id = 'zz-txt'; i.onkeydown = () => i.blur(); document.body.appendChild(i); i.focus();
+      i.dispatchEvent(new KeyboardEvent('keydown', { key: '.', code: 'Period', bubbles: true }));
+      const x = Tools.getFloatTransform(); i.remove(); return x;
+    });
+    expect(rot).toEqual({ rot: 0, mh: false, mv: false });
+  });
+
+  // ---------- I3: in-place writers while a region is lifted ---------------------------------------
+  const lift = (page: Page) => page.evaluate(() => { const ok = Tools.beginMove(); return ok && Tools.isMoving(); });
+  async function writerCase(page: Page, run: () => Promise<void>) {
+    expect(await lift(page)).toBe(true);
+    const s0 = await page.evaluate(() => History.undoSize());
+    await run();
+    const after = await snap(page), s1 = await page.evaluate(() => History.undoSize());
+    expect(s1 - s0).toBe(1);                                              // the writer's own step only
+    expect(await page.evaluate(() => Tools.isMoving() || Tools.isPasting())).toBe(false);   // the lift is cancelled at once
+    await page.evaluate(() => Tools.dropFloat(225, 190));                 // a stale drop writes nothing
+    expect(await snap(page)).toBe(after);
+    expect(await page.evaluate(() => History.undoSize())).toBe(s1);
+  }
+  test('Clear Map while a region is lifted cancels the lift: a later drop writes nothing and adds no step', async ({ page }) => {
+    await seedBlock(page);
+    await writerCase(page, () => page.evaluate(() => { UI.showConfirm = (_t: string, _m: string, ok: () => void) => ok(); IO.clearMap(); }));
+  });
+  test('Fill Map while a region is lifted cancels the lift', async ({ page }) => {
+    await seedBlock(page);
+    await writerCase(page, () => page.evaluate(() => { UI.showConfirm = (_t: string, _m: string, ok: () => void) => ok(); UI.selectTerrain('Desert_1'); IO.fillMap(); }));
+  });
+  test('the QA tile placer while a region is lifted cancels the lift', async ({ page }) => {
+    await seedBlock(page);
+    await page.evaluate(() => { Selection.setCells(Tools._rectCells(223, 222, 227, 226)); });   // right next to the city, where the placer writes
+    await writerCase(page, () => page.evaluate(() => Dev.qaPlaceAllTiles()));
+  });
+  test('applying a satellite classification while a region is lifted cancels the lift', async ({ page }) => {
+    await seedBlock(page);
+    const dataUrl = await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d')!;
+      for (let j = 0; j < 64; j += 8) for (let i = 0; i < 64; i += 8) { x.fillStyle = `hsl(${(i * 7 + j * 3) % 360},${30 + (i % 5) * 12}%,${15 + (j % 7) * 10}%)`; x.fillRect(i, j, 8, 8); }
+      return c.toDataURL('image/png');
+    });
+    await page.evaluate(() => Satellite.open());
+    await page.locator('#sat-modal input[type=file]').setInputFiles({ name: 'sat.png', mimeType: 'image/png', buffer: Buffer.from(dataUrl.split(',')[1], 'base64') });
+    await page.waitForFunction(() => !(document.getElementById('sat-apply-btn') as HTMLButtonElement).disabled);
+    await writerCase(page, () => page.evaluate(() => Satellite.apply()));
+  });
+
+  // The drop itself revalidates the lifted cells against the map (writers that do not cancel, or any other in-place edit).
+  const mutations = ['terrain id', 'an object appears', 'an object id changes', 'a road appears', 'a bridge appears', 'extras appear', 'a zone is painted'];
+  const mutate = (page: Page, name: string) => page.evaluate((name) => {
+    const W = MAP_WIDTH;
+    if (name === 'terrain id') mapData[220 * W + 222] = 'Desert_1';
+    else if (name === 'an object appears') objectsData['223,220'] = 'Grain_1';              // (223,220): no object after seedBlock
+    else if (name === 'an object id changes') objectsData['222,220'] = 'Grain_2';        // (222,220) holds Grain_1 after seedBlock
+    else if (name === 'a road appears') roadsData['224,221'] = { type: 'dirt' };
+    else if (name === 'a bridge appears') bridgesData.push({ col: 225, row: 221, axis: 1 });
+    else if (name === 'extras appear') tileExtras['226,221'] = { tag: 1 };
+    else if (name === 'a zone is painted') ZonePainter.getZoneLayer()[222 * W + 224] = 3;
+    else throw new Error(name);
+  }, name);
+  for (const name of mutations) {
+    test(`drop-time revalidation: ${name} in the lifted region behind the float cancels the move (toast, nothing written, no step)`, async ({ page }) => {
+      await seedBlock(page);
+      expect(await lift(page)).toBe(true);
+      const s0 = await page.evaluate(() => History.undoSize());
+      await mutate(page, name);
+      const base = await snap(page);
+      const n = await page.evaluate(() => Tools.dropFloat(225, 190));
+      expect(n).toBe(0);
+      expect(await snap(page)).toBe(base);
+      expect(await page.evaluate(() => [History.undoSize(), Tools.isMoving(), Tools.isPasting()])).toEqual([s0, false, false]);
+      expect((await toasts(page)).some(t => /map changed while the region was lifted/i.test(t))).toBe(true);
+    });
+  }
+  test('an edit OUTSIDE the lifted cells does not cancel the move', async ({ page }) => {
+    await seedBlock(page);
+    expect(await lift(page)).toBe(true);
+    const n = await page.evaluate(() => { mapData[300 * MAP_WIDTH + 300] = 'Desert_1'; return Tools.dropFloat(225, 190); });
+    expect(n).toBe(20);
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(false);
+  });
+
+  // ---------- I4: a move dropped partly off the map ------------------------------------------------
+  test('a move dropped on the map corner tells how many cells fell off the map; undo restores them', async ({ page }) => {
+    const n = await seedBlock(page);
+    const base = await snap(page), s0 = await page.evaluate(() => History.undoSize());
+    expect(await lift(page)).toBe(true);
+    await page.evaluate(() => Tools.dropFloat(1, 1));
+    const written = await page.evaluate(() => Selection.size());
+    expect(written).toBeGreaterThan(0); expect(written).toBeLessThan(n);
+    const t = (await toasts(page)).find(x => /fell off the map/i.test(x));
+    expect(t).toBeTruthy();
+    expect(Number(/(\d+) cells? fell off/.exec(t!)![1])).toBe(n - written);
+    expect(await page.evaluate(() => History.undoSize())).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    expect(await snap(page)).toBe(base);
+  });
+  test('a move that keeps every cell does not toast about lost cells', async ({ page }) => {
+    await seedBlock(page);
+    expect(await lift(page)).toBe(true);
+    await page.evaluate(() => Tools.dropFloat(225, 190));
+    expect((await toasts(page)).filter(x => /fell off|skipped/i.test(x))).toEqual([]);
+  });
+  test('a rotated move that loses cells AND keeps a multi-tile anchor shows both the lost-cells and the orientation toast', async ({ page }) => {
+    const r = await page.evaluate((FP) => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT, cells = HexUtils.discCells(200, 200, 4, W, H);
+      cells.forEach((c: any) => { mapData[c.row * W + c.col] = 'Forest_1'; });
+      mapData[200 * W + 200] = FP; invalidateSatelliteMap();
+      Selection.setCells(cells);
+      Tools.beginMove(); Tools.rotateFloat(1); Tools.dropFloat(2, 2);
+      const t = (window as any).__toasts as string[];
+      return { n: cells.length, sel: Selection.size(), t, anchor: mapData[2 * W + 2] };
+    }, 'Rabbit_Flat_1');
+    expect(r.anchor).toBe('Rabbit_Flat_1');
+    const lost = r.t.find(x => /fell off the map/i.test(x));
+    expect(lost).toBeTruthy();
+    expect(Number(/(\d+) cells? fell off/.exec(lost!)![1])).toBe(r.n - 3 - r.sel);     // the 3 satellite cells are not carried (anchor + derived footprint), they are not "lost"
+    expect(r.t.some(x => /orientation/i.test(x))).toBe(true);
+  });
+
+  // ---------- Minor 1: multi-tile footprints under a transform ------------------------------------
+  test('a transformed move / paste of an anchor with its footprint writes only the anchor: no stray terrain at the rotated footprint cells', async ({ page }) => {
+    const r = await page.evaluate((FP) => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT, entry = Terrain.byHexId(FP), out: any[] = [];
+      const src = HexUtils.discCells(200, 200, 1, W, H);
+      src.forEach((c: any) => { mapData[c.row * W + c.col] = 'Forest_1'; });
+      mapData[200 * W + 200] = FP; invalidateSatelliteMap();
+      const fp = footprintCells(200, 200, entry);
+      Selection.setCells([{ col: 200, row: 200 }].concat(fp)); Tools.copySelection();
+      const buf = Clipboard.get();
+      for (const [rot, mh] of [[0, false], [1, false], [2, true], [3, false], [4, true], [5, false]] as [number, boolean][]) {
+        const area = HexUtils.discCells(100, 100, 3, W, H);
+        area.forEach((c: any) => { mapData[c.row * W + c.col] = 'Desert_1'; });
+        invalidateSatelliteMap();
+        Tools.beginPaste(buf); Tools.setFloatTransform({ rot, mh, mv: false }); Tools.dropFloat(100, 100);
+        const other = area.filter((c: any) => mapData[c.row * W + c.col] !== 'Desert_1');
+        const real = footprintCells(100, 100, entry);
+        out.push({ rot, mh, others: other.map((c: any) => c.col + ',' + c.row + ':' + mapData[c.row * W + c.col]), fpOk: real.every((f: any) => { const a = getSatelliteAnchor(f.col, f.row); return a && a.col === 100 && a.row === 100; }) });
+        Tools.setActive('paint'); History.undo();
+      }
+      return out;
+    }, FP);
+    for (const o of r) {
+      if (o.rot === 0 && !o.mh) continue;       // identity: the satellite cells land on the footprint and are the same plain terrain
+      expect(o.others, `rot ${o.rot} mh ${o.mh}`).toEqual(['100,100:Rabbit_Flat_1']);
+      expect(o.fpOk).toBe(true);
+    }
+  });
+
+  // ---------- Minor 2: geometry cache ------------------------------------------------------------
+  test('geometry cache: equivalent transforms share one entry (mh+mv = rot 3, mv = mh + rot 3) and each buffer keeps at most 6 geometries', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Selection.setCells(Tools._rectCells(222, 220, 225, 222)); Tools.copySelection();
+      const buf = Clipboard.get(), g = (rot: number, mh: boolean, mv: boolean) => Clipboard.ghostGeometry(buf, { rot, mh, mv });
+      const res: any = {};
+      res.hvIsRot3 = g(0, true, true) === g(3, false, false);
+      res.hvRot = g(2, true, true) === g(5, false, false);
+      res.vIsHRot3 = g(1, false, true) === g(4, true, false);
+      res.identity = Clipboard.ghostGeometry(buf, null) === g(0, false, false) && g(6, false, false) === g(0, false, false);
+      const b3 = JSON.parse(JSON.stringify(buf)), objs: any[] = [];
+      for (let rot = 0; rot < 6; rot++) for (const mh of [false, true]) objs.push(Clipboard.ghostGeometry(b3, { rot, mh, mv: false }));
+      res.cacheSize = Clipboard._geomCacheSize(b3);
+      const last = objs[objs.length - 1];
+      res.recentHit = Clipboard.ghostGeometry(b3, { rot: 5, mh: true, mv: false }) === last;      // most recent stays cached
+      res.evictedRebuilt = Clipboard.ghostGeometry(b3, { rot: 0, mh: false, mv: false }) !== objs[0];   // the oldest was evicted, a new (equal) geometry is built
+      res.evictedEqual = (() => { const a = Clipboard.ghostGeometry(b3, { rot: 0, mh: false, mv: false }); return a.n === objs[0].n && a.segs.length === objs[0].segs.length && a.dq.every((v: number, i: number) => v === objs[0].dq[i]); })();
+      res.cacheAfter = Clipboard._geomCacheSize(b3);
+      return res;
+    });
+    expect(r).toEqual({ hvIsRot3: true, hvRot: true, vIsHRot3: true, identity: true, cacheSize: 6, recentHit: true, evictedRebuilt: true, evictedEqual: true, cacheAfter: 6 });
+  });
+
+  // ---------- Minor 5: palette visibility at 1100 x 700 -------------------------------------------
+  test('at 1100x700 the move button and the four transform buttons are visible inside the viewport', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 700 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await seedBlock(page);
+    await expect(page.locator('#selection-move')).toBeVisible();
+    await expect(page.locator('#selection-move')).toBeInViewport({ ratio: 1 });
+    await page.keyboard.press('Control+c'); await page.keyboard.press('Control+v');
+    for (const a of ['ccw', 'cw', 'mh', 'mv']) {
+      const b = page.locator(`#paste-tools [data-act="${a}"]`);
+      await expect(b).toBeVisible();
+      await expect(b).toBeInViewport({ ratio: 1 });
+    }
+    await page.click('#paste-tools [data-act="cw"]');
+    expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 1, mh: false, mv: false });
   });
 });
