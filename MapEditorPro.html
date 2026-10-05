@@ -1435,6 +1435,9 @@ body.mode-common #map-io    { display: none; }
           <button class="tool-btn" data-tool="replace" onclick="Tools.setActive('replace')" title="Replace (H) - click a tile to replace every tile of that id with the active terrain (inside the selection when there is one; the whole map otherwise). Edit > Replace Tile... picks both ids. One undo step">⇄</button>
           <button class="tool-btn" data-tool="object" onclick="Tools.setActive('object')" title="Place Building (B) - click or drag to place the building picked in the picker; replaces a building already there. Buildings that spawn satellites (e.g. Farm_Test_1 with Grain_1) get them on the free neighbouring cells. Esc cancels the stroke">🏗</button>
           <button class="tool-btn" data-tool="erase-object" onclick="Tools.setActive('erase-object')" title="Erase Building - click or drag to remove buildings (and the satellites they spawned). Esc cancels the stroke">🗑</button>
+          <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')" title="Draw Road (W) - click a tile next to an existing road, the city or a settlement to add a road tile (one tap per tile; a drag draws only the tile under the press). One undo step per click, Esc cancels">🛣</button>
+          <button class="tool-btn" data-tool="road-connect" onclick="Tools.setActive('road-connect')" title="Connect Road (C) - click a start tile, then a destination: the shortest path between them becomes road (one undo step). The destination becomes the next start, Esc or switching tool clears the start">🔗</button>
+          <button class="tool-btn" data-tool="erase-road" onclick="Tools.setActive('erase-road')" title="Erase Road (Q) - click a road tile to remove only the road (terrain, buildings and zones stay). One undo step per click, Esc cancels">🚫</button>
           <span id="obj-building-label" style="display:none;flex:1 0 100%;font-size:11px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
         </div>
       <div id="selection-row" style="display:none;align-items:center;gap:6px;padding:6px 8px 0;font-size:11px;color:var(--muted)">
@@ -2425,7 +2428,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "db0c51f";
+const COMMIT  = "58dbcc2";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5510,11 +5513,11 @@ const Tools = (() => {
     eye: 'Eyedropper', select: 'Select Tile',
     settlement: 'Place Settlement', erase: 'Erase Settlement',
     zone: 'Zone Painter', object: 'Place Building', 'erase-object': 'Erase Building',
-    'road-connect': 'Connect Road',
+    road: 'Draw Road', 'road-connect': 'Connect Road', 'erase-road': 'Erase Road',
     line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser', scatter: 'Scatter', marquee: 'Select Region', paste: 'Paste', replace: 'Replace Tile',
   };
   // Physical-key tool shortcuts (layout independent). Later tasks add entries.
-  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee', KeyH: 'replace', KeyB: 'object' };
+  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee', KeyH: 'replace', KeyB: 'object', KeyW: 'road', KeyC: 'road-connect', KeyQ: 'erase-road' };
   let _float = null;          // paste mode: { buf, md, W, H, xf:{rot,mh,mv}, move:null|{cells} } (md/W/H = the map it was started on)
   let _prevTool = 'paint';    // tool restored when a paste ends
   let _floatKey = '';         // last cell the ghost was built for
@@ -5556,7 +5559,7 @@ const Tools = (() => {
   }
 
   function setActive(name) {
-    if (_active !== name && name !== 'road-connect') _roadConnectStart = null;
+    if (_active !== name && name !== 'road-connect') _clearRoadStart(true);   // a pending Connect Road start never survives a tool switch
     _active = name;
     _rectStart = null;
     _toolsRectPreview = null;
@@ -6157,10 +6160,11 @@ const Tools = (() => {
   // (New/Load), Escape (History.rollback of the stroke's own step) and undo gating (isStroking) are all driven by it.
   // LAZY stroke tools push their single History step right before the first real mutation (_pushOnce), so a stroke
   // that changes nothing leaves no step. A lazy tool MUST (a) be listed in _LAZY_STROKE_TOOLS and (b) start its stroke
-  // ONLY through _beginLazyStroke(), which resets the token. T2.15's road tools ('road', 'road-connect',
-  // 'erase-road') must register here and call _beginLazyStroke() in _onDown, then _pushOnce() before their first write.
+  // ONLY through _beginLazyStroke(), which resets the token, and call _pushOnce() immediately before its first write.
+  // The road tools ('road', 'road-connect', 'erase-road') follow this: a click is a one-event stroke.
   // The Eraser is a stroke tool too but pushes eagerly (it begins with _beginLazyStroke(); _pushOnce()).
-  const _LAZY_STROKE_TOOLS = new Set(['scatter', 'object', 'erase-object']);
+  const _LAZY_STROKE_TOOLS = new Set(['scatter', 'object', 'erase-object', 'road', 'road-connect', 'erase-road']);
+  const ROAD_TOOLS = new Set(['road', 'road-connect', 'erase-road']);
   function _isStrokeTool(t) { return t === 'eraser' || _LAZY_STROKE_TOOLS.has(t); }
   function _beginLazyStroke() {
     _eraseToken = null; _objToasted = false;
@@ -6365,53 +6369,69 @@ const Tools = (() => {
     return false;
   }
 
+  // The three road writers return true when they changed roadsData, and call _pushOnce() only immediately before
+  // their first write (a click that changes nothing leaves no History step). They run inside a stroke started by _onDown.
   function _paintRoad(col, row) {
     const key = col + ',' + row;
-    if (roadsData[key]) return;
+    if (roadsData[key]) return false;
     if (!_isRoadNetworkNeighbor(col, row)) {
       UI.toast('⚠ Road must connect to an existing road, the city, or a settlement');
-      return;
+      return false;
     }
+    _pushOnce();
     roadsData[key] = { type: 'road_hex' };
     IO.scheduleAutoSave();
     Canvas.render();
+    return true;
   }
 
-  // Connect Road tool: first click sets the start anchor (placing that tile);
-  // second click places ONLY the BFS-computed path to the new tile — no other
-  // clicks in between, so a stray click can never fork off an unrelated tile.
-  // The destination becomes the new anchor, so consecutive uses chain segments.
+  // Connect Road tool (click, click). The first click only SETS the start (a highlighted cell, nothing is written);
+  // the second click writes the BFS-computed path between them, start and destination included, as ONE History step.
+  // The destination becomes the new start, so consecutive clicks chain segments. A pending start is dropped by Escape,
+  // a tool switch, or a map replacement (it remembers the map it was set on).
+  let _roadConnectMd = null, _roadConnectW = 0, _roadConnectH = 0;
+  const ROAD_START_STYLE = { stroke: 'rgba(79,195,247,0.95)', fill: 'rgba(79,195,247,0.28)' };
+  function _roadConnectStale() { return !!_roadConnectStart && (_roadConnectMd !== mapData || _roadConnectW !== MAP_WIDTH || _roadConnectH !== MAP_HEIGHT); }
+  function _setRoadStart(col, row, render) {
+    _roadConnectStart = { col, row }; _roadConnectMd = mapData; _roadConnectW = MAP_WIDTH; _roadConnectH = MAP_HEIGHT;
+    Canvas.setHighlight('road-start', [{ col, row }], ROAD_START_STYLE, { render: !!render });
+  }
+  function _clearRoadStart(render) {
+    const had = !!_roadConnectStart || Canvas.hasHighlight('road-start');
+    _roadConnectStart = null; _roadConnectMd = null;
+    if (had) Canvas.setHighlight('road-start', null, null, { render: !!render });
+  }
+  function getRoadConnectStart() { return _roadConnectStart ? { col: _roadConnectStart.col, row: _roadConnectStart.row } : null; }
+
   function _connectRoad(col, row) {
+    if (_roadConnectStale()) { _clearRoadStart(false); UI.toast('Road start cleared — the map changed'); }
     if (!_roadConnectStart) {
-      const key = col + ',' + row;
-      if (!roadsData[key]) roadsData[key] = { type: 'road_hex' };
-      _roadConnectStart = { col, row };
-      IO.scheduleAutoSave();
-      Canvas.render();
+      _setRoadStart(col, row, true);
       UI.toast('Road start set — click a destination to connect');
-      return;
+      return false;
     }
-    if (_roadConnectStart.col === col && _roadConnectStart.row === row) return;
+    if (_roadConnectStart.col === col && _roadConnectStart.row === row) return false;
     const path = _hexPathBetween(_roadConnectStart.col, _roadConnectStart.row, col, row);
-    if (path) {
-      path.forEach(c => {
-        const k = c.col + ',' + c.row;
-        if (!roadsData[k]) roadsData[k] = { type: 'road_hex' };
-      });
-    } else {
-      UI.toast('Destination too far to connect');
+    if (!path) { UI.toast('Destination too far to connect'); return false; }   // the start is kept
+    const missing = path.filter(c => !roadsData[c.col + ',' + c.row]);
+    if (missing.length) {
+      _pushOnce();
+      missing.forEach(c => { roadsData[c.col + ',' + c.row] = { type: 'road_hex' }; });
+      IO.scheduleAutoSave();
     }
-    _roadConnectStart = { col, row };
-    IO.scheduleAutoSave();
+    _setRoadStart(col, row, false);
     Canvas.render();
+    return missing.length > 0;
   }
 
   function _eraseRoad(col, row) {
     const key = col + ',' + row;
-    if (!roadsData[key]) return;
+    if (!roadsData[key]) return false;
+    _pushOnce();
     delete roadsData[key];
     IO.scheduleAutoSave();
     Canvas.render();
+    return true;
   }
 
   // ── Settlements ────────────────────────────────────────────
@@ -6843,16 +6863,16 @@ const Tools = (() => {
         _lastObjectPainted = { col, row };
         break;
       case 'road':
-        History.push();
+        _beginLazyStroke();
         _paintRoad(col, row);
         _lastRoadPainted = { col, row };
         break;
       case 'road-connect':
-        History.push();
+        _beginLazyStroke();
         _connectRoad(col, row);
         break;
       case 'erase-road':
-        History.push();
+        _beginLazyStroke();
         _eraseRoad(col, row);
         _lastRoadPainted = { col, row };
         break;
@@ -6881,9 +6901,13 @@ const Tools = (() => {
       const hv = Canvas.screenToHex(sx, sy);
       if (HexUtils.inBounds(hv.col, hv.row, MAP_WIDTH, MAP_HEIGHT)) { _hoverCell = hv; _updateEraserHover(hv); }
     }
+    if (_active === 'road-connect' && _roadConnectStale() && !_eraseStroke) {   // a pending start from another map: drop it
+      _clearRoadStart(false); UI.toast('Road start cleared — the map changed'); Canvas.render();
+    }
     if (_isStrokeTool(_active) && _eraseStroke && _eraseStale()) {   // the map was replaced mid-stroke: stop, write nothing
-      _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _lastObjectPainted = null; _clearEraserHover();
-      UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : _active === 'eraser' ? 'Eraser stopped — the map changed' : 'Building tool stopped — the map changed');
+      _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _lastObjectPainted = null; _lastRoadPainted = null; _clearEraserHover();
+      if (_active === 'road-connect') _clearRoadStart(false);
+      UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : _active === 'eraser' ? 'Eraser stopped — the map changed' : ROAD_TOOLS.has(_active) ? 'Road tool stopped — the map changed' : 'Building tool stopped — the map changed');
       Canvas.render();
       return;
     }
@@ -7029,7 +7053,7 @@ const Tools = (() => {
       if (_active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); }
       if (_isStrokeTool(_active)) {
         const had = _eraseStroke || Canvas.hasHighlight(_active);
-        _isDown = false; _eraseStroke = false; _eraseToken = null; _scatterRun = null; _lastPainted = null; _lastObjectPainted = null; _hoverCell = null; _clearEraserHover();
+        _isDown = false; _eraseStroke = false; _eraseToken = null; _scatterRun = null; _lastPainted = null; _lastObjectPainted = null; _lastRoadPainted = null; _hoverCell = null; _clearEraserHover();
         if (had) { IO.scheduleAutoSave(); Canvas.render(); }
       }
     });
@@ -7066,13 +7090,15 @@ const Tools = (() => {
       }
       const mapMode = document.body.classList.contains('mode-map');
       if (e.key === 'Escape' && _eraseStroke) {      // cancel the stroke: roll back ITS History step (no-op if it is no longer on top)
-        _eraseStroke = false; _isDown = false; _lastPainted = null; _scatterRun = null;
+        _eraseStroke = false; _isDown = false; _lastPainted = null; _lastRoadPainted = null; _scatterRun = null;
         if (!_eraseStale()) History.rollback(_eraseToken);
         _eraseToken = null;
+        if (_active === 'road-connect') _clearRoadStart(false);   // the rolled-back connection leaves no dangling start
         IO.scheduleAutoSave();
         Canvas.render(); Canvas.drawMinimap();
         return;
       }
+      if (e.key === 'Escape' && _active === 'road-connect' && _roadConnectStart && !e.defaultPrevented && mapMode && !_isTypingOrModal(e)) { _clearRoadStart(true); return; }   // cancels the pending start only: no step, the tool stays
       if (e.key === 'Escape' && _active === 'object' && _buildingPickerOpen() && !e.defaultPrevented && !_isTypingOrModal(e)) { e.preventDefault(); _closeBuildingPicker(); return; }   // closes the picker only: the tool stays and the selection is kept
       if (e.key === 'Escape' && _float && !e.defaultPrevented && mapMode && !_isTypingOrModal()) { _endPaste(); return; }   // ends the paste only; the selection stays
       if (e.key === 'Escape' && !e.defaultPrevented && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
@@ -7116,7 +7142,7 @@ const Tools = (() => {
   function isStroking() { return _eraseStroke || isMoving(); }   // undo / redo are ignored while a lifted selection floats
   function isPasting() { return !!_float; }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy, isStrokeActive,
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getRoadConnectStart, whenIdle, isFillBusy, isStrokeActive,
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,

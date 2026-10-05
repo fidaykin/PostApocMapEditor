@@ -648,3 +648,426 @@ test.describe('building picker keyboard hygiene (N1, N3)', () => {
     expect(await pickerDisplay(page)).toBe('none');
   });
 });
+
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════
+// T2.15: Draw Road (W), Connect Road (C), Erase Road (Q). Adjacency references are PIXEL geometry (pixelDisc), not
+// Roads.getNeighbors; the gate itself (which uses Roads.getNeighbors, K1) is exercised through a cell that both agree on.
+// ════════════════════════════════════════════════════════════════════════════════════════════════════════════════
+test.describe('road tools (T2.15)', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); await spyToasts(page); });
+  const CITY = { col: 225, row: 224 };
+  const roadKeys = (page: Page): Promise<string[]> => page.evaluate(() => Object.keys(roadsData).sort());
+  const roadSnap = (page: Page) => page.evaluate(() => JSON.stringify(roadsData));
+  const startOf = (page: Page) => page.evaluate(() => Tools.getRoadConnectStart());
+  const hash = (page: Page) => page.evaluate(() => { const cv = document.getElementById('map-canvas') as HTMLCanvasElement; const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data; let h = 0; for (let i = 0; i < d.length; i += 53) h = (h * 31 + d[i]) | 0; return h; });
+
+  /** A cell that is (a) pixel-adjacent to the city (independent reference) and (b) accepted by the game gate both ways. */
+  const goodNeighbour = async (page: Page): Promise<{ col: number; row: number }> => {
+    const ring = await pixelDisc(page, CITY.col, CITY.row, 1);
+    expect(ring.length).toBe(6);
+    const nb = await page.evaluate(([ringKeys]) => {
+      const sym = (c: number, r: number) => Roads.getNeighbors(c, r).some((m: any) => m.col === 225 && m.row === 224) && Roads.getNeighbors(225, 224).some((m: any) => m.col === c && m.row === r);
+      const k = (ringKeys as string[]).find(x => { const [c, r] = x.split(',').map(Number); return sym(c, r); });
+      return k ? { col: Number(k.split(',')[0]), row: Number(k.split(',')[1]) } : null;
+    }, [ring]);
+    expect(nb).not.toBeNull();
+    return nb!;
+  };
+  const roadTool = (page: Page, t: string) => page.evaluate((tool) => { Tools.setActive(tool); }, t);
+
+  test('the three buttons live in the left palette (not the top toolbar); the canvas keeps its 1491 px width at 1400x900', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    const r = await page.evaluate(() => {
+      const q = (t: string) => document.querySelector('.tool-btn[data-tool="' + t + '"]') as HTMLElement | null;
+      const bs = ['road', 'road-connect', 'erase-road'].map(q);
+      return { all: bs.every(b => !!b), inPalette: bs.every(b => !!b && !!b.closest('#palette-panel') && !b.closest('#toolbar') && b.getBoundingClientRect().width > 0),
+               titles: bs.map(b => b && b.title), cw: (document.getElementById('map-canvas') as HTMLCanvasElement).width };
+    });
+    expect(r.all).toBe(true);
+    expect(r.inPalette).toBe(true);
+    expect(r.titles[0]).toContain('Draw Road (W)');
+    expect(r.titles[1]).toContain('Connect Road');
+    expect(r.titles[1]).toContain('(C)');
+    expect(r.titles[2]).toContain('Erase Road (Q)');
+    expect(r.cw).toBe(1491);
+    for (const [t, name] of [['road', 'Draw Road'], ['road-connect', 'Connect Road'], ['erase-road', 'Erase Road']]) {
+      await page.click(`.tool-btn[data-tool="${t}"]`);
+      expect(await page.evaluate(() => Tools.getActive())).toBe(t);
+      expect(await page.evaluate(() => document.getElementById('st-tool')!.textContent)).toContain(name);
+    }
+  });
+
+  test('the three road tools are registered as lazy-stroke tools', async ({ page }) => {
+    expect(await page.evaluate(() => ['road', 'road-connect', 'erase-road'].map(t => Tools._lazyStrokeTools.has(t)))).toEqual([true, true, true]);
+  });
+
+  test('W / C / Q are physical-key shortcuts: not with Shift/Alt/Ctrl, not while typing or in a modal, no other key changed', async ({ page }) => {
+    for (const [code, tool] of [['KeyW', 'road'], ['KeyC', 'road-connect'], ['KeyQ', 'erase-road']]) {
+      await page.evaluate(() => Tools.setActive('paint'));
+      await page.keyboard.press(code);
+      expect(await page.evaluate(() => Tools.getActive())).toBe(tool);
+      for (const mod of ['Shift', 'Alt', 'Control']) {
+        await page.evaluate(() => Tools.setActive('paint'));
+        await page.keyboard.down(mod); await page.keyboard.press(code); await page.keyboard.up(mod);
+        expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+      }
+    }
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = 'tmp-text'; i.type = 'text'; document.body.appendChild(i); i.focus(); });
+    await page.keyboard.press('KeyW');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    await page.evaluate(() => document.getElementById('tmp-text')!.remove());
+    await page.evaluate(() => { const m = document.createElement('div'); m.id = 'tmp-modal'; document.body.appendChild(m); });
+    await page.keyboard.press('KeyQ');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    await page.evaluate(() => document.getElementById('tmp-modal')!.remove());
+    // a held key (auto-repeat) does not switch
+    await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'w', code: 'KeyW', repeat: true, bubbles: true })));
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    // every other letter still maps where it did
+    const map: Record<string, string> = {};
+    for (const k of 'abcdefghijklmnopqrstuvwxyz') { await page.evaluate(() => Tools.setActive('paint')); await page.keyboard.press('Key' + k.toUpperCase()); map[k] = await page.evaluate(() => Tools.getActive()); }
+    expect(map).toMatchObject({ w: 'road', c: 'road-connect', q: 'erase-road', b: 'object', p: 'paint', f: 'fill', r: 'rect', e: 'eye', s: 'select', t: 'settlement', d: 'erase', z: 'zone', l: 'line', o: 'circle', g: 'polygon', x: 'eraser', a: 'scatter', m: 'marquee', h: 'replace' });
+  });
+
+  test('W draws a connected road tile in ONE undo step, redo restores it, and a floating tile is refused with a toast and no step', async ({ page }) => {
+    const nb = await goodNeighbour(page);
+    await page.keyboard.press('KeyW');
+    const s0 = await undoSize(page);
+    await clickCell(page, nb.col, nb.row);
+    expect(await roadKeys(page)).toEqual([nb.col + ',' + nb.row]);
+    expect(await page.evaluate(() => Object.values(roadsData)[0])).toEqual({ type: 'road_hex' });
+    expect(await undoSize(page)).toBe(s0 + 1);
+    // 4 cells from the city along the row: far outside the network (and not within pixel distance 2 of the city)
+    expect((await pixelDisc(page, CITY.col, CITY.row, 2)).includes('225,228')).toBe(false);
+    await clickCell(page, 225, 228);
+    expect(await roadKeys(page)).toEqual([nb.col + ',' + nb.row]);
+    expect(await undoSize(page)).toBe(s0 + 1);
+    expect((await toasts(page)).some(t => /must connect/i.test(t))).toBe(true);
+    await page.evaluate(() => History.undo());
+    expect(await roadKeys(page)).toEqual([]);
+    await page.evaluate(() => History.redo());
+    expect(await roadKeys(page)).toEqual([nb.col + ',' + nb.row]);
+  });
+
+  test('W grows the network tile by tile (each click one step); a click on an existing road tile changes nothing (no step)', async ({ page }) => {
+    const nb = await goodNeighbour(page);
+    await roadTool(page, 'road');
+    await clickCell(page, nb.col, nb.row);
+    const s1 = await undoSize(page);
+    await clickCell(page, nb.col, nb.row);
+    expect(await undoSize(page)).toBe(s1);
+    // a second tile adjacent (pixel geometry) to the first and accepted by the gate
+    const ring = await pixelDisc(page, nb.col, nb.row, 1);
+    const next = await page.evaluate(([ringKeys]) => (ringKeys as string[]).map(k => k.split(',').map(Number)).find(([c, r]) => !roadsData[c + ',' + r] && !(c === 225 && r === 224) && Roads.getNeighbors(c, r).some((m: any) => roadsData[m.col + ',' + m.row])), [ring]);
+    expect(next).toBeTruthy();
+    await clickCell(page, next![0], next![1]);
+    expect(await undoSize(page)).toBe(s1 + 1);
+    expect((await roadKeys(page)).length).toBe(2);
+  });
+
+  test('a drag with Draw Road places only the tile under the press (roads go one tap at a time) in one step', async ({ page }) => {
+    const nb = await goodNeighbour(page);
+    await roadTool(page, 'road');
+    const s0 = await undoSize(page);
+    await dragCells(page, nb, { col: nb.col + 3, row: nb.row });
+    expect(await roadKeys(page)).toEqual([nb.col + ',' + nb.row]);
+    expect(await undoSize(page)).toBe(s0 + 1);
+  });
+
+  test('Q erases ONLY the road: terrain, building and zone on the cell stay; one undo step; undo restores the road; erasing an empty cell adds no step', async ({ page }) => {
+    const nb = await goodNeighbour(page);
+    const k = nb.col + ',' + nb.row;
+    await page.evaluate(([c, r]) => {
+      roadsData[c + ',' + r] = { type: 'road_hex' }; roadsData['300,300'] = { type: 'road_hex' };
+      mapData[(r as number) * MAP_WIDTH + (c as number)] = 'Forest_1'; objectsData[c + ',' + r] = 'Artefact_Test_1';
+    }, [nb.col, nb.row]);
+    await page.keyboard.press('KeyQ');
+    const s0 = await undoSize(page);
+    await clickCell(page, nb.col, nb.row);
+    const after = await page.evaluate(([c, r]) => ({ road: (c + ',' + r) in roadsData, other: '300,300' in roadsData, id: mapData[(r as number) * MAP_WIDTH + (c as number)], obj: objectsData[c + ',' + r] }), [nb.col, nb.row]);
+    expect(after).toEqual({ road: false, other: true, id: 'Forest_1', obj: 'Artefact_Test_1' });
+    expect(await undoSize(page)).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    expect(await page.evaluate((key) => roadsData[key], k)).toEqual({ type: 'road_hex' });
+    await clickCell(page, 240, 230);                     // no road there
+    expect(await undoSize(page)).toBe(s0);
+  });
+
+  test('the road overlay follows draw, undo and redo (canvas pixels change and return)', async ({ page }) => {
+    const nb = await goodNeighbour(page);
+    await roadTool(page, 'road');
+    // full-canvas pixel snapshots with the cursor off the canvas (no hover outline), taken once two consecutive frames agree
+    // (sprites decode asynchronously after load / after a history restore); diff counts differing pixels
+    const frame = (n: string) => page.evaluate((name) => new Promise<void>(r => { Canvas.render(); requestAnimationFrame(() => { const cv = document.getElementById('map-canvas') as HTMLCanvasElement; (window as any)['__' + name] = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data; r(); }); }), n);
+    // differing pixels inside / outside the hex of (col,row) (a box of one cell pitch around its centre)
+    const diff = (a: string, b: string, c: number, r: number) => page.evaluate(([x, y, cc, rr]) => {
+      const A = (window as any)['__' + x], B = (window as any)['__' + y], W = (document.getElementById('map-canvas') as HTMLCanvasElement).width;
+      const p = Canvas.hexScreenPos(cc as number, rr as number), R = 40; let inside = 0, outside = 0;
+      for (let i = 0; i < A.length; i += 4) {
+        if (A[i] === B[i] && A[i + 1] === B[i + 1] && A[i + 2] === B[i + 2]) continue;
+        const px = (i / 4) % W, py = Math.floor(i / 4 / W);
+        if (Math.abs(px - p.x) <= R && Math.abs(py - p.y) <= R) inside++; else outside++;
+      }
+      return { inside, outside };
+    }, [a, b, c, r]);
+    const snap = async (name: string) => {
+      await page.mouse.move(2, 2);
+      await frame('tmp');
+      for (let i = 0; i < 60; i++) { await frame(name); const d = await diff('tmp', name, 0, 0); if (d.inside + d.outside === 0) return; await frame('tmp'); const e = await diff('tmp', name, 0, 0); if (e.inside + e.outside === 0) return; }
+      throw new Error('canvas never settled');
+    };
+    await snap('first');
+    await clickCell(page, nb.col, nb.row);
+    await snap('road');
+    await page.evaluate(() => History.undo());
+    await snap('undone');
+    await page.evaluate(() => History.redo());
+    await snap('redone');
+    await page.evaluate(() => History.undo());
+    await snap('undone2');
+    const drawn = await diff('road', 'undone', nb.col, nb.row);
+    expect(drawn.inside).toBeGreaterThan(200);                       // undo removes the road: a hex-sized area changes
+    expect(drawn.outside).toBe(0);                                   // and nothing else on the canvas
+    expect(await diff('road', 'redone', nb.col, nb.row)).toEqual({ inside: 0, outside: 0 });     // redo draws exactly the same pixels
+    expect(await diff('undone', 'undone2', nb.col, nb.row)).toEqual({ inside: 0, outside: 0 });  // and undo removes exactly the same
+  });
+
+  test('only the left button acts: right, middle and side buttons draw / erase / connect nothing', async ({ page }) => {
+    const nb = await goodNeighbour(page);
+    const s0 = await undoSize(page);
+    for (const tool of ['road', 'road-connect', 'erase-road']) {
+      await page.evaluate(([t, c, r]) => { Tools.setActive(t as string); if (t === 'erase-road') roadsData[c + ',' + r] = { type: 'road_hex' }; }, [tool, nb.col, nb.row]);
+      const p = await cellPoint(page, nb.col, nb.row);
+      await page.mouse.move(p.x, p.y);
+      await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' });
+      await page.mouse.down({ button: 'middle' }); await page.mouse.up({ button: 'middle' });
+      await ev(page, 'mousedown', nb.col, nb.row, { button: 3 }); await ev(page, 'mouseup', nb.col, nb.row, { button: 3 });
+      await ev(page, 'mousedown', nb.col, nb.row, { button: 4 }); await ev(page, 'mouseup', nb.col, nb.row, { button: 4 });
+      expect(await startOf(page)).toBe(null);
+    }
+    expect(await roadKeys(page)).toEqual([nb.col + ',' + nb.row]);   // only the one seeded for the erase check, still there
+    expect(await undoSize(page)).toBe(s0);
+  });
+
+  test('Escape while the button is still down rolls the road back without a step (redo stack kept)', async ({ page }) => {
+    await page.evaluate(() => { History.push(); roadsData['400,400'] = { type: 'road_hex' }; History.undo(); roadsData = {}; });
+    const nb = await goodNeighbour(page);
+    const before = await page.evaluate(() => ({ u: History.undoSize(), r: History.redoSize() }));
+    expect(before.r).toBe(1);
+    await roadTool(page, 'road');
+    const p = await cellPoint(page, nb.col, nb.row);
+    await page.mouse.move(p.x, p.y); await page.mouse.down();
+    expect(await roadKeys(page)).toEqual([nb.col + ',' + nb.row]);
+    await page.keyboard.press('Escape');
+    expect(await roadKeys(page)).toEqual([]);
+    await page.mouse.up();
+    expect(await roadKeys(page)).toEqual([]);
+    expect(await page.evaluate(() => ({ u: History.undoSize(), r: History.redoSize() }))).toEqual(before);
+  });
+
+  test('Escape while erasing rolls the erase back; undo is ignored mid-stroke', async ({ page }) => {
+    const nb = await goodNeighbour(page);
+    await page.evaluate(([c, r]) => { roadsData[c + ',' + r] = { type: 'road_hex' }; }, [nb.col, nb.row]);
+    await roadTool(page, 'erase-road');
+    const s0 = await undoSize(page);
+    const p = await cellPoint(page, nb.col, nb.row);
+    await page.mouse.move(p.x, p.y); await page.mouse.down();
+    expect(await roadKeys(page)).toEqual([]);
+    await page.evaluate(() => History.undo());                               // refused mid-stroke
+    expect(await undoSize(page)).toBe(s0 + 1);
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    expect(await roadKeys(page)).toEqual([nb.col + ',' + nb.row]);
+    expect(await undoSize(page)).toBe(s0);
+  });
+
+  test('a lost mouse-up and a window blur end the gesture cleanly; the step stays', async ({ page }) => {
+    const nb = await goodNeighbour(page);
+    await roadTool(page, 'road');
+    const s0 = await undoSize(page);
+    const p = await cellPoint(page, nb.col, nb.row);
+    await page.mouse.move(p.x, p.y); await page.mouse.down();
+    await ev(page, 'mousemove', nb.col + 1, nb.row, { buttons: 0 });
+    expect(await page.evaluate(() => Tools.isStrokeActive())).toBe(false);
+    await page.mouse.up();
+    expect(await undoSize(page)).toBe(s0 + 1);
+    await page.mouse.down();
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    expect(await page.evaluate(() => Tools.isStrokeActive())).toBe(false);
+    await page.mouse.up();
+    expect(await undoSize(page)).toBe(s0 + 1);                                  // second press was on an existing road: no step
+  });
+
+  test('a map replaced mid-gesture stops the road tool with a road-specific toast and writes nothing to the new map', async ({ page }) => {
+    const nb = await goodNeighbour(page);
+    await roadTool(page, 'road');
+    const p = await cellPoint(page, nb.col, nb.row);
+    await page.mouse.move(p.x, p.y); await page.mouse.down();
+    await page.evaluate(() => { IO.newMap(true); Canvas.centerOnCity(); });
+    await page.mouse.move(p.x + 3, p.y + 3, { steps: 2 });
+    await page.mouse.up();
+    expect(await roadKeys(page)).toEqual([]);
+    expect(await page.evaluate(() => Tools.isStrokeActive())).toBe(false);
+    const t = await toasts(page);
+    expect(t.some(x => /road tool stopped/i.test(x))).toBe(true);
+    expect(t.some(x => /building tool stopped/i.test(x))).toBe(false);
+  });
+
+  test('all three tools ignore input while a fill runs', async ({ page }) => {
+    const nb = await goodNeighbour(page);
+    const r = await page.evaluate(async ([c, rw]) => {
+      UI.selectTerrain('Forest_1');
+      const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect();
+      const fire = (t: string, cc: number, rr: number) => { const p = Canvas.hexScreenPos(cc, rr); cv.dispatchEvent(new MouseEvent(t, { clientX: rc.left + p.x, clientY: rc.top + p.y, button: 0, bubbles: true })); };
+      const p = Tools.fill(240, 240);
+      const busy = Tools.isFillBusy();
+      const before = History.undoSize();
+      Tools.setActive('road'); fire('mousedown', c as number, rw as number); fire('mouseup', c as number, rw as number);
+      const drawn = Object.keys(roadsData).length;
+      Tools.setActive('road-connect'); fire('mousedown', c as number, rw as number); fire('mouseup', c as number, rw as number);
+      const start = Tools.getRoadConnectStart();
+      roadsData[c + ',' + rw] = { type: 'road_hex' };
+      Tools.setActive('erase-road'); fire('mousedown', c as number, rw as number); fire('mouseup', c as number, rw as number);
+      const out = { busy, drawn, start, kept: (c + ',' + rw) in roadsData, steps: History.undoSize() - before };
+      await p;
+      return out;
+    }, [nb.col, nb.row]);
+    expect(r).toEqual({ busy: true, drawn: 0, start: null, kept: true, steps: 0 });
+  });
+
+  // ── Connect Road (click, click) ──────────────────────────────────────────────────────────────────────────
+  test('Connect Road: the first click only sets a visible start (no road, no step); the second click connects in ONE step; undo removes all of it', async ({ page }) => {
+    await page.keyboard.press('KeyC');
+    const s0 = await undoSize(page), r0 = await roadSnap(page);
+    await clickCell(page, 222, 224);
+    expect(await startOf(page)).toEqual({ col: 222, row: 224 });
+    expect(await page.evaluate(() => Canvas.hasHighlight('road-start'))).toBe(true);
+    expect(await roadSnap(page)).toBe(r0);
+    expect(await undoSize(page)).toBe(s0);
+    expect((await toasts(page)).some(t => /road start set/i.test(t))).toBe(true);
+    await clickCell(page, 228, 224);
+    const keys = await roadKeys(page);
+    expect(keys).toContain('222,224');
+    expect(keys).toContain('228,224');
+    expect(keys.length).toBeGreaterThanOrEqual(3);
+    expect(keys.length).toBeLessThanOrEqual(12);
+    expect(await undoSize(page)).toBe(s0 + 1);
+    expect(await startOf(page)).toEqual({ col: 228, row: 224 });             // chaining: the destination is the next start
+    await page.evaluate(() => History.undo());
+    expect(await roadSnap(page)).toBe(r0);
+    await page.evaluate(() => History.redo());
+    expect(await roadKeys(page)).toEqual(keys);
+  });
+
+  test('Connect Road chains: a third click continues from the destination as one more step; clicking the start again does nothing', async ({ page }) => {
+    await roadTool(page, 'road-connect');
+    const s0 = await undoSize(page);
+    await clickCell(page, 222, 224);
+    await clickCell(page, 222, 224);                                           // same cell: nothing
+    expect(await undoSize(page)).toBe(s0);
+    expect(await startOf(page)).toEqual({ col: 222, row: 224 });
+    await clickCell(page, 226, 224);
+    const n1 = (await roadKeys(page)).length;
+    await clickCell(page, 230, 224);
+    expect(await undoSize(page)).toBe(s0 + 2);
+    expect((await roadKeys(page)).length).toBeGreaterThan(n1);
+    await page.evaluate(() => History.undo());
+    expect((await roadKeys(page)).length).toBe(n1);
+  });
+
+  test('Connect Road over a path that already exists is no change: no step, the start still moves to the destination', async ({ page }) => {
+    await roadTool(page, 'road-connect');
+    await clickCell(page, 222, 224);
+    await clickCell(page, 228, 224);                                           // builds it (step 1), start is now 228
+    const s1 = await undoSize(page), r1 = await roadSnap(page);
+    await clickCell(page, 222, 224);                                           // the way back is already road
+    expect(await roadSnap(page)).toBe(r1);
+    expect(await undoSize(page)).toBe(s1);
+    expect(await startOf(page)).toEqual({ col: 222, row: 224 });
+  });
+
+  test('Connect Road: a destination that cannot be reached toasts, keeps the start, and changes nothing', async ({ page }) => {
+    await roadTool(page, 'road-connect');
+    const s0 = await undoSize(page);
+    await page.evaluate(() => { Canvas.setZoom(25); Canvas.centerOnCity(); });
+    const far = await page.evaluate(() => { const b = document.getElementById('map-canvas')!.getBoundingClientRect(); return [205, 245].map(c => { const p = Canvas.hexScreenPos(c, 224); return p.y > 40 && p.y < b.height - 10 && p.x > 40 && p.x < b.width; }); });
+    expect(far).toEqual([true, true]);                                         // both ends are on screen at 25% zoom
+    await clickCell(page, 205, 224);
+    await clickCell(page, 245, 224);                                           // 40 cells away: beyond the 4000-node path search cap
+    expect((await toasts(page)).some(t => /too far/i.test(t))).toBe(true);
+    expect(await startOf(page)).toEqual({ col: 205, row: 224 });
+    expect(await roadKeys(page)).toEqual([]);
+    expect(await undoSize(page)).toBe(s0);
+  });
+
+  test('Connect Road: Escape between the clicks cancels the start (no step, highlight gone); the next click starts afresh', async ({ page }) => {
+    await roadTool(page, 'road-connect');
+    const s0 = await undoSize(page);
+    await clickCell(page, 222, 224);
+    await page.keyboard.press('Escape');
+    expect(await startOf(page)).toBe(null);
+    expect(await page.evaluate(() => Canvas.hasHighlight('road-start'))).toBe(false);
+    expect(await undoSize(page)).toBe(s0);
+    expect(await page.evaluate(() => Tools.getActive())).toBe('road-connect');
+    await clickCell(page, 228, 224);                                           // a fresh start, not a connection
+    expect(await startOf(page)).toEqual({ col: 228, row: 224 });
+    expect(await roadKeys(page)).toEqual([]);
+    expect(await undoSize(page)).toBe(s0);
+  });
+
+  test('Connect Road: Escape while the second click is held rolls the whole connection back and leaves no start', async ({ page }) => {
+    await roadTool(page, 'road-connect');
+    const s0 = await undoSize(page);
+    await clickCell(page, 222, 224);
+    const p = await cellPoint(page, 228, 224);
+    await page.mouse.move(p.x, p.y); await page.mouse.down();
+    expect((await roadKeys(page)).length).toBeGreaterThanOrEqual(3);
+    await page.keyboard.press('Escape');
+    await page.mouse.up();
+    expect(await roadKeys(page)).toEqual([]);
+    expect(await undoSize(page)).toBe(s0);
+    expect(await startOf(page)).toBe(null);
+    expect(await page.evaluate(() => Canvas.hasHighlight('road-start'))).toBe(false);
+  });
+
+  test('Connect Road: a tool switch clears the pending start and its highlight (even switching back)', async ({ page }) => {
+    await roadTool(page, 'road-connect');
+    await clickCell(page, 222, 224);
+    expect(await startOf(page)).not.toBe(null);
+    await page.evaluate(() => Tools.setActive('paint'));
+    expect(await startOf(page)).toBe(null);
+    expect(await page.evaluate(() => Canvas.hasHighlight('road-start'))).toBe(false);
+    await roadTool(page, 'road-connect');
+    await clickCell(page, 228, 224);
+    expect(await startOf(page)).toEqual({ col: 228, row: 224 });              // a start, not a connection
+    expect(await roadKeys(page)).toEqual([]);
+    await page.evaluate(() => Tools.setActive('road'));
+    expect(await startOf(page)).toBe(null);
+  });
+
+  test('Connect Road: a map replaced between the clicks clears the start with a toast (on the next move) and a click never connects across maps', async ({ page }) => {
+    await roadTool(page, 'road-connect');
+    await clickCell(page, 222, 224);
+    await page.evaluate(() => { IO.newMap(true); Canvas.centerOnCity(); });
+    const p = await cellPoint(page, 226, 224);
+    await page.mouse.move(p.x, p.y);
+    expect(await startOf(page)).toBe(null);
+    expect((await toasts(page)).some(t => /road start cleared/i.test(t))).toBe(true);
+    // and with no move in between (raw press and release events): the click itself is a fresh start
+    await clickCell(page, 222, 224);
+    await page.evaluate(() => { IO.newMap(true); Canvas.centerOnCity(); });
+    await ev(page, 'mousedown', 228, 224); await ev(page, 'mouseup', 228, 224);
+    expect(await startOf(page)).toEqual({ col: 228, row: 224 });
+    expect(await roadKeys(page)).toEqual([]);
+  });
+
+  test('Connect Road ignores right/middle/side buttons for both clicks', async ({ page }) => {
+    await roadTool(page, 'road-connect');
+    const p = await cellPoint(page, 222, 224);
+    await page.mouse.move(p.x, p.y);
+    await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' });
+    await ev(page, 'mousedown', 222, 224, { button: 3 }); await ev(page, 'mouseup', 222, 224, { button: 3 });
+    expect(await startOf(page)).toBe(null);
+  });
+});
