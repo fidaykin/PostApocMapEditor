@@ -1940,12 +1940,15 @@ test.describe('scatter (T2.7)', () => {
     await page.keyboard.press('Control+KeyZ');
     await page.fill('#scatter-seed', '4243');
     await clickCell(page, 225, 224);
-    expect(await region(page)).not.toBe(first);
+    const second = await region(page);
+    expect(second).not.toBe(first);
     const ids = await page.evaluate(() => [...new Set(mapData)].sort());
     expect(ids.every((id: string) => id === 'Plain_1' || /^Forest_[123]$/.test(id))).toBe(true);
     // redo restores the same stamp (the seed is not re-rolled by undo/redo)
-    await page.keyboard.press('Control+KeyZ'); await page.keyboard.press('Control+KeyY');
-    expect(await region(page)).not.toBe(before);
+    await page.keyboard.press('Control+KeyZ');
+    expect(await region(page)).toBe(before);
+    await page.keyboard.press('Control+KeyY');
+    expect(await region(page)).toBe(second);
   });
 
   test('an empty seed rolls a fresh seed per stroke, records it, and typing the recorded seed reproduces the stroke', async ({ page }) => {
@@ -2023,11 +2026,14 @@ test.describe('scatter (T2.7)', () => {
     await clickCell(page, 225, 224);
     expect(await undoSize(page)).toBe(u); expect(await nonPlain(page)).toBe(0);
     expect(await page.evaluate(() => (window as any).__toasts.filter((m: string) => /density/i.test(m)).length)).toBe(2);
-    // out-of-range density clamps: 250 acts as 100 (all 19 cells), -5 as 0
-    await page.fill('#scatter-density', '250');
-    await clickCell(page, 225, 224);
-    expect(await nonPlain(page)).toBe(19);
-    await page.keyboard.press('Control+KeyZ');
+    // -5 acts as 0 (nothing, no step); 100 and 250 write every cell of the radius-2 disc (19)
+    for (const [d, cells] of [['-5', 0], ['0', 0], ['100', 19], ['250', 19]] as const) {
+      await page.fill('#scatter-density', d);
+      const s0 = await undoSize(page);
+      await clickCell(page, 225, 224);
+      expect([d, await nonPlain(page), (await undoSize(page)) - s0]).toEqual([d, cells, cells ? 1 : 0]);
+      if (cells) await page.keyboard.press('Control+KeyZ');
+    }
     // every roll fails (rng 0.99, density 50): the stroke touches no cell and leaves no history step
     await page.evaluate(() => Tools.setScatterRng(() => 0.99));
     await page.fill('#scatter-density', '50');
@@ -2087,24 +2093,22 @@ test.describe('scatter (T2.7)', () => {
     const r = await page.evaluate(([mk]) => {
       Tools.setScatterRng(eval(mk as string)(5));
       Tools.setSymmetry('h');
-      const centre = { col: 225, row: 224 };
-      const stamp = Brush.getAffectedTiles(228, 232);        // radius 0: one cell; use a disc instead
       const cells = HexUtils.discCells(228, 232, 1, MAP_WIDTH, MAP_HEIGHT);
-      const expanded = Tools.expandSymmetry(cells);
       const n = Tools.scatterCells(cells, 'Forest_1', 100);
-      const ids = expanded.map((c: any) => mapData[c.row * MAP_WIDTH + c.col]);
       Tools.setSymmetry('none');
-      // mirrored partner of each source cell: same index in the expansion order is not guaranteed, so compare multisets by position pairs
-      const src = cells.map((c: any) => mapData[c.row * MAP_WIDTH + c.col]);
-      const mirrored = expanded.filter((c: any) => !cells.some((q: any) => q.col === c.col && q.row === c.row)).map((c: any) => mapData[c.row * MAP_WIDTH + c.col]);
       Tools.setScatterRng(null);
-      return { n, exp: expanded.length, src, mirrored, ids, written: mapData.filter((x: string) => x !== 'Plain_1').length, steps: History.undoSize() };
+      // independent pixel reference: the left/right partner of a cell is the cell whose centre is the x-mirror about the map-centre cell
+      const mid = Canvas.hexCenterWorld(225, 224), key = (x: number, y: number) => Math.round(x * 4) + ',' + Math.round(y * 4);
+      const byPix = new Map<string, number[]>();
+      for (let c = 220; c <= 240; c++) for (let rw = 215; rw <= 240; rw++) { const w = Canvas.hexCenterWorld(c, rw); byPix.set(key(w.x, w.y), [c, rw]); }
+      const id = (c: number[]) => mapData[c[1] * MAP_WIDTH + c[0]];
+      const pairs = cells.map((c: any) => { const w = Canvas.hexCenterWorld(c.col, c.row), q = byPix.get(key(2 * mid.x - w.x, w.y)); return q ? [id([c.col, c.row]), id(q)] : null; });
+      return { n, written: mapData.filter((x: string) => x !== 'Plain_1').length, pairs };
     }, [SEEDED]);
-    expect(r.exp).toBe(14);
     expect(r.n).toBe(14);
     expect(r.written).toBe(14);
-    expect(r.ids.every((id: string) => FOREST.test(id))).toBe(true);
-    expect(JSON.stringify(r.src)).not.toBe(JSON.stringify(r.mirrored));      // independent picks, not copies
+    expect(r.pairs.every((p: any) => p && FOREST.test(p[0]) && FOREST.test(p[1]))).toBe(true);   // every source cell has a written mirror partner
+    expect(r.pairs.some((p: any) => p[0] !== p[1])).toBe(true);                                    // independent picks, not copies
   });
 
   test('with symmetry off the same stamp writes only the brush disc', async ({ page }) => {
@@ -2179,6 +2183,134 @@ test.describe('scatter (T2.7)', () => {
     });
     expect(r.present).toBe(true);
     expect(r.group).toEqual(['Forest_1', 'Forest_2', 'Forest_3']);
+  });
+
+  test('a stamp rebuilds the footprint map at most twice, however many variants the family has (Forest_1, Water_1, Lake_1, River_L_1)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const out: any = {};
+      Brush.setSize(4);
+      const orig = (window as any)._buildSatelliteMap;
+      let n = 0;
+      (window as any)._buildSatelliteMap = () => { n++; return orig(); };
+      for (const id of ['Forest_1', 'Water_1', 'Lake_1', 'River_L_1']) {
+        if (!Terrain.byHexId(id)) { out[id] = null; continue; }
+        UI.selectTerrain(id); Tools.setActive('scatter');
+        (document.getElementById('scatter-density') as HTMLInputElement).value = '100';
+        (document.getElementById('scatter-seed') as HTMLInputElement).value = '3';
+        mapData.fill('Plain_1'); invalidateSatelliteMap();
+        const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), p = Canvas.hexScreenPos(225, 224);
+        const ev = (t: string) => new MouseEvent(t, { clientX: rc.left + p.x, clientY: rc.top + p.y, button: 0, buttons: t === 'mouseup' ? 0 : 1, bubbles: true });
+        n = 0;
+        const g = Tools.scatterVariants(id);
+        cv.dispatchEvent(ev('mousedown')); cv.dispatchEvent(ev('mouseup'));
+        out[id] = { rebuilds: n, variants: g.length };
+      }
+      (window as any)._buildSatelliteMap = orig;
+      return out;
+    });
+    for (const id of ['Forest_1', 'Water_1', 'Lake_1', 'River_L_1']) if (r[id]) expect(r[id].rebuilds, id).toBeLessThanOrEqual(2);
+    expect(r.Forest_1.variants).toBe(3);
+  });
+
+  test('single-pass writes equal the old per-variant writes for a fixed seed (independent reference)', async ({ page }) => {
+    const r = await page.evaluate(([mk]) => {
+      const W = MAP_WIDTH, cells = HexUtils.discCells(225, 224, 4, W, MAP_HEIGHT);
+      const snap = () => JSON.stringify(cells.map((c: any) => mapData[c.row * W + c.col]));
+      // reference: picks from the shared picker with the same seed, then ONE Paint-style call per variant (the old behaviour)
+      const picks = HexUtils.scatterPick(cells, Tools.scatterVariants('Forest_1'), 70, eval(mk as string)(21));
+      const byId = new Map<string, any[]>();
+      for (const p of picks) { if (!byId.has(p.id)) byId.set(p.id, []); byId.get(p.id)!.push(p); }
+      for (const [id, list] of byId) Tools.applyTerrainCells(list, id, { noSymmetry: true });
+      const expected = snap();
+      mapData.fill('Plain_1'); invalidateSatelliteMap();
+      Tools.setScatterRng(eval(mk as string)(21));
+      const n = Tools.scatterCells(cells, 'Forest_1', 70);
+      Tools.setScatterRng(null);
+      return { expected, got: snap(), n, picks: picks.length, groups: byId.size };
+    }, [SEEDED]);
+    expect(r.groups).toBe(3);
+    expect(r.n).toBe(r.picks);
+    expect(r.got).toBe(r.expected);
+  });
+
+  test('directional river/lake pieces are not scattered; a selected directional id yields its non-directional family or the accurate toast', async ({ page }) => {
+    await toasts(page);
+    const r = await page.evaluate(() => {
+      const dir = HexDB.getAll().filter((h: any) => Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0).map((h: any) => h.id);
+      const some = dir[0];
+      const leaked = ['River_L_1', 'Lake_1', 'Water_1', some].some(id => Tools.scatterVariants(id).some((v: string) => dir.includes(v)));
+      return { dir: dir.length, leaked, ofDir: Tools.scatterVariants(some), some };
+    });
+    expect(r.dir).toBeGreaterThan(0);
+    expect(r.leaked).toBe(false);
+    if (r.ofDir.length === 0) {
+      await setupScatter(page, { density: 100, radius: 1, terrain: r.some });
+      const u = await undoSize(page);
+      await clickCell(page, 225, 224);
+      expect(await undoSize(page)).toBe(u);
+      expect(await page.evaluate(() => (window as any).__toasts)).toContain('Scatter: the selected tile has no scatterable variants');
+    }
+  });
+
+  test('scatterCells with an explicit seed or rng does not read the seed field or touch the recorded seed', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const el = document.getElementById('scatter-seed') as HTMLInputElement;
+      el.value = '777'; el.placeholder = 'orig';
+      const cells = HexUtils.discCells(225, 224, 2, MAP_WIDTH, MAP_HEIGHT);
+      const last0 = Tools.getLastScatterSeed();
+      Tools.scatterCells(cells, 'Forest_1', 100, { seed: 5 });
+      const a = JSON.stringify(cells.map((c: any) => mapData[c.row * MAP_WIDTH + c.col]));
+      mapData.fill('Plain_1');
+      Tools.scatterCells(cells, 'Forest_1', 100, { seed: 5 });
+      const b = JSON.stringify(cells.map((c: any) => mapData[c.row * MAP_WIDTH + c.col]));
+      Tools.setScatterRng(() => 0.1);
+      Tools.scatterCells(cells, 'Forest_1', 100);
+      Tools.setScatterRng(null);
+      return { same: a === b, last: Tools.getLastScatterSeed() === last0, ph: el.placeholder };
+    });
+    expect(r).toEqual({ same: true, last: true, ph: 'orig' });
+  });
+
+  test('pre-write window: Ctrl+Z before the first written cell is ignored; Escape then rolls back only the scatter step', async ({ page }) => {
+    await page.evaluate(() => { History.push(); mapData[240 * MAP_WIDTH + 240] = 'Water_1'; });
+    await setupScatter(page, { density: 50, radius: 0 });
+    await page.evaluate(() => { let calls = 0; Tools.setScatterRng(() => (++calls <= 1 ? 0.99 : 0.0)); });   // first cell fails the roll, later ones are taken
+    const u = await undoSize(page);
+    const p = await cellPoint(page, 225, 224), p2 = await cellPoint(page, 227, 224);
+    await press(page, p);
+    expect(await page.evaluate(() => Tools.isStroking())).toBe(true);
+    expect(await nonPlain(page)).toBe(1);                         // only the Water_1 marker: nothing written yet
+    await page.keyboard.press('Control+KeyZ');
+    expect(await undoSize(page)).toBe(u);
+    expect(await page.evaluate(() => mapData[240 * MAP_WIDTH + 240])).toBe('Water_1');
+    await page.mouse.move(p2.x, p2.y, { steps: 4 });
+    expect(await undoSize(page)).toBe(u + 1);
+    expect(await nonPlain(page)).toBeGreaterThan(1);
+    await page.keyboard.press('Escape');
+    expect(await undoSize(page)).toBe(u);
+    expect(await nonPlain(page)).toBe(1);
+    await page.mouse.up();
+    await page.evaluate(() => Tools.setScatterRng(null));
+    await page.keyboard.press('Control+KeyZ');                     // the previous step is intact
+    expect(await page.evaluate(() => mapData[240 * MAP_WIDTH + 240])).toBe('Plain_1');
+  });
+
+  test('a focused variant chip does not trap the tool shortcuts; text fields still do', async ({ page }) => {
+    await setupScatter(page, {});
+    await page.focus('#scatter-variants input[type=checkbox]');
+    await page.keyboard.press('KeyP');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    await page.keyboard.press('KeyA');
+    await page.focus('#scatter-seed');
+    await page.keyboard.press('KeyP');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('scatter');
+    await page.focus('#scatter-density');
+    await page.keyboard.press('KeyF');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('scatter');
+    await page.evaluate(() => (document.activeElement as HTMLElement).blur());
+    await page.focus('#brush-size-range');
+    await page.keyboard.press('KeyF');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('fill');
   });
 
   test('A selects the tool by physical key, respects typing/modifiers, and no existing shortcut changed', async ({ page }) => {

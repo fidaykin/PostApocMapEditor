@@ -1411,7 +1411,7 @@ body.mode-common #map-io    { display: none; }
           <button class="tool-btn" data-tool="circle" onclick="Tools.setActive('circle')" title="Circle (O) - drag from centre, Shift = filled">◯</button>
           <button class="tool-btn" data-tool="polygon" onclick="Tools.setActive('polygon')" title="Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline">⬠</button>
           <button class="tool-btn" data-tool="eraser" onclick="Tools.setActive('eraser')" title="Eraser (X) - drag to reset tiles to Plain_1 and remove buildings, roads, bridges and under-terrain. Brush size applies, symmetry mirrors it like Paint, Esc cancels the stroke. Zones and settlements are not touched">⌫</button>
-          <button class="tool-btn" data-tool="scatter" onclick="Tools.setActive('scatter')" title="Scatter (A) - drag to sprinkle random variants of the selected terrain inside the brush, at the density below. Same seed gives the same result; symmetry mirrors the area (each cell rolls on its own), Esc cancels the stroke">⁘</button>
+          <button class="tool-btn" data-tool="scatter" onclick="Tools.setActive('scatter')" title="Scatter (A) - drag to sprinkle random variants of the selected terrain inside the brush, at the density below. Directional river/lake pieces are not scattered. Same seed gives the same result for the same drag; symmetry mirrors the area (each cell rolls on its own), Esc cancels the stroke">⁘</button>
         </div>
       <div id="scatter-row" style="display:none;padding:6px 8px 0;font-size:11px;color:var(--muted)">
         <div style="display:flex;align-items:center;gap:6px">
@@ -2357,7 +2357,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "0ab4f47";
+const COMMIT  = "fe968f6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4473,7 +4473,7 @@ const Tools = (() => {
     _isDown = false;                    // a drag started with the old tool must not keep writing with the new one
     _lastPainted = null; _lastZonePainted = null; _lastObjectPainted = null; _lastRoadPainted = null;
     _cancelShape();
-    _eraseStroke = false; _eraseToken = null; _clearEraserHover();
+    _eraseStroke = false; _eraseToken = null; _scatterRun = null; _clearEraserHover();
     _showScatterRow(name === 'scatter');
     document.querySelectorAll('.tool-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tool === name);
@@ -4627,16 +4627,21 @@ const Tools = (() => {
   // loop, but ends in the same _autoResolveEdgesAround.
   function _applyTerrainCells(cells, hexId, opts) {
     if (!(opts && opts.noSymmetry) && _symmetryApplies(hexId)) cells = _expandSymmetry(cells);
+    return _writeTerrain(cells, hexId);
+  }
+  // The write itself: each cell takes `hexId`, or its own `id` when hexId is null (Scatter writes all picks of a
+  // stamp in this ONE pass: one footprint-map rebuild and one edge re-resolution over the union).
+  function _writeTerrain(cells, hexId) {
     const seen = new Set();
     const touched = [];
-    for (const { col: c, row: r } of cells) {
+    for (const { col: c, row: r, id } of cells) {
       if (c < 0 || c >= MAP_WIDTH || r < 0 || r >= MAP_HEIGHT) continue;
       const k = r * MAP_WIDTH + c;
       if (seen.has(k)) continue;
       seen.add(k);
       if (getSatelliteAnchor(c, r)) continue;      // never paint under a multi-tile footprint
       touched.push({ col: c, row: r, prev: mapData[k] });
-      mapData[k] = hexId;
+      mapData[k] = hexId || id;
       const bi = bridgesData.findIndex(b => b.col === c && b.row === r);
       if (bi >= 0) bridgesData.splice(bi, 1);
     }
@@ -4947,7 +4952,7 @@ const Tools = (() => {
   function getLastScatterSeed() { return _lastScatterSeed; }
 
   // The variants of an id: same HexDB type and same first '_' segment, no multi-tile entries (their footprint cannot
-  // be scattered), no test/kaiju/chicken placeholders. Falls back to the id itself when it is not in HexDB.
+  // be scattered), no directional river/lake pieces (edgeFaces), no test/kaiju/chicken placeholders. Falls back to the id itself when it is not in HexDB.
   function _scatterVariants(hexId) {
     const base = Terrain.byHexId(hexId);
     if (!base) return typeof hexId === 'string' && hexId ? [hexId] : [];
@@ -4955,6 +4960,7 @@ const Tools = (() => {
     return HexDB.getAll()
       .filter(h => h.id && h.type === base.type && h.id.split('_')[0].toLowerCase() === prefix &&
                    !(Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length) &&
+                   !_isDirectional(h) &&               // river/lake direction pieces: edge re-resolution overrides the pick
                    !/_test|kaiju|chicken/i.test(h.id))
       .map(h => h.id);
   }
@@ -4967,7 +4973,7 @@ const Tools = (() => {
     const v = el ? parseFloat(el.value) : 40;
     return isFinite(v) ? Math.max(0, Math.min(100, v)) : 0;
   }
-  function _scatterSeed() {
+  function _scatterSeed() {                // the stroke seed: the seed field, else a fresh one; recorded for the UI
     const el = document.getElementById('scatter-seed');
     const v = el && el.value !== '' ? Number(el.value) : NaN;
     let seed;
@@ -4992,15 +4998,12 @@ const Tools = (() => {
     const picks = HexUtils.scatterPick(fresh, ids, density, rng).filter(p => !getSatelliteAnchor(p.col, p.row));
     if (!picks.length) return 0;
     if (beforeWrite) beforeWrite();
-    const byId = new Map();
-    for (const p of picks) { if (!byId.has(p.id)) byId.set(p.id, []); byId.get(p.id).push(p); }
-    let n = 0;
-    for (const [id, list] of byId) n += _applyTerrainCells(list, id, { noSymmetry: true }).length;
-    return n;
+    return _writeTerrain(picks, null).length;       // one pass, per-cell ids; the area is already symmetry-expanded
   }
   // Public: scatter over `cells` (caller owns History.push). opts.visited shares a visited set between calls.
   function scatterCells(cells, hexId, density, opts) {
-    const rng = _scatterRngOverride || HexUtils.makeRng(_scatterSeed());
+    // opts.rng / opts.seed make the call independent of the seed field and the recorded seed (API and test callers)
+    const rng = (opts && opts.rng) || (opts && opts.seed != null ? HexUtils.makeRng(opts.seed) : null) || _scatterRngOverride || HexUtils.makeRng(_scatterSeed());
     return _scatterStamp(cells, _scatterVariants(hexId), density, rng, (opts && opts.visited) || new Set(), null);
   }
 
@@ -5012,6 +5015,7 @@ const Tools = (() => {
   // Starts a stroke at (col,row); false (nothing started) when there is nothing to scatter.
   function _scatterBegin(col, row) {
     if (UI.getSelectedBridgeAxis() >= 0) { UI.toast('Scatter: select a terrain first'); return false; }
+    if (!_scatterVariants(UI.getSelectedTerrain()).length) { UI.toast('Scatter: the selected tile has no scatterable variants'); return false; }
     const ids = _scatterChosen();
     if (!ids.length) { UI.toast('Scatter: no variants selected'); return false; }
     const density = _scatterDensity();
@@ -5498,7 +5502,7 @@ const Tools = (() => {
         setActive(CODE_TOOLS[e.code]);
         return;
       }
-      if (['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) return;
+      if (_isTypingOrModal()) return;
       switch (e.key.toLowerCase()) {
         case 'p': setActive('paint');        break;
         case 'f': setActive('fill');         break;
