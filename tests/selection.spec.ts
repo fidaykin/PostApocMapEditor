@@ -1470,7 +1470,7 @@ test.describe('clipboard (T2.9)', () => {
     const r = await page.evaluate(() => {
       const __o = BldDB.getAll; BldDB.getAll = () => __o.call(BldDB).concat([{ id: 'T_A', spawnsSatellites: [{ buildingId: 'T_S', radius: 1, maxCount: 6 }] }, { id: 'T_S', canBuild: false }] as any);   // fabricated entries
       try {
-        const A = { col: 225, row: 224 }, ring = HexUtils.neighbors(A.col, A.row, MAP_WIDTH, MAP_HEIGHT).slice(1);   // ring[0] omitted: the existing _removeSatellites (legacy _satelliteHexDist) misses that one true neighbour (T2.14)
+        const A = { col: 225, row: 224 }, ring = HexUtils.neighbors(A.col, A.row, MAP_WIDTH, MAP_HEIGHT);   // the full true radius-1 ring (ring[0] included; the legacy distance that missed it is gone, T2.14)
         const setup = () => { for (const k of Object.keys(objectsData)) delete objectsData[k]; objectsData['225,224'] = 'T_A'; for (const n of ring) objectsData[n.col + ',' + n.row] = 'T_S'; objectsData['300,224'] = 'T_S'; };
         const countS = () => Object.values(objectsData).filter(v => v === 'T_S').length;
         objectsData['300,300'] = 'Grain_1'; Selection.setCells([{ col: 300, row: 300 }]); Tools.copySelection();
@@ -1491,7 +1491,7 @@ test.describe('clipboard (T2.9)', () => {
     const r = await page.evaluate(() => {
       const __o = BldDB.getAll; BldDB.getAll = () => __o.call(BldDB).concat([{ id: 'T_A', spawnsSatellites: [{ buildingId: 'T_S', radius: 1, maxCount: 6 }] }, { id: 'T_S', canBuild: false }] as any);   // fabricated entries
       try {
-        const A = { col: 225, row: 224 }, ring = HexUtils.neighbors(A.col, A.row, MAP_WIDTH, MAP_HEIGHT).slice(1);   // ring[0] omitted: the existing _removeSatellites (legacy _satelliteHexDist) misses that one true neighbour (T2.14)
+        const A = { col: 225, row: 224 }, ring = HexUtils.neighbors(A.col, A.row, MAP_WIDTH, MAP_HEIGHT);   // the full true radius-1 ring (ring[0] included; the legacy distance that missed it is gone, T2.14)
         objectsData['225,224'] = 'T_A'; for (const n of ring) objectsData[n.col + ',' + n.row] = 'T_S';
         const countS = () => Object.values(objectsData).filter(v => v === 'T_S').length;
         Selection.setCells([A]); Tools.cutSelection();

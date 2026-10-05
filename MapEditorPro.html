@@ -2425,7 +2425,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "b222a40";
+const COMMIT  = "c050209";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5583,16 +5583,7 @@ const Tools = (() => {
     const label  = document.getElementById('obj-building-label');
     if (name === 'object') {
       _populateBuildingPicker();
-      if (picker) {
-        const btn = document.querySelector('.tool-btn[data-tool="object"]');
-        if (btn) {
-          // the button is in the left palette: open the picker to the right of the palette, level with the button
-          const r = btn.getBoundingClientRect(), pal = document.getElementById('palette-panel');
-          picker.style.left = ((pal ? pal.getBoundingClientRect().right : r.right) + 4) + 'px';
-          picker.style.top  = Math.max(4, Math.min(r.top, window.innerHeight - 200)) + 'px';
-        }
-        picker.style.display = 'block';
-      }
+      if (picker) { picker.style.display = 'block'; _positionBuildingPicker(); }
       if (label)  label.style.display  = 'inline';
     } else {
       if (picker) picker.style.display = 'none';
@@ -5609,6 +5600,20 @@ const Tools = (() => {
     return `packages/postapoc/sprites/buildings/${b.spriteName}.png`;
   }
 
+  // The button is in the left palette: open the picker to the right of the palette, level with the button, and cap its
+  // height to the room below that point so it always lies inside the window (the grid scrolls).
+  function _positionBuildingPicker() {
+    const picker = document.getElementById('obj-building-picker'), btn = document.querySelector('.tool-btn[data-tool="object"]');
+    if (!picker || !btn || picker.style.display === 'none') return;
+    const r = btn.getBoundingClientRect(), pal = document.getElementById('palette-panel');
+    const top = Math.max(4, Math.min(r.top, window.innerHeight - 120));
+    picker.style.left = Math.max(0, Math.min((pal ? pal.getBoundingClientRect().right : r.right) + 4, window.innerWidth - picker.offsetWidth - 4)) + 'px';
+    picker.style.top = top + 'px';
+    picker.style.maxHeight = (window.innerHeight - top - 4) + 'px';
+  }
+  function _closeBuildingPicker() { const p = document.getElementById('obj-building-picker'); if (p) p.style.display = 'none'; }
+  function _buildingPickerOpen() { const p = document.getElementById('obj-building-picker'); return !!p && p.style.display !== 'none'; }
+
   function _populateBuildingPicker() {
     const grid = document.getElementById('obj-building-picker-grid');
     if (!grid) return;
@@ -5621,7 +5626,7 @@ const Tools = (() => {
     grid.innerHTML = buildings.map(b => {
       const src = _bldSpriteUrl(b);
       const sel = b.id === _selectedBuildingId ? ' selected' : '';
-      return `<div class="bld-card${sel}" data-bld-id="${b.id}" onclick="Tools.selectBuilding('${b.id.replace(/'/g,"\\'")}')">` +
+      return `<div class="bld-card${sel}" data-bld-id="${b.id}" tabindex="0" role="button" onclick="Tools.selectBuilding('${b.id.replace(/'/g,"\\'")}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); Tools.selectBuilding(this.dataset.bldId); }">` +
         `<img src="${src}" alt="" onerror="this.style.visibility='hidden'">` +
         `<span>${b.id}</span></div>`;
     }).join('');
@@ -5629,6 +5634,7 @@ const Tools = (() => {
   }
 
   function selectBuilding(id) {
+    if (!BldDB.getAll().some(b => b.id === id)) { UI.toast('Unknown building: ' + id); return; }   // keep the previous selection
     _selectedBuildingId = id;
     document.querySelectorAll('.bld-card').forEach(c => c.classList.toggle('selected', c.dataset.bldId === id));
     _updateBuildingLabel();
@@ -6147,6 +6153,27 @@ const Tools = (() => {
   let _eraseToken = null;              // History.push() token of the stroke's own step
   let _eraseStroke = false;            // a stroke is in progress (History step pushed, cells being erased)
   let _eraseMd = null, _eraseW = 0, _eraseH = 0;
+  // Stroke tools share ONE stroke state (_eraseStroke/_eraseToken/_eraseMd/W/H): mouse-up, window blur, a stale map
+  // (New/Load), Escape (History.rollback of the stroke's own step) and undo gating (isStroking) are all driven by it.
+  // LAZY stroke tools push their single History step right before the first real mutation (_pushOnce), so a stroke
+  // that changes nothing leaves no step. A lazy tool MUST (a) be listed in _LAZY_STROKE_TOOLS and (b) start its stroke
+  // ONLY through _beginLazyStroke(), which resets the token. T2.15's road tools ('road', 'road-connect',
+  // 'erase-road') must register here and call _beginLazyStroke() in _onDown, then _pushOnce() before their first write.
+  // The Eraser is a stroke tool too but pushes eagerly (it begins with _beginLazyStroke(); _pushOnce()).
+  const _LAZY_STROKE_TOOLS = new Set(['scatter', 'object', 'erase-object']);
+  function _isStrokeTool(t) { return t === 'eraser' || _LAZY_STROKE_TOOLS.has(t); }
+  function _beginLazyStroke() {
+    _eraseToken = null; _objToasted = false;
+    _eraseStroke = true; _eraseMd = mapData; _eraseW = MAP_WIDTH; _eraseH = MAP_HEIGHT;
+  }
+  // Pushes the stroke's History step once. Outside a stroke it does nothing (a token pushed with no stroke to own it
+  // would never be rolled back and would be reused by the next stroke).
+  function _pushOnce() {
+    if (!_eraseStroke) { console.warn('[tools] _pushOnce outside a stroke: ignored'); return false; }
+    if (!_eraseToken) _eraseToken = History.push();
+    return true;
+  }
+  let _objToasted = false;           // one refusal toast per stroke
   let _eraserHoverKey = '', _hoverCell = null;
   const ERASER_STYLE = { stroke: 'rgba(239,83,80,0.9)', fill: 'rgba(239,83,80,0.18)' };
   const SCATTER_STYLE = { stroke: 'rgba(129,199,132,0.95)', fill: 'rgba(129,199,132,0.16)' };
@@ -6244,7 +6271,7 @@ const Tools = (() => {
 
   function _scatterAt(col, row) {
     const r = _scatterRun;
-    _scatterStamp(Brush.getAffectedTiles(col, row), r.ids, r.density, r.rng, r.visited, () => { if (!_eraseToken) _eraseToken = History.push(); });
+    _scatterStamp(Brush.getAffectedTiles(col, row), r.ids, r.density, r.rng, r.visited, _pushOnce);
     Canvas.render();
   }
   // Starts a stroke at (col,row); false (nothing started) when there is nothing to scatter.
@@ -6256,8 +6283,7 @@ const Tools = (() => {
     const density = _scatterDensity();
     if (!(density > 0)) { UI.toast('Scatter: set a density above 0'); return false; }
     _scatterRun = { ids, density, rng: _scatterRngOverride || HexUtils.makeRng(_scatterSeed()), visited: new Set() };
-    _eraseToken = null;
-    _eraseStroke = true; _eraseMd = mapData; _eraseW = MAP_WIDTH; _eraseH = MAP_HEIGHT;
+    _beginLazyStroke();
     _scatterAt(col, row);
     return true;
   }
@@ -6287,10 +6313,6 @@ const Tools = (() => {
     }
   }
 
-  // One undo entry per stroke, taken lazily right before the first real mutation (no empty steps). The token lives in
-  // _eraseToken, so Escape (History.rollback), undo gating (isStroking) and the stale-map check are the eraser's.
-  function _pushOnce() { if (!_eraseToken) _eraseToken = History.push(); }
-  let _objToasted = false;           // one refusal toast per stroke
   function _objRefuse(msg) { if (!_objToasted) { _objToasted = true; UI.toast(msg); } return false; }
 
   // Place the selected building at (col,row); returns true when something changed. Replaces a different building
@@ -6299,6 +6321,7 @@ const Tools = (() => {
   function _placeObject(col, row) {
     const bldId = _selectedBuildingId;
     if (!bldId) return false;
+    // Defence only: _onDown/_onMove already ignore off-map cells, so input never reaches this line.
     if (!HexUtils.inBounds(col, row, MAP_WIDTH, MAP_HEIGHT)) return _objRefuse('Cannot place a building outside the map');
     if (getSatelliteAnchor(col, row)) return _objRefuse('Cannot place a building on a multi-tile terrain footprint');
     const key = col + ',' + row;
@@ -6496,7 +6519,10 @@ const Tools = (() => {
     // Copy / Cut / Delete while a paste is floating are ignored: Copy / Cut would swap the buffer under the float and
     // Cut / Delete would edit the map behind the ghost.
     if (_float) { UI.toast('Finish the paste first (Esc)'); return true; }
-    return _isDown || _eraseStroke;
+    // Any History-pushing operation mid-stroke would bury the stroke's own step (Escape could no longer roll it back and
+    // one undo would undo both): refuse. isStroking() is the single source of truth; _isDown also covers shape drags.
+    if (isStroking() || _isDown) { UI.toast('Finish the current stroke first (Esc)'); return true; }
+    return false;
   }
   // Delete semantics = the eraser's (_resetCells: footprints, bridges, satellite map; spawned satellites of a removed
   // building go too), never mirrored; also clears zones. `cells` must come from _resettable().
@@ -6556,6 +6582,7 @@ const Tools = (() => {
   function _clearGhost() { _floatKey = ''; _floatCell = null; Canvas.setGhost(null); }
   function beginPaste(buf) {
     if (_fillBusy) { UI.toast('Wait for the fill to finish'); return; }
+    if (_eraseStroke || _isDown) { UI.toast('Finish the current stroke first (Esc)'); return; }   // setActive('paste') would drop the stroke without rolling it back
     if (!buf) { UI.toast('Clipboard is empty'); return; }
     if (_active !== 'paste') _prevTool = _active;
     setActive('paste');
@@ -6769,8 +6796,7 @@ const Tools = (() => {
         _previewPolygon(null);
         break;
       case 'eraser':
-        _eraseToken = History.push();           // before the first write
-        _eraseStroke = true; _eraseMd = mapData; _eraseW = MAP_WIDTH; _eraseH = MAP_HEIGHT;
+        _beginLazyStroke(); _pushOnce();        // eager: the step is pushed before the first write
         _eraseAt(col, row);
         _lastPainted = { col, row };
         break;
@@ -6812,8 +6838,7 @@ const Tools = (() => {
       case 'object':
       case 'erase-object':
         if (_active === 'object' && !_selectedBuildingId) { UI.toast('Pick a building first'); _isDown = false; break; }
-        _eraseToken = null; _objToasted = false;
-        _eraseStroke = true; _eraseMd = mapData; _eraseW = MAP_WIDTH; _eraseH = MAP_HEIGHT;
+        _beginLazyStroke();
         if (_active === 'object') _placeObject(col, row); else _eraseObject(col, row);
         _lastObjectPainted = { col, row };
         break;
@@ -6856,7 +6881,7 @@ const Tools = (() => {
       const hv = Canvas.screenToHex(sx, sy);
       if (HexUtils.inBounds(hv.col, hv.row, MAP_WIDTH, MAP_HEIGHT)) { _hoverCell = hv; _updateEraserHover(hv); }
     }
-    if ((_active === 'eraser' || _active === 'scatter' || _active === 'object' || _active === 'erase-object') && _eraseStroke && _eraseStale()) {   // the map was replaced mid-stroke: stop, write nothing
+    if (_isStrokeTool(_active) && _eraseStroke && _eraseStale()) {   // the map was replaced mid-stroke: stop, write nothing
       _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _lastObjectPainted = null; _clearEraserHover();
       UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : _active === 'eraser' ? 'Eraser stopped — the map changed' : 'Building tool stopped — the map changed');
       Canvas.render();
@@ -6930,7 +6955,7 @@ const Tools = (() => {
     if (e && e.type === 'mouseleave' && (_shapeStart || (_active === 'marquee' && _rectStart))) return;
     if (e && e.type === 'mouseup' && (e.button === 1 || e.button === 2)) return;   // a middle/right release (pan) must not end a left-button drag
     if (e && e.type === 'mouseleave' && _active === 'paste') { _clearGhost(); return; }
-    if (e && e.type === 'mouseleave' && (_active === 'eraser' || _active === 'scatter')) { _hoverCell = null; _clearEraserHover(); }
+    if (e && e.type === 'mouseleave' && _isStrokeTool(_active)) { _hoverCell = null; _clearEraserHover(); }
     if (!_isDown) return;
     _isDown = false;
     _eraseStroke = false; _eraseToken = null; _scatterRun = null;
@@ -6988,18 +7013,17 @@ const Tools = (() => {
     // A button released outside the canvas (or the window) still finishes the shape: no stuck tool state.
     // (an eraser stroke never needs this: leaving the canvas fires mouseleave first and ends it)
     window.addEventListener('mouseup', e => { if ((_shapeStart || (_active === 'marquee' && _rectStart)) && e.button === 0) _onUp(e); });
+    window.addEventListener('resize', _positionBuildingPicker);
+    document.addEventListener('mousedown', e => {      // an outside click closes the picker (the tool stays; the tool button reopens it)
+      if (_active === 'object' && _buildingPickerOpen() && !e.target.closest('#obj-building-picker') && !e.target.closest('.tool-btn[data-tool="object"]')) _closeBuildingPicker();
+    });
     window.addEventListener('blur', () => {
       if (_active === 'paste') _clearGhost();
       if (_shapeStart) { _isDown = false; _cancelShape(); }
       if (_active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); }
-      if (_active === 'object' || _active === 'erase-object') {
-        const had = _eraseStroke;
-        _isDown = false; _eraseStroke = false; _eraseToken = null; _lastObjectPainted = null;
-        if (had) { IO.scheduleAutoSave(); Canvas.render(); }
-      }
-      if (_active === 'eraser' || _active === 'scatter') {
+      if (_isStrokeTool(_active)) {
         const had = _eraseStroke || Canvas.hasHighlight(_active);
-        _isDown = false; _eraseStroke = false; _eraseToken = null; _scatterRun = null; _lastPainted = null; _hoverCell = null; _clearEraserHover();
+        _isDown = false; _eraseStroke = false; _eraseToken = null; _scatterRun = null; _lastPainted = null; _lastObjectPainted = null; _hoverCell = null; _clearEraserHover();
         if (had) { IO.scheduleAutoSave(); Canvas.render(); }
       }
     });
@@ -7043,6 +7067,7 @@ const Tools = (() => {
         Canvas.render(); Canvas.drawMinimap();
         return;
       }
+      if (e.key === 'Escape' && _active === 'object' && _buildingPickerOpen()) { e.preventDefault(); _closeBuildingPicker(); return; }   // closes the picker only: the tool stays and the selection is kept
       if (e.key === 'Escape' && _float && !e.defaultPrevented && mapMode && !_isTypingOrModal()) { _endPaste(); return; }   // ends the paste only; the selection stays
       if (e.key === 'Escape' && !e.defaultPrevented && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
       if (e.key === 'Escape' && _active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); return; }   // cancels the drag only
@@ -7084,7 +7109,9 @@ const Tools = (() => {
 
   function isStroking() { return _eraseStroke || isMoving(); }   // undo / redo are ignored while a lifted selection floats
   function isPasting() { return !!_float; }
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
+  function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy, isStrokeActive,
+          _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
@@ -9943,8 +9970,10 @@ const IO = (() => {
   function clearMap() {
     UI.closeAllMenus();
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
+    if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
     UI.showConfirm('Clear Map', 'Clear all terrain? City settlement will be preserved.', () => {
       if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }   // a fill may have started while the dialog was open
+      if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
       Tools.cancelFloat();                    // a lifted region would otherwise drop its old content back
       History.push();
       mapData.fill('Plain_1');
@@ -9962,9 +9991,11 @@ const IO = (() => {
   function fillMap() {
     UI.closeAllMenus();
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
+    if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
     const hexId = UI.getSelectedTerrain();
     UI.showConfirm('Fill Map', `Fill entire map with ${hexId}?`, () => {
       if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
+      if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
       Tools.cancelFloat();
       History.push();
       mapData.fill(hexId);
@@ -10452,6 +10483,7 @@ const Generator = (() => {
     if (!mapData || _applying) return;
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     if (Satellite.isBusy()) { UI.toast('Satellite classification is still running — try again in a moment'); return; }
+    if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
     _applying = true;
     clearTimeout(_debounce);
     _previewTok++;
@@ -10466,6 +10498,7 @@ const Generator = (() => {
         UI.toast('Map changed while generating — result discarded'); return;
       }
       if (Tools.isFillBusy()) { UI.toast('A fill started while generating — result discarded'); return; }
+      if (Tools.isStrokeActive()) { UI.toast('A stroke started while generating — result discarded'); return; }
       History.push();                            // pre-state, taken right before we overwrite
       const names = res.names, grid = res.grid, md = mapData;
       for (let i = 0; i < grid.length; i++) md[i] = names[grid[i]];
@@ -10651,6 +10684,7 @@ const Satellite = (() => {
   function apply() {
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     if (_busy) { UI.toast('Classification is still running — try again in a moment'); return; }
+    if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
     if (!_classified) return;
     if (!_classMeta || _classMeta.W !== MAP_WIDTH || _classMeta.H !== MAP_HEIGHT || _classMeta.md !== mapData) {
       _classified = null;
@@ -16243,6 +16277,7 @@ const Dev = (() => {
   function qaPlaceAllTiles() {
     if (!mapData) return;
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
+    if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
     const entries = HexDB.getAll().filter(h => h.id).sort(_paletteSort);
     if (!entries.length) { UI.toast('No tiles in HexDB'); return; }
 
@@ -16455,6 +16490,7 @@ function _fisherYates(arr) {
 
 function autoPlaceSettlements() {
   if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
+  if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
   if (!settlementSlots.length) { UI.toast('No settlement slots defined.'); return; }
   History.push();
   settlementsVisible = true;

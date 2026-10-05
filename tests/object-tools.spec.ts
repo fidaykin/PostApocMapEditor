@@ -311,8 +311,10 @@ test.describe('building tools (T2.14)', () => {
 
   test('no building selected: a click toasts "Pick a building first" and changes nothing', async ({ page }) => {
     await spyToasts(page);
-    await useTool(page, 'object');
-    await page.evaluate(() => Tools.selectBuilding(null as any));
+    // nothing placeable in the database -> nothing is auto-selected (selectBuilding now refuses unknown ids, so this is the way in)
+    await page.evaluate(() => { const o = BldDB.getAll; BldDB.getAll = () => []; try { Tools.setActive('object'); } finally { BldDB.getAll = o; } });
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe(null);
+    await hidePicker(page);
     const s0 = await undoSize(page);
     await clickCell(page, 227, 224);
     expect(await objs(page)).toEqual({});
@@ -472,5 +474,116 @@ test.describe('building tools (T2.14)', () => {
     await clickCell(page, 227, 224);
     expect(await page.evaluate(() => (window as any).__saves)).toBeGreaterThan(0);
     expect(await hash()).not.toBe(h0);
+  });
+
+  // ---------- fix round 1 ----------------------------------------------------------------------------------
+
+  // A keyboard / menu action that would push its own History step mid-stroke must be refused: the stroke's step stays
+  // on top, so Escape rolls the whole stroke back and exactly one step existed.
+  const STROKE_OPS: Record<string, (page: Page) => Promise<void>> = {
+    'Delete': async p => { await p.keyboard.press('Delete'); },
+    'Ctrl+X': async p => { await p.keyboard.press('Control+x'); },
+    'Ctrl+V': async p => { await p.keyboard.press('Control+v'); },
+    'Clear Map': async p => { await p.evaluate(() => { IO.clearMap(); }); await p.evaluate(() => { const b = document.getElementById('confirm-ok') as HTMLElement; if (document.getElementById('confirm-modal')!.classList.contains('open')) b.click(); }); },
+    'Fill Map': async p => { await p.evaluate(() => { UI.selectTerrain('Forest_1'); IO.fillMap(); }); await p.evaluate(() => { const b = document.getElementById('confirm-ok') as HTMLElement; if (document.getElementById('confirm-modal')!.classList.contains('open')) b.click(); }); },
+    'Replace apply': async p => { await p.evaluate(() => { Tools.openReplace(); (document.getElementById('replace-from') as HTMLInputElement).value = 'Plain_1'; (document.getElementById('replace-to') as HTMLInputElement).value = 'Forest_1'; (document.getElementById('replace-sel-only') as HTMLInputElement).checked = false; Tools.applyReplace(); }); },
+    'QA placer': async p => { await p.evaluate(() => { Dev.qaPlaceAllTiles(); }); },
+    'Auto-place settlements': async p => { await p.evaluate(() => { if (!settlementSlots.length) settlementSlots.push({ minDist: 10, maxDist: 20, count: 1, type: 'settlement', tapMultiplier: 1, level: 1, minSpacing: 2, nearPct: 20, midPct: 30, farPct: 50 } as any); autoPlaceSettlements(); }); },
+  };
+  for (const [name, op] of Object.entries(STROKE_OPS)) {
+    test(`${name} is refused mid-stroke; Escape then rolls the whole stroke back (exactly one step)`, async ({ page }) => {
+      await page.evaluate(() => { objectsData['200,200'] = 'Grain_1'; Selection.setCells([{ col: 200, row: 200 }]); Tools.copySelection(); });
+      await useTool(page, 'object', 'Artefact_Test_1');
+      const mapSig = () => page.evaluate(() => { let h = 0; for (let i = 0; i < mapData.length; i += 211) h = (h * 31 + mapData[i].length + mapData[i].charCodeAt(0)) | 0; return h + ':' + settlements.length; });
+      const sig0 = await mapSig(), s0 = await undoSize(page);
+      const a = await cellPoint(page, 226, 224), b = await cellPoint(page, 228, 224), c = await cellPoint(page, 230, 224);
+      await page.mouse.move(a.x, a.y); await page.mouse.down();
+      await page.mouse.move(b.x, b.y, { steps: 3 });
+      await op(page);
+      await page.mouse.move(c.x, c.y, { steps: 3 });
+      expect(await undoSize(page)).toBe(s0 + 1);                       // only the stroke's own step
+      expect(await mapSig()).toBe(sig0);
+      expect(await page.evaluate(() => ({ a: Tools.getActive(), p: Tools.isPasting(), st: Tools.isStroking(), g: objectsData['200,200'] }))).toEqual({ a: 'object', p: false, st: true, g: 'Grain_1' });
+      expect(Object.keys(await objs(page)).length).toBeGreaterThan(2);  // the stroke kept writing
+      await page.keyboard.press('Escape');
+      await page.mouse.up();
+      expect(await objs(page)).toEqual({ '200,200': 'Grain_1' });
+      expect(await undoSize(page)).toBe(s0);
+      expect(await mapSig()).toBe(sig0);
+    });
+  }
+
+  test('selectBuilding refuses an id unknown to BldDB with a toast and keeps the previous selection', async ({ page }) => {
+    await spyToasts(page);
+    await page.evaluate(() => Tools.selectBuilding('Artefact_Test_1'));
+    await page.evaluate(() => Tools.selectBuilding('No_Such_Building'));
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe('Artefact_Test_1');
+    expect((await toasts(page)).some(t => /unknown building/i.test(t))).toBe(true);
+    await page.evaluate(() => Tools.selectBuilding(''));
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe('Artefact_Test_1');
+  });
+
+  test('the picker stays fully inside a 1100x700 viewport, follows a resize, closes on Escape and on an outside click (tool stays), cards are keyboard-operable', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 700 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await page.click('.tool-btn[data-tool="object"]');
+    const inside = () => page.evaluate(() => { const r = document.getElementById('obj-building-picker')!.getBoundingClientRect(); return { l: r.left, t: r.top, r: r.right, b: r.bottom, w: innerWidth, h: innerHeight }; });
+    let r = await inside();
+    expect(r.l).toBeGreaterThanOrEqual(0); expect(r.t).toBeGreaterThanOrEqual(0); expect(r.r).toBeLessThanOrEqual(r.w); expect(r.b).toBeLessThanOrEqual(r.h);
+    await page.setViewportSize({ width: 1100, height: 520 });
+    r = await inside();
+    expect(r.b).toBeLessThanOrEqual(r.h);
+    expect(r.t).toBeGreaterThanOrEqual(0);
+    // cards: focusable, Enter and Space select
+    const cards = await page.evaluate(() => { const c = Array.from(document.querySelectorAll('#obj-building-picker-grid .bld-card')) as HTMLElement[]; return { n: c.length, tab: c.every(x => x.tabIndex === 0) }; });
+    expect(cards.n).toBeGreaterThan(2);
+    expect(cards.tab).toBe(true);
+    const ids = await page.evaluate(() => Array.from(document.querySelectorAll('#obj-building-picker-grid .bld-card')).slice(0, 2).map(c => (c as HTMLElement).dataset.bldId));
+    await page.focus(`#obj-building-picker-grid .bld-card[data-bld-id="${ids[1]}"]`);
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe(ids[1]);
+    await page.focus(`#obj-building-picker-grid .bld-card[data-bld-id="${ids[0]}"]`);
+    await page.keyboard.press('Space');
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe(ids[0]);
+    // Escape closes the picker only: the tool and the selection stay
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => ({ d: getComputedStyle(document.getElementById('obj-building-picker')!).display, a: Tools.getActive() }))).toEqual({ d: 'none', a: 'object' });
+    // reopen by the tool button, then an outside click closes it again
+    await page.click('.tool-btn[data-tool="object"]');
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('obj-building-picker')!).display)).toBe('block');
+    await page.mouse.click(5, 5);
+    expect(await page.evaluate(() => ({ d: getComputedStyle(document.getElementById('obj-building-picker')!).display, a: Tools.getActive() }))).toEqual({ d: 'none', a: 'object' });
+  });
+
+  test('registering a tool in the lazy-stroke set gives it the stale-map check and the blur handler; a stroke cannot start without _beginLazyStroke (pushOnce is a no-op outside a stroke)', async ({ page }) => {
+    await spyToasts(page);
+    const r = await page.evaluate(() => {
+      const out: any = {};
+      const warn = console.warn; let warned = 0; console.warn = () => { warned++; };
+      const s0 = History.undoSize();
+      Tools._pushOnce();                                    // outside a stroke: refused, nothing pushed
+      out.noStroke = { u: History.undoSize() - s0, warned };
+      console.warn = warn;
+      Tools._lazyStrokeTools.add('fake-lazy');
+      Tools.setActive('fake-lazy');
+      Tools._beginLazyStroke();
+      Tools._pushOnce(); Tools._pushOnce();                 // once per stroke
+      out.pushed = History.undoSize() - s0;
+      out.stroking = Tools.isStroking();
+      window.dispatchEvent(new Event('blur'));
+      out.afterBlur = Tools.isStroking();
+      Tools._beginLazyStroke();
+      IO.newMap(true); Canvas.centerOnCity();
+      document.getElementById('map-canvas')!.dispatchEvent(new MouseEvent('mousemove', { clientX: 300, clientY: 300, bubbles: true }));
+      out.afterStale = Tools.isStroking();
+      Tools._lazyStrokeTools.delete('fake-lazy');
+      return out;
+    });
+    expect(r.noStroke).toEqual({ u: 0, warned: 1 });
+    expect(r.pushed).toBe(1);
+    expect(r.stroking).toBe(true);
+    expect(r.afterBlur).toBe(false);
+    expect(r.afterStale).toBe(false);
+    expect((await toasts(page)).some(t => /map changed/i.test(t))).toBe(true);
   });
 });
