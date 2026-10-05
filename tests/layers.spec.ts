@@ -41,42 +41,52 @@ test.describe('layers: visibility (T2.17)', () => {
   const SCENES: Record<string, string> = {
     roads: `roadsData['226,224'] = { type: 'road_hex' }; roadsData['227,224'] = { type: 'road_hex' }; roadsData['227,225'] = { type: 'road_hex' };`,
     objects: `objectsData['226,225'] = 'Grain_1'; bridgesData.push({ col: 228, row: 224, axis: 0 });`,
-    settlements: `settlements.push({ col: 224, row: 226, type: 'settlement' });`,
+    settlements: ``,   // handled in the test body: settlements is a top-level let
     zones: `const id = ZonePainter.addZone('t', '#ff0000'); const zl = ZonePainter.getZoneLayer(); zl[224 * MAP_WIDTH + 226] = id; zl[225 * MAP_WIDTH + 226] = id;`,
   };
   const REMOVE: Record<string, string> = {
     roads: `delete roadsData['226,224']; delete roadsData['227,224']; delete roadsData['227,225'];`,
     objects: `delete objectsData['226,225']; bridgesData.length = 0;`,
-    settlements: `settlements = settlements.filter(s => s.type === 'city');`,
+    settlements: ``,
     zones: `ZonePainter.getZoneLayer().fill(0);`,
   };
 
   for (const layer of Object.keys(SCENES)) {
     test(`hiding "${layer}" renders exactly like a map without that data (lod 0, 1, 2)`, async ({ page }) => {
       const r = await page.evaluate(([name, add, rm, levels]) => {
-        const run = (code: string) => new Function('roadsData', 'objectsData', 'bridgesData', 'ZonePainter', 'MAP_WIDTH', 'settlements', code)
-          (roadsData, objectsData, bridgesData, ZonePainter, MAP_WIDTH, settlements);
+        const run = (code: string) => new Function('roadsData', 'objectsData', 'bridgesData', 'ZonePainter', 'MAP_WIDTH', code)
+          (roadsData, objectsData, bridgesData, ZonePainter, MAP_WIDTH);
         const out: any[] = [];
         for (const lod of levels as number[]) {
-          // reference: the layer's data never existed
-          const reference = (window as any).__snap(lod);
+          let reference: string, shown: string, hidden: string, restored: string;
+          if (name === 'settlements') {
+            // the city marker is a settlement: the reference is a map with no settlements at all
+            const full = settlements.slice(); settlements.push({ col: 224, row: 226, type: 'settlement' });
+            const withAll = settlements.slice();
+            settlements.length = 0; reference = (window as any).__snap(lod);
+            withAll.forEach(x => settlements.push(x)); shown = (window as any).__snap(lod);
+            Layers.setVisible(name, false); hidden = (window as any).__snap(lod);
+            Layers.setVisible(name, true); restored = (window as any).__snap(lod);
+            settlements.length = 0; full.forEach(x => settlements.push(x));
+            out.push({ lod, shownDiffers: shown !== reference, hiddenEqualsReference: hidden === reference, restored: restored === shown });
+            continue;
+          }
+          reference = (window as any).__snap(lod);        // the layer's data never existed
           run(add as string);
-          const shown = (window as any).__snap(lod);
+          shown = (window as any).__snap(lod);
           Layers.setVisible(name, false);
-          const hidden = (window as any).__snap(lod);
+          hidden = (window as any).__snap(lod);
           Layers.setVisible(name, true);
           run(rm as string);
           out.push({ lod, shownDiffers: shown !== reference, hiddenEqualsReference: hidden === reference, restored: (window as any).__snap(lod) === reference });
         }
         return out;
       }, [layer, SCENES[layer], REMOVE[layer], LEVELS]);
-      // lod 2 draws roads/objects as 2-3 px marks and settlements/zones too; every level must show a difference when visible,
-      // except bridges/settlement markers which the flat overview omits by design (lod 2 never drew them).
+      // every level of detail must show a difference when the layer is visible (a vacuous 'nothing drawn' pass is impossible)
       for (const x of r) {
         expect(x.hiddenEqualsReference, `lod ${x.lod} hidden`).toBe(true);
         expect(x.restored, `lod ${x.lod} restored`).toBe(true);
-        const omittedAtLod2 = x.lod === 2 && layer === 'settlements';
-        if (!omittedAtLod2) expect(x.shownDiffers, `lod ${x.lod} visible differs`).toBe(true);
+        expect(x.shownDiffers, `lod ${x.lod} visible differs`).toBe(true);
       }
     });
   }
@@ -137,7 +147,7 @@ test.describe('layers: visibility (T2.17)', () => {
       let n = 0;
       Layers.isVisible = (x: string) => { n++; return orig(x); };
       Canvas.render(); const near = n; const tilesNear = Canvas.getStats().tilesDrawn;
-      n = 0; Canvas.setZoom(30); Canvas.render(); const far = n; const tilesFar = Canvas.getStats().tilesDrawn;
+      Canvas.setZoom(30); n = 0; Canvas.render(); const far = n; const tilesFar = Canvas.getStats().tilesDrawn;
       Layers.isVisible = orig;
       return { near, far, tilesNear, tilesFar };
     });

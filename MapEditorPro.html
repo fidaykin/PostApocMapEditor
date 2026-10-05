@@ -263,6 +263,14 @@ html, body {
 #stamp-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #stamp-panel .stamp-bar { display: flex; gap: 4px; margin-bottom: 6px; }
 #stamp-panel .stamp-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
+#layers-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
+#layers-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+.layer-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+.layer-name { flex: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.layer-eye, .layer-lock { background: none; border: 1px solid transparent; border-radius: 3px; color: var(--text); cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px; }
+.layer-eye:hover, .layer-lock:hover { background: var(--hover); }
+.layer-eye:focus-visible, .layer-lock:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.layer-eye.off { opacity: 0.35; }
 #stamp-name { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; }
 #stamp-list { max-height: 130px; overflow-y: auto; overflow-x: hidden; }
 .stamp-empty { font-size: 11px; color: var(--muted); padding: 4px 0; }
@@ -1224,7 +1232,7 @@ body.mode-common #map-io    { display: none; }
 
 </style>
 <script src="hex-utils.js?v=1"></script>
-<script src="zone-painter.js?v=8"></script>
+<script src="zone-painter.js?v=9"></script>
 <script src="map-jobs.js?v=2"></script>
 </head>
 <body class="mode-map">
@@ -1504,6 +1512,11 @@ body.mode-common #map-io    { display: none; }
           <input id="stamp-import-file" type="file" accept="application/json,.json" style="display:none" aria-label="Import stamps file" onchange="Stamps.importFile(event)">
         </div>
         <div id="stamp-list"></div>
+      </div>
+      <!-- Layers (T2.17): visibility now, locks (T2.18); in the LEFT palette like Stamps -->
+      <div id="layers-panel">
+        <div class="section-title">Layers</div>
+        <div id="layers-list"></div>
       </div>
     </div>
 
@@ -2429,7 +2442,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "666a4e7";
+const COMMIT  = "1f47869";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2887,6 +2900,102 @@ const Coastline = (() => {
   return { loadSprites, computeEdges, drawOverlay };
 })();
 
+// ════════════════════════════════════════════════════════════
+// LAYERS MODULE — per-layer visibility and lock state (T2.17 / T2.18). Editor-only: kept in localStorage,
+// never in the map JSON, never in the autosave, never a History step (it is a view setting).
+// Layers: terrain (tile sprites, multi-tile cluster sprites, coastline), objects (placed buildings and bridge overlays),
+// roads, settlements (markers and slot rings), zones (the Zone Painter overlay: the very same switch as the Zone
+// Painter's own overlay button, which stays the single source of truth).
+// ════════════════════════════════════════════════════════════
+const Layers = (() => {
+  const NAMES  = ['terrain', 'objects', 'roads', 'settlements', 'zones'];
+  const LABELS = { terrain: 'Terrain', objects: 'Buildings & bridges', roads: 'Roads', settlements: 'Settlements', zones: 'Zone overlay' };
+  const LS_KEY = 'layer_state_v1';
+  const _state = {};
+  NAMES.forEach(n => { _state[n] = { visible: true, locked: false }; });
+
+  try {   // storage may be blocked, or hold anything: keep the defaults for whatever is not a well-formed entry of a known layer
+    const saved = JSON.parse(localStorage.getItem(LS_KEY) || 'null');
+    if (saved && typeof saved === 'object' && !Array.isArray(saved)) {
+      NAMES.forEach(n => {
+        const s = Object.prototype.hasOwnProperty.call(saved, n) ? saved[n] : null;
+        if (s && typeof s === 'object' && !Array.isArray(s)) _state[n] = { visible: s.visible !== false, locked: s.locked === true };
+      });
+    }
+  } catch (e) { /* defaults */ }
+
+  const _zp = () => (typeof ZonePainter !== 'undefined' ? ZonePainter : null);
+  function _save() { try { localStorage.setItem(LS_KEY, JSON.stringify(_state)); } catch (e) { /* session-only */ } }
+  function isVisible(n) {
+    if (n === 'zones' && _zp()) return _zp().isOverlayVisible();   // one switch, shared with the Zone Painter's overlay button
+    return !_state[n] || _state[n].visible;
+  }
+  function isLocked(n) { return !!(_state[n] && _state[n].locked); }
+
+  function _refreshRows() {
+    document.querySelectorAll('#layers-panel .layer-row').forEach(row => {
+      const n = row.dataset.layer, label = LABELS[n] || n;
+      const eye = row.querySelector('.layer-eye'), lock = row.querySelector('.layer-lock');
+      const vis = isVisible(n), lk = isLocked(n);
+      eye.setAttribute('aria-pressed', String(vis));
+      eye.title = (vis ? 'Hide ' : 'Show ') + label;
+      eye.setAttribute('aria-label', eye.title);
+      eye.classList.toggle('off', !vis);
+      lock.setAttribute('aria-pressed', String(lk));
+      lock.title = (lk ? 'Unlock ' : 'Lock ') + label + ' (editing)';
+      lock.setAttribute('aria-label', lock.title);
+      lock.textContent = lk ? '\u{1F512}' : '\u{1F513}';
+    });
+    const zb = document.getElementById('btn-zone-overlay');
+    if (zb) zb.style.opacity = isVisible('zones') ? '1' : '0.4';
+  }
+  // Re-reads the zone overlay switch (called by the Zone Painter whenever it changes it), stores and refreshes the panel.
+  function sync() {
+    _state.zones.visible = isVisible('zones');
+    _save(); _refreshRows();
+  }
+  function setVisible(n, v) {
+    if (!_state[n]) return;
+    v = !!v;
+    if (n === 'zones' && _zp() && _zp().isOverlayVisible() !== v) _zp().toggleOverlay();
+    _state[n].visible = v; _save(); _refreshRows();
+    if (typeof Canvas !== 'undefined') Canvas.render();
+  }
+  function setLocked(n, v) {
+    if (!_state[n]) return;
+    _state[n].locked = !!v; _save(); _refreshRows();
+  }
+
+  function initPanel() {
+    const box = document.getElementById('layers-list');
+    if (!box) return;
+    box.innerHTML = '';
+    NAMES.forEach(n => {
+      const row = document.createElement('div');
+      row.className = 'layer-row';
+      row.dataset.layer = n;
+      row.innerHTML = '<button type="button" class="layer-eye" aria-pressed="true">\u{1F441}</button>' +
+                      '<span class="layer-name"></span>' +
+                      '<button type="button" class="layer-lock" aria-pressed="false">\u{1F513}</button>';
+      row.querySelector('.layer-name').textContent = LABELS[n];
+      const eye = row.querySelector('.layer-eye'), lock = row.querySelector('.layer-lock');
+      // Enter / Space on a focused button must reach the button only (not the global Space-pan / Enter-lift handlers)
+      [eye, lock].forEach(b => b.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); }));
+      eye.addEventListener('click', e => { setVisible(n, !isVisible(n)); if (e.detail > 0) eye.blur(); });   // pointer click: back to the map shortcuts (Space pans)
+      lock.addEventListener('click', e => { setLocked(n, !isLocked(n)); if (e.detail > 0) lock.blur(); });
+      box.appendChild(row);
+    });
+    // a stored "overlay hidden" is applied to the Zone Painter now (its default is visible)
+    if (_zp() && _zp().isOverlayVisible() !== _state.zones.visible) {
+      _zp().toggleOverlay();
+      if (typeof Canvas !== 'undefined') Canvas.render();
+    }
+    _refreshRows();
+  }
+
+  return { NAMES, isVisible, isLocked, setVisible, setLocked, initPanel, sync };
+})();
+
 // CANVAS MODULE — hex renderer, viewport, zoom/pan
 // ════════════════════════════════════════════════════════════
 const Canvas = (() => {
@@ -3020,6 +3129,9 @@ const Canvas = (() => {
     _stats.lod = lod;
 
     const _anchorPass = [];   // multi-tile anchors: drawn again in second pass
+    // Layer visibility (T2.17): asked once per frame, never per cell
+    const _lyTerrain = Layers.isVisible('terrain'), _lyObjects = Layers.isVisible('objects'), _lyRoads = Layers.isVisible('roads'),
+          _lySettle = Layers.isVisible('settlements');
 
     // Visible row/col ranges, widened by one cell. The exact per-tile test below stays the
     // final authority, so output is identical to the old full-grid loop; draw order
@@ -3036,7 +3148,7 @@ const Canvas = (() => {
       colMin = Math.max(0, MAP_WIDTH - 1 - kMax); colMax = Math.min(MAP_WIDTH - 1, MAP_WIDTH - 1 - kMin);
     }
 
-    if (lod === 2) _drawOverview(scale);
+    if (lod === 2) { if (_lyTerrain) _drawOverview(scale); else _drawFlatMap(scale); }
     for (let row = rowMin; lod < 2 && row <= rowMax; row++) {
       for (let col = colMin; col <= colMax; col++) {
         _stats.tilesVisited++;
@@ -3045,6 +3157,7 @@ const Canvas = (() => {
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
         _stats.tilesDrawn++;
         const _hid = mapData[row * MAP_WIDTH + col];
+        if (!_lyTerrain) { hexClipPath(s.x, s.y, radius); ctx.fillStyle = '#1b1b1b'; ctx.fill(); continue; }   // terrain hidden: flat tile, no sprite / cluster / coastline
         if (lod === 1) { _drawHexTileSimple(s.x, s.y, radius, _hid); continue; }
         _drawHexTile(s.x, s.y, radius, _hid, col, row);
         const _he = Terrain.byHexId(_hid);
@@ -3074,9 +3187,9 @@ const Canvas = (() => {
     if (typeof ZonePainter !== 'undefined' && ZonePainter.isOverlayVisible() && ZonePainter.getZones().length > 0) {
       _drawZonePainterOverlay(scale, radius, lod);
     }
-    if (settlementsVisible) _drawSlotRings(scale, radius, lod);
+    if (settlementsVisible && _lySettle) _drawSlotRings(scale, radius, lod);
 
-    settlements.forEach(s => {
+    if (_lySettle) settlements.forEach(s => {
       if (!settlementsVisible && s.type !== 'city') return;
       const pos = hexScreenPos(s.col, s.row);
       if (pos.x + radius < 0 || pos.x - radius > canvas.width  ||
@@ -3085,7 +3198,7 @@ const Canvas = (() => {
     });
 
     // Bridge overlays (skipped in the flat overview: sub-4px hexes, the tile colour already shows the bridge)
-    if (lod < 2) bridgesData.forEach(b => {
+    if (lod < 2 && _lyObjects) bridgesData.forEach(b => {
       if (b.col < colMin || b.col > colMax || b.row < rowMin || b.row > rowMax) return;
       const pos = hexScreenPos(b.col, b.row);
       if (pos.x + radius < 0 || pos.x - radius > canvas.width ||
@@ -3094,7 +3207,7 @@ const Canvas = (() => {
     });
 
     // Road overlays (parsed key list cached, see _syncKeyCache)
-    const _rc = _syncKeyCache(_roadCache, roadsData, false);
+    const _rc = _lyRoads ? _syncKeyCache(_roadCache, roadsData, false) : _EMPTY_KEYS;
     for (let i = 0; i < _rc.keys.length; i++) {
       const col = _rc.cols[i], row = _rc.rows[i];
       if (col < colMin || col > colMax || row < rowMin || row > rowMax) continue;   // range ⊇ exact test below
@@ -3106,7 +3219,7 @@ const Canvas = (() => {
     }
 
     // Pre-placed object overlays
-    const _oc = _syncKeyCache(_objectCache, objectsData, true);
+    const _oc = _lyObjects ? _syncKeyCache(_objectCache, objectsData, true) : _EMPTY_KEYS;
     for (let i = 0; i < _oc.keys.length; i++) {
       if (_oc.cols[i] < colMin || _oc.cols[i] > colMax || _oc.rows[i] < rowMin || _oc.rows[i] > rowMax) continue;
       const pos = hexScreenPos(_oc.cols[i], _oc.rows[i]);
@@ -3227,6 +3340,7 @@ const Canvas = (() => {
   // no per-entry array/split allocation when nothing changed.
   const _roadCache   = { keys: [], vals: [], cols: [], rows: [] };
   const _objectCache = { keys: [], vals: [], cols: [], rows: [] };
+  const _EMPTY_KEYS = { keys: [], vals: [], cols: [], rows: [] };   // stands in for a hidden layer's key list (never mutated)
   function _syncKeyCache(cache, obj, trackValues) {
     let i = 0, same = true;
     for (const k in obj) {
@@ -3868,6 +3982,13 @@ const Canvas = (() => {
   // Draws the whole terrain from the cached layer. Pixel (px,py) is the tile centred at world x = px*COL_PITCH,
   // y = py*ROW_PITCH + STAGGER - stg(px), so each pixel column is drawn as its own strip and shifted by the odd/even
   // stagger exactly like hexCenterWorld, which makes the overview register with the sprite rendering.
+  // Terrain hidden at the flat-overview level: one flat rectangle over the map area (same extent as the overview texture).
+  function _drawFlatMap(scale) {
+    const x0 = -0.5 * COL_PITCH * scale - cameraX, x1 = (MAP_HEIGHT - 0.5) * COL_PITCH * scale - cameraX;
+    const y0 = -0.5 * ROW_PITCH * scale - cameraY, y1 = ((MAP_WIDTH - 0.5) * ROW_PITCH + STAGGER) * scale - cameraY;
+    ctx.fillStyle = '#1b1b1b';
+    ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
+  }
   function _drawOverview(scale) {
     const tex = _overviewLayer(MAP_HEIGHT, MAP_WIDTH);
     const cp = COL_PITCH * scale, rp = ROW_PITCH * scale;
@@ -16642,6 +16763,8 @@ window.addEventListener('load', async () => {
   Tools.init();
   try { Stamps.initPanel(); }                  // a failure here must not stop the startup steps below
   catch (e) { console.error('Stamps panel failed to start', e); UI.toast('Stamps panel failed to start: ' + (e && e.message || e)); }
+  try { Layers.initPanel(); }                  // same: a failure here must not stop the startup steps below
+  catch (e) { console.error('Layers panel failed to start', e); UI.toast('Layers panel failed to start: ' + (e && e.message || e)); }
   Brush.setSize(Brush.getSize());   // sync slider, label and buttons
   History.initKeyboard();
   IO.initFileInput();

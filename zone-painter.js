@@ -593,6 +593,7 @@ const ZonePainter = (() => {
     _showOverlay = true;
     const btn = document.getElementById('btn-zone-overlay');
     if (btn) btn.style.opacity = '1';
+    if (typeof Layers !== 'undefined') Layers.sync();   // keep the Layers panel in step
     _uiRebuildZoneList();
     _uiRebuildZoneConfig();
 
@@ -606,6 +607,7 @@ const ZonePainter = (() => {
     toggleOverlay();
     const btn = document.getElementById('btn-zone-overlay');
     if (btn) btn.style.opacity = _showOverlay ? '1' : '0.4';
+    if (typeof Layers !== 'undefined') Layers.sync();   // keep the Layers panel in step
     Canvas.render();
   }
 
