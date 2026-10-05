@@ -3250,24 +3250,26 @@ test.describe('replace (T2.11)', () => {
       // stand on each other's new cells. Shrink this page's Rabbit to ONE satellite (NW) to make that reachable.
       rb.occupiedOffsets.length = 0; rb.occupiedOffsets.push('NW'); invalidateSatelliteMap();
       // B sits on one cell of A's DRAGON footprint, with an RB footprint that is valid and disjoint from A's; A is tried
-      // on both row parities (the legacy footprint tables differ between them)
+      // on both row parities (the legacy footprint tables differ between them). Every such fixture is run: B comes both
+      // before and after A in row-major order (the earlier anchor wins an overlap, so both orders take different paths).
+      const out: any[] = [];
       for (const A of [{ col: 200, row: 200 }, { col: 200, row: 201 }]) {
-      const oldA = footprintCells(A.col, A.row, rb).map((f: any) => f.col + ',' + f.row);
-      for (const f of footprintCells(A.col, A.row, dr)) {
-        const k = f.col + ',' + f.row; if (oldA.includes(k)) continue;
-        const bFp = footprintCells(f.col, f.row, rb).map((q: any) => q.col + ',' + q.row);
-        if (bFp.includes(A.col + ',' + A.row) || bFp.some((x: string) => oldA.includes(x))) continue;
-        mapData.fill('Plain_1'); mapData[A.row * W + A.col] = RB; mapData[f.row * W + f.col] = RB; invalidateSatelliteMap();
-        if ((window as any).__inv(190, 215, 190, 215).length) continue;
-        const n = Tools.replaceTerrain(RB, DR, null), info = Tools.replaceInfo();
-        return { found: true, n, info, bad: (window as any).__inv(190, 215, 190, 215), B: k };
+        const oldA = footprintCells(A.col, A.row, rb).map((f: any) => f.col + ',' + f.row);
+        for (const f of footprintCells(A.col, A.row, dr)) {
+          const k = f.col + ',' + f.row; if (oldA.includes(k)) continue;
+          const bFp = footprintCells(f.col, f.row, rb).map((q: any) => q.col + ',' + q.row);
+          if (bFp.includes(A.col + ',' + A.row) || bFp.some((x: string) => oldA.includes(x))) continue;
+          mapData.fill('Plain_1'); mapData[A.row * W + A.col] = RB; mapData[f.row * W + f.col] = RB; invalidateSatelliteMap();
+          if ((window as any).__inv(190, 215, 190, 215).length) continue;
+          const n = Tools.replaceTerrain(RB, DR, null), info = Tools.replaceInfo();
+          out.push({ B: k, A: A.col + ',' + A.row, bAfterA: f.row * W + f.col > A.row * W + A.col, n, skipped: info.skipped, bad: (window as any).__inv(190, 215, 190, 215) });
+        }
       }
-      }
-      return { found: false };
+      return { out };
     }, [RB, DR]);
-    expect(r.found).toBe(true);
-    expect(r.bad).toEqual([]);
-    expect(r.n! + r.info!.skipped).toBe(2);
+    expect(r.out.filter((o: any) => o.bAfterA).length).toBeGreaterThan(0);
+    expect(r.out.filter((o: any) => !o.bAfterA).length).toBeGreaterThan(0);
+    for (const o of r.out) { expect(o.bad, `A ${o.A} B ${o.B}`).toEqual([]); expect(o.n + o.skipped).toBe(2); }
   });
 
   test('cascade: three anchors where each new footprint covers the next anchor; the plan re-checks until stable (invariants hold, counts add up)', async ({ page }) => {
