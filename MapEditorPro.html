@@ -1438,6 +1438,7 @@ body.mode-common #map-io    { display: none; }
           <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')" title="Draw Road (W) - click a tile next to an existing road, the city or a settlement to add a road tile (one tap per tile; a drag draws only the tile under the press). One undo step per click, Esc cancels">🛣</button>
           <button class="tool-btn" data-tool="road-connect" onclick="Tools.setActive('road-connect')" title="Connect Road (C) - click a start tile, then a destination: the shortest path between them becomes road (one undo step). The destination becomes the next start, Esc or switching tool clears the start">🔗</button>
           <button class="tool-btn" data-tool="erase-road" onclick="Tools.setActive('erase-road')" title="Erase Road (Q) - click a road tile to remove only the road (terrain, buildings and zones stay). One undo step per click, Esc cancels">🚫</button>
+          <button class="tool-btn" data-tool="bridge" onclick="Tools.setActive('bridge')" title="Place Bridge (U) - click a river tile to build the bridge picked in the picker (replaces a building already there); the same bridge again removes it. Other tiles refuse. One undo step per click, Esc cancels">🌉</button>
           <span id="obj-building-label" style="display:none;flex:1 0 100%;font-size:11px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
         </div>
       <div id="selection-row" style="display:none;align-items:center;gap:6px;padding:6px 8px 0;font-size:11px;color:var(--muted)">
@@ -2428,7 +2429,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "296863a";
+const COMMIT  = "3bc3c56";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5507,17 +5508,18 @@ const Tools = (() => {
   let _lastRoadPainted     = null;
   let _roadConnectStart    = null;    // pending start anchor for the Connect Road tool — set by the first click, consumed by the second
   let _selectedBuildingId  = null;
+  let _selectedBridgeId    = null;    // the Bridge tool's own selection (independent of the Place Building one)
 
   const TOOL_NAMES = {
     paint: 'Paint', fill: 'Fill', rect: 'Rectangle',
     eye: 'Eyedropper', select: 'Select Tile',
     settlement: 'Place Settlement', erase: 'Erase Settlement',
     zone: 'Zone Painter', object: 'Place Building', 'erase-object': 'Erase Building',
-    road: 'Draw Road', 'road-connect': 'Connect Road', 'erase-road': 'Erase Road',
+    road: 'Draw Road', 'road-connect': 'Connect Road', 'erase-road': 'Erase Road', bridge: 'Place Bridge',
     line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser', scatter: 'Scatter', marquee: 'Select Region', paste: 'Paste', replace: 'Replace Tile',
   };
   // Physical-key tool shortcuts (layout independent). Later tasks add entries.
-  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee', KeyH: 'replace', KeyB: 'object', KeyW: 'road', KeyC: 'road-connect', KeyQ: 'erase-road' };
+  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee', KeyH: 'replace', KeyB: 'object', KeyW: 'road', KeyC: 'road-connect', KeyQ: 'erase-road', KeyU: 'bridge' };
   let _float = null;          // paste mode: { buf, md, W, H, xf:{rot,mh,mv}, move:null|{cells} } (md/W/H = the map it was started on)
   let _prevTool = 'paint';    // tool restored when a paste ends
   let _floatKey = '';         // last cell the ghost was built for
@@ -5559,6 +5561,7 @@ const Tools = (() => {
   }
 
   function setActive(name) {
+    if (name === 'bridge' && !_bridgeBuildings().length) { UI.toast('No bridge buildings available'); return; }   // the tool stays inactive
     if (_active !== name && name !== 'road-connect') _clearRoadStart(true);   // a pending Connect Road start never survives a tool switch
     _active = name;
     _rectStart = null;
@@ -5584,8 +5587,8 @@ const Tools = (() => {
     // Object tool: show/hide building picker panel
     const picker = document.getElementById('obj-building-picker');
     const label  = document.getElementById('obj-building-label');
-    if (name === 'object') {
-      _populateBuildingPicker();
+    if (name === 'object' || name === 'bridge') {
+      _populateBuildingPicker(name);
       if (picker) { picker.style.display = 'block'; _positionBuildingPicker(); }
       if (label)  label.style.display  = 'inline';
     } else {
@@ -5606,7 +5609,7 @@ const Tools = (() => {
   // The button is in the left palette: open the picker to the right of the palette, level with the button, and cap its
   // height to the room below that point so it always lies inside the window (the grid scrolls).
   function _positionBuildingPicker() {
-    const picker = document.getElementById('obj-building-picker'), btn = document.querySelector('.tool-btn[data-tool="object"]');
+    const picker = document.getElementById('obj-building-picker'), btn = document.querySelector('.tool-btn[data-tool="' + (_active === 'bridge' ? 'bridge' : 'object') + '"]');
     if (!picker || !btn || picker.style.display === 'none') return;
     const r = btn.getBoundingClientRect(), pal = document.getElementById('palette-panel');
     const top = Math.max(4, Math.min(r.top, window.innerHeight - 120));
@@ -5617,18 +5620,24 @@ const Tools = (() => {
   function _closeBuildingPicker() { const p = document.getElementById('obj-building-picker'); if (p) p.style.display = 'none'; }
   function _buildingPickerOpen() { const p = document.getElementById('obj-building-picker'); return !!p && p.style.display !== 'none'; }
 
-  function _populateBuildingPicker() {
+  function _bridgeBuildings() { return BldDB.getAll().filter(b => b.id && b.buildingCategory === 'Bridge'); }
+
+  // mode 'object' (default): the generic building list; 'bridge': only the Bridge-category buildings, with their own selection.
+  function _populateBuildingPicker(mode) {
     const grid = document.getElementById('obj-building-picker-grid');
     if (!grid) return;
+    const bridges = mode === 'bridge';
     // Road/Bridge have their own dedicated placement tools (Draw Road, Connect
-    // Road, the bridge axis swatches) — excluded here to avoid a redundant,
-    // confusing duplicate entry point in the generic building picker.
-    const buildings = BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge' && !b.isRoad);
-    if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
+    // Road, Place Bridge) — excluded from the generic list to avoid a redundant,
+    // confusing duplicate entry point.
+    const buildings = bridges ? _bridgeBuildings() : BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge' && !b.isRoad);
+    if (bridges) { if (!buildings.some(b => b.id === _selectedBridgeId)) _selectedBridgeId = buildings.length ? buildings[0].id : null; }
+    else if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
+    const selId = bridges ? _selectedBridgeId : _selectedBuildingId;
 
     grid.innerHTML = buildings.map(b => {
       const src = _bldSpriteUrl(b);
-      const sel = b.id === _selectedBuildingId ? ' selected' : '';
+      const sel = b.id === selId ? ' selected' : '';
       return `<div class="bld-card${sel}" data-bld-id="${b.id}" tabindex="0" role="button" onclick="Tools.selectBuilding('${b.id.replace(/'/g,"\\'")}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); Tools.selectBuilding(this.dataset.bldId); }">` +
         `<img src="${src}" alt="" onerror="this.style.visibility='hidden'">` +
         `<span>${b.id}</span></div>`;
@@ -5638,17 +5647,21 @@ const Tools = (() => {
 
   function selectBuilding(id) {
     if (!BldDB.getAll().some(b => b.id === id)) { UI.toast('Unknown building: ' + id); return; }   // keep the previous selection
-    _selectedBuildingId = id;
+    if (_active === 'bridge') {                                   // the Bridge tool is active: this is ITS selection
+      if (!_bridgeBuildings().some(b => b.id === id)) { UI.toast('Not a bridge building: ' + id); return; }
+      _selectedBridgeId = id;
+    } else _selectedBuildingId = id;
     document.querySelectorAll('.bld-card').forEach(c => c.classList.toggle('selected', c.dataset.bldId === id));
     _updateBuildingLabel();
   }
 
   function _updateBuildingLabel() {
     const label = document.getElementById('obj-building-label');
-    if (label) label.textContent = _selectedBuildingId || '';
+    if (label) label.textContent = (_active === 'bridge' ? _selectedBridgeId : _selectedBuildingId) || '';
   }
 
   function getSelectedBuildingId() { return _selectedBuildingId; }
+  function getSelectedBridgeId() { return _selectedBridgeId; }
 
 
   function getActive() { return _active; }
@@ -6163,7 +6176,7 @@ const Tools = (() => {
   // ONLY through _beginLazyStroke(), which resets the token, and call _pushOnce() immediately before its first write.
   // The road tools ('road', 'road-connect', 'erase-road') follow this: a click is a one-event stroke.
   // The Eraser is a stroke tool too but pushes eagerly (it begins with _beginLazyStroke(); _pushOnce()).
-  const _LAZY_STROKE_TOOLS = new Set(['scatter', 'object', 'erase-object', 'road', 'road-connect', 'erase-road']);
+  const _LAZY_STROKE_TOOLS = new Set(['scatter', 'object', 'erase-object', 'road', 'road-connect', 'erase-road', 'bridge']);
   const ROAD_TOOLS = new Set(['road', 'road-connect', 'erase-road']);
   function _isStrokeTool(t) { return t === 'eraser' || _LAZY_STROKE_TOOLS.has(t); }
   function _beginLazyStroke() {
@@ -6335,6 +6348,25 @@ const Tools = (() => {
     if (old) _removeSatellites(col, row, old);
     objectsData[key] = bldId;
     _spawnSatellites(col, row, bldId);
+    IO.scheduleAutoSave();
+    Canvas.render();
+    return true;
+  }
+
+  // Bridge tool: a bridge is a Road_Bridge_* building and may only stand on a river tile (_isRiverTile; its K1-family limits
+  // apply: it reads the cell's hex type only). A press acts on the pressed tile alone (no drag). Same bridge again removes it,
+  // another bridge (or any building) replaces it, in one step. Returns true when objectsData changed.
+  function _placeBridge(col, row) {
+    const bridgeId = _selectedBridgeId;
+    if (!bridgeId) return false;
+    if (!_isRiverTile(col, row)) return _objRefuse('Bridges can only be built on river tiles');
+    if (getSatelliteAnchor(col, row)) return _objRefuse('Cannot place a building on a multi-tile terrain footprint');
+    const key = col + ',' + row;
+    const old = objectsData[key];
+    _pushOnce();
+    if (old) _removeSatellites(col, row, old);
+    if (old === bridgeId) delete objectsData[key];
+    else objectsData[key] = bridgeId;                // bridges have no satellites, so nothing to spawn
     IO.scheduleAutoSave();
     Canvas.render();
     return true;
@@ -6862,6 +6894,11 @@ const Tools = (() => {
         if (_active === 'object') _placeObject(col, row); else _eraseObject(col, row);
         _lastObjectPainted = { col, row };
         break;
+      case 'bridge':
+        if (!_selectedBridgeId) { UI.toast('Pick a bridge first'); _isDown = false; break; }
+        _beginLazyStroke();
+        _placeBridge(col, row);
+        break;
       case 'road':
         _beginLazyStroke();
         _paintRoad(col, row);
@@ -6907,7 +6944,7 @@ const Tools = (() => {
     if (_isStrokeTool(_active) && _eraseStroke && _eraseStale()) {   // the map was replaced mid-stroke: stop, write nothing
       _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _lastObjectPainted = null; _lastRoadPainted = null; _clearEraserHover();
       if (_active === 'road-connect') _clearRoadStart(false);
-      UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : _active === 'eraser' ? 'Eraser stopped — the map changed' : ROAD_TOOLS.has(_active) ? 'Road tool stopped — the map changed' : 'Building tool stopped — the map changed');
+      UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : _active === 'eraser' ? 'Eraser stopped — the map changed' : ROAD_TOOLS.has(_active) ? 'Road tool stopped — the map changed' : _active === 'bridge' ? 'Bridge tool stopped — the map changed' : 'Building tool stopped — the map changed');
       Canvas.render();
       return;
     }
@@ -7045,7 +7082,7 @@ const Tools = (() => {
     window.addEventListener('mouseup', e => { if ((_shapeStart || (_active === 'marquee' && _rectStart)) && e.button === 0) _onUp(e); });
     window.addEventListener('resize', _positionBuildingPicker);
     document.addEventListener('mousedown', e => {      // an outside click closes the picker (the tool stays; the tool button reopens it)
-      if (_active === 'object' && _buildingPickerOpen() && !e.target.closest('#obj-building-picker') && !e.target.closest('.tool-btn[data-tool="object"]')) _closeBuildingPicker();
+      if ((_active === 'object' || _active === 'bridge') && _buildingPickerOpen() && !e.target.closest('#obj-building-picker') && !e.target.closest('.tool-btn[data-tool="' + _active + '"]')) _closeBuildingPicker();
     });
     window.addEventListener('blur', () => {
       if (_active === 'paste') _clearGhost();
@@ -7099,7 +7136,7 @@ const Tools = (() => {
         return;
       }
       if (e.key === 'Escape' && _active === 'road-connect' && _roadConnectStart && !e.defaultPrevented && mapMode && !_isTypingOrModal(e)) { _clearRoadStart(true); return; }   // cancels the pending start only: no step, the tool stays
-      if (e.key === 'Escape' && _active === 'object' && _buildingPickerOpen() && !e.defaultPrevented && !_isTypingOrModal(e)) { e.preventDefault(); _closeBuildingPicker(); return; }   // closes the picker only: the tool stays and the selection is kept
+      if (e.key === 'Escape' && (_active === 'object' || _active === 'bridge') && _buildingPickerOpen() && !e.defaultPrevented && !_isTypingOrModal(e)) { e.preventDefault(); _closeBuildingPicker(); return; }   // closes the picker only: the tool stays and the selection is kept
       if (e.key === 'Escape' && _float && !e.defaultPrevented && mapMode && !_isTypingOrModal()) { _endPaste(); return; }   // ends the paste only; the selection stays
       if (e.key === 'Escape' && !e.defaultPrevented && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
       if (e.key === 'Escape' && _active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); return; }   // cancels the drag only
@@ -7142,7 +7179,7 @@ const Tools = (() => {
   function isStroking() { return _eraseStroke || isMoving(); }   // undo / redo are ignored while a lifted selection floats
   function isPasting() { return !!_float; }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getRoadConnectStart, whenIdle, isFillBusy, isStrokeActive,
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, whenIdle, isFillBusy, isStrokeActive,
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,

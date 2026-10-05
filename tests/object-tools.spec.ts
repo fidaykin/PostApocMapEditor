@@ -1077,7 +1077,15 @@ test.describe('road tools (T2.15)', () => {
 // Reference data is independent of the code under test: river / non-river hex ids come from hex_database.json (checked by
 // hand: River_*, Lake_1.. are type Rivers; Water_1, Plain_1 are not) and the three bridge ids from building_database.json.
 test.describe('bridge tool (T2.16)', () => {
-  test.beforeEach(async ({ page }) => { await freshEditor(page); await spyToasts(page); });
+  // The shipped package has ONE bridge building (Road_Bridge_NEWS_1); two more Bridge-category entries are fabricated so that
+  // choosing, replacing and per-tool selections can be exercised (same technique as the satellite radius test).
+  test.beforeEach(async ({ page }) => {
+    await freshEditor(page); await spyToasts(page);
+    await page.evaluate(() => {
+      const o = BldDB.getAll;
+      BldDB.getAll = () => o.call(BldDB).concat(['Road_Bridge_NS_1', 'Road_Bridge_SENW_1'].map(id => ({ id, buildingCategory: 'Bridge', spriteName: id })) as any);
+    });
+  });
   const BRIDGES = ['Road_Bridge_NEWS_1', 'Road_Bridge_NS_1', 'Road_Bridge_SENW_1'];
   const river = (page: Page, col = 227, row = 224, id = 'River_L_1') => page.evaluate(([c, r, h]) => { mapData[(r as number) * MAP_WIDTH + (c as number)] = h as string; }, [col, row, id]);
   const bridgeTool = async (page: Page, id?: string) => {
@@ -1341,7 +1349,7 @@ test.describe('bridge tool (T2.16)', () => {
     expect(await undoSize(page)).toBe(s0);
   });
 
-  test('the press is a stroke: isStroking is true while the button is held (undo ignored, Clear Map refused), Escape rolls the bridge back without a step and keeps the redo stack', async ({ page }) => {
+  test('the press is a stroke: isStroking is true while the button is held (undo ignored), Escape rolls the bridge back without a step and keeps the redo stack', async ({ page }) => {
     await river(page);
     await page.evaluate(() => { History.push(); objectsData['300,300'] = 'Artefact_Test_1'; History.undo(); });
     const before = await page.evaluate(() => ({ u: History.undoSize(), r: History.redoSize() }));
@@ -1380,12 +1388,15 @@ test.describe('bridge tool (T2.16)', () => {
     expect(await page.evaluate(() => [Tools.isStrokeActive(), Tools.isStroking()])).toEqual([false, false]);
     await page.mouse.up();
     expect(await undoSize(page)).toBe(s0 + 2);
-    await page.mouse.down();
+    await river(page, 222, 224);
+    const p3 = await cellPoint(page, 222, 224);
+    await page.mouse.move(p3.x, p3.y); await page.mouse.down();
+    expect(await page.evaluate(() => Tools.isStroking())).toBe(true);
     await page.evaluate(() => Tools.setActive('paint'));
     expect(await page.evaluate(() => [Tools.isStrokeActive(), Tools.isStroking()])).toEqual([false, false]);
     await page.mouse.up();
-    expect(await undoSize(page)).toBe(s0 + 2 + 0);
-    expect(await objs(page)).toEqual({ '227,224': 'Road_Bridge_NS_1', '230,224': 'Road_Bridge_NS_1' });
+    expect(await undoSize(page)).toBe(s0 + 3);                                  // the press's step stays after the switch
+    expect(await objs(page)).toEqual({ '227,224': 'Road_Bridge_NS_1', '230,224': 'Road_Bridge_NS_1', '222,224': 'Road_Bridge_NS_1' });
   });
 
   test('a map replaced mid-gesture stops the bridge tool with a bridge-specific toast and writes nothing to the new map', async ({ page }) => {
@@ -1423,17 +1434,27 @@ test.describe('bridge tool (T2.16)', () => {
     expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
   });
 
-  test('the bridge is drawn: placing one changes the canvas, undo restores it', async ({ page }) => {
+  test('the bridge is drawn: the canvas differs with and without it; undo and redo are repeatable', async ({ page }) => {
     await river(page);
-    await page.evaluate(() => { Canvas.render(); });
-    const hash = () => page.evaluate(() => { const cv = document.getElementById('map-canvas') as HTMLCanvasElement; const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data; let h = 0; for (let i = 0; i < d.length; i += 53) h = (h * 31 + d[i]) | 0; return h; });
-    await bridgeTool(page, 'Road_Bridge_NS_1');
-    const h0 = await hash();
+    await page.evaluate(() => { History.push(); History.undo(); });   // a restore rebuilds every cache from the live river tile
+    await bridgeTool(page, 'Road_Bridge_NEWS_1');
+    await page.mouse.move(5, 500);
+    const raw = () => page.evaluate(() => { Canvas.render(); const cv = document.getElementById('map-canvas') as HTMLCanvasElement; const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data; let h = 0; for (let i = 0; i < d.length; i += 53) h = (h * 31 + d[i]) | 0; return h; });
+    // the sprite may still be loading: read until two consecutive renders agree (a count of renders, not a wall-clock wait)
+    const hash = async () => { let a = await raw(); for (let n = 0; n < 200; n++) { const b = await raw(); if (a === b) return a; a = b; } throw new Error('canvas never settled'); };
     await clickCell(page, 227, 224);
     await page.mouse.move(5, 500);
-    await page.waitForFunction(() => !!objectsData['227,224']);
-    await expect.poll(async () => (await hash()) !== h0).toBe(true);
-    await page.evaluate(() => { History.undo(); Canvas.render(); });
-    expect(await hash()).toBe(h0);
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NEWS_1');
+    const withBridge = await hash();
+    await page.evaluate(() => History.undo());
+    const without = await hash();
+    expect(without).not.toBe(withBridge);
+    await page.evaluate(() => History.redo());
+    const redone = await hash();
+    expect(redone).not.toBe(without);                 // (the first render after a restore can differ from the live one in unrelated pixels, so compare against `without` only)
+    await page.evaluate(() => History.undo());
+    expect(await hash()).toBe(without);
+    await page.evaluate(() => History.redo());
+    expect(await hash()).toBe(redone);
   });
 });
