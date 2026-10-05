@@ -704,34 +704,76 @@ test.describe('stamps panel (T2.13)', () => {
     await expect(page.locator('#stamp-list')).toContainText('No stamps yet');
   });
 
-  test('the panel lives in the right panel, adds nothing to the toolbar and keeps the canvas size (1491x808 at 1400x900)', async ({ page }) => {
+  test('the panel lives in the left palette, adds nothing to the toolbar and keeps the canvas size (1491x808 at 1400x900)', async ({ page }) => {
     await freshEditor(page);
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
     const r = await page.evaluate(() => {
       const c = document.getElementById('map-canvas') as HTMLCanvasElement;
-      const p = document.getElementById('stamp-panel')!, rp = document.getElementById('right-panel')!.getBoundingClientRect(), b = p.getBoundingClientRect();
-      return { cw: c.width, ch: c.height, inRight: !!p.closest('#right-panel'), inToolbar: !!p.closest('#map-tools, #map-io, header'), fits: b.left >= rp.left - 0.5 && b.right <= rp.right + 0.5,
-               after: !!(document.getElementById('brush-panel')!.compareDocumentPosition(p) & Node.DOCUMENT_POSITION_FOLLOWING) && !!(p.compareDocumentPosition(document.getElementById('right-active-terrain')!) & Node.DOCUMENT_POSITION_FOLLOWING) };
+      const p = document.getElementById('stamp-panel')!, lp = document.getElementById('palette-panel')!.getBoundingClientRect(), b = p.getBoundingClientRect();
+      return { cw: c.width, ch: c.height, inLeft: !!p.closest('#palette-panel'), inRight: !!p.closest('#right-panel'), inToolbar: !!p.closest('#map-tools, #map-io, header'),
+               fits: b.left >= lp.left - 0.5 && b.right <= lp.right + 0.5, paletteW: Math.round(lp.width), cols: getComputedStyle(document.getElementById('main')!).gridTemplateColumns.split(' ').length };
     });
-    expect(r).toEqual({ cw: 1491, ch: 808, inRight: true, inToolbar: false, fits: true, after: true });
+    expect(r).toEqual({ cw: 1491, ch: 808, inLeft: true, inRight: false, inToolbar: false, fits: true, paletteW: 220, cols: 3 });
   });
 
-  test('usable at the shortest height (1931x700, the narrowest width at which the right panel is on screen): save button in view, every row reachable and placeable', async ({ page }) => {
+  // The app has a fixed ~1931 px layout: the RIGHT panel is off screen below that width (pre-existing; owner decision for
+  // minimap / brush / active terrain). The Stamps panel is in the left palette, which is always on screen.
+  for (const [w, h] of [[1400, 900], [1100, 700]]) {
+    test(`usable at ${w}x${h}: the panel and its save button are inside the window (palette scrolled to it) and a row takes a real mouse click`, async ({ page }) => {
+      await freshEditor(page);
+      await page.setViewportSize({ width: w, height: h });
+      await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+      await importMany(page, 12);
+      await expect(page.locator('.stamp-row')).toHaveCount(12);
+      // Only the palette and the list are scrolled (like a user with a wheel): scrollIntoView would also shift the
+      // overflow:hidden app containers, which is exactly what hides an off-screen panel from a real user.
+      const geo = (sel: string) => page.evaluate(s => {
+        const b = document.querySelector(s)!.getBoundingClientRect();
+        return { ok: b.width > 0 && b.height > 0 && b.left >= 0 && b.top >= 0 && b.right <= window.innerWidth && b.bottom <= window.innerHeight, x: b.left + b.width / 2, y: b.top + b.height / 2 };
+      }, sel);
+      await page.evaluate(() => { const pp = document.getElementById('palette-panel')!; pp.scrollTop = pp.scrollHeight; });
+      expect((await geo('#stamp-save-btn')).ok).toBe(true);
+      expect((await geo('#stamp-name')).ok).toBe(true);
+      await page.evaluate(() => { const l = document.getElementById('stamp-list')!; l.scrollTop = l.scrollHeight; });
+      const g = await geo('.stamp-row:last-child .stamp-name');       // oldest: s0, reached through the list scroll
+      expect(g.ok).toBe(true);
+      await page.mouse.click(g.x, g.y);                                // a real mouse click at its on-screen position
+      expect(await page.evaluate(() => Tools.getActive())).toBe('paste');
+      expect(await page.evaluate(() => ['main', 'app'].map(id => { const e = document.getElementById(id)!; return e.scrollLeft + e.scrollTop; }).concat([document.documentElement.scrollLeft, document.documentElement.scrollTop, document.body.scrollLeft, document.body.scrollTop]))).toEqual([0, 0, 0, 0, 0, 0]);
+      // the terrain palette stays reachable and the page itself does not scroll
+      const o = await page.evaluate(() => ({ ps: document.getElementById('palette-scroll')!.clientHeight, sx: window.scrollX, sy: window.scrollY, pw: document.getElementById('palette-panel')!.getBoundingClientRect().width, cw: (document.getElementById('map-canvas') as HTMLCanvasElement).width }));
+      expect(o.ps).toBeGreaterThanOrEqual(100);
+      expect([o.sx, o.sy, o.pw, o.cw]).toEqual([0, 0, 220, 1491]);
+    });
+  }
+
+  test('after a mouse click on a stamp row the button does not keep focus: Space still pans, rotation and the paste session survive', async ({ page }) => {
     await freshEditor(page);
-    await page.setViewportSize({ width: 1931, height: 700 });
-    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
-    await expect(page.locator('#stamp-save-btn')).toBeInViewport();
-    await expect(page.locator('#stamp-name')).toBeInViewport();
-    await importMany(page, 12);
-    await expect(page.locator('.stamp-row')).toHaveCount(12);
-    const last = page.locator('.stamp-row').last();                    // oldest: s0
-    await last.scrollIntoViewIfNeeded();
-    await expect(last).toBeInViewport();
-    await last.locator('.stamp-name').click();
-    expect(await page.evaluate(() => Tools.getActive())).toBe('paste');
-    const sc = await page.evaluate(() => { const b = document.getElementById('right-scroll-body')!, l = document.getElementById('stamp-list')!; return { body: getComputedStyle(b).overflowY, hOverflow: l.scrollWidth > l.clientWidth }; });
-    expect(sc).toEqual({ body: 'auto', hOverflow: false });
+    await seedPond(page);
+    await saveNamed(page, 'pond');
+    await page.click('.stamp-row .stamp-name');
+    expect(await page.evaluate(() => document.activeElement && (document.activeElement as HTMLElement).className)).not.toBe('stamp-place');
+    await page.keyboard.press('Period');
+    expect(await page.evaluate(() => Tools.getFloatTransform()!.rot)).toBe(1);
+    await page.evaluate(() => { (window as any).__bp = 0; const o = Tools.beginPaste; Tools.beginPaste = (b: any) => { (window as any).__bp++; return o(b); }; });
+    await page.keyboard.down('Space'); await page.keyboard.up('Space');
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => ({ rot: Tools.getFloatTransform()!.rot, bp: (window as any).__bp, mv: Tools.isMoving() }))).toEqual({ rot: 1, bp: 0, mv: false });
+    // Space + drag pans the camera
+    const cam0 = await page.evaluate(() => Canvas.getCamera());
+    const box = (await page.locator('#map-canvas').boundingBox())!;
+    const x = box.x + box.width / 2, y = box.y + box.height / 2;
+    await page.keyboard.down('Space');
+    await page.mouse.move(x, y); await page.mouse.down(); await page.mouse.move(x + 60, y + 40, { steps: 4 }); await page.mouse.up();
+    await page.keyboard.up('Space');
+    const cam1 = await page.evaluate(() => Canvas.getCamera());
+    expect(Math.abs(cam1.x - cam0.x) + Math.abs(cam1.y - cam0.y)).toBeGreaterThan(20);
+    // keyboard activation still works and fires once
+    await page.keyboard.press('Escape');
+    await page.locator('.stamp-row .stamp-place').focus();
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => ({ t: Tools.getActive(), bp: (window as any).__bp }))).toEqual({ t: 'paste', bp: 1 });
   });
 
   test('names render as text only (markup, 80 characters) and never run script or widen the panel', async ({ page }) => {
@@ -834,12 +876,14 @@ test.describe('stamps panel (T2.13)', () => {
     expect(after).toEqual({ moving: false, pasting: false, tool: 'paint', sel: 2 });
     expect(await names(page)).toEqual(['via enter']);
     // two Enters in the same task save once (double-submit guard)
-    await page.evaluate(() => {
+    const saves = await page.evaluate(() => {
+      let n = 0; const o = Clipboard.capture; Clipboard.capture = (c: any) => { n++; return o(c); };   // one capture per accepted save
       const i = document.getElementById('stamp-name') as HTMLInputElement; i.value = 'dup'; i.focus();
       for (let k = 0; k < 2; k++) i.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', bubbles: true, cancelable: true }));
+      const r = n; setTimeout(() => { Clipboard.capture = o; }, 0); return r;     // counted synchronously: the second Enter hit the guard
     });
+    expect(saves).toBe(1);
     await expect(page.locator('.stamp-row')).toHaveCount(2);
-    await page.waitForTimeout(150);
     expect(await names(page)).toEqual(['dup', 'via enter']);
   });
 
@@ -883,21 +927,47 @@ test.describe('stamps panel (T2.13)', () => {
     expect([r.b1, r.b2, r.b3]).toEqual([1, 1, 1]);   // one deep copy per stamp: the same buffer keeps its geometry cache
   });
 
+  const spyToasts = (page: Page) => page.evaluate(() => { (window as any).__t = []; const o = UI.toast; UI.toast = (m: any, ...a: any[]) => { (window as any).__t.push(String(m)); return o.call(UI, m, ...a); }; });
+  const spied = (page: Page): Promise<string[]> => page.evaluate(() => (window as any).__t.slice());
+  const NOT_LOADED = /not loaded/;
+
   test('pasting a stamp with ids that are not loaded toasts the count and still pastes', async ({ page }) => {
     await freshEditor(page);
+    await spyToasts(page);
     await page.evaluate(async () => {
       await Stamps.importJson(JSON.stringify({ format: 'mapeditor-stamps', version: 1, stamps: [{ name: 'alien', cells: [{ dq: 0, dr: 0, t: 'Forest_1' }, { dq: 1, dr: 0, t: 'NoSuchPkg_Tile' }, { dq: 0, dr: 1, t: 'Other_Missing' }] }] }));
       await Stamps.refresh();
     });
     await page.click('.stamp-row .stamp-name');
     expect(await page.evaluate(() => Tools.getActive())).toBe('paste');
-    expect(await toasts(page)).toContain('2 cells use tiles that are not loaded');
+    expect(await spied(page)).toContain('2 cells use tiles that are not loaded');
     await page.click('.stamp-row .stamp-name');                                // same session: no second warning
-    expect((await toasts(page)).filter(t => /not loaded/.test(t)).length).toBe(1);
+    expect((await spied(page)).filter(t => NOT_LOADED.test(t)).length).toBe(1);
     await seedPond(page);
     await saveNamed(page, 'fine');
     await page.locator('.stamp-row').first().locator('.stamp-name').click();
-    expect((await toasts(page)).filter(t => /not loaded/.test(t)).length).toBe(1);   // a stamp whose ids are all loaded stays quiet
+    expect((await spied(page)).filter(t => NOT_LOADED.test(t)).length).toBe(1);   // a stamp whose ids are all loaded stays quiet
+  });
+
+  test('the unknown-tile warning returns when a Ctrl+V clipboard paste replaced the stamp float (same stamp id, different buffer)', async ({ page }) => {
+    await freshEditor(page);
+    await spyToasts(page);
+    await page.evaluate(async () => {
+      await Stamps.importJson(JSON.stringify({ format: 'mapeditor-stamps', version: 1, stamps: [{ name: 'alien', cells: [{ dq: 0, dr: 0, t: 'Forest_1' }, { dq: 1, dr: 0, t: 'NoSuchPkg_Tile' }] }] }));
+      await Stamps.refresh();
+    });
+    await page.click('.stamp-row .stamp-name');
+    expect((await spied(page)).filter(t => NOT_LOADED.test(t)).length).toBe(1);
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => Tools.isPasting())).toBe(false);
+    await seedPond(page);
+    await page.evaluate(() => Tools.copySelection());
+    await page.keyboard.press('Control+v');                                   // a clipboard paste (not the stamp) floats now
+    expect(await page.evaluate(() => Tools.isPasting())).toBe(true);
+    await page.click('.stamp-row .stamp-name');                               // the stamp floats again: warn again
+    expect((await spied(page)).filter(t => NOT_LOADED.test(t)).length).toBe(2);
+    await page.click('.stamp-row .stamp-name');                               // same float buffer: quiet
+    expect((await spied(page)).filter(t => NOT_LOADED.test(t)).length).toBe(2);
   });
 
   test('export downloads stamps-YYYY-MM-DD.json holding exactly the stored stamps; empty library toasts', async ({ page }) => {
@@ -986,5 +1056,60 @@ test.describe('stamps panel (T2.13)', () => {
     await expect(page.locator('.stamp-row')).toHaveCount(2);
     expect(await snap()).toEqual(a);
     expect(await page.evaluate(() => (window as any).__as)).toBe(0);
+  });
+
+  test('Esc in the name field blurs it (shortcuts work again) and keeps the typed text', async ({ page }) => {
+    await freshEditor(page);
+    await page.locator('#stamp-name').focus();
+    await page.keyboard.type('abc');
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => ({ tag: document.activeElement && document.activeElement.tagName, v: (document.getElementById('stamp-name') as HTMLInputElement).value }))).toEqual({ tag: 'BODY', v: 'abc' });
+    await page.keyboard.press('KeyM');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('marquee');
+  });
+
+  test('a selection above the store limit is refused before it is captured (same message, name kept)', async ({ page }) => {
+    await freshEditor(page);
+    await spyToasts(page);
+    await seedPond(page);
+    await page.fill('#stamp-name', 'huge');
+    const r = await page.evaluate(async () => {
+      let captures = 0; const oc = Clipboard.capture; Clipboard.capture = (c: any) => { captures++; return oc(c); };
+      const os = Selection.size; Selection.size = () => 250001;
+      await Stamps.saveSelection();
+      Selection.size = os; Clipboard.capture = oc;
+      return captures;
+    });
+    expect(r).toBe(0);
+    expect((await spied(page)).some(t => /too many cells.*250000/.test(t))).toBe(true);
+    await expect(page.locator('#stamp-name')).toHaveValue('huge');
+    expect(await names(page)).toEqual([]);
+  });
+
+  test('export reads the library once', async ({ page }) => {
+    await freshEditor(page);
+    await seedPond(page);
+    await saveNamed(page, 'one');
+    const reads = await page.evaluate(async () => {
+      let n = 0; const o = IDBObjectStore.prototype.getAll; IDBObjectStore.prototype.getAll = function (...a: any[]) { n++; return (o as any).apply(this, a); };
+      const oc = URL.createObjectURL; URL.createObjectURL = () => 'blob:x';
+      HTMLAnchorElement.prototype.click = function () {};
+      await Stamps.exportFile();
+      IDBObjectStore.prototype.getAll = o; URL.createObjectURL = oc;
+      return n;
+    });
+    expect(reads).toBe(1);
+  });
+});
+
+test.describe('stamps panel startup isolation (T2.13 fix round 1)', () => {
+  test('a throwing Stamps.initPanel (IntersectionObserver throws) does not take down the later startup steps', async ({ page }) => {
+    await page.addInitScript(() => { (window as any).IntersectionObserver = function () { throw new Error('io boom'); }; });
+    await freshEditor(page);
+    await page.keyboard.press('KeyM');                                    // IO.initKeyboard / Tools shortcuts are alive
+    expect(await page.evaluate(() => Tools.getActive())).toBe('marquee');
+    await page.keyboard.press('Control+a');
+    expect(await page.evaluate(() => Selection.size())).toBeGreaterThan(0);
+    expect(await page.evaluate(() => document.getElementById('brush-size-label')!.textContent)).toMatch(/Radius/);
   });
 });

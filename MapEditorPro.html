@@ -123,11 +123,11 @@ html, body {
   background: var(--panel);
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
-  overflow: hidden;
+  overflow-x: hidden; overflow-y: auto;   /* short windows: the whole palette scrolls so the Stamps panel stays reachable */
 }
 
 #palette-scroll {
-  flex: 1; overflow-y: auto; padding: 8px;
+  flex: 1 0 160px; overflow-y: auto; padding: 8px;
 }
 
 .cat-header {
@@ -259,12 +259,12 @@ html, body {
 .brush-btn.active { border-color: var(--accent); background: rgba(79,195,247,0.12); }
 
 /* Stamps panel (T2.13): lives in the scrollable right panel body, so it never changes the canvas width */
-#stamp-panel { padding: 10px; border-bottom: 1px solid var(--border); }
+#stamp-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #stamp-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #stamp-panel .stamp-bar { display: flex; gap: 4px; margin-bottom: 6px; }
 #stamp-panel .stamp-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #stamp-name { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; }
-#stamp-list { max-height: 260px; overflow-y: auto; overflow-x: hidden; }
+#stamp-list { max-height: 130px; overflow-y: auto; overflow-x: hidden; }
 .stamp-empty { font-size: 11px; color: var(--muted); padding: 4px 0; }
 .stamp-row { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); cursor: pointer; }
 .stamp-row:hover { background: var(--hover); }
@@ -1484,6 +1484,20 @@ body.mode-common #map-io    { display: none; }
         </div>
         <div id="zone-list"></div>
       </div>
+      <!-- Stamps (T2.13): in the LEFT palette, the only side panel that is on screen on common window widths -->
+      <div id="stamp-panel">
+        <div class="section-title">Stamps</div>
+        <div class="stamp-bar">
+          <input id="stamp-name" class="hexdb-input" type="text" maxlength="80" placeholder="Stamp name" aria-label="Stamp name" title="Name for the new stamp (Enter saves it)">
+          <button id="stamp-save-btn" class="hexdb-tool-btn" type="button" onclick="Stamps.saveSelection()" title="Save the current selection (M, drag) as a stamp">Save</button>
+        </div>
+        <div class="stamp-bar">
+          <button id="stamp-export-btn" class="hexdb-tool-btn" type="button" onclick="Stamps.exportFile()" title="Download all stamps as a JSON file">Export</button>
+          <button id="stamp-import-btn" class="hexdb-tool-btn" type="button" onclick="document.getElementById('stamp-import-file').click()" title="Add the stamps of an exported JSON file">Import</button>
+          <input id="stamp-import-file" type="file" accept="application/json,.json" style="display:none" aria-label="Import stamps file" onchange="Stamps.importFile(event)">
+        </div>
+        <div id="stamp-list"></div>
+      </div>
     </div>
 
     <!-- Canvas -->
@@ -1510,19 +1524,6 @@ body.mode-common #map-io    { display: none; }
                  style="flex:1" oninput="Brush.setSize(this.value)" onchange="this.blur()" title="Brush radius ([ and ] keys)">
         </div>
         <div id="brush-size-label" style="font-size:10px;color:var(--muted);margin-top:2px">Radius 0 (1 tile)</div>
-      </div>
-      <div id="stamp-panel">
-        <div class="section-title">Stamps</div>
-        <div class="stamp-bar">
-          <input id="stamp-name" class="hexdb-input" type="text" maxlength="80" placeholder="Stamp name" aria-label="Stamp name" title="Name for the new stamp (Enter saves it)">
-          <button id="stamp-save-btn" class="hexdb-tool-btn" type="button" onclick="Stamps.saveSelection()" title="Save the current selection (M, drag) as a stamp">Save</button>
-        </div>
-        <div class="stamp-bar">
-          <button id="stamp-export-btn" class="hexdb-tool-btn" type="button" onclick="Stamps.exportFile()" title="Download all stamps as a JSON file">Export</button>
-          <button id="stamp-import-btn" class="hexdb-tool-btn" type="button" onclick="document.getElementById('stamp-import-file').click()" title="Add the stamps of an exported JSON file">Import</button>
-          <input id="stamp-import-file" type="file" accept="application/json,.json" style="display:none" aria-label="Import stamps file" onchange="Stamps.importFile(event)">
-        </div>
-        <div id="stamp-list"></div>
       </div>
       <div id="right-active-terrain">
         <div class="section-title">Active Terrain</div>
@@ -2421,7 +2422,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "0444e60";
+const COMMIT  = "7b7dd4f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5253,9 +5254,8 @@ const Stamps = (() => {
   function remove(id) {
     return _guard(() => _run('readwrite', st => { st.delete(id); }).then(() => { for (const k of Array.from(_thumbs.keys())) if (k.startsWith(id + '|')) _thumbs.delete(k); }));
   }
-  function exportJson() {
-    return list().then(a => JSON.stringify({ format: 'mapeditor-stamps', version: 1, stamps: a }));
-  }
+  const _exportText = a => JSON.stringify({ format: 'mapeditor-stamps', version: 1, stamps: a });
+  function exportJson() { return list().then(_exportText); }
   // importJson(text) -> count. Validates EVERYTHING first (nothing is written for malformed input), then adds all stamps in
   // one transaction (all or nothing). Imported stamps get fresh ids (importing twice adds copies), keep a valid `created` (a future one counts as invalid: it would pin the stamp to the top).
   function importJson(text) {
@@ -5370,8 +5370,10 @@ const Stamps = (() => {
       const del = document.createElement('button'); del.type = 'button'; del.className = 'stamp-del'; del.textContent = '✕';
       del.title = 'Delete stamp'; del.setAttribute('aria-label', 'Delete stamp ' + rec.name);
       del.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });
-      del.addEventListener('click', e => { e.stopPropagation(); _confirmRemove(rec); });
-      row.addEventListener('click', () => _place(rec));
+      // A pointer click must not leave the button focused: a focused button swallows Space (no pan) and re-activates on Space/Enter keyup
+      // (a second beginPaste that resets rotation). Keyboard activation (detail 0) keeps its focus.
+      del.addEventListener('click', e => { e.stopPropagation(); if (e.detail > 0) del.blur(); _confirmRemove(rec); });
+      row.addEventListener('click', e => { if (e.detail > 0 && document.activeElement === place) place.blur(); _place(rec); });
       row.append(place, del);
       frag.appendChild(row);
       _observeThumb(img, rec);
@@ -5402,7 +5404,7 @@ const Stamps = (() => {
   function _place(rec) {
     if (Tools.isFillBusy()) { _toast('Wait for the fill to finish'); return; }
     if (Tools.isStroking()) { _toast('Finish the current move or stroke first (Esc)'); return; }
-    const same = Tools.isPasting() && _cache && _cache.id === rec.id;
+    const same = Tools.isPasting() && !!_cache && Tools.getFloatBuffer() === _cache.buf && _cache.id === rec.id;
     if (!_cache || _cache.id !== rec.id) {
       const buf = api.toBuffer(rec), ids = new Map();       // through the public object: one counted call per stamp
       for (const c of buf.cells) ids.set(c.t, (ids.get(c.t) || 0) + 1);
@@ -5426,6 +5428,7 @@ const Stamps = (() => {
     if (_saving) return;
     if (Tools.isFillBusy()) { _toast('Wait for the fill to finish'); return; }
     if (Selection.isEmpty()) { _toast('Select a region first (M)'); return; }
+    if (Selection.size() > MAX_CELLS) { _toast('Could not save stamp: Invalid stamp: too many cells (limit ' + MAX_CELLS + ')'); return; }   // before capturing a huge copy
     const input = _$('stamp-name'), typed = input ? input.value : '';
     const buf = Clipboard.capture(Selection.getCells());
     if (!buf) { _toast('Select a region first (M)'); return; }
@@ -5441,8 +5444,9 @@ const Stamps = (() => {
 
   async function exportFile() {
     try {
-      if (!(await list()).length) { _toast('No stamps to export'); return; }
-      const text = await exportJson();
+      const all = await list();                                // one read: emptiness check and file content
+      if (!all.length) { _toast('No stamps to export'); return; }
+      const text = _exportText(all);
       const d = new Date(), p = n => String(n).padStart(2, '0');
       const a = document.createElement('a');
       a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
@@ -5475,6 +5479,7 @@ const Stamps = (() => {
       const input = _$('stamp-name');
       if (input) input.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.isComposing && !e.repeat) { e.preventDefault(); saveSelection(); }
+        else if (e.key === 'Escape' && !e.isComposing) { e.preventDefault(); input.blur(); }   // back to the map shortcuts
       });
     }
     return refresh();
@@ -6567,6 +6572,7 @@ const Tools = (() => {
     const c = _floatCell; _floatKey = '';
     _hoverFloat(c.col, c.row); Canvas.render();
   }
+  function getFloatBuffer() { return _float ? _float.buf : null; }
   function getFloatTransform() { return _float ? { rot: _float.xf.rot, mh: _float.xf.mh, mv: _float.xf.mv } : null; }
   function setFloatTransform(x) {
     if (!_float || _floatStale()) return;
@@ -7062,7 +7068,7 @@ const Tools = (() => {
 
   function isStroking() { return _eraseStroke || isMoving(); }   // undo / redo are ignored while a lifted selection floats
   function isPasting() { return !!_float; }
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
@@ -16513,7 +16519,8 @@ window.addEventListener('load', async () => {
   Canvas.init();
   UI.init();
   Tools.init();
-  Stamps.initPanel();
+  try { Stamps.initPanel(); }                  // a failure here must not stop the startup steps below
+  catch (e) { console.error('Stamps panel failed to start', e); UI.toast('Stamps panel failed to start: ' + (e && e.message || e)); }
   Brush.setSize(Brush.getSize());   // sync slider, label and buttons
   History.initKeyboard();
   IO.initFileInput();
