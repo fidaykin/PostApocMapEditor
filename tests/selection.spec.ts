@@ -1721,3 +1721,575 @@ test.describe('clipboard (T2.9)', () => {
     expect(r.maxOut).toBeLessThanOrEqual(3); // cells just outside the ghost are not (<= 3 levels: antialiasing of the neighbouring outline)
   });
 });
+
+// ====================================================================================================
+// T2.10 rotate, mirror and move
+// ====================================================================================================
+test.describe('transform and move (T2.10)', () => {
+  test.beforeEach(async ({ page }) => {
+    await freshEditor(page);
+    await page.evaluate(() => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT;
+      const n = HexUtils.neighbors(225, 224, W, H)[0];
+      (window as any).__n = n;
+      mapData[224 * W + 225] = 'Water_1';
+      mapData[n.row * W + n.col] = 'Forest_1';
+      Selection.setCells([{ col: 225, row: 224 }, n]);
+      // independent pixel reference: mirror h (x), mirror v (y), then rotate screen-clockwise (y down) by rot*60 degrees
+      (window as any).__ref = (v: { x: number; y: number }, rot: number, mh: boolean, mv: boolean) => {
+        let x = mh ? -v.x : v.x, y = mv ? -v.y : v.y;
+        const a = Math.PI / 3 * rot, cs = Math.cos(a), sn = Math.sin(a);
+        return { x: x * cs - y * sn, y: x * sn + y * cs };
+      };
+    });
+  });
+
+  const XFS: [number, boolean, boolean][] = [];
+  for (let rot = 0; rot < 6; rot++) for (const mh of [false, true]) for (const mv of [false, true]) XFS.push([rot, mh, mv]);
+  const layers = (page: Page) => page.evaluate(() => JSON.stringify({ m: mapData.join('|'), o: objectsData, r: roadsData, b: bridgesData, x: tileExtras, z: Array.from(ZonePainter.getZoneLayer()).join('') }));
+  const resize = (page: Page, W: number, H: number) => page.evaluate(([W, H]) => {
+    MAP_WIDTH = W as number; MAP_HEIGHT = H as number;
+    mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+    objectsData = {}; roadsData = {}; tileExtras = {}; bridgesData = [];
+    ZonePainter.init(); invalidateSatelliteMap(); History.clear();
+    Canvas.centerOnCity();
+  }, [W, H]);
+
+  const vectors = (page: any) => page.evaluate(() => {
+    const W = MAP_WIDTH;
+    const pos = (i: number) => Canvas.hexCenterWorld(i % W, Math.floor(i / W));
+    const water: number[] = [], forest: number[] = [];
+    mapData.forEach((id, i) => { if (id === 'Water_1') water.push(i); if (id === 'Forest_1') forest.push(i); });
+    const srcW = 224 * W + 225, n = (window as any).__n, srcF = n.row * W + n.col;
+    const dstW = water.find(i => i !== srcW)!, dstF = forest.find(i => i !== srcF)!;
+    const v = (a: number, b: number) => ({ x: pos(b).x - pos(a).x, y: pos(b).y - pos(a).y });
+    return { src: v(srcW, srcF), dst: v(dstW, dstF) };
+  });
+  async function pasteWith(page: any, keys: string[]) {
+    await page.keyboard.press('Control+c');
+    await page.keyboard.press('Control+v');
+    for (const k of keys) await page.keyboard.press(k);
+    await clickCell(page, 225, 219);
+  }
+
+  test('"." rotates 60 degrees clockwise on screen', async ({ page }) => {
+    await pasteWith(page, ['.']);
+    const { src, dst } = await vectors(page);
+    const cs = Math.cos(Math.PI / 3), sn = Math.sin(Math.PI / 3);
+    expect(dst.x).toBeCloseTo(src.x * cs - src.y * sn, 4);
+    expect(dst.y).toBeCloseTo(src.x * sn + src.y * cs, 4);
+  });
+
+  test('"," rotates counter-clockwise, "/" mirrors left-right, ";" mirrors top-bottom', async ({ page }) => {
+    await pasteWith(page, [',']);
+    let v = await vectors(page);
+    const cs = Math.cos(Math.PI / 3), sn = Math.sin(Math.PI / 3);
+    expect(v.dst.x).toBeCloseTo(v.src.x * cs + v.src.y * sn, 4);
+    expect(v.dst.y).toBeCloseTo(-v.src.x * sn + v.src.y * cs, 4);
+    await page.evaluate(() => History.undo());
+    await pasteWith(page, ['/']);
+    v = await vectors(page);
+    expect(v.dst.x).toBeCloseTo(-v.src.x, 4); expect(v.dst.y).toBeCloseTo(v.src.y, 4);
+    await page.evaluate(() => History.undo());
+    await pasteWith(page, [';']);
+    v = await vectors(page);
+    expect(v.dst.x).toBeCloseTo(v.src.x, 4); expect(v.dst.y).toBeCloseTo(-v.src.y, 4);
+  });
+
+  test('Enter lifts the selection: nothing is written until the drop; a click drops it as ONE step and selects the new cells', async ({ page }) => {
+    const base = await layers(page), s0 = await page.evaluate(() => History.undoSize());
+    await page.keyboard.press('Enter');
+    expect(await layers(page)).toBe(base);                                              // nothing written at lift time
+    expect(await page.evaluate(() => [Tools.getActive(), History.undoSize()])).toEqual(['paste', s0]);
+    await clickCell(page, 225, 219);
+    const r = await page.evaluate(() => ({
+      water: mapData.filter(x => x === 'Water_1').length, forest: mapData.filter(x => x === 'Forest_1').length,
+      sel: Selection.size(), moved: mapData[219 * MAP_WIDTH + 225], src: mapData[224 * MAP_WIDTH + 225], steps: History.undoSize(),
+    }));
+    expect(r).toEqual({ water: 1, forest: 1, sel: 2, moved: 'Water_1', src: 'Plain_1', steps: s0 + 1 });
+    expect(await page.evaluate(() => Tools.getActive())).not.toBe('paste');
+    await page.evaluate(() => History.undo());
+    expect(await layers(page)).toBe(base);                                              // one undo restores every layer
+    await page.evaluate(() => History.redo());
+    expect(await page.evaluate(() => mapData[219 * MAP_WIDTH + 225])).toBe('Water_1');
+  });
+
+  test('Esc while moving cancels: map, selection and History untouched, previous tool back', async ({ page }) => {
+    await page.evaluate(() => Tools.setActive('eraser'));
+    const base = await layers(page), s0 = await page.evaluate(() => History.undoSize());
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Escape');
+    expect(await layers(page)).toBe(base);
+    expect(await page.evaluate(() => [Selection.size(), History.undoSize(), Tools.getActive()])).toEqual([2, s0, 'eraser']);
+  });
+
+  test('Enter does nothing without a selection, while pasting, in a text field, or from a focused button', async ({ page }) => {
+    await page.evaluate(() => Selection.clear());
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => Tools.isPasting())).toBe(false);
+    await page.evaluate(() => Selection.setCells([{ col: 225, row: 224 }]));
+    await page.evaluate(() => { const i = document.getElementById('scatter-density')!; (i.closest('#scatter-row') as HTMLElement).style.display = 'block'; i.focus(); });
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => Tools.isPasting())).toBe(false);
+    await page.evaluate(() => { (document.activeElement as HTMLElement).blur(); Tools.copySelection(); Tools.beginPaste(Clipboard.get()); });
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(false);
+    await page.evaluate(() => { Tools.setActive('paint'); const b = document.querySelector('.tool-btn[data-tool="marquee"]') as HTMLElement; b.focus(); });
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(false);
+  });
+
+  // ---------- invariants ----------------------------------------------------------------------
+  test('transformOffset: 6 rotations and 2 mirrors are the identity, mh+mv = rotation by 3, mirror-then-rotate order is fixed', async ({ page }) => {
+    const bad = await page.evaluate(() => {
+      const out: string[] = [], eq = (a: any, b: any) => a.q === b.q && a.r === b.r && a.s === b.s;
+      const T = HexUtils.transformOffset;
+      for (let q = -4; q <= 4; q++) for (let r = -4; r <= 4; r++) {
+        const c = { q, r, s: -q - r };
+        let x = c; for (let i = 0; i < 6; i++) x = T(x, 1, false, false);
+        if (!eq(x, c)) out.push('rot6 ' + q + ',' + r);
+        if (!eq(T(T(c, 0, true, false), 0, true, false), c)) out.push('mh2');
+        if (!eq(T(T(c, 0, false, true), 0, false, true), c)) out.push('mv2');
+        if (!eq(T(c, 0, true, true), T(c, 3, false, false))) out.push('mhmv');
+        if (!eq(T(c, 2, true, false), HexUtils.rotateCube(HexUtils.mirrorCube(c, 'h'), 2))) out.push('order');
+        // rotate-then-mirror equals mirror-then-rotate by the opposite angle
+        if (!eq(HexUtils.mirrorCube(HexUtils.rotateCube(c, 2), 'h'), T(c, -2, true, false))) out.push('conj');
+        if (eq(T(c, 1, true, false), HexUtils.mirrorCube(HexUtils.rotateCube(c, 1), 'h')) && !(q === 0 && r === 0) && !eq(T(c, 1, true, false), c) && false) out.push('x');
+      }
+      return out;
+    });
+    expect(bad).toEqual([]);
+  });
+
+  test('a float rotated 6 times, mirrored twice or rotated +1 -1 pastes exactly like the untransformed one', async ({ page }) => {
+    await page.evaluate(() => {
+      const W = MAP_WIDTH;
+      Selection.setCells(Tools._rectCells(222, 220, 227, 223));
+      Selection.forEach((c: number, r: number) => {
+        const k = c + ',' + r, i = r * W + c;
+        mapData[i] = ['Water_1', 'Forest_1', 'Hills_1'][(c + r) % 3];
+        if ((c + r) % 4 === 0) objectsData[k] = 'Grain_1';
+        if ((c + r) % 5 === 0) roadsData[k] = { type: 'road_hex' };
+        if ((c + r) % 7 === 0) bridgesData.push({ col: c, row: r, axis: (c + r) % 3 });
+        tileExtras[k] = { tag: c * 100 + r };
+        if ((c + r) % 3 === 0) ZonePainter.getZoneLayer()[i] = 2;
+      });
+      Tools.copySelection();
+    });
+    const run = (ops: string) => page.evaluate((ops: string) => {
+      Tools.beginPaste(Clipboard.get());
+      for (const o of ops) { if (o === 'c') Tools.rotateFloat(1); else if (o === 'a') Tools.rotateFloat(-1); else if (o === 'h') Tools.mirrorFloat('h'); else if (o === 'v') Tools.mirrorFloat('v'); }
+      Tools.dropFloat(100, 100);
+      const s = JSON.stringify({ m: mapData.join('|'), o: objectsData, r: roadsData, b: bridgesData, x: tileExtras, z: Array.from(ZonePainter.getZoneLayer()).join('') });
+      Tools.setActive('paint'); History.undo();
+      return s;
+    }, ops);
+    const id = await run('');
+    expect(await run('cccccc')).toBe(id);
+    expect(await run('hh')).toBe(id);
+    expect(await run('vv')).toBe(id);
+    expect(await run('ca')).toBe(id);
+    expect(await run('hvhv')).toBe(id);
+    expect(await run('c')).not.toBe(id);                  // and a single rotation really changes it
+    expect(await run('hv')).toBe(await run('ccc'));       // mirror h + mirror v = rotate 180
+  });
+
+  // ---------- pixel geometry ------------------------------------------------------------------
+  for (const [W, H] of [[31, 31], [30, 30], [31, 30], [30, 31]]) {
+    test(`pasted tiles sit at the rotated / mirrored pixel offsets of the source (hexCenterWorld reference), ${W}x${H}, 24 transforms, odd and even anchor parities, clipped at the edges`, async ({ page }) => {
+      await resize(page, W, H);
+      const r = await page.evaluate(([W, H]) => {
+        const cw = Canvas.hexCenterWorld, ref = (window as any).__ref, bad: string[] = [];
+        const key = (x: number, y: number) => Math.round(x * 1000) + '/' + Math.round(y * 1000);
+        const at = new Map<string, { col: number; row: number }>();
+        for (let c = 0; c < MAP_WIDTH; c++) for (let r = 0; r < MAP_HEIGHT; r++) { const p = cw(c, r); at.set(key(p.x, p.y), { col: c, row: r }); }
+        const src: { col: number; row: number }[] = [];
+        for (const d of HexUtils.discCells(22, 22, 2, MAP_WIDTH, MAP_HEIGHT)) src.push(d);
+        const srcSet = new Set(src.map(s => s.col + ',' + s.row));
+        src.forEach((c, i) => {
+          const k = c.col + ',' + c.row;
+          mapData[c.row * MAP_WIDTH + c.col] = ['Water_1', 'Forest_1', 'Hills_1'][i % 3];
+          tileExtras[k] = { tag: i };
+          if (i % 2) objectsData[k] = 'Grain_1';
+          if (i % 3 === 1) roadsData[k] = { type: 'road_hex' };
+          if (i % 4 === 2) ZonePainter.getZoneLayer()[c.row * MAP_WIDTH + c.col] = 3;
+        });
+        Selection.setCells(src); Tools.copySelection();
+        const buf = Clipboard.get(), o = buf.origin, po = cw(o.col, o.row);
+        const targets = [[10, 10], [11, 10], [10, 11], [11, 11], [0, 0], [MAP_WIDTH - 1, MAP_HEIGHT - 1], [0, MAP_HEIGHT - 1], [MAP_WIDTH - 1, 0], [1, 1]];
+        let placed = 0, clipped = 0;
+        for (const [rot, mh, mv] of [[0, false, false], [1, false, false], [2, false, false], [3, false, false], [4, false, false], [5, false, false],
+          [0, true, false], [1, true, false], [2, true, false], [3, true, false], [4, true, false], [5, true, false],
+          [0, false, true], [1, false, true], [2, false, true], [3, false, true], [4, false, true], [5, false, true],
+          [0, true, true], [1, true, true], [2, true, true], [3, true, true], [4, true, true], [5, true, true]] as [number, boolean, boolean][]) {
+          for (const [tc, tr] of targets) {
+            Tools.beginPaste(buf);
+            Tools.rotateFloat(rot); if (mh) Tools.mirrorFloat('h'); if (mv) Tools.mirrorFloat('v');
+            Tools.dropFloat(tc, tr);
+            const pt = cw(tc, tr), got = new Map<number, { col: number; row: number }>();
+            for (const k in tileExtras) {
+              const [c, rr] = k.split(',').map(Number);
+              if (!srcSet.has(k)) got.set(tileExtras[k].tag, { col: c, row: rr });
+            }
+            let want = 0;
+            src.forEach((s, i) => {
+              const ps = cw(s.col, s.row), v = ref({ x: ps.x - po.x, y: ps.y - po.y }, rot, mh, mv);
+              const d = at.get(key(pt.x + v.x, pt.y + v.y)), g = got.get(i);
+              if (!d) { clipped++; if (g) bad.push(`${rot}${mh}${mv}@${tc},${tr} #${i} placed off map`); return; }
+              want++;
+              if (!g || g.col !== d.col || g.row !== d.row) { bad.push(`${rot}${mh}${mv}@${tc},${tr} #${i} want ${d.col},${d.row} got ${g && g.col + ',' + g.row}`); return; }
+              const dk = d.col + ',' + d.row, sk = s.col + ',' + s.row;
+              if (mapData[d.row * MAP_WIDTH + d.col] !== mapData[s.row * MAP_WIDTH + s.col] || objectsData[dk] !== objectsData[sk]
+                || JSON.stringify(roadsData[dk]) !== JSON.stringify(roadsData[sk])
+                || ZonePainter.getZoneLayer()[d.row * MAP_WIDTH + d.col] !== ZonePainter.getZoneLayer()[s.row * MAP_WIDTH + s.col]) bad.push(`${rot}${mh}${mv}@${tc},${tr} #${i} content`);
+            });
+            if (got.size !== want) bad.push(`${rot}${mh}${mv}@${tc},${tr} count ${got.size}/${want}`);
+            placed += want;
+            if (bad.length > 6) return { bad };
+            Tools.setActive('paint'); History.undo();
+          }
+        }
+        return { bad, placed, clipped };
+      }, [W, H]);
+      expect(r.bad).toEqual([]);
+      expect(r.placed).toBeGreaterThan(24 * 4 * 19);
+      expect(r.clipped).toBeGreaterThan(0);                     // the corner targets really clipped after the transform
+    });
+  }
+
+  // ---------- bridges -------------------------------------------------------------------------
+  test('bridge axes and Road_Bridge ids follow the transform (axis angles from pixel geometry)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const ref = (window as any).__ref, bad: string[] = [];
+      // axis -> direction angle (degrees, math orientation, mod 180) of the line it connects: N-S = 90, NE-SW = 30, NW-SE = 150
+      const ANG = [90, 30, 150], ID = ['NS', 'NEWS', 'SENW'];
+      const mod = (a: number) => ((Math.round(a) % 180) + 180) % 180;
+      const axisOf = (deg: number) => ANG.indexOf(mod(deg));
+      for (const [rot, mh, mv] of [[0, false, false], [1, false, false], [2, false, false], [3, false, false], [4, false, false], [5, false, false], [0, true, false], [1, true, false], [2, true, false], [3, true, false], [4, true, false], [5, true, false], [0, false, true], [1, false, true], [2, false, true], [3, false, true], [4, false, true], [5, false, true], [0, true, true], [1, true, true], [2, true, true], [3, true, true], [4, true, true], [5, true, true]] as [number, boolean, boolean][]) {
+        for (let a = 0; a < 3; a++) {
+          mapData.fill('Plain_1'); bridgesData.length = 0; objectsData = {};
+          mapData[224 * MAP_WIDTH + 225] = 'Road_Bridge_' + ID[a] + '_1'; objectsData['225,224'] = 'Road_Bridge_' + ID[a] + '_1';
+          bridgesData.push({ col: 225, row: 224, axis: a });
+          Selection.setCells([{ col: 225, row: 224 }]); Tools.copySelection();
+          Tools.beginPaste(Clipboard.get()); Tools.rotateFloat(rot); if (mh) Tools.mirrorFloat('h'); if (mv) Tools.mirrorFloat('v');
+          Tools.dropFloat(100, 100);
+          // line direction in screen pixels (y down): angle of the vector (cos, -sin) of the math angle
+          const th = ANG[a] * Math.PI / 180, v = ref({ x: Math.cos(th), y: -Math.sin(th) }, rot, mh, mv);
+          const want = axisOf(Math.atan2(-v.y, v.x) * 180 / Math.PI);
+          const b = bridgesData.find((x: any) => x.col === 100 && x.row === 100);
+          if (want < 0 || !b || b.axis !== want) bad.push(`axis ${a} ${rot}${mh}${mv}: want ${want} got ${b && b.axis}`);
+          if (mapData[100 * MAP_WIDTH + 100] !== 'Road_Bridge_' + ID[want] + '_1') bad.push(`terrain id ${a} ${rot}${mh}${mv}: ${mapData[100 * MAP_WIDTH + 100]}`);
+          if (objectsData['100,100'] !== 'Road_Bridge_' + ID[want] + '_1') bad.push(`object id ${a} ${rot}${mh}${mv}`);
+          Tools.setActive('paint');
+        }
+      }
+      // an axis outside 0..2 is carried over unchanged
+      mapData.fill('Plain_1'); bridgesData.length = 0; bridgesData.push({ col: 225, row: 224, axis: 7 });
+      Selection.setCells([{ col: 225, row: 224 }]); Tools.copySelection(); Tools.beginPaste(Clipboard.get()); Tools.rotateFloat(1); Tools.dropFloat(100, 100);
+      return { bad, odd: bridgesData.find((x: any) => x.col === 100 && x.row === 100).axis };
+    });
+    expect(r.bad).toEqual([]);
+    expect(r.odd).toBe(7);
+  });
+
+  // ---------- directional water ---------------------------------------------------------------
+  test('a transformed paste re-resolves EVERY water / river cell of the region (masks equal resolveEdgeTile on the final map); an identity paste keeps the copied interior', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT;
+      const rivers = HexDB.getAll().filter((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0);
+      const faces = (id: string) => { const e = Terrain.byHexId(id); return e && Array.isArray(e.edgeFaces) ? e.edgeFaces.slice().sort().join('') : ''; };
+      const fallback = HexDB.getAll().find((h: any) => h.id === 'Water_1').id;
+      const origRandom = Math.random; Math.random = () => 0.5;
+      try {
+        mapData.fill('Plain_1');
+        const band: any[] = [];
+        for (let row = 218; row <= 232; row++) for (let col = 224; col <= 226; col++) band.push({ col, row });
+        for (const b of band) mapData[b.row * W + b.col] = rivers[0].id;
+        Tools.autoResolveEdgesAround(band);
+        Selection.setCells(Tools._rectCells(224, 220, 226, 230)); Tools.copySelection();
+        const copied = new Map(Selection.getCells().map((c: any) => [c.col + ',' + c.row, faces(mapData[c.row * W + c.col])]));
+        const out: any = {};
+        for (const [name, rot] of [['identity', 0], ['rot1', 1], ['rot2', 2]] as [string, number][]) {
+          Tools.beginPaste(Clipboard.get()); Tools.rotateFloat(rot); Tools.dropFloat(100, 100);
+          const placed = Selection.getCells();
+          const cells = new Map<string, any>();
+          for (const p of placed) { cells.set(p.col + ',' + p.row, p); for (const n of HexUtils.neighbors(p.col, p.row, W, H)) cells.set(n.col + ',' + n.row, n); }
+          let checked = 0, bad = 0;
+          for (const c of cells.values()) {
+            const id = mapData[c.row * W + c.col], e = Terrain.byHexId(id);
+            if (!e || !['Water', 'Rivers'].includes(e.type) || faces(id) === '') continue;      // directional cells
+            checked++;
+            if (faces(id) !== faces(EdgeTiling.resolveEdgeTile(c.col, c.row, W, H, mapData, ['Water', 'Rivers'], () => 0, [fallback]))) bad++;
+          }
+          let interiorSame = 0;
+          const srcCells = Selection.getCells();
+          out[name] = { checked, bad, n: placed.length, srcCells: srcCells.length };
+          let diff = 0; for (const p of placed) if (!copied.has(p.col + ',' + p.row) && faces(mapData[p.row * W + p.col]) !== '') diff++;
+          out[name].directional = diff;
+          Tools.setActive('paint'); History.undo();
+          Selection.setCells(Tools._rectCells(224, 220, 226, 230));
+        }
+        return out;
+      } finally { Math.random = origRandom; }
+    });
+    expect(r.rot1.checked).toBeGreaterThan(10); expect(r.rot1.bad).toBe(0);
+    expect(r.rot2.checked).toBeGreaterThan(10); expect(r.rot2.bad).toBe(0);
+    expect(r.identity.checked).toBeGreaterThan(10); expect(r.identity.bad).toBe(0);
+  });
+
+  // ---------- multi-tile footprints -----------------------------------------------------------
+  const FP = 'Rabbit_Flat_1';
+  test('a rotated multi-tile anchor keeps its id and its REAL footprint at the destination (plan checks the destination footprint); clipped / overlapping ones are skipped', async ({ page }) => {
+    await toastsOn(page);
+    const r = await page.evaluate((FP) => {
+      const W = MAP_WIDTH, id = (c: number, r: number) => mapData[r * W + c], entry = Terrain.byHexId(FP), res: any = {};
+      mapData[200 * W + 200] = FP; invalidateSatelliteMap();
+      const fp0 = footprintCells(200, 200, entry);
+      Selection.setCells([{ col: 200, row: 200 }].concat(fp0)); Tools.copySelection();
+      const buf = Clipboard.get();
+      res.bufCells = buf.cells.length;
+      const orphanCheck = () => { let o = 0; for (let r = 90; r <= 110; r++) for (let c = 90; c <= 110; c++) { const a = getSatelliteAnchor(c, r); if (a && !(Terrain.byHexId(id(a.col, a.row)) || {}).occupiedOffsets) o++; } return o; };
+      res.ok = []; res.orphans = 0;
+      for (let rot = 0; rot < 6; rot++) {
+        Tools.beginPaste(buf); Tools.rotateFloat(rot); Tools.mirrorFloat('h'); Tools.dropFloat(100, 100);
+        const real = footprintCells(100, 100, entry);
+        res.ok.push(id(100, 100) === FP && real.every((f: any) => { const a = getSatelliteAnchor(f.col, f.row); return a && a.col === 100 && a.row === 100; }));
+        res.orphans += orphanCheck();
+        Tools.setActive('paint'); History.undo();
+      }
+      // clipped real footprint: target the corner
+      Tools.beginPaste(buf); Tools.rotateFloat(3); Tools.dropFloat(0, 0); res.corner = id(0, 0); Tools.setActive('paint');
+      // real footprint overlapping an existing anchor outside the paste
+      mapData[150 * W + 150] = FP; invalidateSatelliteMap();
+      Selection.setCells([{ col: 200, row: 200 }]); Tools.copySelection();
+      const s0 = History.undoSize();
+      Tools.beginPaste(Clipboard.get()); Tools.rotateFloat(2); Tools.dropFloat(150, 151); res.overlap = id(150, 151); res.steps = History.undoSize() - s0;
+      Tools.setActive('paint');
+      return res;
+    }, FP);
+    expect(r.bufCells).toBe(4);
+    expect(r.ok).toEqual([true, true, true, true, true, true]);
+    expect(r.orphans).toBe(0);
+    expect(r.corner).toBe('Plain_1');
+    expect(r.overlap).toBe('Plain_1');
+    expect(r.steps).toBe(0);
+  });
+
+  test('a transformed paste containing multi-tile terrain toasts that it keeps its orientation; identity and plain pastes do not', async ({ page }) => {
+    await toastsOn(page);
+    const r = await page.evaluate((FP) => {
+      const W = MAP_WIDTH, t = () => (window as any).__toasts.filter((x: string) => /orientation/i.test(x)).length;
+      mapData[200 * W + 200] = FP; invalidateSatelliteMap();
+      Selection.setCells([{ col: 200, row: 200 }]); Tools.copySelection();
+      Tools.beginPaste(Clipboard.get()); Tools.dropFloat(100, 100); const a = t(); Tools.setActive('paint');
+      Tools.beginPaste(Clipboard.get()); Tools.rotateFloat(1); Tools.dropFloat(60, 60); const b = t(); Tools.setActive('paint');
+      Selection.setCells([{ col: 225, row: 224 }]); Tools.copySelection();
+      Tools.beginPaste(Clipboard.get()); Tools.rotateFloat(1); Tools.dropFloat(80, 80); const c = t(); Tools.setActive('paint');
+      return [a, b, c];
+    }, FP);
+    expect(r).toEqual([0, 1, 1]);
+  });
+
+  // ---------- ghost ---------------------------------------------------------------------------
+  test('rotate / mirror keys update the ghost live: one ghost set per key, geometry built once per distinct transform (second lap builds nothing), cells equal the pixel reference', async ({ page }) => {
+    await page.evaluate(() => { Selection.setCells(Tools._rectCells(222, 220, 225, 222)); Tools.copySelection(); Selection.clear(); Tools.beginPaste(Clipboard.get()); });
+    const p = await cellPoint(page, 225, 214);
+    await page.mouse.move(p.x - 2, p.y); await page.mouse.move(p.x, p.y);
+    const s0 = await page.evaluate(() => Canvas.getGhostStats());
+    for (let i = 0; i < 6; i++) await page.keyboard.press('.');
+    const s1 = await page.evaluate(() => Canvas.getGhostStats());
+    for (let i = 0; i < 6; i++) await page.keyboard.press('.');
+    const s2 = await page.evaluate(() => Canvas.getGhostStats());
+    expect(s1.sets - s0.sets).toBe(6);
+    expect(s1.builds - s0.builds).toBe(5);                  // rot 1..5 are new; the sixth press returns to the cached identity geometry
+    expect(s2.sets - s1.sets).toBe(6);
+    expect(s2.builds - s1.builds).toBe(0);
+    for (const [keys, rot, mh, mv] of [[['.'], 1, false, false], [['/'], 0, true, false], [[';', ','], 5, false, true]] as [string[], number, boolean, boolean][]) {
+      await page.evaluate(() => { while (Tools.getFloatTransform().rot || Tools.getFloatTransform().mh || Tools.getFloatTransform().mv) { Tools.mirrorFloat(Tools.getFloatTransform().mh ? 'h' : 'v'); if (!Tools.getFloatTransform().mh && !Tools.getFloatTransform().mv) Tools.rotateFloat(-Tools.getFloatTransform().rot); } });
+      for (const k of keys) await page.keyboard.press(k);
+      const r = await page.evaluate(([rot, mh, mv]) => {
+        const buf = Clipboard.get(), cw = Canvas.hexCenterWorld, o = buf.origin, po = cw(o.col, o.row), pt = cw(225, 214), ref = (window as any).__ref;
+        const want = new Set<string>();
+        for (const e of buf.cells) {
+          const c = HexUtils.fromCube({ q: HexUtils.toCube(o.col, o.row, MAP_WIDTH, MAP_HEIGHT).q + e.dq, r: HexUtils.toCube(o.col, o.row, MAP_WIDTH, MAP_HEIGHT).r + e.dr, s: 0 }, MAP_WIDTH, MAP_HEIGHT);
+          const ps = cw(c.col, c.row), v = ref({ x: ps.x - po.x, y: ps.y - po.y }, rot as number, mh as boolean, mv as boolean), x = pt.x + v.x, y = pt.y + v.y;
+          let best: any = null, bd = 1e9;
+          for (let col = 215; col <= 235; col++) for (let row = 205; row <= 225; row++) { const q = cw(col, row), d = Math.hypot(q.x - x, q.y - y); if (d < bd) { bd = d; best = col + ',' + row; } }
+          want.add(best);
+        }
+        const got = new Set(Canvas.getGhostCells().map((c: any) => c.col + ',' + c.row));
+        return { same: want.size === got.size && [...want].every(k => got.has(k)), n: got.size, xf: Tools.getFloatTransform() };
+      }, [rot, mh, mv]);
+      expect(r.n).toBe(12);
+      expect(r.same).toBe(true);
+      expect(r.xf).toEqual({ rot, mh, mv });
+    }
+  });
+
+  test('rotate / mirror shortcuts are only active while pasting, respect text fields and modals, and the old shortcuts are untouched', async ({ page }) => {
+    for (const k of ['.', ',', '/', ';']) await page.keyboard.press(k);
+    expect(await page.evaluate(() => Tools.getFloatTransform())).toBe(null);          // no float: nothing happens
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    await page.keyboard.press('Control+c'); await page.keyboard.press('Control+v');
+    await page.evaluate(() => { const i = document.getElementById('scatter-density')!; (i.closest('#scatter-row') as HTMLElement).style.display = 'block'; i.focus(); });
+    for (const k of ['.', ',', '/', ';']) await page.keyboard.press(k);
+    expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 0, mh: false, mv: false });
+    await page.evaluate(() => { (document.activeElement as HTMLElement).blur(); const m = document.createElement('div'); m.id = 'zz-modal'; m.style.display = 'block'; document.body.appendChild(m); });
+    await page.keyboard.press('.');
+    expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 0, mh: false, mv: false });
+    await page.evaluate(() => document.getElementById('zz-modal')!.remove());
+    await page.keyboard.press('Shift+.'); await page.keyboard.press('Alt+,');
+    expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 0, mh: false, mv: false });
+    await page.keyboard.press('.'); await page.keyboard.press('/'); await page.keyboard.press(';'); await page.keyboard.press(';');
+    expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 1, mh: true, mv: false });
+    await page.keyboard.press('Escape');
+    await page.keyboard.press('f');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('fill');
+  });
+
+  test('palette buttons rotate and mirror, show only while pasting and leave the canvas size alone', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    const size = () => page.evaluate(() => { const c = document.getElementById('map-canvas')!.getBoundingClientRect(); return [Math.round(c.width), Math.round(c.height)]; });
+    const s0 = await size();
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('paste-tools')!).display)).toBe('none');
+    expect(await page.evaluate(() => !!document.getElementById('palette-panel')!.querySelector('#paste-tools'))).toBe(true);
+    await page.keyboard.press('Control+c'); await page.keyboard.press('Control+v');
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('paste-tools')!).display)).not.toBe('none');
+    expect(await size()).toEqual(s0);
+    expect(s0).toEqual([1491, 808]);
+    await page.click('#paste-tools [data-act="cw"]'); await page.click('#paste-tools [data-act="cw"]');
+    await page.click('#paste-tools [data-act="ccw"]');
+    await page.click('#paste-tools [data-act="mh"]'); await page.click('#paste-tools [data-act="mv"]');
+    expect(await page.evaluate(() => Tools.getFloatTransform())).toEqual({ rot: 1, mh: true, mv: true });
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('paste-tools')!).display)).toBe('none');
+    expect(await size()).toEqual(s0);
+  });
+
+  test('undo / redo of a transformed paste restores all layers in ONE step', async ({ page }) => {
+    await page.evaluate(() => {
+      objectsData['225,224'] = 'Grain_1'; roadsData['225,224'] = { type: 'road_hex' }; bridgesData.push({ col: 225, row: 224, axis: 1 });
+      tileExtras['225,224'] = { tag: 1 }; ZonePainter.getZoneLayer()[224 * MAP_WIDTH + 225] = 3;
+    });
+    const base = await layers(page), s0 = await page.evaluate(() => History.undoSize());
+    await pasteWith(page, ['.', '/']);
+    const after = await layers(page);
+    expect(after).not.toBe(base);
+    expect(await page.evaluate(() => History.undoSize())).toBe(s0 + 1);
+    await page.evaluate(() => { Tools.setActive('paint'); History.undo(); });
+    expect(await layers(page)).toBe(base);
+    await page.evaluate(() => History.redo());
+    expect(await layers(page)).toBe(after);
+  });
+
+  // ---------- move ----------------------------------------------------------------------------
+  test('moving onto the overlapping source region: read before write, pure translation, one step, vacated cells are blank, selection follows', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, cw = Canvas.hexCenterWorld;
+      Selection.clear();
+      const src = Tools._rectCells(222, 220, 225, 222);
+      src.forEach((c: any, i: number) => { const k = c.col + ',' + c.row; mapData[c.row * W + c.col] = ['Water_1', 'Forest_1', 'Hills_1'][i % 3]; tileExtras[k] = { tag: i }; if (i % 2) objectsData[k] = 'Grain_1'; });
+      Selection.setCells(src);
+      const o = Clipboard.capture(src).origin, steps = History.undoSize();
+      Tools.beginMove();
+      const tgt = { col: o.col + 1, row: o.row };
+      Tools.dropFloat(tgt.col, tgt.row);
+      const pos = new Map<number, { col: number; row: number }>(), bad: string[] = [];
+      for (const k in tileExtras) { const [c, rr] = k.split(',').map(Number); if (pos.has(tileExtras[k].tag)) bad.push('dup ' + tileExtras[k].tag); pos.set(tileExtras[k].tag, { col: c, row: rr }); }
+      const po = cw(o.col, o.row), pt = cw(tgt.col, tgt.row);
+      src.forEach((s: any, i: number) => {
+        const d = pos.get(i); if (!d) { bad.push('lost ' + i); return; }
+        const a = cw(s.col, s.row), b = cw(d.col, d.row);
+        if (Math.abs((b.x - a.x) - (pt.x - po.x)) > 1e-6 || Math.abs((b.y - a.y) - (pt.y - po.y)) > 1e-6) bad.push('not a translation ' + i);
+        if (mapData[d.row * W + d.col] !== ['Water_1', 'Forest_1', 'Hills_1'][i % 3] || (objectsData[d.col + ',' + d.row] === 'Grain_1') !== !!(i % 2)) bad.push('content ' + i);
+      });
+      const dst = new Set([...pos.values()].map(p => p.col + ',' + p.row));
+      let vacated = 0;
+      for (const s of src) { const k = s.col + ',' + s.row; if (dst.has(k)) continue; vacated++; if (mapData[s.row * W + s.col] !== 'Plain_1' || tileExtras[k] || objectsData[k]) bad.push('not blank ' + k); }
+      const sel = Selection.getCells().map((c: any) => c.col + ',' + c.row).sort().join(), want = [...dst].sort().join();
+      return { bad, n: pos.size, vacated, selOk: sel === want, steps: History.undoSize() - steps };
+    });
+    expect(r.bad).toEqual([]);
+    expect(r.n).toBe(12); expect(r.vacated).toBeGreaterThan(0); expect(r.selOk).toBe(true); expect(r.steps).toBe(1);
+  });
+
+  test('moving with a rotation and a mirror applies the transform, clears the source, and undo restores everything', async ({ page }) => {
+    const base = await layers(page);
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('.'); await page.keyboard.press('/');
+    await clickCell(page, 225, 219);
+    expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 225])).toBe('Plain_1');
+    const { src, dst } = await vectors(page);
+    const m = await page.evaluate(([vx, vy]) => (window as any).__ref({ x: vx, y: vy }, 1, true, false), [src.x, src.y]);
+    expect(dst.x).toBeCloseTo(m.x, 4); expect(dst.y).toBeCloseTo(m.y, 4);
+    await page.evaluate(() => History.undo());
+    expect(await layers(page)).toBe(base);
+  });
+
+  test('a move dropped on its own source with no transform pushes no step', async ({ page }) => {
+    const s0 = await page.evaluate(() => History.undoSize());
+    const base = await layers(page);
+    await page.keyboard.press('Enter');
+    const o = await page.evaluate(() => Clipboard.capture(Selection.getCells()).origin);
+    await clickCell(page, o.col, o.row);
+    expect(await layers(page)).toBe(base);
+    expect(await page.evaluate(() => [History.undoSize(), Selection.size(), Tools.getActive()])).toEqual([s0, 2, 'paint']);
+  });
+
+  test('a selection that covers only part of a footprint (no anchor) cannot be lifted; a move whose plan writes nothing rolls back completely and stays in move mode', async ({ page }) => {
+    await toastsOn(page);
+    const r = await page.evaluate((FP) => {
+      const W = MAP_WIDTH, entry = Terrain.byHexId(FP), res: any = {};
+      mapData[200 * W + 200] = FP; mapData[150 * W + 150] = FP; invalidateSatelliteMap();
+      Selection.setCells(footprintCells(200, 200, entry));
+      res.lifted = Tools.beginMove(); res.pasting = Tools.isPasting();
+      Selection.setCells([{ col: 200, row: 200 }]);
+      const base = JSON.stringify([mapData.join('|'), History.undoSize()]);
+      res.begin = Tools.beginMove();
+      res.n = Tools.dropFloat(150, 151);                                   // real footprint overlaps the anchor at 150,150: nothing can be written
+      res.same = JSON.stringify([mapData.join('|'), History.undoSize()]) === base;
+      res.still = Tools.isMoving();
+      return res;
+    }, FP);
+    expect(r).toEqual({ lifted: false, pasting: false, begin: true, n: 0, same: true, still: true });
+    expect(await page.evaluate(() => (window as any).__toasts.some((t: string) => /nothing to move|cannot place|can't place/i.test(t)))).toBe(true);
+  });
+
+  test('moving input handling: side buttons never drop, tool switch cancels, a map replacement cancels with a toast, undo is ignored, a running fill blocks the drop', async ({ page }) => {
+    await toastsOn(page);
+    const base = await layers(page);
+    await page.keyboard.press('Enter');
+    const n = await page.evaluate(() => {
+      const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), p = Canvas.hexScreenPos(225, 219);
+      const ev = (type: string, b: number) => cv.dispatchEvent(new MouseEvent(type, { clientX: rc.left + p.x, clientY: rc.top + p.y, button: b, buttons: type === 'mouseup' ? 0 : 1 << b, bubbles: true }));
+      for (const b of [1, 2, 3, 4]) { ev('mousedown', b); ev('mouseup', b); }
+      return mapData.filter(x => x === 'Water_1').length;
+    });
+    expect(n).toBe(1);
+    expect(await layers(page)).toBe(base);
+    await page.evaluate(() => History.undo());                           // undo mid-move is ignored (the lifted content must match the map)
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(true);
+    // a running fill blocks the drop
+    const busy = await page.evaluate(async () => {
+      UI.selectTerrain('Forest_1'); Tools.fill(10, 10);
+      const b = Tools.isFillBusy(), cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect(), q = Canvas.hexScreenPos(225, 219);
+      cv.dispatchEvent(new MouseEvent('mousedown', { clientX: rc.left + q.x, clientY: rc.top + q.y, button: 0, buttons: 1, bubbles: true }));
+      cv.dispatchEvent(new MouseEvent('mouseup', { clientX: rc.left + q.x, clientY: rc.top + q.y, button: 0, buttons: 0, bubbles: true }));
+      const moved = mapData[219 * MAP_WIDTH + 225] === 'Water_1';
+      await Tools.whenIdle();
+      return { b, moved };
+    });
+    expect(busy).toEqual({ b: true, moved: false });
+    await page.keyboard.press('p');                                       // tool switch cancels, writes nothing
+    expect(await page.evaluate(() => [Tools.isMoving(), Tools.isPasting(), mapData[224 * MAP_WIDTH + 225]])).toEqual([false, false, 'Water_1']);
+    await page.evaluate(() => { Selection.setCells([{ col: 225, row: 224 }]); });
+    await page.keyboard.press('Enter');
+    await resize(page, 450, 450);
+    const before = await layers(page);
+    await clickCell(page, 225, 219);
+    expect(await layers(page)).toBe(before);
+    expect(await page.evaluate(() => (window as any).__toasts.some((t: string) => /map changed/i.test(t)))).toBe(true);
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(false);
+  });
+});
