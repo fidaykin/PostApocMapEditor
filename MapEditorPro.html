@@ -2442,7 +2442,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "8e1642d";
+const COMMIT  = "a04b83a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10264,30 +10264,64 @@ const IO = (() => {
     UI.toast('CSV exported');
   }
 
+  // What Clear Map would do right now, given the live layer locks. Terrain clears to DEFAULT_TILE_ID together with the
+  // under-terrain extras (tileExtras follow the TERRAIN lock); bridge overlays sit on terrain and are cleared only when both
+  // terrain and buildings are free; buildings, roads, zones and the non-city settlements follow their own locks. The city
+  // marker, the zone definitions and the settlement slot configuration are never touched. `change` = something would change.
+  function _clearPlan() {
+    const free = n => !Layers.isLocked(n);
+    const zl = typeof ZonePainter !== 'undefined' ? ZonePainter.getZoneLayer() : null;
+    const p = { terrain: free('terrain'), objects: free('objects'), roads: free('roads'), zones: free('zones') && !!zl, settlements: free('settlements') };
+    p.bridges = p.terrain && p.objects;
+    const has = {
+      terrain: p.terrain && (Object.keys(tileExtras).length > 0 || mapData.some(t => t !== DEFAULT_TILE_ID)),
+      bridges: p.bridges && bridgesData.length > 0,
+      objects: p.objects && Object.keys(objectsData).length > 0,
+      roads: p.roads && Object.keys(roadsData).length > 0,
+      zones: p.zones && zl.some(v => v !== 0),
+      settlements: p.settlements && settlements.some(s => s.type !== 'city'),
+    };
+    p.change = Object.values(has).some(Boolean);
+    p.anyFree = p.terrain || p.objects || p.roads || p.zones || p.settlements;
+    const names = { terrain: 'Terrain', objects: 'Buildings', roads: 'Roads', zones: 'Zones', settlements: 'Settlements' };
+    p.cleared = Object.keys(names).filter(k => p[k]).map(k => names[k]);
+    if (p.bridges) p.cleared.splice(p.cleared.indexOf('Buildings') + 1, 0, 'Bridges');
+    p.kept = Object.keys(names).filter(k => !p[k]).map(k => names[k]);
+    if (!p.bridges) p.kept.splice(p.kept.includes('Buildings') ? p.kept.indexOf('Buildings') + 1 : p.kept.length, 0, 'Bridges');
+    return p;
+  }
+
   function clearMap() {
     UI.closeAllMenus();
     if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
     if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
-    if (Layers.isLocked('terrain') && Layers.isLocked('settlements')) { Layers.refuse('terrain'); return; }   // everything it may clear is locked: no dialog
-    UI.showConfirm('Clear Map', 'Clear all terrain? City settlement will be preserved.', () => {
+    const plan = _clearPlan();
+    if (!plan.anyFree) { Layers.refuse('terrain'); return; }   // every layer is locked: no dialog
+    if (!plan.change) { UI.toast('Nothing to clear' + (plan.kept.length ? ' (locked layers are kept: ' + plan.kept.join(', ') + ')' : '')); return; }
+    const msg = 'Clear: ' + plan.cleared.join(', ') + '.' + (plan.kept.length ? ' Kept (locked): ' + plan.kept.join(', ') + '.' : '') +
+      (plan.settlements ? ' The city is kept.' : '');
+    UI.showConfirm('Clear Map', msg, () => {
       if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }   // a fill may have started while the dialog was open
       if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
-      // Locks (T2.18): a locked layer is skipped. Clear Map resets terrain, the bridge overlays (objects layer) and the
-      // non-city settlements; T2.19 widens it to every layer with the same skipping rule.
-      const clrTerrain = !Layers.isLocked('terrain'), clrBridges = !Layers.isLocked('objects'), clrSett = !Layers.isLocked('settlements');
-      if (!clrTerrain && !clrSett) { Layers.refuse('terrain'); return; }   // nothing it may clear: no step
+      const pl = _clearPlan();                 // locks and content are re-read: they may have changed while the dialog was open
+      if (!pl.anyFree) { Layers.refuse('terrain'); return; }
+      if (!pl.change) { UI.toast('Nothing to clear'); return; }   // no empty History step
       Tools.cancelFloat();                    // a lifted region would otherwise drop its old content back
-      History.push();
-      if (clrTerrain) mapData.fill('Plain_1');
-      if (clrBridges && clrTerrain) bridgesData = [];       // bridges sit on terrain: they go with it, and only when both are free
-      if (clrSett) {
+      History.push();                         // ONE step for every layer, before the first write
+      if (pl.terrain) { mapData.fill(DEFAULT_TILE_ID); tileExtras = {}; }
+      if (pl.bridges) bridgesData = [];
+      if (pl.objects) objectsData = {};
+      if (pl.roads) roadsData = {};
+      if (pl.zones) ZonePainter.clearZoneLayer();
+      if (pl.settlements) {
         settlements = settlements.filter(s => s.type === 'city');
         if (settlements.length === 0) settlements.push({ col: getCityCol(), row: getCityRow(), type: 'city' });
       }
+      invalidateSatelliteMap();
       UI.updateSettlementCount();
       Canvas.render();
       Canvas.drawMinimap();
-      const keptL = [!clrTerrain && 'Terrain', !clrBridges && clrTerrain && 'Buildings & bridges', !clrSett && 'Settlements'].filter(Boolean);
+      const keptL = pl.kept;
       UI.toast('Map cleared' + (keptL.length ? '; locked layers kept: ' + keptL.join(', ') : ''));
       _autoSave();
     });

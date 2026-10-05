@@ -1060,9 +1060,9 @@ test.describe('layers: locks on bulk operations and panels (T2.18)', () => {
       expect(await snap(page)).toBe(before);
     });
   }
-  test('Clear Map with terrain AND settlements locked has nothing it may clear: no dialog, no step', async ({ page }) => {
+  test('Clear Map with every layer locked has nothing it may clear: no dialog, no step', async ({ page }) => {
     await clearSeed(page);
-    await setLocks(page, ['terrain', 'settlements']);
+    await setLocks(page, Layers_NAMES);
     const before = await snap(page), s0 = await steps(page);
     await page.evaluate(() => IO.clearMap());
     expect(await confirmOpen(page)).toBe(false);
@@ -1395,4 +1395,190 @@ test.describe('layers: lock state, undo and strokes (T2.18)', () => {
       expect(await steps(page)).toBe(s0 + 1);
     });
   }
+});
+
+// ── Clear Map clears every layer (T2.19) ───────────────────────────────────────────────────────────
+// Reference method: the WHOLE map state is serialised (lockSnap). The expected state after a clear is built independently:
+// the snapshot of a freshly created blank map, with the parts of every LOCKED layer taken from the seeded snapshot.
+const seedEverything = (page: any) => page.evaluate(() => {
+  mapData[224 * MAP_WIDTH + 226] = 'Water_1'; mapData[226 * MAP_WIDTH + 228] = 'Forest_1';
+  objectsData['226,224'] = 'Grain_1'; roadsData['227,224'] = { type: 'road_hex' };
+  tileExtras['226,224'] = { underTerrainId: 'Water_1' };
+  bridgesData.push({ col: 228, row: 226, axis: 1 });
+  const zl = ZonePainter.getZoneLayer(); zl[224 * MAP_WIDTH + 228] = 1; zl[225 * MAP_WIDTH + 228] = 2;
+  settlements.push({ col: 230, row: 224, type: 'settlement' });
+});
+const canvasPx = (page: any) => page.evaluate(() => { Canvas.render(); return document.getElementById('map-canvas')!.toDataURL(); });
+const confirmMsg = (page: any) => page.evaluate(() => document.getElementById('confirm-msg')!.textContent || '');
+const clearOk = async (page: any) => { await page.evaluate(() => IO.clearMap()); await page.click('#confirm-ok'); };
+const closeConfirmDlg = (page: any) => page.evaluate(() => UI.closeConfirm());
+/** The expected post-clear state: blank, except that every locked layer keeps its seeded data (bridges also stay when terrain is locked). */
+function expectedAfter(blank: string, seeded: string, locked: string[]) {
+  const b = JSON.parse(blank), s = JSON.parse(seeded), out = Object.assign({}, b);
+  const L = (n: string) => locked.includes(n);
+  if (L('terrain')) { out.m = s.m; out.x = s.x; }
+  if (L('objects')) out.o = s.o;
+  if (L('terrain') || L('objects')) out.b = s.b;
+  if (L('roads')) out.r = s.r;
+  if (L('zones')) out.z = s.z;
+  if (L('settlements')) out.s = s.s;
+  return JSON.stringify(out);
+}
+
+test.describe('Clear Map clears every layer (T2.19)', () => {
+  let blank = '', blankPx = '';
+  test.beforeEach(async ({ page }) => {
+    await lockEditor(page);
+    await resetMap(page);
+    blank = await snap(page); blankPx = await canvasPx(page);
+    await seedEverything(page);
+  });
+
+  test('unlocked: every layer is cleared to the blank-map state in ONE step; undo restores the seeded state exactly, redo clears again', async ({ page }) => {
+    const seeded = await snap(page), s0 = await steps(page);
+    expect(seeded).not.toBe(blank);
+    expect(await canvasPx(page)).not.toBe(blankPx);
+    await clearOk(page);
+    expect(await snap(page)).toBe(blank);
+    expect(await steps(page)).toBe(s0 + 1);
+    expect(await canvasPx(page), 'overlay and satellite caches follow: same pixels as a blank map').toBe(blankPx);
+    await page.evaluate(() => History.undo());
+    expect(await snap(page)).toBe(seeded);
+    expect(await canvasPx(page)).not.toBe(blankPx);
+    await page.evaluate(() => History.redo());
+    expect(await snap(page)).toBe(blank);
+    expect(await canvasPx(page)).toBe(blankPx);
+  });
+
+  for (const layer of Layers_NAMES) {
+    test(`${layer} locked: only that layer is kept (positive control: the others are cleared), one step, undo restores`, async ({ page }) => {
+      const seeded = await snap(page), s0 = await steps(page);
+      await setLocks(page, [layer]);
+      await clearOk(page);
+      const after = await snap(page);
+      expect(after).toBe(expectedAfter(blank, seeded, [layer]));
+      expect(after).not.toBe(blank);          // the locked layer really kept something
+      expect(after).not.toBe(seeded);         // and the rest really went
+      expect(await steps(page)).toBe(s0 + 1);
+      await unlockAll(page);
+      await page.evaluate(() => History.undo());
+      expect(await snap(page)).toBe(seeded);
+    });
+  }
+
+  test('terrain locked keeps the under-terrain extras with it; buildings locked do NOT keep them (extras follow the terrain lock)', async ({ page }) => {
+    await setLocks(page, ['objects']);
+    await clearOk(page);
+    expect(await page.evaluate(() => Object.keys(tileExtras).length)).toBe(0);
+    expect(await page.evaluate(() => Object.keys(objectsData).length)).toBe(1);
+    await page.evaluate(() => History.undo());
+    await setLocks(page, ['objects'], false); await setLocks(page, ['terrain']);
+    await clearOk(page);
+    expect(await page.evaluate(() => Object.keys(tileExtras).length)).toBe(1);
+    expect(await page.evaluate(() => Object.keys(objectsData).length)).toBe(0);
+  });
+
+  test('every layer locked: refused with a toast, no dialog, no step', async ({ page }) => {
+    const seeded = await snap(page), s0 = await steps(page);
+    await setLocks(page, Layers_NAMES);
+    await page.evaluate(() => IO.clearMap());
+    expect(await confirmOpen(page)).toBe(false);
+    expect(await snap(page)).toBe(seeded);
+    expect(await steps(page)).toBe(s0);
+    expect((await lockedToasts(page)).length).toBe(1);
+  });
+
+  test('clearing twice: the second is a no-op with a toast, no dialog and no History step', async ({ page }) => {
+    await clearOk(page);
+    const s1 = await steps(page), after = await snap(page);
+    await page.evaluate(() => { (window as any).__toasts = []; IO.clearMap(); });
+    expect(await confirmOpen(page)).toBe(false);
+    expect(await steps(page)).toBe(s1);
+    expect(await snap(page)).toBe(after);
+    expect((await toastLog(page)).some(t => /Nothing to clear/.test(t))).toBe(true);
+  });
+
+  test('only locked layers hold content: no-op naming the kept layers, no step', async ({ page }) => {
+    await setLocks(page, ['terrain', 'objects', 'roads', 'settlements']);   // zones free: clear them
+    await clearOk(page);
+    expect(await page.evaluate(() => ZonePainter.getZoneLayer().every((v: number) => v === 0))).toBe(true);
+    const s1 = await steps(page);
+    await page.evaluate(() => { (window as any).__toasts = []; IO.clearMap(); });
+    expect(await confirmOpen(page)).toBe(false);
+    expect(await steps(page)).toBe(s1);
+    expect((await toastLog(page)).some(t => /Nothing to clear.*Terrain/.test(t))).toBe(true);
+  });
+
+  test('the dialog text lists what will be cleared and what is kept because locked', async ({ page }) => {
+    await page.evaluate(() => IO.clearMap());
+    let m = await confirmMsg(page);
+    for (const w of ['Terrain', 'Buildings', 'Bridges', 'Roads', 'Zones', 'Settlements']) expect(m).toContain(w);
+    expect(m).not.toContain('Kept (locked)');
+    await closeConfirmDlg(page);
+    await setLocks(page, ['terrain']);            // terrain locked, settlements free (the misleading T2.18 case)
+    await page.evaluate(() => IO.clearMap());
+    m = await confirmMsg(page);
+    expect(m).not.toMatch(/Clear all terrain/);
+    expect(m).toMatch(/Clear: Buildings, Roads, Zones, Settlements\./);
+    expect(m).toMatch(/Kept \(locked\): Terrain, Bridges\./);
+    await closeConfirmDlg(page);
+  });
+
+  test('the confirm callback re-reads the locks: a layer locked while the dialog is open is kept; all locked: nothing happens', async ({ page }) => {
+    const seeded = await snap(page), s0 = await steps(page);
+    await page.evaluate(() => IO.clearMap());
+    await setLocks(page, ['roads']);
+    await page.click('#confirm-ok');
+    expect(await snap(page)).toBe(expectedAfter(blank, seeded, ['roads']));
+    expect(await steps(page)).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    await unlockAll(page);
+    await page.evaluate(() => IO.clearMap());
+    await setLocks(page, Layers_NAMES);
+    const before = await snap(page), s1 = await steps(page);
+    await page.click('#confirm-ok');
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s1);
+  });
+
+  test('the map replaced while the dialog is open: confirming clears nothing and adds no step', async ({ page }) => {
+    await page.evaluate(() => IO.clearMap());
+    await page.evaluate(() => { IO.newMap(true); });
+    const before = await snap(page), s0 = await steps(page);
+    await page.click('#confirm-ok');
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+  });
+
+  test('refused while a stroke is in progress (no dialog), works after the stroke ends', async ({ page }) => {
+    const p = await cellPoint(page, 228, 224);
+    await page.mouse.move(p.x, p.y); await page.mouse.down();
+    expect(await page.evaluate(() => Tools.isStrokeActive()), 'the press started a stroke').toBe(true);
+    await page.evaluate(() => IO.clearMap());
+    expect(await confirmOpen(page)).toBe(false);
+    await page.mouse.up();
+    const painted = await snap(page);
+    expect(painted).not.toBe(blank);
+    await clearOk(page);
+    expect(await snap(page)).toBe(blank);
+  });
+
+  test('a lifted region is cancelled; the selection is kept', async ({ page }) => {
+    const cells = await page.evaluate(() => { Selection.setCells(Tools._rectCells(225, 223, 229, 227)); return Selection.size(); });
+    expect(cells).toBeGreaterThan(0);
+    expect(await page.evaluate(() => Tools.beginMove())).toBe(true);
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(true);
+    await clearOk(page);
+    expect(await page.evaluate(() => Tools.isMoving())).toBe(false);
+    expect(await page.evaluate(() => Selection.size())).toBe(cells);
+    expect(await snap(page)).toBe(blank);
+  });
+
+  test('slots and zone definitions are not touched', async ({ page }) => {
+    await page.evaluate((slot) => { settlementSlots.push(Object.assign({}, slot)); ZonePainter.addZone('keep', '#ff0000'); }, SLOT);
+    const slots = await page.evaluate(() => JSON.stringify(settlementSlots)), zones = await page.evaluate(() => JSON.stringify(ZonePainter.getZones()));
+    await clearOk(page);
+    expect(await page.evaluate(() => JSON.stringify(settlementSlots))).toBe(slots);
+    expect(await page.evaluate(() => JSON.stringify(ZonePainter.getZones()))).toBe(zones);
+  });
 });
