@@ -44,8 +44,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Plain_2",
@@ -89,8 +88,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "BrokenPlain_1",
@@ -133,8 +131,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_1",
@@ -200,8 +197,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_2",
@@ -267,8 +263,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_3",
@@ -334,8 +329,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_4_Test",
@@ -403,8 +397,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_5_Test",
@@ -481,8 +474,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Hills_1",
@@ -529,8 +521,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 18,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Mountain_1",
@@ -577,8 +568,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 19,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Rubble_1",
@@ -621,8 +611,7 @@
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Rubble_2",
@@ -665,8 +654,7 @@
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Rubble_3",
@@ -709,8 +697,7 @@
       "category": "🏚️ RUBBLE/WASTELAND",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_1",
@@ -751,8 +738,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_Dirty_1",
@@ -802,8 +788,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "GoldVein_1",
@@ -845,8 +830,7 @@
       "category": "💎 RESOURCES",
       "terrainTypeId": 20,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Rift_1",
@@ -893,8 +877,7 @@
       "category": "🌋 VOLCANIC/RIFT",
       "terrainTypeId": 28,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "GemField_1",
@@ -935,8 +918,7 @@
       "roadAllowed": false,
       "category": "💎 RESOURCES",
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Desert_1",
@@ -979,8 +961,7 @@
       "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": 23,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Barren_1",
@@ -1023,8 +1004,7 @@
       "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": 22,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Oil_1",
@@ -1076,8 +1056,7 @@
       "category": "💎 RESOURCES",
       "terrainTypeId": 21,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Swamp_1",
@@ -1120,8 +1099,7 @@
       "category": "🟫 SWAMP",
       "terrainTypeId": 24,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "RockySwamp_1",
@@ -1164,8 +1142,7 @@
       "category": "🟫 SWAMP",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "BrokenPlane_1",
@@ -1226,8 +1203,7 @@
       "category": "",
       "terrainTypeId": 14,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "BrokenRails_1",
@@ -1278,8 +1254,7 @@
       "roadAllowed": false,
       "category": "",
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "DestroyedBuilding_1",
@@ -1331,8 +1306,7 @@
       "roadAllowed": false,
       "category": "🌾 PLAINS",
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_Rock_1",
@@ -1378,8 +1352,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Lava_Plain_1",
@@ -1423,8 +1396,7 @@
       "category": "🌋 VOLCANIC/RIFT",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Lava_Rift_1",
@@ -1468,8 +1440,7 @@
       "category": "🌋 VOLCANIC/RIFT",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Fish_1",
@@ -1524,8 +1495,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_Ship_Test_1",
@@ -1580,8 +1550,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_SmallShipyard_Test_1",
@@ -1640,8 +1609,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_BrokenBoat_1",
@@ -1687,8 +1655,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Water_OilSpill_1",
@@ -1734,8 +1701,7 @@
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
       "isLayered": true,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "River_L_1",
@@ -1778,8 +1744,7 @@
       "edgeFaces": [
         "N",
         "S"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_R_1",
@@ -1822,8 +1787,7 @@
       "edgeFaces": [
         "N",
         "S"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_D_2",
@@ -1866,8 +1830,7 @@
       "edgeFaces": [
         "SW",
         "SE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_U_2",
@@ -1910,8 +1873,7 @@
       "edgeFaces": [
         "NW",
         "NE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_D_3",
@@ -1955,8 +1917,7 @@
         "S",
         "NW",
         "NE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_U_3",
@@ -2000,8 +1961,7 @@
         "N",
         "SW",
         "SE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_R_4",
@@ -2044,8 +2004,7 @@
       "edgeFaces": [
         "NE",
         "S"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_L_4",
@@ -2088,8 +2047,7 @@
       "edgeFaces": [
         "NW",
         "S"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_U_4",
@@ -2132,8 +2090,7 @@
       "edgeFaces": [
         "N",
         "SW"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_D_4",
@@ -2176,8 +2133,7 @@
       "edgeFaces": [
         "N",
         "SE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_R_5",
@@ -2220,8 +2176,7 @@
       "edgeFaces": [
         "NE",
         "SW"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_L_5",
@@ -2264,8 +2219,7 @@
       "edgeFaces": [
         "NW",
         "SE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "Lake_1",
@@ -2273,7 +2227,7 @@
       "type": "Rivers",
       "biome": "Summer",
       "filterCategory": "FilterWater",
-      "spriteName": "Lake_1",
+      "spriteName": "Decameroon_Lake_1",
       "descriptionIdleId": "",
       "descriptionBuildId": "",
       "baseCostTaps": 15,
@@ -2307,8 +2261,7 @@
       "category": "💧 WATER / RIVER",
       "edgeFaces": [
         "SW"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "Lake_2",
@@ -2350,8 +2303,7 @@
       "category": "💧 WATER / RIVER",
       "edgeFaces": [
         "NW"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "Lake_3",
@@ -2393,8 +2345,7 @@
       "category": "💧 WATER / RIVER",
       "edgeFaces": [
         "NE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "Lake_4",
@@ -2436,8 +2387,7 @@
       "category": "💧 WATER / RIVER",
       "edgeFaces": [
         "SE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "Lake_5",
@@ -2479,8 +2429,7 @@
       "category": "💧 WATER / RIVER",
       "edgeFaces": [
         "N"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "Lake_6",
@@ -2522,8 +2471,7 @@
       "category": "💧 WATER / RIVER",
       "edgeFaces": [
         "S"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "Lake_7",
@@ -2563,8 +2511,7 @@
       "effects": "",
       "roadAllowed": false,
       "category": "💧 WATER / RIVER",
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "River_D_L_EE_2",
@@ -2608,8 +2555,7 @@
         "NW",
         "SW",
         "SE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_D_R_EE_2",
@@ -2653,8 +2599,7 @@
         "NE",
         "SE",
         "SW"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_L_D_E_1",
@@ -2697,8 +2642,7 @@
       "edgeFaces": [
         "N",
         "S"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_L_U_E_1",
@@ -2741,8 +2685,7 @@
       "edgeFaces": [
         "N",
         "S"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_U_L_EE_2",
@@ -2786,8 +2729,7 @@
         "NW",
         "SW",
         "NE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_U_R_EE_2",
@@ -2831,8 +2773,7 @@
         "NW",
         "NE",
         "SE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_U_D_E_4",
@@ -2875,8 +2816,7 @@
       "edgeFaces": [
         "N",
         "SW"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_U_U_E_4",
@@ -2919,8 +2859,7 @@
       "edgeFaces": [
         "N",
         "SW"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_L_L_E_5",
@@ -2963,8 +2902,7 @@
       "edgeFaces": [
         "NW",
         "SE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "River_L_R_E_5",
@@ -3007,8 +2945,7 @@
       "edgeFaces": [
         "NW",
         "SE"
-      ],
-      "waterFaces": []
+      ]
     },
     {
       "id": "Plain_TEST_Cat_1",
@@ -3052,8 +2989,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Plain_TEST_Chicken_1",
@@ -3097,8 +3033,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Altar_TEST_Chicken_1",
@@ -3153,8 +3088,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": true,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Monster_TEST_Chicken_Small_1",
@@ -3209,8 +3143,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": true,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Monster_TEST_Chicken_Big_2",
@@ -3265,8 +3198,7 @@
       "roadAllowed": false,
       "category": "🌲 FOREST",
       "isLayered": true,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Settlements_TEST_Big_1",
@@ -3339,8 +3271,7 @@
         "S",
         "SW"
       ],
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_Kaiju_1",
@@ -3406,8 +3337,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Plain_Kaiju_1",
@@ -3451,8 +3381,7 @@
       "category": "🌾 PLAINS",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Forest_Kaiju_2",
@@ -3518,8 +3447,7 @@
       "category": "🌲 FOREST",
       "fallback": false,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Mountain_Kaiju_1",
@@ -3566,8 +3494,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 19,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Mountain_Kaiju_2",
@@ -3614,8 +3541,7 @@
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": 19,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "GoldVein_Kaiju_1",
@@ -3657,8 +3583,7 @@
       "category": "💎 RESOURCES",
       "terrainTypeId": 20,
       "isLayered": false,
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Settlement_Kaiju_1",
@@ -3713,8 +3638,7 @@
         "S",
         "SW"
       ],
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Alive_1",
@@ -3786,8 +3710,7 @@
         "S",
         "SE"
       ],
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Defeat_1",
@@ -3846,8 +3769,7 @@
         "S",
         "SE"
       ],
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Die_1",
@@ -3902,8 +3824,7 @@
         "S",
         "SE"
       ],
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Sceleton_V_1",
@@ -3962,8 +3883,7 @@
         "S",
         "SE"
       ],
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Sceleton_V_2",
@@ -4022,8 +3942,7 @@
         "S",
         "SE"
       ],
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Crustal_Kaiju_Sceleton_V_3",
@@ -4082,8 +4001,7 @@
         "S",
         "SE"
       ],
-      "edgeFaces": [],
-      "waterFaces": []
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Forest_1",
@@ -4092,7 +4010,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Forest_1",
-      "category": "",
+      "category": "🌲 FOREST",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4145,8 +4063,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Plain_1",
@@ -4155,7 +4073,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Plain_1",
-      "category": "",
+      "category": "🌾 PLAINS",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4193,8 +4111,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Plain_2",
@@ -4203,7 +4121,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Plain_2",
-      "category": "",
+      "category": "🌾 PLAINS",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4241,8 +4159,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Forest_2",
@@ -4251,7 +4169,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Forest_2",
-      "category": "",
+      "category": "🌲 FOREST",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4304,8 +4222,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Forest_3",
@@ -4314,7 +4232,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Forest_3",
-      "category": "",
+      "category": "🌲 FOREST",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4367,8 +4285,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Hills_1",
@@ -4377,7 +4295,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Hills_1",
-      "category": "",
+      "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4415,8 +4333,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Mountain_1",
@@ -4425,7 +4343,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Mountain_1",
-      "category": "",
+      "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4468,8 +4386,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Rubble_1",
@@ -4478,7 +4396,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Rubble_1",
-      "category": "",
+      "category": "🏚️ RUBBLE/WASTELAND",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4511,8 +4429,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Rubble_2",
@@ -4521,7 +4439,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Rubble_2",
-      "category": "",
+      "category": "🏚️ RUBBLE/WASTELAND",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4554,8 +4472,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Rubble_3",
@@ -4564,7 +4482,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Rubble_3",
-      "category": "",
+      "category": "🏚️ RUBBLE/WASTELAND",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4597,8 +4515,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_GoldVein_1",
@@ -4607,7 +4525,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterResource",
       "spriteName": "Decameroon_GoldVein_1",
-      "category": "",
+      "category": "💎 RESOURCES",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4645,8 +4563,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Grain_1",
@@ -4655,7 +4573,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterResource",
       "spriteName": "Decameroon_Grain_1",
-      "category": "",
+      "category": "💎 RESOURCES",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4693,8 +4611,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Herbs_1",
@@ -4703,7 +4621,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterResource",
       "spriteName": "Decameroon_Herbs_1",
-      "category": "",
+      "category": "💎 RESOURCES",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4741,8 +4659,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Desert_1",
@@ -4751,7 +4669,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Desert_1",
-      "category": "",
+      "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4789,8 +4707,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Barren_1",
@@ -4799,7 +4717,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Barren_1",
-      "category": "",
+      "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4837,8 +4755,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Mountain_2",
@@ -4847,7 +4765,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Mountain_2",
-      "category": "",
+      "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4890,8 +4808,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Water_1",
@@ -4900,7 +4818,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterWater",
       "spriteName": "Decameroon_Water",
-      "category": "",
+      "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4938,8 +4856,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_DirtyWater_1",
@@ -4948,7 +4866,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterWater",
       "spriteName": "Decameroon_DirtyWater_1",
-      "category": "",
+      "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -4990,8 +4908,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_SilverVein_1",
@@ -5000,7 +4918,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterResource",
       "spriteName": "Decameroon_SilverVein_1",
-      "category": "",
+      "category": "💎 RESOURCES",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -5038,8 +4956,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_GemField_1",
@@ -5048,7 +4966,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterResource",
       "spriteName": "Decameroon_GemField_1",
-      "category": "",
+      "category": "💎 RESOURCES",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -5086,8 +5004,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_DestroyedBuilding_1",
@@ -5096,7 +5014,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_DestroyedBuilding_1",
-      "category": "",
+      "category": "🏚️ RUBBLE/WASTELAND",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -5138,8 +5056,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_WaterStones_1",
@@ -5148,7 +5066,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterWater",
       "spriteName": "Decameroon_WaterStones_1",
-      "category": "",
+      "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -5186,8 +5104,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_BrokenBoat_1",
@@ -5196,7 +5114,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterWater",
       "spriteName": "Decameroon_BrokenBoat_1",
-      "category": "",
+      "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -5242,8 +5160,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
     },
     {
       "id": "Decameroon_Fish_1",
@@ -5252,7 +5170,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterWater",
       "spriteName": "Decameroon_Fish_1",
-      "category": "",
+      "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -5290,8 +5208,356 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "waterFaces": [],
-      "package": "decameroon"
+      "package": "decameroon",
+      "edgeFaces": []
+    },
+    {
+      "id": "Decameroon_Lake_1",
+      "textId": "",
+      "type": "Rivers",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_Lake_1",
+      "category": "💧 WATER / RIVER",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 15,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": [
+        "SW"
+      ]
+    },
+    {
+      "id": "Decameroon_Lake_2",
+      "textId": "",
+      "type": "Rivers",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_Lake_2",
+      "category": "💧 WATER / RIVER",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 15,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": [
+        "NW"
+      ]
+    },
+    {
+      "id": "Decameroon_Lake_3",
+      "textId": "",
+      "type": "Rivers",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_Lake_3",
+      "category": "💧 WATER / RIVER",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 15,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": [
+        "N"
+      ]
+    },
+    {
+      "id": "Decameroon_Lake_4",
+      "textId": "",
+      "type": "Rivers",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_Lake_4",
+      "category": "💧 WATER / RIVER",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 15,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": [
+        "NE"
+      ]
+    },
+    {
+      "id": "Decameroon_Lake_5",
+      "textId": "",
+      "type": "Rivers",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_Lake_5",
+      "category": "💧 WATER / RIVER",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 15,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": [
+        "SE"
+      ]
+    },
+    {
+      "id": "Decameroon_Lake_6",
+      "textId": "",
+      "type": "Rivers",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_Lake_6",
+      "category": "💧 WATER / RIVER",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 15,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": [
+        "S"
+      ]
+    },
+    {
+      "id": "Decameroon_Lake_7",
+      "textId": "",
+      "type": "Rivers",
+      "biome": "Decameron",
+      "filterCategory": "FilterWater",
+      "spriteName": "Decameroon_Lake_7",
+      "category": "💧 WATER / RIVER",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 15,
+      "canDestroy": false,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": []
     }
   ],
   "dbVersion": 5,
