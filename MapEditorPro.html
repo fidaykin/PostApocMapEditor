@@ -1406,13 +1406,18 @@ body.mode-common #map-io    { display: none; }
 
     <!-- Left palette -->
     <div id="palette-panel">
-      <div id="shape-tools" style="display:flex;gap:4px;padding:6px 8px 0">
+      <div id="shape-tools" style="display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px 0">
           <button class="tool-btn" data-tool="line" onclick="Tools.setActive('line')" title="Line (L) - drag, thickness = brush size">╱</button>
           <button class="tool-btn" data-tool="circle" onclick="Tools.setActive('circle')" title="Circle (O) - drag from centre, Shift = filled">◯</button>
           <button class="tool-btn" data-tool="polygon" onclick="Tools.setActive('polygon')" title="Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline">⬠</button>
           <button class="tool-btn" data-tool="eraser" onclick="Tools.setActive('eraser')" title="Eraser (X) - drag to reset tiles to Plain_1 and remove buildings, roads, bridges and under-terrain. Brush size applies, symmetry mirrors it like Paint, Esc cancels the stroke. Zones and settlements are not touched">⌫</button>
+          <button class="tool-btn" data-tool="marquee" onclick="Tools.setActive('marquee')" title="Select Region (M) - drag a rectangle of cells; Shift adds, Alt subtracts, Esc clears, Ctrl+A selects all, Ctrl+D deselects">⛶</button>
           <button class="tool-btn" data-tool="scatter" onclick="Tools.setActive('scatter')" title="Scatter (A) - drag to sprinkle random variants of the selected terrain inside the brush, at the density below. Directional river/lake pieces are not scattered. Same seed gives the same result for the same drag; symmetry mirrors the area (each cell rolls on its own), Esc cancels the stroke">⁘</button>
         </div>
+      <div id="selection-row" style="display:none;align-items:center;gap:6px;padding:6px 8px 0;font-size:11px;color:var(--muted)">
+        <span id="selection-info" style="flex:1;min-width:0;color:#f5c518"></span>
+        <button id="selection-clear" class="tool-btn" style="width:auto;padding:0 6px" onclick="Selection.clear()" title="Deselect (Esc / Ctrl+D)">Clear</button>
+      </div>
       <div id="scatter-row" style="display:none;padding:6px 8px 0;font-size:11px;color:var(--muted)">
         <div style="display:flex;align-items:center;gap:6px">
           <label title="Chance in percent that each brushed cell receives a variant">Density
@@ -2357,7 +2362,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "fe968f6";
+const COMMIT  = "c3c14d3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3049,6 +3054,8 @@ const Canvas = (() => {
       _drawRectPreview(_toolsRectPreview, radius, lod);
     }
 
+    if (typeof Selection !== 'undefined') Selection.sync();   // drops a selection whose map was replaced (and hides the readout)
+    _drawSelectionOverlay(radius, lod, scale);
     _drawHighlights(radius, lod, scale);
     _drawSymmetryGuide(radius, scale);
 
@@ -3342,6 +3349,65 @@ const Canvas = (() => {
     if (opts && opts.render === false) _hlDirty = true; else render();
   }
   function hasHighlight(name) { return _highlights.has(name); }
+
+  // Region selection overlay (T2.8), published by the Selection module: { md, W, H, mask (Uint8Array, never mutated),
+  // segs (Float64Array of world-space boundary segments x1,y1,x2,y2...) }. Fill: the VISIBLE selected cells in one
+  // path (range-culled, no allocation); outline: the boundary segments in one path, culled to the viewport.
+  let _selOverlay = null;
+  function setSelectionOverlay(layer, opts) {
+    _selOverlay = layer || null;
+    if (!(opts && opts.render === false)) render();
+  }
+  const _SEL_FILL = 'rgba(245,197,24,0.18)', _SEL_STROKE = 'rgba(245,197,24,0.95)';
+  function _drawSelectionOverlay(radius, lod, scale) {
+    const L = _selOverlay;
+    if (!L) return;
+    if (L.md !== mapData || L.W !== MAP_WIDTH || L.H !== MAP_HEIGHT) { _selOverlay = null; return; }   // replaced map: never draw stale cells
+    const cw = canvas.width, ch = canvas.height, pad = radius * 2;
+    ctx.save();
+    if (lod < 2) {
+      let rowMin = 0, rowMax = MAP_HEIGHT - 1, colMin = 0, colMax = MAP_WIDTH - 1;
+      if (Number.isFinite(cameraX + cameraY)) {
+        const wxMin = (cameraX - pad) / scale, wxMax = (cameraX + cw + pad) / scale;
+        const wyMin = (cameraY - pad) / scale, wyMax = (cameraY + ch + pad) / scale;
+        const xiMin = Math.ceil(wxMin / COL_PITCH) - 1, xiMax = Math.floor(wxMax / COL_PITCH) + 1;
+        rowMin = Math.max(0, MAP_HEIGHT - 1 - xiMax); rowMax = Math.min(MAP_HEIGHT - 1, MAP_HEIGHT - 1 - xiMin);
+        const kMin = Math.ceil((wyMin - STAGGER) / ROW_PITCH) - 1, kMax = Math.floor(wyMax / ROW_PITCH) + 1;
+        colMin = Math.max(0, MAP_WIDTH - 1 - kMax); colMax = Math.min(MAP_WIDTH - 1, MAP_WIDTH - 1 - kMin);
+      }
+      const mask = L.mask, W = L.W, halfH = Math.floor(MAP_HEIGHT / 2);
+      ctx.beginPath();
+      for (let row = rowMin; row <= rowMax; row++) {
+        const xi = MAP_HEIGHT - 1 - row;
+        const x = xi * COL_PITCH * scale - cameraX;
+        if (x < -pad || x > cw + pad) continue;
+        const stg = ((xi - halfH) % 2 !== 0) ? STAGGER : 0;
+        for (let col = colMin; col <= colMax; col++) {
+          if (!mask[row * W + col]) continue;
+          const y = ((MAP_WIDTH - 1 - col) * ROW_PITCH + STAGGER - stg) * scale - cameraY;
+          if (y < -pad || y > ch + pad) continue;
+          for (let k = 0; k < 6; k++) {
+            const a = (Math.PI / 3) * k, px = x + radius * Math.cos(a), py = y + radius * Math.sin(a);
+            k === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+        }
+      }
+      ctx.fillStyle = _SEL_FILL;
+      ctx.fill();
+    }
+    const segs = L.segs;
+    ctx.beginPath();
+    for (let i = 0; i < segs.length; i += 4) {
+      const x1 = segs[i] * scale - cameraX, y1 = segs[i + 1] * scale - cameraY, x2 = segs[i + 2] * scale - cameraX, y2 = segs[i + 3] * scale - cameraY;
+      if ((x1 < -pad && x2 < -pad) || (x1 > cw + pad && x2 > cw + pad) || (y1 < -pad && y2 < -pad) || (y1 > ch + pad && y2 > ch + pad)) continue;
+      ctx.moveTo(x1, y1); ctx.lineTo(x2, y2);
+    }
+    ctx.strokeStyle = _SEL_STROKE;
+    ctx.lineWidth = Math.max(1.5, radius * 0.1);
+    ctx.stroke();
+    ctx.restore();
+  }
   function getHighlightPoints(name) { const h = _highlights.get(name); return h ? { n: h.n, xs: Array.from(h.xs), ys: Array.from(h.ys) } : null; }   // read-only snapshot (tests)
 
   // Expanded hover cursor, cached by (cursor cell, mode, brush radius, map size): pan/zoom renders reuse it.
@@ -4327,7 +4393,7 @@ const Canvas = (() => {
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot,
     jumpToBlock,
-    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight, getHighlightPoints, setSymmetryGuide, getSymmetryGuide,
+    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight, setSelectionOverlay, getHighlightPoints, setSymmetryGuide, getSymmetryGuide,
     toggleRulers: () => {
       _showRulers = !_showRulers;
       const btn = document.getElementById('btn-toggle-rulers');
@@ -4406,6 +4472,133 @@ const Brush = (() => {
   return { getAffectedTiles, setSize, getSize, grow, shrink, MAX_SIZE, patternBuilds };
 })();
 // ════════════════════════════════════════════════════════════
+// SELECTION MODULE (T2.8) — the region selection: a SET OF CELLS (col,row), independent of zoom/pan.
+// Stored as a Uint8Array mask over the map it was made on (identity + size); a replaced map (New/Load/Expand/
+// resize/autosave restore) makes every accessor see an EMPTY selection. In-place terrain edits and undo/redo keep it.
+// Not part of History. The mask is REPLACED (never mutated) on every change, so a held getMask() is a snapshot.
+// ════════════════════════════════════════════════════════════
+const Selection = (() => {
+  let _md = null, _W = 0, _H = 0;
+  let _mask = null;        // Uint8Array(W*H), 1 = selected; null = empty
+  let _count = 0, _bounds = null, _outline = null;
+  const _COS = [], _SIN = [];
+  for (let j = 0; j <= 6; j++) { _COS.push(Math.cos(Math.PI / 3 * j)); _SIN.push(Math.sin(Math.PI / 3 * j)); }
+
+  function _updateReadout() {
+    const row = document.getElementById('selection-row'), info = document.getElementById('selection-info');
+    if (!row || !info) return;
+    if (!_mask) { row.style.display = 'none'; return; }
+    const b = _bounds;
+    info.textContent = _count === 1 ? `1 cell (col ${b.minCol}, row ${b.minRow})`
+      : `${_count} cells, ${b.width} × ${b.height} (cols ${b.minCol}-${b.maxCol}, rows ${b.minRow}-${b.maxRow})`;
+    row.style.display = 'flex';
+  }
+
+  function _drop() {
+    _mask = null; _count = 0; _bounds = null; _outline = null; _md = null;
+    Canvas.setSelectionOverlay(null, { render: false });
+    _updateReadout();
+  }
+  // Validates against the live map; called by every accessor and by Canvas.render.
+  function sync() {
+    if (_mask && (_md !== mapData || _W !== MAP_WIDTH || _H !== MAP_HEIGHT)) _drop();
+  }
+
+  // Per row parity: the 6 neighbour offsets (from HexUtils cube directions) and which hex edge (corners j, j+1)
+  // faces each, found from the world-space direction of the neighbour (independent of the direction order).
+  function _edgeTable() {
+    const W = MAP_WIDTH, H = MAP_HEIGHT, tab = [];
+    for (let p = 0; p < 2; p++) {
+      const cc = 20, rr = 20 + p, cube = HexUtils.toCube(cc, rr, W, H), here = Canvas.hexCenterWorld(cc, rr);
+      const t = { dc: [], dr: [], ed: [] };
+      for (const d of HexUtils.CUBE_DIRS) {
+        const n = HexUtils.fromCube({ q: cube.q + d.q, r: cube.r + d.r, s: cube.s + d.s }, W, H);
+        const w = Canvas.hexCenterWorld(n.col, n.row);
+        const a = Math.atan2(w.y - here.y, w.x - here.x);
+        t.ed.push(((Math.round((a - Math.PI / 6) / (Math.PI / 3)) % 6) + 6) % 6);
+        t.dc.push(n.col - cc); t.dr.push(n.row - rr);
+      }
+      tab.push(t);
+    }
+    return tab;
+  }
+
+  function _buildOutline(mask, b) {
+    const W = MAP_WIDTH, H = MAP_HEIGHT, tab = _edgeTable();
+    const out = [];
+    for (let r = b.minRow; r <= b.maxRow; r++) {
+      const t = tab[r & 1];
+      for (let c = b.minCol; c <= b.maxCol; c++) {
+        if (!mask[r * W + c]) continue;
+        let ctr = null;
+        for (let k = 0; k < 6; k++) {
+          const nc = c + t.dc[k], nr = r + t.dr[k];
+          if (nc >= 0 && nc < W && nr >= 0 && nr < H && mask[nr * W + nc]) continue;
+          if (!ctr) ctr = Canvas.hexCenterWorld(c, r);
+          const j = t.ed[k];
+          out.push(ctr.x + HEX_SIZE * _COS[j], ctr.y + HEX_SIZE * _SIN[j], ctr.x + HEX_SIZE * _COS[j + 1], ctr.y + HEX_SIZE * _SIN[j + 1]);
+        }
+      }
+    }
+    return Float64Array.from(out);
+  }
+
+  function _commit(mask) {
+    const W = MAP_WIDTH, H = MAP_HEIGHT;
+    let n = 0, minC = W, maxC = -1, minR = H, maxR = -1;
+    for (let r = 0; r < H; r++) {
+      const o = r * W;
+      for (let c = 0; c < W; c++) if (mask[o + c]) { n++; if (c < minC) minC = c; if (c > maxC) maxC = c; if (r < minR) minR = r; maxR = r; }
+    }
+    if (n === 0) { _mask = null; _count = 0; _bounds = null; _outline = null; _md = null; Canvas.setSelectionOverlay(null); _updateReadout(); return; }
+    _md = mapData; _W = W; _H = H; _mask = mask; _count = n;
+    _bounds = { minCol: minC, maxCol: maxC, minRow: minR, maxRow: maxR, width: maxC - minC + 1, height: maxR - minR + 1 };
+    _outline = _buildOutline(mask, _bounds);
+    _updateReadout();
+    Canvas.setSelectionOverlay({ md: _md, W, H, mask, segs: _outline });   // renders
+  }
+
+  // mode: 'replace' (default) | 'add' | 'subtract'. Cells outside the map or non-integer are ignored.
+  function setCells(cells, mode) {
+    sync();
+    if (mode === 'subtract' && !_mask) return;
+    const W = MAP_WIDTH, H = MAP_HEIGHT;
+    const m = (mode === 'add' || mode === 'subtract') && _mask ? _mask.slice() : new Uint8Array(W * H);
+    const v = mode === 'subtract' ? 0 : 1;
+    for (let i = 0; i < cells.length; i++) {
+      const c = cells[i].col, r = cells[i].row;
+      if (Number.isInteger(c) && Number.isInteger(r) && c >= 0 && c < W && r >= 0 && r < H) m[r * W + c] = v;
+    }
+    _commit(m);
+  }
+  function clear() { sync(); if (!_mask) return; _commit(new Uint8Array(MAP_WIDTH * MAP_HEIGHT)); }
+  function selectAll() { sync(); _commit(new Uint8Array(MAP_WIDTH * MAP_HEIGHT).fill(1)); }
+  function invert() {
+    sync();
+    const m = new Uint8Array(MAP_WIDTH * MAP_HEIGHT);
+    if (_mask) for (let i = 0; i < m.length; i++) m[i] = 1 - _mask[i]; else m.fill(1);
+    _commit(m);
+  }
+  function isEmpty() { sync(); return !_mask; }
+  function size() { sync(); return _count; }
+  function has(col, row) {
+    sync();
+    return !!_mask && Number.isInteger(col) && Number.isInteger(row) && col >= 0 && col < _W && row >= 0 && row < _H && _mask[row * _W + col] === 1;
+  }
+  function getBounds() { sync(); return _bounds ? Object.assign({}, _bounds) : null; }
+  function getMask() { sync(); return _mask; }
+  function getOutline() { sync(); return _outline ? _outline.slice() : new Float64Array(0); }
+  function forEach(fn) {
+    sync();
+    if (!_mask) return;
+    for (let r = _bounds.minRow; r <= _bounds.maxRow; r++)
+      for (let c = _bounds.minCol; c <= _bounds.maxCol; c++) if (_mask[r * _W + c]) fn(c, r);
+  }
+  function getCells() { const out = []; forEach((col, row) => out.push({ col, row })); return out; }
+
+  return { getCells, setCells, clear, isEmpty, has, size, selectAll, invert, getBounds, getMask, getOutline, forEach, sync };
+})();
+// ════════════════════════════════════════════════════════════
 // TOOLS MODULE — paint, fill, rect, eyedropper, settlement, erase
 // ════════════════════════════════════════════════════════════
 const Tools = (() => {
@@ -4425,10 +4618,10 @@ const Tools = (() => {
     settlement: 'Place Settlement', erase: 'Erase Settlement',
     zone: 'Zone Painter', object: 'Place Object', 'erase-object': 'Erase Object',
     'road-connect': 'Connect Road',
-    line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser', scatter: 'Scatter',
+    line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser', scatter: 'Scatter', marquee: 'Select Region',
   };
   // Physical-key tool shortcuts (layout independent). Later tasks add entries.
-  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter' };
+  const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee' };
   let _shapeStart = null;     // { col, row } while dragging a line or circle
   let _shapeEnd   = null;
   let _shapeKey   = '';       // last previewed end cell + modifier, so unchanged moves do no work
@@ -4448,7 +4641,7 @@ const Tools = (() => {
     const sel = document.getElementById('symmetry-select');
     if (sel) sel.value = _symMode;
     // a rectangle drag in progress: rebuild (or drop) the copies so the preview matches what the commit will write
-    if (_rectStart && _toolsRectPreview && !_shapeStale()) { _previewRectSymmetry(_toolsRectPreview); }
+    if (_active === 'rect' && _rectStart && _toolsRectPreview && !_shapeStale()) { _previewRectSymmetry(_toolsRectPreview); }
     _updateEraserHover(_hoverCell);
     Canvas.setSymmetryGuide(_symMode);   // renders
   }
@@ -4780,13 +4973,17 @@ const Tools = (() => {
   }
 
   // ── Rectangle ──────────────────────────────────────────────
-  function _applyRect(c1, r1, c2, r2) {
+  // The grid-cell rectangle (cols c1..c2 x rows r1..r2, any corner order), clipped to the map.
+  function _rectCells(c1, r1, c2, r2) {
     const minC = Math.max(0, Math.min(c1, c2)), maxC = Math.min(MAP_WIDTH - 1, Math.max(c1, c2));
     const minR = Math.max(0, Math.min(r1, r2)), maxR = Math.min(MAP_HEIGHT - 1, Math.max(r1, r2));
     const cells = [];
     for (let c = minC; c <= maxC; c++)
       for (let r = minR; r <= maxR; r++) cells.push({ col: c, row: r });
-    _applyTerrainCells(cells, UI.getSelectedTerrain());
+    return cells;
+  }
+  function _applyRect(c1, r1, c2, r2) {
+    _applyTerrainCells(_rectCells(c1, r1, c2, r2), UI.getSelectedTerrain());
     Canvas.render();
   }
 
@@ -5254,6 +5451,7 @@ const Tools = (() => {
         _isDown = false;
         break;
       case 'rect':
+      case 'marquee':
         _beginShape();
         _rectStart = { col, row };
         _toolsRectPreview = { c1: col, r1: row, c2: col, r2: row };
@@ -5337,7 +5535,7 @@ const Tools = (() => {
     if (_fillBusy) return;
     if ((_polyVerts.length || _shapeStart || _rectStart) && _shapeStale()) { _cancelStale(); Canvas.render(); return; }
     // No button is held although a drag is active: the mouseup was lost (released outside the page, focus change...).
-    if (_isDown && e && e.type === 'mousemove' && e.buttons === 0) { _onUp({ type: 'mouseup', button: 0, shiftKey: e.shiftKey }); IO.scheduleAutoSave(); return; }
+    if (_isDown && e && e.type === 'mousemove' && e.buttons === 0) { _onUp({ type: 'mouseup', button: 0, shiftKey: e.shiftKey, altKey: e.altKey }); IO.scheduleAutoSave(); return; }
     if (_active === 'polygon' && _polyVerts.length) {
       const hov = Canvas.screenToHex(sx, sy);
       if (HexUtils.inBounds(hov.col, hov.row, MAP_WIDTH, MAP_HEIGHT)) {
@@ -5392,6 +5590,12 @@ const Tools = (() => {
           Canvas.render();
         }
         break;
+      case 'marquee':
+        if (_rectStart) {
+          _toolsRectPreview = { c1: _rectStart.col, r1: _rectStart.row, c2: col, r2: row };
+          Canvas.render();
+        }
+        break;
       case 'zone':
         if (_lastZonePainted && _lastZonePainted.col === col && _lastZonePainted.row === row) break;
         _paintZone(col, row);
@@ -5414,7 +5618,7 @@ const Tools = (() => {
 
   function _onUp(e) {
     // Shapes ignore the canvas mouseleave: the drag continues outside the canvas and the window mouseup finishes it.
-    if (e && e.type === 'mouseleave' && _shapeStart) return;
+    if (e && e.type === 'mouseleave' && (_shapeStart || (_active === 'marquee' && _rectStart))) return;
     if (e && e.type === 'mouseup' && (e.button === 1 || e.button === 2)) return;   // a middle/right release (pan) must not end a left-button drag
     if (e && e.type === 'mouseleave' && (_active === 'eraser' || _active === 'scatter')) { _hoverCell = null; _clearEraserHover(); }
     if (!_isDown) return;
@@ -5434,6 +5638,12 @@ const Tools = (() => {
       _toolsRectPreview = null;
       Canvas.setHighlight('shape', null, null, { render: false });
       Canvas.render();
+    } else if (_active === 'marquee' && _rectStart && _toolsRectPreview) {
+      if (_shapeStale()) { _cancelStale(); Canvas.render(); return; }
+      const p = _toolsRectPreview;
+      _rectStart = null;
+      _toolsRectPreview = null;
+      Selection.setCells(_rectCells(p.c1, p.r1, p.c2, p.r2), e && e.shiftKey ? 'add' : e && e.altKey ? 'subtract' : 'replace');   // renders
     }
     _lastPainted       = null;
     _lastZonePainted   = null;
@@ -5462,14 +5672,24 @@ const Tools = (() => {
     if (cvs) cvs.addEventListener('mousedown', () => { const a = document.activeElement; if (a && a.closest && a.closest('#scatter-row')) a.blur(); });
     // A button released outside the canvas (or the window) still finishes the shape: no stuck tool state.
     // (an eraser stroke never needs this: leaving the canvas fires mouseleave first and ends it)
-    window.addEventListener('mouseup', e => { if (_shapeStart && e.button === 0) _onUp(e); });
+    window.addEventListener('mouseup', e => { if ((_shapeStart || (_active === 'marquee' && _rectStart)) && e.button === 0) _onUp(e); });
     window.addEventListener('blur', () => {
       if (_shapeStart) { _isDown = false; _cancelShape(); }
+      if (_active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); }
       if (_active === 'eraser' || _active === 'scatter') {
         const had = _eraseStroke || Canvas.hasHighlight(_active);
         _isDown = false; _eraseStroke = false; _eraseToken = null; _scatterRun = null; _lastPainted = null; _hoverCell = null; _clearEraserHover();
         if (had) { IO.scheduleAutoSave(); Canvas.render(); }
       }
+    });
+    // Ctrl+A select all, Ctrl+D deselect (map mode only; text fields and modals keep their own behaviour)
+    window.addEventListener('keydown', e => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+      if (e.code !== 'KeyA' && e.code !== 'KeyD') return;
+      if (!document.body.classList.contains('mode-map') || _isTypingOrModal()) return;
+      e.preventDefault();                      // no page text selection / browser bookmark
+      if (e.repeat) return;
+      if (e.code === 'KeyA') Selection.selectAll(); else Selection.clear();
     });
     // Keyboard tool shortcuts
     window.addEventListener('keydown', e => {
@@ -5492,6 +5712,8 @@ const Tools = (() => {
         return;
       }
       if (e.key === 'Escape' && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
+      if (e.key === 'Escape' && _active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); return; }   // cancels the drag only
+      if (e.key === 'Escape' && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { Selection.clear(); return; }
       if (e.key === 'Enter' && _active === 'polygon' && _polyVerts.length && mapMode && !e.altKey && !_isTypingOrModal()) {
         e.preventDefault();
         if (_fillBusy) _cancelShape(); else _commitPolygon(e.shiftKey);
@@ -5518,7 +5740,7 @@ const Tools = (() => {
 
   function isStroking() { return _eraseStroke; }
   return { isStroking, scatterCells, scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, whenIdle, isFillBusy,
-           applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
+           _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
 })();

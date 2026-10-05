@@ -32,15 +32,17 @@ export async function clickCell(page: Page, col: number, row: number) {
   await page.mouse.click(p.x, p.y);
 }
 
-export async function dragCells(page: Page, a: Cell, b: Cell, opts: { shift?: boolean } = {}) {
+export async function dragCells(page: Page, a: Cell, b: Cell, opts: { shift?: boolean; alt?: boolean } = {}) {
   const pa = await cellPoint(page, a.col, a.row);
   const pb = await cellPoint(page, b.col, b.row);
   if (opts.shift) await page.keyboard.down('Shift');
+  if (opts.alt) await page.keyboard.down('Alt');
   await page.mouse.move(pa.x, pa.y);
   await page.mouse.down();
   await page.mouse.move((pa.x + pb.x) / 2, (pa.y + pb.y) / 2, { steps: 4 });
   await page.mouse.move(pb.x, pb.y, { steps: 4 });
   await page.mouse.up();
+  if (opts.alt) await page.keyboard.up('Alt');
   if (opts.shift) await page.keyboard.up('Shift');
 }
 
