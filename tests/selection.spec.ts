@@ -1798,6 +1798,7 @@ test.describe('transform and move (T2.10)', () => {
 
   test('Enter lifts the selection: nothing is written until the drop; a click drops it as ONE step and selects the new cells', async ({ page }) => {
     const base = await layers(page), s0 = await page.evaluate(() => History.undoSize());
+    const anchorId = await page.evaluate(() => { const o = Clipboard.capture(Selection.getCells()).origin; return mapData[o.row * MAP_WIDTH + o.col]; });
     await page.keyboard.press('Enter');
     expect(await layers(page)).toBe(base);                                              // nothing written at lift time
     expect(await page.evaluate(() => [Tools.getActive(), History.undoSize()])).toEqual(['paste', s0]);
@@ -1806,12 +1807,12 @@ test.describe('transform and move (T2.10)', () => {
       water: mapData.filter(x => x === 'Water_1').length, forest: mapData.filter(x => x === 'Forest_1').length,
       sel: Selection.size(), moved: mapData[219 * MAP_WIDTH + 225], src: mapData[224 * MAP_WIDTH + 225], steps: History.undoSize(),
     }));
-    expect(r).toEqual({ water: 1, forest: 1, sel: 2, moved: 'Water_1', src: 'Plain_1', steps: s0 + 1 });
+    expect(r).toEqual({ water: 1, forest: 1, sel: 2, moved: anchorId, src: 'Plain_1', steps: s0 + 1 });   // the click cell receives the ANCHOR cell (closest to the mean)
     expect(await page.evaluate(() => Tools.getActive())).not.toBe('paste');
     await page.evaluate(() => History.undo());
     expect(await layers(page)).toBe(base);                                              // one undo restores every layer
     await page.evaluate(() => History.redo());
-    expect(await page.evaluate(() => mapData[219 * MAP_WIDTH + 225])).toBe('Water_1');
+    expect(await page.evaluate(() => mapData[219 * MAP_WIDTH + 225])).toBe(anchorId);
   });
 
   test('Esc while moving cancels: map, selection and History untouched, previous tool back', async ({ page }) => {
@@ -1828,10 +1829,10 @@ test.describe('transform and move (T2.10)', () => {
     await page.keyboard.press('Enter');
     expect(await page.evaluate(() => Tools.isPasting())).toBe(false);
     await page.evaluate(() => Selection.setCells([{ col: 225, row: 224 }]));
-    await page.evaluate(() => { const i = document.getElementById('scatter-density')!; (i.closest('#scatter-row') as HTMLElement).style.display = 'block'; i.focus(); });
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = 'zz-input'; document.body.appendChild(i); i.focus(); });
     await page.keyboard.press('Enter');
     expect(await page.evaluate(() => Tools.isPasting())).toBe(false);
-    await page.evaluate(() => { (document.activeElement as HTMLElement).blur(); Tools.copySelection(); Tools.beginPaste(Clipboard.get()); });
+    await page.evaluate(() => { (document.activeElement as HTMLElement).blur(); document.getElementById('zz-input')!.remove(); Tools.copySelection(); Tools.beginPaste(Clipboard.get()); });
     await page.keyboard.press('Enter');
     expect(await page.evaluate(() => Tools.isMoving())).toBe(false);
     await page.evaluate(() => { Tools.setActive('paint'); const b = document.querySelector('.tool-btn[data-tool="marquee"]') as HTMLElement; b.focus(); });
@@ -2013,16 +2014,16 @@ test.describe('transform and move (T2.10)', () => {
           const placed = Selection.getCells();
           const cells = new Map<string, any>();
           for (const p of placed) { cells.set(p.col + ',' + p.row, p); for (const n of HexUtils.neighbors(p.col, p.row, W, H)) cells.set(n.col + ',' + n.row, n); }
-          let checked = 0, bad = 0;
+          let checked = 0, bad = 0, dir = 0;
           for (const c of cells.values()) {
             const id = mapData[c.row * W + c.col], e = Terrain.byHexId(id);
-            if (!e || !['Water', 'Rivers'].includes(e.type) || faces(id) === '') continue;      // directional cells
-            checked++;
+            if (!e || !['Water', 'Rivers'].includes(e.type)) continue;                          // every water / river cell
+            checked++; if (faces(id) !== '') dir++;
             if (faces(id) !== faces(EdgeTiling.resolveEdgeTile(c.col, c.row, W, H, mapData, ['Water', 'Rivers'], () => 0, [fallback]))) bad++;
           }
           let interiorSame = 0;
           const srcCells = Selection.getCells();
-          out[name] = { checked, bad, n: placed.length, srcCells: srcCells.length };
+          out[name] = { checked, bad, dir, n: placed.length, srcCells: srcCells.length };
           let diff = 0; for (const p of placed) if (!copied.has(p.col + ',' + p.row) && faces(mapData[p.row * W + p.col]) !== '') diff++;
           out[name].directional = diff;
           Tools.setActive('paint'); History.undo();
@@ -2031,7 +2032,7 @@ test.describe('transform and move (T2.10)', () => {
         return out;
       } finally { Math.random = origRandom; }
     });
-    expect(r.rot1.checked).toBeGreaterThan(10); expect(r.rot1.bad).toBe(0);
+    expect(r.rot1.checked).toBeGreaterThan(20); expect(r.rot1.dir).toBeGreaterThan(2); expect(r.rot1.bad).toBe(0);
     expect(r.rot2.checked).toBeGreaterThan(10); expect(r.rot2.bad).toBe(0);
     expect(r.identity.checked).toBeGreaterThan(10); expect(r.identity.bad).toBe(0);
   });
@@ -2285,6 +2286,7 @@ test.describe('transform and move (T2.10)', () => {
     await page.evaluate(() => { Selection.setCells([{ col: 225, row: 224 }]); });
     await page.keyboard.press('Enter');
     await resize(page, 450, 450);
+    await page.evaluate(() => UI.selectTerrain('Plain_1'));     // the click after the cancel is a Paint click: paint what is already there
     const before = await layers(page);
     await clickCell(page, 225, 219);
     expect(await layers(page)).toBe(before);
