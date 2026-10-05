@@ -258,6 +258,24 @@ html, body {
 .brush-btn:hover { background: var(--hover); }
 .brush-btn.active { border-color: var(--accent); background: rgba(79,195,247,0.12); }
 
+/* Stamps panel (T2.13): lives in the scrollable right panel body, so it never changes the canvas width */
+#stamp-panel { padding: 10px; border-bottom: 1px solid var(--border); }
+#stamp-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+#stamp-panel .stamp-bar { display: flex; gap: 4px; margin-bottom: 6px; }
+#stamp-panel .stamp-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
+#stamp-name { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; }
+#stamp-list { max-height: 260px; overflow-y: auto; overflow-x: hidden; }
+.stamp-empty { font-size: 11px; color: var(--muted); padding: 4px 0; }
+.stamp-row { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border); cursor: pointer; }
+.stamp-row:hover { background: var(--hover); }
+.stamp-place { flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px; padding: 3px 2px; background: none; border: none; color: var(--text); font: inherit; text-align: left; cursor: pointer; }
+.stamp-thumb { width: 32px; height: 32px; flex-shrink: 0; image-rendering: pixelated; }
+.stamp-name { flex: 1; min-width: 0; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stamp-count { font-size: 10px; color: var(--muted); flex-shrink: 0; }
+.stamp-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 4px; }
+.stamp-del:hover { color: var(--danger); }
+#stamp-more { width: 100%; margin-top: 4px; }
+
 #right-active-terrain {
   padding: 10px; border-bottom: 1px solid var(--border);
 }
@@ -1493,6 +1511,19 @@ body.mode-common #map-io    { display: none; }
         </div>
         <div id="brush-size-label" style="font-size:10px;color:var(--muted);margin-top:2px">Radius 0 (1 tile)</div>
       </div>
+      <div id="stamp-panel">
+        <div class="section-title">Stamps</div>
+        <div class="stamp-bar">
+          <input id="stamp-name" class="hexdb-input" type="text" maxlength="80" placeholder="Stamp name" aria-label="Stamp name" title="Name for the new stamp (Enter saves it)">
+          <button id="stamp-save-btn" class="hexdb-tool-btn" type="button" onclick="Stamps.saveSelection()" title="Save the current selection (M, drag) as a stamp">Save</button>
+        </div>
+        <div class="stamp-bar">
+          <button id="stamp-export-btn" class="hexdb-tool-btn" type="button" onclick="Stamps.exportFile()" title="Download all stamps as a JSON file">Export</button>
+          <button id="stamp-import-btn" class="hexdb-tool-btn" type="button" onclick="document.getElementById('stamp-import-file').click()" title="Add the stamps of an exported JSON file">Import</button>
+          <input id="stamp-import-file" type="file" accept="application/json,.json" style="display:none" aria-label="Import stamps file" onchange="Stamps.importFile(event)">
+        </div>
+        <div id="stamp-list"></div>
+      </div>
       <div id="right-active-terrain">
         <div class="section-title">Active Terrain</div>
         <div class="right-terrain-display">
@@ -2390,7 +2421,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "1abe407";
+const COMMIT  = "c8e806f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5301,7 +5332,156 @@ const Stamps = (() => {
     return url;
   }
 
-  return { save, list, remove, exportJson, importJson, toBuffer, thumbnail };
+  // ── panel (T2.13) ───────────────────────────────────────
+  // Rows show 100 stamps at a time ('Show more' adds 100); thumbnails are drawn lazily, only for rows that scroll into
+  // view (IntersectionObserver), so a big library costs nothing until it is looked at. Names go in via textContent only.
+  const PAGE = 100, IMPORT_MAX_BYTES = 64 * 1024 * 1024;
+  let _recs = [], _shown = PAGE, _refreshSeq = 0, _saving = false, _io = null, _cache = null, _panelBound = false;
+  const _$ = id => document.getElementById(id);
+  const _toast = m => { if (typeof UI !== 'undefined') UI.toast(m); };
+
+  function _observeThumb(img, rec) {
+    if (!_io) { img.src = thumbnail(rec, 32); return; }
+    img._rec = rec; _io.observe(img);
+  }
+  function _renderList() {
+    const box = _$('stamp-list');
+    if (!box) return;
+    const top = box.scrollTop;
+    if (_io) _io.disconnect();
+    box.textContent = '';
+    if (!_recs.length) {
+      const d = document.createElement('div'); d.className = 'stamp-empty';
+      d.textContent = 'No stamps yet. Select a region (M), type a name and press Save.';
+      box.appendChild(d); return;
+    }
+    const frag = document.createDocumentFragment();
+    for (const rec of _recs.slice(0, _shown)) {
+      const row = document.createElement('div'); row.className = 'stamp-row'; row.dataset.id = rec.id;
+      const place = document.createElement('button'); place.type = 'button'; place.className = 'stamp-place';
+      place.title = 'Click, then click the map to place it. , . rotate, / ; mirror, Esc cancels';
+      place.setAttribute('aria-label', 'Place stamp ' + rec.name);
+      const img = document.createElement('img'); img.className = 'stamp-thumb'; img.alt = '';
+      const nm = document.createElement('span'); nm.className = 'stamp-name'; nm.textContent = rec.name;
+      const cnt = document.createElement('span'); cnt.className = 'stamp-count'; cnt.textContent = rec.cells.length + (rec.cells.length === 1 ? ' tile' : ' tiles');
+      place.append(img, nm, cnt);
+      // Enter / Space on the focused button must reach the button only (not the global Space-pan / Enter-lift handlers)
+      place.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'stamp-del'; del.textContent = '✕';
+      del.title = 'Delete stamp'; del.setAttribute('aria-label', 'Delete stamp ' + rec.name);
+      del.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });
+      del.addEventListener('click', e => { e.stopPropagation(); _confirmRemove(rec); });
+      row.addEventListener('click', () => _place(rec));
+      row.append(place, del);
+      frag.appendChild(row);
+      _observeThumb(img, rec);
+    }
+    box.appendChild(frag);
+    if (_recs.length > _shown) {
+      const more = document.createElement('button'); more.type = 'button'; more.id = 'stamp-more'; more.className = 'hexdb-tool-btn';
+      more.textContent = 'Show more (' + (_recs.length - _shown) + ' left)';
+      more.addEventListener('click', () => { _shown += PAGE; _renderList(); });
+      box.appendChild(more);
+    }
+    box.scrollTop = top;
+  }
+  function refresh() {
+    const seq = ++_refreshSeq;
+    return list().then(recs => {
+      if (seq !== _refreshSeq) return;                         // a newer refresh superseded this one
+      _recs = recs; _renderList();
+    }, e => {
+      if (seq !== _refreshSeq) return;
+      _recs = []; const box = _$('stamp-list');
+      if (box) { box.textContent = ''; const d = document.createElement('div'); d.className = 'stamp-empty'; d.textContent = e.message; box.appendChild(d); }
+    });
+  }
+
+  // One buffer per stamp (a deep copy of up to 250k cells whose identity keys the Clipboard geometry cache), reused while
+  // the same stamp is placed again. The unknown-tile count is recomputed per paste session (packages can load meanwhile).
+  function _place(rec) {
+    if (Tools.isFillBusy()) { _toast('Wait for the fill to finish'); return; }
+    if (Tools.isStroking()) { _toast('Finish the current move or stroke first (Esc)'); return; }
+    const same = Tools.isPasting() && _cache && _cache.id === rec.id;
+    if (!_cache || _cache.id !== rec.id) {
+      const buf = api.toBuffer(rec), ids = new Map();       // through the public object: one counted call per stamp
+      for (const c of buf.cells) ids.set(c.t, (ids.get(c.t) || 0) + 1);
+      _cache = { id: rec.id, buf, ids };
+    }
+    Tools.beginPaste(_cache.buf);
+    if (same || !Tools.isPasting()) return;
+    let missing = 0;
+    for (const [id, n] of _cache.ids) if (!Terrain.byHexId(id)) missing += n;
+    if (missing) _toast(missing + (missing === 1 ? ' cell uses a tile that is not loaded' : ' cells use tiles that are not loaded'));
+  }
+  async function _confirmRemove(rec) {
+    const ok = await UI.confirm('Delete stamp', 'Delete the stamp "' + rec.name + '"? It cannot be undone.', '', 'Delete');
+    if (!ok) return;
+    try { await remove(rec.id); if (_cache && _cache.id === rec.id) _cache = null; }
+    catch (e) { _toast('Could not delete stamp: ' + e.message); }
+    await refresh();
+  }
+
+  async function saveSelection() {
+    if (_saving) return;
+    if (Tools.isFillBusy()) { _toast('Wait for the fill to finish'); return; }
+    if (Selection.isEmpty()) { _toast('Select a region first (M)'); return; }
+    const input = _$('stamp-name'), typed = input ? input.value : '';
+    const buf = Clipboard.capture(Selection.getCells());
+    if (!buf) { _toast('Select a region first (M)'); return; }
+    _saving = true;
+    try {
+      const rec = await save(typed, buf);
+      if (input && input.value === typed) input.value = '';
+      _toast('Stamp saved: ' + rec.name);
+    } catch (e) { _toast('Could not save stamp: ' + e.message); }
+    finally { _saving = false; }
+    await refresh();
+  }
+
+  async function exportFile() {
+    try {
+      if (!(await list()).length) { _toast('No stamps to export'); return; }
+      const text = await exportJson();
+      const d = new Date(), p = n => String(n).padStart(2, '0');
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([text], { type: 'application/json' }));
+      a.download = 'stamps-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '.json';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    } catch (e) { _toast('Could not export stamps: ' + e.message); }
+  }
+
+  async function importFile(ev) {
+    const input = ev.target, file = input.files && input.files[0];
+    input.value = '';                                          // so the same file can be chosen again
+    if (!file) return;
+    try {
+      if (file.size > IMPORT_MAX_BYTES) throw new Error('Invalid stamp file: too large');
+      const n = await importJson(await file.text());
+      _toast('Imported ' + n + (n === 1 ? ' stamp' : ' stamps'));
+    } catch (e) { _toast(e && e.message || 'Could not import stamps'); }
+    await refresh();
+  }
+
+  function initPanel() {
+    if (!_panelBound) {
+      _panelBound = true;
+      if (typeof IntersectionObserver !== 'undefined') {
+        _io = new IntersectionObserver(entries => {
+          for (const en of entries) if (en.isIntersecting) { const img = en.target; _io.unobserve(img); if (img._rec) { img.src = thumbnail(img._rec, 32); img._rec = null; } }
+        }, { root: _$('stamp-list'), rootMargin: '60px' });
+      }
+      const input = _$('stamp-name');
+      if (input) input.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.isComposing && !e.repeat) { e.preventDefault(); saveSelection(); }
+      });
+    }
+    return refresh();
+  }
+
+  const api = { save, list, remove, exportJson, importJson, toBuffer, thumbnail, refresh, saveSelection, exportFile, importFile, initPanel };
+  return api;
 })();
 // ════════════════════════════════════════════════════════════
 // TOOLS MODULE — paint, fill, rect, eyedropper, settlement, erase
@@ -16333,6 +16513,7 @@ window.addEventListener('load', async () => {
   Canvas.init();
   UI.init();
   Tools.init();
+  Stamps.initPanel();
   Brush.setSize(Brush.getSize());   // sync slider, label and buttons
   History.initKeyboard();
   IO.initFileInput();

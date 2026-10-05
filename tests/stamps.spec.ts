@@ -443,6 +443,8 @@ test.describe('stamp store (T2.12)', () => {
 
   test('IndexedDB open that fails asynchronously or is blocked rejects with a clear Error', async ({ page }) => {
     await freshEditor(page);
+    // the Stamps panel opens its connection at startup (T2.13): drop it (versionchange closes it) so this test sees a cold open
+    await page.evaluate(() => new Promise(res => { const q = indexedDB.deleteDatabase('MapEditorStamps'); q.onsuccess = q.onerror = q.onblocked = res; }));
     const r = await page.evaluate(async () => {
       const open = IDBFactory.prototype.open; const out: string[] = [];
       for (const mode of ['error', 'blocked']) {
@@ -715,9 +717,9 @@ test.describe('stamps panel (T2.13)', () => {
     expect(r).toEqual({ cw: 1491, ch: 808, inRight: true, inToolbar: false, fits: true, after: true });
   });
 
-  test('usable at 1100x700: the save button is in view and every row can be reached and placed', async ({ page }) => {
+  test('usable at the shortest height (1931x700, the narrowest width at which the right panel is on screen): save button in view, every row reachable and placeable', async ({ page }) => {
     await freshEditor(page);
-    await page.setViewportSize({ width: 1100, height: 700 });
+    await page.setViewportSize({ width: 1931, height: 700 });
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
     await expect(page.locator('#stamp-save-btn')).toBeInViewport();
     await expect(page.locator('#stamp-name')).toBeInViewport();
@@ -901,7 +903,7 @@ test.describe('stamps panel (T2.13)', () => {
   test('export downloads stamps-YYYY-MM-DD.json holding exactly the stored stamps; empty library toasts', async ({ page }) => {
     await freshEditor(page);
     await page.click('#stamp-export-btn');
-    expect(await lastToast(page)).toMatch(/no stamps/i);
+    await expect.poll(() => toasts(page)).toContain('No stamps to export');
     await seedPond(page);
     await saveNamed(page, 'pond');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#stamp-export-btn')]);
