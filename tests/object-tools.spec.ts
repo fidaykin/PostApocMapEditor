@@ -1071,3 +1071,369 @@ test.describe('road tools (T2.15)', () => {
     expect(await startOf(page)).toBe(null);
   });
 });
+
+// ── T2.16: Bridge tool (U) ───────────────────────────────────────────────────────────────────────────────────────
+// Bridges are the Road_Bridge_* buildings (category Bridge) placed in objectsData on river tiles (type 'Rivers').
+// Reference data is independent of the code under test: river / non-river hex ids come from hex_database.json (checked by
+// hand: River_*, Lake_1.. are type Rivers; Water_1, Plain_1 are not) and the three bridge ids from building_database.json.
+test.describe('bridge tool (T2.16)', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); await spyToasts(page); });
+  const BRIDGES = ['Road_Bridge_NEWS_1', 'Road_Bridge_NS_1', 'Road_Bridge_SENW_1'];
+  const river = (page: Page, col = 227, row = 224, id = 'River_L_1') => page.evaluate(([c, r, h]) => { mapData[(r as number) * MAP_WIDTH + (c as number)] = h as string; }, [col, row, id]);
+  const bridgeTool = async (page: Page, id?: string) => {
+    await page.evaluate((b) => { Tools.setActive('bridge'); if (b) Tools.selectBuilding(b); }, id || '');
+    await hidePicker(page);
+  };
+  const obj = (page: Page, k: string) => page.evaluate((key) => objectsData[key] || null, k);
+  const display = (page: Page) => page.evaluate(() => getComputedStyle(document.getElementById('obj-building-picker')!).display);
+
+  test('U places a bridge on a river tile, the same bridge again removes it, land is refused with a toast and no step', async ({ page }) => {
+    await river(page);
+    await page.keyboard.press('u');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('bridge');
+    await page.evaluate(() => Tools.selectBuilding('Road_Bridge_NS_1'));
+    await hidePicker(page);
+    expect(await page.evaluate(() => Tools.getSelectedBridgeId())).toBe('Road_Bridge_NS_1');
+    const s0 = await undoSize(page);
+    await clickCell(page, 227, 224);
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+    expect(await undoSize(page)).toBe(s0 + 1);
+    await clickCell(page, 227, 224);
+    expect(await obj(page, '227,224')).toBe(null);
+    expect(await undoSize(page)).toBe(s0 + 2);
+    const s1 = await undoSize(page);
+    await clickCell(page, 228, 224);                                  // Plain_1
+    expect((await toasts(page)).filter(t => t === 'Bridges can only be built on river tiles').length).toBe(1);
+    expect(await objs(page)).toEqual({});
+    expect(await undoSize(page)).toBe(s1);
+    // undo / redo
+    await clickCell(page, 227, 224);
+    await page.evaluate(() => History.undo());
+    expect(await obj(page, '227,224')).toBe(null);
+    await page.evaluate(() => History.redo());
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+  });
+
+  test('a different bridge replaces the one on the tile in ONE step; undo brings the old one back; the object tool selection is untouched', async ({ page }) => {
+    await river(page);
+    await page.evaluate(() => Tools.selectBuilding('Artefact_Test_1'));   // object-tool selection
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    await clickCell(page, 227, 224);
+    const s0 = await undoSize(page);
+    await page.evaluate(() => Tools.selectBuilding('Road_Bridge_SENW_1'));
+    await clickCell(page, 227, 224);
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_SENW_1');
+    expect(await undoSize(page)).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe('Artefact_Test_1');
+    expect(await page.evaluate(() => Tools.getSelectedBridgeId())).toBe('Road_Bridge_SENW_1');
+  });
+
+  test('river-type tiles accept a bridge (River_R_1, River_D_2, Lake_1); other terrain refuses (Water_1, Plain_1, Forest_1)', async ({ page }) => {
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const cells: [number, number, string, boolean][] = [[226, 224, 'River_R_1', true], [227, 224, 'River_D_2', true], [228, 224, 'Lake_1', true], [229, 224, 'Water_1', false], [230, 224, 'Plain_1', false], [231, 224, 'Forest_1', false]];
+    for (const [c, r, h] of cells) await river(page, c, r, h);
+    for (const [c, r] of cells) await clickCell(page, c, r);
+    expect(Object.keys(await objs(page)).sort()).toEqual(cells.filter(x => x[3]).map(x => x[0] + ',' + x[1]).sort());
+  });
+
+  test('a bridge on a river tile has no satellites; replacing a building that has them removes them', async ({ page }) => {
+    await river(page);
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    await clickCell(page, 227, 224);
+    expect(await objs(page)).toEqual({ '227,224': 'Road_Bridge_NS_1' });
+    expect(await page.evaluate(() => BldDB.getAll().filter((b: any) => b.buildingCategory === 'Bridge').every((b: any) => !b.satelliteId))).toBe(true);
+    await page.evaluate(() => { History.undo(); });
+    await useTool(page, 'object', 'Farm_Test_1');
+    await clickCell(page, 227, 224);
+    expect(Object.values(await objs(page)).filter(v => v === 'Grain_1').length).toBe(6);
+    const s0 = await undoSize(page);
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    await clickCell(page, 227, 224);
+    expect(await objs(page)).toEqual({ '227,224': 'Road_Bridge_NS_1' });
+    expect(await undoSize(page)).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    expect(Object.values(await objs(page)).filter(v => v === 'Grain_1').length).toBe(6);
+  });
+
+  test('the button lives in the left palette (not the top toolbar); canvas keeps 1491 px at 1400x900; registered as a lazy stroke tool', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    const r = await page.evaluate(() => {
+      const b = document.querySelector('.tool-btn[data-tool="bridge"]') as HTMLElement | null;
+      return { has: !!b, inPalette: !!b && !!b.closest('#palette-panel') && !b.closest('#toolbar') && b.getBoundingClientRect().width > 0, title: b && b.title,
+               cw: (document.getElementById('map-canvas') as HTMLCanvasElement).width, lazy: Tools._lazyStrokeTools.has('bridge') };
+    });
+    expect(r.has).toBe(true);
+    expect(r.inPalette).toBe(true);
+    expect(r.title).toContain('(U)');
+    expect(r.cw).toBe(1491);
+    expect(r.lazy).toBe(true);
+    await page.click('.tool-btn[data-tool="bridge"]');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('bridge');
+    expect(await page.evaluate(() => document.getElementById('st-tool')!.textContent)).toContain('Bridge');
+  });
+
+  test('U is a physical-key shortcut: not with Shift/Alt/Ctrl, not while typing, in a modal or on auto-repeat; no other letter changed', async ({ page }) => {
+    await page.keyboard.press('KeyU');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('bridge');
+    for (const mod of ['Shift', 'Alt', 'Control']) {
+      await page.evaluate(() => Tools.setActive('paint'));
+      await page.keyboard.down(mod); await page.keyboard.press('KeyU'); await page.keyboard.up(mod);
+      expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    }
+    await page.evaluate(() => { const i = document.createElement('input'); i.id = 'tmp-text'; i.type = 'text'; document.body.appendChild(i); i.focus(); });
+    await page.keyboard.press('KeyU');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    await page.evaluate(() => document.getElementById('tmp-text')!.remove());
+    await page.evaluate(() => { const m = document.createElement('div'); m.id = 'tmp-modal'; document.body.appendChild(m); });
+    await page.keyboard.press('KeyU');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    await page.evaluate(() => document.getElementById('tmp-modal')!.remove());
+    await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'u', code: 'KeyU', repeat: true, bubbles: true })));
+    expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
+    const map: Record<string, string> = {};
+    for (const k of 'abcdefghijklmnopqrstuvwxyz') { await page.evaluate(() => Tools.setActive('paint')); await page.keyboard.press('Key' + k.toUpperCase()); map[k] = await page.evaluate(() => Tools.getActive()); }
+    expect(map).toMatchObject({ u: 'bridge', w: 'road', c: 'road-connect', q: 'erase-road', b: 'object', p: 'paint', f: 'fill', r: 'rect', e: 'eye', s: 'select', t: 'settlement', d: 'erase', z: 'zone', l: 'line', o: 'circle', g: 'polygon', x: 'eraser', a: 'scatter', m: 'marquee', h: 'replace' });
+  });
+
+  test('the bridge picker lists exactly the Bridge-category buildings; the object picker lists none of them; each tool keeps its own selection', async ({ page }) => {
+    await page.evaluate(() => Tools.setActive('bridge'));
+    const ids = () => page.evaluate(() => Array.from(document.querySelectorAll('#obj-building-picker-grid .bld-card')).map(c => (c as HTMLElement).dataset.bldId).sort());
+    expect(await ids()).toEqual(BRIDGES);
+    expect(await display(page)).toBe('block');
+    expect(await page.evaluate(() => Tools.getSelectedBridgeId())).toBe(BRIDGES[0]);       // first one is pre-selected
+    await page.click('#obj-building-picker-grid .bld-card[data-bld-id="Road_Bridge_SENW_1"]');
+    expect(await page.evaluate(() => [Tools.getSelectedBridgeId(), document.getElementById('obj-building-label')!.textContent])).toEqual(['Road_Bridge_SENW_1', 'Road_Bridge_SENW_1']);
+    expect(await page.evaluate(() => document.querySelector('#obj-building-picker-grid .bld-card.selected')!.getAttribute('data-bld-id'))).toBe('Road_Bridge_SENW_1');
+    await page.evaluate(() => Tools.setActive('object'));
+    const objIds = await ids();
+    expect(objIds.length).toBeGreaterThan(2);
+    expect(objIds.some(i => i.startsWith('Road_Bridge_'))).toBe(false);
+    const objSel = await page.evaluate(() => Tools.getSelectedBuildingId());
+    expect(BRIDGES.includes(objSel as string)).toBe(false);
+    await page.evaluate(() => Tools.selectBuilding('Artefact_Test_1'));
+    await page.evaluate(() => Tools.setActive('bridge'));
+    expect(await page.evaluate(() => Tools.getSelectedBridgeId())).toBe('Road_Bridge_SENW_1');
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe('Artefact_Test_1');
+    expect(await page.evaluate(() => document.getElementById('obj-building-label')!.textContent)).toBe('Road_Bridge_SENW_1');
+  });
+
+  test('selectBuilding in bridge mode refuses unknown ids and non-bridge buildings (selection kept); the picker label hides for other tools', async ({ page }) => {
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    await page.evaluate(() => { Tools.selectBuilding('No_Such_Building'); Tools.selectBuilding('Artefact_Test_1'); Tools.selectBuilding(''); });
+    expect(await page.evaluate(() => Tools.getSelectedBridgeId())).toBe('Road_Bridge_NS_1');
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).not.toBe('Artefact_Test_1');
+    expect((await toasts(page)).filter(t => /unknown building|not a bridge/i.test(t)).length).toBe(3);
+    await page.evaluate(() => Tools.setActive('paint'));
+    expect(await page.evaluate(() => getComputedStyle(document.getElementById('obj-building-label')!).display)).toBe('none');
+    await page.evaluate(() => Tools.selectBuilding('Artefact_Test_1'));   // paint is active: this is the object selection, not the bridge one
+    expect(await page.evaluate(() => [Tools.getSelectedBuildingId(), Tools.getSelectedBridgeId()])).toEqual(['Artefact_Test_1', 'Road_Bridge_NS_1']);
+  });
+
+  test('with no bridge building in the database the tool does not activate: toast, previous tool and picker unchanged', async ({ page }) => {
+    await page.evaluate(() => Tools.setActive('zone'));
+    await page.evaluate(() => { const o = BldDB.getAll; BldDB.getAll = () => []; try { Tools.setActive('bridge'); } finally { BldDB.getAll = o; } });
+    expect(await page.evaluate(() => Tools.getActive())).toBe('zone');
+    expect((await toasts(page)).some(t => /no bridge/i.test(t))).toBe(true);
+    expect(await display(page)).toBe('none');
+    expect(await page.evaluate(() => document.querySelector('.tool-btn[data-tool="bridge"]')!.classList.contains('active'))).toBe(false);
+  });
+
+  test('bridge picker: stays inside a 1100x340 viewport, Escape and an outside click close it (tool and selection stay), cards are keyboard-operable and do not lift a selection', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 340 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await page.click('.tool-btn[data-tool="bridge"]');
+    const r = await page.evaluate(() => { const b = document.getElementById('obj-building-picker')!.getBoundingClientRect(); return { l: b.left, t: b.top, r: b.right, b: b.bottom, w: innerWidth, h: innerHeight }; });
+    expect(r.l).toBeGreaterThanOrEqual(0); expect(r.t).toBeGreaterThanOrEqual(0); expect(r.r).toBeLessThanOrEqual(r.w); expect(r.b).toBeLessThanOrEqual(r.h);
+    // the bridge button is the anchor: the picker is level with it (or clamped), not with the object button
+    const anchor = await page.evaluate(() => { const bb = document.querySelector('.tool-btn[data-tool="bridge"]')!.getBoundingClientRect(), pt = document.getElementById('obj-building-picker')!.getBoundingClientRect(); return { dy: Math.abs(pt.top - Math.max(4, Math.min(bb.top, innerHeight - 120))) }; });
+    expect(anchor.dy).toBeLessThan(2);
+    await page.focus('#obj-building-picker-grid .bld-card[data-bld-id="Road_Bridge_SENW_1"]');
+    await page.evaluate(() => { Selection.setCells([{ col: 225, row: 224 }, { col: 226, row: 224 }, { col: 227, row: 224 }]); });
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => [Tools.getSelectedBridgeId(), Tools.isMoving(), Tools.getActive()])).toEqual(['Road_Bridge_SENW_1', false, 'bridge']);
+    expect(await page.evaluate(() => Selection.size())).toBe(3);
+    await page.focus('#obj-building-picker-grid .bld-card[data-bld-id="Road_Bridge_NEWS_1"]');
+    await page.keyboard.press('Space');
+    expect(await page.evaluate(() => Tools.getSelectedBridgeId())).toBe('Road_Bridge_NEWS_1');
+    await page.keyboard.press('Escape');
+    expect(await display(page)).toBe('none');
+    expect(await page.evaluate(() => [Tools.getActive(), Tools.getSelectedBridgeId()])).toEqual(['bridge', 'Road_Bridge_NEWS_1']);
+    await page.click('.tool-btn[data-tool="bridge"]');
+    expect(await display(page)).toBe('block');
+    await page.mouse.click(5, 5);
+    expect(await display(page)).toBe('none');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('bridge');
+  });
+
+  test('Erase Building and the Eraser remove bridge buildings like any object; one step each, undo restores', async ({ page }) => {
+    await river(page); await river(page, 230, 224);
+    await page.evaluate(() => { objectsData['227,224'] = 'Road_Bridge_NS_1'; objectsData['230,224'] = 'Road_Bridge_NEWS_1'; });
+    await useTool(page, 'erase-object');
+    let s0 = await undoSize(page);
+    await clickCell(page, 227, 224);
+    expect(await objs(page)).toEqual({ '230,224': 'Road_Bridge_NEWS_1' });
+    expect(await undoSize(page)).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+    await page.evaluate(() => { Tools.setActive('eraser'); });
+    s0 = await undoSize(page);
+    await clickCell(page, 230, 224);
+    expect(await obj(page, '230,224')).toBe(null);
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+    expect(await undoSize(page)).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    expect(await obj(page, '230,224')).toBe('Road_Bridge_NEWS_1');
+  });
+
+  test('a bridge that sits on a non-river tile (stamped / pasted / legacy) renders, survives copy-paste with its id, is refused by the bridge tool and removable by Erase Building', async ({ page }) => {
+    const errors: string[] = []; page.on('pageerror', e => errors.push(e.message));
+    await page.evaluate(() => { objectsData['227,224'] = 'Road_Bridge_NS_1'; Canvas.render(); });
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const s0 = await undoSize(page);
+    await clickCell(page, 227, 224);                                   // land, bridge already there: refused, kept
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+    expect(await undoSize(page)).toBe(s0);
+    expect((await toasts(page)).some(t => /river tiles/.test(t))).toBe(true);
+    // copy + paste to another land cell keeps the id
+    await page.evaluate(() => { Tools.setActive('paint'); Selection.setCells([{ col: 227, row: 224 }]); Tools.copySelection(); Tools.beginPaste(Clipboard.get()); });
+    await clickCell(page, 231, 224);
+    expect(await obj(page, '231,224')).toBe('Road_Bridge_NS_1');
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+    await useTool(page, 'erase-object');
+    await clickCell(page, 231, 224);
+    expect(await obj(page, '231,224')).toBe(null);
+    expect(errors).toEqual([]);
+  });
+
+  test('only the left button acts: right, middle and side buttons place nothing', async ({ page }) => {
+    await river(page);
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const s0 = await undoSize(page);
+    const p = await cellPoint(page, 227, 224);
+    await page.mouse.move(p.x, p.y);
+    await page.mouse.down({ button: 'right' }); await page.mouse.up({ button: 'right' });
+    await page.mouse.down({ button: 'middle' }); await page.mouse.up({ button: 'middle' });
+    await ev(page, 'mousedown', 227, 224, { button: 3 }); await ev(page, 'mouseup', 227, 224, { button: 3 });
+    await ev(page, 'mousedown', 227, 224, { button: 4 }); await ev(page, 'mouseup', 227, 224, { button: 4 });
+    expect(await objs(page)).toEqual({});
+    expect(await undoSize(page)).toBe(s0);
+    await page.mouse.down(); await page.mouse.up();                    // control: the left button does place it
+    expect(await objs(page)).toEqual({ '227,224': 'Road_Bridge_NS_1' });
+  });
+
+  test('a bridge goes one tap at a time: dragging from a river tile to another river tile places only the pressed one, in one step', async ({ page }) => {
+    await river(page, 227, 224); await river(page, 230, 224);
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const s0 = await undoSize(page);
+    await dragCells(page, { col: 227, row: 224 }, { col: 230, row: 224 });
+    expect(await objs(page)).toEqual({ '227,224': 'Road_Bridge_NS_1' });
+    expect(await undoSize(page)).toBe(s0 + 1);
+  });
+
+  test('refusing a land press then dragging over more land toasts once (one refusal per stroke), no step', async ({ page }) => {
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const s0 = await undoSize(page);
+    await dragCells(page, { col: 227, row: 224 }, { col: 230, row: 224 });
+    expect((await toasts(page)).filter(t => /river tiles/.test(t)).length).toBe(1);
+    expect(await undoSize(page)).toBe(s0);
+  });
+
+  test('the press is a stroke: isStroking is true while the button is held (undo ignored, Clear Map refused), Escape rolls the bridge back without a step and keeps the redo stack', async ({ page }) => {
+    await river(page);
+    await page.evaluate(() => { History.push(); objectsData['300,300'] = 'Artefact_Test_1'; History.undo(); });
+    const before = await page.evaluate(() => ({ u: History.undoSize(), r: History.redoSize() }));
+    expect(before.r).toBe(1);
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const p = await cellPoint(page, 227, 224);
+    await page.mouse.move(p.x, p.y); await page.mouse.down();
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+    expect(await page.evaluate(() => Tools.isStroking())).toBe(true);
+    expect(await page.evaluate(() => History.undoSize())).toBe(before.u + 1);
+    await page.evaluate(() => History.undo());                       // ignored mid-stroke
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+    await page.keyboard.press('Escape');
+    expect(await obj(page, '227,224')).toBe(null);
+    expect(await page.evaluate(() => Tools.isStroking())).toBe(false);
+    await page.mouse.up();
+    expect(await page.evaluate(() => ({ u: History.undoSize(), r: History.redoSize() }))).toEqual(before);
+    // and a normal press releases the stroke
+    await page.mouse.down(); await page.mouse.up();
+    expect(await page.evaluate(() => Tools.isStroking())).toBe(false);
+  });
+
+  test('a lost mouse-up, a window blur and a tool switch end the gesture; the step stays', async ({ page }) => {
+    await river(page); await river(page, 230, 224);
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const s0 = await undoSize(page);
+    const p = await cellPoint(page, 227, 224);
+    await page.mouse.move(p.x, p.y); await page.mouse.down();
+    await ev(page, 'mousemove', 228, 224, { buttons: 0 });
+    expect(await page.evaluate(() => [Tools.isStrokeActive(), Tools.isStroking()])).toEqual([false, false]);
+    await page.mouse.up();
+    expect(await undoSize(page)).toBe(s0 + 1);
+    const p2 = await cellPoint(page, 230, 224);
+    await page.mouse.move(p2.x, p2.y); await page.mouse.down();
+    await page.evaluate(() => window.dispatchEvent(new Event('blur')));
+    expect(await page.evaluate(() => [Tools.isStrokeActive(), Tools.isStroking()])).toEqual([false, false]);
+    await page.mouse.up();
+    expect(await undoSize(page)).toBe(s0 + 2);
+    await page.mouse.down();
+    await page.evaluate(() => Tools.setActive('paint'));
+    expect(await page.evaluate(() => [Tools.isStrokeActive(), Tools.isStroking()])).toEqual([false, false]);
+    await page.mouse.up();
+    expect(await undoSize(page)).toBe(s0 + 2 + 0);
+    expect(await objs(page)).toEqual({ '227,224': 'Road_Bridge_NS_1', '230,224': 'Road_Bridge_NS_1' });
+  });
+
+  test('a map replaced mid-gesture stops the bridge tool with a bridge-specific toast and writes nothing to the new map', async ({ page }) => {
+    await river(page);
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const p = await cellPoint(page, 227, 224);
+    await page.mouse.move(p.x, p.y); await page.mouse.down();
+    await page.evaluate(() => { IO.newMap(true); Canvas.centerOnCity(); });
+    await page.mouse.move(p.x + 3, p.y + 3, { steps: 2 });
+    await page.mouse.up();
+    expect(await objs(page)).toEqual({});
+    expect(await page.evaluate(() => Tools.isStroking())).toBe(false);
+    const t = await toasts(page);
+    expect(t.some(x => /bridge tool stopped/i.test(x))).toBe(true);
+    expect(t.some(x => /(building|road) tool stopped/i.test(x))).toBe(false);
+  });
+
+  test('the tool ignores input while a fill runs', async ({ page }) => {
+    await river(page);
+    const r = await page.evaluate(async () => {
+      UI.selectTerrain('Forest_1');
+      const cv = document.getElementById('map-canvas')!, rc = cv.getBoundingClientRect();
+      const fire = (t: string, c: number, rw: number) => { const p = Canvas.hexScreenPos(c, rw); cv.dispatchEvent(new MouseEvent(t, { clientX: rc.left + p.x, clientY: rc.top + p.y, button: 0, bubbles: true })); };
+      const p = Tools.fill(240, 240);
+      const busy = Tools.isFillBusy();
+      const before = History.undoSize();
+      Tools.setActive('bridge'); Tools.selectBuilding('Road_Bridge_NS_1'); document.getElementById('obj-building-picker')!.style.display = 'none';
+      fire('mousedown', 227, 224); fire('mouseup', 227, 224);
+      const out = { busy, placed: '227,224' in objectsData, steps: History.undoSize() - before };
+      await p;
+      return out;
+    });
+    expect(r).toEqual({ busy: true, placed: false, steps: 0 });
+    await clickCell(page, 227, 224);                                   // control: once the fill is done the same click places it
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+  });
+
+  test('the bridge is drawn: placing one changes the canvas, undo restores it', async ({ page }) => {
+    await river(page);
+    await page.evaluate(() => { Canvas.render(); });
+    const hash = () => page.evaluate(() => { const cv = document.getElementById('map-canvas') as HTMLCanvasElement; const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data; let h = 0; for (let i = 0; i < d.length; i += 53) h = (h * 31 + d[i]) | 0; return h; });
+    await bridgeTool(page, 'Road_Bridge_NS_1');
+    const h0 = await hash();
+    await clickCell(page, 227, 224);
+    await page.mouse.move(5, 500);
+    await page.waitForFunction(() => !!objectsData['227,224']);
+    await expect.poll(async () => (await hash()) !== h0).toBe(true);
+    await page.evaluate(() => { History.undo(); Canvas.render(); });
+    expect(await hash()).toBe(h0);
+  });
+});
