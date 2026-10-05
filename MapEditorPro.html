@@ -2362,7 +2362,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.05";
-const COMMIT  = "c3c14d3";
+const COMMIT  = "61a36b1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2840,7 +2840,7 @@ const Canvas = (() => {
   let _showCoastline = true;
   let _selectedSlotIdx = -1;
   // Cheap counters for tests and profiling (render counters reset every frame).
-  const _stats = { tilesVisited: 0, tilesDrawn: 0, overlayRebuilds: 0, minimapRecolored: 0, overviewRecolored: 0, lod: 0 };
+  const _stats = { tilesVisited: 0, tilesDrawn: 0, overlayRebuilds: 0, minimapRecolored: 0, overviewRecolored: 0, lod: 0, selCellsTested: 0, selCellsDrawn: 0, selMode: '' };
   function getStats() { return { ..._stats }; }
   // Level of detail, a pure function of the on-screen hex radius (px) so zooming around a threshold cannot flicker:
   //   0  radius >= 10 (zoom >= 25%): the original draw path, pixel-identical to before
@@ -3351,21 +3351,47 @@ const Canvas = (() => {
   function hasHighlight(name) { return _highlights.has(name); }
 
   // Region selection overlay (T2.8), published by the Selection module: { md, W, H, mask (Uint8Array, never mutated),
-  // segs (Float64Array of world-space boundary segments x1,y1,x2,y2...) }. Fill: the VISIBLE selected cells in one
-  // path (range-culled, no allocation); outline: the boundary segments in one path, culled to the viewport.
+  // segs (Float64Array of world-space boundary segments x1,y1,x2,y2...), bitmap (built here) }.
+  // Per-frame cost is O(visible boundary) or O(canvas pixels), never O(selected cells):
+  //  - outline: the boundary segments in ONE stroke path, culled per segment;
+  //  - fill: while few selected cells are visible (<= _SEL_HEX_MAX, LOD 0) their exact hex paths go into ONE fill;
+  //    otherwise (many cells, or LOD 1/2) a cached one-pixel-per-cell bitmap of the mask is drawn scaled, smoothing off.
+  // Bitmap geometry (stagger aware): pixel column xi = H-1-row (cell x = xi*COL_PITCH); a cell is 2 pixel rows tall,
+  // ky = 2*(W-1-col) + 1 - (odd worldX ? 1 : 0), rows ky and ky+1; pixel row r covers world y [(r-1)*STAGGER, r*STAGGER].
   let _selOverlay = null;
+  const _SEL_HEX_MAX = 1500;
+  const _selScratch = new Int32Array(_SEL_HEX_MAX * 2);   // col,row of the visible selected cells (hex path), reused every frame
+  function _buildSelBitmap(L) {
+    const W = L.W, H = L.H, half = Math.floor(H / 2), bw = H, bh = 2 * W + 2;
+    const cv = document.createElement('canvas'); cv.width = bw; cv.height = bh;
+    const g = cv.getContext('2d'), img = g.createImageData(bw, bh), px = new Uint32Array(img.data.buffer);
+    const rgba = ((46 << 24) | (24 << 16) | (197 << 8) | 245) >>> 0;    // 245,197,24 at alpha 0.18 (little endian)
+    for (let row = 0; row < H; row++) {
+      const xi = H - 1 - row, odd = ((xi - half) % 2 !== 0) ? 1 : 0;
+      for (let col = 0; col < W; col++) {
+        if (!L.mask[row * W + col]) continue;
+        const ky = 2 * (W - 1 - col) + 1 - odd;
+        px[ky * bw + xi] = rgba; px[(ky + 1) * bw + xi] = rgba;
+      }
+    }
+    g.putImageData(img, 0, 0);
+    return cv;
+  }
   function setSelectionOverlay(layer, opts) {
     _selOverlay = layer || null;
+    if (_selOverlay) _selOverlay.bitmap = _buildSelBitmap(_selOverlay);
     if (!(opts && opts.render === false)) render();
   }
   const _SEL_FILL = 'rgba(245,197,24,0.18)', _SEL_STROKE = 'rgba(245,197,24,0.95)';
   function _drawSelectionOverlay(radius, lod, scale) {
     const L = _selOverlay;
+    _stats.selCellsTested = 0; _stats.selCellsDrawn = 0; _stats.selMode = '';
     if (!L) return;
     if (L.md !== mapData || L.W !== MAP_WIDTH || L.H !== MAP_HEIGHT) { _selOverlay = null; return; }   // replaced map: never draw stale cells
     const cw = canvas.width, ch = canvas.height, pad = radius * 2;
     ctx.save();
-    if (lod < 2) {
+    let useBitmap = lod > 0;
+    if (!useBitmap) {
       let rowMin = 0, rowMax = MAP_HEIGHT - 1, colMin = 0, colMax = MAP_WIDTH - 1;
       if (Number.isFinite(cameraX + cameraY)) {
         const wxMin = (cameraX - pad) / scale, wxMax = (cameraX + cw + pad) / scale;
@@ -3376,25 +3402,55 @@ const Canvas = (() => {
         colMin = Math.max(0, MAP_WIDTH - 1 - kMax); colMax = Math.min(MAP_WIDTH - 1, MAP_WIDTH - 1 - kMin);
       }
       const mask = L.mask, W = L.W, halfH = Math.floor(MAP_HEIGHT / 2);
-      ctx.beginPath();
+      let n = 0, tested = 0;
       for (let row = rowMin; row <= rowMax; row++) {
         const xi = MAP_HEIGHT - 1 - row;
         const x = xi * COL_PITCH * scale - cameraX;
         if (x < -pad || x > cw + pad) continue;
         const stg = ((xi - halfH) % 2 !== 0) ? STAGGER : 0;
         for (let col = colMin; col <= colMax; col++) {
+          tested++;
           if (!mask[row * W + col]) continue;
           const y = ((MAP_WIDTH - 1 - col) * ROW_PITCH + STAGGER - stg) * scale - cameraY;
           if (y < -pad || y > ch + pad) continue;
+          if (n < _SEL_HEX_MAX) { _selScratch[2 * n] = col; _selScratch[2 * n + 1] = row; }
+          n++;
+        }
+      }
+      _stats.selCellsTested = tested;
+      if (n > _SEL_HEX_MAX) useBitmap = true;
+      else {
+        ctx.beginPath();
+        for (let i = 0; i < n; i++) {
+          const col = _selScratch[2 * i], row = _selScratch[2 * i + 1];
+          const xi = MAP_HEIGHT - 1 - row, stg = ((xi - halfH) % 2 !== 0) ? STAGGER : 0;
+          const x = xi * COL_PITCH * scale - cameraX, y = ((MAP_WIDTH - 1 - col) * ROW_PITCH + STAGGER - stg) * scale - cameraY;
           for (let k = 0; k < 6; k++) {
-            const a = (Math.PI / 3) * k, px = x + radius * Math.cos(a), py = y + radius * Math.sin(a);
-            k === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+            const a = (Math.PI / 3) * k, qx = x + radius * Math.cos(a), qy = y + radius * Math.sin(a);
+            k === 0 ? ctx.moveTo(qx, qy) : ctx.lineTo(qx, qy);
           }
           ctx.closePath();
         }
+        ctx.fillStyle = _SEL_FILL;
+        ctx.fill();
+        _stats.selCellsDrawn = n; _stats.selMode = 'hex';
       }
-      ctx.fillStyle = _SEL_FILL;
-      ctx.fill();
+    }
+    if (useBitmap) {
+      const bm = L.bitmap, bw = bm.width, bh = bm.height;
+      if (Number.isFinite(cameraX + cameraY)) {
+        const wxMin = cameraX / scale, wxMax = (cameraX + cw) / scale, wyMin = cameraY / scale, wyMax = (cameraY + ch) / scale;
+        const x0 = Math.max(0, Math.floor(wxMin / COL_PITCH) - 1), x1 = Math.min(bw - 1, Math.ceil(wxMax / COL_PITCH) + 1);
+        const y0 = Math.max(0, Math.floor(wyMin / STAGGER) - 1), y1 = Math.min(bh - 1, Math.ceil(wyMax / STAGGER) + 1);
+        if (x1 >= x0 && y1 >= y0) {
+          const prev = ctx.imageSmoothingEnabled;
+          ctx.imageSmoothingEnabled = false;
+          ctx.drawImage(bm, x0, y0, x1 - x0 + 1, y1 - y0 + 1,
+            (x0 - 0.5) * COL_PITCH * scale - cameraX, (y0 - 1) * STAGGER * scale - cameraY, (x1 - x0 + 1) * COL_PITCH * scale, (y1 - y0 + 1) * STAGGER * scale);
+          ctx.imageSmoothingEnabled = prev;
+        }
+      }
+      _stats.selMode = 'bitmap';
     }
     const segs = L.segs;
     ctx.beginPath();
@@ -3408,6 +3464,7 @@ const Canvas = (() => {
     ctx.stroke();
     ctx.restore();
   }
+
   function getHighlightPoints(name) { const h = _highlights.get(name); return h ? { n: h.n, xs: Array.from(h.xs), ys: Array.from(h.ys) } : null; }   // read-only snapshot (tests)
 
   // Expanded hover cursor, cached by (cursor cell, mode, brush radius, map size): pan/zoom renders reuse it.
@@ -3482,16 +3539,21 @@ const Canvas = (() => {
     const minC = Math.min(c1, c2), maxC = Math.max(c1, c2);
     const minR = Math.min(r1, r2), maxR = Math.max(r1, r2);
     ctx.save();
-    ctx.strokeStyle = 'rgba(79,195,247,0.8)';
+    // Select Region preview (preview.mode set): dashed, tinted by mode (replace yellow, add green, subtract red),
+    // always the one bounding rectangle (never a per-hex stroke).
+    const mq = preview.mode;
+    const mqRgb = mq === 'add' ? '110,220,120' : mq === 'subtract' ? '240,100,100' : '245,197,24';
+    ctx.strokeStyle = mq ? 'rgba(' + mqRgb + ',0.95)' : 'rgba(79,195,247,0.8)';
     ctx.lineWidth = 2;
-    if (lod > 0) {
+    if (mq) ctx.setLineDash([7, 4]);
+    if (lod > 0 || mq) {
       // One outline around the whole rectangle: stroking every hex of a large rectangle takes seconds.
       // Bounds from the world grid: centre y of column c lies in [k*ROW_PITCH, k*ROW_PITCH + STAGGER], k = MAP_WIDTH-1-c.
       const sc = radius / HEX_SIZE;
       const x0 = (MAP_HEIGHT - 1 - maxR) * COL_PITCH * sc - cameraX - radius, x1 = (MAP_HEIGHT - 1 - minR) * COL_PITCH * sc - cameraX + radius;
       const y0 = ((MAP_WIDTH - 1 - maxC) * ROW_PITCH - ROW_PITCH / 2) * sc - cameraY;
       const y1 = ((MAP_WIDTH - 1 - minC) * ROW_PITCH + STAGGER + ROW_PITCH / 2) * sc - cameraY;
-      ctx.fillStyle = 'rgba(79,195,247,0.15)';
+      ctx.fillStyle = mq ? 'rgba(' + mqRgb + ',0.12)' : 'rgba(79,195,247,0.15)';
       ctx.fillRect(x0, y0, x1 - x0, y1 - y0);
       ctx.strokeRect(x0, y0, x1 - x0, y1 - y0);
       ctx.restore();
@@ -4387,7 +4449,7 @@ const Canvas = (() => {
 
   return {
     init, render, drawMinimap, forceRedraw, getStats,
-    _test: { /* TEST ONLY — do not call from app code */ /* calling minimapLayer advances the cache and overwrites _stats.minimapRecolored */ minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, overviewLayer() { return _overviewLayer(MAP_HEIGHT, MAP_WIDTH); }, setCamera(x, y) { cameraX = x; cameraY = y; }, setFullScan(v) { _fullScan = !!v; }, setLod(v) { _lodOverride = (v === false) ? 0 : (v === 0 || v === 1 || v === 2 ? v : null); } },
+    _test: { /* TEST ONLY — do not call from app code */ /* calling minimapLayer advances the cache and overwrites _stats.minimapRecolored */ minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, overviewLayer() { return _overviewLayer(MAP_HEIGHT, MAP_WIDTH); }, setCamera(x, y) { cameraX = x; cameraY = y; }, selBitmap() { return _selOverlay ? _selOverlay.bitmap : null; }, setFullScan(v) { _fullScan = !!v; }, setLod(v) { _lodOverride = (v === false) ? 0 : (v === 0 || v === 1 || v === 2 ? v : null); } },
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, minZoom, reclampZoom, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
@@ -4475,7 +4537,9 @@ const Brush = (() => {
 // SELECTION MODULE (T2.8) — the region selection: a SET OF CELLS (col,row), independent of zoom/pan.
 // Stored as a Uint8Array mask over the map it was made on (identity + size); a replaced map (New/Load/Expand/
 // resize/autosave restore) makes every accessor see an EMPTY selection. In-place terrain edits and undo/redo keep it.
-// Not part of History. The mask is REPLACED (never mutated) on every change, so a held getMask() is a snapshot.
+// Not part of History. getMask() returns a copy (snapshot). Generator, Clear Map and Fill Map write the map IN PLACE
+// (same mapData array and size), so they keep the selection by design; Selection.sync() runs from Canvas.render and
+// from every accessor, which covers all map-replacement sites without hooking each one.
 // ════════════════════════════════════════════════════════════
 const Selection = (() => {
   let _md = null, _W = 0, _H = 0;
@@ -4558,8 +4622,13 @@ const Selection = (() => {
     Canvas.setSelectionOverlay({ md: _md, W, H, mask, segs: _outline });   // renders
   }
 
-  // mode: 'replace' (default) | 'add' | 'subtract'. Cells outside the map or non-integer are ignored.
+  // cells: any iterable of {col,row}. mode: 'replace' (default) | 'add' | 'subtract'. Cells outside the map or
+  // non-integer are ignored. Throws TypeError on an unknown mode or a non-iterable (BEFORE touching the selection).
   function setCells(cells, mode) {
+    if (mode === undefined) mode = 'replace';
+    if (mode !== 'replace' && mode !== 'add' && mode !== 'subtract') throw new TypeError("Selection.setCells: unknown mode '" + mode + "' (use 'replace', 'add' or 'subtract')");
+    if (cells == null || typeof cells[Symbol.iterator] !== 'function') throw new TypeError('Selection.setCells: cells must be an iterable of {col,row}');
+    cells = Array.isArray(cells) ? cells : Array.from(cells);
     sync();
     if (mode === 'subtract' && !_mask) return;
     const W = MAP_WIDTH, H = MAP_HEIGHT;
@@ -4586,7 +4655,7 @@ const Selection = (() => {
     return !!_mask && Number.isInteger(col) && Number.isInteger(row) && col >= 0 && col < _W && row >= 0 && row < _H && _mask[row * _W + col] === 1;
   }
   function getBounds() { sync(); return _bounds ? Object.assign({}, _bounds) : null; }
-  function getMask() { sync(); return _mask; }
+  function getMask() { sync(); return _mask ? _mask.slice() : null; }   // a COPY (snapshot): writing to it cannot corrupt the module
   function getOutline() { sync(); return _outline ? _outline.slice() : new Float64Array(0); }
   function forEach(fn) {
     sync();
@@ -5432,11 +5501,40 @@ const Tools = (() => {
   }
 
   // ── Mouse callbacks (registered with Canvas) ───────────────
+  // Drag end for Rectangle / Select Region: the pointer is clamped in WORLD space to the box of cell centres first, so
+  // dragging past an edge stops AT the border (screenToHex alone returns col 0 for a point beyond the top edge).
+  let _mqMode = null;   // 'replace' | 'add' | 'subtract' latched at mousedown (Alt is best effort: some window managers grab Alt+drag)
+  function _clampedCell(sx, sy) {
+    const z = Canvas.getZoom() / 100, cam = Canvas.getCamera();
+    const a0 = Canvas.hexCenterWorld(MAP_WIDTH - 1, 0), a1 = Canvas.hexCenterWorld(MAP_WIDTH - 1, 1), b0 = Canvas.hexCenterWorld(0, 0), b1 = Canvas.hexCenterWorld(0, 1);
+    const xMin = Canvas.hexCenterWorld(0, MAP_HEIGHT - 1).x, xMax = b0.x;
+    const yMin = Math.min(a0.y, a1.y), yMax = Math.max(b0.y, b1.y);
+    const px = (sx + cam.x) / z, py = (sy + cam.y) / z;
+    const wx = Math.max(xMin, Math.min(xMax, px)), wy = Math.max(yMin, Math.min(yMax, py));
+    // nearest in-map cell centre to the clamped point (screenToHex rounds a column off the map at the box corners)
+    const est = MAP_HEIGHT - 1 - Math.round(wx / COL_PITCH), half = Math.floor(MAP_HEIGHT / 2);
+    let best = { col: 0, row: 0 }, bd = Infinity;
+    for (let r = Math.max(0, est - 1); r <= Math.min(MAP_HEIGHT - 1, est + 1); r++) {
+      const stg = (((MAP_HEIGHT - 1 - r) - half) % 2 !== 0) ? STAGGER : 0;
+      const cf = MAP_WIDTH - 1 - (wy - STAGGER + stg) / ROW_PITCH;
+      for (const c0 of [Math.floor(cf), Math.ceil(cf)]) {
+        const c = Math.max(0, Math.min(MAP_WIDTH - 1, c0)), q = Canvas.hexCenterWorld(c, r);
+        const d = (q.x - wx) * (q.x - wx) + (q.y - wy) * (q.y - wy);
+        if (d < bd) { bd = d; best = { col: c, row: r }; }
+      }
+    }
+    const h = best;
+    // inside: the pointer is on the map (the box of centres widened by one hex radius, so border cells are hit)
+    return { col: Math.max(0, Math.min(MAP_WIDTH - 1, h.col)), row: Math.max(0, Math.min(MAP_HEIGHT - 1, h.row)),
+             inside: px >= xMin - HEX_SIZE && px <= xMax + HEX_SIZE && py >= yMin - HEX_SIZE && py <= yMax + HEX_SIZE };
+  }
+
   function _onDown(sx, sy, e) {
     if (_fillBusy) return;                      // a fill is still running: ignore new input
     if (e && e.button !== 0) return;            // side buttons (3/4) never start a tool action (pan buttons never get here)
     const { col, row } = Canvas.screenToHex(sx, sy);
     if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
+    if ((_active === 'rect' || _active === 'marquee') && !_clampedCell(sx, sy).inside) return;   // a drag never starts off the map
     _isDown = true;
 
     switch (_active) {
@@ -5454,7 +5552,8 @@ const Tools = (() => {
       case 'marquee':
         _beginShape();
         _rectStart = { col, row };
-        _toolsRectPreview = { c1: col, r1: row, c2: col, r2: row };
+        _mqMode = (_active === 'marquee') ? (e && e.shiftKey ? 'add' : e && e.altKey ? 'subtract' : 'replace') : null;   // latched at mousedown
+        _toolsRectPreview = { c1: col, r1: row, c2: col, r2: row, mode: _mqMode };
         break;
       case 'line':
       case 'circle':
@@ -5535,7 +5634,7 @@ const Tools = (() => {
     if (_fillBusy) return;
     if ((_polyVerts.length || _shapeStart || _rectStart) && _shapeStale()) { _cancelStale(); Canvas.render(); return; }
     // No button is held although a drag is active: the mouseup was lost (released outside the page, focus change...).
-    if (_isDown && e && e.type === 'mousemove' && e.buttons === 0) { _onUp({ type: 'mouseup', button: 0, shiftKey: e.shiftKey, altKey: e.altKey }); IO.scheduleAutoSave(); return; }
+    if (_isDown && e && e.type === 'mousemove' && e.buttons === 0) { _onUp({ type: 'mouseup', button: 0, shiftKey: e.shiftKey }); IO.scheduleAutoSave(); return; }
     if (_active === 'polygon' && _polyVerts.length) {
       const hov = Canvas.screenToHex(sx, sy);
       if (HexUtils.inBounds(hov.col, hov.row, MAP_WIDTH, MAP_HEIGHT)) {
@@ -5554,7 +5653,7 @@ const Tools = (() => {
       return;
     }
     if (!_isDown) return;
-    const { col, row } = Canvas.screenToHex(sx, sy);
+    const { col, row } = (_active === 'rect' || _active === 'marquee') ? _clampedCell(sx, sy) : Canvas.screenToHex(sx, sy);
     if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return;
 
     switch (_active) {
@@ -5592,7 +5691,7 @@ const Tools = (() => {
         break;
       case 'marquee':
         if (_rectStart) {
-          _toolsRectPreview = { c1: _rectStart.col, r1: _rectStart.row, c2: col, r2: row };
+          _toolsRectPreview = { c1: _rectStart.col, r1: _rectStart.row, c2: col, r2: row, mode: _mqMode };
           Canvas.render();
         }
         break;
@@ -5643,7 +5742,7 @@ const Tools = (() => {
       const p = _toolsRectPreview;
       _rectStart = null;
       _toolsRectPreview = null;
-      Selection.setCells(_rectCells(p.c1, p.r1, p.c2, p.r2), e && e.shiftKey ? 'add' : e && e.altKey ? 'subtract' : 'replace');   // renders
+      Selection.setCells(_rectCells(p.c1, p.r1, p.c2, p.r2), _mqMode || 'replace');   // mode latched at mousedown; renders
     }
     _lastPainted       = null;
     _lastZonePainted   = null;
@@ -5713,7 +5812,7 @@ const Tools = (() => {
       }
       if (e.key === 'Escape' && (_shapeStart || _polyVerts.length)) { _isDown = false; _cancelShape(); return; }
       if (e.key === 'Escape' && _active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); return; }   // cancels the drag only
-      if (e.key === 'Escape' && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { Selection.clear(); return; }
+      if (e.key === 'Escape' && !e.defaultPrevented && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { Selection.clear(); return; }   // an Esc that closed a menu / picker (UI marks it) must not wipe the selection
       if (e.key === 'Enter' && _active === 'polygon' && _polyVerts.length && mapMode && !e.altKey && !_isTypingOrModal()) {
         e.preventDefault();
         if (_fillBusy) _cancelShape(); else _commitPolygon(e.shiftKey);
@@ -6858,7 +6957,10 @@ const UI = (() => {
     });
     // Escape closes open menus
     document.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { closeAllMenus(); closeSpritePicker(); }
+      if (e.key === 'Escape') {
+        if (document.querySelector('.menu-item.open, #pub-drop-wrap.open, #sprite-picker-modal.open')) e.preventDefault();   // handled here: the Tools Esc (clear selection) skips it
+        closeAllMenus(); closeSpritePicker();
+      }
     });
     // Click outside menu closes menus
     document.addEventListener('click', e => {

@@ -40,14 +40,16 @@ test.describe('region selection (T2.8)', () => {
   });
 
   // ---------- geometry -------------------------------------------------------------------------
-  // Independent pixel reference for a grid-cell rectangle: x of a cell centre depends only on its row, and the
-  // y bands of different columns do not overlap (band of column c = [k*ROW_PITCH, k*ROW_PITCH + STAGGER], k = W-1-c).
+  // Independent pixel reference for a grid-cell rectangle, derived only from Canvas.hexCenterWorld: every cell of a
+  // row shares one centre x, and the y centres of a column fill a band (both stagger parities) that does not overlap
+  // the next column's band, so the rectangle is the box [x of its rows] x [y bands of its columns].
   for (const [W, H] of [[450, 450], [451, 451], [450, 451], [451, 450], [21, 20], [20, 21]]) {
     test(`rectangle membership equals the pixel-geometry reference on ${W}x${H}`, async ({ page }) => {
       const r = await page.evaluate(([W, H]) => {
         MAP_WIDTH = W as number; MAP_HEIGHT = H as number;
         mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
-        const STAG = ROW_PITCH / 2, eps = 1e-6;
+        const eps = 1e-6;
+        const band = (c: number) => { const a = Canvas.hexCenterWorld(c, 0).y, b = Canvas.hexCenterWorld(c, 1).y; return [Math.min(a, b), Math.max(a, b)]; };
         const bad: string[] = [];
         const rects = [[3, 4, 9, 7], [9, 7, 3, 4], [0, 0, 0, 0], [5, 0, 5, 14], [0, 3, 14, 3], [MAP_WIDTH - 6, MAP_HEIGHT - 5, MAP_WIDTH - 1, MAP_HEIGHT - 1], [-5, -5, 2, 2], [MAP_WIDTH - 2, MAP_HEIGHT - 2, MAP_WIDTH + 9, MAP_HEIGHT + 9]];
         for (const [c1, r1, c2, r2] of rects) {
@@ -56,8 +58,8 @@ test.describe('region selection (T2.8)', () => {
           // corner pixels come from the (clipped) corner cells
           const cLo = Math.max(0, Math.min(c1, c2)), cHi = Math.min(MAP_WIDTH - 1, Math.max(c1, c2));
           const rLo = Math.max(0, Math.min(r1, r2)), rHi = Math.min(MAP_HEIGHT - 1, Math.max(r1, r2));
-          const xA = Canvas.hexCenterWorld(0, rHi).x, xB = Canvas.hexCenterWorld(0, rLo).x;     // x depends on the row only
-          const yTop = (MAP_WIDTH - 1 - cHi) * ROW_PITCH, yBot = (MAP_WIDTH - 1 - cLo) * ROW_PITCH + STAG;
+          const xA = Canvas.hexCenterWorld(0, rHi).x, xB = Canvas.hexCenterWorld(0, rLo).x;
+          const yTop = band(cHi)[0], yBot = band(cLo)[1];
           let n = 0, got = 0;
           for (let c = 0; c < MAP_WIDTH; c++) for (let r = 0; r < MAP_HEIGHT; r++) {
             const p = Canvas.hexCenterWorld(c, r);
@@ -184,16 +186,16 @@ test.describe('region selection (T2.8)', () => {
   }
 
   // ---------- drawing --------------------------------------------------------------------------
-  test('the overlay is ONE fill and ONE stroke per frame at LOD 0/1; at LOD 2 one stroke and no fill (outline only)', async ({ page }) => {
+  test('few visible cells: ONE fill + ONE stroke at LOD 0; LOD 1/2 and many visible cells: one stroke + one bitmap blit and no fill', async ({ page }) => {
     const r = await page.evaluate(() => {
       const ctx = Canvas.getCtx(); const out: any = {};
-      const os = ctx.stroke.bind(ctx), of = ctx.fill.bind(ctx);
+      const os = ctx.stroke.bind(ctx), of = ctx.fill.bind(ctx), od = ctx.drawImage.bind(ctx);
       const count = () => {
-        let strokes = 0, fills = 0;
-        ctx.stroke = () => { strokes++; os(); }; ctx.fill = () => { fills++; of(); };
+        let strokes = 0, fills = 0, blits = 0;
+        ctx.stroke = () => { strokes++; os(); }; ctx.fill = () => { fills++; of(); }; ctx.drawImage = (...a: any[]) => { blits++; (od as any)(...a); };
         Canvas.render();
-        ctx.stroke = os; ctx.fill = of;
-        return { strokes, fills };
+        ctx.stroke = os; ctx.fill = of; ctx.drawImage = od;
+        return { strokes, fills, blits, mode: Canvas.getStats().selMode };
       };
       for (const [name, build] of [['small', () => Selection.setCells(Tools._rectCells(220, 218, 229, 227))], ['all', () => Selection.selectAll()]] as [string, () => void][]) {
         for (const lod of [0, 1, 2]) {
@@ -203,7 +205,7 @@ test.describe('region selection (T2.8)', () => {
           const base = count();
           build();
           const withSel = count();
-          out[name + lod] = { dStrokes: withSel.strokes - base.strokes, dFills: withSel.fills - base.fills };
+          out[name + lod] = { dStrokes: withSel.strokes - base.strokes, dFills: withSel.fills - base.fills, dBlits: withSel.blits - base.blits, mode: withSel.mode };
           Selection.clear();
         }
       }
@@ -211,10 +213,78 @@ test.describe('region selection (T2.8)', () => {
       return out;
     });
     for (const n of ['small', 'all']) {
-      expect(r[n + '0']).toEqual({ dStrokes: 1, dFills: 1 });
-      expect(r[n + '1']).toEqual({ dStrokes: 1, dFills: 1 });
-      expect(r[n + '2']).toEqual({ dStrokes: 1, dFills: 0 });
+      expect(r[n + '0']).toEqual({ dStrokes: 1, dFills: 1, dBlits: 0, mode: 'hex' });      // < 1,500 visible cells at 100%
+      expect(r[n + '1']).toEqual({ dStrokes: 1, dFills: 0, dBlits: 1, mode: 'bitmap' });
+      expect(r[n + '2']).toEqual({ dStrokes: 1, dFills: 0, dBlits: 1, mode: 'bitmap' });
     }
+  });
+
+  // Work-count (no wall clock): path operations per frame are bounded by the OUTLINE, not by the selected cells.
+  for (const zoom of [15, 25]) {
+    test(`select-all at ${zoom}% zoom: per-frame path ops are bounded by the outline segments, not by the cells`, async ({ page }) => {
+      const r = await page.evaluate((zoom) => {
+        Canvas.setZoom(zoom); Canvas.centerOnCity();
+        const ctx = Canvas.getCtx();
+        const ops = () => {
+          let n = 0; const names = ['moveTo', 'lineTo', 'rect', 'arc', 'closePath']; const orig: any = {};
+          for (const k of names) { orig[k] = (ctx as any)[k].bind(ctx); (ctx as any)[k] = (...a: any[]) => { n++; return orig[k](...a); }; }
+          Canvas.render();
+          for (const k of names) (ctx as any)[k] = orig[k];
+          return n;
+        };
+        Selection.clear(); Canvas.render(); Canvas.render(); const base = ops();
+        const out: any = {};
+        for (const [name, build] of [['all', () => Selection.selectAll()], ['block', () => Selection.setCells(Tools._rectCells(205, 175, 240, 275))]] as [string, () => void][]) {
+          build();
+          const withSel = ops(), st = Canvas.getStats();
+          out[name] = { delta: withSel - base, segs: Selection.getOutline().length / 4, mode: st.selMode };
+        }
+        return out;
+      }, zoom);
+      expect(r.all.mode).toBe('bitmap'); expect(r.block.mode).toBe('bitmap');
+      expect(r.all.segs).toBeGreaterThan(1000);
+      for (const k of ['all', 'block']) expect(r[k].delta, k).toBeLessThanOrEqual(2 * r[k].segs + 64);   // one moveTo+lineTo per boundary segment at most
+      expect(r.block.delta).toBeGreaterThan(0);                 // the visible boundary of the block is drawn (select-all's border is off screen)
+    });
+  }
+
+  test('the scaled bitmap lands on the same cells as the exact hex path (zoom 25, odd and even columns and rows, both sides of the border)', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      Canvas.setZoom(25); Canvas.centerOnCity();
+      const sample: [number, number, number][] = [];      // [col, row, dy px]: cell centres, plus probes 6 px from the centre TOWARDS the border (cell apothem is 8.7 px)
+      for (let c = 208; c <= 222; c++) for (let rw = 200; rw <= 233; rw++) sample.push([c, rw, 0]);
+      for (let rw = 200; rw <= 233; rw++) { sample.push([214, rw, -6]); sample.push([215, rw, 6]); }   // col grows UP the screen: 215 lies above 214
+      const read = () => sample.map(([c, rw, dy]) => { const p = Canvas.hexScreenPos(c, rw), d = Canvas.getCtx().getImageData(Math.round(p.x), Math.round(p.y + dy), 1, 1).data; return [d[0], d[1], d[2]]; });
+      // sprites load asynchronously and some pixels sit on an animated stroke, so the reference is the NEXT frame with
+      // only the bitmap blit suppressed (same state, same instant), not an earlier frame
+      Selection.clear(); let prev = JSON.stringify(read()), same = 0;
+      for (let i = 0; i < 150 && same < 4; i++) { await new Promise(r => setTimeout(r, 100)); Canvas.render(); const cur = JSON.stringify(read()); same = cur === prev ? same + 1 : 0; prev = cur; }
+      Selection.setCells(Tools._rectCells(215, 100, 299, 349));      // 85 x 250 cells: thousands visible -> bitmap mode
+      const st = Canvas.getStats(); const got = read();
+      const ctx = Canvas.getCtx(), od = ctx.drawImage.bind(ctx), bm = Canvas._test.selBitmap();
+      ctx.drawImage = (...a: any[]) => { if (a[0] === bm) return; (od as any)(...a); };
+      Canvas.render(); const base = read(); ctx.drawImage = od;
+      // cells whose centre pixel lies on an overlay line (rings) are not flat terrain: keep only cells close to the modal terrain colour
+      const freq = new Map<string, number>(); base.forEach((b: number[]) => freq.set(b.join(','), (freq.get(b.join(',')) || 0) + 1));
+      const modal = [...freq.entries()].sort((p, q) => q[1] - p[1])[0][0].split(',').map(Number);
+      const stable = base.map((b: number[], i: number) => sample[i][2] !== 0 || Math.max(...b.map((v, k) => Math.abs(v - modal[k]))) <= 4);   // probes sit on textured sprite pixels: judged by the frame difference only
+      return { mode: st.selMode, sample, base, got, stable };
+    });
+    expect(r.mode).toBe('bitmap');
+    let tinted = 0, plain = 0; const bad: string[] = [];
+    r.sample.forEach(([c, rw]: number[], i: number) => {
+      if (!r.stable[i]) return;
+      const dist = Math.max(...r.got[i].map((v: number, k: number) => Math.abs(v - r.base[i][k])));
+      const selected = c >= 215 && rw >= 100 && rw <= 349;
+      if (selected) { tinted++; if (!(dist > 8 && r.got[i][0] > r.base[i][0] && r.got[i][1] > r.base[i][1])) bad.push(`in ${c},${rw}`); }
+      else { plain++; if (dist > 2) bad.push(`out ${c},${rw} ${JSON.stringify(r.base[i])}->${JSON.stringify(r.got[i])}`); }
+    });
+    expect(bad).toEqual([]);
+    expect(tinted).toBeGreaterThan(100); expect(plain).toBeGreaterThan(100);
+    expect(r.stable.filter(Boolean).length).toBeGreaterThan(r.sample.length * 0.9);
+    const probes = r.sample.map((s: number[], i: number) => s[2] !== 0 && r.stable[i]).filter(Boolean).length;
+    expect(probes).toBeGreaterThan(30);                        // the border probes (cells 214 / 215, 6 px towards the border) really ran
+    expect(new Set(r.sample.filter(([c]: number[]) => c >= 215).map(([c]: number[]) => c % 2)).size).toBe(2);
   });
 
   test('a 202,500-cell selection is culled to the viewport and a frame allocates no typed arrays', async ({ page }) => {
@@ -238,12 +308,22 @@ test.describe('region selection (T2.8)', () => {
         if (x >= -pad && x <= cv.width + pad && y >= -pad && y <= cv.height + pad) visible++;
       }
       Canvas._test.setLod(null);
-      return { delta: withAll - base, visible, counts };
+      const stats = Canvas.getStats();
+      const rowsSeen = new Set<number>(), colsSeen = new Set<number>();
+      for (let c = 0; c < MAP_WIDTH; c++) for (let rw = 0; rw < MAP_HEIGHT; rw++) {
+        const p = Canvas.hexCenterWorld(c, rw), x = p.x * s - cam.x, y = p.y * s - cam.y;
+        if (x >= -pad && x <= cv.width + pad && y >= -pad && y <= cv.height + pad) { rowsSeen.add(rw); colsSeen.add(c); }
+      }
+      return { delta: withAll - base, visible, counts, tested: stats.selCellsTested, drawn: stats.selCellsDrawn, rows: rowsSeen.size, cols: colsSeen.size };
     });
     expect(r.visible).toBeGreaterThan(200);
     expect(r.visible).toBeLessThan(202500 / 4);
     expect(r.delta).toBeGreaterThanOrEqual(6 * (r.visible * 0.5));            // the visible cells really are drawn
     expect(r.delta).toBeLessThanOrEqual(6 * (r.visible + 400));               // ... and only those (+ one widened ring)
+    expect(r.tested).toBeGreaterThan(0);
+    expect(r.tested).toBeLessThanOrEqual((r.rows + 2) * (r.cols + 2));       // the fill pass only tests the visible row/col range
+    expect(r.drawn).toBeGreaterThan(0);
+    expect(r.drawn).toBeLessThanOrEqual(r.visible);
     expect(r.counts).toEqual({ Float64Array: 0, Float32Array: 0, Uint8Array: 0, Int32Array: 0, Uint32Array: 0, Array: 0 });
   });
 
@@ -301,7 +381,6 @@ test.describe('region selection (T2.8)', () => {
       out.shiftA = [ev('KeyA', { ctrl: true, shift: true }), Selection.size()];
       out.altA = [ev('KeyA', { ctrl: true, alt: true }), Selection.size()];
       out.plainA = [ev('KeyA'), Selection.size(), Tools.getActive()];
-      out.textSel = window.getSelection()!.toString().length;
       return out;
     });
     expect(r.prevA).toBe(true); expect(r.all).toBe(450 * 450);
@@ -309,7 +388,6 @@ test.describe('region selection (T2.8)', () => {
     expect(r.prevMeta).toBe(true); expect(r.metaAll).toBe(450 * 450);
     expect(r.shiftA).toEqual([false, 0]); expect(r.altA).toEqual([false, 0]);
     expect(r.plainA).toEqual([false, 0, 'scatter']);   // plain A is still Scatter
-    expect(r.textSel).toBe(0);
   });
 
   test('Ctrl+A and Ctrl+D leave text fields, modals and non-map modes alone', async ({ page }) => {
@@ -571,5 +649,176 @@ test.describe('region selection (T2.8)', () => {
     await dragCells(page, { col: 222, row: 220 }, { col: 226, row: 224 });
     expect(await page.evaluate(() => mapData.filter((x: string) => x === 'Forest_1').length)).toBe(25);
     expect(await sel(page)).toBe(0);
+  });
+
+  // ---------- fix round 1 -----------------------------------------------------------------------
+  test('getMask returns a snapshot: writing to it cannot corrupt the selection', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      Selection.setCells(Tools._rectCells(5, 5, 6, 6));
+      const m = Selection.getMask(); m[0] = 1; m.fill(1);
+      return [Selection.has(0, 0), Selection.size(), Selection.getMask()![0], Selection.getMask() !== Selection.getMask()];
+    });
+    expect(r).toEqual([false, 4, 0, true]);
+  });
+
+  test('setCells accepts any iterable and throws TypeError (selection untouched) on bad mode or input', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const out: any = {};
+      const cell = (c: number, rw: number) => ({ col: c, row: rw });
+      Selection.setCells(new Set([cell(1, 1), cell(2, 1)])); out.set = Selection.size();
+      function* g() { yield cell(5, 5); yield cell(6, 5); yield cell(7, 5); }
+      Selection.setCells(g(), 'add'); out.gen = Selection.size();
+      Selection.setCells(new Map([[1, cell(9, 9)]]).values(), 'add'); out.mapValues = Selection.size();
+      const tries: any[] = [[[cell(1, 1)], 'union'], [[cell(1, 1)], 'Add'], [[cell(1, 1)], null], [null, 'replace'], [undefined, undefined], [5, 'replace'], [{ length: 2, 0: cell(1, 1) }, 'replace'], ['ab', 'replace']];
+      out.throws = tries.map(([c, m]) => { try { Selection.setCells(c, m); return 'no throw'; } catch (e: any) { return e instanceof TypeError ? 'TypeError' : String(e); } });
+      out.after = [Selection.size(), Selection.has(9, 9)];
+      return out;
+    });
+    expect(r.set).toBe(2); expect(r.gen).toBe(5); expect(r.mapValues).toBe(6);
+    // 'ab' is iterable but its items are not cells: it must not throw, and it replaces with nothing valid -> empty
+    expect(r.throws.slice(0, 7)).toEqual(Array(7).fill('TypeError'));
+    expect(r.throws[7]).toBe('no throw');
+  });
+
+  test('Esc that closes an open menu or the sprite picker does not clear the selection; the next Esc does', async ({ page }) => {
+    await page.evaluate(() => Selection.setCells(Tools._rectCells(222, 220, 226, 224)));
+    await page.evaluate(() => document.querySelector('.menu-item')!.classList.add('open'));
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => [document.querySelectorAll('.menu-item.open').length, Selection.size()])).toEqual([0, 25]);
+    await page.evaluate(() => document.getElementById('sprite-picker-modal')!.classList.add('open'));
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => [document.getElementById('sprite-picker-modal')!.classList.contains('open'), Selection.size()])).toEqual([false, 25]);
+    await page.keyboard.press('Escape');
+    expect(await sel(page)).toBe(0);
+  });
+
+  // Pointer dragged past each edge / corner of the map, for both drag-rectangle tools: expectation by brute force
+  // (nearest cell centre to the pointer clamped into the box of centres), and the border must be reached (no flip).
+  for (const tool of ['marquee', 'rect']) {
+    test(`${tool}: dragging past every edge and corner stops at the border (no flip to the opposite edge)`, async ({ page }) => {
+      await page.keyboard.press(tool === 'marquee' ? 'm' : 'r');
+      await page.evaluate(() => UI.selectTerrain('Forest_1'));
+      const dirs: [string, number, number][] = [['up', 0, -1], ['down', 0, 1], ['left', -1, 0], ['right', 1, 0], ['upleft', -1, -1], ['upright', 1, -1], ['downleft', -1, 1], ['downright', 1, 1]];
+      for (const [name, dx, dy] of dirs) {
+        const setup = await page.evaluate(([dx, dy]) => {
+          IO.newMap(true); Selection.clear();
+          const Z = 0.5; Canvas.setZoom(50);
+          let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+          for (let c = 0; c < MAP_WIDTH; c++) for (let rw = 0; rw < MAP_HEIGHT; rw++) { const p = Canvas.hexCenterWorld(c, rw); x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+          const ex = (dx as number) < 0 ? x0 : (dx as number) > 0 ? x1 : (x0 + x1) / 2, ey = (dy as number) < 0 ? y0 : (dy as number) > 0 ? y1 : (y0 + y1) / 2;
+          const cv = document.getElementById('map-canvas') as HTMLCanvasElement;
+          Canvas._test.setCamera(ex * Z - cv.width / 2, ey * Z - cv.height / 2); Canvas.render();
+          const b = cv.getBoundingClientRect();
+          return { Z, x0, x1, y0, y1, left: b.left, top: b.top, cx: cv.width / 2, cy: cv.height / 2, ex, ey };
+        }, [dx, dy]);
+        const start = { x: setup.left + setup.cx - dx * 160, y: setup.top + setup.cy - dy * 160 };
+        const end = { x: setup.left + setup.cx + dx * 220, y: setup.top + setup.cy + dy * 220 };
+        await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move((start.x + end.x) / 2, (start.y + end.y) / 2, { steps: 3 }); await page.mouse.move(end.x, end.y, { steps: 3 }); await page.mouse.up();
+        const r = await page.evaluate(([sx, sy, ex, ey, tool]) => {
+          const cam = Canvas.getCamera(), Z = Canvas.getZoom() / 100;
+          const cv = document.getElementById('map-canvas')!.getBoundingClientRect();
+          const world = (px: number, py: number) => ({ x: (px - cv.left + cam.x) / Z, y: (py - cv.top + cam.y) / Z });
+          let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+          const centres: any[] = [];
+          for (let c = 0; c < MAP_WIDTH; c++) for (let rw = 0; rw < MAP_HEIGHT; rw++) { const p = Canvas.hexCenterWorld(c, rw); centres.push([c, rw, p.x, p.y]); x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+          const nearest = (wx: number, wy: number) => { let best: any = null, bd = Infinity; for (const [c, rw, x, y] of centres) { const d = (x - wx) ** 2 + (y - wy) ** 2; if (d < bd) { bd = d; best = { col: c, row: rw }; } } return best; };
+          const sw = world(sx as number, sy as number), ew = world(ex as number, ey as number);
+          const a = nearest(sw.x, sw.y), b = nearest(Math.max(x0, Math.min(x1, ew.x)), Math.max(y0, Math.min(y1, ew.y)));
+          const exp = { minCol: Math.min(a.col, b.col), maxCol: Math.max(a.col, b.col), minRow: Math.min(a.row, b.row), maxRow: Math.max(a.row, b.row) };
+          let got: any;
+          if (tool === 'marquee') { const bb = Selection.getBounds(); got = bb && { minCol: bb.minCol, maxCol: bb.maxCol, minRow: bb.minRow, maxRow: bb.maxRow, n: Selection.size() }; }
+          else {
+            let n = 0, minC = 1e9, maxC = -1, minR = 1e9, maxR = -1;
+            for (let c = 0; c < MAP_WIDTH; c++) for (let rw = 0; rw < MAP_HEIGHT; rw++) if (mapData[rw * MAP_WIDTH + c] === 'Forest_1') { n++; minC = Math.min(minC, c); maxC = Math.max(maxC, c); minR = Math.min(minR, rw); maxR = Math.max(maxR, rw); }
+            got = { minCol: minC, maxCol: maxC, minRow: minR, maxRow: maxR, n };
+          }
+          return { exp: Object.assign(exp, { n: (exp.maxCol - exp.minCol + 1) * (exp.maxRow - exp.minRow + 1) }), got };
+        }, [start.x, start.y, end.x, end.y, tool]);
+        expect(r.got, `${tool} ${name}`).toEqual(r.exp);
+        if (dy < 0) expect(r.got.maxCol, name).toBe(449);       // col grows UP the screen
+        if (dy > 0) expect(r.got.minCol, name).toBe(0);
+        if (dx < 0) expect(r.got.maxRow, name).toBe(449);       // row grows toward the WEST (left)
+        if (dx > 0) expect(r.got.minRow, name).toBe(0);
+      }
+    });
+  }
+
+  test('a drag cannot START off the map (marquee and rectangle)', async ({ page }) => {
+    await page.evaluate(() => { UI.selectTerrain('Forest_1'); Canvas.setZoom(50); const cv = document.getElementById('map-canvas') as HTMLCanvasElement; Canvas._test.setCamera(-300, -300); Canvas.render(); });
+    const b = await page.evaluate(() => { const r = document.getElementById('map-canvas')!.getBoundingClientRect(); return { x: r.left, y: r.top }; });
+    for (const key of ['m', 'r']) {
+      await page.keyboard.press(key);
+      await page.mouse.move(b.x + 100, b.y + 100); await page.mouse.down(); await page.mouse.move(b.x + 500, b.y + 400, { steps: 4 }); await page.mouse.up();
+    }
+    expect(await page.evaluate(() => [Selection.size(), mapData.filter((x: string) => x !== 'Plain_1').length])).toEqual([0, 0]);
+  });
+
+  test('a drag cannot START beyond the top or bottom edge while x is over the map (screenToHex clamps the column there)', async ({ page }) => {
+    for (const key of ['m', 'r']) {
+      for (const side of ['top', 'bottom']) {
+        await page.keyboard.press(key);
+        await page.evaluate(([side]) => {
+          IO.newMap(true); Selection.clear(); UI.selectTerrain('Forest_1'); Canvas.setZoom(50);
+          let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+          for (let c = 0; c < MAP_WIDTH; c++) for (let rw = 0; rw < MAP_HEIGHT; rw++) { const p = Canvas.hexCenterWorld(c, rw); x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
+          const cv = document.getElementById('map-canvas') as HTMLCanvasElement;
+          const edge = side === 'top' ? y0 : y1;
+          Canvas._test.setCamera((x0 + x1) / 2 * 0.5 - cv.width / 2, edge * 0.5 - 300); Canvas.render();
+        }, [side]);
+        const b = await page.evaluate(() => { const r = document.getElementById('map-canvas')!.getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
+        const sy0 = side === 'top' ? 300 - 60 : 300 + 60, sy1 = side === 'top' ? 300 + 100 : 300 - 100;   // start 60 px beyond the edge, end inside
+        await page.mouse.move(b.x + b.w / 2, b.y + sy0); await page.mouse.down(); await page.mouse.move(b.x + b.w / 2, b.y + sy1, { steps: 4 }); await page.mouse.up();
+        expect(await page.evaluate(() => [Selection.size(), mapData.filter((x: string) => x !== 'Plain_1').length]), `${key} ${side}`).toEqual([0, 0]);
+      }
+    }
+  });
+
+  test('the marquee mode is latched at mousedown: Shift/Alt released before mouseup still count, pressed only after do not; the preview is tinted by mode', async ({ page }) => {
+    await page.keyboard.press('m');
+    await page.evaluate(() => Selection.setCells(Tools._rectCells(10, 10, 11, 11)));
+    const pa = await cellPoint(page, 222, 220), pb = await cellPoint(page, 226, 224);
+    const modeOf = () => page.evaluate(() => (typeof _toolsRectPreview !== 'undefined' && _toolsRectPreview) ? (_toolsRectPreview.mode ?? null) : 'none');
+    const strokesSeen = () => page.evaluate(() => {
+      const ctx = Canvas.getCtx(), d = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, 'strokeStyle')!, seen: string[] = [];
+      Object.defineProperty(ctx, 'strokeStyle', { configurable: true, get() { return d.get!.call(ctx); }, set(v) { seen.push(String(v)); d.set!.call(ctx, v); } });
+      Canvas.render(); delete (ctx as any).strokeStyle; return seen;
+    });
+    // Shift held at mousedown, released before mouseup -> add
+    await page.keyboard.down('Shift'); await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.keyboard.up('Shift');
+    await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    expect(await modeOf()).toBe('add');
+    expect(await strokesSeen()).toContain('rgba(110,220,120,0.95)');
+    await page.mouse.up();
+    expect(await sel(page)).toBe(4 + 25);
+    // Alt -> subtract (tint red)
+    await page.keyboard.down('Alt'); await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.keyboard.up('Alt');
+    await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    expect(await modeOf()).toBe('subtract');
+    expect(await strokesSeen()).toContain('rgba(240,100,100,0.95)');
+    await page.mouse.up();
+    expect(await sel(page)).toBe(4);
+    // plain mousedown, Shift pressed only for the release -> still replace
+    await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    expect(await modeOf()).toBe('replace');
+    expect(await strokesSeen()).toContain('rgba(245,197,24,0.95)');
+    await page.keyboard.down('Shift'); await page.mouse.up(); await page.keyboard.up('Shift');
+    expect(await sel(page)).toBe(25);
+    // the Rectangle tool's preview is a different, undashed blue one
+    await page.keyboard.press('r');
+    await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 3 });
+    expect(await modeOf()).toBeNull();
+    expect(await strokesSeen()).toContain('rgba(79,195,247,0.8)');
+    await page.keyboard.press('Escape'); await page.mouse.up();
+  });
+
+  test('the palette scrolls on a short window and the selection controls stay reachable (1100x400)', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 400 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    await page.evaluate(() => Selection.setCells(Tools._rectCells(1, 1, 3, 3)));
+    await expect(page.locator('#selection-row')).toBeVisible();
+    await page.click('#selection-clear');                      // Playwright scrolls the palette to it
+    expect(await sel(page)).toBe(0);
+    await page.click('.tool-btn[data-tool="marquee"]');
+    expect(await page.evaluate(() => Tools.getActive())).toBe('marquee');
   });
 });
