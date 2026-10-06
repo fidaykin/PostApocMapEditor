@@ -1748,11 +1748,73 @@ test.describe('layers: zones, fills and polygons under locks (cleanup A5)', () =
     expect(await defs()).toBe(d0);
     expect(await snap(page)).toBe(before);
     expect(await page.evaluate(() => document.querySelectorAll('body > input[type=color]').length)).toBe(0);
-    expect((await lockedToasts(page)).length).toBeGreaterThanOrEqual(5);
+    expect((await lockedToasts(page)).length, 'six gated calls (add, rename, colour, preset, one slider, save preset), one refusal toast each').toBe(6);
     await unlockAll(page);
     await page.evaluate(() => { const id = ZonePainter.getSelectedZoneId(); ZonePainter._uiAddZone(); ZonePainter._uiRenameZone(id, 'Renamed'); ZonePainter._uiRebuildZoneConfig(); ZonePainter._uiPresetChanged('mountain_rim'); });
     expect(await page.evaluate(() => ZonePainter.getZones().length)).toBe(2);
     expect(await page.evaluate(() => ZonePainter.getZones()[0].name + '/' + ZonePainter.getZones()[1].presetId)).toBe('Renamed/mountain_rim')   // the added zone is the selected one;
+  });
+
+  test('slider refusals toast once per second: three drags in one tick toast once, the next after the throttle window toasts again', async ({ page }) => {
+    await zoneSeed2(page, 'forest_edge');
+    await setLocks(page, ['zones']);
+    const count = async () => (await lockedToasts(page)).length;
+    await page.evaluate(() => { const n0 = Date.now; (window as any).__now = n0.call(Date); (Date as any).now = () => (window as any).__now; ZonePainter._uiRebuildZoneConfig(); });
+    await page.evaluate(() => { ZonePainter._uiPresetSlider('patchScale', 70); ZonePainter._uiPresetSlider('patchScale', 71); ZonePainter._uiPresetSlider('blendWidth', 5); });
+    expect(await count()).toBe(1);
+    await page.evaluate(() => { (window as any).__now += 500; ZonePainter._uiPresetSlider('patchScale', 72); });
+    expect(await count(), 'inside the window').toBe(1);
+    await page.evaluate(() => { (window as any).__now += 600; ZonePainter._uiPresetSlider('patchScale', 73); });
+    expect(await count(), 'after the window').toBe(2);
+  });
+
+  test('rename refused via #zone-config-name restores the stored name in the input', async ({ page }) => {
+    await zoneSeed2(page, 'forest_edge');
+    await page.evaluate(() => ZonePainter._uiRebuildZoneConfig());
+    await setLocks(page, ['zones']);
+    await page.evaluate(() => { const i = document.getElementById('zone-config-name') as HTMLInputElement; i.value = 'Hacked'; i.dispatchEvent(new Event('change', { bubbles: true })); });
+    expect(await page.evaluate(() => (document.getElementById('zone-config-name') as HTMLInputElement).value)).toBe('Z');
+    expect(await page.evaluate(() => ZonePainter.getZones()[0].name)).toBe('Z');
+    expect((await lockedToasts(page)).length).toBe(1);
+  });
+
+  test('inline rename: double-click refuses while locked; Esc cancels without a write or a lock toast, even when the lock came on mid-edit', async ({ page }) => {
+    await zoneSeed2(page, 'forest_edge');
+    await page.evaluate(() => ZonePainter._uiRebuildZoneList());
+    const span = '#zone-list .zone-name';
+    const editable = () => page.evaluate((q) => (document.querySelector(q) as HTMLElement).contentEditable, span);
+    const dbl = () => page.evaluate((q) => document.querySelector(q)!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })), span);
+    const key = (k: string) => page.evaluate(([q, k]) => document.querySelector(q)!.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true, cancelable: true })), [span, k]);
+    await setLocks(page, ['zones']);
+    await dbl();
+    expect(await editable(), 'no edit mode while locked').not.toBe('true');
+    expect((await lockedToasts(page)).length).toBe(1);
+    await unlockAll(page);
+    await page.evaluate(() => { (window as any).__toasts = []; });
+    await dbl();
+    expect(await editable(), 'unlocked control').toBe('true');
+    await page.evaluate((q) => { (document.querySelector(q) as HTMLElement).textContent = 'Typed'; }, span);
+    await key('Escape');
+    expect(await page.evaluate(() => ZonePainter.getZones()[0].name)).toBe('Z');
+    expect(await page.evaluate((q) => document.querySelector(q)!.textContent, span)).toBe('Z');
+    expect((await toastLog(page)).length, 'no toast at all').toBe(0);
+    await dbl();                                                 // now lock while editing, then Esc
+    await setLocks(page, ['zones']);
+    await page.evaluate(() => { (window as any).__toasts = []; });
+    await key('Escape');
+    expect((await lockedToasts(page)).length, 'Esc must not toast a lock error').toBe(0);
+    expect(await page.evaluate(() => ZonePainter.getZones()[0].name)).toBe('Z');
+  });
+
+  test('a colour picker opened before the lock does not write zone.color once locked; unlocked it does (control)', async ({ page }) => {
+    await zoneSeed2(page, 'forest_edge');
+    await page.evaluate(() => { HTMLInputElement.prototype.click = function () {}; ZonePainter._uiPickColor(ZonePainter.getSelectedZoneId(), document.createElement('div')); });
+    const color0 = await page.evaluate(() => ZonePainter.getZones()[0].color);
+    const fire = (v: string) => page.evaluate((v) => { const i = document.querySelector('body > input[type=color]') as HTMLInputElement; i.value = v; i.dispatchEvent(new Event('input', { bubbles: true })); return ZonePainter.getZones()[0].color; }, v);
+    expect(await fire('#123456'), 'unlocked control').toBe('#123456');
+    await setLocks(page, ['zones']);
+    expect(await fire('#abcdef')).toBe('#123456');
+    expect(color0).not.toBe('#123456');
   });
 
   for (const action of ['_fillAllZones', '_uiFillThisZone']) {

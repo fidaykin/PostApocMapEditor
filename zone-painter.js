@@ -683,16 +683,19 @@ const ZonePainter = (() => {
       // Double-click on name: rename inline
       nameSpan.addEventListener('dblclick', e => {
         e.stopPropagation();
+        if (_refuse('zones')) return;               // no edit mode on a locked layer
         nameSpan.contentEditable = 'true';
         nameSpan.focus();
         document.execCommand('selectAll', false, null);
+        let cancelled = false;
         nameSpan.addEventListener('blur', () => {
           nameSpan.contentEditable = 'false';
+          if (cancelled) { nameSpan.textContent = z.name; return; }   // Esc: nothing is written (and no lock toast)
           ZonePainter._uiRenameZone(z.id, nameSpan.textContent.trim());
         }, { once: true });
         nameSpan.addEventListener('keydown', e2 => {
           if (e2.key === 'Enter') { e2.preventDefault(); nameSpan.blur(); }
-          if (e2.key === 'Escape') { nameSpan.textContent = z.name; nameSpan.blur(); }
+          if (e2.key === 'Escape') { cancelled = true; nameSpan.blur(); }
         }, { once: true });
       });
       list.appendChild(el);
@@ -719,7 +722,7 @@ const ZonePainter = (() => {
   function _uiRenameZone(id, name) {
     const z = _zones.find(z => z.id === id);
     if (!z) return;
-    if (_refuse('zones')) { _uiRebuildZoneList(); return; }   // the typed name is dropped
+    if (_refuse('zones')) { _uiRebuildZoneList(); _uiRebuildZoneConfig(); return; }   // the typed name is dropped (the config input shows the stored name again)
     z.name = name.trim() || `Zone ${id}`;
     _uiRebuildZoneList();
     if (typeof IO !== 'undefined') IO.scheduleAutoSave();
@@ -732,6 +735,7 @@ const ZonePainter = (() => {
     const zone = _zones.find(z => z.id === id);
     input.value = zone?.color || '#4a8a4a';
     input.addEventListener('input', () => {
+      if (_isLocked('zones')) return;               // the picker was opened before the lock: no write once locked
       if (zone) { zone.color = input.value; swatchEl.style.background = _safeColor(input.value); }
       if (typeof Canvas !== 'undefined') Canvas.render();
     });
