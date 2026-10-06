@@ -422,11 +422,33 @@ test.describe('shape tools (T2.4)', () => {
       const c = HexUtils.toCube(225, 224, MAP_WIDTH, MAP_HEIGHT);
       return HexUtils.fromCube({ q: c.q - 4, r: c.r, s: c.s + 4 }, MAP_WIDTH, MAP_HEIGHT);
     });
+    // independent reference: hex distance by BFS over PIXEL adjacency (neighbours are the cells one ROW_PITCH apart)
+    const ref = (mode: 'ring' | 'disc') => page.evaluate((mode) => {
+      const P = (c: number, r: number) => Canvas.hexCenterWorld(c, r);
+      const dist = new Map<string, number>([['225,224', 0]]);
+      let frontier: [number, number][] = [[225, 224]];
+      for (let d = 1; d <= 4; d++) {
+        const next: [number, number][] = [];
+        for (const [c, r] of frontier) {
+          const p0 = P(c, r);
+          for (let dc = -2; dc <= 2; dc++) for (let dr = -2; dr <= 2; dr++) {
+            const k = (c + dc) + ',' + (r + dr);
+            if (dist.has(k)) continue;
+            const p = P(c + dc, r + dr);
+            if (Math.abs(Math.hypot(p.x - p0.x, p.y - p0.y) - ROW_PITCH) < 1e-6) { dist.set(k, d); next.push([c + dc, r + dr]); }
+          }
+        }
+        frontier = next;
+      }
+      return [...dist.entries()].filter(([, d]) => mode === 'ring' ? d === 4 : true).map(([k]) => k).sort();
+    }, mode);
     await dragCells(page, { col: 225, row: 224 }, edge);
+    expect(await water(page)).toEqual(await ref('ring'));
     expect((await water(page)).length).toBe(24);
     expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 225])).toBe('Plain_1');
     await page.evaluate(() => History.undo());
     await dragCells(page, { col: 225, row: 224 }, edge, { shift: true });
+    expect(await water(page)).toEqual(await ref('disc'));
     expect((await water(page)).length).toBe(61);
   });
 
@@ -986,7 +1008,7 @@ test.describe('symmetry (T2.5)', () => {
     await page.evaluate(() => { Tools.setSymmetry('h'); UI.selectTerrain('Forest_1'); Tools.setActive('rect'); });
     const pa = await cellPoint(page, 226, 220), pb = await cellPoint(page, 228, 222);
     await page.mouse.move(pa.x, pa.y); await page.mouse.down(); await page.mouse.move(pb.x, pb.y, { steps: 3 });
-    const before = await page.evaluate(() => { IO.newMap(true); (window as any).__t = 0; return History.undoSize(); });
+    const before = await page.evaluate(() => { IO.newMap(true); return History.undoSize(); });
     await page.mouse.move(pb.x + 3, pb.y, { steps: 2 });
     await page.mouse.up();
     const r = await page.evaluate(() => ({ forest: mapData.filter((id: string) => id === 'Forest_1').length, steps: History.undoSize(), hl: Canvas.hasHighlight('shape'),
