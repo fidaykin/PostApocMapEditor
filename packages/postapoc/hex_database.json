@@ -6866,7 +6866,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_Rift_1",
-      "category": "🌾 PLAINS",
+      "category": "🌋 VOLCANIC/RIFT",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -6911,6 +6911,62 @@
       "effects": "",
       "package": "decameroon",
       "edgeFaces": []
+    },
+    {
+      "id": "Decameroon_Rift_1_copy",
+      "textId": "",
+      "type": "Plains",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_Rift_1",
+      "category": "🌋 VOLCANIC/RIFT",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 195,
+      "canDestroy": false,
+      "destroyTransformTo": "Decameroon_Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Steel",
+          "amount": 25
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": [
+        "NE",
+        "SW"
+      ]
     }
   ],
   "dbVersion": 5,
