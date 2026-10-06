@@ -2687,7 +2687,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "eacaca7";
+const COMMIT  = "c3e02e2";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8816,6 +8816,33 @@ const GitHubSync = (() => {
     return (await res.json()).sha;
   }
 
+  // Compensation helpers for multi-file operations (package import). `_removeFile` deletes a file the operation
+  // created (false when it is already gone); `_snapshotFile` captures a file before it is overwritten (null = absent;
+  // throws when the content is not returned inline, so the caller refuses before writing anything); `_restoreFile`
+  // puts the captured bytes back unless the file is already unchanged (true = a write happened).
+  async function _snapshotFile(path) {
+    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
+      cache: 'no-store', headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`could not read ${path} (HTTP ${res.status})`);
+    const data = await res.json();
+    if (typeof data.content !== 'string' || (data.encoding && data.encoding !== 'base64')) throw new Error(`could not read ${path}: no inline content`);
+    return { sha: data.sha, content: data.content.replace(/\s/g, '') };
+  }
+  async function _removeFile(path, message) {
+    const snap = await _snapshotFile(path);
+    if (!snap) return false;
+    await _deleteContents(path, snap.sha, message);
+    return true;
+  }
+  async function _restoreFile(path, snap, message) {
+    const cur = await _snapshotFile(path);
+    if (cur && cur.sha === snap.sha) return false;
+    await _putContents(path, snap.content, message);
+    return true;
+  }
+
   async function _getFileJson(path) {
     const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
       headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
@@ -9448,7 +9475,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    _putText, _putBinary, _listFolder, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
+    _putText, _putBinary, _listFolder, _snapshotFile, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
@@ -14020,6 +14047,51 @@ const Packages = (() => {
     }));
   }
 
+  // ── Import (T5.8): all-or-nothing ───────────────────────────────────────────────────────────────
+  // Server write order: package.json, hex DB, building DB, sprites, registry LAST (a failed import never advertises a
+  // half-imported package). Before each write the file's previous content is captured (null = new), so a failure removes
+  // what the import created and puts overwritten files back. Local state (HexDB/BldDB/SpriteStore/trash) is snapshotted
+  // first and restored after a failure. What could not be undone is reported exactly (error modal), never hidden.
+  const _REF_FIELDS      = ['destroyTransformTo', 'incomeTransformTo', 'storageUpgradeId', 'underTerrainId'];
+  const _REF_LIST_FIELDS = ['destroySource', 'destroySources', 'upgradeTo', 'requiredHex', 'parents'];
+  let _importResult = null;   // { status: 'running'|'ok'|'failed'|'cancelled'|'refused', remaining: string[] }
+  function getImportResult() { return _importResult; }
+
+  // baseIds: ids of the postapoc entries. An entry that lacks the old package prefix but IS a postapoc id is a reskin and
+  // keeps its id (it overrides the same slot at runtime); any other entry gets the new prefix. References to ids that
+  // were renamed follow them; ids outside the package (postapoc, unknown, '__parent__') are left alone.
+  function _rewriteAll(hexes, buildings, originalId, newId, baseIds) {
+    const oldP = idPrefix(originalId), newP = idPrefix(newId);
+    const idMap = new Map();
+    const newIdFor = id => {
+      if (oldP && id.startsWith(oldP)) return newP + id.slice(oldP.length);
+      if (baseIds.has(id)) return id;
+      return newP + id;
+    };
+    [...hexes, ...buildings].forEach(e => { const n = newIdFor(e.id); if (n !== e.id) idMap.set(e.id, n); });
+    const fix = v => (typeof v === 'string' && idMap.has(v)) ? idMap.get(v) : v;
+    const rewrite = e => {
+      const out = { ...e, id: fix(e.id), package: newId };
+      _REF_FIELDS.forEach(f => { if (f in out) out[f] = fix(out[f]); });
+      _REF_LIST_FIELDS.forEach(f => { if (Array.isArray(out[f])) out[f] = out[f].map(fix); });
+      return out;
+    };
+    return { hexes: hexes.map(rewrite), buildings: buildings.map(rewrite), idMap };
+  }
+
+  // Undoes the server writes in reverse order. `written`: [{ path, prev }] (prev = captured content, null = created).
+  // Returns the paths that could not be undone, in write order.
+  async function _rollback(written) {
+    const remaining = [];
+    for (const rec of written.slice().reverse()) {
+      try {
+        if (rec.prev) await GitHubSync._restoreFile(rec.path, rec.prev, `rollback import: ${rec.path}`);
+        else await GitHubSync._removeFile(rec.path, `rollback import: ${rec.path}`);
+      } catch (e) { console.warn('[Packages] rollback failed for', rec.path, e && e.message); remaining.push(rec.path); }
+    }
+    return remaining.reverse();
+  }
+
   function _blobToDataUrl(blob) {
     return new Promise((resolve, reject) => {
       const r = new FileReader();
@@ -14029,126 +14101,218 @@ const Packages = (() => {
     });
   }
 
+  function _countAgainst(list, db, pkgId) {
+    const local = new Map(db.getAll().filter(r => (r.package || 'postapoc') === pkgId).map(r => [r.id, r]));
+    const c = { new: 0, changed: 0, same: 0 };
+    list.forEach(e => {
+      const l = local.get(e.id);
+      if (!l) c.new++;
+      else if (Object.keys(e).some(k => k !== 'package' && !_sameValue(e[k], l[k]))) c.changed++;
+      else c.same++;
+    });
+    return c;
+  }
+
+  // Replace / Merge / Cancel for an id that already exists here. Resolves 'replace' | 'merge' | 'cancel' (Escape = cancel).
+  function _askConflict(newId, ch, cb) {
+    return new Promise(resolve => {
+      let done = false;
+      const fin = v => { if (!done) { done = true; resolve(v); } };
+      const body = document.createElement('div');
+      const para = t => { const p = document.createElement('p'); p.textContent = t; body.appendChild(p); };
+      para(`A package with the id "${newId}" already exists in this editor (hex tiles: ${ch.new} new, ${ch.changed} changed, ${ch.same} unchanged; buildings: ${cb.new} new, ${cb.changed} changed, ${cb.same} unchanged).`);
+      para('Replace: the existing entries move to "Recently deleted" (you can restore them) and the ZIP\'s entries take their place. Merge: entries you already have are kept, only new ones are added. Cancel: nothing changes.');
+      const m = UI.showModal({
+        id: 'pkg-import-conflict', title: 'Package already exists', body,
+        actions: [
+          { label: 'Cancel', onClick: close => { fin('cancel'); close(); } },
+          { label: 'Merge', onClick: close => { fin('merge'); close(); } },
+          { label: 'Replace', danger: true, onClick: close => { fin('replace'); close(); } },
+        ],
+        onClose: () => fin('cancel'),
+      });
+      m.el.style.zIndex = '9100';   // the import modal (z-index 9000) is still open underneath
+    });
+  }
+
+  function _showImportFailed(message, remaining) {
+    const body = document.createElement('div');
+    const p = document.createElement('p'); p.textContent = `The import failed: ${message}`; body.appendChild(p);
+    const p2 = document.createElement('p');
+    p2.textContent = 'These files could not be removed from the server again and still exist there. Remove them in the Content Manager, or run the import again (it overwrites them):';
+    body.appendChild(p2);
+    const ul = document.createElement('ul');
+    remaining.forEach(f => { const li = document.createElement('li'); li.textContent = f; ul.appendChild(li); });
+    body.appendChild(ul);
+    UI.showModal({ id: 'pkg-import-failed', title: 'Import failed: files remain on the server', body, actions: [{ label: 'Close', primary: true, onClick: close => close() }] }).el.style.zIndex = '9100';
+  }
+
   async function confirmImport() {
+    if (_importInProgress) return;
+    _importInProgress = true;
+    _importResult = { status: 'running', remaining: [] };
+    try { await _confirmImport(); }
+    catch (e) {
+      console.error('[Packages] import:', e);
+      UI.progressDone('');
+      UI.toast(`⚠ Import failed: ${e && e.message}`);
+      _importResult = { status: 'failed', remaining: [] };
+    } finally {
+      _importInProgress = false;
+      if (_importResult.status === 'running') _importResult = { status: 'refused', remaining: [] };
+    }
+  }
+
+  async function _confirmImport() {
     const name   = document.getElementById('pkg-import-name').value.trim();
     const newId  = document.getElementById('pkg-import-id').value.trim();
     const origId = document.getElementById('pkg-import-original-id').value;
     const errEl  = document.getElementById('pkg-import-error');
+    const refuse = msg => { errEl.textContent = msg; errEl.style.display = 'block'; };
 
-    if (!name) {
-      errEl.textContent = 'Display name is required.';
-      errEl.style.display = 'block'; return;
-    }
-    if (!/^[a-z0-9][a-z0-9-]*$/.test(newId)) {
-      errEl.textContent = 'ID must be lowercase letters, numbers, and hyphens only.';
-      errEl.style.display = 'block'; return;
-    }
-    if (getEntry(newId)) {
-      errEl.textContent = `Package "${newId}" already exists.`;
-      errEl.style.display = 'block'; return;
-    }
-    const _idProblem = await _serverIdProblem(newId);
-    if (_idProblem) {
-      errEl.textContent = _idProblem;
-      errEl.style.display = 'block'; return;
-    }
-
-    if (_importInProgress) return;
-    _importInProgress = true;
-
+    if (!name) return refuse('Display name is required.');
+    if (!/^[a-z0-9][a-z0-9-]*$/.test(newId)) return refuse('ID must be lowercase letters, numbers, and hyphens only.');
+    if (isDefault(newId)) return refuse(`Package "${newId}" is the default package and cannot be imported over.`);
     const zip = _importZip, plan = _importValidation;
-    if (!zip || !plan || !plan.ok) { _importInProgress = false; UI.toast('⚠ No validated ZIP loaded'); return; }
+    if (!zip || !plan || !plan.ok) { UI.toast('⚠ No validated ZIP loaded'); return; }
 
+    // The id may exist in this editor (conflict flow below) but must not belong to anything else on the server.
+    const localHere = !!getEntry(newId) || HexDB.getAll().some(h => h.package === newId) || BldDB.getAll().some(b => b.package === newId);
+    if (localHere) {
+      if (await _serverHasPackage(newId) === 'unknown') return refuse('Could not verify that the id is free — check your connection and try again.');
+    } else {
+      const problem = await _serverIdProblem(newId);
+      if (problem) return refuse(problem);
+    }
+    if (_importZip !== zip) return;   // the modal was closed while the server was asked
+
+    const baseIds = new Set([...HexDB.getAll(), ...BldDB.getAll()].filter(e => (e.package || 'postapoc') === 'postapoc').map(e => e.id));
+    const rw = _rewriteAll(plan.hexes, plan.buildings, origId, newId, baseIds);
+    let hexes = rw.hexes, buildings = rw.buildings;
+
+    let mode = 'new';
+    if (localHere) {
+      mode = await _askConflict(newId, _countAgainst(hexes, HexDB, newId), _countAgainst(buildings, BldDB, newId));
+      if (mode === 'cancel') { _importResult = { status: 'cancelled', remaining: [] }; return; }
+      if (_importZip !== zip) return;
+    }
+    const inPkg = r => (r.package || 'postapoc') === newId;
+    const localHexes = HexDB.getData().hexes.filter(inPkg), localBlds = BldDB.getAll().filter(inPkg);
+    if (mode === 'merge') {   // what is already here wins; the written databases are the merged set
+      const hk = new Set(localHexes.map(h => h.id)), bk = new Set(localBlds.map(b => b.id));
+      hexes = [...structuredClone(localHexes), ...hexes.filter(h => !hk.has(h.id))];
+      buildings = [...structuredClone(localBlds), ...buildings.filter(b => !bk.has(b.id))];
+    }
+
+    // Snapshot everything local the import can touch.
+    const snapH = HexDB.snapshotEntries(), snapB = BldDB.snapshotEntries();
+    const snapSprites = (await SpriteStore.loadAll()).filter(inPkg);
+    const prevTrash = localStorage.getItem(LS_TRASH);
+    const existingEntry = getEntry(newId);
+    let localTouched = false;
+    const restoreLocal = async () => {
+      if (!localTouched) return;
+      HexDB.restoreEntries(snapH); BldDB.restoreEntries(snapB);
+      const have = new Map(snapSprites.map(r => [r.name, r]));
+      for (const cur of (await SpriteStore.loadAll()).filter(inPkg)) if (!have.has(cur.name)) await SpriteStore.remove(cur.baseName || cur.name, newId);
+      for (const r of snapSprites) await SpriteStore.save(r.baseName || r.name, r.dataUrl, r.category, newId);
+      try { if (prevTrash === null) localStorage.removeItem(LS_TRASH); else localStorage.setItem(LS_TRASH, prevTrash); } catch (e) { console.warn('[Packages] trash restore failed:', e.message); }
+    };
+
+    const written = [];
+    const put = async (path, doPut) => {
+      const rec = { path, prev: await GitHubSync._snapshotFile(path) };
+      written.push(rec);
+      await doPut();
+    };
+    let keepServer = false;
     try {
       UI.progress(0, 'Starting import…');
-
-      // Databases come from the validated plan (T5.7): already parsed, shape- and key-checked
-      const hexes     = _rewriteEntries(plan.hexes,     origId, newId);
-      const buildings = _rewriteEntries(plan.buildings, origId, newId);
-
-      // Write package.json
-      const pkgJson = JSON.stringify({ id: newId, name, version: '1.0.0', description: '', isDefault: false }, null, 2);
-      await GitHubSync._putText(`packages/${newId}/package.json`, pkgJson, `import package: ${newId}`);
+      await _readRegistry();   // fail closed before anything is written
+      if (mode === 'replace') {
+        localTouched = true;
+        const kept = _storeTrash([
+          { id: newId, entry: existingEntry, deletedAt: new Date().toISOString(), hexes: structuredClone(localHexes), buildings: structuredClone(localBlds) },
+          ...listTrash().filter(t => t.id !== newId)]);
+        if (!kept.ok) throw new Error('Could not save a restore copy of the existing package');
+      }
+      const version = (existingEntry && existingEntry.version) || '1.0.0';
+      await put(`packages/${newId}/package.json`, () => GitHubSync._putText(`packages/${newId}/package.json`,
+        JSON.stringify({ id: newId, name, version, description: '', isDefault: false }, null, 2), `import package: ${newId}`));
       UI.progress(5, 'Writing package.json…');
-
-      // Write hex_database.json
-      await GitHubSync._putText(
-        `packages/${newId}/hex_database.json`,
-        JSON.stringify({ version: 1, package: newId, hexes }, null, 2),
-        `import ${newId}: hex_database.json`);
+      await put(`packages/${newId}/hex_database.json`, () => GitHubSync._putText(`packages/${newId}/hex_database.json`,
+        JSON.stringify({ version: 1, package: newId, hexes }, null, 2), `import ${newId}: hex_database.json`));
       UI.progress(15, 'Writing hex_database.json…');
-
-      // Write building_database.json
-      await GitHubSync._putText(
-        `packages/${newId}/building_database.json`,
-        JSON.stringify({ version: 1, package: newId, buildings }, null, 2),
-        `import ${newId}: building_database.json`);
+      await put(`packages/${newId}/building_database.json`, () => GitHubSync._putText(`packages/${newId}/building_database.json`,
+        JSON.stringify({ version: 1, package: newId, buildings }, null, 2), `import ${newId}: building_database.json`));
       UI.progress(25, 'Writing building_database.json…');
 
-      // Upload sprites from ZIP
-      const spriteFiles = plan.sprites.map(sp => ({ path: sp.path, file: zip.file(sp.path), size: sp.size })).filter(x => x.file);   // PNG sprites only
-
+      const spriteFiles = plan.sprites.map(sp => ({ path: sp.path, file: zip.file(sp.path), size: sp.size, category: sp.category, name: sp.name }));
+      const sprites = [];   // { name, category, dataUrl }: stored locally after the server accepted every file
       let done = 0;
-      const localSprites = {};   // name -> dataUrl, so imported tiles render before any publish round-trip
-      const skippedSprites = []; // names that already exist locally (kept, not overwritten)
-      const failedSprites = [];  // names that could not be stored locally
-      let existingNames = new Set();   // this package's own stored sprites only: another package's same-named sprite is a different file
-      try { existingNames = new Set((await SpriteStore.loadForPackage(newId)).map(e => e.name)); } catch(e) { /* IndexedDB unavailable: sprites still go to the server */ }
-      for (const { path, file, size } of spriteFiles) {
-        try {
-          // path example: 'sprites/hex/Forest.png' → dest: 'packages/medieval/sprites/hex/Forest.png'
-          const destPath = `packages/${newId}/${path}`;
-          const bytes = await _readEntry(file, size);   // never inflates past the size the plan validated
-          if (!bytes) throw new Error('sprite is larger than it claims to be');
-          const blob = new Blob([bytes], { type: 'image/png' });
-          const m = /^sprites\/(hex|buildings)\/(.+)\.png$/i.exec(path);
-          if (m) {
-            if (existingNames.has(m[2])) { skippedSprites.push(m[2]); done++; continue; }
-            try {
-              const dataUrl = await _blobToDataUrl(blob);
-              await SpriteStore.save(m[2], dataUrl, m[1].toLowerCase(), newId);
-              localSprites[SpriteStore.keyFor(newId, m[2])] = dataUrl;
-            } catch (e) {
-              failedSprites.push(m[2]);
-              console.warn(`[Packages] import: could not store sprite ${m[2]} locally:`, e && e.message);
-            }
-          }
-          await GitHubSync._putBinary(destPath, blob, `import ${newId}: ${path}`);
-        } catch(e) {
-          console.warn(`[Packages] import: skipped sprite ${path}:`, e.message);
-        }
+      for (const sp of spriteFiles) {
+        if (!sp.file) throw new Error(`${sp.path} is listed in the plan but missing from the ZIP`);
+        const bytes = await _readEntry(sp.file, sp.size);   // never inflates past the size the plan validated
+        if (!bytes) throw new Error(`${sp.path} is larger than it claims to be`);
+        const blob = new Blob([bytes], { type: 'image/png' });
+        await put(`packages/${newId}/${sp.path}`, () => GitHubSync._putBinary(`packages/${newId}/${sp.path}`, blob, `import ${newId}: ${sp.path}`));
+        sprites.push({ name: sp.name, category: sp.category, dataUrl: await _blobToDataUrl(blob) });
         done++;
-        const pct = 25 + Math.round((done / Math.max(spriteFiles.length, 1)) * 70);
-        UI.progress(pct, `Sprites: ${done}/${spriteFiles.length}…`);
+        UI.progress(25 + Math.round((done / Math.max(spriteFiles.length, 1)) * 65), `Sprites: ${done}/${spriteFiles.length}…`);
       }
 
-      // Update registry
-      UI.progress(100, 'Updating registry…');
-      const newEntry = { id: newId, name, isDefault: false, version: '1.0.0' };
-      const { regData, sha: regSha } = await _readRegistry();  // fail closed: no local-cache fallback
-      if (!regData.packages.find(p => p.id === newId)) regData.packages.push(newEntry);
-      await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${newId}`, regSha);
+      // Local state, before the registry so a local failure never touches it.
+      localTouched = true;
+      if (mode === 'replace') { HexDB.removeByPackage(newId); BldDB.removeByPackage(newId); }
+      HexDB.addEntries(hexes);
+      BldDB.addEntries(buildings);
+      const stored = new Set(snapSprites.map(r => r.baseName || r.name));
+      const localSprites = {};
+      const skipped = [];
+      for (const sp of sprites) {
+        if (mode !== 'replace' && stored.has(sp.name)) { skipped.push(sp.name); continue; }   // kept, never overwritten
+        await SpriteStore.save(sp.name, sp.dataUrl, sp.category, newId);
+        localSprites[SpriteStore.keyFor(newId, sp.name)] = sp.dataUrl;
+      }
+
+      // Registry LAST
+      UI.progress(95, 'Updating registry…');
+      const { regData, sha: regSha } = await _readRegistry();
+      const at = regData.packages.findIndex(p => p.id === newId);
+      if (at < 0) regData.packages.push({ id: newId, name, isDefault: false, version });
+      else regData.packages[at] = { ...regData.packages[at], name };
+      const regText = JSON.stringify(regData, null, 2);
+      try {
+        await GitHubSync._putText('packages/registry.json', regText, `registry: add ${newId}`, regSha);
+      } catch (e) {
+        // A failed PUT may still have committed (lost response). Only compensate when the live registry proves it did not.
+        let committed = null;
+        try { const live = await _readRegistry(); committed = live.sha !== regSha && JSON.stringify(live.regData, null, 2) === regText; } catch (e2) { /* unknown */ }
+        if (committed === null) { keepServer = true; throw new Error(`${e.message} (and the registry could not be read back to check whether it was written)`); }
+        if (!committed) throw e;
+      }
 
       _registry = regData.packages;
       localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
       Terrain.registerUploadedUrls(localSprites);
-      const addedHex = HexDB.addEntries(hexes);
-      const addedBld = BldDB.addEntries(buildings);
       UI.progressDone(`✅ Package '${name}' imported`);
-      const notes = [];
-      if (skippedSprites.length) notes.push(`${skippedSprites.length} sprite(s) skipped: already stored for this package`);
-      if (failedSprites.length) notes.push(`${failedSprites.length} sprite(s) could not be stored locally`);
-      const detail = [...skippedSprites.map(n => `skipped: ${n}`), ...failedSprites.map(n => `failed: ${n}`)].join('\n');
-      UI.toast(`✅ Package '${name}' imported (${addedHex} hex tiles, ${addedBld} buildings loaded)` + (notes.length ? '; ' + notes.join('; ') : ''),
-               notes.length ? { ms: 8000, detail } : undefined);
+      const verb = mode === 'replace' ? 'replaced' : mode === 'merge' ? 'merged' : 'imported';
+      UI.toast(`✅ Package '${name}' ${verb} (${hexes.length} hex tiles, ${buildings.length} buildings)` + (skipped.length ? `; ${skipped.length} sprite(s) skipped: already stored for this package` : ''),
+               skipped.length ? { ms: 8000, detail: skipped.map(n => `skipped: ${n}`).join('\n') } : undefined);
+      _importResult = { status: 'ok', remaining: [] };
       renderPanel();
       renderActiveDropdowns();
       closeImportModal();
-      _importInProgress = false;
-    } catch(e) {
+    } catch (e) {
       UI.progressDone('');
-      UI.toast(`⚠ Import failed: ${e.message}`);
-      _importInProgress = false;
+      const remaining = keepServer ? written.map(r => r.path) : await _rollback(written);
+      try { await restoreLocal(); }
+      catch (e2) { console.error('[Packages] local restore failed:', e2); UI.toast(`⚠ The editor's local copy could not be fully restored: ${e2.message}`, { sticky: true }); }
+      _importResult = { status: 'failed', remaining };
+      if (remaining.length) _showImportFailed(e.message, remaining);
+      else UI.toast(`⚠ Import failed: ${e.message}. Nothing was changed.`, { ms: 8000 });
+      renderPanel();
+      renderActiveDropdowns();
     }
   }
 
@@ -14159,7 +14323,7 @@ const Packages = (() => {
            openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
-           _rewriteEntries, confirmImport };
+           _rewriteEntries, _rewriteAll, _rollback, getImportResult, confirmImport };
 })();
 
 // ─────────────────────────────────────────────────────────────────
@@ -16739,6 +16903,17 @@ const HexDB = (() => {
     return incoming.length;
   }
 
+  // Whole-list snapshot/restore (package import rollback): the restored list is identical to the snapshot.
+  function snapshotEntries() { return structuredClone(_data.hexes); }
+  function restoreEntries(list) {
+    _data.hexes = structuredClone(list);
+    _autoSave();
+    _selFilt = -1;
+    _applyFilter(); _buildList();
+    Terrain.applyHexDbOverrides(_data.hexes).then(() => { UI.buildPalette(); Canvas.render(); })
+      .catch(e => console.warn('[HexDB] restoreEntries: sprite refresh failed:', e));
+  }
+
   function removeByPackage(pkgId) {
     const before = _data.hexes.length;
     _data.hexes = _data.hexes.filter(h => (h.package || 'postapoc') !== pkgId);
@@ -16944,7 +17119,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, addEntries, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, addEntries, snapshotEntries, restoreEntries, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
 })();
 
 window.HexDB = HexDB;
@@ -18183,6 +18358,15 @@ const BldDB = (() => {
     return incoming.length;
   }
 
+  function snapshotEntries() { return structuredClone(_data.buildings); }
+  function restoreEntries(list) {
+    _data.buildings = structuredClone(list);
+    _autoSave();
+    _selFilt = -1;
+    _applyFilter(); _buildList();
+    UI.buildPalette();
+  }
+
   function removeByPackage(pkgId) {
     const before = _data.buildings.length;
     _data.buildings = _data.buildings.filter(b => (b.package || 'postapoc') !== pkgId);
@@ -18214,7 +18398,7 @@ const BldDB = (() => {
   }
 
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
-           mergeFromServer, addEntries, migrateCopy, removeByPackage,
+           mergeFromServer, addEntries, snapshotEntries, restoreEntries, migrateCopy, removeByPackage,
            pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
