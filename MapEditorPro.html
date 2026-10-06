@@ -2709,7 +2709,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "9ffb3f1";
+const COMMIT  = "27b51cb";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10763,7 +10763,7 @@ const IO = (() => {
       data2d.push(mapData.slice(r * MAP_WIDTH, (r+1) * MAP_WIDTH));
 
     const result = {
-      version: 2,
+      // `version` (first key) is written by MapFormat.stamp below: one source for the number.
       packages: _collectMapPackages(),
       width: MAP_WIDTH, height: MAP_HEIGHT,
       data: data2d,
@@ -10815,7 +10815,7 @@ const IO = (() => {
     }
     const bands = DistanceBands.toJson();
     if (bands) result.distance_bands = bands;
-    return JSON.stringify(result);
+    return JSON.stringify(MapFormat.stamp(result));
   }
 
   // The map JSON is several MB: keep it in IndexedDB so it does not eat the 5 MB localStorage quota.
@@ -11184,7 +11184,8 @@ const IO = (() => {
       const saved = typeof override === 'string' ? override : await _readAutosave();
       if (!saved) return false;
       const json = JSON.parse(saved);
-      if (!json.width || !json.height || !Array.isArray(json.data)) return false;
+      // Same check as the loader (errors only; an autosave this editor wrote has nothing to warn about): nothing changes if it fails.
+      if (!MapFormat.validate(json).ok) return false;
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
       mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
@@ -11421,6 +11422,19 @@ const IO = (() => {
     return issues;
   }
 
+  // MapFormat.validate warnings that belong in the load report. Dropped: the size warning (analyzeMap's clamp line already
+  // says it, once) and 'no version field' (true of every old map: only mentioned, quietly, when there is more to report).
+  function _formatNotes(fmt) {
+    const lines = [];
+    let versionless = false;
+    for (const w of (fmt && fmt.warnings) || []) {
+      if (/^The map size is outside /.test(w)) continue;
+      if (/^The map has no version field/.test(w)) { versionless = true; continue; }
+      lines.push(w);
+    }
+    return { lines, versionless };
+  }
+
   function _formatMapIssues(i) {
     const lines = [];
     if (i.clamped) {
@@ -11432,6 +11446,13 @@ const IO = (() => {
       lines.push(`Packages not in the registry: ${i.missingPackages.join(', ')}. Their tiles may be missing or drawn as placeholders.`);
     if (i.unknownCount)
       lines.push(`${i.unknownCount} tile(s) use ${i.unknownIds.length} id(s) that are not in HexDB or BldDB.`);
+    // MapFormat's notes (T6.3), already filtered by _formatNotes: same dialog, after analyzeMap's own lines.
+    const fl = (i.format && i.format.lines) || [];
+    const FMT_CAP = 8;
+    fl.slice(0, FMT_CAP).forEach(l => lines.push(l));
+    if (fl.length > FMT_CAP) lines.push(`…and ${fl.length - FMT_CAP} more format note(s).`);
+    if (lines.length && i.format && i.format.versionless)
+      lines.push('This map has no version field (saved by an older editor); it was read as the oldest format.');
     if (!lines.length) return null;
     const extra = i.unknownIds.length - 30;
     return { message: lines.join('\n\n'),
@@ -11440,8 +11461,11 @@ const IO = (() => {
 
   function _loadFromJSON(json) {
     try {
-      if (!json.width || !json.height || !Array.isArray(json.data))
-        throw new Error('Invalid map file format');
+      // Validate BEFORE any state changes: an unusable map leaves the current one untouched (the catch below reports it).
+      // migrate() is deliberately not applied here: this loader already reads every older shape ({x,y} settlements,
+      // integer cells, missing keys) itself, and migrate's defaults (e.g. packages) would alter what analyzeMap reports.
+      const fmt = MapFormat.validate(json);
+      if (!fmt.ok) throw new Error('Invalid map file format: ' + fmt.errors.join(' '));
 
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
@@ -11552,13 +11576,21 @@ const IO = (() => {
         const known = [...HexDB.getAll().map(h => h && h.id), ...BldDB.getAll().map(b => b && b.id)].filter(Boolean);
         if (!Array.isArray(registry) || !registry.length || !known.length)
           throw new Error('package registry or tile databases are not available');
-        const report = _formatMapIssues(analyzeMap(json, {
+        const issues = analyzeMap(json, {
           registryIds: registry.map(p => p && p.id).filter(Boolean),
           knownIds: known,
-        }));
+        });
+        issues.clamped = fmt.clamped;        // same shape; MapFormat coerces text sizes (analyzeMap would call '30' a clamp)
+        issues.format = _formatNotes(fmt);
+        const report = _formatMapIssues(issues);
         if (report) UI.showDialog({ title: 'Map loaded with warnings', message: report.message, details: report.details });
       } catch (checkErr) {
         UI.toast('Map loaded, but it could not be checked for missing packages or unknown ids', { sticky: true, detail: String(checkErr && checkErr.message || checkErr) });
+        // The format notes need neither the registry nor the databases: still one dialog.
+        try {
+          const only = _formatMapIssues({ clamped: fmt.clamped, missingPackages: [], unknownIds: [], unknownCount: 0, format: _formatNotes(fmt) });
+          if (only) UI.showDialog({ title: 'Map loaded with warnings', message: only.message, details: only.details });
+        } catch (e2) { /* the sticky toast above already tells the user */ }
       }
     } catch (err) {
       UI.alert('Failed to load map', err.message, String(err.stack || ''));

@@ -51,7 +51,7 @@ test('a structurally invalid map shows "Failed to load map"', async ({ page }) =
   const { nativeDialogs } = await openEditor(page);
   await page.evaluate(() => IO.loadFromJSON({ width: 'x' }));
   await expect(page.locator('#dialog-title')).toHaveText('Failed to load map');
-  await expect(page.locator('#dialog-msg')).toHaveText('Invalid map file format');
+  await expect(page.locator('#dialog-msg')).toContainText('Invalid map file format: width is missing or not a number.');   // T6.3: MapFormat's reasons follow the old prefix
   expect(nativeDialogs).toEqual([]);
 });
 

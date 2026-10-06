@@ -26,6 +26,7 @@ Format: `## [version] — [date]`
 - Publishing shows a diff of what will change and refuses unsafe publishes (guards).
 - Deleting a custom package is reversible.
 - Loading a map shows a warning when the file has problems, instead of loading silently.
+- A map file that cannot be used is now rejected before anything changes (your current map stays), with the reason; a map saved by a newer editor still opens and says so in the same warnings dialog.
 - Autosave now uses IndexedDB and keeps recovery copies you can restore from.
 
 ### Performance
