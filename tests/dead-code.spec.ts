@@ -27,7 +27,7 @@ test('dead public helpers are gone and the editor still builds its palette', asy
 // or definition plus export) before it was deleted. REMOVED maps file -> names that must no longer be defined there.
 const REMOVED: Record<string, string[]> = {
   'zone-painter.js': ['_hexIdToTid'],
-  'MapEditorPro.html': ['_numInput', '_costRow', 'hexdb-cost-row', '_getFileSha', 'getGroups'],
+  'MapEditorPro.html': ['_numInput', '_costRow', 'hexdb-cost-row', '_getFileSha', 'getGroups', 'resumeFolderAutosave'],
 };
 for (const [file, names] of Object.entries(REMOVED)) {
   for (const n of names) {
@@ -52,8 +52,8 @@ test('the HEX DB editor still renders a record form and its rows', async ({ page
 
 // Public module members removed because nothing references them (definition plus export line only). GONE must be
 // undefined in the running editor; KEPT are their live neighbours (positive controls: a broken page would fail them too).
-const GONE: string[] = ['LocalizationKeys.getGroups'];
-const KEPT: string[] = ['LocalizationKeys.getEntries'];
+const GONE: string[] = ['LocalizationKeys.getGroups', 'IO.resumeFolderAutosave'];
+const KEPT: string[] = ['LocalizationKeys.getEntries', 'IO.setAutosaveFolder'];
 test('removed unused module exports are gone while their neighbours stay', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', e => errors.push(e.message));
