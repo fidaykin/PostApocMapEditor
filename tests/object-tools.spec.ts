@@ -1456,7 +1456,7 @@ test.describe('bridge tool (T2.16)', () => {
     expect(await undoSize(page)).toBe(s0 + 1);
   });
 
-  test('refusing a land press then dragging over more land toasts once (one refusal per stroke), no step', async ({ page }) => {
+  test('refusing a land press toasts once; dragging on over more land adds no toast and no step (the bridge tool acts on the press only, so this does not exercise a per-stroke dedupe)', async ({ page }) => {
     await bridgeTool(page, 'Road_Bridge_NS_1');
     const s0 = await undoSize(page);
     await dragCells(page, { col: 227, row: 224 }, { col: 230, row: 224 });
@@ -1566,7 +1566,12 @@ test.describe('bridge tool (T2.16)', () => {
     expect(without).not.toBe(withBridge);
     await page.evaluate(() => History.redo());
     const redone = await hash();
-    expect(redone).not.toBe(without);                 // (the first render after a restore can differ from the live one in unrelated pixels, so compare against `without` only)
+    expect(redone).not.toBe(without);
+    // NOT asserted: redone === withBridge. Measured (T2 cleanup B): after redo the river tile id, the bridge object and the camera/zoom
+    // are identical to the live-click state, yet the whole canvas differs slightly (mean |dR| ~1.5/255, max 88, ~94% of pixels),
+    // and the redone frame is stable and repeatable (asserted below). Cause NOT established; hypothesis: the restore path rebuilds
+    // the terrain/overlay caches from scratch (cached-bitmap blit) while the live click updates them incrementally (direct draw), so
+    // anti-aliasing/compositing differs. Needs a render-cache investigation before this can become an equality assertion.
     await page.evaluate(() => History.undo());
     expect(await hash()).toBe(without);
     await page.evaluate(() => History.redo());
