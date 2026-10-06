@@ -58,6 +58,94 @@ test.describe('HexUtils geometry', () => {
     expect(problems).toEqual([]);
   });
 
+  test('neighbours, rotation and mirrors agree with pixel geometry at random odd and even q-parity centres', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      let seed = 777;
+      const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+      const out: string[] = [];
+      const parities = new Set<string>();
+      const save = [MAP_WIDTH, MAP_HEIGHT];
+      const cs = Math.cos(Math.PI / 3), sn = Math.sin(Math.PI / 3);
+      for (const [W, H] of [[451, 451], [13, 12]]) {
+        MAP_WIDTH = W; MAP_HEIGHT = H;
+        for (let i = 0; i < 60; i++) {
+          const c0 = 2 + Math.floor(rnd() * (W - 4)), r0 = 2 + Math.floor(rnd() * (H - 4));
+          const a = HexUtils.toCube(c0, r0, W, H);
+          parities.add(W + 'x' + H + ':q' + (((a.q % 2) + 2) % 2));
+          const pa = Canvas.hexCenterWorld(c0, r0);
+          const rel = (c: any) => { const p = HexUtils.fromCube(c, W, H); const w = Canvas.hexCenterWorld(p.col, p.row); return { x: w.x - pa.x, y: w.y - pa.y }; };
+          const add = (d: any) => ({ q: a.q + d.q, r: a.r + d.r, s: a.s + d.s });
+          for (const d of HexUtils.CUBE_DIRS) {
+            const p = rel(add(d));
+            if (Math.abs(Math.hypot(p.x, p.y) - ROW_PITCH) > 1e-6) out.push(`pitch ${W}x${H} ${c0},${r0}`);
+            const rp = rel(add(HexUtils.rotateCube(d, 1)));
+            if (Math.hypot(rp.x - (p.x * cs - p.y * sn), rp.y - (p.x * sn + p.y * cs)) > 1e-6) out.push(`rotate ${W}x${H} ${c0},${r0}`);
+            const mh = rel(add(HexUtils.mirrorCube(d, 'h')));
+            if (Math.hypot(mh.x + p.x, mh.y - p.y) > 1e-6) out.push(`mirrorH ${W}x${H} ${c0},${r0}`);
+            const mv = rel(add(HexUtils.mirrorCube(d, 'v')));
+            if (Math.hypot(mv.x - p.x, mv.y + p.y) > 1e-6) out.push(`mirrorV ${W}x${H} ${c0},${r0}`);
+          }
+        }
+      }
+      MAP_WIDTH = save[0]; MAP_HEIGHT = save[1];
+      return { out: [...new Set(out)], parities: [...parities].sort() };
+    });
+    expect(r.out).toEqual([]);
+    // positive control: both parities of q were really exercised on both maps
+    expect(r.parities).toEqual(['13x12:q0', '13x12:q1', '451x451:q0', '451x451:q1']);
+  });
+
+  test('corner disc counts are exact and equal the pixel-distance reference', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const save = [MAP_WIDTH, MAP_HEIGHT];
+      const res: any = {};
+      for (const [W, H] of [[450, 450], [451, 451]]) {
+        MAP_WIDTH = W; MAP_HEIGHT = H;
+        for (const [c, rw] of [[0, 0], [W - 1, H - 1], [0, H - 1], [W - 1, 0]]) {
+          const p0 = Canvas.hexCenterWorld(c, rw);
+          let ref = 0;
+          for (let dc = -2; dc <= 2; dc++) for (let dr = -2; dr <= 2; dr++) {
+            const cc = c + dc, rr = rw + dr;
+            if (cc < 0 || cc >= W || rr < 0 || rr >= H) continue;
+            const p = Canvas.hexCenterWorld(cc, rr);
+            if (Math.hypot(p.x - p0.x, p.y - p0.y) <= 2 * ROW_PITCH + 1e-6) ref++;
+          }
+          res[`${W}x${H}@${c},${rw}`] = { got: HexUtils.discCells(c, rw, 2, W, H).length, ref };
+        }
+      }
+      MAP_WIDTH = save[0]; MAP_HEIGHT = save[1];
+      return res;
+    });
+    for (const k of Object.keys(r)) expect(r[k].got, k).toBe(r[k].ref);
+    // pinned literals for the four corners of the default map (the independent reference above agrees)
+    expect([r['450x450@0,0'].got, r['450x450@449,449'].got, r['450x450@0,449'].got, r['450x450@449,0'].got]).toEqual([7, 7, 8, 8]);
+  });
+
+  test('integer contract: integer inputs give integer, non -0 outputs', async ({ page }) => {
+    const bad = await page.evaluate(() => {
+      const out: string[] = [];
+      const isInt = (v: number) => Number.isInteger(v) && !Object.is(v, -0);
+      for (const [W, H] of [[450, 450], [13, 12]]) {
+        for (const [c, r] of [[0, 0], [W >> 1, H >> 1], [W - 1, H - 1], [3, H - 2]]) {
+          const cu = HexUtils.toCube(c, r, W, H);
+          if (![cu.q, cu.r, cu.s].every(isInt)) out.push('toCube ' + [W, H, c, r]);
+          const f = HexUtils.fromCube(cu, W, H);
+          if (!isInt(f.col) || !isInt(f.row)) out.push('fromCube ' + [W, H, c, r]);
+          const lists = [HexUtils.discCells(c, r, 3, W, H), HexUtils.ringCells(c, r, 3, W, H), HexUtils.neighbors(c, r, W, H),
+            HexUtils.lineCells({ col: c, row: r }, { col: W >> 1, row: H >> 1 }, W, H)];
+          for (const l of lists) for (const t of l) if (!isInt(t.col) || !isInt(t.row)) out.push('cells ' + [W, H, c, r]);
+          for (let k = -6; k <= 6; k++) {
+            const t = HexUtils.rotateCube(cu, k);
+            if (![t.q, t.r, t.s].every(isInt)) out.push('rotate ' + k);
+          }
+          for (const ax of ['h', 'v']) { const t = HexUtils.mirrorCube(cu, ax); if (![t.q, t.r, t.s].every(isInt)) out.push('mirror ' + ax); }
+        }
+      }
+      return [...new Set(out)];
+    });
+    expect(bad).toEqual([]);
+  });
+
   test('line, disc, ring sizes and clipping at the map corner', async ({ page }) => {
     const r = await page.evaluate(() => {
       const W = 450, H = 450;

@@ -712,6 +712,9 @@ test('version, ?v= query, worker importScripts and deploy-dev.yml agree', () => 
   expect(worker).toContain(`importScripts('map-jobs.js?v=${v}')`);
   expect(yml).toContain(`src="dev/map-jobs.js?v=${v}"`);
   expect(yml).toContain(`new Worker('dev/map-worker.js?v=${v}'`);
+  // the workflow's own grep for hex-utils.js ?v= must equal the ?v= in the HTML (bump both together)
+  const hv = /<script src="hex-utils\.js\?v=(\d+)"/.exec(html)![1];
+  expect(yml).toContain(`src="dev/hex-utils.js?v=${hv}"`);
 });
 
 test('generator core lives only in map-jobs.js (no duplicate in the page)', () => {
