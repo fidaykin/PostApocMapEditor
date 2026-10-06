@@ -2699,7 +2699,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "f52313f";
+const COMMIT  = "e00c935";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8486,6 +8486,7 @@ const History = (() => {
     window.addEventListener('keydown', e => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
       if (!e.ctrlKey && !e.metaKey) return;
+      if (anyModalOpen()) return;      // a dialog owns the keyboard: undo/redo would change the map under it
       if (e.key === 'z' || e.key === 'Z') {
         e.preventDefault();
         if (e.shiftKey) redo(); else undo();
@@ -10101,11 +10102,28 @@ const UI = (() => {
     document.getElementById('confirm-title').textContent = title;
     document.getElementById('confirm-msg').textContent   = msg;
     _confirmCallback = onOk;
-    document.getElementById('confirm-modal').classList.add('open');
+    const cm = document.getElementById('confirm-modal');
+    cm.classList.add('open');
+    _raiseOverlay(cm);
   }
 
   function closeConfirm() {
     document.getElementById('confirm-modal').classList.remove('open');
+  }
+
+  // ── Overlay stacking (one scheme for UI.showModal and the shared #dialog-modal / #confirm-modal / #newmap-modal) ──
+  // Every overlay gets a z-index above all earlier ones when it opens, so the most recently opened is on top; Escape acts
+  // on the topmost open overlay only (_topOverlay).
+  let _zSeq = 0;
+  function _raiseOverlay(el) { el.style.zIndex = String(600 + ++_zSeq); }
+  function _topOverlay() {
+    let top = null, z = -1;
+    for (const m of document.querySelectorAll('.modal-overlay')) {
+      if (getComputedStyle(m).display === 'none') continue;
+      const v = parseInt(getComputedStyle(m).zIndex, 10) || 0;
+      if (v >= z) { z = v; top = m; }     // equal z: the later one in the DOM paints above
+    }
+    return top;
   }
 
   // ── Promise-based dialogs (replace native alert/prompt/confirm) ────
@@ -10127,7 +10145,10 @@ const UI = (() => {
     document.body.appendChild(ov);
     document.addEventListener('keydown', e => {
       if (!_dlgResolve) return;
-      if (e.key === 'Escape') { e.stopPropagation(); _dlgClose({ button: null, input: undefined }); }
+      if (e.key === 'Escape') {
+        if (_topOverlay() !== document.getElementById('dialog-modal')) return;   // a modal above it (opened later) handles this Escape
+        e.stopPropagation(); _dlgClose({ button: null, input: undefined });
+      }
       else if (e.key === 'Enter' && e.target && e.target.id === 'dialog-input') {
         document.querySelector('#dialog-actions .btn-primary, #dialog-actions .btn-danger')?.click();
       }
@@ -10184,6 +10205,7 @@ const UI = (() => {
       actions.appendChild(btn);
     });
     ov.classList.add('open');
+    _raiseOverlay(ov);
     (field || actions.querySelector('.btn-primary, .btn-danger') || actions.lastChild)?.focus();
     return new Promise(res => { _dlgResolve = res; });
   }
@@ -10243,6 +10265,7 @@ const UI = (() => {
       if (!top) return;
       if (e.key === 'Escape') {
         if (e.defaultPrevented) return;
+        if (_topOverlay() !== top.el) return;    // a shared dialog opened over this modal owns the Escape
         e.preventDefault();
         top.close('escape');
       } else if (e.key === 'Tab') {
@@ -10266,7 +10289,7 @@ const UI = (() => {
     const ov = document.createElement('div');
     ov.className = 'modal-overlay ui-modal open';
     ov.id = id;
-    ov.style.zIndex = String(600 + n);
+    _raiseOverlay(ov);
     const box = document.createElement('div');
     box.className = 'modal-box';
     box.setAttribute('role', 'dialog');
@@ -10594,7 +10617,7 @@ const UI = (() => {
     updateSettlementCount, updateMenuHistoryState,
     toggleSettlements, closeAllMenus,
     showConfirm, closeConfirm, toast,
-    showModal, showDialog, closeDialog: result => _dlgClose(result || { button: null, input: undefined }), alert: alertDialog, prompt: promptDialog, confirm: confirmDialog,
+    raiseOverlay: _raiseOverlay, showModal, showDialog, closeDialog: result => _dlgClose(result || { button: null, input: undefined }), alert: alertDialog, prompt: promptDialog, confirm: confirmDialog,
     showSpritePicker, closeSpritePicker, prepareSpriteUpload,
     updateStatusTool, updateStatusSize,
     rebuildSlotPanel,
@@ -11285,7 +11308,9 @@ const IO = (() => {
     document.getElementById('newmap-w').value = MAP_WIDTH;
     document.getElementById('newmap-h').value = MAP_HEIGHT;
     document.getElementById('newmap-cancel').style.display = canCancel ? '' : 'none';
-    document.getElementById('newmap-modal').classList.add('open');
+    const nm = document.getElementById('newmap-modal');
+    nm.classList.add('open');
+    UI.raiseOverlay(nm);
   }
 
   function closeNewMap() {
@@ -11574,9 +11599,10 @@ const IO = (() => {
     const md = mapData;
     while (Tools.isFillBusy()) { try { await Tools.whenIdle(); } catch (e) { /* the fill reported its own error */ } }
     if (mapData !== md) { UI.toast('The map changed while waiting: nothing was exported'); return false; }
+    const seq = _mapWriteSeq, hist = History.undoSize() + ':' + History.redoSize();   // in-place changes (undo, generator, fill) keep the mapData identity
     const ok = await MapValidator.gate();
     if (!ok) return false;
-    if (mapData !== md || Tools.isFillBusy()) { UI.toast('The map changed while the summary was open: nothing was exported'); return false; }
+    if (mapData !== md || Tools.isFillBusy() || _mapWriteSeq !== seq || History.undoSize() + ':' + History.redoSize() !== hist) { UI.toast('The map changed while the summary was open: nothing was exported'); return false; }
     return true;
   }
 
@@ -11853,6 +11879,7 @@ const IO = (() => {
     window.addEventListener('keydown', e => {
       if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
       if (!e.ctrlKey && !e.metaKey) return;
+      if (anyModalOpen()) return;      // New / Open / Save are inert under any open dialog (no invisible New Map dialog, no second export)
       switch (e.key.toLowerCase()) {
         case 'n': e.preventDefault(); newMap();   break;
         case 'o': e.preventDefault(); openMap();  break;
@@ -20404,6 +20431,12 @@ function bumpMapWrite() { _mapWriteSeq++; _satelliteMap = null; _validatorStale(
 // The validator panel keeps its list but flags it 'outdated' whenever the map may have changed (T4.6).
 function _validatorStale() { if (typeof MapValidator !== 'undefined') MapValidator.invalidate(); }
 function invalidateSatelliteMap() { bumpMapWrite(); }
+// True while any modal overlay (UI.showModal, the shared dialog / confirm / New Map, the sprite picker...) is visible.
+// The map-changing shortcuts (Ctrl+Z/Y/S/N/O) are inert then.
+function anyModalOpen() {
+  for (const m of document.querySelectorAll('.modal-overlay')) if (getComputedStyle(m).display !== 'none') return true;
+  return false;
+}
 function _isMultiTileId(id) {
   const e = id ? Terrain.byHexId(id) : null;
   return !!(e && Array.isArray(e.occupiedOffsets) && e.occupiedOffsets.length);
