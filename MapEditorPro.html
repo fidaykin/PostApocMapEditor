@@ -2444,7 +2444,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "fbdaa9d";
+const COMMIT  = "34b94f8";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10330,7 +10330,7 @@ const IO = (() => {
     p.anyFree = p.terrain || p.objects || p.roads || p.zones || p.settlements;
     const names = { terrain: 'Terrain', objects: 'Buildings', roads: 'Roads', zones: 'Zones', settlements: 'Settlements' };
     p.cleared = Object.keys(names).filter(k => p[k]).map(k => names[k] + (Layers.isVisible(k) ? '' : ' (hidden)'));   // a hidden layer is cleared too: say so
-    if (p.bridges) p.cleared.splice(p.cleared.indexOf('Buildings') + 1, 0, 'Bridges');
+    if (p.bridges) p.cleared.splice(p.cleared.findIndex(n => n.startsWith('Buildings')) + 1, 0, 'Bridges' + (Layers.isVisible('objects') ? '' : ' (hidden)'));   // bridges hide with the Buildings & bridges layer
     p.kept = Object.keys(names).filter(k => !free(k)).map(k => names[k]);   // locked layers only (a missing zone layer is not a lock)
     if (!p.bridges) p.kept.splice(p.kept.includes('Buildings') ? p.kept.indexOf('Buildings') + 1 : p.kept.length, 0, 'Bridges (follow the Terrain and Buildings locks)');
     return p;

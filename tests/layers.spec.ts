@@ -1572,6 +1572,20 @@ test.describe('Clear Map clears every layer (T2.19)', () => {
     await page.evaluate(() => { Layers.setVisible('roads', true); Layers.setVisible('terrain', true); });
   });
 
+  test('with the Buildings & bridges layer hidden the dialog reads "Buildings (hidden), Bridges (hidden)" in that order, with a bridge present (cleanup A6 fix)', async ({ page }) => {
+    await page.evaluate(() => { Layers.setVisible('objects', false); });
+    expect(await page.evaluate(() => bridgesData.length)).toBeGreaterThan(0);
+    await page.evaluate(() => IO.clearMap());
+    expect(await confirmMsg(page)).toBe('Clear: Terrain, Buildings (hidden), Bridges (hidden), Roads, Zones, Settlements. The city is kept.');
+    await closeConfirmDlg(page);
+    await page.evaluate(() => Layers.setVisible('objects', true));
+    await setLocks(page, ['terrain']);               // Kept wording is unchanged
+    await page.evaluate(() => { Layers.setVisible('objects', false); IO.clearMap(); });
+    expect(await confirmMsg(page)).toBe('Clear: Buildings (hidden), Roads, Zones, Settlements. Kept (locked): Terrain, Bridges (follow the Terrain and Buildings locks). The city is kept.');
+    await closeConfirmDlg(page);
+    await page.evaluate(() => Layers.setVisible('objects', true));
+  });
+
   test('Zones is not listed under Kept (locked) merely because the zone layer is missing; Bridges is kept only with its reason', async ({ page }) => {
     await page.evaluate(() => { (window as any).__zl = ZonePainter.getZoneLayer; ZonePainter.getZoneLayer = () => null as any; IO.clearMap(); });
     const m = await confirmMsg(page);
