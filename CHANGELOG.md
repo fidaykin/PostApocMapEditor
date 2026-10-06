@@ -5,6 +5,9 @@ Format: `## [version] — [date]`
 
 ## Unreleased
 
+### Navigation
+- A "Go to" box in the left palette jumps the view to `col,row`, Unity `app:x,y` coordinates (as the status bar shows them) or a block address such as `B:4`; bad input is flagged with a message and the view stays put.
+
 ### Layout
 - The right panel (minimap, brush, active terrain) is collapsible. Below 1920 px wide it starts collapsed to a thin rail and opens as an overlay drawer; the canvas uses the freed width, the page no longer widens, and the top toolbar scrolls sideways inside itself. The choice is remembered (`rightPanelMode`: `auto`, `collapsed`, `expanded`, or `classic` to keep the old fixed layout).
 

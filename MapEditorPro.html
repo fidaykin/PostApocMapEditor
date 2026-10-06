@@ -297,6 +297,12 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
 #stamp-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #stamp-panel .stamp-bar { display: flex; gap: 4px; margin-bottom: 6px; }
 #stamp-panel .stamp-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
+#goto-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
+#goto-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+#goto-panel .goto-bar { display: flex; gap: 4px; }
+#goto-panel .goto-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
+#goto-input { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; font-family: monospace; }
+#goto-input.invalid { border-color: var(--danger) !important; }
 #layers-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #layers-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 .layer-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
@@ -1555,6 +1561,15 @@ body.mode-common #map-io    { display: none; }
         </div>
         <div id="zone-list"></div>
       </div>
+      <!-- Go to (T4.1): in the LEFT palette (the toolbar row is not allowed to grow) -->
+      <div id="goto-panel">
+        <div class="section-title">Go to</div>
+        <div class="goto-bar">
+          <input id="goto-input" class="hexdb-input" type="text" autocomplete="off" spellcheck="false" placeholder="col,row" aria-label="Go to coordinates" aria-invalid="false"
+                 title='Tile "col,row", Unity "app:x,y" or a block such as "B:4", then Enter'>
+          <button id="goto-btn" class="hexdb-tool-btn" type="button" title="Centre the view on these coordinates">Go</button>
+        </div>
+      </div>
       <!-- Stamps (T2.13): in the LEFT palette, the only side panel that is on screen on common window widths -->
       <div id="stamp-panel">
         <div class="section-title">Stamps</div>
@@ -2529,7 +2544,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "0294269";
+const COMMIT  = "f1c9888";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4334,6 +4349,23 @@ const Canvas = (() => {
     mc.addEventListener('mousedown', e => { e.preventDefault(); _minimapPan(e); mc.addEventListener('mousemove', _minimapPan); });
     window.addEventListener('mouseup', () => mc.removeEventListener('mousemove', _minimapPan));
 
+    const gotoInput = document.getElementById('goto-input'), gotoBtn = document.getElementById('goto-btn');
+    if (gotoInput) {
+      const run = () => {
+        const ok = gotoText(gotoInput.value);
+        gotoInput.classList.toggle('invalid', !ok);
+        gotoInput.setAttribute('aria-invalid', ok ? 'false' : 'true');
+        return ok;
+      };
+      gotoInput.addEventListener('keydown', e => {
+        e.stopPropagation();   // typing here is never a map shortcut
+        if (e.key === 'Enter') { e.preventDefault(); if (run()) gotoInput.blur(); }
+        else if (e.key === 'Escape' && !e.isComposing) { e.preventDefault(); gotoInput.blur(); }
+      });
+      gotoInput.addEventListener('input', () => { gotoInput.classList.remove('invalid'); gotoInput.setAttribute('aria-invalid', 'false'); });
+      if (gotoBtn) gotoBtn.addEventListener('click', e => { if (run() && e.detail > 0) gotoBtn.blur(); else if (e.detail > 0) gotoInput.focus(); });   // pointer click: back to the map shortcuts after a jump
+    }
+
     const blockInput = document.getElementById('block-nav-input');
     if (blockInput) {
       blockInput.addEventListener('keydown', e => {
@@ -4708,6 +4740,61 @@ const Canvas = (() => {
     drawMinimap();
   }
 
+  // ── Go to coordinates (T4.1) ─────────────────────────────
+  function _inBounds(col, row) {
+    return Number.isInteger(col) && Number.isInteger(row) && col >= 0 && col < MAP_WIDTH && row >= 0 && row < MAP_HEIGHT;
+  }
+
+  // Accepts "col,row" (editor tile), "app:x,y" (Unity app coordinates, the numbers the status bar prints after "App:")
+  // and a block address such as "B:4" (the centre of that ruler block, same as jumpToBlock). Returns {col,row},
+  // {error:'format'} for text that is none of these, or {error:'bounds'} for a well-formed address outside the map.
+  function _parseGotoEx(text) {
+    const s = (typeof text === 'string' || typeof text === 'number') ? String(text).trim().toLowerCase() : '';
+    let m = s.match(/^(-?\d+)\s*[, ]\s*(-?\d+)$/);
+    if (m) { const col = +m[1], row = +m[2]; return _inBounds(col, row) ? { col, row } : { error: 'bounds' }; }
+    m = s.match(/^app\s*:\s*(-?\d+)\s*[, ]\s*(-?\d+)$/);
+    if (m) {
+      // inverse of the status-bar formula: appX = (H-1-row) - floor(H/2), appY = col - floor(W/2)
+      const row = MAP_HEIGHT - 1 - (+m[1] + Math.floor(MAP_HEIGHT / 2));
+      const col = +m[2] + Math.floor(MAP_WIDTH / 2);
+      return _inBounds(col, row) ? { col, row } : { error: 'bounds' };
+    }
+    m = s.match(/^([a-z]):(\d+)$/);
+    if (m) {
+      const colIdx = m[1].charCodeAt(0) - 97, rowIdx = parseInt(m[2], 10) - 1;
+      if (colIdx >= _numCols() || rowIdx < 0 || rowIdx >= _numRows()) return { error: 'bounds' };
+      const col = MAP_WIDTH - 10 - rowIdx * BLOCK_SIZE, row = MAP_HEIGHT - 10 - colIdx * BLOCK_SIZE;
+      return (col >= 0 && row >= 0) ? { col, row } : { error: 'bounds' };   // the ruler skips such blocks too
+    }
+    return { error: 'format' };
+  }
+  function parseGoto(text) { const r = _parseGotoEx(text); return r.error ? null : r; }
+
+  // Centres the view on a tile at the current zoom (clamped like every camera move). No History step, no map edit,
+  // no tool gate: it only moves the camera. False (and no movement) for a cell outside the map.
+  function centerOnTile(col, row) {
+    if (!canvas || !_inBounds(col, row)) return false;
+    const scale = zoom / 100;
+    const w = hexCenterWorld(col, row);
+    cameraX = w.x * scale - canvas.width  / 2;
+    cameraY = w.y * scale - canvas.height / 2;
+    clampCamera();
+    render();
+    drawMinimap();
+    return true;
+  }
+
+  // The tile under the middle of the canvas (the point centerOnTile/centerOnCity aim at).
+  function getViewCenterTile() { return screenToHex(canvas.width / 2, canvas.height / 2); }
+
+  // Parse + jump; toasts the reason when it cannot. Returns true when the view moved.
+  function gotoText(text) {
+    const r = _parseGotoEx(text);
+    if (r.error === 'format') { UI.toast('Go to: use "col,row", "app:x,y" or a block such as "B:4"'); return false; }
+    if (r.error) { UI.toast(`Go to: that address is outside the map (tiles 0..${MAP_WIDTH - 1}, 0..${MAP_HEIGHT - 1})`); return false; }
+    return centerOnTile(r.col, r.row);
+  }
+
   function _rulerColAtScreenX(screenX) {
     const numCols = _numCols();
     const scale   = zoom / 100;
@@ -4891,7 +4978,7 @@ const Canvas = (() => {
     clampCamera, minZoom, reclampZoom, resize, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot,
-    jumpToBlock,
+    jumpToBlock, parseGoto, centerOnTile, getViewCenterTile, gotoText,
     selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight, setSelectionOverlay, setGhost, getGhostCells, getGhostStats, getHighlightPoints, setSymmetryGuide, getSymmetryGuide,
     toggleRulers: () => {
       _showRulers = !_showRulers;
