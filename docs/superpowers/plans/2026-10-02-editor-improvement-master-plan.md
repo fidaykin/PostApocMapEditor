@@ -11975,42 +11975,47 @@ git commit -m "feat(history): labelled history panel with click-to-jump" -m "Co-
 
 - **Review focus:** parallel `_undoMeta/_redoMeta` stay in lockstep with the snapshot stacks in every path (push, evict, undo, redo, clear); `jumpBy` relies only on public undo/redo.
 
-### Task T4.11: Narrow-window layout (decision point: make the right panels reachable below 1931 px)
+### Task T4.11: Narrow-window layout (controller ruling: option B, collapsible right panel)
 
-**Why this exists:** found during T2.13 review. The app has a fixed ~1931 px layout (`html, body { overflow: hidden }`, `#app` is a one-column `1fr` grid whose width is pushed by the non-wrapping toolbar row, `#main` is `220px 1fr 220px`). At 1400x900 the canvas is 1491 px wide and the whole right panel (minimap, brush, active terrain, anything placed there) starts at x≈1711, completely off-screen. Until this task is done, new controls go in the LEFT palette (standing rule). The owner chooses the option before any code is written.
+**Why this exists:** found during T2.13 review. The app has a fixed ~1931 px layout (`html, body { overflow: hidden }`, `#app` is a one-column `1fr` grid whose width is pushed by the non-wrapping toolbar row, `#main` is `220px 1fr 220px`). At 1400x900 the canvas is 1491 px wide and the whole right panel (minimap, brush, active terrain, anything placed there) starts at x about 1711, completely off-screen (1491 + 220 + 220 = 1931 > 1400). Until this task is done, new controls go in the LEFT palette (standing rule).
 
-**Decision point (owner picks one; the controller does not rule on this one because it changes canvas geometry and the perf baselines):**
+**Ruling (controller, option B; the owner had not answered).** ONE design, with no mixed claims:
 
-| Option | What changes | Cost |
-|---|---|---|
-| A. Let the toolbar wrap | Toolbar becomes multi-row below ~1931 px | Canvas height/width change at common viewports, so every perf hash and canvas-size assertion (1491x808 at 1400x900) changes; baselines must be re-recorded by the owner |
-| B. Collapsible / drawer side panels (recommended) | Right panel (and optionally the left palette) can be collapsed to a thin rail; the canvas fills the freed width; the toolbar scrolls horizontally instead of widening the page | More work, but the canvas size at the default expanded state can stay identical, so baselines stay valid; adds a persisted per-viewer collapsed state |
-| C. No change | Right panels stay as they are; document the minimum useful window width | None; the minimap/brush/active-terrain panels stay unreachable below ~1930 px |
+1. **Wide viewports (width >= 1920 px, "classic" threshold `NARROW_BELOW = 1920`):** the layout is exactly today's: toolbar row, left palette 220 px, canvas, right panel 220 px expanded inline. Nothing changes for these viewports (the canvas at 1920x1080 is today's size; the test compares against numbers recorded from the unchanged layout BEFORE editing).
+2. **Narrow viewports (width < 1920 px):** the right panel starts COLLAPSED (state `auto`) to a thin rail (about 28 px) holding the toggle button. The canvas fills the freed width: canvas width = viewport width - left palette - rail; canvas height is unchanged. The page never scrolls horizontally: the top toolbar gets `overflow-x: auto; flex-wrap: nowrap` (it scrolls inside itself) and no longer widens `#app`.
+3. **Expanding on a narrow viewport:** the panel opens as an OVERLAY DRAWER above the canvas (absolute, right-aligned, 220 px, does not reflow). The canvas element keeps the size it has while collapsed, so canvas hit-testing, the ruler strips and the minimap mapping stay correct; the drawer simply covers the right-most 220 px of the canvas while open. Minimap, brush panel and active-terrain panel are therefore reachable at every viewport by expanding.
+4. **Toggle:** `#right-panel-toggle`, a real `<button>` with `aria-expanded` and `aria-controls`, operable with Enter and Space, blurs to the map shortcuts after a pointer click (like the Layers buttons). State is stored per viewer under one localStorage key with the values `auto` (default), `collapsed`, `expanded`; every storage read and write is in try/catch and the page renders and works with storage blocked. At >= 1920 px `auto` means expanded inline; an explicit `collapsed` collapses there too and the canvas widens by the freed width.
+5. **Classic escape hatch for the perf specs:** the perf specs all run at a fixed 1400x900 viewport (`VIEWPORT` in `tests/perf-scene.ts`, applied with `test.use({ viewport: VIEWPORT })` in every `tests/perf-*.spec.ts`; `perf-zoom-floor.spec.ts` also resizes to 1400x900 and 2800x1800 inside one test). 1400 is below 1920, so under this design the canvas at that viewport WOULD change from 1491x808 and the canvas-pixel hashes in `tests/perf-baseline.json` would break. They are therefore NOT unaffected by default. To keep them valid without touching the baseline file, the same storage key accepts a fourth value `classic`, which forces today's fixed layout at any viewport (a documented, supported setting, not a test-only hack); `tests/perf-scene.ts` (and `tests/helpers.ts` `openEditor`, for specs that assert 1491x808) seed `classic` with `page.addInitScript` before load. The implementer must verify this by running `perf-equivalence.spec.ts` and the existing 1491x808 canvas-size test, and must never edit or regenerate `tests/perf-baseline.json`; if a hash still differs, stop and report.
 
-**Files (option B; adjust if the owner picks A):**
-- Modify: `MapEditorPro.html` (CSS for `#main`, `#right-panel`, `#toolbar` overflow; panel toggle buttons; persisted collapsed state with try/catch around storage)
+**Files:**
+- Modify: `MapEditorPro.html` (CSS for `#main`, `#right-panel`, `#toolbar` overflow; the rail, toggle and drawer; one `Canvas.resize` call per state change; persisted state with try/catch)
+- Modify: `tests/perf-scene.ts`, `tests/helpers.ts` (seed `classic`)
 - Create: `tests/layout-narrow.spec.ts`
 
 **Interfaces:**
 - Consumes: the existing `#right-panel` children (`#minimap`, brush panel, `#right-active-terrain`).
-- Produces: `#right-panel-toggle` (button, keyboard-activatable, `aria-expanded`), a persisted collapsed flag, and a rule that no control is ever unreachable at 1100x700 (either visible, scrollable into view, or behind a visible toggle).
+- Produces: `#right-panel-toggle` (`aria-expanded`), the persisted state key, a rule that no control is unreachable at 1100x700 (visible, scrollable into view inside the toolbar, or behind the visible toggle).
 
 - [ ] **Step 1: Write the failing tests** in `tests/layout-narrow.spec.ts`
-  - At 1100x700, 1280x720, 1400x900 and 1920x1080: the minimap, brush panel and active-terrain panel can each be brought fully inside the viewport (expanded, or via the toggle) and clicked with a real mouse click.
-  - Canvas size at 1400x900 with the right panel EXPANDED is unchanged (1491x808) for option B; with it collapsed the canvas is exactly the freed width wider.
-  - No horizontal page scroll appears at any of the four viewports.
-  - The toggle is keyboard-operable, restores focus to the map shortcuts, and persists across reload (storage unavailable: the page still renders).
+  - Record the canvas size at 1920x1080 and 1400x900 from the UNCHANGED layout first (as literals in the test, derived by running against the current HEAD).
+  - No horizontal PAGE scroll (`document.documentElement.scrollWidth <= innerWidth`, and `body`/`#app` not wider than the viewport) at 1100x700, 1280x720, 1400x900 and 1920x1080.
+  - At 1920x1080 with `auto`: the expanded layout equals today's (canvas size and right-panel position).
+  - At 1100x700, 1280x720 and 1400x900 with `auto`: the panel is collapsed, the canvas width equals viewport width - left palette - rail, the height is unchanged.
+  - At every one of the four viewports the minimap, brush panel and active-terrain panel can be brought fully inside the viewport by pressing the toggle (a real click, then a real click on each), and the canvas size is the same before and after expanding on the narrow ones (overlay, no reflow).
+  - A real mouse click on a map cell not covered by the drawer still paints the right cell with the drawer open (hit-testing stays correct), and a click at the same position with the panel collapsed hits the cell under the cursor.
+  - Toggle: keyboard-operable (Enter and Space), `aria-expanded` matches the state, persisted across reload, and with `localStorage` throwing the page still starts and the toggle still works for the session.
+  - `classic` forces today's fixed layout: the canvas at 1400x900 is 1491x808.
 - [ ] **Step 2: Run, confirm failure** against the current layout.
-- [ ] **Step 3: Implement** the owner's choice. Keep `tests/perf-baseline.json` untouched; if the choice changes canvas geometry, stop and ask the owner to re-record baselines (never regenerate them from the harness).
-- [ ] **Step 4: Run the full default suite once.** Pre-existing canvas-size assertions must stay green for option B.
+- [ ] **Step 3: Implement** the design above. Keep `tests/perf-baseline.json` untouched.
+- [ ] **Step 4: Run the full default suite once** (at the end of the whole plan, per the user directive). Pre-existing canvas-size assertions and perf hashes must stay green, which is what the `classic` seeding is for.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add MapEditorPro.html tests/layout-narrow.spec.ts
-git commit -m "feat(layout): reachable side panels in narrow windows" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
+git add MapEditorPro.html tests/layout-narrow.spec.ts tests/perf-scene.ts tests/helpers.ts
+git commit -m "feat(layout): collapsible right panel; narrow windows get the canvas width and a drawer" -m "Co-Authored-By: Claude Sonnet 5.5 <noreply@anthropic.com>"
 ```
 
-- **Review focus:** nothing becomes unreachable at 1100x700; canvas coordinates, hit-testing and the ruler strips stay correct when the panel collapses (resize observer / `Canvas.resize` called once per toggle, not per frame); minimap redraw after toggling; the collapsed state never blocks startup when storage throws; once this task lands, the Stamps panel may optionally move back to the right panel (separate owner decision).
+- **Review focus:** nothing becomes unreachable at 1100x700; canvas coordinates, hit-testing and the ruler strips stay correct when the panel collapses or the drawer opens (`Canvas.resize` called once per toggle, not per frame); minimap redraw after toggling; a storage that throws never blocks startup; `classic` leaves every pre-existing geometry assertion and perf hash unchanged; once this task lands, the Stamps panel may optionally move back to the right panel (separate owner decision).
 
 ---
 
