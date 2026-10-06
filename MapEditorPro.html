@@ -2713,7 +2713,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "b1b2f50";
+const COMMIT  = "beb0874";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9224,14 +9224,6 @@ const GitHubSync = (() => {
     return await res.json();
   }
 
-  async function loadBuildingDbFromServer() {
-    const res = await fetch(`${BASE_URL}/packages/postapoc/building_database.json?_=${Date.now()}`);
-    if (!res.ok) throw new Error(`packages/postapoc/building_database.json not found (${res.status})`);
-    const data = await res.json();
-    if (!data || !Array.isArray(data.buildings) || data.buildings.length === 0) return;
-    BldDB.load(JSON.stringify(data));
-  }
-
   async function loadUpgradeDbFromServer() {
     const res = await fetch(`${BASE_URL}/upgrade_database.json?_=${Date.now()}`);
     if (!res.ok) throw new Error(`upgrade_database.json not found (${res.status})`);
@@ -9449,7 +9441,7 @@ const GitHubSync = (() => {
     togglePublishDropdown, publishHexDbOnly, publishAllSprites, cleanGhostSprites,
     publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
-    loadHexDbIntoEditor, loadLocFromServer, loadBuildingDbFromServer, loadUpgradeDbFromServer, syncContentFromServer,
+    loadHexDbIntoEditor, loadLocFromServer, loadUpgradeDbFromServer, syncContentFromServer,
     openMapsPopover, closeMapsPopover, _loadMap,
     openContentManager, closeContentManager,
   };
