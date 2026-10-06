@@ -2708,7 +2708,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "68f096e";
+const COMMIT  = "84c2e04";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -12717,6 +12717,54 @@ const Packages = (() => {
 
   function _esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+  // ── Local-only packages (T5.12) ──────────────────────────────────────────────────────────────
+  // Without a token (or offline) a package lives only in this browser: its record (id, name, version, description,
+  // dependencies, preview, serverClaimed) is kept in `pkg_local_registry`, apart from the cached server registry, because
+  // every registry fetch replaces `_registry` wholesale. `localOnly` is an in-memory flag derived from that list; it is never
+  // sent to the server (publish/export write clean entries) and is cleared only after a fully successful publish.
+  const LS_LOCAL = 'pkg_local_registry';
+  const _LOCAL_FIELDS = ['id', 'name', 'version', 'description', 'dependencies', 'preview', 'serverClaimed'];
+  function _localRegistry() {
+    let a = [];
+    try { a = JSON.parse(localStorage.getItem(LS_LOCAL) || '[]'); } catch (e) { a = []; }
+    if (!Array.isArray(a)) return [];
+    const seen = new Set();
+    return a.filter(p => p && typeof p === 'object' && typeof p.id === 'string' && /^[a-z0-9][a-z0-9-]*$/.test(p.id) && p.id !== 'postapoc'
+      && !_FORBIDDEN_KEYS.has(p.id) && !seen.has(p.id) && seen.add(p.id));
+  }
+  function _saveLocal(list) {
+    const clean = list.map(p => { const o = {}; for (const k of _LOCAL_FIELDS) if (p[k] !== undefined) o[k] = p[k]; return o; });
+    try { localStorage.setItem(LS_LOCAL, JSON.stringify(clean)); }
+    catch (e) { console.warn('[Packages] could not save the local-only packages:', e.message); UI.toast('⚠ Could not store the local package list (storage full?)', { ms: 6000 }); }
+  }
+  function _localEntry(p) { return { ...p, isDefault: false, localOnly: true }; }
+  // Server packages plus every local-only one. A server package with the same id does NOT replace the local one (publishing
+  // would then overwrite it unnoticed): the local entry stays flagged and publish reports the clash. Exception: a publish
+  // that already claimed the id in the registry (`serverClaimed`, package.json not yet written) is the same package.
+  function _mergeLocal(serverList) {
+    const server = serverList.filter(p => !p.localOnly);
+    const local = _localRegistry();
+    const claimed = local.filter(p => p.serverClaimed && server.some(s => s.id === p.id));
+    if (claimed.length) _saveLocal(local.filter(p => !claimed.includes(p)));
+    const keep = local.filter(p => !claimed.includes(p));
+    const ids = new Set(keep.map(p => p.id));
+    return [...server.filter(p => !ids.has(p.id)), ...keep.map(_localEntry)];
+  }
+  function _cacheRegistry() {   // the cached SERVER registry only
+    try { localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry.filter(p => !p.localOnly))); } catch (e) {}
+  }
+  function _updateLocalRecord(id, patch) {
+    const l = _localRegistry();
+    const i = l.findIndex(p => p.id === id);
+    if (i < 0) return;
+    l[i] = { ...l[i], ...patch };
+    _saveLocal(l);
+    _registry = _registry.map(p => p.id === id ? { ...p, ...patch } : p);
+  }
+  function _removeLocalRecord(id) { _saveLocal(_localRegistry().filter(p => p.id !== id)); }
+  // No token or no connection: nothing can be verified or written, so work stays local.
+  function _isLocalMode() { return !GitHubSync.isPATConfigured() || (typeof navigator !== 'undefined' && navigator.onLine === false); }
+
   // Best <img src> for a hex ('hex') or building ('bld') record, honouring its package. Names and package ids are
   // untrusted: each is one encoded path segment.
   function spriteSrc(rec, kind) {
@@ -12953,8 +13001,10 @@ const Packages = (() => {
     try {
       const c = localStorage.getItem(LS_REGISTRY);
       const arr = c ? JSON.parse(c) : null;
-      if (Array.isArray(arr) && arr.length) { _registry = arr; _registryCached = true; }
+      const srv = Array.isArray(arr) ? arr.filter(p => p && typeof p === 'object' && !p.localOnly) : [];
+      if (srv.length) { _registry = srv; _registryCached = true; }
     } catch(e) {}
+    _registry = _mergeLocal(_registry);   // local-only packages are never in the cache
     if (_registryCached) _ensureActiveExists();     // a real cached registry already says it is gone; with only the built-in default the live registry decides
     renderActiveDropdowns(); renderBadges();
     _fetchRegistry();
@@ -12966,8 +13016,8 @@ const Packages = (() => {
       if (!res.ok) return;
       const data = await res.json();
       if (Array.isArray(data.packages)) {
-        _registry = data.packages;
-        try { localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry)); } catch(e) {}
+        _registry = _mergeLocal(data.packages);
+        _cacheRegistry();
         _ensureActiveExists();
         renderPanel();
         renderBadges();
@@ -13086,12 +13136,16 @@ const Packages = (() => {
       _el('a', { id: 'pkg-guide-link', href: GUIDE_URL, target: '_blank', rel: 'noopener', text: 'Packages guide (PDF)' })));
     if (!GitHubSync.isPATConfigured()) {
       kids.push(_el('div', { id: 'pkg-pat-warn', class: 'pkg-notice warn' },
-        'Creating, importing and publishing packages needs a GitHub token. ',
+        'Without a GitHub token you can create, edit, import and export packages locally (they stay in this browser); publishing needs a GitHub token. ',
         _btn('⚙ Add token', 'Open the GitHub settings to paste your access token', () => GitHubSync.openPATSettings())));
     }
     if (!GAME_LOADS_NON_DEFAULT) {
       kids.push(_el('div', { id: 'pkg-game-notice', class: 'pkg-notice',
         text: 'The game does not load non-default packages yet. Published packages are stored on the server, but only postapoc content appears in the game today.' }));
+    }
+    if (_registry.some(p => p.localOnly)) {
+      kids.push(_el('div', { id: 'pkg-local-notice', class: 'pkg-notice warn',
+        text: 'Packages marked "local only" are not on the server: they exist only in this browser until you publish them with a token (export a ZIP to keep a copy).' }));
     }
     if (!_registry.some(p => !p.isDefault)) {
       kids.push(_el('div', { id: 'pkg-empty', class: 'pkg-notice',
@@ -13109,6 +13163,7 @@ const Packages = (() => {
         : _btn('Set active', 'Make this the active package', () => setActive(p.id), { class: 'hexdb-tool-btn pkg-set-active' });
       const idCell = _el('td', {}, _el('code', { text: p.id }));
       if (p.isDefault) idCell.append(' ', _el('span', { class: 'pkg-badge', title: 'Built-in content that ships with the game; it cannot be deleted', text: 'default' }));
+      if (p.localOnly) idCell.append(' ', _el('span', { class: 'pkg-badge pkg-local-badge', title: 'Exists only in this browser until you publish it', text: 'local only' }));
       const actions = _el('td', {},
         _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
         _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
@@ -13400,6 +13455,7 @@ const Packages = (() => {
     if (r.dependencies !== undefined) next.dependencies = r.dependencies;
     _details[id] = next;
     _saveDetails();
+    if (e.localOnly) _updateLocalRecord(id, { ...(next.description !== undefined ? { description: next.description } : {}), ...(next.dependencies !== undefined ? { dependencies: next.dependencies.slice() } : {}) });
     renderPanel();
     return true;
   }
@@ -13579,15 +13635,17 @@ const Packages = (() => {
 
       // Same comparison publish shows (diffAgainstServer); a failed comparison is reported, never fatal.
       let diff = null, compareError = null, serverPkg = null, missing = [];
-      try { diff = await diffAgainstServer(id); serverPkg = diff.pkg || null; } catch (e) { compareError = e && e.message ? e.message : String(e); }
-      try { missing = await findMissingSprites(id); } catch (e) { missing = []; }
+      if (!entry.localOnly) {   // a local-only package has no published copy: no comparison, no request to the Contents API
+        try { diff = await diffAgainstServer(id); serverPkg = diff.pkg || null; } catch (e) { compareError = e && e.message ? e.message : String(e); }
+        try { missing = await findMissingSprites(id); } catch (e) { missing = []; }
+      }
       const differs = x => x.added.length + x.changed.length + x.removed.length + x.unkeyedLocal.length + x.unkeyedServer.length;
       const nHex = diff ? differs(diff.hex) : 0, nBld = diff ? differs(diff.bld) : 0;
-      if (!opts.skipWarning && (compareError || diff.firstPublish || nHex + nBld > 0 || missing.length)) {
+      if (!opts.skipWarning && (compareError || (diff && diff.firstPublish) || nHex + nBld > 0 || missing.length)) {
         const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
         const root = T('div', null, { id: 'pkg-export-warn' });
         if (compareError) root.appendChild(T('p', `Could not compare with the published version (${compareError}). The ZIP will contain your local version.`));
-        else if (diff.firstPublish) root.appendChild(T('p', 'This package has never been published. The ZIP will contain your local version.'));
+        else if (diff && diff.firstPublish) root.appendChild(T('p', 'This package has never been published. The ZIP will contain your local version.'));
         else if (nHex + nBld) root.appendChild(T('p', `Unpublished changes: ${nHex} hex tile${nHex === 1 ? '' : 's'} and ${nBld} building${nBld === 1 ? '' : 's'} differ from the published version (new, changed or only on the server). The ZIP will contain your local version.`));
         if (missing.length) {
           root.appendChild(T('p', `${missing.length} sprite(s) were found neither locally nor on the server and will be missing from the ZIP:`));
@@ -13607,7 +13665,7 @@ const Packages = (() => {
       const JSZip = await _loadJSZip();
       const zip = new JSZip();
       const version = (serverPkg && serverPkg.version) || entry.version || '1.0.0';
-      const { localOnly, ...cleanEntry } = entry;
+      const { localOnly, serverClaimed, ...cleanEntry } = entry;
       const det = _mergedDetails(id, entry, serverPkg);   // local description/dependencies win
       const previewUrl = await getPreview(id);
       let previewBlob = null;
@@ -13711,7 +13769,10 @@ const Packages = (() => {
   }
 
   // Returns an error message if the id must not be used, else null.
+  // Without a token or connection the id cannot be verified: that is 'cannot verify, allow with a warning' (null; the caller
+  // warns and keeps the work local). Publish re-checks it online before anything is written.
   async function _serverIdProblem(id) {
+    if (_isLocalMode()) return null;
     const st = await _serverHasPackage(id);
     if (st === 'taken') return `Package "${id}" already exists on the server. Pick another id.`;
     if (st !== 'free') return 'Could not verify that the id is free \u2014 check your connection and try again.';
@@ -13741,6 +13802,15 @@ const Packages = (() => {
 
     closeNewModal();
 
+    if (_isLocalMode()) {   // no token or offline: local-only, not a single request
+      _saveLocal([..._localRegistry(), { id: rawId, name, version: '1.0.0', description: '', preview: 'preview.png' }]);
+      _registry = _mergeLocal(_registry);
+      UI.toast(`✅ Package "${name}" created locally. It is not on the server, and its id could not be verified; publish it later with a token.`, { ms: 7000 });
+      renderPanel();
+      renderActiveDropdowns();
+      return;
+    }
+
     try {
       UI.progress(10, `Creating package "${rawId}"…`);
 
@@ -13760,8 +13830,8 @@ const Packages = (() => {
       await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: add ${rawId}`, regSha);
 
       // Update local state
-      _registry = regData.packages;
-      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      _registry = _mergeLocal(regData.packages);
+      _cacheRegistry();
       UI.progressDone(`✅ Package "${name}" created`);
       UI.toast(`✅ Package "${name}" created`);
       renderPanel();
@@ -14045,6 +14115,11 @@ const Packages = (() => {
       // The published package.json is the commit marker: it is written last, and the next version
       // is derived from it (not from the registry cache), so a retry after a partial failure
       // computes the same version again.
+      // A local-only package must not land on an id somebody else published meanwhile (never overwritten, nothing written).
+      if (entry.localOnly && !entry.serverClaimed) {
+        const clash = await _serverIdProblem(id);
+        if (clash) throw new Error(clash);
+      }
       const pkgFile = await _fetchPackageJson(id);
       const serverPkg = pkgFile ? pkgFile.json : null;
       const baseVer = serverPkg?.version || entry.version || '1.0.0';
@@ -14101,10 +14176,12 @@ const Packages = (() => {
       else  // e.g. removed meanwhile, or created moments ago: publishing must not leave it unlisted
         regData.packages.push(regEntry({ id, name: entry.name || id, isDefault: false }));
       await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: bump ${id} to ${newVersion}`, regSha);
+      if (entry.localOnly) _updateLocalRecord(id, { serverClaimed: true });   // the id is ours now; a retry after a failure must not call it taken
 
       UIprogress(92, `Updating ${id}/package.json…`);
+      const { localOnly: _lo, serverClaimed: _sc, ...cleanEntry } = entry;
       const pkgJson = JSON.stringify({
-        ...(serverPkg || {}), ...entry,
+        ...(serverPkg || {}), ...cleanEntry,
         version: newVersion,
         description: det.description,
         dependencies: det.dependencies,
@@ -14113,8 +14190,9 @@ const Packages = (() => {
       }, null, 2);
       await GitHubSync._putText(`packages/${id}/package.json`, pkgJson, `publish ${id}: package.json`, pkgFile ? pkgFile.sha : null);
 
-      _registry = regData.packages;
-      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      _removeLocalRecord(id);   // fully published: no longer local-only
+      _registry = _mergeLocal(regData.packages);
+      _cacheRegistry();
       const spriteNote = spriteResult.total
         ? `, ${spriteResult.pushed}/${spriteResult.total} sprites`
         : '';
@@ -14221,6 +14299,22 @@ const Packages = (() => {
   async function restoreDeleted(id) {
     const item = listTrash().find(t => t.id === id);
     if (!item) return UI.toast('⚠ Nothing to restore for this package');
+    if (item.entry && item.entry.localOnly) {   // it only ever existed in this browser: restore it there, no network
+      if (getEntry(id)) return UI.toast(`⚠ Package "${id}" already exists; discard or rename it before restoring`);
+      const rec = { id, name: item.entry.name || id, version: item.entry.version || '1.0.0' };
+      for (const k of ['description', 'dependencies', 'preview']) if (item.entry[k] !== undefined) rec[k] = item.entry[k];
+      _saveLocal([..._localRegistry(), rec]);
+      _registry = _mergeLocal(_registry);
+      const haveH = new Set(HexDB.getAll().map(x => `${x.package || 'postapoc'}::${x.id}`));
+      const haveB = new Set(BldDB.getAll().map(x => `${x.package || 'postapoc'}::${x.id}`));
+      const h = HexDB.addEntries(item.hexes.filter(x => !haveH.has(`${x.package || 'postapoc'}::${x.id}`)));
+      const b = BldDB.addEntries(item.buildings.filter(x => !haveB.has(`${x.package || 'postapoc'}::${x.id}`)));
+      _writeTrash(listTrash().filter(t => t.id !== id));
+      UI.toast(`✅ Package "${id}" restored locally (${h} hex tile(s), ${b} building(s))`);
+      renderPanel();
+      renderActiveDropdowns();
+      return;
+    }
     try {
       UI.progress(30, 'Updating registry.json…');
       // Live read (no-store Contents API): the lagging Pages copy can still list an id that was just
@@ -14231,8 +14325,8 @@ const Packages = (() => {
         regData.packages.push({ ...(item.entry || { name: id, isDefault: false, version: '1.0.0' }), id });
         await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: restore ${id}`, regSha);
       }
-      _registry = regData.packages;
-      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      _registry = _mergeLocal(regData.packages);
+      _cacheRegistry();
       // Do not overwrite entries the user has since created or edited under the same key.
       const hKey = h => `${h.package || 'postapoc'}::${h.id}`;
       const haveH = new Set(HexDB.getAll().map(hKey));
@@ -14265,6 +14359,17 @@ const Packages = (() => {
     } catch(e) { console.warn('[Packages] restore copy failed:', e.message); }
     if (!stored.ok) { _writeTrash(prevTrash); return UI.toast('⚠ Could not save a restore copy, so the package was not deleted'); }
     const evictOpts = stored.evicted.length ? { detail: `Storage was full, so the oldest restore copy was discarded: ${stored.evicted.join(', ')}` } : {};
+    if (getEntry(id)?.localOnly) {   // never on the server: nothing to write there; the trash copy above is the way back
+      _removeLocalRecord(id);
+      _registry = _mergeLocal(_registry);
+      if (_active === id) setActive('postapoc');
+      let note = '';
+      if (opts.removeEntries) note = ` (${HexDB.removeByPackage(id)} hex tile(s), ${BldDB.removeByPackage(id)} building(s) removed)`;
+      UI.toast(`✅ Local package "${id}" deleted${note}. Restore it from Recently deleted.`, evictOpts);
+      renderPanel();
+      renderActiveDropdowns();
+      return;
+    }
     let putStarted = false;
     let registryWritten = false;
     try {
@@ -14276,8 +14381,8 @@ const Packages = (() => {
       putStarted = true;
       await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: remove ${id}`, regSha);
       registryWritten = true;
-      _registry = regData.packages;
-      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      _registry = _mergeLocal(regData.packages);
+      _cacheRegistry();
       if (_active === id) setActive('postapoc');
       let note = '';
       if (opts.removeEntries) {
@@ -14775,7 +14880,9 @@ const Packages = (() => {
 
     // The id may exist in this editor (conflict flow below) but must not belong to anything else on the server.
     const localHere = !!getEntry(newId) || HexDB.getAll().some(h => h.package === newId) || BldDB.getAll().some(b => b.package === newId);
-    if (localHere) {
+    const localMode = _isLocalMode();   // no token / offline: the import stays in this browser (T5.12), no request at all
+    if (localMode) { /* cannot verify the id: allowed, with the warning shown after the import */ }
+    else if (localHere) {
       if (await _serverHasPackage(newId) === 'unknown') return refuse('Could not verify that the id is free — check your connection and try again.');
     } else {
       const problem = await _serverIdProblem(newId);
@@ -14823,6 +14930,7 @@ const Packages = (() => {
 
     const written = [];
     const put = async (path, doPut) => {
+      if (localMode) return;
       const rec = { path, prev: await GitHubSync._snapshotFile(path) };
       written.push(rec);
       await doPut();
@@ -14830,7 +14938,7 @@ const Packages = (() => {
     let keepServer = false;
     try {
       UI.progress(0, 'Starting import…');
-      await _readRegistry();   // fail closed before anything is written
+      if (!localMode) await _readRegistry();   // fail closed before anything is written
       if (mode === 'replace') {
         localTouched = true;
         const kept = _storeTrash([
@@ -14891,6 +14999,22 @@ const Packages = (() => {
         localSprites[SpriteStore.keyFor(newId, sp.name)] = sp.dataUrl;
       }
 
+      if (localMode) {   // local registry record instead of the server registry
+        const rec = { id: newId, name, version, description: det.description, dependencies: det.dependencies.slice(), ...(previewUrl ? { preview: 'preview.png' } : {}) };
+        const cur = getEntry(newId);
+        if (!cur) _saveLocal([..._localRegistry(), rec]);
+        else if (cur.localOnly) _updateLocalRecord(newId, { name, description: det.description, dependencies: det.dependencies.slice() });
+        _registry = _mergeLocal(_registry);
+        Terrain.registerUploadedUrls(localSprites);
+        UI.progressDone(`✅ Package '${name}' imported locally`);
+        UI.toast(`✅ Package '${name}' imported locally (${hexes.length} hex tiles, ${buildings.length} buildings). It is not on the server, and its id could not be verified; publish it later with a token.`, { ms: 8000 });
+        _importResult = { status: 'ok', remaining: [] };
+        renderPanel();
+        renderActiveDropdowns();
+        closeImportModal();
+        return;
+      }
+
       // Registry LAST
       UI.progress(95, 'Updating registry…');
       const { regData, sha: regSha } = await _readRegistry();
@@ -14915,8 +15039,8 @@ const Packages = (() => {
         if (!committed) throw e;
       }
 
-      _registry = regData.packages;
-      localStorage.setItem(LS_REGISTRY, JSON.stringify(_registry));
+      _registry = _mergeLocal(regData.packages);
+      _cacheRegistry();
       Terrain.registerUploadedUrls(localSprites);
       UI.progressDone(`✅ Package '${name}' imported`);
       const verb = mode === 'replace' ? 'replaced' : mode === 'merge' ? 'merged' : 'imported';
@@ -14946,7 +15070,7 @@ const Packages = (() => {
            openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
-           _rewriteEntries, _rewriteAll, _rollback, getImportResult, confirmImport,
+           _rewriteEntries, _rewriteAll, _rollback, getImportResult, confirmImport, _serverIdProblem,
            parseDependency, getDetails, getDependencies, validateDetails, updateDetails, findDependencyCycle, resolveWithDependencies,
            makePreview512, savePreview, getPreview, removePreview, openDetails };
 })();
