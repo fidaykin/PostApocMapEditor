@@ -2447,7 +2447,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "c0acf91";
+const COMMIT  = "07fdd4d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5576,14 +5576,19 @@ const Stamps = (() => {
     const same = Tools.isPasting() && !!_cache && Tools.getFloatBuffer() === _cache.buf && _cache.id === rec.id;
     if (!_cache || _cache.id !== rec.id) {
       const buf = api.toBuffer(rec), ids = new Map();       // through the public object: one counted call per stamp
-      for (const c of buf.cells) ids.set(c.t, (ids.get(c.t) || 0) + 1);
+      for (const c of buf.cells) { const k = c.t + '\u0000' + (c.o || ''); ids.set(k, (ids.get(k) || 0) + 1); }   // terrain id + building id per cell
       _cache = { id: rec.id, buf, ids };
     }
     Tools.beginPaste(_cache.buf);
     if (same || !Tools.isPasting()) return;
-    let missing = 0;
-    for (const [id, n] of _cache.ids) if (!Terrain.byHexId(id)) missing += n;
-    if (missing) _toast(missing + (missing === 1 ? ' cell uses a tile that is not loaded' : ' cells use tiles that are not loaded'));
+    let missing = 0, tiles = false, blds = false;
+    const known = new Set(BldDB.getAll().map(b => b.id));
+    for (const [k, n] of _cache.ids) {
+      const [t, o] = k.split('\u0000'), noTile = !Terrain.byHexId(t), noBld = !!o && !known.has(o);
+      if (noTile || noBld) { missing += n; tiles = tiles || noTile; blds = blds || noBld; }
+    }
+    const what = tiles && blds ? 'tiles or buildings' : blds ? 'buildings' : 'tiles', one = tiles && blds ? 'a tile or building' : blds ? 'a building' : 'a tile';
+    if (missing) _toast(missing + (missing === 1 ? ' cell uses ' + one + ' that is not loaded' : ' cells use ' + what + ' that are not loaded'));
   }
   async function _confirmRemove(rec) {
     const ok = await UI.confirm('Delete stamp', 'Delete the stamp "' + rec.name + '"? It cannot be undone.', '', 'Delete');
@@ -6905,6 +6910,7 @@ const Tools = (() => {
   function _endPaste(msg) {
     const t = _prevTool || 'paint';
     setActive(t === 'paste' ? 'paint' : t);
+    if (_active === 'paste') setActive('paint');       // the previous tool is unavailable (e.g. Bridge with no bridge buildings loaded): never stay in paste with a live float
     if (msg) UI.toast(msg);
     Canvas.render();
   }
@@ -7170,7 +7176,10 @@ const Tools = (() => {
         break;
       case 'object':
       case 'erase-object':
-        if (_active === 'object' && !_selectedBuildingId) { UI.toast('Pick a building first'); _isDown = false; break; }
+        // the selection is revalidated on every press (like the Bridge tool): an id that vanished with a package change is not written
+        if (_active === 'object' && (!_selectedBuildingId || !BldDB.getAll().some(b => b.id === _selectedBuildingId))) {
+          _selectedBuildingId = null; _updateBuildingLabel(); UI.toast('Pick a building first'); _isDown = false; break;
+        }
         _beginLazyStroke();
         if (_active === 'object') _placeObject(col, row); else _eraseObject(col, row);
         _lastObjectPainted = { col, row };

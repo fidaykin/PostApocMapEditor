@@ -621,3 +621,62 @@ test.describe('W1-4 zone ids are map-local', () => {
     expect(r).toEqual({ ok: 1, bad: true, stored: [false] });
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// W1-5: smaller integrity fixes.
+test.describe('W1-5 integrity', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); await spyToasts(page); });
+
+  test('Place Building revalidates its selection on press: a building that vanished with its package is not written', async ({ page }) => {
+    await page.evaluate(() => {
+      BldDB.addEntries([{ id: 'Gone_Bld_1', spriteName: 'Gone_Bld_1', buildingCategory: 'Industrial', package: 'gone' }]);
+      Tools.setActive('object'); Tools.selectBuilding('Gone_Bld_1');
+      document.getElementById('obj-building-picker')!.style.display = 'none';
+    });
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId()), 'positive control: it was selected').toBe('Gone_Bld_1');
+    await page.evaluate(() => { BldDB.removeByPackage('gone'); });
+    const s0 = await page.evaluate(() => History.undoSize());
+    await clickCell(page, 227, 224);
+    expect(await page.evaluate(() => Object.keys(objectsData))).toEqual([]);
+    expect(await page.evaluate(() => History.undoSize())).toBe(s0);
+    expect((await toasts(page)).filter(t => /Pick a building first/.test(t)).length).toBe(1);
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBeNull();
+    // control: a loaded building still places
+    await page.evaluate(() => { Tools.selectBuilding('Artefact_Test_1'); });
+    await clickCell(page, 227, 224);
+    expect(await page.evaluate(() => objectsData['227,224'])).toBe('Artefact_Test_1');
+  });
+
+  test('pasting a stamp counts cells with a building that is not loaded (alone, and together with a missing tile)', async ({ page }) => {
+    await page.evaluate(async () => {
+      await Stamps.importJson(JSON.stringify({ format: 'mapeditor-stamps', version: 1, stamps: [
+        { name: 'bld-only', cells: [{ dq: 0, dr: 0, t: 'Forest_1', o: 'Ghost_Bld_1' }, { dq: 1, dr: 0, t: 'Forest_1', o: 'Artefact_Test_1' }, { dq: 0, dr: 1, t: 'Forest_1', o: 'Ghost_Bld_2' }] },
+        { name: 'both', cells: [{ dq: 0, dr: 0, t: 'NoSuch_Tile', o: 'Ghost_Bld_1' }, { dq: 1, dr: 0, t: 'Forest_1', o: 'Ghost_Bld_3' }, { dq: 0, dr: 1, t: 'Forest_1' }] },
+      ] }));
+      await Stamps.refresh();
+    });
+    const place = async (name: string) => {
+      await page.evaluate(() => { (window as any).__toasts.length = 0; });
+      await page.locator('.stamp-row', { hasText: name }).locator('.stamp-name').click();
+      return toasts(page);
+    };
+    expect((await place('bld-only')).filter(t => /not loaded/.test(t))).toEqual(['2 cells use buildings that are not loaded']);
+    await page.keyboard.press('Escape');
+    expect((await place('both')).filter(t => /not loaded/.test(t))).toEqual(['2 cells use tiles or buildings that are not loaded']);
+  });
+
+  test('ending a paste whose previous tool is unavailable (Bridge with no bridge buildings) falls back to Paint and drops the float', async ({ page }) => {
+    await page.evaluate(() => {
+      Tools.setActive('bridge');
+      mapData[220 * MAP_WIDTH + 220] = 'Forest_1';
+      Clipboard.set(Clipboard.capture([{ col: 220, row: 220 }]));
+      Tools.beginPaste(Clipboard.get());
+      (window as any).__orig = BldDB.getAll;
+      BldDB.getAll = () => (window as any).__orig.call(BldDB).filter((b: any) => b.buildingCategory !== 'Bridge');   // the bridge package went away
+    });
+    expect(await page.evaluate(() => [Tools.getActive(), Tools.isPasting()]), 'positive control: pasting, previous tool = bridge').toEqual(['paste', true]);
+    await page.keyboard.press('Escape');
+    const r = await page.evaluate(() => { const o = [Tools.getActive(), Tools.isPasting(), Tools.getFloatBuffer()]; BldDB.getAll = (window as any).__orig; return o; });
+    expect(r).toEqual(['paint', false, null]);
+  });
+});
