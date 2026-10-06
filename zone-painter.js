@@ -509,13 +509,31 @@ const ZonePainter = (() => {
     if (allow.settlements) fillZoneSettlements(id, mapData, settlements);
   }
 
+  // Fills the given zones as ONE History step. With terrain free the step is always taken (terrain is written). With terrain
+  // locked only settlements can change: they are computed on the side first and the step is taken only when the settlement
+  // list really changes (never an empty step); the result is written AFTER History.push. Returns true when something was written.
+  function _fillZonesStep(ids, allow) {
+    if (allow.terrain) {
+      if (typeof History !== 'undefined') History.push();
+      ids.forEach(id => _fillZone(id, allow));
+      return true;
+    }
+    const before = settlements.slice(), beforeJson = JSON.stringify(before);
+    ids.forEach(id => fillZoneSettlements(id, mapData, settlements));
+    const result = settlements.slice();
+    settlements.splice(0, settlements.length, ...before);          // undo the dry run
+    if (JSON.stringify(result) === beforeJson) { if (typeof UI !== 'undefined') UI.toast('Nothing to place: terrain is locked and no settlements would change'); return false; }
+    if (typeof History !== 'undefined') History.push();
+    settlements.splice(0, settlements.length, ...result);
+    return true;
+  }
+
   function _fillAllZones() {
     const zones = _zones;
     if (zones.length === 0) { UI.toast('⚠ No zones defined. Add a zone first.', { ms: 3000 }); return; }
     const allow = _lockedFill();
     if (!allow) return;
-    if (typeof History !== 'undefined') History.push();
-    zones.forEach(z => _fillZone(z.id, allow));
+    if (!_fillZonesStep(zones.map(z => z.id), allow)) return;
     Canvas.render();
     Canvas.drawMinimap();
     IO.scheduleAutoSave();
@@ -581,8 +599,9 @@ const ZonePainter = (() => {
   function _randomizeFillUI() {
     if (typeof mapData === 'undefined' || !mapData) { UI.toast('⚠ No map loaded'); return; }
     if (_refuse('zones')) return;                 // it replaces the zone list and the zone layer
-    const allow = _lockedFill();
-    if (!allow) return;
+    // terrain and settlements both locked: only the zone layer is randomised (zones are free)
+    const allow = { terrain: !_isLocked('terrain'), settlements: !_isLocked('settlements') };
+    if (typeof History !== 'undefined') History.push();        // before the first write (zone list and layer)
 
     // Build one zone per available preset (builtins + any user presets).
     // This replaces the current zone list so the panel reflects what was used.
@@ -599,9 +618,7 @@ const ZonePainter = (() => {
     const scaleEl = document.getElementById('rnd-zone-scale');
     const scale = scaleEl ? parseFloat(scaleEl.value) || 0.04 : 0.04;
     _randomizeZoneLayer(seed, scale);
-
-    if (typeof History !== 'undefined') History.push();
-    _zones.forEach(z => _fillZone(z.id, allow));
+    if (allow.terrain || allow.settlements) _zones.forEach(z => _fillZone(z.id, allow));
 
     _showOverlay = true;
     const btn = document.getElementById('btn-zone-overlay');
@@ -683,6 +700,7 @@ const ZonePainter = (() => {
   }
 
   function _uiAddZone() {
+    if (_refuse('zones')) return;                 // zone definitions are saved with the zones layer
     const id = addZone();
     _selectedZoneId = id;
     _uiRebuildZoneList();
@@ -701,12 +719,14 @@ const ZonePainter = (() => {
   function _uiRenameZone(id, name) {
     const z = _zones.find(z => z.id === id);
     if (!z) return;
+    if (_refuse('zones')) { _uiRebuildZoneList(); return; }   // the typed name is dropped
     z.name = name.trim() || `Zone ${id}`;
     _uiRebuildZoneList();
     if (typeof IO !== 'undefined') IO.scheduleAutoSave();
   }
 
   function _uiPickColor(id, swatchEl) {
+    if (_refuse('zones')) return;
     const input = document.createElement('input');
     input.type = 'color';
     const zone = _zones.find(z => z.id === id);
@@ -724,6 +744,7 @@ const ZonePainter = (() => {
   }
 
   let _workingPreset = null;
+  let _sliderToastAt = 0;
 
   function _uiRebuildZoneConfig() {
     const panel = document.getElementById('zone-config-panel');
@@ -754,6 +775,7 @@ const ZonePainter = (() => {
   }
 
   function _uiPresetChanged(presetId) {
+    if (_refuse('zones')) { _uiRebuildZoneConfig(); return; }   // restores the dropdown
     const zone = _zones.find(z => z.id === _selectedZoneId);
     if (zone) zone.presetId = presetId;
     _workingPreset = Object.assign({}, getPreset(presetId) || _presets[0]);
@@ -762,6 +784,11 @@ const ZonePainter = (() => {
 
   function _uiPresetSlider(field, value) {
     if (!_workingPreset) return;
+    if (_isLocked('zones')) {                     // restores the sliders; one toast per second of dragging
+      const now = Date.now();
+      if (now - _sliderToastAt > 1000) { _sliderToastAt = now; _refuse('zones'); }
+      _uiRebuildZoneConfig(); return;
+    }
     _workingPreset[field] = value;
     const zone = _zones.find(z => z.id === _selectedZoneId);
     if (zone) {
@@ -813,13 +840,13 @@ const ZonePainter = (() => {
     if (!_selectedZoneId) return;
     const allow = _lockedFill();
     if (!allow) return;
-    if (typeof History !== 'undefined') History.push();
-    _fillZone(_selectedZoneId, allow);
+    if (!_fillZonesStep([_selectedZoneId], allow)) return;
     if (typeof Canvas !== 'undefined') { Canvas.render(); Canvas.drawMinimap(); }
     if (typeof IO !== 'undefined') IO.scheduleAutoSave();
   }
 
   async function _uiSavePreset() {
+    if (_refuse('zones')) return;                 // user presets are saved with the zones
     const name = await UI.prompt('Save preset', 'Preset name:', _workingPreset?.name || 'My Preset');
     if (!name || !name.trim()) return;
     const trimmed = name.trim();

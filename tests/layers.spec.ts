@@ -1667,3 +1667,100 @@ test.describe('layers: lock gaps (cleanup A5)', () => {
     expect(await page.evaluate(() => settlementPriority1)).toEqual(['Water_1', 'Forest_1']);
   });
 });
+
+test.describe('layers: zones, fills and polygons under locks (cleanup A5)', () => {
+  test.beforeEach(async ({ page }) => { await lockEditor(page); await page.evaluate(() => { window.confirm = () => true; }); });
+  const zoneSeed2 = async (page: any, preset: string) => {
+    await resetMap(page);
+    await page.evaluate((pr: string) => {
+      const id = ZonePainter.addZone('Z'); ZonePainter.setSelectedZoneId(id);
+      ZonePainter.getZones().find((z: any) => z.id === id).presetId = pr;
+      const zl = ZonePainter.getZoneLayer();
+      for (let r = 215; r < 235; r++) for (let c = 215; c < 235; c++) zl[r * MAP_WIDTH + c] = id;
+    }, preset);
+  };
+  const nSettle = (page: any) => page.evaluate(() => settlements.length);
+
+  test('zone definitions (add, rename, colour, preset, sliders, save preset) are refused on a locked zones layer; unlocked they work (control)', async ({ page }) => {
+    await zoneSeed2(page, 'forest_edge');
+    await setLocks(page, ['zones']);
+    const before = await snap(page);
+    const defs = () => page.evaluate(() => JSON.stringify(ZonePainter.getZones()) + JSON.stringify(ZonePainter.getPresets().length));
+    const d0 = await defs();
+    await page.evaluate(async () => {
+      const id = ZonePainter.getSelectedZoneId();
+      ZonePainter._uiAddZone();
+      ZonePainter._uiRenameZone(id, 'Renamed');
+      ZonePainter._uiPickColor(id, document.createElement('div'));
+      ZonePainter._uiRebuildZoneConfig();
+      ZonePainter._uiPresetChanged('mountain_rim');
+      ZonePainter._uiPresetSlider('patchScale', 77);
+      await ZonePainter._uiSavePreset();
+    });
+    expect(await defs()).toBe(d0);
+    expect(await snap(page)).toBe(before);
+    expect(await page.evaluate(() => document.querySelectorAll('body > input[type=color]').length)).toBe(0);
+    expect((await lockedToasts(page)).length).toBeGreaterThanOrEqual(5);
+    await unlockAll(page);
+    await page.evaluate(() => { const id = ZonePainter.getSelectedZoneId(); ZonePainter._uiAddZone(); ZonePainter._uiRenameZone(id, 'Renamed'); ZonePainter._uiRebuildZoneConfig(); ZonePainter._uiPresetChanged('mountain_rim'); });
+    expect(await page.evaluate(() => ZonePainter.getZones().length)).toBe(2);
+    expect(await page.evaluate(() => ZonePainter.getZones()[0].name + '/' + ZonePainter.getZones()[1].presetId)).toBe('Renamed/mountain_rim')   // the added zone is the selected one;
+  });
+
+  for (const action of ['_fillAllZones', '_uiFillThisZone']) {
+    test(`${action}: terrain locked pushes a step only when settlements are really placed (no empty step)`, async ({ page }) => {
+      await zoneSeed2(page, 'mountain_rim');                      // density none: nothing to place
+      await setLocks(page, ['terrain']);
+      const s0 = await steps(page), before = await snap(page);
+      await page.evaluate((a: string) => (ZonePainter as any)[a](), action);
+      expect(await steps(page), 'no empty step').toBe(s0);
+      expect(await snap(page)).toBe(before);
+      await zoneSeed2(page, 'ruined_district');                   // dense: settlements are placed (positive control)
+      await setLocks(page, ['terrain']);
+      const s1 = await steps(page), n1 = await nSettle(page), t1 = await terrainKinds2(page);
+      await page.evaluate((a: string) => (ZonePainter as any)[a](), action);
+      expect(await steps(page)).toBe(s1 + 1);
+      expect(await nSettle(page)).toBeGreaterThan(n1);
+      expect(await terrainKinds2(page)).toBe(t1);
+      await page.evaluate(() => History.undo());
+      expect(await nSettle(page)).toBe(n1);                       // one undo takes the settlements back
+    });
+  }
+  const terrainKinds2 = (page: any) => page.evaluate(() => new Set(mapData).size);
+
+  test('Enter on a pending polygon after terrain was locked refuses with a toast and keeps the vertices (a later Enter commits them)', async ({ page }) => {
+    await resetMap(page);
+    await page.evaluate(() => Tools.setActive('polygon'));
+    for (const [c, r] of [[220, 220], [230, 220], [225, 230]]) await clickCell(page, c, r);
+    await setLocks(page, ['terrain']);
+    const s0 = await steps(page), before = await snap(page);
+    await page.keyboard.press('Enter');
+    expect(await snap(page)).toBe(before);
+    expect(await steps(page)).toBe(s0);
+    expect((await lockedToasts(page)).length).toBe(1);
+    await unlockAll(page);
+    await page.keyboard.press('Enter');
+    expect(await steps(page), 'the vertices survived').toBe(s0 + 1);
+    expect(await terrainKinds2(page)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => mapData[225 * MAP_WIDTH + 225])).toBe('Plain_1');
+  });
+
+  test('Randomize & Fill with terrain AND settlements locked randomises only the zone layer (one step; undo restores the empty layer); unlocked undo does too', async ({ page }) => {
+    await resetMap(page);
+    await setLocks(page, ['terrain', 'settlements']);
+    const s0 = await steps(page), m0 = await page.evaluate(() => mapData.join('|')), n0 = await nSettle(page);
+    await page.evaluate(() => ZonePainter._randomizeFillUI());
+    const cells = () => page.evaluate(() => { let n = 0; for (const v of ZonePainter.getZoneLayer()) if (v) n++; return n; });
+    expect(await cells()).toBeGreaterThan(1000);
+    expect(await page.evaluate(() => mapData.join('|'))).toBe(m0);
+    expect(await nSettle(page)).toBe(n0);
+    expect(await steps(page)).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    expect(await cells(), 'the snapshot predates the zone writes').toBe(0);
+    await resetMap(page);
+    await page.evaluate(() => ZonePainter._randomizeFillUI());
+    expect(await cells()).toBeGreaterThan(1000);
+    await page.evaluate(() => History.undo());
+    expect(await cells()).toBe(0);
+  });
+});

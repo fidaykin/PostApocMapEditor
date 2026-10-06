@@ -1232,7 +1232,7 @@ body.mode-common #map-io    { display: none; }
 
 </style>
 <script src="hex-utils.js?v=1"></script>
-<script src="zone-painter.js?v=10"></script>
+<script src="zone-painter.js?v=11"></script>
 <script src="map-jobs.js?v=2"></script>
 </head>
 <body class="mode-map">
@@ -2442,7 +2442,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "1963bd3";
+const COMMIT  = "d39667a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6747,6 +6747,7 @@ const Tools = (() => {
     if (_shapeStale()) { _cancelStale(); return; }
     const verts = _polyVerts.filter((v, i, a) => i === 0 || v.col !== a[i - 1].col || v.row !== a[i - 1].row);
     if (verts.length > 1 && verts[0].col === verts[verts.length - 1].col && verts[0].row === verts[verts.length - 1].row) verts.pop();
+    if (verts.length >= 2 && !_fillBusy && _layerLocked('terrain', true)) return;   // terrain locked since the corners were set: refuse (toast), keep the polygon
     _cancelShape();
     if (verts.length < 2) return;      // a single corner is not a polygon: discard, no history step
     _commitCells(_polyCells(verts, outlineOnly));
