@@ -2444,7 +2444,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "3bd8aa5";
+const COMMIT  = "fbdaa9d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7416,18 +7416,23 @@ const Tools = (() => {
       }
       if ((e.code === 'Delete' || e.code === 'Backspace') && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal() && !Selection.isEmpty()) { e.preventDefault(); deleteSelection(); return; }
       // Letter shortcuts: the TYPED letter wins on Latin layouts (AZERTY physical W types 'z' = Zone Painter, Turkish-F physical U
-      // types 'r' = Rectangle); where the typed key is not a Latin letter (Ukrainian / Russian) the physical key decides.
-      const typed = typeof e.key === 'string' && /^[a-zA-Z]$/.test(e.key) ? e.key.toLowerCase() : '';
+      // types 'r' = Rectangle); where the typed key is not a Latin letter (Ukrainian / Russian / Greek) the physical key decides.
+      // Key NAMES (Dead, Process, Unidentified) and IME composition are not typed letters: macOS Option+E sends key 'Dead', code KeyE.
+      const k = typeof e.key === 'string' ? e.key : '';
+      if (e.isComposing || k === 'Process' || k === 'Dead' || k === 'Unidentified') return;
+      const ch = [...k].length === 1 ? k : '';                                  // one character, not a key name
+      const typed = /^[a-zA-Z]$/.test(ch) ? ch.toLowerCase() : '';
+      const typedLatin = /^\p{Script=Latin}$/u.test(ch);                         // includes the non-ASCII Latin letters (Turkish i-dotless, g-breve ...): they never fall back to the physical key
       const physical = /^Key([A-Z])$/.exec(e.code || '');
-      const letter = typed || (physical ? physical[1].toLowerCase() : '');
+      const letter = typed || (!typedLatin && physical ? physical[1].toLowerCase() : '');
       const codeTool = letter && _CODE_LETTER_TOOLS[letter];
       if (codeTool && !e.shiftKey && !e.altKey && !e.repeat && mapMode && !_isTypingOrModal(e)) {
         if (codeTool === 'symmetry') cycleSymmetry(); else setActive(codeTool);
         return;
       }
       if (_isTypingOrModal()) return;
-      // a physical fallback for the key switch only when the typed key is a letter of another script (not for punctuation)
-      const keyTool = typed ? _KEY_TOOLS[typed] : (letter && /\p{L}/u.test(e.key || '') ? _KEY_TOOLS[letter] : '');
+      // a physical fallback for the key switch only when the typed key is a single letter of another script (not for punctuation, not for Alt/Shift/repeat)
+      const keyTool = e.repeat ? '' : typed ? _KEY_TOOLS[typed] : (letter && /^\p{L}$/u.test(ch) && !e.altKey && !e.shiftKey ? _KEY_TOOLS[letter] : '');
       if (keyTool) setActive(keyTool);
     });
   }
