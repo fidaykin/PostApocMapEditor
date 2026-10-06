@@ -2700,7 +2700,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "b96ad8c";
+const COMMIT  = "af9af06";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -20912,7 +20912,9 @@ const RightPanel = (() => {
     if (_mode === 'expanded') return narrow ? 'drawer' : 'inline';
     return narrow ? 'rail' : 'inline';
   }
-  function _apply() {
+  // fromResize: a window 'resize' event. Canvas has its own resize listener (registered after this one, so it measures the new
+  // layout), so this one must not re-measure too: the canvas is re-measured once per change.
+  function _apply(fromResize) {
     const eff = _effective();
     const b = document.body;
     b.classList.toggle('layout-classic', eff === 'classic');
@@ -20925,7 +20927,15 @@ const RightPanel = (() => {
       t.textContent = open ? '»' : '«';
       t.title = open ? 'Hide the side panel (minimap, brush, active terrain)' : 'Show the side panel (minimap, brush, active terrain)';
     }
-    if (eff !== _eff) { const first = _eff === null; _eff = eff; if (!first && typeof Canvas !== 'undefined') Canvas.resize(); }
+    // The minimap lives in the right panel: with only the rail showing, its option buttons would change nothing visible.
+    ['mm-size-btn', 'mm-zones-btn', 'mm-settle-btn'].forEach(id => {
+      const mb = document.getElementById(id);
+      if (!mb) return;
+      if (mb.dataset.title === undefined) mb.dataset.title = mb.title;
+      mb.disabled = eff === 'rail';
+      mb.title = eff === 'rail' ? 'Expand the right panel to see the minimap' : mb.dataset.title;
+    });
+    if (eff !== _eff) { const first = _eff === null; _eff = eff; if (!first && fromResize !== true && typeof Canvas !== 'undefined') Canvas.resize(); }
   }
   function toggle() {
     _mode = (_eff === 'inline' || _eff === 'drawer') ? 'collapsed' : 'expanded';
@@ -20940,16 +20950,24 @@ const RightPanel = (() => {
       t.addEventListener('click', e => { toggle(); if (e.detail > 0) t.blur(); });   // pointer click: back to the map shortcuts
       t.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });   // Space must not start a canvas pan
     }
-    window.addEventListener('resize', _apply);
+    window.addEventListener('resize', () => _apply(true));
     // the toolbar scrolls, so its tooltips are position:fixed: place them under their button
     const tb = document.getElementById('toolbar');
-    if (tb) tb.addEventListener('mouseover', e => {
-      const btn = e.target && e.target.closest && e.target.closest('.tool-btn');
+    const placeTip = btn => {
       const tip = btn && btn.querySelector('.tooltip');
       if (!tip || document.body.classList.contains('layout-classic')) return;
       const r = btn.getBoundingClientRect();
       tip.style.left = (r.left + r.width / 2) + 'px'; tip.style.top = (r.bottom + 6) + 'px';
-    });
+    };
+    if (tb) {
+      tb.addEventListener('mouseover', e => placeTip(e.target && e.target.closest && e.target.closest('.tool-btn')));
+      // scrolling moves the buttons under fixed popups: the MORE dropdown closes (it is anchored to its tab), the hovered tooltip follows its button
+      tb.addEventListener('scroll', () => {
+        const dd = document.getElementById('more-dropdown');
+        if (dd && dd.classList.contains('open') && !document.body.classList.contains('layout-classic')) dd.classList.remove('open');
+        placeTip(tb.querySelector('.tool-btn:hover'));
+      }, { passive: true });
+    }
   }
   return { init, toggle, getMode: () => _mode, getEffective: () => _eff };
 })();
