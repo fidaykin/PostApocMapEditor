@@ -543,6 +543,18 @@ body:not(.mode-map) #statusbar { display: none; }
 .modal-box h3 { margin-bottom: 12px; font-size: 15px; }
 .modal-box p  { color: var(--muted); font-size: 13px; margin-bottom: 20px; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
+.reskin-body { display: flex; flex-direction: column; gap: 6px; min-width: min(560px, 80vw); }
+.reskin-hint { margin: 0; font-size: 11px; color: var(--muted); }
+#reskin-search { width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg, #252525); border: 1px solid var(--border); border-radius: 4px; color: var(--text, inherit); }
+.reskin-count { font-size: 11px; color: var(--muted); }
+.reskin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; max-height: 320px; overflow-y: auto; }
+.reskin-item { display: flex; align-items: center; gap: 6px; background: var(--hover); border: 1px solid var(--border); border-radius: 4px; color: inherit; padding: 4px; font-size: 11px; cursor: pointer; text-align: left; }
+.reskin-item.active { outline: 2px solid var(--accent); }
+.reskin-item img { width: 40px; height: 40px; flex: none; object-fit: contain; image-rendering: pixelated; }
+.reskin-item.no-sprite img { opacity: .25; }
+.reskin-item .reskin-id { overflow-wrap: anywhere; }
+.reskin-item:disabled { opacity: .4; cursor: default; }
+.reskin-empty { font-size: 12px; color: var(--muted); padding: 8px 0; }
 .sprite-picker-box { max-width: 500px; width: 100%; }
 #sprite-picker-grid {
   display: grid;
@@ -2670,7 +2682,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "421dd63";
+const COMMIT  = "5f3d9ff";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -12665,6 +12677,89 @@ const Packages = (() => {
     return { collides: null };
   }
 
+  // ── Reskin picker (T5.5): replaces the dropdown prompt. A searchable list of the base (postapoc) entries with sprite
+  // previews; ids are untrusted (textContent / dataset only). Filtering is synchronous (a few hundred cheap string
+  // matches, no timer to wait for); at most RESKIN_CAP entries are rendered, and previews are real <img loading=lazy>
+  // created only for rendered entries. Entries the active package already reskinned are shown disabled.
+  const RESKIN_CAP = 60;
+
+  function openReskinPicker({ kind, entries, onPick }) {
+    const active = getActive();
+    const base = (entries || []).filter(e => (e.package || 'postapoc') === 'postapoc');
+    const taken = new Set((entries || []).filter(e => (e.package || 'postapoc') === active).map(e => e.id));
+    const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
+
+    const body = el('div', 'reskin-body');
+    body.appendChild(el('p', 'reskin-hint', 'The new entry keeps the same id, so it overrides that ' + (kind === 'bld' ? 'building' : 'tile') + ' at runtime.'));
+    const input = el('input'); input.id = 'reskin-search'; input.type = 'text'; input.placeholder = 'Search ids…';
+    input.autocomplete = 'off'; input.setAttribute('role', 'searchbox'); input.setAttribute('aria-label', 'Search ids'); input.setAttribute('aria-controls', 'reskin-list');
+    const count = el('div', 'reskin-count'); count.id = 'reskin-count'; count.setAttribute('aria-live', 'polite');
+    const list = el('div', 'reskin-list'); list.id = 'reskin-list'; list.setAttribute('role', 'listbox');
+    const empty = el('div', 'reskin-empty', 'No matches'); empty.id = 'reskin-empty'; empty.hidden = true;
+    body.append(input, count, list, empty);
+
+    let activeBtn = null, closed = false, modal = null;
+    const setActive = b => {
+      if (activeBtn) { activeBtn.removeAttribute('aria-selected'); activeBtn.classList.remove('active'); }
+      activeBtn = b;
+      if (b) { b.setAttribute('aria-selected', 'true'); b.classList.add('active'); if (b.scrollIntoView) b.scrollIntoView({ block: 'nearest' }); input.setAttribute('aria-activedescendant', b.id); }
+      else input.removeAttribute('aria-activedescendant');
+    };
+    const pick = b => {
+      if (closed || !b || b.disabled) return;
+      closed = true;
+      const id = b.dataset.id;
+      modal.close('close');
+      onPick(id);
+    };
+    const render = () => {
+      const q = input.value.trim().toLowerCase();
+      const hits = base.filter(e => !q || String(e.id).toLowerCase().includes(q));
+      list.textContent = '';
+      hits.slice(0, RESKIN_CAP).forEach((e, i) => {
+        const b = el('button', 'reskin-item'); b.type = 'button'; b.id = 'reskin-item-' + i;
+        b.dataset.id = e.id; b.setAttribute('role', 'option'); b.tabIndex = -1;
+        if (taken.has(e.id)) { b.disabled = true; b.title = 'Already reskinned in this package'; }
+        else b.title = String(e.id);
+        const img = el('img'); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
+        img.addEventListener('error', () => b.classList.add('no-sprite'));
+        const src = spriteSrc(e, kind);
+        if (src) img.src = src; else b.classList.add('no-sprite');
+        b.append(img, el('span', 'reskin-id', String(e.id)));
+        list.appendChild(b);
+      });
+      count.textContent = hits.length > RESKIN_CAP
+        ? `Showing first ${RESKIN_CAP} of ${hits.length} — type to narrow`
+        : `${hits.length} of ${base.length}`;
+      empty.hidden = hits.length > 0;
+      setActive(list.querySelector('.reskin-item:not(:disabled)'));
+    };
+    const step = dir => {
+      const enabled = Array.from(list.querySelectorAll('.reskin-item:not(:disabled)'));
+      if (!enabled.length) return;
+      const i = enabled.indexOf(activeBtn);
+      setActive(enabled[i < 0 ? 0 : Math.max(0, Math.min(enabled.length - 1, i + dir))]);
+    };
+    input.addEventListener('input', render);
+    input.addEventListener('keydown', e => {
+      if (e.isComposing) return;
+      if (e.key === 'ArrowDown') { e.preventDefault(); step(1); }
+      else if (e.key === 'ArrowUp') { e.preventDefault(); step(-1); }
+      else if (e.key === 'Enter') { e.preventDefault(); pick(activeBtn); }
+    });
+    list.addEventListener('click', e => { const b = e.target.closest && e.target.closest('.reskin-item'); if (b && list.contains(b)) pick(b); });
+
+    modal = UI.showModal({
+      id: 'reskin-picker',
+      title: `Reskin which postapoc ${kind === 'bld' ? 'building' : 'hex'}?`,
+      body,
+      actions: [{ label: 'Cancel', onClick: close => close() }],
+      autofocus: input,
+    });
+    render();
+    return modal;
+  }
+
   // One-time, idempotent move of flat sprites (the old single namespace) that only non-default packages use into their
   // package namespace. Lossless: a flat copy is deleted only after an identical package copy exists; a postapoc-used,
   // unreferenced or conflicting flat copy is left alone. IndexedDB failures are tolerated.
@@ -13694,7 +13789,7 @@ const Packages = (() => {
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
-           spriteSrc, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
+           spriteSrc, openReskinPicker, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal,
@@ -15978,16 +16073,12 @@ const HexDB = (() => {
     UI.toast(`Reskinning "${baseId}" for package "${h.package}" — id kept identical, edit spriteName next.`);
   }
 
-  async function promptReskin() {
+  function promptReskin() {
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
-    const options = _data.hexes.filter(h => (h.package || 'postapoc') === 'postapoc').map(h => h.id);
-    if (!options.length) { UI.toast('⚠ No postapoc hex tiles to reskin'); return; }
-    const baseId = await UI.prompt('Reskin hex tile',
-      'Reskin which postapoc hex id? The new entry keeps the same id, so it overrides that tile at runtime.',
-      options[0], options);
-    if (baseId) addReskin(baseId);
+    if (!_data.hexes.some(h => (h.package || 'postapoc') === 'postapoc')) { UI.toast('⚠ No postapoc hex tiles to reskin'); return; }
+    Packages.openReskinPicker({ kind: 'hex', entries: _data.hexes, onPick: addReskin });
   }
 
   // Call this from wherever the panel already re-renders on package switch (the same
@@ -17490,16 +17581,12 @@ const BldDB = (() => {
     UI.toast(`Reskinning "${baseId}" for package "${b.package}" — id kept identical, edit spriteName next.`);
   }
 
-  async function promptReskin() {
+  function promptReskin() {
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
-    const options = _data.buildings.filter(b => (b.package || 'postapoc') === 'postapoc').map(b => b.id);
-    if (!options.length) { UI.toast('⚠ No postapoc buildings to reskin'); return; }
-    const baseId = await UI.prompt('Reskin building',
-      'Reskin which postapoc building id? The new entry keeps the same id, so it overrides that building at runtime.',
-      options[0], options);
-    if (baseId) addReskin(baseId);
+    if (!_data.buildings.some(b => (b.package || 'postapoc') === 'postapoc')) { UI.toast('⚠ No postapoc buildings to reskin'); return; }
+    Packages.openReskinPicker({ kind: 'bld', entries: _data.buildings, onPick: addReskin });
   }
 
   // Call this from wherever the panel already re-renders on package switch (the same

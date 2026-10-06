@@ -70,14 +70,14 @@ test('a duplicate localization key toasts instead of alerting', async ({ page })
   expect(nativeDialogs).toEqual([]);
 });
 
-test('hex reskin picker is a select of postapoc ids and adds the reskin', async ({ page }) => {
+test('hex reskin picker is a searchable modal of postapoc ids and adds the reskin', async ({ page }) => {
   const gh = await editorWithPackage();
   const { nativeDialogs } = await openEditor(page, { gh });
   await page.waitForFunction(() => !!Packages.getEntry('rk'));
   await page.evaluate(() => { Packages.setActive('rk'); HexDB.promptReskin(); });
-  await expect(page.locator('select#dialog-input')).toBeVisible();
-  await page.locator('#dialog-input').selectOption('Plain_2');
-  await page.getByRole('button', { name: 'OK' }).click();
+  await expect(page.locator('#reskin-search')).toBeVisible();
+  await page.locator('#reskin-search').fill('Plain_2');
+  await page.locator('.reskin-item[data-id="Plain_2"]').click();
   await expect.poll(() => page.evaluate(() => HexDB.getAll().some(h => h.id === 'Plain_2' && h.package === 'rk'))).toBe(true);
   expect(nativeDialogs).toEqual([]);
 });
@@ -92,14 +92,14 @@ test('cancelling the hex reskin picker adds nothing', async ({ page }) => {
   expect(await page.evaluate(() => HexDB.getAll().length)).toBe(before);
 });
 
-test('building reskin picker is a select of postapoc ids and adds the reskin', async ({ page }) => {
+test('building reskin picker is a searchable modal of postapoc ids and adds the reskin', async ({ page }) => {
   const gh = await editorWithPackage();
   const { nativeDialogs } = await openEditor(page, { gh });
   await page.waitForFunction(() => !!Packages.getEntry('rk'));
   const id = await page.evaluate(() => { Packages.setActive('rk'); BldDB.promptReskin(); return BldDB.getAll()[0].id; });
-  await expect(page.locator('select#dialog-input')).toBeVisible();
-  await page.locator('#dialog-input').selectOption(id);
-  await page.getByRole('button', { name: 'OK' }).click();
+  await expect(page.locator('#reskin-search')).toBeVisible();
+  await page.locator('#reskin-search').fill(id);
+  await page.locator('.reskin-item').filter({ has: page.locator('.reskin-id', { hasText: id }) }).first().click();
   await expect.poll(() => page.evaluate((i) => BldDB.getAll().some(b => b.id === i && b.package === 'rk'), id)).toBe(true);
   expect(nativeDialogs).toEqual([]);
 });
