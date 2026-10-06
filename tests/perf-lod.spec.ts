@@ -272,7 +272,7 @@ test('edge tiles can be panned clear of the ruler strips at the floor', async ({
   const r = await page.evaluate(() => {
     const cv = document.getElementById('map-canvas') as HTMLCanvasElement;
     const out: any = {};
-    for (const z of ['floor']) {
+    { const z = 'floor';   // single case (kept as a block so the messages carry the label)
       Canvas.setZoom(Canvas.minZoom());
       const rad = 40 * Canvas.getZoom() / 100;
       const ext = (cx: number, cy: number) => {
@@ -289,7 +289,7 @@ test('edge tiles can be panned clear of the ruler strips at the floor', async ({
     }
     return out;
   });
-  for (const z of ['floor']) {
+  { const z = 'floor';   // single case (kept as a block so the messages carry the label)
     const o = r[z];
     // top-left: the outermost tile box clears the strips (RULER_LEFT 28, RULER_TOP 20)
     expect(o.tl.minX, `${z}: left`).toBeGreaterThanOrEqual(28);

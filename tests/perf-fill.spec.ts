@@ -198,7 +198,7 @@ test('a fill aborts without writing when the map is replaced mid-fill', async ({
     History.push();
     const p = Tools.fill(225, 225);
     const oldMap = mapData;
-    IO.newMap(true);                         // replaces mapData, clears history, bumps the generation
+    IO.newMap(true);                         // replaces mapData with a new array and clears history; the running fill sees the identity change (stale())
     const fresh = mapData;
     await p;
     const filled = oldMap.filter(x => x === 'Forest_1').length;

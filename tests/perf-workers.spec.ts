@@ -277,7 +277,7 @@ test('cancel(owner) only cancels that owner\'s jobs', async ({ page }) => {
 test('non-default parameters match the pre-worker (legacy, verbatim) classifier', async ({ page }) => {
   await openEditor(page);
   const same = await page.evaluate(`(() => {
-    // ---- verbatim copy of the removed Satellite code (git show 7ceb3a0), bound to local state ----
+    // ---- verbatim copy of the removed Satellite code (git show 7ceb3a0^:MapEditorPro.html; 7ceb3a0 is the commit that removed it), bound to local state ----
     let _pixels, _w, _h; const MAP_WIDTH = 37, MAP_HEIGHT = 29; let _T;
     const _getT = () => _T;
   function _rgbToHsl(r, g, b) {

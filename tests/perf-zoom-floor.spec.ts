@@ -133,7 +133,7 @@ test('resize re-clamps zoom below the new floor and updates the label', async ({
   await page.evaluate(() => { Canvas.setZoom(Canvas.minZoom()); });
   const before = await page.evaluate(() => Canvas.getZoom());
   await page.setViewportSize({ width: 2800, height: 1800 });
-  await page.waitForTimeout(100);
+  await expect.poll(() => page.evaluate(() => Canvas.getZoom())).toBeGreaterThan(before);   // the resize handler re-clamps (event, not a sleep)
   const after = await page.evaluate(() => ({ z: Canvas.getZoom(), floor: Canvas.minZoom(), label: document.getElementById('st-zoom')!.textContent }));
   expect(after.floor).toBeGreaterThan(before);   // a bigger canvas raises the floor
   expect(after.z).toBeGreaterThan(before);       // so the zoom was re-clamped upwards
@@ -171,12 +171,15 @@ test('real wheel events never zoom below the floor', async ({ page }) => {
   const box = (await page.locator('#map-canvas').boundingBox())!;
   await page.mouse.move(box.x + 700, box.y + 450);
   const zs: number[] = [];
+  const floor = await page.evaluate(() => Canvas.minZoom());
+  let prev = 14;
   for (let i = 0; i < 4; i++) {
     await page.mouse.wheel(0, 100);
-    await page.waitForTimeout(100);
-    zs.push(await page.evaluate(() => Canvas.getZoom()));
+    // wait for the wheel to be applied (poll for the change) unless we are already at the floor, where none is expected
+    if (prev > floor) await expect.poll(() => page.evaluate(() => Canvas.getZoom())).not.toBe(prev);
+    prev = await page.evaluate(() => Canvas.getZoom());
+    zs.push(prev);
   }
-  const floor = await page.evaluate(() => Canvas.minZoom());
   expect(zs[0]).toBeLessThan(14);
   for (const z of zs) expect(z).toBeGreaterThanOrEqual(floor);
   expect(zs[zs.length - 1]).toBe(floor);
