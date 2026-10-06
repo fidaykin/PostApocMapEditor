@@ -1299,10 +1299,20 @@ test.describe('layers: lock state, undo and strokes (T2.18)', () => {
   test('the lock buttons say what a lock does (tooltip), keep their markup, and the layout is unchanged', async ({ page }) => {
     const r = await page.evaluate(() => {
       const b = document.querySelector('.layer-row[data-layer="roads"] .layer-lock') as HTMLButtonElement;
+      const eyeB = document.querySelector('.layer-row[data-layer="roads"] .layer-eye') as HTMLButtonElement;
+      const lab0 = [eyeB.getAttribute('aria-label'), b.getAttribute('aria-label')], p0 = [eyeB.getAttribute('aria-pressed'), b.getAttribute('aria-pressed')];
+      Layers.setVisible('roads', false); Layers.setLocked('roads', true);
+      const lab1 = [eyeB.getAttribute('aria-label'), b.getAttribute('aria-label')], p1 = [eyeB.getAttribute('aria-pressed'), b.getAttribute('aria-pressed')];
+      Layers.setVisible('roads', true); Layers.setLocked('roads', false);
+      (window as any).__aria = { lab0, lab1, p0, p1 };
       const before = b.title; Layers.setLocked('roads', true); const after = b.title; Layers.setLocked('roads', false);
       const cv = document.getElementById('map-canvas')!.getBoundingClientRect();
       return { before, after, type: b.type, pressed: b.getAttribute('aria-pressed'), label: !!b.getAttribute('aria-label') };
     });
+    const ar = await page.evaluate(() => (window as any).__aria);
+    expect(ar.lab0, 'aria-label is a constant noun phrase').toEqual(['Roads visible', 'Roads locked']);
+    expect(ar.lab1, 'aria-label does not flip with the state').toEqual(ar.lab0);
+    expect([ar.p0, ar.p1], 'aria-pressed carries the state').toEqual([['true', 'false'], ['false', 'true']]);
     expect(r.before).toMatch(/will not change/);
     expect(r.before).toMatch(/Roads/);
     expect(r.after).toMatch(/^Unlock Roads/);

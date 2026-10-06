@@ -2447,7 +2447,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "2b590a5";
+const COMMIT  = "60193de";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2944,12 +2944,12 @@ const Layers = (() => {
       const vis = isVisible(n), lk = isLocked(n);
       eye.setAttribute('aria-pressed', String(vis));
       eye.title = (vis ? 'Hide ' : 'Show ') + label;
-      eye.setAttribute('aria-label', eye.title);
+      eye.setAttribute('aria-label', label + ' visible');   // constant name; aria-pressed carries the state
       eye.classList.toggle('off', !vis);
       lock.setAttribute('aria-pressed', String(lk));
       lock.title = lk ? 'Unlock ' + label + ' (allow editing it again)'
                       : 'Lock ' + label + ' (tools, paste, cut/delete and fills will not change it; undo still works)';
-      lock.setAttribute('aria-label', lock.title);
+      lock.setAttribute('aria-label', label + ' locked');   // constant name; aria-pressed carries the state
       lock.textContent = lk ? '\u{1F512}' : '\u{1F513}';
     });
     const zb = document.getElementById('btn-zone-overlay');
