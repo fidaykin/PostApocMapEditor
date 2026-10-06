@@ -2494,7 +2494,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "c6024c0";
+const COMMIT  = "725f8a5";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4317,7 +4317,11 @@ const Canvas = (() => {
     }
   }
 
+  // True while any UI.showModal overlay is open: the canvas ignores new pointer and key input (releases still finish a drag).
+  function _modalOpen() { return !!document.querySelector('.ui-modal'); }
+
   function _onKeyDown(e) {
+    if (_modalOpen()) return;
     if (e.code === 'Space' && !e.repeat && !['INPUT','TEXTAREA'].includes(document.activeElement.tagName)) {
       e.preventDefault();
       isSpacePan = true;
@@ -4332,6 +4336,7 @@ const Canvas = (() => {
   }
 
   function _onMouseDown(e) {
+    if (_modalOpen()) return;
     const rect = canvas.getBoundingClientRect();
     const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
 
@@ -4358,6 +4363,7 @@ const Canvas = (() => {
   }
 
   function _onMouseMove(e) {
+    if (_modalOpen()) return;
     const rect = canvas.getBoundingClientRect();
     const sx = e.clientX - rect.left, sy = e.clientY - rect.top;
 
@@ -4416,12 +4422,14 @@ const Canvas = (() => {
 
   function _onWheel(e) {
     e.preventDefault();
+    if (_modalOpen()) return;
     const rect = canvas.getBoundingClientRect();
     setZoom(zoom - Math.sign(e.deltaY) * _step(0.15, 5), e.clientX - rect.left, e.clientY - rect.top);
   }
 
   function _onTouchStart(e) {
     e.preventDefault();
+    if (_modalOpen()) return;
     touches = Array.from(e.touches);
     if (touches.length === 2) {
       touchStartDist = Math.hypot(touches[0].clientX - touches[1].clientX, touches[0].clientY - touches[1].clientY);
@@ -7514,7 +7522,7 @@ const Tools = (() => {
       const nonText = a && (a.tagName === 'BUTTON' || (a.tagName === 'INPUT' && ['range', 'checkbox', 'radio', 'button'].includes(a.type)) || a.id === 'symmetry-select');
       if (a && !nonText && (['INPUT', 'TEXTAREA', 'SELECT'].includes(a.tagName) || a.isContentEditable)) return true;
     }
-    for (const m of document.querySelectorAll('.modal-overlay, [id$="-modal"]'))
+    for (const m of document.querySelectorAll('.modal-overlay, .ui-modal, [id$="-modal"]'))
       if (getComputedStyle(m).display !== 'none') return true;
     return false;
   }
@@ -9382,6 +9390,128 @@ const UI = (() => {
     return r.button === 'ok';
   }
 
+  // ── UI.showModal ────────────────────────────────────────────────
+  // UI.showModal({ title, body, actions, onClose, id, autofocus, modal }) -> { el, close }
+  //   title      string, rendered with textContent (never HTML).
+  //   body       a DOM Node (inserted as is: callers build nodes) or a string (textContent, never HTML). Optional.
+  //   actions    [{ label, primary?, danger?, onClick(close) }]: real <button type="button">s (btn-primary / btn-danger /
+  //              btn-cancel). onClick gets `close`; the modal stays open unless it calls it. A sync throw or an async
+  //              rejection is logged (console.error), toasted, and closes the modal so no overlay is left stuck.
+  //   onClose    onClose(reason) runs exactly once after the DOM is removed; reason is 'escape' | 'backdrop' | 'close'
+  //              ('close' = close() called by an action or by the caller).
+  //   id         element id of the overlay; '-modal' is appended when missing (default 'ui-<n>-modal').
+  //   autofocus  an Element inside the modal, or an action index, to focus on open (default: the first action, else the box).
+  //   modal      true = blocking: a backdrop click does not close it (Escape still does).
+  //   el         the overlay element (class `modal-overlay ui-modal open`); close(reason?) is idempotent and returns after removal.
+  // Every call owns its overlay, so it never supersedes the shared dialog (UI.showDialog) or another modal. Later modals
+  // stack above earlier ones (z-index grows); Escape closes only the topmost and honours e.defaultPrevented (an Escape
+  // already handled by a field inside, or by a menu, does nothing). Tab/Shift+Tab cycle inside the topmost modal, focus
+  // returns to the element that had it on open. While any modal is open the map shortcuts (`_isTypingOrModal`) and the
+  // canvas pointer/wheel/key handlers are inert.
+  const _modalStack = [];
+  let _modalSeq = 0;
+  let _modalKeysBound = false;
+
+  function _modalFocusables(root) {
+    return Array.from(root.querySelectorAll('button, [href], input, select, textarea, [tabindex]'))
+      .filter(n => !n.disabled && n.tabIndex >= 0 && n.getClientRects().length > 0);
+  }
+
+  function _bindModalKeys() {
+    if (_modalKeysBound) return;
+    _modalKeysBound = true;
+    document.addEventListener('keydown', e => {
+      const top = _modalStack[_modalStack.length - 1];
+      if (!top) return;
+      if (e.key === 'Escape') {
+        if (e.defaultPrevented) return;
+        e.preventDefault();
+        top.close('escape');
+      } else if (e.key === 'Tab') {
+        const f = _modalFocusables(top.el);
+        if (!f.length) { e.preventDefault(); top.box.focus(); return; }
+        const i = f.indexOf(document.activeElement);
+        if (i < 0) { e.preventDefault(); f[e.shiftKey ? f.length - 1 : 0].focus(); }
+        else if (e.shiftKey && i === 0) { e.preventDefault(); f[f.length - 1].focus(); }
+        else if (!e.shiftKey && i === f.length - 1) { e.preventDefault(); f[0].focus(); }
+      }
+    });
+  }
+
+  function showModal(opts) {
+    const o = opts || {};
+    _bindModalKeys();
+    const n = ++_modalSeq;
+    let id = typeof o.id === 'string' && o.id ? o.id : 'ui-' + n;
+    if (!id.endsWith('-modal')) id += '-modal';
+    const prevFocus = document.activeElement;
+    const ov = document.createElement('div');
+    ov.className = 'modal-overlay ui-modal open';
+    ov.id = id;
+    ov.style.zIndex = String(600 + n);
+    const box = document.createElement('div');
+    box.className = 'modal-box';
+    box.setAttribute('role', 'dialog');
+    box.setAttribute('aria-modal', 'true');
+    box.tabIndex = -1;
+    const h = document.createElement('h3');
+    h.id = id + '-title';
+    h.textContent = o.title == null ? '' : String(o.title);
+    box.setAttribute('aria-labelledby', h.id);
+    box.appendChild(h);
+    if (o.body != null) {
+      const bodyEl = document.createElement('div');
+      bodyEl.className = 'modal-body';
+      if (typeof Node !== 'undefined' && o.body instanceof Node) bodyEl.appendChild(o.body);
+      else bodyEl.textContent = String(o.body);
+      box.appendChild(bodyEl);
+    }
+    const bar = document.createElement('div');
+    bar.className = 'modal-actions';
+    const buttons = [];
+    let closed = false;
+    const handle = { el: ov, box, close: reason => {
+      if (closed) return;
+      closed = true;
+      const i = _modalStack.indexOf(handle);
+      if (i >= 0) _modalStack.splice(i, 1);
+      ov.remove();
+      if (prevFocus && prevFocus.isConnected && typeof prevFocus.focus === 'function') prevFocus.focus();   // back to where the user was
+      if (typeof o.onClose === 'function') {
+        try { o.onClose(typeof reason === 'string' ? reason : 'close'); } catch (err) { console.error(err); }
+      }
+    } };
+    const fail = err => { console.error(err); UI.toast('Something went wrong: ' + (err && err.message ? err.message : String(err))); handle.close('close'); };
+    (Array.isArray(o.actions) ? o.actions : []).forEach(a => {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'btn btn-' + (a.primary ? 'primary' : a.danger ? 'danger' : 'cancel');
+      b.textContent = a.label == null ? '' : String(a.label);
+      b.addEventListener('click', () => {
+        if (typeof a.onClick !== 'function') return;
+        try {
+          const r = a.onClick(() => handle.close('close'));
+          if (r && typeof r.then === 'function') r.then(null, fail);
+        } catch (err) { fail(err); }
+      });
+      buttons.push(b);
+      bar.appendChild(b);
+    });
+    box.appendChild(bar);
+    ov.appendChild(box);
+    let downOnBackdrop = false;
+    ov.addEventListener('mousedown', e => { downOnBackdrop = e.target === ov; });
+    ov.addEventListener('click', e => { if (e.target === ov && downOnBackdrop && !o.modal) handle.close('backdrop'); downOnBackdrop = false; });
+    document.body.appendChild(ov);
+    _modalStack.push(handle);
+    let focusEl = null;
+    if (o.autofocus instanceof Element && ov.contains(o.autofocus)) focusEl = o.autofocus;
+    else if (Number.isInteger(o.autofocus) && buttons[o.autofocus]) focusEl = buttons[o.autofocus];
+    else focusEl = buttons[0] || box;
+    focusEl.focus();
+    return handle;
+  }
+
   function _makeThumb(name, imgSrc, isCustom, onDelete) {
     const thumb = document.createElement('div');
     thumb.className = 'sprite-picker-thumb';
@@ -9580,7 +9710,7 @@ const UI = (() => {
     updateSettlementCount, updateMenuHistoryState,
     toggleSettlements, closeAllMenus,
     showConfirm, closeConfirm, toast,
-    showDialog, closeDialog: result => _dlgClose(result || { button: null, input: undefined }), alert: alertDialog, prompt: promptDialog, confirm: confirmDialog,
+    showModal, showDialog, closeDialog: result => _dlgClose(result || { button: null, input: undefined }), alert: alertDialog, prompt: promptDialog, confirm: confirmDialog,
     showSpritePicker, closeSpritePicker,
     updateStatusTool, updateStatusSize,
     rebuildSlotPanel,
@@ -17676,7 +17806,7 @@ window.addEventListener('load', async () => {
   })();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)
   document.addEventListener('keydown', e => {
-    if (e.key === 'Tab' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName)) {
+    if (e.key === 'Tab' && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName) && !document.querySelector('.ui-modal')) {   // a UI.showModal modal owns Tab (focus trap)
       e.preventDefault();
       const MODES = ['map', 'hexdb', 'buildings', 'settlements', 'keys', 'packages'];
       const cur = MODES.findIndex(m => document.body.classList.contains('mode-' + m));

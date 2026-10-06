@@ -5,6 +5,9 @@ Format: `## [version] — [date]`
 
 ## Unreleased
 
+### Developer
+- `UI.showModal({ title, body, actions, onClose, id, autofocus, modal }) -> { el, close }`: stackable modals with their own overlay (id ends in `-modal`), text-only title/body/labels (a DOM node for rich bodies), focus trap and return, Escape closes only the topmost and honours `defaultPrevented`, backdrop click closes unless `modal: true`, a throwing action never leaves an overlay. Map shortcuts, the Tab mode switch and canvas input are inert while one is open. The API is documented above `showModal` in `MapEditorPro.html`.
+
 ### Data safety
 - Startup merges the saved content with the shipped defaults instead of replacing it, so local edits are no longer lost when defaults change.
 - Publishing shows a diff of what will change and refuses unsafe publishes (guards).
