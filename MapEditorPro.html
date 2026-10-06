@@ -2687,7 +2687,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "daf88ee";
+const COMMIT  = "eacaca7";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -13727,8 +13727,228 @@ const Packages = (() => {
   function renderFilterChips() { _renderFilterChips(); }
 
   // ── Import Package modal ───────────────────────────────────────
+  // ── Import ZIP validation (T5.7) ────────────────────────────────────────────────────────────────
+  // The ZIP is UNTRUSTED. validatePackageZip(zip) reads it into a PLAN and touches no state. Sizes are checked from the
+  // central directory (`_data.uncompressedSize`) BEFORE anything is inflated; every inflate afterwards goes through
+  // _readEntry, which stops as soon as the real size exceeds the claim. Names/ids/descriptions are only ever shown through
+  // textContent. The PLAN object (consumed by confirmImport now and by T5.8's rollback / cross-reference rewrite):
+  //   {
+  //     ok: boolean,                       // false when errors.length > 0; confirmImport refuses a plan that is not ok
+  //     errors: string[], warnings: string[],
+  //     pkg: { id, name, version, description } | null,   // strings from package.json (id may still be renamed by the user)
+  //     hexes: object[], buildings: object[],               // parsed, shape-checked, key-checked entries (as in the ZIP)
+  //     sprites: [{ path, category: 'hex'|'buildings', name, size }],   // the only files that will be imported (PNG)
+  //     ignored: string[],                                  // every other file, never read
+  //     conflict: null | { packageId, hex: {new, changed, same}, bld: {new, changed, same} },  // same id already here
+  //     summary: { hexCount, bldCount, spriteCount, missingSprites: string[], ignoredCount, reskinCount }
+  //   }
+  const IMPORT_MAX_FILE_BYTES = 50 * 1024 * 1024;     // the ZIP file itself, checked from file.size before reading
+  const IMPORT_MAX_TOTAL_BYTES = 64 * 1024 * 1024;    // sum of every entry's claimed uncompressed size
+  const IMPORT_MAX_JSON_BYTES = 16 * 1024 * 1024;     // package.json / the two databases
+  const IMPORT_MAX_FILES = 3000;
+  const IMPORT_MAX_ENTRIES = 20000;                   // hex + building records
+  const IMPORT_MAX_DEPTH = 40;
+  const _ID_RE = /^[a-z0-9][a-z0-9-]*$/;
+  const _ENTRY_ID_RE = /^[A-Za-z0-9_.\- ]{1,128}$/;
+  const _SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(\.[0-9A-Za-z-]+)*)?$/;
+  const _FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+  const _BAD_NAME_RE = /[\u0000-\u001f\u007f�]/;
+  const _mb = n => (n / 1048576).toFixed(1) + ' MB';
+
   let _importZip = null;  // holds JSZip instance while import modal is open
   let _importInProgress = false;
+  let _importValidating = false;
+  let _importValidation = null;
+
+  function getImportPlan() { return _importValidation; }
+
+  function _claimedSize(f) {
+    const d = f && f._data;
+    if (d && Number.isFinite(d.uncompressedSize) && d.uncompressedSize >= 0) return d.uncompressedSize;
+    // JSZip stores empty entries (and folders) as a plain value/promise without a CompressedObject: that is size 0,
+    // and _readEntry with a limit of 0 would still refuse any byte that appeared.
+    return d && (typeof d.then === 'function' || typeof d === 'string') ? 0 : Infinity;
+  }
+
+  // Inflates one entry with a hard ceiling: resolves a Uint8Array, or null when it grows beyond `limit` (the stream is
+  // paused, the rest is never inflated). `headOnly` resolves after that many bytes (sprite header sniffing).
+  function _readEntry(file, limit, headOnly) {
+    return new Promise((resolve, reject) => {
+      const chunks = []; let total = 0, done = false;
+      const finish = v => { if (!done) { done = true; resolve(v); } };
+      const s = file.internalStream('uint8array');
+      s.on('data', c => {
+        if (done) return;
+        total += c.length;
+        if (!headOnly && total > limit) { s.pause(); return finish(null); }
+        chunks.push(c);
+        if (headOnly && total >= headOnly) { s.pause(); finish(_concat(chunks, total, headOnly)); }
+      });
+      s.on('error', e => { if (!done) { done = true; reject(e); } });
+      s.on('end', () => finish(_concat(chunks, total, Infinity)));
+      s.resume();
+    });
+  }
+  function _concat(chunks, total, max) {
+    const out = new Uint8Array(Math.min(total, max)); let o = 0;
+    for (const c of chunks) { if (o >= out.length) break; const part = c.subarray(0, out.length - o); out.set(part, o); o += part.length; }
+    return out;
+  }
+
+  // First forbidden key (prototype pollution) anywhere in parsed JSON: {key, path}; {depth:true} when nested too deeply.
+  function _findBadKey(root) {
+    const stack = [[root, '', 0]]; let seen = 0;
+    while (stack.length) {
+      const [v, p, d] = stack.pop();
+      if (v === null || typeof v !== 'object') continue;
+      if (d > IMPORT_MAX_DEPTH || ++seen > 2000000) return { depth: true };
+      for (const k of Object.keys(v)) {
+        const here = p + (Array.isArray(v) ? `[${k}]` : (p ? '.' : '') + k);
+        if (_FORBIDDEN_KEYS.has(k)) return { key: k, path: here };
+        stack.push([v[k], here, d + 1]);
+      }
+    }
+    return null;
+  }
+
+  function _sameValue(a, b) { return JSON.stringify(a) === JSON.stringify(b); }
+
+  async function validatePackageZip(zip) {
+    const errors = [], warnings = [];
+    const plan = { ok: false, errors, warnings, pkg: null, hexes: [], buildings: [], sprites: [], ignored: [], conflict: null,
+                   summary: { hexCount: 0, bldCount: 0, spriteCount: 0, missingSprites: [], ignoredCount: 0, reskinCount: 0 } };
+    const finish = () => { plan.ok = errors.length === 0; return plan; };
+    const names = Object.keys(zip.files);
+    if (names.length > IMPORT_MAX_FILES) errors.push(`The ZIP has ${names.length} files (limit ${IMPORT_MAX_FILES}).`);
+    // 1. names (zip-slip, separators, control/replacement characters from undecodable names)
+    names.forEach(n => {
+      if (n.startsWith('/') || n.includes('\\') || /^[A-Za-z]:/.test(n) || n.split('/').includes('..') || _BAD_NAME_RE.test(n))
+        errors.push(`Unsafe path in ZIP: ${JSON.stringify(n)}`);
+    });
+    // 2. claimed sizes, before anything is inflated
+    let total = 0;
+    names.forEach(n => {
+      const f = zip.files[n];
+      if (f.dir) return;
+      const sz = _claimedSize(f), shown = Number.isFinite(sz) ? _mb(sz) : 'unknown size';
+      total += sz;
+      if ((n === 'package.json' || n === 'hex_database.json' || n === 'building_database.json') && sz > IMPORT_MAX_JSON_BYTES)
+        errors.push(`${n} is too large (${shown}, limit ${_mb(IMPORT_MAX_JSON_BYTES)}).`);
+      else if (/^sprites\/(hex|buildings)\/[^/]+\.png$/i.test(n) && sz > SPRITE_MAX_BYTES)
+        errors.push(`${n} is too large (${shown}, limit ${_mb(SPRITE_MAX_BYTES)}).`);
+    });
+    if (total > IMPORT_MAX_TOTAL_BYTES) errors.push(`The ZIP unpacks to ${Number.isFinite(total) ? _mb(total) : 'an unknown size'} in total (limit ${_mb(IMPORT_MAX_TOTAL_BYTES)}).`);
+    if (!zip.file('package.json')) errors.push('Invalid package ZIP: missing package.json');
+    if (errors.length) return finish();   // nothing has been inflated so far
+
+    // 3. JSON files
+    const readJson = async name => {
+      const f = zip.file(name);
+      if (!f) return null;
+      try {
+        const bytes = await _readEntry(f, Math.min(_claimedSize(f), IMPORT_MAX_JSON_BYTES));
+        if (!bytes) { errors.push(`${name} is larger than it claims to be.`); return null; }
+        let text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
+        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+        const data = JSON.parse(text);
+        const bad = _findBadKey(data);
+        if (bad) { errors.push(bad.depth ? `${name} is nested too deeply.` : `${name} contains a forbidden key "${bad.key}" (${bad.path}).`); return null; }
+        if (!data || typeof data !== 'object' || Array.isArray(data)) { errors.push(`${name} must contain a JSON object.`); return null; }
+        return data;
+      } catch (e) { errors.push(`${name} is not valid JSON: ${e && e.message}`); return null; }
+    };
+    const pkg = await readJson('package.json');
+    if (pkg) {
+      const str = (k, max) => (typeof pkg[k] === 'string' ? pkg[k].slice(0, max) : '');
+      if (typeof pkg.id !== 'string' || !pkg.id || pkg.id.length > 64) errors.push('package.json has no valid "id".');
+      else if (!_ID_RE.test(pkg.id)) warnings.push(`Package id "${pkg.id}" is not lowercase-with-hyphens; rename it in the next step.`);
+      if (typeof pkg.name !== 'string' || !pkg.name.trim()) warnings.push('package.json has no "name"; the id will be used.');
+      if (pkg.version === undefined) warnings.push('package.json has no "version"; 1.0.0 will be used.');
+      else if (typeof pkg.version !== 'string' || !_SEMVER_RE.test(pkg.version)) errors.push(`package.json "version" must be a semantic version like 1.2.3 (got ${JSON.stringify(pkg.version)}).`);
+      if (pkg.description !== undefined && typeof pkg.description !== 'string') warnings.push('package.json "description" is not text and is ignored.');
+      plan.pkg = { id: str('id', 64), name: str('name', 100) || str('id', 64), version: typeof pkg.version === 'string' ? pkg.version : '1.0.0', description: str('description', 500) };
+    }
+    const hexData = await readJson('hex_database.json');
+    const bldData = await readJson('building_database.json');
+    if (hexData && !Array.isArray(hexData.hexes)) errors.push('hex_database.json has no "hexes" array.');
+    if (bldData && !Array.isArray(bldData.buildings)) errors.push('building_database.json has no "buildings" array.');
+    const hexes = Array.isArray(hexData && hexData.hexes) ? hexData.hexes : [];
+    const buildings = Array.isArray(bldData && bldData.buildings) ? bldData.buildings : [];
+    if (hexes.length + buildings.length > IMPORT_MAX_ENTRIES) errors.push(`Too many entries (${hexes.length + buildings.length}, limit ${IMPORT_MAX_ENTRIES}).`);
+    else {
+      const seen = new Set(); let entryErrors = 0;
+      const bad = msg => { if (++entryErrors <= 20) errors.push(msg); };
+      [['hex', hexes], ['building', buildings]].forEach(([kind, list]) => list.forEach((e, i) => {
+        const at = `${kind} entry #${i + 1}`;
+        if (!e || typeof e !== 'object' || Array.isArray(e)) return bad(`${at} is not a valid entry.`);
+        if (typeof e.id !== 'string' || !e.id) return bad(`${at} has no usable "id".`);
+        if (!_ENTRY_ID_RE.test(e.id)) return bad(`${at} has an id with unsupported characters or length: ${JSON.stringify(e.id.slice(0, 80))}.`);
+        if (e.spriteName !== undefined && typeof e.spriteName !== 'string') return bad(`${at} ("${e.id}") has a spriteName that is not text.`);
+        if (seen.has(e.id)) return bad(`Duplicate entry id "${e.id}"`);
+        seen.add(e.id);
+      }));
+      if (entryErrors > 20) errors.push(`...and ${entryErrors - 20} more entry problems.`);
+    }
+
+    // 4. sprites (PNG only, T5.4 limits and name rules) and everything else ignored
+    const spriteNames = new Map();
+    for (const n of names) {
+      const f = zip.files[n];
+      if (f.dir || n === 'package.json' || n === 'hex_database.json' || n === 'building_database.json') continue;
+      const m = /^sprites\/(hex|buildings)\/([^/]+)\.png$/i.exec(n);
+      if (!m) {
+        plan.ignored.push(n);
+        warnings.push(/\.zip$/i.test(n) ? `Ignoring nested archive ${n}.` : `Ignoring unsupported file ${n} (only sprites/hex|buildings/*.png are imported).`);
+        continue;
+      }
+      const category = m[1].toLowerCase(), name = m[2];
+      if (sanitizeSpriteName(name + '.png') !== name) { errors.push(`Unsafe sprite name in ${n}.`); continue; }
+      if (spriteNames.has(name)) { errors.push(`Sprite name "${name}" is used twice (${spriteNames.get(name)} and ${category}).`); continue; }
+      spriteNames.set(name, category);
+      try {
+        const head = await _readEntry(f, SPRITE_MAX_BYTES, 64);
+        if (!head || head.length < 24 || !_PNG_SIG.every((b, i) => head[i] === b)) { errors.push(`${n} is not a PNG image.`); continue; }
+        const dims = _headerDims(head, 'png');
+        if (!dims || !dims[0] || !dims[1] || dims[0] > SPRITE_MAX_DIM || dims[1] > SPRITE_MAX_DIM) { errors.push(`${n} has unusable dimensions (${dims ? dims[0] + '×' + dims[1] : 'unreadable'}, limit ${SPRITE_MAX_DIM}×${SPRITE_MAX_DIM}).`); continue; }
+        if (dims[0] !== 512 || dims[1] !== 512) warnings.push(`${n} is ${dims[0]}×${dims[1]}; sprites are expected to be 512×512.`);
+        plan.sprites.push({ path: n, category, name, size: _claimedSize(f) });
+      } catch (e) { errors.push(`${n} could not be read: ${e && e.message}`); }
+    }
+    if (errors.length) return finish();
+
+    // 5. plan: references, reskins, conflicts
+    const have = new Set(plan.sprites.map(s => s.category + '/' + s.name));
+    const missing = [];
+    [...hexes.map(h => ['hex', h.spriteName]), ...buildings.map(b => [b.buildingCategory === 'Bridge' ? 'hex' : 'buildings', b.spriteName])]
+      .forEach(([cat, name]) => { if (name && !have.has(cat + '/' + name) && !missing.includes(name)) missing.push(name); });
+    missing.forEach(n => warnings.push(`Sprite "${n}" is referenced but not in the ZIP.`));
+    const pid = plan.pkg.id, prefix = idPrefix(pid);
+    const baseIds = new Set([...HexDB.getAll(), ...BldDB.getAll()].filter(r => (r.package || 'postapoc') === 'postapoc').map(r => r.id));
+    const unprefixed = [...hexes, ...buildings].filter(e => !e.id.startsWith(prefix));
+    plan.summary.reskinCount = unprefixed.filter(e => baseIds.has(e.id)).length;
+    if (unprefixed.length - plan.summary.reskinCount > 0)
+      warnings.push(`${unprefixed.length - plan.summary.reskinCount} entries do not start with "${prefix}"; they get that prefix on import.`);
+    const cmp = (list, db) => {
+      const local = new Map(db.getAll().filter(r => (r.package || 'postapoc') === pid).map(r => [r.id, r]));
+      const c = { new: 0, changed: 0, same: 0 };
+      list.forEach(e => {
+        const l = local.get(e.id);
+        if (!l) c.new++;
+        else if (Object.keys(e).some(k => k !== 'package' && !_sameValue(e[k], l[k]))) c.changed++;
+        else c.same++;
+      });
+      return c;
+    };
+    const ch = cmp(hexes, HexDB), cb = cmp(buildings, BldDB);
+    if (getEntry(pid) || ch.same + ch.changed + cb.same + cb.changed > 0) {
+      plan.conflict = { packageId: pid, hex: ch, bld: cb };
+      warnings.push(`A package with the id "${pid}" already exists here (hex tiles: ${ch.new} new, ${ch.changed} changed, ${ch.same} unchanged; buildings: ${cb.new} new, ${cb.changed} changed, ${cb.same} unchanged). Pick another id to import it as a separate package.`);
+    }
+    plan.hexes = hexes; plan.buildings = buildings;
+    plan.summary.hexCount = hexes.length; plan.summary.bldCount = buildings.length;
+    plan.summary.spriteCount = plan.sprites.length; plan.summary.missingSprites = missing; plan.summary.ignoredCount = plan.ignored.length;
+    return finish();
+  }
 
   function openImportModal() {
     const input = document.getElementById('pkg-import-input');
@@ -13736,31 +13956,47 @@ const Packages = (() => {
     else UI.toast('⚠ Import UI not ready — try reloading');
   }
 
-  async function _onImportFilePicked(file) {
-    if (!file) return;
-    let zip;
-    try {
-      const JSZip = await _loadJSZip();
-      zip = await JSZip.loadAsync(file);
-    } catch(e) {
-      return UI.toast('Invalid ZIP file');
-    }
-    const pkgFile = zip.file('package.json');
-    if (!pkgFile) return UI.toast('⚠ Invalid package ZIP: missing package.json');
-    try {
-      const pkgData = JSON.parse(await pkgFile.async('text'));
-      _showImportModal(String(pkgData.id || ''), String(pkgData.name || ''), zip);
-    } catch(e) {
-      UI.toast('⚠ Could not read ZIP: invalid package.json');
-    }
+  function _showImportErrors(errors) {
+    const ul = document.createElement('ul'); ul.id = 'pkg-import-errors';
+    errors.slice(0, 40).forEach(e => { const li = document.createElement('li'); li.textContent = e; ul.appendChild(li); });
+    if (errors.length > 40) { const li = document.createElement('li'); li.textContent = `...and ${errors.length - 40} more.`; ul.appendChild(li); }
+    UI.showModal({ id: 'pkg-import-errors-modal', title: 'Cannot import this ZIP', body: ul, actions: [{ label: 'Close', primary: true, onClick: close => close() }] });
   }
 
-  function _showImportModal(originalId, name, zip) {
+  async function _onImportFilePicked(file) {
+    if (!file) return;
+    if (_importValidating || _importZip || _importInProgress) return UI.toast('⚠ An import is already in progress. Finish or cancel it first.');
+    _importValidating = true;
+    try {
+      if (file.size > IMPORT_MAX_FILE_BYTES) return _showImportErrors([`The ZIP file is too large (${_mb(file.size)}, limit ${_mb(IMPORT_MAX_FILE_BYTES)}).`]);
+      let zip;
+      try { zip = await (await _loadJSZip()).loadAsync(file); }
+      catch (e) { return _showImportErrors(['This is not a valid ZIP file (it is corrupted or not a ZIP).']); }
+      let v;
+      try { v = await validatePackageZip(zip); }
+      catch (e) { return _showImportErrors([`The ZIP could not be checked: ${e && e.message}`]); }
+      if (!v.ok) return _showImportErrors(v.errors);
+      _showImportModal(v.pkg.id, v.pkg.name, zip, v);
+    } finally { _importValidating = false; }
+  }
+
+  function _showImportModal(originalId, name, zip, v) {
     _importZip = zip;
+    _importValidation = v || null;
     document.getElementById('pkg-import-original-id').value = originalId;
     document.getElementById('pkg-import-name').value        = name;
     document.getElementById('pkg-import-id').value          = originalId;
     document.getElementById('pkg-import-error').style.display = 'none';
+    const box = document.getElementById('pkg-import-summary');
+    box.replaceChildren();
+    if (v) {
+      const s = v.summary, pl = (n, w) => `${n} ${w}${n === 1 ? '' : 's'}`;
+      const ul = document.createElement('ul');
+      [pl(s.hexCount, 'hex tile'), pl(s.bldCount, 'building'), pl(s.spriteCount, 'sprite')].forEach(t => { const li = document.createElement('li'); li.textContent = t; ul.appendChild(li); });
+      box.appendChild(ul);
+      v.warnings.slice(0, 30).forEach(w => { const d = document.createElement('div'); d.className = 'pkg-notice warn'; d.textContent = w; box.appendChild(d); });
+      if (v.warnings.length > 30) { const d = document.createElement('div'); d.className = 'pkg-notice'; d.textContent = `...and ${v.warnings.length - 30} more warnings.`; box.appendChild(d); }
+    }
     document.getElementById('pkg-import-modal').style.display = 'flex';
     document.getElementById('pkg-import-id').focus();
   }
@@ -13768,6 +14004,7 @@ const Packages = (() => {
   function closeImportModal() {
     document.getElementById('pkg-import-modal').style.display = 'none';
     _importZip = null;
+    _importValidation = null;
   }
 
   // ── Import confirm + publish ────────────────────────────────────
@@ -13819,20 +14056,15 @@ const Packages = (() => {
     if (_importInProgress) return;
     _importInProgress = true;
 
-    const zip = _importZip;
-    if (!zip) { _importInProgress = false; UI.toast('⚠ No ZIP loaded'); return; }
+    const zip = _importZip, plan = _importValidation;
+    if (!zip || !plan || !plan.ok) { _importInProgress = false; UI.toast('⚠ No validated ZIP loaded'); return; }
 
     try {
       UI.progress(0, 'Starting import…');
 
-      // Read databases from ZIP
-      const hexFile = zip.file('hex_database.json');
-      const bldFile = zip.file('building_database.json');
-      const hexData = hexFile ? JSON.parse(await hexFile.async('text')) : { hexes: [] };
-      const bldData = bldFile ? JSON.parse(await bldFile.async('text')) : { buildings: [] };
-
-      const hexes     = _rewriteEntries(hexData.hexes,     origId, newId);
-      const buildings = _rewriteEntries(bldData.buildings, origId, newId);
+      // Databases come from the validated plan (T5.7): already parsed, shape- and key-checked
+      const hexes     = _rewriteEntries(plan.hexes,     origId, newId);
+      const buildings = _rewriteEntries(plan.buildings, origId, newId);
 
       // Write package.json
       const pkgJson = JSON.stringify({ id: newId, name, version: '1.0.0', description: '', isDefault: false }, null, 2);
@@ -13854,9 +14086,7 @@ const Packages = (() => {
       UI.progress(25, 'Writing building_database.json…');
 
       // Upload sprites from ZIP
-      const spriteFiles = Object.entries(zip.files)
-        .filter(([path, f]) => path.startsWith('sprites/') && !f.dir)
-        .map(([path, file]) => ({ path, file }));
+      const spriteFiles = plan.sprites.map(sp => ({ path: sp.path, file: zip.file(sp.path), size: sp.size })).filter(x => x.file);   // PNG sprites only
 
       let done = 0;
       const localSprites = {};   // name -> dataUrl, so imported tiles render before any publish round-trip
@@ -13864,11 +14094,13 @@ const Packages = (() => {
       const failedSprites = [];  // names that could not be stored locally
       let existingNames = new Set();   // this package's own stored sprites only: another package's same-named sprite is a different file
       try { existingNames = new Set((await SpriteStore.loadForPackage(newId)).map(e => e.name)); } catch(e) { /* IndexedDB unavailable: sprites still go to the server */ }
-      for (const { path, file } of spriteFiles) {
+      for (const { path, file, size } of spriteFiles) {
         try {
           // path example: 'sprites/hex/Forest.png' → dest: 'packages/medieval/sprites/hex/Forest.png'
           const destPath = `packages/${newId}/${path}`;
-          const blob = await file.async('blob');
+          const bytes = await _readEntry(file, size);   // never inflates past the size the plan validated
+          if (!bytes) throw new Error('sprite is larger than it claims to be');
+          const blob = new Blob([bytes], { type: 'image/png' });
           const m = /^sprites\/(hex|buildings)\/(.+)\.png$/i.exec(path);
           if (m) {
             if (existingNames.has(m[2])) { skippedSprites.push(m[2]); done++; continue; }
@@ -13926,7 +14158,7 @@ const Packages = (() => {
            spriteSrc, openReskinPicker, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
-           openImportModal, _onImportFilePicked, closeImportModal,
+           openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
            _rewriteEntries, confirmImport };
 })();
 
@@ -20068,6 +20300,7 @@ window.addEventListener('load', async () => {
     <input id="pkg-import-id" type="text"
            style="padding:8px;border-radius:4px;border:1px solid #45475a;background:#313244;color:#cdd6f4;font-size:13px;font-family:monospace">
     <input type="hidden" id="pkg-import-original-id">
+    <div id="pkg-import-summary" style="font-size:12px;color:#a6adc8;max-height:200px;overflow:auto"></div>
     <div id="pkg-import-error" style="color:#f38ba8;font-size:12px;display:none"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="hexdb-tool-btn" onclick="Packages.closeImportModal()">Cancel</button>
