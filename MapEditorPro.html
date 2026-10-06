@@ -2637,7 +2637,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "d0d9ea7";
+const COMMIT  = "efee9d4";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8988,11 +8988,13 @@ const GitHubSync = (() => {
 
   async function publishMap() {
     if (!isPATConfigured()) { UI.toast('⚠ Open your access link first'); return; }
-    const mapJson = IO.getMapJson();
-    if (!mapJson) { UI.toast('No map to publish'); return; }
+    if (!IO.getMapJson()) { UI.toast('No map to publish'); return; }
 
     const rawName = await UI.prompt('Publish map', 'Map filename:', _lastMapName || 'current_map');
     if (rawName === null) return;
+    if (!(await IO.gateExport())) return;                   // after the name prompt; also waits for a running fill
+    const mapJson = IO.getMapJson();                        // rebuilt: the map may have changed during the prompt/fill
+    if (!mapJson) { UI.toast('No map to publish'); return; }
     const fname = rawName.trim().replace(/\.json$/i, '') || 'current_map';
     _lastMapName = fname;
     localStorage.setItem('ghLastMapName', _lastMapName);
@@ -11177,10 +11179,23 @@ const IO = (() => {
 
   function _setFileNameFromHandle(name) { _setFileName(name ? name.replace(/\.json$/i, '') : ''); }
 
-  function saveMap() {
+  // Export gate (T4.7), shared by Save, Export CSV and Publish: wait for a running fill (never validate a half-filled
+  // map), run the validator once, and make sure the map was not replaced while the summary was open.
+  async function gateExport() {
+    if (!mapData) return false;
+    const md = mapData;
+    while (Tools.isFillBusy()) { try { await Tools.whenIdle(); } catch (e) { /* the fill reported its own error */ } }
+    if (mapData !== md) { UI.toast('The map changed while waiting: nothing was exported'); return false; }
+    const ok = await MapValidator.gate();
+    if (!ok) return false;
+    if (mapData !== md || Tools.isFillBusy()) { UI.toast('The map changed while the summary was open: nothing was exported'); return false; }
+    return true;
+  }
+
+  async function saveMap() {
     UI.closeAllMenus();
     if (!mapData) return;
-    if (Tools.isFillBusy()) { Tools.whenIdle().then(saveMap, saveMap); return; }   // wait for the fill, then save the finished map
+    if (!(await gateExport())) return;
     const blob = new Blob([_buildJson()], { type: 'application/json' });
     const a    = document.createElement('a');
     a.href     = URL.createObjectURL(blob);
@@ -11192,9 +11207,10 @@ const IO = (() => {
     UI.toast('Map saved');
   }
 
-  function exportCSV() {
+  async function exportCSV() {
     UI.closeAllMenus();
     if (!mapData) return;
+    if (!(await gateExport())) return;
     const rows = [];
     for (let r = 0; r < MAP_HEIGHT; r++) {
       rows.push(mapData.slice(r * MAP_WIDTH, (r+1) * MAP_WIDTH).join(','));
@@ -11495,7 +11511,7 @@ const IO = (() => {
     _autoSave();
   }
 
-  return { newMap, openMap, saveMap, exportCSV, clearMap, fillMap, initFileInput, initKeyboard,
+  return { newMap, openMap, saveMap, exportCSV, gateExport, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
            openExpandMap, closeExpandMap, applyExpandMap, _validateExpandInput, _updateExpandPreview,
            autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave, getRestoreProblem: () => _restoreProblem, openRecoveryDialog, sideCopyCount: () => _sideList.length, hasUserMap: () => _userMap,
@@ -13610,9 +13626,9 @@ const MapValidator = (() => {
     });
   }
 
-  function runPanel() {
+  function runPanel(report) {
     clearMarks(false);
-    _report = run();
+    _report = report || run();
     _stale = false; _selKey = null;
     _renderPanel();
     return _report;
@@ -13639,6 +13655,51 @@ const MapValidator = (() => {
     document.querySelectorAll('#val-list .val-row').forEach(b => b.classList.toggle('sel', b.dataset.key === key));
     return true;
   }
+  // Export gate (T4.7). Resolves true when the export may go on: no issues, warnings only (toast) or errors the user
+  // accepted with 'Export anyway'. ONE validator run per call. Cancel / Escape / backdrop / Show issues resolve false and
+  // write nothing. A second call while the summary is open resolves false at once (no stacked modals). The caller waits
+  // for the fill to be idle first and re-checks the map identity afterwards (IO.gateExport).
+  let _gateOpen = false;
+  function gate() {
+    if (_gateOpen) return Promise.resolve(false);
+    const report = run();
+    if (!report.errors) {
+      if (report.warnings) UI.toast(`${report.warnings} validation warning${report.warnings === 1 ? '' : 's'} (see Validate Map in the left palette)`);
+      return Promise.resolve(true);
+    }
+    _gateOpen = true;
+    return new Promise(resolve => {
+      let done = false;
+      const finish = v => { if (!done) { done = true; _gateOpen = false; resolve(v); } };
+      const errs = report.issues.filter(i => i.severity === 'error');
+      const body = document.createElement('div');
+      const p = document.createElement('p');
+      p.textContent = `The map has ${report.errors} error${report.errors === 1 ? '' : 's'} the game may reject` +
+        (report.warnings ? ` (and ${report.warnings} warning${report.warnings === 1 ? '' : 's'})` : '') + ':';
+      const ul = document.createElement('ul');
+      errs.slice(0, 5).forEach(i => { const li = document.createElement('li'); li.textContent = `${i.message} (x${i.total})`; ul.appendChild(li); });
+      body.append(p, ul);
+      if (errs.length > 5) { const m = document.createElement('p'); m.textContent = `...and ${errs.length - 5} more.`; body.appendChild(m); }
+      UI.showModal({
+        id: 'validator-gate', title: 'Validation errors', body,
+        actions: [
+          { label: 'Show issues', onClick: close => { finish(false); close(); showIssues(report); } },
+          { label: 'Cancel', onClick: close => { finish(false); close(); } },
+          { label: 'Export anyway', danger: true, onClick: close => { finish(true); close(); } },
+        ],
+        autofocus: 1,
+        onClose: () => finish(false),
+      });
+    });
+  }
+  // Opens the panel with an already computed report (no second run) and jumps to its first error.
+  function showIssues(report) {
+    const d = _el('validator-panel');
+    if (d) d.open = true;
+    runPanel(report);
+    const first = report.issues.find(i => i.severity === 'error') || report.issues[0];
+    if (first) jumpTo(first.key);
+  }
   function getReport() { return _report ? { stale: _stale, selected: _selKey, report: _report } : null; }
 
   function initPanel() {
@@ -13658,7 +13719,7 @@ const MapValidator = (() => {
     _renderPanel();
   }
 
-  return { validate, collectState, run, IMPASSABLE, CELL_CAP, initPanel, runPanel, invalidate, jumpTo, clearMarks, getReport };
+  return { validate, collectState, run, gate, showIssues, IMPASSABLE, CELL_CAP, initPanel, runPanel, invalidate, jumpTo, clearMarks, getReport };
 })();
 
 // ── App: mode switching ────────────────────────────────────
