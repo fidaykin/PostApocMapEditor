@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
+import * as os from 'os';
 
 // Documentation lint (T6.5): Markdown links resolve, the HTML guides are the rendering of their Markdown sources, and the
 // README names every root script. No page needed.
@@ -27,31 +28,48 @@ test('the link extractor sees links and skips code (positive and negative contro
   expect(markdownLinks(md).map(l => l.target)).toEqual(['x/y.md', 'p.png', 'https://e.com/z']);
 });
 
+/** The lint itself: every relative link of `md` (the content of `doc`, relative to `root`) that does not resolve. */
+export function brokenLinks(doc: string, md: string, root: string = ROOT): string[] {
+  const readIn = (f: string) => fs.readFileSync(path.join(root, f), 'utf8');
+  const broken: string[] = [];
+  for (const l of markdownLinks(md)) {
+    if (/^[a-z][a-z0-9+.-]*:/i.test(l.target)) continue;                       // http:, https:, mailto:
+    const [file, hash] = l.target.split('#');
+    const abs = file ? path.resolve(root, path.dirname(doc), decodeURIComponent(file)) : path.join(root, doc);
+    if (!abs.startsWith(root + path.sep) && abs !== root) { broken.push(`${doc}:${l.line} ${l.target} leaves the repository`); continue; }
+    if (!fs.existsSync(abs)) { broken.push(`${doc}:${l.line} ${l.target} does not exist`); continue; }
+    if (hash && abs.endsWith('.md')) {
+      const slugs = readIn(path.relative(root, abs)).split('\n').filter(x => /^#{1,6} /.test(x))
+        .map(h => h.replace(/^#+ /, '').toLowerCase().replace(/[^\p{L}\p{N} -]/gu, '').replace(/ /g, '-'));
+      if (!slugs.includes(hash)) broken.push(`${doc}:${l.line} ${l.target}: no such heading`);
+    }
+  }
+  return broken;
+}
+
 for (const doc of DOCS) {
   test(`${doc}: every relative link points to an existing file or heading`, () => {
     const md = read(doc);
-    const links = markdownLinks(md);
-    expect(links.length, 'a document with no links would pass vacuously').toBeGreaterThan(0);
-    const broken: string[] = [];
-    for (const l of links) {
-      if (/^[a-z][a-z0-9+.-]*:/i.test(l.target)) continue;                       // http:, https:, mailto:
-      const [file, hash] = l.target.split('#');
-      const abs = file ? path.resolve(ROOT, path.dirname(doc), decodeURIComponent(file)) : path.join(ROOT, doc);
-      if (!abs.startsWith(ROOT + path.sep) && abs !== ROOT) { broken.push(`${doc}:${l.line} ${l.target} leaves the repository`); continue; }
-      if (!fs.existsSync(abs)) { broken.push(`${doc}:${l.line} ${l.target} does not exist`); continue; }
-      if (hash && abs.endsWith('.md')) {
-        const slugs = read(path.relative(ROOT, abs)).split('\n').filter(x => /^#{1,6} /.test(x))
-          .map(h => h.replace(/^#+ /, '').toLowerCase().replace(/[^\p{L}\p{N} -]/gu, '').replace(/ /g, '-'));
-        if (!slugs.includes(hash)) broken.push(`${doc}:${l.line} ${l.target}: no such heading`);
-      }
-    }
-    expect(broken).toEqual([]);
+    expect(markdownLinks(md).length, 'a document with no links would pass vacuously').toBeGreaterThan(0);
+    expect(brokenLinks(doc, md)).toEqual([]);
   });
 }
 
-test('a broken link would be reported (control for the lint above)', () => {
-  const l = markdownLinks('[x](docs/does-not-exist.md)')[0];
-  expect(fs.existsSync(path.resolve(ROOT, l.target))).toBe(false);
+test('a broken link would be reported (the lint loop itself runs on a temp Markdown tree)', () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'doclint-'));
+  try {
+    fs.mkdirSync(path.join(tmp, 'docs'));
+    fs.writeFileSync(path.join(tmp, 'docs', 'there.md'), '# Real heading\n');
+    const md = ['[ok](there.md)', '[ok anchor](there.md#real-heading)', '[gone](missing.md)', '[bad anchor](there.md#nope)', '[out](../../outside.md)', '[web](https://example.com/x)'].join('\n');
+    fs.writeFileSync(path.join(tmp, 'docs', 'a.md'), md);
+    const broken = brokenLinks('docs/a.md', md, tmp);
+    expect(broken).toEqual([
+      'docs/a.md:3 missing.md does not exist',
+      'docs/a.md:4 there.md#nope: no such heading',
+      'docs/a.md:5 ../../outside.md leaves the repository',
+    ]);
+    expect(brokenLinks('docs/a.md', '[ok](there.md) [ok anchor](there.md#real-heading)', tmp)).toEqual([]);   // control: the good links alone pass
+  } finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 });
 
 test('the HTML guides are the rendering of their Markdown sources (run: node scripts/build-guides.js)', () => {

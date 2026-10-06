@@ -29,10 +29,25 @@ const REMOVED: Record<string, string[]> = {
   'zone-painter.js': ['_hexIdToTid'],
   'MapEditorPro.html': ['auto-sync-label', 'fp-empty', 'pub-drop-sub', 'stub-editor', 'stub-msg', 'loadBuildingDbFromServer', '_numInput', '_costRow', 'hexdb-cost-row', '_getFileSha', 'getGroups', 'resumeFolderAutosave'],
 };
+// A whole identifier / id, not a substring of a longer one (_numInput must not match _numInputs, getGroups not getGroupsFor, fp-empty not
+// fp-empty-row): neither side may continue the name with a word character, '$' or '-'.
+export const mentions = (src: string, name: string) =>
+  new RegExp('(?<![\\w$-])' + name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(?![\\w$-])').test(src);
+
+test('the identifier matcher is exact (positive and negative controls)', () => {
+  expect(mentions('function _numInput(a) {}', '_numInput')).toBe(true);
+  expect(mentions('x = LocalizationKeys.getGroups();', 'getGroups')).toBe(true);
+  expect(mentions('<div id="fp-empty">', 'fp-empty')).toBe(true);
+  expect(mentions('function _numInputs() {}', '_numInput')).toBe(false);
+  expect(mentions('getGroupsFor(x); forgetGroups()', 'getGroups')).toBe(false);
+  expect(mentions('<div class="fp-empty-row">', 'fp-empty')).toBe(false);
+  expect(mentions('$_numInput', '_numInput')).toBe(false);
+});
+
 for (const [file, names] of Object.entries(REMOVED)) {
   for (const n of names) {
     test(`${file} no longer defines ${n}`, () => {
-      expect(read(file).includes(n)).toBe(false);
+      expect(mentions(read(file), n)).toBe(false);
     });
   }
 }

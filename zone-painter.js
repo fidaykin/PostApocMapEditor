@@ -701,8 +701,10 @@ const ZonePainter = (() => {
       // Single click: select zone
       el.addEventListener('click', e => {
         if (e.target.classList.contains('zone-swatch') || e.target.classList.contains('zone-del')) return;
+        if (nameSpan.isContentEditable) return;      // renaming: a click inside the name must not touch the editor (typed text, caret)
         _selectedZoneId = z.id;
-        _uiRebuildZoneList();
+        // Move the highlight without rebuilding the list: the rows (and a double-click that follows this click) keep their elements.
+        list.querySelectorAll('.zone-item').forEach(it => it.classList.toggle('selected', it.dataset.zoneId === String(z.id)));
         _uiRebuildZoneConfig();
         if (typeof Tools !== 'undefined') Tools.setActive('zone');
       });

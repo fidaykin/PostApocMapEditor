@@ -1366,7 +1366,7 @@ body.mode-common #map-io    { display: none; }
 <script src="gen-utils.js?v=5"></script>
 <script src="map-format.js?v=2"></script>
 <script src="brush.js?v=1"></script>
-<script src="zone-painter.js?v=20"></script>
+<script src="zone-painter.js?v=21"></script>
 <script src="map-jobs.js?v=6"></script>
 </head>
 <body class="mode-map">
@@ -2700,7 +2700,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "8df2aec";
+const COMMIT  = "f0cee0f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7499,7 +7499,8 @@ const Tools = (() => {
 
   function _previewPolygon(cursor) {
     const verts = cursor ? _polyVerts.concat([cursor]) : _polyVerts;
-    Canvas.setHighlight('shape', _shapePreviewCells(_polyCells(verts, true), _polyCells(verts, true)), { fill: 'rgba(79,195,247,0.12)' }, { render: !cursor });
+    const cells = _polyCells(verts, true);     // outline-only cells: the full preview and its reduced fallback are the same list (read only), computed once
+    Canvas.setHighlight('shape', _shapePreviewCells(cells, cells), { fill: 'rgba(79,195,247,0.12)' }, { render: !cursor });
   }
 
   // One History step per shape; nothing is pushed for an empty result.

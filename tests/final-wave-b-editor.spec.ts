@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { freshEditor } from './editor-helpers';
+import { freshEditor, clickCell, cellPoint } from './editor-helpers';
 
 // Final fix wave B (remaining Minor findings): validator (B3), History / PNG / layout (B4), generation (B5), UI (B6).
 
@@ -263,5 +263,56 @@ test.describe('B6 Ctrl+Shift+S', () => {
     await expect.poll(() => names.length).toBeGreaterThan(0);
     await settle(page);
     expect(names).toEqual(['map_export.json']);
+  });
+});
+
+test.describe('B6 zone rename', () => {
+  test('clicking inside the name while renaming keeps the editor, the typed text and the caret; Enter commits what was typed', async ({ page }) => {
+    await freshEditor(page);
+    await page.evaluate(() => { const id = ZonePainter.addZone('Original'); ZonePainter.setSelectedZoneId(id); ZonePainter._uiRebuildZoneList(); });
+    const name = page.locator('#zone-list .zone-name').first();
+    await name.dblclick();
+    await expect(name).toHaveAttribute('contenteditable', 'true');
+    await page.keyboard.type('Bridgehead');                                          // replaces the selected text
+    await page.evaluate(() => { (window as any).__span = document.querySelector('#zone-list .zone-name'); });
+    await name.click({ position: { x: 4, y: 4 } });                                  // a click INSIDE the name while editing
+    expect(await page.evaluate(() => (window as any).__span === document.querySelector('#zone-list .zone-name') && (window as any).__span.isConnected),
+      'the same element is still in the list (RED before B6: the list was rebuilt)').toBe(true);
+    expect(await page.evaluate(() => (document.querySelector('#zone-list .zone-name') as HTMLElement).contentEditable)).toBe('true');
+    expect(await name.textContent()).toBe('Bridgehead');
+    await page.keyboard.type('X');                                                   // typing continues in the same editor
+    await page.keyboard.press('Enter');
+    const stored = await page.evaluate(() => ZonePainter.getZones().map((z: any) => z.name));
+    expect(stored).toHaveLength(1);
+    expect(stored[0]).toContain('Bridgehead');
+    expect(stored[0]).toContain('X');
+    expect(stored[0]).not.toBe('Original');
+    // positive control: a click on a row that is NOT being edited still selects the zone and rebuilds the list
+    await page.evaluate(() => { ZonePainter.addZone('Second'); ZonePainter._uiRebuildZoneList(); });
+    await page.locator('#zone-list .zone-item').nth(1).click({ position: { x: 100, y: 4 } });
+    expect(await page.evaluate(() => ZonePainter.getSelectedZoneId() === ZonePainter.getZones()[1].id)).toBe(true);
+  });
+});
+
+test.describe('B6 polygon preview', () => {
+  test('a polygon preview update computes the polygon cells ONCE, and the preview shows the same cells as before', async ({ page }) => {
+    await freshEditor(page);
+    await page.evaluate(() => { Tools.setActive('polygon'); });
+    await clickCell(page, 221, 220); await clickCell(page, 228, 222); await clickCell(page, 225, 229);
+    const p = await cellPoint(page, 222, 226);
+    await page.evaluate(() => {
+      const w = window as any; w.__calls = 0;
+      const orig = HexUtils.polygonCells;
+      HexUtils.polygonCells = function (...a: any[]) { w.__calls++; return (orig as any).apply(this, a); } as any;
+    });
+    const calls = () => page.evaluate(() => (window as any).__calls as number);
+    await page.mouse.move(p.x - 60, p.y - 40);                                       // another cell: one preview update
+    const afterOne = await calls();
+    await page.mouse.move(p.x, p.y);                                                 // and another: a second update
+    const afterTwo = await calls();
+    expect(await page.evaluate(() => Canvas.hasHighlight('shape'))).toBe(true);       // positive control: a preview really was drawn
+    expect(afterOne).toBeGreaterThanOrEqual(1);                                       // ...by a real polygon computation
+    expect(afterOne, 'one update, one computation (RED before B6: two)').toBe(1);
+    expect(afterTwo - afterOne).toBe(1);
   });
 });
