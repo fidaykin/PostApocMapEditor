@@ -80,6 +80,8 @@ html, body {
 .menu-dropdown button:hover { background: var(--hover); }
 .menu-dropdown button:disabled { color: var(--muted); cursor: default; }
 .menu-dropdown .separator { border-top: 1px solid var(--border); margin: 4px 0; }
+.menu-dropdown a.menu-link { display: block; padding: 7px 16px; color: var(--text); font-size: 12px; text-decoration: none; white-space: nowrap; }
+.menu-dropdown a.menu-link:hover { background: var(--hover); }
 .menu-shortcut { float: right; margin-left: 24px; color: var(--muted); font-size: 11px; }
 
 /* ── Toolbar ──────────────────────────────────────────────── */
@@ -1439,6 +1441,15 @@ body.mode-common #map-io    { display: none; }
         <button onclick="Satellite.open()">Satellite Import…</button>
       </div>
     </div>
+    <div class="menu-item" id="menu-help">Help
+      <div class="menu-dropdown">
+        <a class="menu-link" id="help-guide-en" href="docs/guides/editor-guide.en.html" target="_blank" rel="noopener">User guide (English)</a>
+        <a class="menu-link" id="help-guide-uk" href="docs/guides/editor-guide.uk.html" target="_blank" rel="noopener">Посібник користувача (українською)</a>
+        <a class="menu-link" id="help-guide-pkg" href="docs/guides/content-packages-editor-guide.pdf" target="_blank" rel="noopener">Content packages guide (PDF)</a>
+        <div class="separator"></div>
+        <button id="help-shortcuts" onclick="Shortcuts.showHelp()">Keyboard Shortcuts…</button>
+      </div>
+    </div>
     <div class="menu-item" id="menu-dev">Dev
       <div class="menu-dropdown">
         <button onclick="Dev.qaPlaceAllTiles()">🔬 Place All Tiles Near City</button>
@@ -2710,7 +2721,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "285305e";
+const COMMIT  = "f889549";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
