@@ -1967,6 +1967,30 @@ test.describe('scatter (T2.7)', () => {
     expect(r.plain).toEqual(['Plain_1', 'Plain_2']);   // Plain_Flat_1 (Special), Plain_TEST/Kaiju are other types / excluded
   });
 
+  test('variant groups never mix packages: two packages sharing a name prefix and type scatter only their own variants (T5.11)', async ({ page }) => {
+    const r = await page.evaluate(([mk]) => {
+      const type = HexDB.getAll().find((h: any) => h.id === 'Forest_1').type;
+      HexDB.addEntries([
+        { id: 'Forest_8', type, package: 'medieval', spriteName: 'Forest_8' },
+        { id: 'Forest_9', type, package: 'medieval', spriteName: 'Forest_9' },
+      ]);
+      const own = Tools.scatterVariants('Forest_1'), med = Tools.scatterVariants('Forest_9');
+      Tools.setScatterRng(eval(mk as string)(5));
+      const W = MAP_WIDTH, cells = HexUtils.discCells(225, 224, 3, W, MAP_HEIGHT);
+      Tools.scatterCells(cells, 'Forest_9', 100);
+      const medIds = [...new Set(cells.map((c: any) => mapData[c.row * W + c.col]))].sort();
+      Tools.setScatterRng(eval(mk as string)(5));
+      Tools.scatterCells(cells, 'Forest_1', 100);
+      const baseIds = [...new Set(cells.map((c: any) => mapData[c.row * W + c.col]))].sort();
+      return { own, med, medIds, baseIds };
+    }, [SEEDED]);
+    expect(r.own).toEqual(['Forest_1', 'Forest_2', 'Forest_3']);          // no medieval ids leak into the default package's group
+    expect(r.med).toEqual(['Forest_8', 'Forest_9']);                      // and none the other way round
+    expect(r.medIds.every((id: string) => ['Forest_8', 'Forest_9'].includes(id))).toBe(true);
+    expect(r.medIds.length).toBeGreaterThan(1);                           // positive control: both medieval variants were really picked
+    expect(r.baseIds.some((id: string) => /^Forest_[89]$/.test(id))).toBe(false);
+  });
+
   test('a click scatters at the left-palette density; the same seed reproduces the stamp, another seed differs, one undo restores it', async ({ page }) => {
     await setupScatter(page, { density: 60, radius: 3, seed: '4242' });
     await page.keyboard.press('KeyA');

@@ -177,6 +177,14 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
 .cat-header.collapsed::before { transform: rotate(-90deg); }
 .cat-items { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 8px; }
 .cat-items.collapsed { display: none; }
+.pkg-group { margin-bottom: 6px; }
+.pkg-header { background: var(--bg); border: none; border-top: 1px solid var(--border); width: 100%; text-align: left; padding: 6px 8px; margin: 2px 0 4px;
+  color: #a6e3a1; font-size: 11px; font-weight: bold; cursor: pointer; border-radius: 3px; display: flex; align-items: center; gap: 6px; letter-spacing: 0.5px; }
+.pkg-header::before { content: '▼'; font-size: 9px; transition: transform 0.15s; }
+.pkg-header.collapsed::before { transform: rotate(-90deg); }
+.pkg-header .pkg-active-dot { margin-left: auto; color: var(--accent); }
+.pkg-header.active { outline: 1px solid var(--accent); }
+.pkg-body.collapsed { display: none; }
 
 /* ── Zone palette ─────────────────────────────────────────── */
 #zone-panel {
@@ -2687,7 +2695,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "77c8709";
+const COMMIT  = "67c2db8";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7158,14 +7166,15 @@ const Tools = (() => {
   function setScatterRng(fn) { _scatterRngOverride = typeof fn === 'function' ? fn : null; }
   function getLastScatterSeed() { return _lastScatterSeed; }
 
-  // The variants of an id: same HexDB type and same first '_' segment, no multi-tile entries (their footprint cannot
+  // The variants of an id: same package, same HexDB type and same first '_' segment, no multi-tile entries (their footprint cannot
   // be scattered), no directional river/lake pieces (edgeFaces), no test/kaiju/chicken placeholders. Falls back to the id itself when it is not in HexDB.
   function _scatterVariants(hexId) {
     const base = Terrain.byHexId(hexId);
     if (!base) return typeof hexId === 'string' && hexId ? [hexId] : [];
     const prefix = hexId.split('_')[0].toLowerCase();
+    const pkg = base.package || 'postapoc';   // a group never mixes packages (art styles): variants come from the clicked tile's package only
     return HexDB.getAll()
-      .filter(h => h.id && h.type === base.type && h.id.split('_')[0].toLowerCase() === prefix &&
+      .filter(h => h.id && (h.package || 'postapoc') === pkg && h.type === base.type && h.id.split('_')[0].toLowerCase() === prefix &&
                    !(Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length) &&
                    !_isDirectional(h) &&               // river/lake direction pieces: edge re-resolution overrides the pick
                    !/_test|kaiju|chicken/i.test(h.id))
@@ -9543,6 +9552,34 @@ const UI = (() => {
     }
   }
 
+  // Collapsed package groups in the palette, remembered per browser (never throws: storage may be blocked or corrupt).
+  const LS_PAL_COLLAPSED = 'palette_pkg_collapsed';
+  const _palCollapsedMem = new Set();
+  function _loadPkgCollapsed() {
+    try {
+      const v = JSON.parse(localStorage.getItem(LS_PAL_COLLAPSED) || '[]');
+      if (Array.isArray(v)) { _palCollapsedMem.clear(); v.forEach(x => { if (typeof x === 'string') _palCollapsedMem.add(x); }); }
+    } catch (e) { /* keep the in-memory state */ }
+    return _palCollapsedMem;
+  }
+  function _savePkgCollapsed(set) {
+    try { localStorage.setItem(LS_PAL_COLLAPSED, JSON.stringify([...set])); } catch (e) { /* in-memory only */ }
+  }
+  // Marks the active package's header without rebuilding the palette.
+  function markActivePackage() {
+    const act = typeof Packages !== 'undefined' ? Packages.getActive() : null;
+    document.querySelectorAll('#palette-scroll .pkg-header').forEach(h => {
+      const on = h.dataset.pkg === act;
+      h.classList.toggle('active', on);
+      const dot = h.querySelector('.pkg-active-dot');
+      if (on && !dot) {
+        const d = document.createElement('span');
+        d.className = 'pkg-active-dot'; d.textContent = '●'; d.title = 'Active package: new tiles are tagged to it';
+        h.appendChild(d);
+      } else if (!on && dot) dot.remove();
+    });
+  }
+
   function buildPalette() {
     if (typeof Tools !== 'undefined' && Tools.refreshBridgeButton) Tools.refreshBridgeButton();   // package changes rebuild the palette
     if (typeof Packages !== 'undefined') Packages.renderFilterChips();
@@ -9550,8 +9587,6 @@ const UI = (() => {
     scroll.innerHTML = '';
 
     const FIRST_CAT = '🌾 PLAINS';
-    let currentCatKey = null;
-    let currentCatEl  = null;
 
     const CAT_ORDER = {
       '💧 WATER / RIVER':    0,
@@ -9575,103 +9610,165 @@ const UI = (() => {
       if (bt >= 0) return  1;
       return a.id.localeCompare(b.id);
     });
-    const visibleHexes = allHexes.filter(h =>
-      typeof Packages === 'undefined' || Packages.isPkgVisible(h.package || 'postapoc')
-    );
+    const pkgVisible = id => typeof Packages === 'undefined' || Packages.isPkgVisible(id || 'postapoc');
+    const visibleHexes = allHexes.filter(h => pkgVisible(h.package));
 
-    visibleHexes.forEach(h => {
-      const cat = h.category || '⚙️ SPECIAL';
-      const tid = typeof h.terrainTypeId !== 'undefined' ? h.terrainTypeId : -1;
-
-      if (cat !== currentCatKey) {
-        currentCatKey = cat;
-        const hdr = document.createElement('button');
-        hdr.className = 'cat-header';
-        if (cat !== FIRST_CAT) hdr.classList.add('collapsed');
-        hdr.textContent = cat;
-        const items = document.createElement('div');
-        items.className = 'cat-items';
-        if (cat !== FIRST_CAT) items.classList.add('collapsed');
-        hdr.addEventListener('click', () => {
-          hdr.classList.toggle('collapsed');
-          items.classList.toggle('collapsed');
-        });
-        scroll.appendChild(hdr);
-        scroll.appendChild(items);
-        currentCatEl = items;
-      }
-
-      const btn = document.createElement('button');
-      btn.className = 'tile-btn';
-      btn.dataset.hexId = h.id;
-
-      // Layered tiles have transparent-bg sprites — tint button with terrain colour
-      if (Terrain.isLayeredHex(h) && h.type) {
-        const t = h.type.toLowerCase();
-        btn.style.backgroundColor =
-          t === 'water'              ? '#2a6fad' :
-          t === 'forests' || t === 'forest' ? '#2d6a2d' :
-          t === 'plains'  || t === 'plain'  ? '#7a9a4a' : '#555';
-      }
-
-      const img = document.createElement('img');
-      const spr = Terrain.getSprite(h.id);
-      img.src = spr ? spr.src : Packages.spriteSrc(h, 'hex');
-      img.alt = h.id;
-      btn.addEventListener('click', () => selectTerrain(h.id));
-      btn.appendChild(img);
-
-      if (h.fallback) {
-        const warn = document.createElement('span');
-        warn.className = 'warn'; warn.textContent = '⚠';
-        btn.appendChild(warn);
-      }
-
-      const tt = document.createElement('span');
-      tt.className = 'tile-tooltip';
-      tt.textContent = h.id;
-      btn.appendChild(tt);
-
-      (currentCatEl || scroll).appendChild(btn);
-    });
-
-    // ── Building sections (Ground Building / Water Building / Artefact) ──
     const BLD_SECTIONS = [
       { label: '🏗️ GROUND BUILDINGS', type: 'Ground Building' },
       { label: '🌊 WATER BUILDINGS',   type: 'Water Building'  },
       { label: '🏛️ ARTEFACTS',         type: 'Artefact'        },
     ];
-    const allBuildings = typeof BldDB !== 'undefined' ? BldDB.getAll() : [];
     const _bldType = b => b.type || 'Ground Building';
-    BLD_SECTIONS.forEach(({ label, type }) => {
-      const buildings = allBuildings.filter(b => _bldType(b) === type && b.buildingCategory !== 'Bridge' && !b.isRoad);
-      const hdr = document.createElement('button');
-      hdr.className = 'cat-header collapsed';
-      hdr.textContent = `${label} (${buildings.length})`;
-      const items = document.createElement('div');
-      items.className = 'cat-items collapsed';
-      hdr.addEventListener('click', () => {
-        hdr.classList.toggle('collapsed');
-        items.classList.toggle('collapsed');
-      });
-      scroll.appendChild(hdr);
-      scroll.appendChild(items);
-      buildings.forEach(bld => {
+    const visibleBlds = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b =>
+      pkgVisible(b.package) && b.buildingCategory !== 'Bridge' && !b.isRoad && BLD_SECTIONS.some(sec => sec.type === _bldType(b)));
+
+    // ── Group by package, once per build: default package first, then registry order, unknown ids last ──
+    const pkgAll = typeof Packages !== 'undefined' ? Packages.getAll() : [];
+    const rank = new Map();
+    [...pkgAll.filter(p => p.isDefault), ...pkgAll.filter(p => !p.isDefault)].forEach((p, i) => { if (!rank.has(p.id)) rank.set(p.id, i); });
+    const groups = new Map();                       // package id -> { hexes, blds }
+    const groupOf = id => { id = id || 'postapoc'; if (!groups.has(id)) groups.set(id, { hexes: [], blds: [] }); return groups.get(id); };
+    visibleHexes.forEach(h => groupOf(h.package).hexes.push(h));
+    visibleBlds.forEach(b => groupOf(b.package).blds.push(b));
+    const groupIds = [...groups.keys()].sort((x, y) => (rank.has(x) ? rank.get(x) : 1e9) - (rank.has(y) ? rank.get(y) : 1e9));
+    const multi = groupIds.length > 1;
+
+    const renderHexes = (list, host) => {
+      let currentCatKey = null;
+      let currentCatEl  = null;
+      list.forEach(h => {
+        const cat = h.category || '⚙️ SPECIAL';
+        if (cat !== currentCatKey) {
+          currentCatKey = cat;
+          const hdr = document.createElement('button');
+          hdr.className = 'cat-header';
+          if (cat !== FIRST_CAT) hdr.classList.add('collapsed');
+          hdr.textContent = cat;
+          const items = document.createElement('div');
+          items.className = 'cat-items';
+          if (cat !== FIRST_CAT) items.classList.add('collapsed');
+          hdr.addEventListener('click', () => {
+            hdr.classList.toggle('collapsed');
+            items.classList.toggle('collapsed');
+          });
+          host.appendChild(hdr);
+          host.appendChild(items);
+          currentCatEl = items;
+        }
+
         const btn = document.createElement('button');
         btn.className = 'tile-btn';
-        btn.dataset.hexId = bld.id;
+        btn.dataset.hexId = h.id;
+
+        // Layered tiles have transparent-bg sprites — tint button with terrain colour
+        if (Terrain.isLayeredHex(h) && h.type) {
+          const t = h.type.toLowerCase();
+          btn.style.backgroundColor =
+            t === 'water'              ? '#2a6fad' :
+            t === 'forests' || t === 'forest' ? '#2d6a2d' :
+            t === 'plains'  || t === 'plain'  ? '#7a9a4a' : '#555';
+        }
+
         const img = document.createElement('img');
-        img.src = Packages.spriteSrc(bld, 'bld');
-        img.alt = bld.id;
+        const spr = Terrain.getSprite(h.id);
+        img.src = spr ? spr.src : Packages.spriteSrc(h, 'hex');
+        img.alt = h.id;
+        btn.addEventListener('click', () => selectTerrain(h.id));
         btn.appendChild(img);
+
+        if (h.fallback) {
+          const warn = document.createElement('span');
+          warn.className = 'warn'; warn.textContent = '⚠';
+          btn.appendChild(warn);
+        }
+
         const tt = document.createElement('span');
         tt.className = 'tile-tooltip';
-        tt.textContent = bld.id;
+        tt.textContent = h.id;
         btn.appendChild(tt);
-        btn.addEventListener('click', () => selectTerrain(bld.id));
-        items.appendChild(btn);
+
+        currentCatEl.appendChild(btn);
       });
-    });
+    };
+
+    // ── Building sections (Ground Building / Water Building / Artefact) ──
+    const renderBuildings = (list, host, skipEmpty) => {
+      BLD_SECTIONS.forEach(({ label, type }) => {
+        const buildings = list.filter(b => _bldType(b) === type);
+        if (skipEmpty && !buildings.length) return;
+        const hdr = document.createElement('button');
+        hdr.className = 'cat-header collapsed';
+        hdr.textContent = `${label} (${buildings.length})`;
+        const items = document.createElement('div');
+        items.className = 'cat-items collapsed';
+        hdr.addEventListener('click', () => {
+          hdr.classList.toggle('collapsed');
+          items.classList.toggle('collapsed');
+        });
+        host.appendChild(hdr);
+        host.appendChild(items);
+        buildings.forEach(bld => {
+          const btn = document.createElement('button');
+          btn.className = 'tile-btn';
+          btn.dataset.hexId = bld.id;
+          const img = document.createElement('img');
+          img.src = Packages.spriteSrc(bld, 'bld');
+          img.alt = bld.id;
+          btn.appendChild(img);
+          const tt = document.createElement('span');
+          tt.className = 'tile-tooltip';
+          tt.textContent = bld.package ? `${bld.id} [${bld.package}]` : bld.id;
+          btn.appendChild(tt);
+          btn.addEventListener('click', () => selectTerrain(bld.id));
+          items.appendChild(btn);
+        });
+      });
+    };
+
+    if (!multi) {
+      // One (or no) visible package: the palette looks exactly as before, without a package header.
+      renderHexes(visibleHexes, scroll);
+      renderBuildings(visibleBlds, scroll, false);
+    } else {
+      const collapsed = _loadPkgCollapsed();
+      groupIds.forEach((pid, gi) => {
+        const g = groups.get(pid);
+        const entry = typeof Packages !== 'undefined' ? Packages.getEntry(pid) : null;
+        const wrap = document.createElement('div');
+        wrap.className = 'pkg-group';
+        wrap.dataset.pkg = pid;
+        const hdr = document.createElement('button');
+        hdr.type = 'button';
+        hdr.className = 'pkg-header';
+        hdr.dataset.pkg = pid;
+        const label = document.createElement('span');
+        label.className = 'pkg-header-label';
+        label.textContent = `📦 ${(entry && entry.name) || pid} (${g.hexes.length + g.blds.length})`;
+        hdr.appendChild(label);
+        const body = document.createElement('div');
+        body.className = 'pkg-body';
+        body.id = `pkg-body-${gi}`;
+        hdr.setAttribute('aria-controls', body.id);
+        const apply = isCollapsed => {
+          hdr.setAttribute('aria-expanded', String(!isCollapsed));
+          hdr.classList.toggle('collapsed', isCollapsed);
+          body.classList.toggle('collapsed', isCollapsed);
+        };
+        apply(collapsed.has(pid));
+        hdr.addEventListener('click', () => {
+          const now = hdr.getAttribute('aria-expanded') === 'true';   // true = about to collapse
+          apply(now);
+          if (now) collapsed.add(pid); else collapsed.delete(pid);
+          _savePkgCollapsed(collapsed);
+        });
+        wrap.appendChild(hdr);
+        renderHexes(g.hexes, body);
+        renderBuildings(g.blds, body, true);
+        wrap.appendChild(body);
+        scroll.appendChild(wrap);
+      });
+      markActivePackage();
+    }
 
     // Re-apply the current selection to the freshly-created buttons.
     // buildPalette() is called asynchronously (HexDB.init setTimeout, server sync,
@@ -10497,7 +10594,7 @@ const UI = (() => {
   }
 
   return {
-    init, buildPalette, selectTerrain, getSelectedTerrain,
+    init, buildPalette, markActivePackage, selectTerrain, getSelectedTerrain,
     selectBridge, getSelectedBridgeAxis, _bridgeSprites,
     selectCustomTerrain, getSelectedCustomId,
     updateSettlementCount, updateMenuHistoryState,
@@ -12882,6 +12979,7 @@ const Packages = (() => {
     renderBadges();
     renderActiveDropdowns();
     renderPanel();
+    if (typeof UI !== 'undefined' && UI.markActivePackage) UI.markActivePackage();
   }
 
   // ── Panel / badge rendering (stubs — filled in Tasks 2–5) ──────
