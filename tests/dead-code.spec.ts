@@ -27,7 +27,7 @@ test('dead public helpers are gone and the editor still builds its palette', asy
 // or definition plus export) before it was deleted. REMOVED maps file -> names that must no longer be defined there.
 const REMOVED: Record<string, string[]> = {
   'zone-painter.js': ['_hexIdToTid'],
-  'MapEditorPro.html': ['loadBuildingDbFromServer', '_numInput', '_costRow', 'hexdb-cost-row', '_getFileSha', 'getGroups', 'resumeFolderAutosave'],
+  'MapEditorPro.html': ['auto-sync-label', 'fp-empty', 'pub-drop-sub', 'stub-editor', 'stub-msg', 'loadBuildingDbFromServer', '_numInput', '_costRow', 'hexdb-cost-row', '_getFileSha', 'getGroups', 'resumeFolderAutosave'],
 };
 for (const [file, names] of Object.entries(REMOVED)) {
   for (const n of names) {

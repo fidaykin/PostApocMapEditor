@@ -771,8 +771,6 @@ body.mode-quests      #main { display: none; } body.mode-quests      #quests-mai
 body.mode-common #main          { display: none; }
 body.mode-common #hexdb-main    { display: none; }
 body.mode-common #common-main   { display: block; }
-.stub-editor { display: none; align-items: center; justify-content: center; height: 100%; }
-.stub-msg    { color: var(--muted); font-size: 18px; }
 body.mode-settlements #main             { display: none; }
 body.mode-settlements #hexdb-main       { display: none; }
 body.mode-settlements #settlements-main { display: grid; }
@@ -1062,7 +1060,6 @@ body.mode-common #map-io    { display: none; }
   font-size: 13px; font-weight: bold;
   user-select: none;
 }
-.fp-empty { display: none; }
 
 .hexdb-section.collapsed .hexdb-section-body { display: none; }
 .hexdb-row { display: flex; align-items: center; gap: 8px; }
@@ -1319,16 +1316,6 @@ body.mode-common #map-io    { display: none; }
 }
 .publish-btn:hover { background: #2a5a3a; }
 .publish-btn:disabled { opacity: .4; cursor: wait; }
-.auto-sync-label {
-  margin-left: 6px;
-  font-size: 11px;
-  color: #4a9;
-  cursor: pointer;
-  user-select: none;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
 
 /* ── Publish dropdown ───────────────────────────────────── */
 .pub-drop-wrap {
@@ -1361,7 +1348,6 @@ body.mode-common #map-io    { display: none; }
 .pub-drop button:hover { background: #1a3a2a; }
 .pub-drop button:disabled { opacity: .4; cursor: wait; }
 .pub-drop-sep { border-top: 1px solid #2a4a3a; margin: 3px 0; }
-.pub-drop-sub { font-size: 10px; color: #678; margin-left: 6px; }
 
 /* ── GitHub Maps Popover ──────────────────────────────── */
 #gh-maps-modal { display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center; }
@@ -2713,7 +2699,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "beb0874";
+const COMMIT  = "61dae0a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
