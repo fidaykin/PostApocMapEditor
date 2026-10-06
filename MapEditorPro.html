@@ -2721,7 +2721,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "f889549";
+const COMMIT  = "e965a94";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2764,7 +2764,6 @@ const Terrain = (() => {
     if (typeof id !== 'string') return null;
     return sprites[id.toLowerCase()] || null;
   }
-  function getCustomSprite(id) { return getSprite(id); }  // unified — all sprites in sprites{}
   function getCitySprite()       { return citySprite; }
   function getSettlementSprite() { return settlementSprite; }
 
@@ -2906,7 +2905,7 @@ const Terrain = (() => {
   }
   function unregisterUploadedUrls(keys) { for (const k of keys) delete _uploadedUrls[k]; }
 
-  return { applyHexDbOverrides, getSprite, spriteState, pendingSprites, getCustomSprite, getCitySprite, getSettlementSprite,
+  return { applyHexDbOverrides, getSprite, spriteState, pendingSprites, getCitySprite, getSettlementSprite,
            color, byId, byHexId, getAll, registerUploadedUrls, unregisterUploadedUrls, getUploadedUrl,
            getTerrainSpriteForType, isLayeredHex };
 })();
@@ -9812,14 +9811,6 @@ const UI = (() => {
 
   function getSelectedBridgeAxis() { return _selectedBridgeAxis; }
 
-  // Kept for backward compatibility — now just delegates to selectTerrain.
-  function selectCustomTerrain(baseIntOrHexId, customId) {
-    selectTerrain(customId || baseIntOrHexId);
-  }
-
-  // Returns empty string — all terrain types are now unified in getSelectedTerrain().
-  function getSelectedCustomId() { return ''; }
-
   function updateSettlementCount() {
     document.getElementById('settlement-count').textContent =
       `Settlements: ${settlements.length}`;
@@ -10571,7 +10562,6 @@ const UI = (() => {
   return {
     init, buildPalette, markActivePackage, selectTerrain, getSelectedTerrain,
     selectBridge, getSelectedBridgeAxis, _bridgeSprites,
-    selectCustomTerrain, getSelectedCustomId,
     updateSettlementCount, updateMenuHistoryState,
     toggleSettlements, closeAllMenus,
     showConfirm, closeConfirm, toast,
