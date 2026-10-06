@@ -2698,8 +2698,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.06";
-const COMMIT  = "f133d5c";
+const VERSION = "2026.10.07";
+const COMMIT  = "7a0cc88";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10290,6 +10290,8 @@ const UI = (() => {
     let closed = false;
     const handle = { el: ov, box, close: reason => {
       if (closed) return;
+      // o.canClose(reason) can veto an Escape/backdrop close (work in progress); explicit close() calls always go through.
+      if ((reason === 'escape' || reason === 'backdrop') && typeof o.canClose === 'function' && !o.canClose(reason)) return;
       closed = true;
       const i = _modalStack.indexOf(handle);
       if (i >= 0) _modalStack.splice(i, 1);
@@ -13342,11 +13344,12 @@ const Packages = (() => {
   }
 
   // The dependency graph of `list` (registry-shaped entries) with `id` replaced by `deps`.
-  function _graph(list, id, deps) {
+  // serverOnly: the other packages contribute what the SERVER lists (not this browser's local overrides), as publish needs.
+  function _graph(list, id, deps, serverOnly) {
     const g = Object.create(null);
     for (const p of list || []) {
       if (!p || typeof p.id !== 'string' || _FORBIDDEN_KEYS.has(p.id)) continue;
-      g[p.id] = _effective(p).dependencies.map(_depId).filter(Boolean);
+      g[p.id] = (serverOnly ? (_cleanDetails(p) || {}).dependencies || [] : _effective(p).dependencies).map(_depId).filter(Boolean);
     }
     g[id] = deps.map(_depId).filter(Boolean);
     return g;
@@ -13371,7 +13374,7 @@ const Packages = (() => {
     return { errors, deps };
   }
 
-  function _validate(id, d, list) {
+  function _validate(id, d, list, serverOnly) {
     const errors = [], warnings = [];
     const out = { ok: false, errors, warnings, description: undefined, dependencies: undefined };
     if (d && d.description !== undefined) {
@@ -13384,7 +13387,7 @@ const Packages = (() => {
       errors.push(...c.errors);
       if (!c.errors.length) {
         out.dependencies = c.deps.slice();
-        const cycle = findDependencyCycle(_graph(list, id, out.dependencies));
+        const cycle = findDependencyCycle(_graph(list, id, out.dependencies, serverOnly));
         if (cycle) errors.push(`Dependency cycle: ${cycle.join(' → ')}`);
         for (const s of out.dependencies) {
           const p = parseDependency(s), e = (list || []).find(x => x && x.id === p.id);
@@ -13569,9 +13572,20 @@ const Packages = (() => {
         extra.value.split(/[\s,]+/).filter(Boolean).forEach(s => deps.push(s));
         const r = validateDetails(id, { description: desc.value, dependencies: deps });
         if (!r.ok) { err.textContent = r.errors.join('\n'); return; }
-        if (!updateDetails(id, { description: desc.value, dependencies: deps })) return;
-        if (pending) await SpriteStore.save(PREVIEW_NAME, pending, 'preview', id);
-        else if (removed) await removePreview(id);
+        // All or nothing: the preview goes first (it can fail on storage), then the details; when the details then fail the
+        // previous preview is put back, so a failure never leaves half of the edit behind.
+        const prevPreview = (pending || removed) ? await getPreview(id) : null;
+        try {
+          if (pending) await SpriteStore.save(PREVIEW_NAME, pending, 'preview', id);
+          else if (removed) await SpriteStore.remove(PREVIEW_NAME, id);
+        } catch (e2) { err.textContent = `The preview could not be stored (${e2 && e2.message ? e2.message : e2}). Nothing was saved.`; return; }
+        if (!updateDetails(id, { description: desc.value, dependencies: deps })) {
+          if (pending || removed) {
+            try { if (prevPreview) await SpriteStore.save(PREVIEW_NAME, prevPreview, 'preview', id); else await removePreview(id); }
+            catch (e3) { console.warn('[Packages] preview rollback failed:', e3 && e3.message); }
+          }
+          return;
+        }
         renderPanel();
         if (r.warnings.length) UI.toast('Details saved. ' + r.warnings.join(' '), { ms: 7000 });
         close();
@@ -13953,11 +13967,14 @@ const Packages = (() => {
     return GitHubSync.readRepoFile(`packages/${id}/package.json`);
   }
 
-  // ── Version bump (strict x.y.z; "x.y" is padded; anything else is refused, never NaN) ──
+  // ── Version bump (x.y.z, "x.y" is padded, -pre/+build tags are ignored; anything else is refused, never NaN) ──
   const _MAX_NOTE = 500;
   const _MAX_CHANGELOG = 200;
+  // The numeric core [major, minor, patch] of 'x.y', 'x.y.z' or either followed by a semver pre-release (-beta.1) and/or
+  // build (+b5) tag. The tags are ignored on purpose: a bump is computed from the numeric core, so a published
+  // '1.0.0-beta' + patch = 1.0.1, + minor = 1.1.0, + keep = 1.0.0 (the release); such a version never blocks a publish.
   function _parseVersion(v) {
-    const m = typeof v === 'string' ? /^(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?$/.exec(v) : null;
+    const m = typeof v === 'string' ? /^(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(v) : null;
     if (!m) return null;
     const n = [+m[1], +m[2], m[3] === undefined ? 0 : +m[3]];
     return n.every(Number.isSafeInteger) ? n : null;
@@ -14054,7 +14071,7 @@ const Packages = (() => {
     root.appendChild(err);
     let m, go;
     const label = missing.length ? 'Publish anyway' : 'Publish now';
-    m = UI.showModal({ id: 'pub-modal', title: `Publish ${name}`, body: root, modal: true, actions: [
+    m = UI.showModal({ id: 'pub-modal', title: `Publish ${name}`, body: root, modal: true, canClose: () => !_publishBusy, actions: [
       { label: 'Cancel', onClick: () => { if (!_publishBusy) m.close('cancel'); } },
       { label, primary: true, onClick: async () => {
         if (_publishBusy) return;
@@ -14125,8 +14142,12 @@ const Packages = (() => {
 
       // Local description/dependencies override the server's; the result must be valid against the SERVER registry too
       // (a cycle someone else just created), before the first write.
+      // The id check above ran earlier: re-check it against what was just read, so a package someone else published in
+      // between is never overwritten (package.json is also written create-only below).
+      if (entry.localOnly && !entry.serverClaimed && (pkgFile || regData.packages.some(p => p.id === id)))
+        throw new Error(`Package "${id}" already exists on the server. Pick another id.`);
       const det = _mergedDetails(id, entry, serverPkg);
-      const dv = _validate(id, det, regData.packages);
+      const dv = _validate(id, det, regData.packages, true);   // server graph + only THIS package's local details
       if (!dv.ok) throw new Error(dv.errors[0]);
       const previewUrl = await getPreview(id);
 

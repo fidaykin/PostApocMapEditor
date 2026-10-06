@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import * as fs from 'fs';
-import { openEditor, FakeGitHub, packageZip, readZip, hexRec, bldRec, dataUrl, TINY_PNG, seedServerPackage, waitForLastWrite } from './helpers';
+import { openEditor, FakeGitHub, packageZip, buildZip, readZip, hexRec, bldRec, dataUrl, TINY_PNG, seedServerPackage, waitForLastWrite } from './helpers';
 
 // Final fix wave A, package items (A1-A8): hostile sprite names, import rollback that only touches what THIS import
 // wrote, local-only packages claimed by an online import, Merge vs server sprites, large server files, sprite name rules.
@@ -315,4 +315,227 @@ test('A8: a failed import restores only the imported package: an edit to another
     importedB: BldDB.getAll().filter((b: any) => b.package === 'new-pack').length,
   }));
   expect(after).toEqual({ other: 'edited mid-import', imported: 0, importedB: 0 });
+});
+
+// ── A6: sprite name and file rules ────────────────────────────────────────────────────────────────────────────────
+test('A6: sanitizeSpriteName: trailing dots/spaces, Windows device names, __ internal names, NFC (table)', async ({ page }) => {
+  await boot(page);
+  const rows: [string, string | null][] = [
+    ['Good_1.png', 'Good_1'], ['a.png', 'a'], ['name .png', 'name'], ['dots...png', 'dots'], ['x..y.png', 'xy'],
+    ['CON.png', null], ['con', null], ['Prn.png', null], ['AUX.png', null], ['nul.png', null], ['COM1.png', null], ['com9', null], ['LPT1.png', null], ['lpt9.txt', null],
+    ['aux.v2.png', null], ['con2.png', 'con2'], ['console.png', 'console'], ['com10.png', 'com10'], ['comx.png', 'comx'],
+    ['__preview.png', null], ['__x.png', null], ['_x.png', '_x'], ['a__b.png', 'a__b'],
+    ['é.png', 'é'], ['...png', null], ['', null], ['a/b.png', 'b'], ['../../x.png', 'x'], ['a?b#c%d.png', 'a_b_c_d'],
+  ];
+  const got = await page.evaluate(r => r.map(([n]: any) => Packages.sanitizeSpriteName(n)), rows);
+  expect(got).toEqual(rows.map(r => r[1]));
+  expect(await page.evaluate(() => ['é', 'CON', '__preview', 'x ', 'ok-1'].map(n => Packages.isSafeSpriteName(n)))).toEqual([false, false, false, false, true]);
+});
+
+test('A6: the uploaded-URL registry has no inherited keys (constructor / toString are harmless names)', async ({ page }) => {
+  await boot(page);
+  const r = await page.evaluate(() => {
+    Terrain.registerUploadedUrls({ 'pkg/toString': 'data:x', 'pkg/constructor': 'data:y' });
+    return {
+      inherited: ['constructor', 'toString', 'hasOwnProperty', 'valueOf'].map(n => Terrain.getUploadedUrl(n) === null),
+      inheritedPkg: ['constructor', 'toString'].map(n => Terrain.getUploadedUrl(n, 'other') === null),
+      own: [Terrain.getUploadedUrl('toString', 'pkg'), Terrain.getUploadedUrl('constructor', 'pkg')],
+    };
+  });
+  expect(r.inherited).toEqual([true, true, true, true]);
+  expect(r.inheritedPkg).toEqual([true, true]);
+  expect(r.own).toEqual(['data:x', 'data:y']);
+});
+
+test('A6: a file whose size cannot be read from the header is refused without a decode (JPEG SOF past 64 KB, short PNG, unknown WebP)', async ({ page }) => {
+  await boot(page);
+  const r = await page.evaluate(async png => {
+    let decodes = 0;
+    const real = window.createImageBitmap;
+    (window as any).createImageBitmap = (...a: any[]) => { decodes++; return (real as any)(...a); };
+    const seg = (marker: number, n: number) => { const a = new Uint8Array(n + 4); a[0] = 0xFF; a[1] = marker; a[2] = ((n + 2) >> 8) & 255; a[3] = (n + 2) & 255; return a; };
+    const cat = (...p: Uint8Array[]) => { const o = new Uint8Array(p.reduce((n, x) => n + x.length, 0)); let i = 0; for (const x of p) { o.set(x, i); i += x.length; } return o; };
+    const sof = Uint8Array.from([0xFF, 0xC0, 0, 17, 8, 0, 16, 0, 16, 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1]);
+    const jpeg = cat(Uint8Array.from([0xFF, 0xD8]), seg(0xE0, 60000), seg(0xE1, 60000), sof, new Uint8Array(40));
+    const shortPng = Uint8Array.from([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13]);
+    const webp = Uint8Array.from([...'RIFF'].map(c => c.charCodeAt(0)).concat([0, 0, 0, 0], [...'WEBPABCD'.slice(0, 4)].map(c => c.charCodeAt(0)), [...'ABCD'].map(c => c.charCodeAt(0)), new Array(20).fill(0)));
+    const out: any = {};
+    for (const [k, bytes, type] of [['jpeg', jpeg, 'image/jpeg'], ['png', shortPng, 'image/png'], ['webp', webp, 'image/webp']] as any)
+      out[k] = await Packages.normalizeSpriteFile(new File([bytes], `x.${k}`, { type }));
+    out.decodesAfterRefusals = decodes;
+    // positive control: a real PNG still passes and IS decoded
+    const bin = Uint8Array.from(atob(png), c => c.charCodeAt(0));
+    out.good = await Packages.normalizeSpriteFile(new File([bin], 'ok.png', { type: 'image/png' }));
+    out.decodesAfterGood = decodes;
+    return JSON.parse(JSON.stringify(out));
+  }, TINY_PNG.toString('base64'));
+  for (const k of ['jpeg', 'png', 'webp']) { expect(r[k].ok, k).toBe(false); expect(r[k].error, k).toMatch(/header/); }
+  expect(r.decodesAfterRefusals).toBe(0);
+  expect(r.good.ok).toBe(true);
+  expect(r.decodesAfterGood).toBe(1);
+});
+
+test('A6: an imported sprite with upper-case folder/extension is written under the canonical lower-case path; names that differ only by case are refused', async ({ page }) => {
+  const gh = await boot(page);
+  const base = { 'package.json': JSON.stringify({ id: 'src', name: 'Src', version: '1.0.0' }),
+    'hex_database.json': JSON.stringify({ hexes: [hexRec('Src_A', 'src', { spriteName: 'S1' })] }), 'building_database.json': JSON.stringify({ buildings: [] }) };
+  await pick(page, await buildZip({ ...base, 'sprites/HEX/S1.PNG': TINY_PNG }), NEW);
+  await clickImport(page);
+  await waitForLastWrite(gh, REG);
+  await settled(page);
+  expect((await status(page)).status).toBe('ok');
+  expect(gh.writeLog.map(w => w.path).filter(p => p.includes('/sprites/'))).toEqual([`${P}/sprites/hex/S1.png`]);
+  expect(await page.evaluate(async () => (await SpriteStore.loadForPackage('new-pack')).map((e: any) => [e.name, e.category]))).toEqual([['S1', 'hex']]);
+  await page.evaluate(() => Packages.closeImportModal());
+  const errs = await importErrors(page, await buildZip({ ...base, 'sprites/hex/A.png': TINY_PNG, 'sprites/hex/a.png': TINY_PNG }));
+  expect(errs).toMatch(/used twice/);
+  const errs2 = await importErrors(page, await buildZip({ ...base, 'sprites/Hex/a.PNG': TINY_PNG, 'sprites/buildings/A.png': TINY_PNG }));
+  expect(errs2).toMatch(/used twice/);
+});
+
+// ── A7 ────────────────────────────────────────────────────────────────────────────────────────────────────────────
+async function setupPp(page: Page, gh: FakeGitHub, version: string, pkg: object = {}) {
+  gh.setRegistry([{ id: 'pp', name: 'PP', version }]);
+  gh.setJson('packages/pp/package.json', { id: 'pp', name: 'PP', version, description: 'd', isDefault: false, ...pkg });
+  await boot(page, gh);
+  await page.waitForFunction(() => !!Packages.getEntry('pp'));
+  await page.evaluate(h => HexDB.addEntries(h), [hexRec('Pp_A', 'pp')]);
+}
+
+test('A7: nextVersion bumps the numeric core of a pre-release/build version (documented), junk is still refused', async ({ page }) => {
+  await boot(page);
+  const rows: [string, string, string | null][] = [
+    ['1.0.0-beta', 'patch', '1.0.1'], ['1.0.0-beta', 'minor', '1.1.0'], ['1.0.0-beta', 'major', '2.0.0'], ['1.0.0-beta', 'none', '1.0.0'],
+    ['1.2.3-beta.1', 'patch', '1.2.4'], ['1.2.3+b5', 'patch', '1.2.4'], ['1.2.3-rc.1+b5', 'minor', '1.3.0'],
+    ['1.2.3-', 'patch', null], ['1.2.3-be ta', 'patch', null], ['v1.2.3-beta', 'patch', null], ['1.2.3-beta', 'huge', null],
+  ];
+  expect(await page.evaluate(r => r.map(([v, b]: any) => Packages.nextVersion(v, b)), rows)).toEqual(rows.map(r => r[2]));
+});
+
+test('A7: a pre-release version on the server does not block publish; the bump is computed from its numeric core', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await setupPp(page, gh, '1.0.0-beta');
+  const r = await page.evaluate(() => Packages.publishPackage('pp', { bump: 'patch' }));
+  expect(r).toEqual({ ok: true, version: '1.0.1' });
+  expect(gh.json('packages/pp/package.json').version).toBe('1.0.1');
+  expect(gh.json(REG).packages.find((p: any) => p.id === 'pp').version).toBe('1.0.1');
+});
+
+test('A7: Merge/Replace import keeps the ZIP version and the changelog of the server package.json', async ({ page }) => {
+  const gh = new FakeGitHub(); seedOld(gh);
+  const log = [{ version: '1.0.0', date: '2026-01-01', note: 'first' }, { version: '1.2.3', date: '2026-02-02', note: 'second' }];
+  gh.setJson('packages/old/package.json', { id: 'old', name: 'Old Pack', version: '1.2.3', description: '', isDefault: false, changelog: log });
+  await boot(page, gh);
+  await page.waitForFunction(() => !!Packages.getEntry('old'));
+  await page.evaluate(h => HexDB.addEntries(h), [hexRec('Old_Tile', 'old', { spriteName: 'S1' })]);
+  await pick(page, await packageZip('old', 'Old Pack', { hexes: [hexRec('Old_Two', 'old')], version: '2.0.0' }), 'old');
+  await clickImport(page);
+  await conflictModal(page).getByRole('button', { name: 'Merge' }).click();
+  await waitForLastWrite(gh, REG);
+  await settled(page);
+  expect((await status(page)).status).toBe('ok');
+  const pj = gh.json('packages/old/package.json');
+  expect(pj.version).toBe('2.0.0');
+  expect(pj.changelog).toEqual(log);
+  expect(gh.json(REG).packages.find((p: any) => p.id === 'old').version).toBe('2.0.0');
+});
+
+test('A7: two tabs: saving details re-reads the stored copy, so another tab\'s edit to a different package survives', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.setRegistry([{ id: 'pp', name: 'PP' }, { id: 'qq', name: 'QQ' }]);
+  await boot(page, gh);
+  await page.waitForFunction(() => !!Packages.getEntry('qq'));
+  await page.evaluate(() => { Packages.updateDetails('pp', { description: 'first' }); });          // loads the cache
+  await page.evaluate(() => localStorage.setItem('pkg_details', JSON.stringify({ pp: { description: 'first' }, qq: { description: 'from the other tab' } })));
+  await page.evaluate(() => { Packages.updateDetails('pp', { description: 'second' }); });
+  expect(await page.evaluate(() => JSON.parse(localStorage.getItem('pkg_details')!))).toEqual({ pp: { description: 'second' }, qq: { description: 'from the other tab' } });
+});
+
+test('A7: Escape cannot close the publish dialog while a publish runs; it closes normally afterwards', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await setupPp(page, gh, '1.0.0');
+  await page.evaluate(() => {
+    (window as any).__gate = new Promise(r => { (window as any).__open = r; });
+    const o = GitHubSync._putText;
+    GitHubSync._putText = async (...a: any[]) => { await (window as any).__gate; return o(...a); };
+  });
+  await page.evaluate(() => { Packages.openPublishConfirm('pp'); });
+  await page.getByRole('button', { name: 'Publish', exact: true }).click();
+  await expect(page.locator('#pub-dialog')).toBeVisible();
+  await page.getByRole('button', { name: /Publish (now|anyway)/ }).click();
+  await expect(page.locator('#pub-status')).toContainText('Publishing');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#pub-modal')).toBeVisible();                      // positive: still open mid-publish
+  await page.evaluate(() => (window as any).__open());
+  await expect(page.locator('#pub-modal')).toHaveCount(0);                     // closed by the successful publish
+  expect(gh.json('packages/pp/package.json').version).toBe('1.0.1');
+  // idle dialog: Escape still closes it
+  await page.evaluate(() => { Packages.openPublishConfirm('pp'); });
+  await page.getByRole('button', { name: 'Publish', exact: true }).click();
+  await expect(page.locator('#pub-dialog')).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#pub-modal')).toHaveCount(0);
+});
+
+test('A7: saving details is all-or-nothing: a failing preview store leaves the details unsaved and the dialog open', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.setRegistry([{ id: 'pp', name: 'PP' }]);
+  await boot(page, gh);
+  await page.waitForFunction(() => !!Packages.getEntry('pp'));
+  await page.evaluate(() => Packages.openDetails('pp'));
+  await page.fill('#pkg-det-desc', 'new description');
+  await page.setInputFiles('#pkg-det-preview', { name: 'p.png', mimeType: 'image/png', buffer: TINY_PNG });
+  await expect(page.locator('#pkg-det-preview-img')).toBeVisible();
+  await page.evaluate(() => { SpriteStore.save = async () => { throw new Error('quota exceeded'); }; });
+  await page.locator('#pkg-details-modal').getByRole('button', { name: 'Save details' }).click();
+  await expect(page.locator('#pkg-det-error')).toContainText('quota exceeded');
+  await expect(page.locator('#pkg-details-modal')).toBeVisible();
+  expect(await page.evaluate(() => localStorage.getItem('pkg_details'))).toBeNull();
+  expect(await page.evaluate(() => Packages.getDetails('pp').description)).toBe('');
+});
+
+test('A7: publishing a local-only package refuses when the server gained that id after the id check', async ({ page }) => {
+  const gh = await boot(page, new FakeGitHub(), false);
+  await page.evaluate(() => Packages.openNewModal());
+  await page.fill('#pkg-new-name', 'Loc Pack');
+  await page.fill('#pkg-new-id', 'loc-pack');
+  await page.locator('#pkg-new-modal').getByRole('button', { name: 'Create' }).click();
+  await page.waitForFunction(() => !!Packages.getEntry('loc-pack'));
+  await page.evaluate(h => HexDB.addEntries(h), [hexRec('LocPack_A', 'loc-pack')]);
+  await page.evaluate(() => GitHubSync.setPAT('test-token'));
+  let seen = 0;
+  gh.failGet = p => {
+    if (p === 'packages/loc-pack/package.json' && ++seen === 2) {   // 1st = the id check, 2nd = the publish's own read
+      gh.setJson(p, { id: 'loc-pack', name: 'Strangers', version: '9.0.0' });
+      gh.setRegistry([{ id: 'loc-pack', name: 'Strangers', version: '9.0.0' }]);
+    }
+    return false;
+  };
+  const r = await page.evaluate(() => Packages.publishPackage('loc-pack', { bump: 'patch' }));
+  expect(r.ok).toBe(false);
+  expect(r.error).toMatch(/already exists/);
+  expect(gh.writeLog).toEqual([]);
+  expect(gh.json('packages/loc-pack/package.json').name).toBe('Strangers');
+});
+
+test('A7: the publish cycle check uses the server graph and only this package\'s local details (a local edit of ANOTHER package cannot block it)', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.setRegistry([{ id: 'aa', name: 'AA' }, { id: 'pp', name: 'PP' }]);
+  gh.setJson('packages/pp/package.json', { id: 'pp', name: 'PP', version: '1.0.0', dependencies: ['aa'], isDefault: false });
+  await boot(page, gh);
+  await page.waitForFunction(() => !!Packages.getEntry('aa'));
+  await page.evaluate(h => HexDB.addEntries(h), [hexRec('Pp_A', 'pp')]);
+  // local-only edit of the OTHER package: aa -> pp (valid locally: pp has no local dependencies)
+  expect(await page.evaluate(() => Packages.updateDetails('aa', { dependencies: ['pp'] }))).toBe(true);
+  const r = await page.evaluate(() => Packages.publishPackage('pp', { bump: 'patch' }));
+  expect(r.ok, JSON.stringify(r)).toBe(true);
+  expect(gh.json('packages/pp/package.json').dependencies).toEqual(['aa']);
+  // positive control: a cycle through the SERVER graph is still refused
+  gh.setJson('packages/registry.json', { version: 1, packages: [...gh.json(REG).packages.filter((p: any) => p.id !== 'aa'), { id: 'aa', name: 'AA', isDefault: false, version: '1.0.0', dependencies: ['pp'] }] });
+  await page.evaluate(() => Packages.refresh ? Packages.refresh() : null);
+  const n = gh.writeLog.length;
+  const r2 = await page.evaluate(() => Packages.publishPackage('pp', { bump: 'patch' }));
+  expect(r2.ok).toBe(false);
+  expect(r2.error).toMatch(/cycle/i);
+  expect(gh.writeLog.length).toBe(n);
 });

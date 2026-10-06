@@ -20,12 +20,12 @@ async function openDialog(page: any) {
   await expect(page.locator('#pub-dialog')).toBeVisible();
 }
 
-test('nextVersion: bump table incl. padded, pre-release and odd versions never yields NaN/undefined', async ({ page }) => {
+test('nextVersion: bump table incl. padded, pre-release (numeric core, final wave A7) and odd versions never yields NaN/undefined', async ({ page }) => {
   await openEditor(page);
   const rows: [string, string, string | null][] = [
     ['1.2.3', 'patch', '1.2.4'], ['1.2.3', 'minor', '1.3.0'], ['1.2.3', 'major', '2.0.0'], ['1.2.3', 'none', '1.2.3'],
     ['1.0', 'patch', '1.0.1'], ['0.0.0', 'major', '1.0.0'], ['9.99.999', 'minor', '9.100.0'],
-    ['1.2.3-beta.1', 'patch', null], ['1.2.3+b5', 'patch', null], ['v1.2.3', 'patch', null], ['01.2.3', 'patch', null],
+    ['1.2.3-beta.1', 'patch', '1.2.4'], ['1.2.3+b5', 'patch', '1.2.4'], ['v1.2.3', 'patch', null], ['01.2.3', 'patch', null],
     ['1', 'patch', null], ['1.2.3.4', 'patch', null], ['', 'patch', null], ['abc', 'patch', null], [' 1.2.3', 'patch', null],
     ['1.2.-3', 'patch', null], ['1.2.3', 'huge', null], ['9007199254740991.0.0', 'major', null], ['1.2.9007199254740991', 'patch', null],
   ];
@@ -109,10 +109,10 @@ test('an invalid bump or an invalid server version aborts with zero writes and a
   await setup(page, gh);
   const r1 = await page.evaluate(() => Packages.publishPackage('pp', { bump: 'bogus' }));
   expect(r1.ok).toBe(false);
-  gh.setJson(PKG, { id: 'pp', name: 'PP', version: '1.2.3-beta', description: 'd' });
+  gh.setJson(PKG, { id: 'pp', name: 'PP', version: 'banana', description: 'd' });   // a pre-release is valid since final wave A7; junk is not
   const r2 = await page.evaluate(() => Packages.publishPackage('pp'));
   expect(r2.ok).toBe(false);
-  expect(r2.error).toContain('1.2.3-beta');
+  expect(r2.error).toContain('banana');
   expect(gh.writeLog).toEqual([]);
 });
 
