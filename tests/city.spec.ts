@@ -390,3 +390,184 @@ test.describe('generator follows the city (T3.5)', () => {
     expect(r.diffMoved, 'positive control: the city position changes the output').toBeGreaterThan(0);
   });
 });
+
+// ── T3.6: configurable difficulty (distance) bands ─────────────────────────────────────────────────────────────────────
+test.describe('distance bands (T3.6)', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); await page.evaluate(SPY); });
+  const bounds = (page: any) => page.evaluate(() => DistanceBands.getBounds());
+  const commit = async (page: any, text: string) => {
+    await page.evaluate(() => { (document.getElementById('map-design') as HTMLDetailsElement).open = true; });
+    const input = page.locator('#ring-bounds');
+    await input.fill(text);
+    await input.press('Enter');
+    await input.blur();
+  };
+
+  test('explicit limits, band index, default from the interval input, JSON round trip', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      DistanceBands.setBounds([30, 5, 12, 12, -3]);
+      const bounds = DistanceBands.getBounds();
+      const idx = [4, 5, 11, 12, 29, 30, 99].map(d => DistanceBands.bandIndex(d));
+      const json = JSON.parse(IO.getMapJson());
+      DistanceBands.setBounds([]);
+      const def = DistanceBands.getBounds();
+      (document.getElementById('ring-interval') as HTMLInputElement).value = '15';
+      const def15 = DistanceBands.getBounds().slice(0, 3);
+      const idx15 = [0, 14, 15, 29, 30, 500].map(d => DistanceBands.bandIndex(d));
+      (document.getElementById('ring-interval') as HTMLInputElement).value = '10';
+      const none = JSON.parse(IO.getMapJson());
+      IO.loadFromJSON(json);
+      return { bounds, idx, saved: json.distance_bands, def, def15, idx15, noKey: 'distance_bands' in none, after: DistanceBands.getBounds(), toJson: DistanceBands.toJson() };
+    });
+    expect(r.bounds).toEqual([5, 12, 30]);
+    expect(r.idx).toEqual([0, 1, 1, 2, 2, 3, 3]);
+    expect(r.saved).toEqual([5, 12, 30]);
+    expect(r.def).toEqual([10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
+    expect(r.def15).toEqual([15, 30, 45]);
+    expect(r.idx15).toEqual([0, 0, 1, 1, 2, 10]);
+    expect(r.noKey).toBe(false);
+    expect(r.after).toEqual([5, 12, 30]);
+    expect(r.toJson).toEqual([5, 12, 30]);
+  });
+
+  test('hostile / old JSON: a missing key, non-array, junk entries and more than 10 values load safely', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const base = JSON.parse(IO.getMapJson());
+      const out: any = {};
+      for (const [k, v] of [['missing', undefined], ['string', '5,10'], ['object', { a: 1 }], ['junk', ['x', null, -4, 0, 7, 7, '9', 1e9]], ['many', Array.from({ length: 14 }, (_, i) => i + 1)]] as any[]) {
+        DistanceBands.setBounds([3]);
+        IO.loadFromJSON({ ...base, distance_bands: v });
+        out[k] = DistanceBands.toJson();
+      }
+      return out;
+    });
+    expect(r.missing).toBeNull();
+    expect(r.string).toBeNull();
+    expect(r.object).toBeNull();
+    expect(r.junk).toEqual([7, 9]);
+    expect(r.many).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
+  });
+
+  test('the bands never leak into another map: New Map, dialog New Map, Load, autosave restore, side-copy restore, failed restore', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const out: any = {};
+      const set = () => DistanceBands.setBounds([4, 9]);
+      set(); IO.newMap(true); out.silent = DistanceBands.toJson();
+      set(); (document.getElementById('newmap-w') as HTMLInputElement).value = '60'; (document.getElementById('newmap-h') as HTMLInputElement).value = '60'; IO.applyNewMap(); out.dialog = DistanceBands.toJson();
+      const plain = JSON.parse(IO.getMapJson());
+      set(); IO.loadFromJSON(plain); out.load = DistanceBands.toJson();
+      set(); out.restoreOk = await IO.tryRestoreAutosave(JSON.stringify(plain)); out.restore = DistanceBands.toJson();
+      DistanceBands.setBounds([5, 12, 30]); const withB = IO.getMapJson();
+      DistanceBands.setBounds([]); out.restoreWith = await IO.tryRestoreAutosave(withB); out.restoreWithB = DistanceBands.toJson();
+      // a restore that fails half way puts the previous map and its bands back exactly
+      DistanceBands.setBounds([2, 3]);
+      const clear = History.clear; History.clear = () => { History.clear = clear; throw new Error('boom'); };
+      out.failed = await IO.tryRestoreAutosave(withB);
+      History.clear = clear;
+      out.afterFail = DistanceBands.toJson();
+      return out;
+    });
+    expect(r.silent).toBeNull();
+    expect(r.dialog).toBeNull();
+    expect(r.load).toBeNull();
+    expect(r.restoreOk).toBe(true);
+    expect(r.restore).toBeNull();
+    expect(r.restoreWith).toBe(true);
+    expect(r.restoreWithB).toEqual([5, 12, 30]);
+    expect(r.failed).toBe(false);
+    expect(r.afterFail).toEqual([2, 3]);
+  });
+
+  test('Expand Map keeps the bands (distances are city-relative and the city moves with the map)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      (document.getElementById('newmap-w') as HTMLInputElement).value = '100'; (document.getElementById('newmap-h') as HTMLInputElement).value = '100'; IO.applyNewMap();
+      DistanceBands.setBounds([6, 14]);
+      (document.getElementById('expandmap-amount') as HTMLInputElement).value = '10'; IO.applyExpandMap();
+      return DistanceBands.toJson();
+    });
+    expect(r).toEqual([6, 14]);
+  });
+
+  test('the Map design input commits on Enter / blur as ONE History step; undo and redo bring the bands back; no empty steps', async ({ page }) => {
+    const s0 = await steps(page);
+    await commit(page, '10, 20 35');
+    expect(await bounds(page)).toEqual([10, 20, 35]);
+    expect(await steps(page)).toBe(s0 + 1);
+    await commit(page, '10,20,35');                       // same values: no step
+    expect(await steps(page)).toBe(s0 + 1);
+    await commit(page, '');                               // empty = back to the interval
+    expect((await bounds(page))[0]).toBe(10);
+    expect(await page.evaluate(() => DistanceBands.toJson())).toBeNull();
+    expect(await steps(page)).toBe(s0 + 2);
+    await page.evaluate(() => History.undo());
+    expect(await page.evaluate(() => DistanceBands.toJson())).toEqual([10, 20, 35]);
+    expect(await page.inputValue('#ring-bounds')).toBe('10,20,35');
+    await page.evaluate(() => History.undo());
+    expect(await page.evaluate(() => DistanceBands.toJson())).toBeNull();
+    expect(await page.inputValue('#ring-bounds')).toBe('');
+    await page.evaluate(() => History.redo());
+    expect(await page.evaluate(() => DistanceBands.toJson())).toEqual([10, 20, 35]);
+  });
+
+  test('invalid input is refused with a toast and the old bands (and the text) stay', async ({ page }) => {
+    await commit(page, '5,15');
+    const s0 = await steps(page);
+    for (const bad of ['abc', '5,-2', '0', '3,x,9', '1,2,3,4,5,6,7,8,9,10,11', '5.5', '1e9']) {
+      await page.evaluate(() => { (window as any).__toasts = []; });
+      await commit(page, bad);
+      expect(await page.evaluate(() => DistanceBands.toJson()), 'kept for ' + bad).toEqual([5, 15]);
+      expect(await page.inputValue('#ring-bounds'), 'text reset for ' + bad).toBe('5,15');
+      expect((await toasts(page)).length, 'toast for ' + bad).toBe(1);
+    }
+    expect(await steps(page)).toBe(s0);
+  });
+
+  test('a committed change schedules an autosave; a refused one does not; a running stroke refuses the commit', async ({ page }) => {
+    await page.evaluate(() => { (window as any).__as = 0; const f = IO.scheduleAutoSave; IO.scheduleAutoSave = () => { (window as any).__as++; return f.call(IO); }; });
+    await commit(page, '8,16');
+    expect(await page.evaluate(() => (window as any).__as)).toBe(1);
+    await commit(page, 'nope');
+    expect(await page.evaluate(() => (window as any).__as)).toBe(1);
+    // a stroke in progress: the commit is refused (no History step inside the stroke) and the text is reset
+    await page.evaluate(() => { Tools.setActive('eraser'); });
+    const { x, y } = await page.evaluate(() => { const p = Canvas.hexScreenPos(226, 224); const b = document.getElementById('map-canvas')!.getBoundingClientRect(); return { x: b.left + p.x, y: b.top + p.y }; });
+    await page.mouse.move(x, y); await page.mouse.down();
+    expect(await page.evaluate(() => Tools.isStrokeActive())).toBe(true);
+    const ok = await page.evaluate(() => DistanceBands.commit('3,4'));
+    await page.mouse.up();
+    expect(ok).toBe(false);
+    expect(await page.evaluate(() => DistanceBands.toJson())).toEqual([8, 16]);
+  });
+
+  test('the input lives in the left palette Map design section; canvas keeps 1491 px at 1400x900', async ({ page }) => {
+    await page.setViewportSize({ width: 1400, height: 900 });
+    await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+    const r = await page.evaluate(() => {
+      const i = document.getElementById('ring-bounds');
+      return { inSection: !!i && !!i.closest('#map-design') && !!i.closest('#palette-panel') && !i.closest('#map-tools') && !i.closest('#toolbar'), cw: (document.getElementById('map-canvas') as HTMLCanvasElement).width };
+    });
+    expect(r.inSection).toBe(true);
+    expect(r.cw).toBe(1491);
+  });
+
+  test('the tint follows the limits (pixels) and the bands are city-relative', async ({ page }) => {
+    // reference: with the default interval 10 the band-1 colour is what a cell at distance 15 shows; with limits [5,12,30] a cell
+    // at distance 8 must show that same colour, and at distance 8 the default shows the band-0 colour (positive control)
+    const px = async (c: number, r: number) => page.evaluate(([c, r]: any) => {
+      const p = Canvas.hexScreenPos(c, r), cv = document.getElementById('map-canvas') as HTMLCanvasElement;
+      return Array.from(cv.getContext('2d')!.getImageData(Math.round(p.x), Math.round(p.y), 1, 1).data);
+    }, [c, r]);
+    // terrain pixels vary by a unit or two between cells (sprite shading): compare with a small tolerance, the bands differ by far more
+    const gap = (a: number[], b: number[]) => Math.max(...a.slice(0, 3).map((v, i) => Math.abs(v - b[i])));
+    await page.evaluate(() => { Canvas.setZoom(60); Canvas.toggleZones(); Canvas.centerOnCity(); Canvas.render(); });
+    const defBand0 = await px(225, 224 - 8), defBand1 = await px(225, 224 - 15);
+    expect(gap(defBand0, defBand1)).toBeGreaterThan(8);
+    await page.evaluate(() => { DistanceBands.setBounds([5, 12, 30]); Canvas.render(); });
+    expect(gap(await px(225, 224 - 8), defBand1)).toBeLessThan(4);
+    expect(gap(await px(225, 224 - 3), defBand0)).toBeLessThan(4);        // below the first limit: band 0
+    // move the city: the same cell is now measured from the new city
+    await page.evaluate(() => { Tools.moveCity(225, 224 - 15); Canvas.centerOnCity(); Canvas.render(); });
+    expect(gap(await px(225, 224 - 15 - 3), defBand0)).toBeLessThan(4);
+    expect(gap(await px(225, 224 - 15 - 8), defBand1)).toBeLessThan(4);
+  });
+});

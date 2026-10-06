@@ -1493,6 +1493,13 @@ body.mode-common #map-io    { display: none; }
           <button class="tool-btn" data-tool="city" onclick="Tools.setActive('city')" title="Move City - click a cell to put the city there (one undo step). Distance rings, slot bands and the generator's flatten / ore exclusion circle follow the city. A settlement on that cell is replaced. Refused while the Settlements layer is locked">🏙</button>
           <span>Move city: click the map</span>
         </div>
+        <div style="display:flex;align-items:center;gap:6px;padding-top:4px">
+          <label for="ring-bounds" title="Difficulty band limits in tiles from the city (comma list, up to 10, e.g. 10,20,35,60). Empty = a band every N tiles (the interval box in the toolbar). Saved in the map; Enter applies, Esc undoes the typing">Bands</label>
+          <input id="ring-bounds" type="text" placeholder="10,20,35..." autocomplete="off" spellcheck="false"
+                 style="flex:1;min-width:0;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px"
+                 onchange="DistanceBands.commit(this.value)"
+                 onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){event.stopPropagation();DistanceBands.syncInput();this.blur()}">
+        </div>
       </details>
       <div class="pkg-filter-row" id="pkg-filter-terrain"></div>
       <div id="palette-scroll"></div>
@@ -2482,7 +2489,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "36fa099";
+const COMMIT  = "4ab4875";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2938,6 +2945,62 @@ const Coastline = (() => {
   }
 
   return { loadSprites, computeEdges, drawOverlay };
+})();
+
+// ════════════════════════════════════════════════════════════
+// DISTANCE BANDS — difficulty ring limits around the city (T3.6)
+// ════════════════════════════════════════════════════════════
+// An explicit, sorted list of band limits (e.g. 10,20,35,60) saved in the map JSON as `distance_bands` (omitted when empty: the
+// rings then use the #ring-interval input as before). Part of the map: every map-installing site sets or clears it
+// (New Map, Load, autosave / side-copy restore, failed-restore rollback), History snapshots it, Expand keeps it (distances
+// are city-relative and the city moves with the map).
+const DistanceBands = (() => {
+  const MAX_BANDS = 10, MAX_LIMIT = 1000;
+  let _bounds = null;   // null = derive from the #ring-interval input
+
+  function _interval() { return Math.max(1, parseInt(document.getElementById('ring-interval')?.value) || 10); }
+  function _syncInput() { const el = document.getElementById('ring-bounds'); if (el) el.value = _bounds ? _bounds.join(',') : ''; }
+
+  function getBounds() {
+    if (_bounds) return _bounds.slice();
+    const iv = _interval();
+    return Array.from({ length: MAX_BANDS }, (_, i) => (i + 1) * iv);
+  }
+  // Lenient (loaders, History): keeps positive whole numbers up to MAX_LIMIT, sorted, unique, at most 10; anything else is dropped.
+  function setBounds(arr) {
+    const clean = [...new Set((Array.isArray(arr) ? arr : []).map(n => Math.round(Number(n))).filter(n => n > 0 && n <= MAX_LIMIT))]
+      .sort((a, b) => a - b).slice(0, MAX_BANDS);
+    _bounds = clean.length ? clean : null;
+    _syncInput();
+  }
+  // Index of the band a distance falls in (0 below the first limit). `bounds` may be passed to avoid a copy per call (render loops).
+  function bandIndex(d, bounds) {
+    const b = bounds || getBounds();
+    let i = 0;
+    while (i < b.length && d >= b[i]) i++;
+    return i;
+  }
+  function toJson() { return _bounds ? _bounds.slice() : null; }
+  function fromJson(a) { setBounds(a); }
+
+  // The Map design input: strict (whole numbers 1..1000, at most 10) so a typo is refused instead of silently dropped.
+  // One History step, pushed before the write; no step when nothing changes; refused while a fill runs or a stroke is active.
+  function commit(text) {
+    const toks = String(text == null ? '' : text).split(/[\s,;]+/).filter(Boolean);
+    const bad = toks.some(t => !/^\d+$/.test(t) || +t < 1 || +t > MAX_LIMIT) || toks.length > MAX_BANDS;
+    if (bad) { UI.toast(`Distance bands: use up to ${MAX_BANDS} whole numbers from 1 to ${MAX_LIMIT}, e.g. 10,20,35`); _syncInput(); return false; }
+    const next = [...new Set(toks.map(Number))].sort((a, b) => a - b);
+    const same = JSON.stringify(next.length ? next : null) === JSON.stringify(_bounds);
+    if (same) { _syncInput(); return true; }
+    if (!Tools.guardBulkWrite([], { label: 'Distance bands', dry: true })) { _syncInput(); return false; }
+    History.push();
+    setBounds(next);
+    IO.scheduleAutoSave();
+    Canvas.render();
+    return true;
+  }
+
+  return { getBounds, setBounds, bandIndex, toJson, fromJson, commit, syncInput: _syncInput };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -4399,7 +4462,7 @@ const Canvas = (() => {
 
   // ── Zone overlay ─────────────────────────────────────────
   function _drawZoneOverlays(scale, radius, lod) {
-    const interval = Math.max(1, parseInt(document.getElementById('ring-interval')?.value) || 10);
+    const bounds   = DistanceBands.getBounds();   // once per frame
     const cityPos  = hexScreenPos(getCityCol(), getCityRow());
     const rxUnit   = COL_PITCH * scale;   // px per hex-distance East
     const ryUnit   = ROW_PITCH * scale;   // px per hex-distance North
@@ -4414,7 +4477,7 @@ const Canvas = (() => {
         if (s.x + padding < 0 || s.x - padding > canvas.width ||
             s.y + padding < 0 || s.y - padding > canvas.height) continue;
         const d    = cityDistance(col, row);
-        const zi   = Math.min(Math.floor(d / interval), ZONE_PALETTE.length - 1);
+        const zi   = Math.min(DistanceBands.bandIndex(d, bounds), ZONE_PALETTE.length - 1);
         const [r, g, b] = ZONE_PALETTE[zi];
         ctx.globalAlpha = 0.25;
         ctx.fillStyle = `rgb(${r},${g},${b})`;
@@ -4431,8 +4494,8 @@ const Canvas = (() => {
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
 
-    for (let i = 0; i < ZONE_PALETTE.length; i++) {
-      const d  = (i + 1) * interval;
+    for (let i = 0; i < Math.min(bounds.length, ZONE_PALETTE.length); i++) {
+      const d  = bounds[i];
       const rx = d * rxUnit;
       const ry = d * ryUnit;
       if (cityPos.x + rx < 0 || cityPos.x - rx > canvas.width) continue;
@@ -7643,6 +7706,7 @@ const History = (() => {
       objects:     Object.assign({}, objectsData),
       tileExtras:  _cloneExtras(tileExtras, _last && _last.tileExtras),
       roads:       Object.assign({}, roadsData),
+      bands:       DistanceBands.toJson(),     // map-level setting (T3.6): undo/redo bring the limits back with the map
     };
     _last = snap;
     return snap;
@@ -7664,6 +7728,7 @@ const History = (() => {
     objectsData = snap.objects    ? Object.assign({}, snap.objects)                    : {};
     tileExtras  = snap.tileExtras ? JSON.parse(JSON.stringify(snap.tileExtras))        : {};
     roadsData   = snap.roads      ? Object.assign({}, snap.roads)                      : {};
+    if ('bands' in snap) DistanceBands.fromJson(snap.bands);
     UI.updateSettlementCount();
     invalidateSatelliteMap();      // mapData changed in place: the derived footprint map is stale
     if (UI.rebuildSlotPanel) UI.rebuildSlotPanel();
@@ -9697,6 +9762,8 @@ const IO = (() => {
       result.biomePresets = zoneData.biomePresets;
       result._zoneNextId  = zoneData._nextZoneId;
     }
+    const bands = DistanceBands.toJson();
+    if (bands) result.distance_bands = bands;
     return JSON.stringify(result);
   }
 
@@ -10038,7 +10105,7 @@ const IO = (() => {
     if (!mapData) return null;
     return {
       w: MAP_WIDTH, h: MAP_HEIGHT, mapData, bridgesData, objectsData, tileExtras, roadsData,
-      settlements, settlementSlots, settlementPriority1, settlementPriority2, fileName: _currentFileName,
+      settlements, settlementSlots, settlementPriority1, settlementPriority2, fileName: _currentFileName, bands: DistanceBands.toJson(),
       zones: typeof ZonePainter !== 'undefined' ? JSON.parse(JSON.stringify(ZonePainter.toSaveObject())) : null,
     };
   }
@@ -10048,6 +10115,7 @@ const IO = (() => {
     tileExtras = s.tileExtras; roadsData = s.roadsData; settlements = s.settlements; settlementSlots = s.settlementSlots;
     settlementPriority1 = s.settlementPriority1; settlementPriority2 = s.settlementPriority2;
     _setFileName(s.fileName);
+    DistanceBands.fromJson(s.bands);
     if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
     if (s.zones && typeof ZonePainter !== 'undefined') {
       ZonePainter.fromSaveObject(s.zones);
@@ -10131,6 +10199,7 @@ const IO = (() => {
         ZonePainter._uiRebuildZoneList();
         ZonePainter._uiRebuildZoneConfig();
       }
+      DistanceBands.fromJson(json.distance_bands);     // a map without the key gets the interval rings, never the previous map's limits
       History.clear();
       History.push();
       _setFileName('(autosave)');
@@ -10162,6 +10231,7 @@ const IO = (() => {
       tileExtras  = {};
       roadsData   = {};
       settlements = [defaultCityEntry(MAP_WIDTH, MAP_HEIGHT)];
+      DistanceBands.setBounds([]);
       settlementSlots = [];
       settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
       settlementPriority2 = ['Forest_1', 'Barren_1', 'Hills_1', 'Swamp_1'];
@@ -10218,6 +10288,7 @@ const IO = (() => {
     tileExtras  = {};
     roadsData   = {};
     settlements = [defaultCityEntry(MAP_WIDTH, MAP_HEIGHT)];
+    DistanceBands.setBounds([]);
     settlementSlots = [];
     settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
     settlementPriority2 = ['Forest_1', 'Barren_1', 'Hills_1', 'Swamp_1'];
@@ -10400,6 +10471,7 @@ const IO = (() => {
         ZonePainter._uiRebuildZoneList();
         ZonePainter._uiRebuildZoneConfig();
       }
+      DistanceBands.fromJson(json.distance_bands);
 
       History.clear();
       History.push();
