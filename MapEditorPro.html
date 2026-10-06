@@ -2606,7 +2606,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "499e4c9";
+const COMMIT  = "96aada9";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2751,15 +2751,30 @@ const Terrain = (() => {
       if (!h.id || !h.spriteName) continue;
       const key = h.id.toLowerCase();
       const src = _uploadedUrls[h.spriteName] || (spriteDir + h.spriteName + '.png');
+      _spritePending.set(key, (_spritePending.get(key) || 0) + 1);
       jobs.push(new Promise(resolve => {
         const img = new Image();
-        img.onload  = () => { sprites[key] = img; resolve(); };
-        img.onerror = () => resolve();
+        const settle = () => { const n = (_spritePending.get(key) || 1) - 1; if (n > 0) _spritePending.set(key, n); else _spritePending.delete(key); resolve(); };
+        img.onload  = () => { sprites[key] = img; _spriteFailed.delete(key); settle(); };
+        img.onerror = () => { _spriteFailed.add(key); settle(); };
         img.src = src;
       }));
     }
     await Promise.all(jobs);
   }
+
+  // Sprite load state (T4.5): getSprite() is null both while an image is still decoding and after it failed, so the
+  // validator needs the difference. 'loaded' | 'pending' (a load is in flight) | 'failed' (the last attempt errored and
+  // no earlier image is held) | 'unknown' (never requested, e.g. before startup loading began or an entry without a sprite).
+  const _spritePending = new Map(), _spriteFailed = new Set();
+  function spriteState(id) {
+    if (typeof id !== 'string') return 'unknown';
+    const key = id.toLowerCase();
+    if (sprites[key]) return 'loaded';
+    if (_spritePending.has(key)) return 'pending';
+    return _spriteFailed.has(key) ? 'failed' : 'unknown';
+  }
+  function pendingSprites() { return _spritePending.size; }
 
   // Called at startup with { name → dataUrl } from IndexedDB so that
   // applyHexDbOverrides can resolve user-uploaded sprites on reload.
@@ -2767,7 +2782,7 @@ const Terrain = (() => {
   function registerUploadedUrls(map) { Object.assign(_uploadedUrls, map); }
   function getUploadedUrl(name) { return _uploadedUrls[name] || null; }
 
-  return { applyHexDbOverrides, getSprite, getCustomSprite, getCitySprite, getSettlementSprite,
+  return { applyHexDbOverrides, getSprite, spriteState, pendingSprites, getCustomSprite, getCitySprite, getSettlementSprite,
            color, byId, byHexId, getAll, registerUploadedUrls, getUploadedUrl,
            getTerrainSpriteForType, isLayeredHex };
 })();
@@ -10954,10 +10969,15 @@ const IO = (() => {
     const known = new Set(((ctx && ctx.knownIds) || []).map(s => String(s).toLowerCase()));
     const counts = new Map();
     // Falsy values (null, '', 0, undefined) are loaded as Plain_1 / skipped by the loader: not ids.
-    const note = id => {
+    // ctx.onUnknown(label, col, row, 'tile'|'object') lets the validator (T4.5) collect cells without a second id check.
+    const onUnknown = ctx && typeof ctx.onUnknown === 'function' ? ctx.onUnknown : null;
+    const note = (id, col, row, kind) => {
       if (!id) return;
       const l = label(id);
-      if (typeof id !== 'string' || !known.has(l.toLowerCase())) counts.set(l, (counts.get(l) || 0) + 1);
+      if (typeof id !== 'string' || !known.has(l.toLowerCase())) {
+        counts.set(l, (counts.get(l) || 0) + 1);
+        if (onUnknown) onUnknown(l, col, row, kind);
+      }
     };
     const data = Array.isArray(json.data) ? json.data : [];
     const legacyInts = !!(data[0] && typeof data[0][0] === 'number');
@@ -10965,10 +10985,10 @@ const IO = (() => {
       for (let r = 0; r < ch; r++) {
         const row = data[r];
         if (!Array.isArray(row)) continue;
-        for (let c = 0; c < cw; c++) note(row[c]);
+        for (let c = 0; c < cw; c++) note(row[c], c, r, 'tile');
       }
     }
-    (Array.isArray(json.objects) ? json.objects : []).forEach(o => note(o && o.id));
+    (Array.isArray(json.objects) ? json.objects : []).forEach(o => note(o && o.id, o && o.col, o && o.row, 'object'));
     issues.unknownCount = [...counts.values()].reduce((a, n) => a + n, 0);
     issues.unknownIds = [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([id, n]) => `${id} ×${n}`);
     return issues;
@@ -13312,6 +13332,207 @@ const Shortcuts = (() => {
   }
 
   return { init, register, getAll, resolve, showHelp };
+})();
+
+// ════════════════════════════════════════════════════════════
+// MAP VALIDATOR (T4.5) — pure checks over a snapshot of the map; the panel is added in T4.6
+// ════════════════════════════════════════════════════════════
+// validate(state, stats?) -> issues[]; issue = { id (rule), key (unique), severity: 'error'|'warning', message,
+// cells: [{col,row}] (first CELL_CAP only), total (true number of affected cells) }.
+// Rules: unknown-id / unknown-object (error; per distinct id, found by IO.analyzeMap's own id check via its onUnknown
+// hook, so there is ONE implementation of "unknown id"), missing-city (error), unreachable-settlement, orphan-road,
+// missing-sprite (warnings). There is deliberately no 'city-off-center' rule: the city is configurable (T3.5).
+// Missing sprite = the load was attempted and FAILED (Terrain.spriteState === 'failed'); 'pending' (still decoding)
+// and 'unknown' (never requested) are not problems, and the count of pending sprites is returned by run().
+// Cost: one pass over the cells inside analyzeMap (+ one more only when some sprite failed), one BFS over at most
+// W*H cells that stops as soon as every settlement is found, one neighbour lookup per road. No DOM, no wall clock.
+const MapValidator = (() => {
+  // Terrain a unit cannot cross: HexDB types Water / Rivers (case-insensitive) and these ids. A bridge on the cell
+  // makes it passable. This is the ONLY copy of the list in the validator (ZonePainter's forbiddenTerrain and the
+  // satellite city-clearing set are different rules with different members: Hills_1 is forbidden for zones only).
+  const IMPASSABLE = Object.freeze({
+    types: new Set(['water', 'rivers']),
+    ids:   new Set(['mountain_1', 'lava_plain_1', 'lava_rift_1', 'rift_1']),
+  });
+  const CELL_CAP = 200, MAX_ID_ISSUES = 50;
+  const RULE_ORDER = ['unknown-id', 'unknown-object', 'missing-city', 'unreachable-settlement', 'orphan-road', 'missing-sprite'];
+  const _lc = s => String(s).toLowerCase();
+  const _byRowCol = (a, b) => a.row - b.row || a.col - b.col;
+  const _isCell = (c, r, W, H) => Number.isInteger(c) && Number.isInteger(r) && c >= 0 && c < W && r >= 0 && r < H;
+
+  // groups: Map<label, {n, cells}> -> issues (count desc, then label), at most MAX_ID_ISSUES, the rest merged into one.
+  function _groupIssues(groups, rule, severity, text) {
+    const list = [...groups.entries()].sort((a, b) => b[1].n - a[1].n || (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+    const out = [];
+    list.slice(0, MAX_ID_ISSUES).forEach(([label, g]) =>
+      out.push({ id: rule, key: rule + ':' + label, severity, message: text(label, g.n), cells: g.cells, total: g.n }));
+    if (list.length > MAX_ID_ISSUES) {
+      const rest = list.slice(MAX_ID_ISSUES), cells = [];
+      let n = 0;
+      rest.forEach(([, g]) => { n += g.n; for (const c of g.cells) if (cells.length < CELL_CAP) cells.push(c); });
+      out.push({ id: rule, key: rule + ':*more', severity, total: n, cells,
+        message: `${rest.length} more ids with ${n} cell${n === 1 ? '' : 's'} (${rule}); the ${MAX_ID_ISSUES} most frequent are listed above` });
+    }
+    return out;
+  }
+  const _add = (map, label, col, row) => {
+    let g = map.get(label);
+    if (!g) map.set(label, g = { n: 0, cells: [] });
+    g.n++;
+    if (g.cells.length < CELL_CAP) g.cells.push({ col, row });
+  };
+
+  function validate(st, stats) {
+    const S = stats || {};
+    S.cellsScanned = 0; S.spriteScanCells = 0; S.bfsPops = 0; S.neighborCalls = 0;
+    const W = st.width, H = st.height, data = st.data;
+    const issues = [];
+
+    // 1. Unknown ids, through the load-warning analysis (never a second implementation of the id check).
+    const tiles = new Map(), objs = new Map();
+    const rows = [];
+    for (let r = 0; r < H; r++) { rows.push(data.slice(r * W, (r + 1) * W)); S.cellsScanned += W; }
+    const objects = [];
+    Object.keys(st.objects || {}).forEach(k => {
+      const [c, r] = k.split(',').map(Number);
+      if (_isCell(c, r, W, H)) objects.push({ col: c, row: r, id: st.objects[k] });
+    });
+    objects.sort(_byRowCol);
+    const analyze = st.analyzeMap || IO.analyzeMap;
+    analyze({ width: W, height: H, data: rows, objects }, {
+      knownIds: [...st.hexById.keys(), ...st.bldById.keys()],
+      onUnknown: (label, col, row, kind) => _add(kind === 'object' ? objs : tiles, label, col, row),
+    });
+    issues.push(..._groupIssues(tiles, 'unknown-id', 'error', (id, n) => `Unknown tile id "${id}" (${n} cell${n === 1 ? '' : 's'}): not in HexDB or BldDB`));
+    issues.push(..._groupIssues(objs, 'unknown-object', 'error', (id, n) => `Unknown building id "${id}" (${n} object${n === 1 ? '' : 's'}): not in BldDB`));
+
+    // 2. City (the city ENTRY; its position is free)
+    const city = st.settlements.find(s => s && s.type === 'city');
+    if (!city)
+      issues.push({ id: 'missing-city', key: 'missing-city', severity: 'error', total: 1, cells: [{ col: st.cityCol, row: st.cityRow }],
+        message: 'Map has no city settlement' });
+
+    // 3. Unreachable settlements: BFS from the city over passable cells (HexUtils adjacency via st.neighbors)
+    if (city && _isCell(city.col, city.row, W, H)) {
+      const bridges = new Set();
+      (st.bridges || []).forEach(b => { if (b && _isCell(b.col, b.row, W, H)) bridges.add(b.row * W + b.col); });
+      const memo = new Map();
+      const passableId = id => {
+        let p = memo.get(id);
+        if (p === undefined) {
+          const e = st.hexById.get(_lc(id)) || st.bldById.get(_lc(id));
+          p = !(IMPASSABLE.ids.has(_lc(id)) || (e && typeof e.type === 'string' && IMPASSABLE.types.has(_lc(e.type))));
+          memo.set(id, p);
+        }
+        return p;
+      };
+      const passable = idx => bridges.has(idx) || passableId(data[idx]);
+      const targets = new Map();        // cell index -> settlements standing there
+      const lost = [];
+      st.settlements.forEach(s => {
+        if (!s || s === city) return;
+        if (!_isCell(s.col, s.row, W, H)) { lost.push({ col: s.col, row: s.row }); return; }
+        const idx = s.row * W + s.col;
+        if (idx === city.row * W + city.col) return;       // shares the city cell
+        if (!targets.has(idx)) targets.set(idx, []);
+        targets.get(idx).push(s);
+      });
+      let remaining = targets.size;
+      if (remaining > 0) {
+        const seen = new Uint8Array(W * H), queue = new Int32Array(W * H);
+        let head = 0, tail = 0;
+        const start = city.row * W + city.col;
+        seen[start] = 1; queue[tail++] = start;
+        while (head < tail && remaining > 0) {
+          const cur = queue[head++]; S.bfsPops++;
+          const c = cur % W, r = (cur - c) / W;
+          S.neighborCalls++;
+          for (const n of st.neighbors(c, r)) {
+            const k = n.row * W + n.col;
+            if (seen[k]) continue;
+            if (!passable(k)) { seen[k] = 2; continue; }
+            seen[k] = 1; queue[tail++] = k;
+            if (targets.has(k)) { targets.delete(k); remaining--; }
+          }
+        }
+        targets.forEach(list => list.forEach(s => lost.push({ col: s.col, row: s.row })));
+      }
+      if (lost.length) {
+        lost.sort(_byRowCol);
+        issues.push({ id: 'unreachable-settlement', key: 'unreachable-settlement', severity: 'warning', total: lost.length, cells: lost.slice(0, CELL_CAP),
+          message: lost.length === 1 ? `Settlement at ${lost[0].col},${lost[0].row} cannot be reached from the city`
+                                     : `${lost.length} settlements cannot be reached from the city (first at ${lost[0].col},${lost[0].row})` });
+      }
+    }
+
+    // 4. Orphan roads (same road-like neighbours as Roads._isRoadLikeNeighbor: road, settlement, city, needRoad building)
+    const settleKeys = new Set();
+    st.settlements.forEach(s => { if (s) settleKeys.add(s.col + ',' + s.row); });
+    const roadLike = (c, r) => {
+      const k = c + ',' + r;
+      return !!st.roads[k] || settleKeys.has(k) || (c === st.cityCol && r === st.cityRow) || st.needRoad.has(_lc(st.objects[k] || ''));
+    };
+    const orphans = [];
+    Object.keys(st.roads || {}).forEach(k => {
+      const [c, r] = k.split(',').map(Number);
+      if (!_isCell(c, r, W, H)) return;
+      S.neighborCalls++;
+      if (!st.neighbors(c, r).some(n => roadLike(n.col, n.row))) orphans.push({ col: c, row: r });
+    });
+    if (orphans.length) {
+      orphans.sort(_byRowCol);
+      issues.push({ id: 'orphan-road', key: 'orphan-road', severity: 'warning', total: orphans.length, cells: orphans.slice(0, CELL_CAP),
+        message: orphans.length === 1 ? `Road at ${orphans[0].col},${orphans[0].row} connects to nothing`
+                                      : `${orphans.length} road tiles connect to nothing (first at ${orphans[0].col},${orphans[0].row})` });
+    }
+
+    // 5. Missing sprites: ids whose load FAILED. The cell pass only runs when there is such an id.
+    const failed = new Map();       // lower-case id -> display id
+    st.hexById.forEach((e, lcId) => { if (e && typeof e.spriteName === 'string' && e.spriteName && st.spriteState(e.id) === 'failed') failed.set(lcId, e.id); });
+    if (failed.size) {
+      const sprites = new Map(), isFailed = new Map();
+      for (let i = 0; i < data.length; i++) {
+        S.spriteScanCells++;
+        const id = data[i];
+        let f = isFailed.get(id);
+        if (f === undefined) { f = typeof id === 'string' && failed.has(_lc(id)); isFailed.set(id, f); }
+        if (f) _add(sprites, failed.get(_lc(id)), i % W, (i / W) | 0);
+      }
+      issues.push(..._groupIssues(sprites, 'missing-sprite', 'warning', (id, n) => `Tile "${id}" has no sprite: its image failed to load (${n} cell${n === 1 ? '' : 's'})`));
+    }
+
+    // errors first, then rule order (Array.sort is stable: per-rule order from above is kept)
+    const sevRank = s => (s === 'error' ? 0 : 1);
+    return issues.sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || RULE_ORDER.indexOf(a.id) - RULE_ORDER.indexOf(b.id));
+  }
+
+  // Snapshot of the live editor state. mapData etc. are passed by reference and only read.
+  function collectState() {
+    const hexById = new Map(), bldById = new Map();
+    HexDB.getAll().forEach(h => { if (h && typeof h.id === 'string' && h.id) hexById.set(_lc(h.id), h); });
+    const blds = BldDB.getAll();
+    blds.forEach(b => { if (b && typeof b.id === 'string' && b.id) bldById.set(_lc(b.id), b); });
+    return {
+      width: MAP_WIDTH, height: MAP_HEIGHT, data: mapData,
+      settlements, roads: roadsData, objects: objectsData, bridges: bridgesData,
+      hexById, bldById,
+      needRoad: new Set(blds.filter(b => b && b.needRoad && typeof b.id === 'string').map(b => _lc(b.id))),
+      cityCol: getCityCol(), cityRow: getCityRow(),
+      spriteState: id => Terrain.spriteState(id),
+      neighbors: (c, r) => HexUtils.neighbors(c, r, MAP_WIDTH, MAP_HEIGHT),
+      analyzeMap: IO.analyzeMap,
+    };
+  }
+
+  // Validate the live map: { issues, errors, warnings, pendingSprites, stats }.
+  function run() {
+    const stats = {};
+    const issues = validate(collectState(), stats);
+    const errors = issues.filter(i => i.severity === 'error').length;
+    return { issues, errors, warnings: issues.length - errors, pendingSprites: Terrain.pendingSprites(), stats };
+  }
+
+  return { validate, collectState, run, IMPASSABLE, CELL_CAP };
 })();
 
 // ── App: mode switching ────────────────────────────────────
