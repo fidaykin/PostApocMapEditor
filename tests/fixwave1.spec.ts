@@ -476,17 +476,46 @@ test.describe('W1-3 untrusted ids never become markup', () => {
   });
 
   test('package panel and filter chips: a hostile package id travels through data-pkg-id, not through script text', async ({ page }) => {
+    // T5.1 rebuilt the PACKAGES panel with DOM APIs: its buttons carry the id as data-pkg-id and act through listeners
+    // bound to the package object (no inline handler at all). The filter chips still use one fixed inline handler that
+    // reads this.dataset.pkgId. Either way the hostile id must stay data: never inside script text, never markup.
     await page.evaluate(([a, b]) => {
       Packages.getAll().push({ id: b, name: a, version: '1', isDefault: false });
       Packages.renderPanel(); Packages.renderFilterChips();
     }, [P1, P2]);
     const r = await page.evaluate((b) => {
-      const btns = Array.from(document.querySelectorAll('#pkg-panel button[data-pkg-id], .pkg-chip[data-pkg-id]')) as HTMLElement[];
-      return { ids: Array.from(new Set(btns.map(x => x.dataset.pkgId))).filter(x => x === b), handlers: btns.map(x => x.getAttribute('onclick') || '') };
+      const panel = Array.from(document.querySelectorAll('#pkg-panel button[data-pkg-id]')) as HTMLElement[];
+      const chips = Array.from(document.querySelectorAll('.pkg-chip[data-pkg-id]')) as HTMLElement[];
+      const inline = Array.from(document.querySelectorAll('#pkg-panel *, .pkg-chip')).flatMap(e =>
+        Array.from(e.attributes).filter(a => /^on/i.test(a.name)).map(a => a.value));
+      return {
+        panelIds: Array.from(new Set(panel.map(x => x.dataset.pkgId))).filter(x => x === b),
+        chipIds: Array.from(new Set(chips.map(x => x.dataset.pkgId))).filter(x => x === b),
+        panelInline: panel.filter(x => Array.from(x.attributes).some(a => /^on/i.test(a.name))).length,
+        chipHandlers: chips.map(x => x.getAttribute('onclick') || ''),
+        inline,
+        idText: Array.from(document.querySelectorAll('#pkg-panel tr[data-pkg] code')).map(c => c.textContent).filter(t => t === b),
+        rowKeys: Array.from(document.querySelectorAll('#pkg-panel tr[data-pkg]')).map(tr => (tr as HTMLElement).dataset.pkg).filter(x => x === b),
+      };
     }, P2);
-    expect(r.ids).toEqual([P2]);
-    expect(r.handlers.every(h => /this\.dataset\.pkgId/.test(h) && !h.includes('window.__pwn'))).toBe(true);
-    await page.evaluate(() => { const c = document.querySelector('.pkg-chip[data-pkg-id]') as HTMLElement; c.click(); });
+    expect(r.panelIds, 'panel buttons carry the raw id as data').toEqual([P2]);
+    expect(r.chipIds, 'chips carry the raw id as data').toEqual([P2]);
+    expect(r.idText, 'the id is shown as text').toEqual([P2]);
+    expect(r.rowKeys).toEqual([P2]);
+    expect(r.panelInline, 'panel buttons have no inline handlers').toBe(0);
+    expect(r.chipHandlers.length).toBeGreaterThan(0);
+    expect(r.chipHandlers.every(h => h === 'Packages.togglePkgFilter(this.dataset.pkgId)'), 'chips: one fixed handler').toBe(true);
+    expect(r.inline.some(h => h.includes('__pwn') || h.includes(P2)), 'no handler contains the payload').toBe(false);
+    // The id reaches the code as a property: Set active on the hostile row makes exactly that id active.
+    await page.evaluate((b) => {
+      const tr = Array.from(document.querySelectorAll('#pkg-panel tr[data-pkg]')).find(t => (t as HTMLElement).dataset.pkg === b)!;
+      (tr.querySelector('.pkg-set-active') as HTMLElement).click();
+    }, P2);
+    expect(await page.evaluate(() => Packages.getActive())).toBe(P2);
+    await page.evaluate((b) => {
+      const c = Array.from(document.querySelectorAll('.pkg-chip[data-pkg-id]')).find(x => (x as HTMLElement).dataset.pkgId === b) as HTMLElement;
+      c.click();
+    }, P2);
     await noPwn(page, 'package panel');
   });
 
