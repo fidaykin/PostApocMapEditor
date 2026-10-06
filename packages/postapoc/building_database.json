@@ -1083,7 +1083,7 @@
         }
       ],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -1163,7 +1163,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_GoldVein_1"
@@ -1306,7 +1306,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_GoldVein_1"
@@ -1384,7 +1384,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -1472,7 +1472,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -1566,10 +1566,10 @@
       "destroyTransformTo": "",
       "destroySources": [],
       "moveToStorageOnDestroy": true,
-      "resourceAwardedOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -1661,7 +1661,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -1715,6 +1715,846 @@
         {
           "type": "Food",
           "amount": 2000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": ""
+    },
+    {
+      "id": "Decameroon_GemMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Decameron",
+      "filter": "FilterBuilding",
+      "spriteName": "Decameroon_GemMine_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Decameroon_GemField_1"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 10
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gems",
+          "amount": 5
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": ""
+    },
+    {
+      "id": "Decameroon_LumberMill_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Decameron",
+      "filter": "FilterBuilding",
+      "spriteName": "Decameroon_LumberMill_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Type",
+      "tilesTypeValue": "Rivers",
+      "radius": 2,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Lumber",
+          "amount": 50
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [
+        "Decameroon_Grain_1"
+      ],
+      "availableTilesForProduce": [
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2"
+      ],
+      "canProductionFacilities": false,
+      "facilityBonusType": "Get",
+      "facilityBonusSize": 50,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [
+        {
+          "type": "Food",
+          "amount": 50
+        }
+      ],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [
+        "Decameroon_Grain_1"
+      ],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": ""
+    },
+    {
+      "id": "Decameroon_Premium_LumberMill_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Decameron",
+      "filter": "FilterBuilding",
+      "spriteName": "Decameroon_LumberMill_Big_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 20000
+        },
+        {
+          "type": "Stone",
+          "amount": 10
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Type",
+      "tilesTypeValue": "Rivers",
+      "radius": 2,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [
+        "Decameroon_Grain_1"
+      ],
+      "availableTilesForProduce": [
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2"
+      ],
+      "canProductionFacilities": false,
+      "facilityBonusType": "Get",
+      "facilityBonusSize": 50,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [
+        {
+          "type": "Food",
+          "amount": 50
+        }
+      ],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [
+        "Decameroon_Grain_1"
+      ],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Lumber",
+          "amount": 5000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": ""
+    },
+    {
+      "id": "Decameroon_Industrial_LumberMill_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Decameron",
+      "filter": "FilterBuilding",
+      "spriteName": "Decameroon_LumberMill_Industrial_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [],
+      "premiumPrice": 100,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Type",
+      "tilesTypeValue": "Rivers",
+      "radius": 2,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Lumber",
+          "amount": 1000
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [
+        "Decameroon_Grain_1"
+      ],
+      "availableTilesForProduce": [
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2"
+      ],
+      "canProductionFacilities": false,
+      "facilityBonusType": "Get",
+      "facilityBonusSize": 50,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [
+        {
+          "type": "Food",
+          "amount": 50
+        }
+      ],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [
+        "Decameroon_Grain_1"
+      ],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Lumber",
+          "amount": 10000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": ""
+    },
+    {
+      "id": "Decameroon_StoneMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Decameron",
+      "filter": "FilterBuilding",
+      "spriteName": "Decameroon_StoneMine_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Decameroon_Mountain_1",
+        "Decameroon_Mountain_2",
+        "Decameroon_Hills_1"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 10000
+        },
+        {
+          "type": "Lumber",
+          "amount": 5000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Stone",
+          "amount": 100
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Stone",
+          "amount": 5000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": ""
+    },
+    {
+      "id": "Decameroon_Big_StoneMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Decameron",
+      "filter": "FilterBuilding",
+      "spriteName": "Decameroon_StoneMineBig_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Decameroon_Hills_1",
+        "Decameroon_Mountain_1",
+        "Decameroon_Mountain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 10000
+        },
+        {
+          "type": "Lumber",
+          "amount": 5000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Stone",
+          "amount": 1000
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Energy",
+          "amount": 50
+        }
+      ],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Stone",
+          "amount": 50000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": ""
+    },
+    {
+      "id": "Decameroon_StoneConveyor_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Decameron",
+      "filter": "FilterBuilding",
+      "spriteName": "Decameroon_StoneConveyor_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Energy",
+          "amount": 500
+        }
+      ],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": true,
+      "facilityBonusType": "Give",
+      "facilityBonusSize": 100,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [
+        {
+          "type": "Stone",
+          "amount": 10
+        }
+      ],
+      "facilityBonusInfluenceType": "Multiply",
+      "productionFacilities": [
+        "Decameroon_StoneMine_1"
+      ],
+      "canStore": false,
+      "stores": [
+        {
+          "type": "Stone",
+          "amount": 50000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": ""
+    },
+    {
+      "id": "Decameroon_IronMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Decameron",
+      "filter": "FilterBuilding",
+      "spriteName": "Decameroon_OreMine_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Decameroon_Mountain_1",
+        "Decameroon_Mountain_2",
+        "Decameroon_Hills_1"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 800
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Steel",
+          "amount": 100
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": ""
+    },
+    {
+      "id": "Decameroon_Foundry_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Decameron",
+      "filter": "FilterBuilding",
+      "spriteName": "Decameroon_OreWorkshop_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Decameroon_Mountain_1",
+        "Decameroon_Mountain_2",
+        "Decameroon_Hills_1"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 900
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Steel",
+          "amount": 1000
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": ""
+    },
+    {
+      "id": "Decameroon_Artefact_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Decameron",
+      "filter": "FilterBuilding",
+      "spriteName": "Decameroon_Artefact_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 100
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Stone",
+          "amount": 1000
         }
       ],
       "storageCapacity": [],
