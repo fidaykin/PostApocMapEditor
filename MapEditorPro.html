@@ -2713,7 +2713,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "e57b946";
+const COMMIT  = "9f11953";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -16139,9 +16139,8 @@ const LocalizationKeys = (() => {
 
   function getKeys() { return _entries.map(e => e.key); }
   function getEntries() { return _entries; }
-  function getGroups() { return _groups; }
 
-  return { load, getKeys, getEntries, getGroups, getExportData, add, remove, downloadJson, importJson,
+  return { load, getKeys, getEntries, getExportData, add, remove, downloadJson, importJson,
            compareWithServer, pushToServer, pullFromServer, clearCache, openManager, closeManager,
            filterList, _updateField, renameKey, _renderList, _ex, _ea,
            addGroup, removeGroup, setEntryGroup, toggleGroup, toggleGroupsPanel, addKeyToGroup };

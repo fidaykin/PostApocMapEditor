@@ -27,7 +27,7 @@ test('dead public helpers are gone and the editor still builds its palette', asy
 // or definition plus export) before it was deleted. REMOVED maps file -> names that must no longer be defined there.
 const REMOVED: Record<string, string[]> = {
   'zone-painter.js': ['_hexIdToTid'],
-  'MapEditorPro.html': ['_numInput', '_costRow', 'hexdb-cost-row', '_getFileSha'],
+  'MapEditorPro.html': ['_numInput', '_costRow', 'hexdb-cost-row', '_getFileSha', 'getGroups'],
 };
 for (const [file, names] of Object.entries(REMOVED)) {
   for (const n of names) {
@@ -47,5 +47,21 @@ test('the HEX DB editor still renders a record form and its rows', async ({ page
   await first.click();
   await expect(page.locator('#hexdb-main .hexdb-row').first()).toBeVisible();
   expect(await page.locator('#hexdb-main input[data-field]').count()).toBeGreaterThan(5);   // number/text inputs built by the remaining helpers
+  expect(errors).toEqual([]);
+});
+
+// Public module members removed because nothing references them (definition plus export line only). GONE must be
+// undefined in the running editor; KEPT are their live neighbours (positive controls: a broken page would fail them too).
+const GONE: string[] = ['LocalizationKeys.getGroups'];
+const KEPT: string[] = ['LocalizationKeys.getEntries'];
+test('removed unused module exports are gone while their neighbours stay', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await openEditor(page);
+  const types = await page.evaluate(([gone, kept]) => ({
+    gone: gone.map(p => (0, eval)('typeof ' + p)), kept: kept.map(p => (0, eval)('typeof ' + p)),   // indirect eval: global scope, sees top-level const modules
+  }), [GONE, KEPT]);
+  expect(types.gone).toEqual(GONE.map(() => 'undefined'));
+  expect(types.kept).toEqual(KEPT.map(() => 'function'));
   expect(errors).toEqual([]);
 });
