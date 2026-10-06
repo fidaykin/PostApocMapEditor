@@ -22,6 +22,15 @@ async function counters(page: Page) {
   });
 }
 const runs = (page: Page) => page.evaluate(() => (window as any).__runs as number);
+// Event-loop based waits instead of wall-clock sleeps. A started export is kept as a page-side promise (`__exp`) so a test can await ITS
+// completion (resolved or cancelled) instead of guessing how long it takes; `blobs` counts the files an export has built (URL.createObjectURL).
+const startExport = (page: Page, kind: 'save' | 'csv') => page.evaluate(k => { (window as any).__exp = k === 'csv' ? IO.exportCSV() : IO.saveMap(); }, kind);
+const exportDone = (page: Page) => page.evaluate(() => (window as any).__exp);
+const spyBlobs = (page: Page) => page.evaluate(() => { const w = window as any; w.__blobs = 0; const c = URL.createObjectURL.bind(URL); URL.createObjectURL = (b: any) => { w.__blobs++; return c(b); }; });
+const blobs = (page: Page) => page.evaluate(() => (window as any).__blobs as number);
+const frames = (page: Page) => page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => setTimeout(r, 0))));
+const startPublish = (page: Page) => page.evaluate(() => { (window as any).__pub = GitHubSync.publishMap(); });
+const publishDone = (page: Page) => page.evaluate(() => (window as any).__pub);
 const trigger = {
   save: (p: Page) => p.evaluate(() => { IO.saveMap(); }),
   ctrlS: (p: Page) => p.keyboard.press('Control+s'),
@@ -39,11 +48,13 @@ test.describe('file exports', () => {
       await breakMap(page);
       const dl = downloads(page);
       await counters(page);
+      await spyBlobs(page);
       await trigger[name](page);
       await expect(modal(page)).toBeVisible();
       await expect(modal(page)).toContainText('Nope_1');
       await expect(modal(page).getByRole('button', { name: 'Export anyway' })).toHaveClass(/btn-danger/);
-      await page.waitForTimeout(200);
+      await frames(page);
+      expect(await blobs(page)).toBe(0);              // the export is parked on the summary: no file was even built
       expect(dl).toEqual([]);
       expect(await runs(page)).toBe(1);
       const [d] = await Promise.all([page.waitForEvent('download'), modal(page).getByRole('button', { name: 'Export anyway' }).click()]);
@@ -63,9 +74,11 @@ test.describe('file exports', () => {
       if (how === 'button') await modal(page).getByRole('button', { name: 'Cancel' }).click(); else await page.keyboard.press('Escape');
       await expect(modal(page)).toHaveCount(0);
     }
-    await trigger.csv(page);
+    await startExport(page, 'csv');
+    await expect(modal(page)).toBeVisible();          // the modal must be there before Escape is pressed
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+    await exportDone(page);                           // the export finished (cancelled)
+    await expect(modal(page)).toHaveCount(0);
     expect(dl).toEqual([]);
     const after = await page.evaluate(() => ({ undo: [History.undoSize(), History.redoSize()], json: IO.getMapJson(), name: document.title }));
     expect(after).toEqual(before);
@@ -76,7 +89,8 @@ test.describe('file exports', () => {
     await breakMap(page);
     const dl = downloads(page);
     await counters(page);
-    await trigger.save(page);
+    await startExport(page, 'save');
+    await expect(modal(page)).toBeVisible();
     await modal(page).getByRole('button', { name: 'Show issues' }).click();
     await expect(modal(page)).toHaveCount(0);
     await expect(page.locator('#validator-panel')).toHaveJSProperty('open', true);
@@ -85,7 +99,7 @@ test.describe('file exports', () => {
     expect(await page.evaluate(() => Canvas.hasHighlight('validator'))).toBe(true);
     expect(await page.evaluate(() => Canvas.getViewCenterTile())).toMatchObject({ col: 10, row: 10 });
     expect(await runs(page)).toBe(1);               // the panel reuses the gate's report
-    await page.waitForTimeout(200);
+    await exportDone(page);
     expect(dl).toEqual([]);
   });
 
@@ -125,10 +139,11 @@ test.describe('file exports', () => {
   test('the map replaced while the summary is open: nothing is exported', async ({ page }) => {
     await breakMap(page);
     const dl = downloads(page);
-    await trigger.save(page);
+    await startExport(page, 'save');
+    await expect(modal(page)).toBeVisible();
     await page.evaluate(() => { IO.newMap(true); });
     await modal(page).getByRole('button', { name: 'Export anyway' }).click();
-    await page.waitForTimeout(300);
+    await exportDone(page);
     expect(dl).toEqual([]);
     await expect(page.locator('.toast', { hasText: 'map changed' }).first()).toBeVisible();
   });
@@ -145,14 +160,14 @@ test.describe('publish', () => {
   }
   test('the gate runs AFTER the name prompt; Cancel uploads nothing; Export anyway uploads', async ({ page }) => {
     const gh = await setup(page);
-    await page.evaluate(() => { GitHubSync.publishMap(); });
+    await startPublish(page);
     await expect(page.locator('#dialog-modal.open')).toBeVisible();
     expect(await runs(page)).toBe(0);                // prompt first, no validation yet
     await page.fill('#dialog-input', 'gated');
     await page.getByRole('button', { name: 'OK' }).click();
     await expect(modal(page)).toBeVisible();
     await modal(page).getByRole('button', { name: 'Cancel' }).click();
-    await page.waitForTimeout(300);
+    await publishDone(page);
     expect(gh.putPaths().filter(p => p.startsWith('maps/'))).toEqual([]);
     await page.evaluate(() => { GitHubSync.publishMap(); });
     await page.fill('#dialog-input', 'gated');
@@ -162,20 +177,21 @@ test.describe('publish', () => {
   });
   test('cancelling the name prompt never validates', async ({ page }) => {
     await setup(page);
-    await page.evaluate(() => { GitHubSync.publishMap(); });
+    await startPublish(page);
+    await expect(page.locator('#dialog-modal.open')).toBeVisible();
     await page.getByRole('button', { name: 'Cancel' }).click();
-    await page.waitForTimeout(200);
+    await publishDone(page);
     expect(await runs(page)).toBe(0);
     await expect(modal(page)).toHaveCount(0);
   });
   test('Escape on the summary cancels the publish', async ({ page }) => {
     const gh = await setup(page);
-    await page.evaluate(() => { GitHubSync.publishMap(); });
+    await startPublish(page);
     await page.fill('#dialog-input', 'esc');
     await page.getByRole('button', { name: 'OK' }).click();
     await expect(modal(page)).toBeVisible();
     await page.keyboard.press('Escape');
-    await page.waitForTimeout(300);
+    await publishDone(page);
     expect(gh.putPaths().filter(p => p.startsWith('maps/'))).toEqual([]);
   });
 });

@@ -18,6 +18,25 @@ export async function freshEditor(page: Page) {
   });
 }
 
+/**
+ * Like freshEditor, but in the DEFAULT layout (`rightPanelMode` 'auto') at 1400x900: the right panel is a thin rail, the canvas is
+ * 1152 px wide and the page does not widen. openEditor seeds 'classic' (the perf hashes need it); the user-facing flows must also work
+ * in what a user actually gets.
+ */
+export async function freshEditorAuto(page: Page) {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await openEditor(page, { storage: { rightPanelMode: 'auto' } });
+  await page.waitForFunction(() => HexDB.getAll().length > 0 && BldDB.getAll().length > 0);
+  await page.evaluate(() => {
+    IO.newMap(true);
+    window.dispatchEvent(new Event('resize'));
+    UI.selectTerrain('Plain_1');
+    Tools.setActive('paint');
+    Brush.setSize(0);
+    Canvas.centerOnCity();
+  });
+}
+
 /** Page coordinates of a cell centre (the city cell, col 225 row 224, is near the canvas centre). */
 export async function cellPoint(page: Page, col: number, row: number) {
   return page.evaluate(([c, r]) => {
