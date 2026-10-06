@@ -34,7 +34,8 @@ test('confirming the dialog publishes', async ({ page }) => {
   const gh = new FakeGitHub();
   await setup(page, gh);
   await page.evaluate(() => { Packages.openPublishConfirm('difpkg'); });
-  await page.getByRole('button', { name: 'Publish', exact: true }).click();
+  await page.getByRole('button', { name: 'Publish', exact: true }).click();          // step one: the diff
+  await page.getByRole('button', { name: /^Publish (now|anyway)$/ }).click();      // step two: version, changelog
   await expect.poll(() => gh.putPaths()).toContain('packages/difpkg/hex_database.json');
 });
 

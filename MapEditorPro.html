@@ -554,6 +554,11 @@ body:not(.mode-map) #statusbar { display: none; }
 .reskin-item.no-sprite img { opacity: .25; }
 .reskin-item .reskin-id { overflow-wrap: anywhere; }
 .reskin-item:disabled { opacity: .4; cursor: default; }
+#pub-dialog label { display: block; margin-top: 8px; font-size: 12px; color: #a6adc8; }
+#pub-dialog textarea { display: block; width: 100%; margin-top: 4px; box-sizing: border-box; background: #313244; border: 1px solid #45475a; border-radius: 4px; color: #cdd6f4; padding: 6px; }
+#pub-missing { font-size: 12px; font-family: monospace; margin: 4px 0 8px 18px; max-height: 140px; overflow: auto; }
+#pub-status { font-size: 12px; color: #a6adc8; margin-top: 8px; min-height: 1em; }
+#pub-error { font-size: 12px; color: #f38ba8; margin-top: 8px; white-space: pre-wrap; }
 .reskin-empty { font-size: 12px; color: var(--muted); padding: 8px 0; }
 .sprite-picker-box { max-width: 500px; width: 100%; }
 #sprite-picker-grid {
@@ -2682,7 +2687,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "5f3d9ff";
+const COMMIT  = "daf88ee";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -13309,7 +13314,7 @@ const Packages = (() => {
     const ok = await UI.confirm('Publish Package',
       `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; sprites and the version number are still updated.' : ''}`,
       _formatDiff(d), 'Publish');
-    if (ok) publishPackage(id);
+    if (ok) openPublishDialog(id);
   }
 
   // 404 = never published (null). Any other failure throws so publish aborts before writing anything:
@@ -13320,12 +13325,139 @@ const Packages = (() => {
     return GitHubSync.readRepoFile(`packages/${id}/package.json`);
   }
 
-  async function publishPackage(id) {
+  // ── Version bump (strict x.y.z; "x.y" is padded; anything else is refused, never NaN) ──
+  const _MAX_NOTE = 500;
+  const _MAX_CHANGELOG = 200;
+  function _parseVersion(v) {
+    const m = typeof v === 'string' ? /^(0|[1-9]\d*)\.(0|[1-9]\d*)(?:\.(0|[1-9]\d*))?$/.exec(v) : null;
+    if (!m) return null;
+    const n = [+m[1], +m[2], m[3] === undefined ? 0 : +m[3]];
+    return n.every(Number.isSafeInteger) ? n : null;
+  }
+  // 'patch' | 'minor' | 'major' | 'none' (keep) -> 'x.y.z', or null for an invalid version or bump.
+  function nextVersion(version, bump) {
+    const n = _parseVersion(version);
+    if (!n) return null;
+    const out = bump === 'major' ? [n[0] + 1, 0, 0]
+      : bump === 'minor' ? [n[0], n[1] + 1, 0]
+      : bump === 'patch' ? [n[0], n[1], n[2] + 1]
+      : bump === 'none'  ? n : null;
+    return out && out.every(Number.isSafeInteger) ? out.join('.') : null;
+  }
+
+  // Sprites the package's entries reference that exist nowhere publish could take them from: not in the
+  // package's or the shared local store, and not on the server (package folder or the postapoc pool).
+  async function findMissingSprites(id) {
+    const refs = await _packageSpriteRefs(id);
+    let have = new Set();
+    try {
+      const [pkgLocal, baseLocal] = await Promise.all([SpriteStore.loadForPackage(id), SpriteStore.loadForPackage('postapoc')]);
+      have = new Set([...baseLocal, ...pkgLocal].map(e => e.name));
+    } catch(e) { console.warn('[Packages] local sprite store unavailable:', e && e.message); }
+    const exists = async url => { try { return (await fetch(url, { method: 'HEAD' })).ok; } catch(e) { return false; } };
+    const missing = [];
+    for (const [name, category] of refs) {
+      if (have.has(name)) continue;
+      const seg = `${category}/${encodeURIComponent(name)}.png`;
+      if (await exists(`${BASE_URL}/packages/${encodeURIComponent(id)}/sprites/${seg}?_=${Date.now()}`)) continue;
+      if (await exists(`${BASE_URL}/packages/postapoc/sprites/${seg}?_=${Date.now()}`)) continue;
+      missing.push({ name, category });
+    }
+    return missing;
+  }
+
+  function _publishRefusal() {
+    if (!GitHubSync.isPATConfigured()) return 'No GitHub token: add one under ⚙ GitHub (or open your access link) before publishing.';
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return 'You are offline: publishing needs a connection. Nothing was written.';
+    return null;
+  }
+
+  // Step two of publishing (the diff of openPublishConfirm is step one): missing sprites, version, changelog.
+  async function openPublishDialog(id) {
+    if (isDefault(id)) return openPublishConfirm(id);
     const entry = getEntry(id);
     if (!entry) return UI.toast('⚠ Package not found');
-    if (isDefault(id)) return UI.toast('⚠ Use HexDB/Buildings publish buttons for postapoc');
+    const name = entry.name || id;
+    let base, missing;
+    let readError = null;
+    try {
+      const f = await _fetchPackageJson(id);
+      base = f && f.json && f.json.version ? f.json.version : (entry.version || '1.0.0');
+      missing = await findMissingSprites(id);
+    } catch(e) { readError = e.message || String(e); missing = []; }
+    const c = _counts(id);
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'pub-dialog' });
+    root.appendChild(T('p', `${name}: ${c.hexes} hex tiles, ${c.blds} buildings.`, { id: 'pub-summary' }));
+    const refusal = _publishRefusal();
+    if (refusal) root.appendChild(T('p', refusal, { id: GitHubSync.isPATConfigured() ? 'pub-offline' : 'pub-nopat', className: 'pkg-notice warn' }));
+    if (readError) root.appendChild(T('p', `Could not read the server version: ${readError}`, { id: 'pub-readerror', className: 'pkg-notice warn' }));
+    if (missing.length) {
+      root.appendChild(T('p', `${missing.length} sprite(s) were found neither locally nor on the server and will be missing in the published package:`, { className: 'pkg-notice warn' }));
+      const ul = T('ul', null, { id: 'pub-missing' });
+      for (const m of missing.slice(0, 50)) ul.appendChild(T('li', `${m.category}/${m.name}.png`));
+      if (missing.length > 50) ul.appendChild(T('li', `…and ${missing.length - 50} more`));
+      root.appendChild(ul);
+    }
+    const bumpLabel = T('label', 'Version ');
+    const sel = T('select', null, { id: 'pub-bump' });
+    const labels = { patch: 'Patch', minor: 'Minor', major: 'Major', none: 'Keep' };
+    for (const b of ['patch', 'minor', 'major', 'none']) {
+      const v = base ? nextVersion(base, b) : null;
+      sel.appendChild(T('option', `${labels[b]}: ${v ? 'v' + v : '(server version invalid)'}`, { value: b }));
+    }
+    bumpLabel.appendChild(sel);
+    root.appendChild(bumpLabel);
+    const noteLabel = T('label', 'Changelog note ');
+    const note = T('textarea', null, { id: 'pub-changelog', rows: 3, maxLength: _MAX_NOTE, placeholder: 'What changed?' });
+    noteLabel.appendChild(note);
+    root.appendChild(noteLabel);
+    const status = T('div', '', { id: 'pub-status', className: 'pkg-status' });
+    const err = T('div', '', { id: 'pub-error', className: 'pkg-error' });
+    root.appendChild(status);
+    root.appendChild(err);
+    let m, go;
+    const label = missing.length ? 'Publish anyway' : 'Publish now';
+    m = UI.showModal({ id: 'pub-modal', title: `Publish ${name}`, body: root, modal: true, actions: [
+      { label: 'Cancel', onClick: () => { if (!_publishBusy) m.close('cancel'); } },
+      { label, primary: true, onClick: async () => {
+        if (_publishBusy) return;
+        err.textContent = '';
+        go.disabled = true;
+        const r = await publishPackage(id, { bump: sel.value, changelog: note.value,
+          onProgress: (pct, msg) => { status.textContent = msg; } });
+        if (r.ok) { m.close('published'); return; }
+        status.textContent = '';
+        err.textContent = r.busy ? 'Another publish is already running.' : `Publish failed: ${r.error}. You can retry.`;
+        go.disabled = !!_publishRefusal() || !!readError;
+      } },
+    ] });
+    go = [...m.el.querySelectorAll('button')].find(b => b.textContent === label);
+    go.disabled = !!refusal || !!readError;
+  }
 
-    await GitHubSync._withPublishBtn('Publish Package', async () => {
+  let _publishBusy = false;
+  // Returns { ok:true, version } | { ok:false, error, busy? }. package.json is written last (commit marker).
+  async function publishPackage(id, opts = {}) {
+    const entry = getEntry(id);
+    if (!entry) { UI.toast('⚠ Package not found'); return { ok: false, error: 'Package not found' }; }
+    if (isDefault(id)) { UI.toast('⚠ Use HexDB/Buildings publish buttons for postapoc'); return { ok: false, error: 'default package' }; }
+    if (_publishBusy) { UI.toast('⚠ A publish is already running'); return { ok: false, busy: true, error: 'A publish is already running' }; }
+    const refusal = _publishRefusal();
+    if (refusal) { UI.toast('⚠ ' + refusal, { ms: 6000 }); return { ok: false, error: refusal }; }
+    _publishBusy = true;
+    const prog = (pct, msg) => { UI.progress(pct, msg); try { if (opts.onProgress) opts.onProgress(pct, msg); } catch(e) {} };
+    let result = { ok: false, error: 'Publish did not finish' };
+    try {
+      await GitHubSync._withPublishBtn('Publish Package', async () => {
+        try { result = await _publishPackageRun(id, entry, opts, prog); }
+        catch(e) { result = { ok: false, error: e && e.message ? e.message : String(e) }; throw e; }
+      });
+    } finally { _publishBusy = false; }
+    return result;
+  }
+
+  async function _publishPackageRun(id, entry, opts, UIprogress) {
       const hexes    = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => h.package === id);
       const buildings = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.package === id);
 
@@ -13335,46 +13467,48 @@ const Packages = (() => {
       const pkgFile = await _fetchPackageJson(id);
       const serverPkg = pkgFile ? pkgFile.json : null;
       const baseVer = serverPkg?.version || entry.version || '1.0.0';
-      const verStr = typeof baseVer === 'string' && /^\d+\.\d+$/.test(baseVer) ? `${baseVer}.0` : baseVer;
-      if (typeof verStr !== 'string' || !/^\d+\.\d+\.\d+$/.test(verStr)) {
-        throw new Error(`Server version ${JSON.stringify(baseVer)} is not a valid x.y.z version`);
-      }
-      const [maj, min, pat] = verStr.split('.').map(Number);
-      const newVersion = `${maj}.${min}.${pat + 1}`;
+      if (!_parseVersion(baseVer)) throw new Error(`Server version ${JSON.stringify(baseVer)} is not a valid x.y.z version`);
+      const newVersion = nextVersion(baseVer, opts.bump || 'patch');
+      if (!newVersion) throw new Error(`Unknown version bump ${JSON.stringify(opts.bump)}`);
+      const note = typeof opts.changelog === 'string' ? opts.changelog.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, _MAX_NOTE) : '';
+      const prevLog = Array.isArray(serverPkg?.changelog) ? serverPkg.changelog.filter(e => e && typeof e === 'object') : [];
+      const changelog = note && !prevLog.some(e => e.version === newVersion && e.note === note)
+        ? [...prevLog, { version: newVersion, date: new Date().toISOString().slice(0, 10), note }] : prevLog;
 
       // Read the live server registry before the first write so an indeterminate read aborts write-free.
       // Its sha makes the registry write conditional: a registry changed meanwhile aborts, not overwritten.
       const { regData, sha: regSha } = await _readRegistry();
 
-      UI.progress(5, `Publishing ${id}/hex_database.json…`);
+      UIprogress(5, `Publishing ${id}/hex_database.json…`);
       const hexPayload = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
       await GitHubSync._putText(`packages/${id}/hex_database.json`, hexPayload, `publish ${id}: hex_database.json`);
 
-      UI.progress(20, `Publishing ${id}/building_database.json…`);
+      UIprogress(20, `Publishing ${id}/building_database.json…`);
       const bldPayload = JSON.stringify({ version: 1, package: id, buildings }, null, 2);
       await GitHubSync._putText(`packages/${id}/building_database.json`, bldPayload, `publish ${id}: building_database.json`);
 
-      UI.progress(30, `Publishing ${id} sprites…`);
+      UIprogress(30, `Publishing ${id} sprites…`);
       const spriteResult = await publishPackageSprites(id, (done, total, spriteName) => {
-        UI.progress(30 + Math.round((done / total) * 45), `Sprites: ${done}/${total} (${spriteName})…`);
+        UIprogress(30 + Math.round((done / total) * 45), `Sprites: ${done}/${total} (${spriteName})…`);
       });
       if (spriteResult.missing.length) {
         console.warn(`[Packages] publish ${id}: ${spriteResult.missing.length} sprite(s) not found locally or in postapoc pool:`, spriteResult.missing);
       }
 
-      UI.progress(80, 'Updating registry.json…');
+      UIprogress(80, 'Updating registry.json…');
       if (regData.packages.some(p => p.id === id))
         regData.packages = regData.packages.map(p => p.id === id ? { ...p, version: newVersion } : p);
       else  // e.g. removed meanwhile, or created moments ago: publishing must not leave it unlisted
         regData.packages.push({ id, name: entry.name || id, isDefault: false, version: newVersion });
       await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: bump ${id} to ${newVersion}`, regSha);
 
-      UI.progress(92, `Updating ${id}/package.json…`);
+      UIprogress(92, `Updating ${id}/package.json…`);
       const pkgJson = JSON.stringify({
         ...(serverPkg || {}), ...entry,
         version: newVersion,
         description: serverPkg?.description ?? entry.description ?? '',
         preview: serverPkg?.preview ?? entry.preview ?? 'preview.png',
+        ...(changelog.length ? { changelog: changelog.slice(-_MAX_CHANGELOG) } : {}),
       }, null, 2);
       await GitHubSync._putText(`packages/${id}/package.json`, pkgJson, `publish ${id}: package.json`, pkgFile ? pkgFile.sha : null);
 
@@ -13390,7 +13524,7 @@ const Packages = (() => {
         UI.toast(`✅ ${entry.name} v${newVersion} published${spriteNote}`);
       }
       renderPanel();
-    });
+      return { ok: true, version: newVersion };
   }
 
   // ── Delete Package ─────────────────────────────────────────────
@@ -13790,7 +13924,7 @@ const Packages = (() => {
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
            spriteSrc, openReskinPicker, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
+           openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal,
            _rewriteEntries, confirmImport };
