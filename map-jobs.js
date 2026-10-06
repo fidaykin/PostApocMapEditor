@@ -5,7 +5,7 @@
   'use strict';
   const MapJobs = {};
   // Bump when the job protocol/algorithms change; the page sends its expected value and the worker refuses on mismatch.
-  MapJobs.VERSION = 2;
+  MapJobs.VERSION = 3;
 
 // ── Satellite classification (moved verbatim from MapEditorPro.html, then parameterised) ──
   function _rgbToHsl(r, g, b) {
@@ -244,6 +244,7 @@
     const halfH  = Math.floor(H / 2);
     const elev   = new Float32Array(W * H);
     const infR   = Math.min(W, H) * 0.08;
+    const win    = !!opts.window;   // window mode (generate into a region): no centre flatten, no ocean falloff, no city exclusion
     const TARGET_E = 0.46, TARGET_M = 0.50, TARGET_B = 0.55;
 
     // Continent/coastline mask: elevation falls off toward open ocean far from
@@ -261,7 +262,7 @@
       for (let col = 0; col < W; col++) {
         const dx = col - halfW, dy = row - halfH;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const t    = Math.max(0, 1.0 - dist / infR);
+        const t    = win ? 0 : Math.max(0, 1.0 - dist / infR);
         const inf  = t * t * (3 - 2 * t);
         let e = eNoise(col, row)                           * (1-inf) + TARGET_E * inf;
         const m = mNoise(col, row) * (1-inf) + TARGET_M * inf;
@@ -273,7 +274,7 @@
         const wobble   = coastNoise(Math.cos(angle) * 3 + 3, Math.sin(angle) * 3 + 3);
         const landR    = COAST_BASE_R * (1 + (wobble * 2 - 1) * COAST_WOBBLE);
         const coastT   = Math.max(0, Math.min(1, (dist - landR) / COAST_BAND));
-        const coastInf = coastT * coastT * (3 - 2 * coastT);
+        const coastInf = win ? 0 : coastT * coastT * (3 - 2 * coastT);
         e = e * (1 - coastInf) + TARGET_OCEAN * coastInf;
 
         elev[row * W + col] = e;
@@ -286,7 +287,7 @@
 
     if (p.rivers > 0 && !opts.skipExpensive) {
       const dirs = [[1,0],[-1,0],[0,1],[0,-1],[1,1],[1,-1],[-1,1],[-1,-1]];
-      const cr2  = infR * infR;
+      const cr2  = win ? -1 : infR * infR;
       const _riverT = T;
       const _riverV = [_riverT.WATER_DARK, _riverT.WATER_LIGHT, _riverT.WATER_ROCK];
       const riverCellIndices = [];
@@ -347,7 +348,7 @@
       }
     }
 
-    const excR2 = infR * infR;
+    const excR2 = win ? -1 : infR * infR;
     function scatter(type, count, minE, maxE) {
       const CLUSTER_SIZE   = 4;      // target tiles per deposit
       const CLUSTER_RADIUS = 2.2;    // max spread of a deposit's tiles around its center
@@ -390,7 +391,7 @@
     const { p, W, H, T, edge } = job;
     const dest = new Array(W * H).fill('Plain_1');
     const debugOut = job.opts.debug ? { elev: new Float32Array(W * H), moist: new Float32Array(W * H) } : null;
-    _generateInto(dest, p, { W, H, skipExpensive: !!job.opts.skipExpensive, debugOut }, T, edge, onProgress);
+    _generateInto(dest, p, { W, H, skipExpensive: !!job.opts.skipExpensive, window: !!job.opts.window, debugOut }, T, edge, onProgress);
     if (onProgress) onProgress(0.95);
     const lut = new Map(); const names = [];
     const grid = new Uint16Array(W * H);
