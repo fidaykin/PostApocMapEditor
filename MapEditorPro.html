@@ -2700,7 +2700,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "de3bf0f";
+const COMMIT  = "615f96e";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8328,6 +8328,7 @@ const History = (() => {
   const _undoMeta = [];
   const _redoMeta = [];
   const _listeners = [];
+  let _evictedCount = 0;  // steps pushed out of the oldest end (MAX): while > 0, _undo[0] is a state older than every listed action
   let _restores = 0;      // TEST COUNTER: number of snapshot restores (undo, redo and rollback each do one)
   let _batch = false;     // jumpBy: the intermediate steps skip render/minimap/toast/notify; the jump finishes with ONE of each
 
@@ -8342,6 +8343,7 @@ const History = (() => {
   function push(label) {
     const evicted = _undo.length >= MAX ? _undo.shift() : null;   // evict oldest
     const evictedMeta = evicted ? _undoMeta.shift() : null;
+    if (evicted) _evictedCount++;
     const snap = _snapshot();
     const meta = { label: (typeof label === 'string' && label) ? label : 'Edit', t: Date.now() };
     _undo.push(snap);
@@ -8396,7 +8398,7 @@ const History = (() => {
     _restore(token.snap);
     _restores++;
     _last = token.snap;
-    if (token.evicted) { _undo.unshift(token.evicted); _undoMeta.unshift(token.evictedMeta || { label: 'Edit', t: Date.now() }); }
+    if (token.evicted) { _evictedCount = Math.max(0, _evictedCount - 1); _undo.unshift(token.evicted); _undoMeta.unshift(token.evictedMeta || { label: 'Edit', t: Date.now() }); }
     _redo.length = 0;
     _redoMeta.length = 0;
     for (const r of token.redo) _redo.push(r);
@@ -8411,6 +8413,7 @@ const History = (() => {
     _redo.length = 0;
     _undoMeta.length = 0;
     _redoMeta.length = 0;
+    _evictedCount = 0;
     _last = null;
     _notify();
     _validatorStale();
@@ -8466,6 +8469,10 @@ const History = (() => {
     };
     for (let j = nu - 1; j >= 0; j--) add(undone[j], ' undone', j + 1, false);                       // furthest redo on top
     for (let k = 0; k < nd; k++) { const i = done.length - 1 - k; add(done[i], i === done.length - 1 ? ' current' : '', -(done.length - 1 - i), i === done.length - 1); }
+    // A row for done[i] is the state AFTER that action, so the state before the oldest listed action (_undo[0]) has no row of its
+    // own. After an eviction it differs from every listed state: give it a bottom row (undo ALL steps). Without an eviction
+    // _undo[0] is the freshly opened map, which the 'Open map' row already is.
+    if (_evictedCount > 0 && done.length && nd === done.length) add({ label: 'Earlier state (before ' + done[0].label + ')', t: done[0].t }, ' earlier', -done.length, false);
     list.replaceChildren(frag);
     if (hadFocus) { const c = list.querySelector('.hist-row.current') || list.querySelector('.hist-row'); if (c) c.focus(); }   // keyboard users keep their place
   }

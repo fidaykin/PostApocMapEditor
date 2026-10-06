@@ -155,10 +155,11 @@ test('labels are rendered as text, the list is capped, the panel follows History
   expect(r.xss).toBeUndefined();
   expect(r.calls).toBe(1);
   await page.evaluate(() => { History.clear(); for (let i = 0; i < 60; i++) History.push('s' + i); });
-  expect(await rows(page).count()).toBe(50);                         // MAX undo steps, also the display cap
+  expect(await rows(page).count()).toBe(51);                         // MAX undo steps (the display cap) + the 'Earlier state' row (state before the oldest kept step)
   await page.evaluate(() => { for (let i = 0; i < 40; i++) History.undo(); });
   const t = await labels(page);
-  expect(t).toHaveLength(35);                                        // 25 nearest undone + the 10 done steps left
+  expect(t).toHaveLength(36);                                        // 25 nearest undone + the 10 done steps left + the 'Earlier state' row (eviction happened)
+  expect(t[35]).toMatch(/^Earlier state/);
   expect(t[0]).toBe('s44');                                          // furthest SHOWN undone step on top, the nearest (s20) just above current
   expect(t[24]).toBe('s20');
   expect(t[25]).toBe('s19');
@@ -200,4 +201,19 @@ test('the main tools label their History step (behaviour unchanged)', async ({ p
   await page.click('#confirm-ok');
   expect(await page.evaluate(() => History.undoSize())).toBe(before + 1);   // positive control: the clear really pushed a step
   expect(await last()).toBe('Clear map');
+});
+
+test('after eviction the bottom row reaches the oldest retained snapshot (_undo[0]); without eviction there is no extra row', async ({ page }) => {
+  // a marker per snapshot: push AFTER writing it, so snapshot i holds 'T<i>'
+  await page.evaluate(() => { History.clear(); for (let i = 0; i < 60; i++) { mapData[0] = 'T' + i; History.push('s' + i); } mapData[0] = 'LIVE'; History.push('last'); });
+  const last = rows(page).last();
+  await expect(last).toHaveText(/Earlier state/);
+  await last.click();
+  expect(await cell(page)).toBe('T11');           // 61 pushes: T0..T10 evicted, _undo[0] holds T11: the oldest state still held
+  expect(await page.evaluate(() => [History.undoSize(), History.redoSize()])).toEqual([0, 50]);
+  await rows(page).first().click(); await rows(page).first().click();   // the panel shows at most 25 redo rows: two clicks redo everything, back at LIVE
+  expect(await cell(page)).toBe('LIVE');
+  // positive control: no eviction -> the bottom row is the oldest action, no 'Earlier state' row
+  await page.evaluate(() => { History.clear(); History.push('Open map'); History.push('Paint'); });
+  expect(await labels(page)).toEqual(['Paint', 'Open map']);
 });
