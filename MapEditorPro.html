@@ -2447,7 +2447,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "60193de";
+const COMMIT  = "4a1bd50";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7185,6 +7185,7 @@ const Tools = (() => {
         _lastObjectPainted = { col, row };
         break;
       case 'bridge':
+        if (e && e.detail >= 2) { _isDown = false; break; }   // the second press of a double-click must not toggle the bridge off again
         if (!_selectedBridgeId || !_bridgeBuildings().some(b => b.id === _selectedBridgeId)) { _selectedBridgeId = null; UI.toast('Pick a bridge first'); _isDown = false; break; }   // also when the selection vanished with a package change
         _beginLazyStroke();
         _placeBridge(col, row);

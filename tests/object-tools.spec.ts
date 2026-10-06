@@ -1264,6 +1264,18 @@ test.describe('bridge tool (T2.16)', () => {
     expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
   });
 
+  test('a double-click with the Bridge tool places the bridge once (the second press is ignored, not a remove)', async ({ page }) => {
+    await river(page);
+    await page.keyboard.press('u');
+    await page.evaluate(() => Tools.selectBuilding('Road_Bridge_NS_1'));
+    await hidePicker(page);
+    const s0 = await undoSize(page);
+    const p = await cellPoint(page, 227, 224);
+    await page.mouse.dblclick(p.x, p.y);
+    expect(await obj(page, '227,224')).toBe('Road_Bridge_NS_1');
+    expect(await undoSize(page)).toBe(s0 + 1);
+  });
+
   test('a different bridge replaces the one on the tile in ONE step; undo brings the old one back; the object tool selection is untouched', async ({ page }) => {
     await river(page);
     await page.evaluate(() => Tools.selectBuilding('Artefact_Test_1'));   // object-tool selection
