@@ -694,14 +694,17 @@ test.describe('region selection (T2.8)', () => {
 
   // Pointer dragged past each edge / corner of the map, for both drag-rectangle tools: expectation by brute force
   // (nearest cell centre to the pointer clamped into the box of centres), and the border must be reached (no flip).
-  for (const tool of ['marquee', 'rect']) {
-    test(`${tool}: dragging past every edge and corner stops at the border (no flip to the opposite edge)`, async ({ page }) => {
+  // Run on the default 450x450 map and on odd-H maps (31x31, 30x31): floor(H/2) parity moves the odd-q stagger, which
+  // is what _clampedCell's row estimate and per-row stagger depend on.
+  for (const tool of ['marquee', 'rect']) for (const [MW, MH] of [[450, 450], [31, 31], [30, 31]]) {
+    test(`${tool}: dragging past every edge and corner stops at the border (no flip to the opposite edge) on ${MW}x${MH}`, async ({ page }) => {
       await page.keyboard.press(tool === 'marquee' ? 'm' : 'r');
       await page.evaluate(() => UI.selectTerrain('Forest_1'));
       const dirs: [string, number, number][] = [['up', 0, -1], ['down', 0, 1], ['left', -1, 0], ['right', 1, 0], ['upleft', -1, -1], ['upright', 1, -1], ['downleft', -1, 1], ['downright', 1, 1]];
       for (const [name, dx, dy] of dirs) {
-        const setup = await page.evaluate(([dx, dy]) => {
+        const setup = await page.evaluate(([dx, dy, MW, MH]) => {
           IO.newMap(true); Selection.clear();
+          if (MW !== 450 || MH !== 450) { MAP_WIDTH = MW as number; MAP_HEIGHT = MH as number; mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1'); }
           const Z = 0.5; Canvas.setZoom(50);
           let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
           for (let c = 0; c < MAP_WIDTH; c++) for (let rw = 0; rw < MAP_HEIGHT; rw++) { const p = Canvas.hexCenterWorld(c, rw); x0 = Math.min(x0, p.x); x1 = Math.max(x1, p.x); y0 = Math.min(y0, p.y); y1 = Math.max(y1, p.y); }
@@ -710,7 +713,7 @@ test.describe('region selection (T2.8)', () => {
           Canvas._test.setCamera(ex * Z - cv.width / 2, ey * Z - cv.height / 2); Canvas.render();
           const b = cv.getBoundingClientRect();
           return { Z, x0, x1, y0, y1, left: b.left, top: b.top, cx: cv.width / 2, cy: cv.height / 2, ex, ey };
-        }, [dx, dy]);
+        }, [dx, dy, MW, MH]);
         const start = { x: setup.left + setup.cx - dx * 160, y: setup.top + setup.cy - dy * 160 };
         const end = { x: setup.left + setup.cx + dx * 220, y: setup.top + setup.cy + dy * 220 };
         await page.mouse.move(start.x, start.y); await page.mouse.down(); await page.mouse.move((start.x + end.x) / 2, (start.y + end.y) / 2, { steps: 3 }); await page.mouse.move(end.x, end.y, { steps: 3 }); await page.mouse.up();
@@ -735,9 +738,9 @@ test.describe('region selection (T2.8)', () => {
           return { exp: Object.assign(exp, { n: (exp.maxCol - exp.minCol + 1) * (exp.maxRow - exp.minRow + 1) }), got };
         }, [start.x, start.y, end.x, end.y, tool]);
         expect(r.got, `${tool} ${name}`).toEqual(r.exp);
-        if (dy < 0) expect(r.got.maxCol, name).toBe(449);       // col grows UP the screen
+        if (dy < 0) expect(r.got.maxCol, name).toBe(MW - 1);    // col grows UP the screen
         if (dy > 0) expect(r.got.minCol, name).toBe(0);
-        if (dx < 0) expect(r.got.maxRow, name).toBe(449);       // row grows toward the WEST (left)
+        if (dx < 0) expect(r.got.maxRow, name).toBe(MH - 1);    // row grows toward the WEST (left)
         if (dx > 0) expect(r.got.minRow, name).toBe(0);
       }
     });
@@ -1478,13 +1481,16 @@ test.describe('clipboard (T2.9)', () => {
         const out: any = { anchor: objectsData['225,224'], sLeft: countS() };            // ring gone, only the far one stays
         // two cells: the anchor and ring[0]; the pasted building on the ring cell must survive the cleanup
         const c0 = HexUtils.toCube(225, 224, MAP_WIDTH, MAP_HEIGHT), c1 = HexUtils.toCube(ring[0].col, ring[0].row, MAP_WIDTH, MAP_HEIGHT);
-        const buf = { v: 1, origin: A, cells: [{ dq: 0, dr: 0, t: 'Plain_1', o: 'Grain_1' }, { dq: c1.q - c0.q, dr: c1.r - c0.r, t: 'Plain_1', o: 'Grain_2' }] };
+        // ring[1] gets a pasted T_S (a satellite-type id that the cleanup would delete if it ran AFTER the write): it must survive,
+        // while the other four old ring satellites are removed. Without this cell the ring0 check alone cannot tell the order.
+        const c2 = HexUtils.toCube(ring[1].col, ring[1].row, MAP_WIDTH, MAP_HEIGHT);
+        const buf = { v: 1, origin: A, cells: [{ dq: 0, dr: 0, t: 'Plain_1', o: 'Grain_1' }, { dq: c1.q - c0.q, dr: c1.r - c0.r, t: 'Plain_1', o: 'Grain_2' }, { dq: c2.q - c0.q, dr: c2.r - c0.r, t: 'Plain_1', o: 'T_S' }] };
         setup(); Tools.setActive('paint'); Tools.beginPaste(buf); Tools.dropFloat(225, 224);
-        out.ring0 = objectsData[ring[0].col + ',' + ring[0].row]; out.sLeft2 = countS();
+        out.ring0 = objectsData[ring[0].col + ',' + ring[0].row]; out.ring1 = objectsData[ring[1].col + ',' + ring[1].row]; out.sLeft2 = countS();
         return out;
       } finally { BldDB.getAll = __o; }
     });
-    expect(r).toEqual({ anchor: 'Grain_1', sLeft: 1, ring0: 'Grain_2', sLeft2: 1 });
+    expect(r).toEqual({ anchor: 'Grain_1', sLeft: 1, ring0: 'Grain_2', ring1: 'T_S', sLeft2: 2 });   // far T_S + the pasted ring[1] one
   });
 
   test('cutting a spawner removes its ring (also outside the selection) and paste does not duplicate or respawn it', async ({ page }) => {
@@ -1564,9 +1570,19 @@ test.describe('clipboard (T2.9)', () => {
       Tools.beginPaste(mk([0, 1])); Tools.dropFloat(100, 100);
       const sat: string[] = [];
       for (let rr = 97; rr <= 103; rr++) for (let c = 97; c <= 103; c++) { const a = getSatelliteAnchor(c, rr); if (a) sat.push(a.col + ',' + a.row); }
-      return { first: mapData[100 * W + 100], second: mapData[100 * W + 101], sat, steps: History.undoSize() - s0 };
+      const forward = { first: mapData[100 * W + 100], second: mapData[100 * W + 101], sat, steps: History.undoSize() - s0 };
+      // reversed buffer order: the earlier BUFFER cell wins (Clipboard.plan walks the buffer in order), so the other anchor survives
+      History.undo();
+      const s1 = History.undoSize();
+      Tools.beginPaste(mk([1, 0])); Tools.dropFloat(100, 100);
+      const sat2: string[] = [];
+      for (let rr = 97; rr <= 103; rr++) for (let c = 97; c <= 103; c++) { const a = getSatelliteAnchor(c, rr); if (a) sat2.push(a.col + ',' + a.row); }
+      const reversed = { first: mapData[100 * W + 100], second: mapData[100 * W + 101], sat: sat2, steps: History.undoSize() - s1 };
+      return { forward, reversed };
     });
-    expect(r).toEqual({ first: 'Rabbit_Flat_1', second: 'Plain_1', sat: ['100,100', '100,100', '100,100'], steps: 1 });
+    const want = { first: 'Rabbit_Flat_1', second: 'Plain_1', sat: ['100,100', '100,100', '100,100'], steps: 1 };
+    expect(r.forward).toEqual(want);
+    expect(r.reversed).toEqual({ first: 'Plain_1', second: 'Rabbit_Flat_1', sat: ['101,100', '101,100', '101,100'], steps: 1 });
   });
 
   test('a pasted footprint that would cover an existing anchor outside the paste is skipped', async ({ page }) => {

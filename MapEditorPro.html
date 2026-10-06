@@ -2444,7 +2444,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "bbe1c01";
+const COMMIT  = "61a0a0a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5706,6 +5706,9 @@ const Tools = (() => {
   let _prevTool = 'paint';    // tool restored when a paste ends
   let _floatKey = '';         // last cell the ghost was built for
   let _floatCell = null;      // ... and that cell itself (null while the ghost is hidden), to refresh the ghost in place
+  // KNOWN GAP (deferred, product decision): _floatCell is cleared on tool switch / ghost clear but NOT when the map is replaced,
+  // so a Ctrl+V right after New/Load can redraw the ghost at the old cell until the next mouse move (the drop itself is guarded
+  // by _floatStale, so nothing is written to the wrong map).
   let _shapeStart = null;     // { col, row } while dragging a line or circle
   let _shapeEnd   = null;
   let _shapeKey   = '';       // last previewed end cell + modifier, so unchanged moves do no work
@@ -6097,6 +6100,8 @@ const Tools = (() => {
 
   // ── Rectangle ──────────────────────────────────────────────
   // The grid-cell rectangle (cols c1..c2 x rows r1..r2, any corner order), clipped to the map.
+  // ORDER: column-major (col outer, row inner). Selection.getCells()/forEach are ROW-major (row outer, col inner): compare
+  // them as sets (or sort), never by index.
   function _rectCells(c1, r1, c2, r2) {
     const minC = Math.max(0, Math.min(c1, c2)), maxC = Math.min(MAP_WIDTH - 1, Math.max(c1, c2));
     const minR = Math.max(0, Math.min(r1, r2)), maxR = Math.min(MAP_HEIGHT - 1, Math.max(r1, r2));
@@ -6325,11 +6330,6 @@ const Tools = (() => {
   }
 
   // ── Eraser (T2.6) ──────────────────────────────────────────
-  // Resets cells to DEFAULT_TILE_ID and drops what sat on them: building (with the satellites it spawned), road,
-  // bridge and under-terrain. Zones and the settlements list are NOT touched (they have their own tools; the
-  // settlement/city markers stay where they are). Like Paint it is mirrored by the active symmetry mode unless
-  // opts.noSymmetry. A cell inside a multi-tile footprint is skipped unless the footprint's anchor is erased in the
-  // same call (then the whole footprint goes). The caller owns History.push(). Returns the number of cells reset.
   // The cells a reset really touches: in-map, unique, minus cells of a footprint whose anchor is not in the list (judged
   // on the satellite map as it is NOW, which is how _resetCells sees it too). Cut / Delete use it so that what is
   // captured, cleared and zeroed is exactly what is reset.
@@ -6343,6 +6343,11 @@ const Tools = (() => {
     }
     return uniq.filter(({ col, row }) => { const anc = getSatelliteAnchor(col, row); return !anc || inSet.has(anc.row * MAP_WIDTH + anc.col); });
   }
+  // _resetCells (Eraser, T2.6): resets cells to DEFAULT_TILE_ID and drops what sat on them: building (with the satellites it spawned), road,
+  // bridge and under-terrain. Zones and the settlements list are NOT touched (they have their own tools; the
+  // settlement/city markers stay where they are). Like Paint it is mirrored by the active symmetry mode unless
+  // opts.noSymmetry. A cell inside a multi-tile footprint is skipped unless the footprint's anchor is erased in the
+  // same call (then the whole footprint goes). The caller owns History.push(). Returns the number of cells reset.
   // A locked objects layer keeps its buildings (and the satellites they spawned) and bridge overlays, a locked roads layer
   // keeps its roads (opts.locks overrides the live lock state: a lifted move uses the union of lift and drop time).
   function _resetCells(cells, opts) {
@@ -6423,8 +6428,8 @@ const Tools = (() => {
   // Sprinkles random variants of the selected terrain over the brush area. Per cell: with probability density% the
   // cell takes one of the chosen variants (HexUtils.scatterPick). The cells are the brush disc expanded by the active
   // symmetry mode (so the area is mirrored) but every cell rolls on its own: mirrored copies are NOT identical.
-  // Writes go through _applyTerrainCells with noSymmetry (the area is already expanded), grouped per variant, so
-  // edge re-resolution, bridge removal and footprint skips are Paint's. A stroke shares one seeded RNG and one
+  // Writes go through _writeTerrain in ONE pass with per-cell ids (noSymmetry: the area is already expanded), so
+  // edge re-resolution, bridge removal and footprint skips are Paint's and the footprint map is rebuilt at most once. A stroke shares one seeded RNG and one
   // visited set: a cell reached by several stamps is rolled once (dragging does not re-roll or flicker). A stroke
   // reuses the eraser's stroke state (_eraseStroke/_eraseToken/_eraseMd): the History step is pushed lazily, right
   // before the first write, so a stroke that places nothing leaves no step.

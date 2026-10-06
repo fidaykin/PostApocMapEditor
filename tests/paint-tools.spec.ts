@@ -1812,7 +1812,7 @@ test.describe('eraser (T2.6)', () => {
   });
 
   test('hover recompute happens once per cursor-cell change (not per mousemove) and the symmetric hover is cached', async ({ page }) => {
-    await page.evaluate(() => { Tools.setActive('eraser'); Brush.setSize(2); Tools.setSymmetry('hv'); (window as any).__calls = 0; const oa = Brush.getAffectedTiles; Brush.getAffectedTiles = (c: number, r: number) => { (window as any).__calls++; return oa(c, r); }; });
+    await page.evaluate(() => { Tools.setActive('eraser'); Brush.setSize(2); Tools.setSymmetry('hv'); (window as any).__calls = 0; const oa = Brush.getAffectedTiles; (window as any).__origGAT = oa; Brush.getAffectedTiles = (c: number, r: number) => { (window as any).__calls++; return oa(c, r); }; });
     const calls = () => page.evaluate(() => (window as any).__calls);
     const p = await cellPoint(page, 226, 222);
     await page.mouse.move(p.x, p.y);
@@ -1825,7 +1825,7 @@ test.describe('eraser (T2.6)', () => {
     expect(await calls()).toBe(c1 + 1);
     await page.mouse.move(p2.x + 1, p2.y);
     expect(await calls()).toBe(c1 + 1);
-    await page.evaluate(() => { Tools.setSymmetry('none'); Brush.getAffectedTiles = Object.getPrototypeOf(Brush).getAffectedTiles || Brush.getAffectedTiles; });
+    await page.evaluate(() => { Tools.setSymmetry('none'); Brush.getAffectedTiles = (window as any).__origGAT; });   // restores the real wrapper, not a guess
   });
 
   test('plain-terrain strokes never rebuild the footprint map (radius 12, rot6); erasing a multi-tile anchor does', async ({ page }) => {
@@ -2203,12 +2203,24 @@ test.describe('scatter (T2.7)', () => {
         n = 0;
         const g = Tools.scatterVariants(id);
         cv.dispatchEvent(ev('mousedown')); cv.dispatchEvent(ev('mouseup'));
-        out[id] = { rebuilds: n, variants: g.length };
+        let written = 0; for (const x of mapData) if (x !== 'Plain_1') written++;
+        out[id] = { rebuilds: n, variants: g.length, written };
       }
       (window as any)._buildSatelliteMap = orig;
       return out;
     });
-    for (const id of ['Forest_1', 'Water_1', 'Lake_1', 'River_L_1']) if (r[id]) expect(r[id].rebuilds, id).toBeLessThanOrEqual(2);
+    // Every family that has variants really wrote its 61-cell disc and rebuilt the footprint map once (not zero, not many):
+    // a bound of <= 2 alone would pass with no work at all.
+    // Lake_1 note: the family rule is first '_' segment + type, so selecting Lake_1 scatters only the one non-directional
+    // Lake variant that exists (Lake_7); that is the documented behaviour, not a bug in this test.
+    for (const id of ['Forest_1', 'Water_1', 'Lake_1']) {
+      expect(r[id].variants, id + ' variants').toBeGreaterThanOrEqual(1);
+      expect(r[id].written, id + ' cells written').toBe(61);
+      expect(r[id].rebuilds, id + ' rebuilds').toBeGreaterThanOrEqual(1);
+      expect(r[id].rebuilds, id + ' rebuilds').toBeLessThanOrEqual(2);
+    }
+    // River_L_1 is directional: no variants, nothing written, no rebuild (the accurate toast is covered elsewhere)
+    expect(r.River_L_1).toEqual({ rebuilds: 0, variants: 0, written: 0 });
     expect(r.Forest_1.variants).toBe(3);
   });
 
