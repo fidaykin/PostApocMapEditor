@@ -258,7 +258,7 @@ html, body {
 .brush-btn:hover { background: var(--hover); }
 .brush-btn.active { border-color: var(--accent); background: rgba(79,195,247,0.12); }
 
-/* Stamps panel (T2.13): lives in the scrollable right panel body, so it never changes the canvas width */
+/* Stamps panel (T2.13): lives in the scrollable LEFT palette (moved there in T2.13 fix round 1), so it never changes the canvas width */
 #stamp-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #stamp-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #stamp-panel .stamp-bar { display: flex; gap: 4px; margin-bottom: 6px; }
@@ -2444,7 +2444,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "4fd36e7";
+const COMMIT  = "fefaf50";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks

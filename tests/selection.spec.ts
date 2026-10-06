@@ -2491,6 +2491,26 @@ test.describe('transform and move: fix round 1 (T2.10)', () => {
     await page.evaluate(() => History.undo());
     expect(await snap(page)).toBe(base);
   });
+  test('exact toast wording for a single lost cell (singular) and several (plural)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const out: any = {};
+      const run = (cells: any[], dc: number, dr: number) => {
+        for (const k of Object.keys(objectsData)) delete objectsData[k];
+        cells.forEach(c => { mapData[c.row * MAP_WIDTH + c.col] = 'Forest_1'; });
+        Selection.setCells(cells);
+        (window as any).__toasts.length = 0;
+        Tools.beginMove(); Tools.dropFloat(dc, dr);
+        const t = ((window as any).__toasts as string[]).filter(x => /fell off/.test(x));
+        Tools.cancelFloat && Tools.cancelFloat(); History.undo();
+        return t;
+      };
+      out.one = run([{ col: 100, row: 100 }, { col: 101, row: 100 }], 449, 100);
+      out.many = run(HexUtils.discCells(100, 100, 2, MAP_WIDTH, MAP_HEIGHT), 0, 0);
+      return out;
+    });
+    expect(r.one).toEqual(['1 cell fell off the map or was skipped (undo restores them)']);
+    expect(r.many).toEqual(['12 cells fell off the map or were skipped (undo restores them)']);
+  });
   test('a move that keeps every cell does not toast about lost cells', async ({ page }) => {
     await seedBlock(page);
     expect(await lift(page)).toBe(true);

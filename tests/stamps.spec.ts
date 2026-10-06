@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { freshEditor, clickCell } from './editor-helpers';
+import { freshEditor, clickCell, cellPoint } from './editor-helpers';
 import * as fs from 'fs';
 
 // Region used by the plain tests: two cells next to the city.
@@ -1014,7 +1014,8 @@ test.describe('stamps panel (T2.13)', () => {
     await expect(page.locator('.stamp-row')).toHaveCount(100);
     await expect(page.locator('.stamp-row .stamp-name').first()).toContainText('s249');
     await expect(page.locator('#stamp-more')).toContainText('150');
-    await page.waitForTimeout(200);
+    await expect.poll(() => page.evaluate(() => (window as any).__thumbCanvases)).toBeGreaterThan(0);   // thumbnails arrive via the observer
+    await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));   // two frames: the visible batch is done (ticks, not wall clock)
     const made = await page.evaluate(() => (window as any).__thumbCanvases);
     expect(made).toBeGreaterThan(0);
     expect(made).toBeLessThan(40);                                              // only the visible part of the list got a thumbnail
@@ -1023,7 +1024,7 @@ test.describe('stamps panel (T2.13)', () => {
     await page.click('#stamp-more');
     await expect(page.locator('.stamp-row')).toHaveCount(250);
     await expect(page.locator('#stamp-more')).toHaveCount(0);
-    await page.waitForTimeout(200);
+    await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));   // two frames for the observer to settle
     expect(await page.evaluate(() => (window as any).__thumbCanvases)).toBeLessThan(80);
     // scrolling reveals more thumbnails lazily
     const before = await page.evaluate(() => (window as any).__thumbCanvases);
@@ -1104,12 +1105,28 @@ test.describe('stamps panel (T2.13)', () => {
 
 test.describe('stamps panel startup isolation (T2.13 fix round 1)', () => {
   test('a throwing Stamps.initPanel (IntersectionObserver throws) does not take down the later startup steps', async ({ page }) => {
-    await page.addInitScript(() => { (window as any).IntersectionObserver = function () { throw new Error('io boom'); }; });
+    await page.addInitScript(() => {
+      (window as any).IntersectionObserver = function () { throw new Error('io boom'); };
+      // record every toast text from the very start (the failure toast fires during startup, before any test code runs)
+      (window as any).__startupToasts = [];
+      new MutationObserver(ms => { for (const m of ms) m.addedNodes.forEach((n: any) => { if (n.classList && n.classList.contains('toast')) (window as any).__startupToasts.push(n.textContent); }); })
+        .observe(document, { childList: true, subtree: true });
+    });
     await freshEditor(page);
+    // the failure is reported with its real message (and the editor says so rather than failing silently)
+    await expect.poll(() => page.evaluate(() => (window as any).__startupToasts)).toContain('Stamps panel failed to start: io boom');
+    expect(await page.evaluate(() => HexDB.getAll().length)).toBeGreaterThan(0);          // HexDB init (a later startup step) ran
     await page.keyboard.press('KeyM');                                    // IO.initKeyboard / Tools shortcuts are alive
     expect(await page.evaluate(() => Tools.getActive())).toBe('marquee');
     await page.keyboard.press('Control+a');
     expect(await page.evaluate(() => Selection.size())).toBeGreaterThan(0);
     expect(await page.evaluate(() => document.getElementById('brush-size-label')!.textContent)).toMatch(/Radius/);
+    // a History shortcut still works: paint one cell, Ctrl+Z restores it
+    await page.evaluate(() => { Selection.clear(); UI.selectTerrain('Water_1'); Tools.setActive('paint'); });
+    const p = await cellPoint(page, 225, 224);
+    await page.mouse.click(p.x, p.y);
+    expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 225])).toBe('Water_1');
+    await page.keyboard.press('Control+z');
+    expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 225])).toBe('Plain_1');
   });
 });
