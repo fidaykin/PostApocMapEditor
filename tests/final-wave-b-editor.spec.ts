@@ -243,3 +243,25 @@ test.describe('B5 generate into selection, placement, edge resolver', () => {
     expect(r.water.length).toBeGreaterThan(0);                    // positive control: the generation produced water
   });
 });
+
+// ---- B6: Ctrl+Shift+S, zone rename, polygon preview ----
+test.describe('B6 Ctrl+Shift+S', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+  const settle = (page: Page) => page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => setTimeout(r, 150))));   // lets an async map save (validator gate) finish if one was started
+
+  test('on the HEX DB tab Ctrl+Shift+S saves the Hex DB ONLY; on the MAP tab it saves the map', async ({ page }) => {
+    const names: string[] = [];
+    page.on('download', d => names.push(d.suggestedFilename()));
+    await page.evaluate(() => App.setMode('hexdb'));
+    await page.keyboard.press('Control+Shift+S');
+    await expect.poll(() => names.length).toBeGreaterThan(0);
+    await settle(page);
+    expect(names).toEqual(['hex_database.json']);                 // RED before B6: a second download, map_export.json, followed
+    names.length = 0;
+    await page.evaluate(() => App.setMode('map'));
+    await page.keyboard.press('Control+Shift+S');
+    await expect.poll(() => names.length).toBeGreaterThan(0);
+    await settle(page);
+    expect(names).toEqual(['map_export.json']);
+  });
+});

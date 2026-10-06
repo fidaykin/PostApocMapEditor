@@ -16,7 +16,7 @@ The Help menu opens this guide (English and Ukrainian) and the content packages 
 
 ## 2. The map and the coordinates
 
-A map is a grid of flat-top hexagons, from 10 by 10 up to 450 by 450 tiles. `File > New Map` (Ctrl+N) asks for the size. The city marker starts at the middle of the map (see "Move City" in section 9 to change it).
+A map is a grid of flat-top hexagons, from 20 by 20 up to 450 by 450 tiles. `File > New Map` (Ctrl+N) asks for the size. The city marker starts at the middle of the map (see "Move City" in section 9 to change it).
 
 The status bar shows the tile under the cursor as `col,row`, its Unity coordinates `app:x,y` (measured from the middle of the map) and its distance from the city.
 
@@ -138,7 +138,7 @@ The PACKAGES tab manages content packages: bundles of hex tiles, buildings and s
 
 ## 12. Keyboard shortcuts
 
-The list below is generated from the editor's own shortcut list (Help > Keyboard Shortcuts shows the same). Shortcuts work on the MAP tab and are ignored while you type in a field or while a dialog is open.
+The list below follows the editor's own shortcut list (Help > Keyboard Shortcuts shows the same). Tool, brush, zoom and overlay keys work on the MAP tab only. Ctrl+Z, Ctrl+Y, Ctrl+N, Ctrl+O and Ctrl+S work on every tab. All of them are ignored while you type in a text field and while any dialog is open.
 
 **Tools** (typed letter, no Ctrl or Alt):
 
@@ -179,7 +179,7 @@ The list below is generated from the editor's own shortcut list (Help > Keyboard
 | `Enter` | Lift the selection to move it |
 | `Esc` | Cancel the current action, then clear the selection |
 | `Ctrl+N` / `Ctrl+O` / `Ctrl+S` | New, open, save |
-| `Ctrl+Shift+S` | Save the Hex DB (Data menu) |
+| `Ctrl+Shift+S` | Save the map; on the HEX DB tab it saves the Hex DB instead (Data menu) |
 
 **Brush and view:**
 

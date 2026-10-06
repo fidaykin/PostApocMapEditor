@@ -129,6 +129,7 @@ const PROBES: Record<string, (page: Page) => Promise<void>> = {
   'file-new': async p => { await press(p, 'Control+n'); await expect(p.locator('#newmap-modal')).toHaveClass(/open/); },
   'file-open': async p => { await p.evaluate(() => { (window as any).__fileClicks = 0; document.getElementById('file-input')!.addEventListener('click', e => { (window as any).__fileClicks++; e.preventDefault(); }); }); await press(p, 'Control+o'); expect(await p.evaluate(() => (window as any).__fileClicks)).toBe(1); },
   'file-save': async p => { const dl = p.waitForEvent('download'); await press(p, 'Control+s'); expect((await dl).suggestedFilename()).toMatch(/\.json$/); },
+  'hexdb-save': async p => { await p.evaluate(() => App.setMode('hexdb')); const dl = p.waitForEvent('download'); await press(p, 'Control+Shift+S'); expect((await dl).suggestedFilename()).toBe('hex_database.json'); },
   'pan-space': async p => { await p.keyboard.down('Space'); expect(await p.evaluate(() => document.getElementById('map-canvas')!.style.cursor)).toBe('grab'); await p.keyboard.up('Space'); },
   'mode-tab': async p => { await press(p, 'Tab'); expect(await p.evaluate(() => document.body.classList.contains('mode-hexdb'))).toBe(true); },
 };

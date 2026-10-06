@@ -2700,7 +2700,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "2591489";
+const COMMIT  = "8df2aec";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -11899,7 +11899,9 @@ const IO = (() => {
       switch (e.key.toLowerCase()) {
         case 'n': e.preventDefault(); newMap();   break;
         case 'o': e.preventDefault(); openMap();  break;
-        case 's': e.preventDefault(); saveMap();  break;
+        case 's':
+          if (e.shiftKey && document.body.classList.contains('mode-hexdb')) break;   // Ctrl+Shift+S on the HEX DB tab is HexDB.save() (its own handler): not a second, map export
+          e.preventDefault(); saveMap();  break;
       }
     });
   }
@@ -15454,6 +15456,7 @@ const Shortcuts = (() => {
     doc('file-new', 'File', 'Ctrl+N', 'New map');
     doc('file-open', 'File', 'Ctrl+O', 'Open a map');
     doc('file-save', 'File', 'Ctrl+S', 'Save the map');
+    doc('hexdb-save', 'File', 'Ctrl+Shift+S', 'Save the map (on the HEX DB tab: save the Hex DB instead)');   // documentation only: IO owns it on every tab, HexDB on its own tab
     doc('brush-smaller', 'Brush', '[', 'Smaller brush');
     doc('brush-larger', 'Brush', ']', 'Larger brush');
     doc('float-rotate-cw', 'While pasting or moving', '.', 'Rotate clockwise');
