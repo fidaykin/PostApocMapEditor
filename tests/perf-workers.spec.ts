@@ -387,16 +387,14 @@ test('map-jobs.js is DOM-free and loaded by the page', () => {
   expect(fs.readFileSync(path.join(ROOT, 'map-worker.js'), 'utf8')).toContain("importScripts('map-jobs.js");
 });
 
-// Local scripts the dev workflow does NOT publish into dev/. zone-painter.js is a known pre-existing exception
-// (dev resolves it from the gh-pages root via <base href="../">, so it can be stale: follow-up). A new local script
-// must either be published by deploy-dev.yml or be added here deliberately.
-const DEV_DEPLOY_ALLOWLIST = ['zone-painter.js'];
+// Every local <script src> must be published into dev/ by deploy-dev.yml (no allowlist: a script dev does not publish
+// would be served stale from the gh-pages root via <base href="../">).
 
 test('deploy-dev.yml publishes map-jobs.js/map-worker.js into dev/ and rewrites their references', () => {
   const yml = fs.readFileSync(path.join(ROOT, '.github/workflows/deploy-dev.yml'), 'utf8');
   const html = fs.readFileSync(path.join(ROOT, 'MapEditorPro.html'), 'utf8');
   const pathsLine = (yml.match(/paths:\s*\[([^\]]*)\]/) || [])[1] || '';
-  for (const f of ['map-jobs.js', 'map-worker.js', 'hex-utils.js']) {
+  for (const f of ['map-jobs.js', 'map-worker.js', 'hex-utils.js', 'zone-painter.js']) {
     expect(pathsLine, f + ' must trigger the workflow').toContain(f);
     expect(yml, f + ' copied into dev/').toMatch(new RegExp('cp\\s+\\S*' + f.replace('.', '\\.') + '\\s+dev/' + f.replace('.', '\\.')));
     expect(yml, f + ' committed').toContain('dev/' + f);
@@ -404,16 +402,20 @@ test('deploy-dev.yml publishes map-jobs.js/map-worker.js into dev/ and rewrites 
   expect(yml).toContain('src="dev/map-jobs.js');           // script tag rewritten
   expect(yml).toContain('<script src="dev/hex-utils.js');
   expect(html).toContain('<script src="hex-utils.js');
+  // zone-painter.js: tag rewritten into dev/, and the tag keeps its ?v= cache-buster, which the workflow verifies after the rewrite
+  expect(yml).toContain('<script src="dev/zone-painter.js');
+  expect(html).toMatch(/<script src="zone-painter\.js\?v=\d+"><\/script>/);
+  expect(yml).toContain('src="dev/zone-painter.js\\?v=[0-9]+"');
   expect(yml).toContain("new Worker('dev/map-worker.js");  // Worker URL rewritten
   // the rewrite patterns must actually match the HTML
   expect(html).toContain('<script src="map-jobs.js');
   expect(html).toContain("new Worker('map-worker.js");
-  // every local <script src> is published into dev/ by the workflow or explicitly allowlisted
+  // every local <script src> is published into dev/ by the workflow
   const srcs = [...html.matchAll(/<script[^>]*\ssrc="([^"]+)"/g)].map(m => m[1]).filter(s => !/^https?:/.test(s)).map(s => s.split('?')[0]);
   expect(srcs.length).toBeGreaterThan(0);
   for (const s of srcs) {
     const published = yml.includes('dev/' + s);
-    expect(published || DEV_DEPLOY_ALLOWLIST.includes(s), `local script ${s} is neither published into dev/ nor allowlisted`).toBe(true);
+    expect(published, `local script ${s} is not published into dev/ by deploy-dev.yml`).toBe(true);
   }
 });
 
