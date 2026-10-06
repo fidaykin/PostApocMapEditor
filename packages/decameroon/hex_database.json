@@ -1107,12 +1107,12 @@
       "edgeFaces": []
     },
     {
-      "id": "Decameroon_BrokenBoat_1",
+      "id": "Decameroon_BrokenShip_1",
       "textId": "",
       "type": "Water",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_BrokenBoat_1",
+      "spriteName": "Decameroon_BrokenShip_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
