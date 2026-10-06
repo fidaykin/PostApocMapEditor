@@ -630,7 +630,7 @@ const ZonePainter = (() => {
     Canvas.render();
     Canvas.drawMinimap();
     if (typeof IO !== 'undefined') IO.scheduleAutoSave();
-    if (typeof UI !== 'undefined') UI.toast(`Randomized with all ${_zones.length} presets`);
+    if (typeof UI !== 'undefined') UI.toast(allow.terrain || allow.settlements ? `Randomized with all ${_zones.length} presets` : 'Terrain and Settlements are locked: randomised zones only');
   }
 
   function _toggleOverlayUI() {

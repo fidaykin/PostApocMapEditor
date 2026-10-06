@@ -1861,6 +1861,8 @@ test.describe('layers: zones, fills and polygons under locks (cleanup A5)', () =
     const s0 = await steps(page), m0 = await page.evaluate(() => mapData.join('|')), n0 = await nSettle(page);
     await page.evaluate(() => ZonePainter._randomizeFillUI());
     const cells = () => page.evaluate(() => { let n = 0; for (const v of ZonePainter.getZoneLayer()) if (v) n++; return n; });
+    expect((await toastLog(page)).filter(t => t === 'Terrain and Settlements are locked: randomised zones only').length).toBe(1);
+    expect((await toastLog(page)).some(t => /Randomized with all/.test(t))).toBe(false);
     expect(await cells()).toBeGreaterThan(1000);
     expect(await page.evaluate(() => mapData.join('|'))).toBe(m0);
     expect(await nSettle(page)).toBe(n0);
@@ -1870,6 +1872,7 @@ test.describe('layers: zones, fills and polygons under locks (cleanup A5)', () =
     await resetMap(page);
     await page.evaluate(() => ZonePainter._randomizeFillUI());
     expect(await cells()).toBeGreaterThan(1000);
+    expect((await toastLog(page)).some(t => /Randomized with all/.test(t)) && !(await toastLog(page)).some(t => /randomised zones only/.test(t))).toBe(true);
     await page.evaluate(() => History.undo());
     expect(await cells()).toBe(0);
   });
