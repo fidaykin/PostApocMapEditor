@@ -270,8 +270,67 @@
     return best;
   }
 
+  // Feather maths. Distance (in steps) of every selected cell from the selection boundary: a cell with an
+  // in-map neighbour outside the selection is 1, interior cells grow by 1 per step inward. Map-edge cells are NOT
+  // boundary. A selection with no boundary at all (whole map) gets NO_EDGE everywhere, so blendWeight is 1.
+  // `sel` is a Set of "col,row" keys (result: Map key -> distance) or a W*H Uint8Array mask (result: Uint16Array
+  // W*H, 0 outside the selection; no per-cell allocation beyond the neighbour walk).
+  const NO_EDGE = 65535;
+  function edgeDistances(sel, W, H) {
+    if (sel instanceof Uint8Array) return _edgeDistMask(sel, W, H);
+    const dist = new Map();
+    let frontier = [];
+    const nb = (c, r) => neighbors(c, r, W, H);
+    for (const k of sel) {
+      const i = k.indexOf(',');
+      const c = +k.slice(0, i), r = +k.slice(i + 1);
+      if (nb(c, r).some(p => !sel.has(p.col + ',' + p.row))) { dist.set(k, 1); frontier.push([c, r]); }
+    }
+    let d = 1;
+    while (frontier.length) {
+      d++;
+      const next = [];
+      for (const [c, r] of frontier)
+        for (const p of nb(c, r)) {
+          const k = p.col + ',' + p.row;
+          if (!sel.has(k) || dist.has(k)) continue;
+          dist.set(k, d);
+          next.push([p.col, p.row]);
+        }
+      frontier = next;
+    }
+    for (const k of sel) if (!dist.has(k)) dist.set(k, NO_EDGE);
+    return dist;
+  }
+  function _edgeDistMask(mask, W, H) {
+    const dist = new Uint16Array(W * H);
+    let frontier = [];
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+      if (!mask[r * W + c]) continue;
+      if (neighbors(c, r, W, H).some(p => !mask[p.row * W + p.col])) { dist[r * W + c] = 1; frontier.push(r * W + c); }
+    }
+    let d = 1;
+    while (frontier.length) {
+      d++;
+      const next = [];
+      for (const i of frontier)
+        for (const p of neighbors(i % W, (i / W) | 0, W, H)) {
+          const j = p.row * W + p.col;
+          if (!mask[j] || dist[j]) continue;
+          dist[j] = d;
+          next.push(j);
+        }
+      frontier = next;
+    }
+    for (let i = 0; i < dist.length; i++) if (mask[i] && !dist[i]) dist[i] = NO_EDGE;
+    return dist;
+  }
+  function blendWeight(d, width) {
+    return width <= 0 ? 1 : Math.min(1, d / (width + 1));
+  }
+
   root.HexUtils = {
-    makeRng, scatterPick,
+    makeRng, scatterPick, edgeDistances, blendWeight,
     CUBE_DIRS, toCube, fromCube, cubeDistance, cubeRound, cubeLine, cubeDisc, cubeRing,
     rotateCube, mirrorCube, transformOffset, inBounds, cellsFromCubes, neighbors, discCells, ringCells, lineCells,
     cubeToPixel, anchorOf, polygonCells, SYMMETRY_MODES, symmetryCubes, symmetryCells,

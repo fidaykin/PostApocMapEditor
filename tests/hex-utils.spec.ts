@@ -375,3 +375,54 @@ test.describe('HexUtils shapes (T2.4)', () => {
     expect(r.edge).toBe(true);
   });
 });
+
+test.describe('HexUtils feather maths (T3.1)', () => {
+  test.beforeEach(async ({ page }) => { await openEditor(page); });
+
+  test('edgeDistances of a radius-5 disc (Set and mask agree) and blendWeight ramp', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = 450, H = 450;
+      const cells = HexUtils.discCells(225, 224, 5, W, H);
+      const keys = new Set<string>(cells.map((c: any) => c.col + ',' + c.row));
+      const dist = HexUtils.edgeDistances(keys, W, H);
+      const hist: Record<number, number> = {};
+      for (const v of dist.values()) hist[v] = (hist[v] || 0) + 1;
+      const mask = new Uint8Array(W * H);
+      for (const c of cells) mask[c.row * W + c.col] = 1;
+      const md = HexUtils.edgeDistances(mask, W, H);
+      let mismatch = 0, outside = 0;
+      for (const [k, v] of dist) { const [c, rr] = k.split(',').map(Number); if (md[rr * W + c] !== v) mismatch++; }
+      for (let i = 0; i < md.length; i++) if (!mask[i] && md[i] !== 0) outside++;
+      return { hist, mismatch, outside,
+        w: [HexUtils.blendWeight(1, 0), HexUtils.blendWeight(1, 3), HexUtils.blendWeight(4, 3), HexUtils.blendWeight(9, 3)] };
+    });
+    expect(r.hist).toEqual({ 1: 30, 2: 24, 3: 18, 4: 12, 5: 6, 6: 1 });
+    expect(r.mismatch).toBe(0);
+    expect(r.outside).toBe(0);
+    expect(r.w).toEqual([1, 0.25, 1, 1]);
+  });
+
+  test('map-edge cells are not boundary; a whole-map selection has weight 1 everywhere (Set and mask)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const W = 12, H = 10;
+      const all = new Set<string>(); const mask = new Uint8Array(W * H).fill(1);
+      for (let rr = 0; rr < H; rr++) for (let c = 0; c < W; c++) all.add(c + ',' + rr);
+      const d1 = HexUtils.edgeDistances(all, W, H), d2 = HexUtils.edgeDistances(mask, W, H);
+      let minW = 1;
+      for (const v of d1.values()) minW = Math.min(minW, HexUtils.blendWeight(v, 4));
+      for (const v of d2) minW = Math.min(minW, HexUtils.blendWeight(v, 4));
+      // positive control: the same maths on a partial selection does feather
+      const part = new Set<string>(HexUtils.discCells(6, 5, 2, W, H).map((c: any) => c.col + ',' + c.row));
+      const dp = HexUtils.edgeDistances(part, W, H);
+      let pMin = 1; for (const v of dp.values()) pMin = Math.min(pMin, HexUtils.blendWeight(v, 4));
+      // a disc touching the map corner: its in-map cells next to the map edge are not boundary
+      const corner = new Set<string>(HexUtils.discCells(0, 0, 3, W, H).map((c: any) => c.col + ',' + c.row));
+      const dc = HexUtils.edgeDistances(corner, W, H);
+      return { minW, pMin, cornerCell: dc.get('0,0'), size: d1.size };
+    });
+    expect(r.size).toBe(120);
+    expect(r.minW).toBe(1);
+    expect(r.pMin).toBeCloseTo(1 / 5, 10);
+    expect(r.cornerCell).toBeGreaterThan(1);
+  });
+});
