@@ -377,6 +377,7 @@ test.describe('generator follows the city (T3.5)', () => {
       Tools.moveCity(150, 160);
       const job = Generator._buildJob({ skipExpensive: true });
       const viaWorker = await WorkerJobs.run('generate', job);
+      const usedWorker = WorkerJobs.usingWorker();      // like perf-workers.spec.ts: the result must really come from a worker
       const direct = MapJobs.generate(Generator._buildJob({ skipExpensive: true }));
       const moved0 = MapJobs.generate({ ...job, p: { ...job.p, cityCol: 225, cityRow: 224 } });
       let diffDirect = 0, diffMoved = 0;
@@ -384,8 +385,9 @@ test.describe('generator follows the city (T3.5)', () => {
         if (viaWorker.names[viaWorker.grid[i]] !== direct.names[direct.grid[i]]) diffDirect++;
         if (moved0.names[moved0.grid[i]] !== direct.names[direct.grid[i]]) diffMoved++;
       }
-      return { diffDirect, diffMoved, v: MapJobs.VERSION };
+      return { diffDirect, diffMoved, usedWorker, v: MapJobs.VERSION };
     });
+    expect(r.usedWorker, 'a real worker produced the result').toBe(true);
     expect(r.diffDirect).toBe(0);
     expect(r.diffMoved, 'positive control: the city position changes the output').toBeGreaterThan(0);
   });

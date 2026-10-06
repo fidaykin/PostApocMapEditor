@@ -126,3 +126,120 @@ test.describe('B4 layout', () => {
     expect((await info()).every(([d]) => d === true)).toBe(true);
   });
 });
+
+// ---- B5: generation and placement ----
+test.describe('B5 generate into selection, placement, edge resolver', () => {
+  const MARK = 'BrokenRails_1';
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+
+  for (const [kind, tweak] of [['water', 'p.mThr = 9; p.hThr = 8; p.wThr = 2; p.rivers = 0; p.gold = false; p.oil = false;'], ['mountain', 'p.mThr = -1; p.rivers = 0; p.gold = false; p.oil = false;']] as const) {
+    test(`a selection covering the city never changes the city cell (generated ${kind} everywhere else)`, async ({ page }) => {
+      const r = await page.evaluate(async ([MARK, tweak]) => {
+        mapData.fill(MARK);
+        const cc = getCityCol(), cr = getCityRow();
+        const p = Generator._buildJob().p;
+        new Function('p', tweak as string)(p);
+        const all = new Uint8Array(MAP_WIDTH * MAP_HEIGHT).fill(1);
+        const n = await Generator.applyToRegion(all, p, 0);
+        const around = HexUtils.neighbors(cc, cr, MAP_WIDTH, MAP_HEIGHT).map((q: any) => mapData[q.row * MAP_WIDTH + q.col]);
+        let changed = 0; for (const x of mapData) if (x !== MARK) changed++;
+        return { n, city: mapData[cr * MAP_WIDTH + cc], around, changed };
+      }, [MARK, tweak]);
+      expect(r.n).toBeGreaterThan(0);
+      expect(r.changed).toBeGreaterThan(100000);              // positive control: the rest of the selection really was generated
+      expect(r.around.every((x: string) => x !== MARK)).toBe(true);   // the neighbours of the city were generated too
+      expect(r.city).toBe(MARK);                               // RED before B5: the city cell took the generated terrain
+    });
+  }
+
+  test('Placement.place refuses while Satellite classification runs (no write, no History step); works once it ends', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const cfg = Placement.defaults(); cfg.bunkers.count = 5; cfg.megaCities.count = 0; cfg.artifacts.count = 0; cfg.ores.forEach((o: any) => { o.clusters = 0; });
+      const real = Satellite.isBusy;
+      (Satellite as any).isBusy = () => true;
+      const u0 = History.undoSize(), s0 = settlements.length;
+      const refused = Placement.place(cfg, 3);
+      const out: any = { refused, steps: History.undoSize() - u0, added: settlements.length - s0 };
+      (Satellite as any).isBusy = real;
+      const ok = Placement.place(cfg, 3);
+      out.okAdded = settlements.length - s0; out.ok = !!ok;
+      return out;
+    });
+    expect(r).toEqual({ refused: false, steps: 0, added: 0, okAdded: 5, ok: true });
+    await expect(page.locator('.toast', { hasText: /Satellite/ }).first()).toBeVisible();
+  });
+
+  test('artifacts keep their distance from mega cities (spreadPick honours the taken points)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const cfg = Placement.defaults(); cfg.bunkers.count = 0; cfg.ores.forEach((o: any) => { o.clusters = 0; });
+      cfg.megaCities.count = 3; cfg.artifacts.count = 1;
+      const plan = Placement.plan(cfg, 11);
+      const cube = (c: any) => HexUtils.toCube(c.col, c.row, MAP_WIDTH, MAP_HEIGHT);
+      const megas = plan.settlements.filter((s: any) => s.type === 'megacity').map(cube);
+      const art = plan.objects[0];
+      const dMin = (c: any) => Math.min(...megas.map((m: any) => HexUtils.cubeDistance(cube(c), m)));
+      // independent reference: the best any admissible cell could do (>= 25 from the city, not a mega city cell)
+      const cc = HexUtils.toCube(getCityCol(), getCityRow(), MAP_WIDTH, MAP_HEIGHT);
+      let best = 0;
+      for (let row = 0; row < MAP_HEIGHT; row++) for (let col = 0; col < MAP_WIDTH; col++) {
+        const c = { col, row }; if (HexUtils.cubeDistance(cube(c), cc) < 25) continue;
+        best = Math.max(best, dMin(c));
+      }
+      return { got: dMin(art), best, megas: megas.length };
+    });
+    expect(r.megas).toBe(3);
+    expect(r.got).toBe(r.best);          // RED before B5: a random first pick, blind to the mega cities
+  });
+
+  test('bunker spacing counts settlements already on the map (earlier runs, other tools), not only this run', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const cfg = Placement.defaults(); cfg.megaCities.count = 0; cfg.artifacts.count = 0; cfg.ores.forEach((o: any) => { o.clusters = 0; });
+      cfg.bunkers.count = 30;                                    // spacing = floor(sqrt(land / 30) * 0.7) = 57 on an empty 450x450 map
+      settlements.push({ col: 150, row: 150, type: 'settlement' } as any);
+      const cube = (c: any) => HexUtils.toCube(c.col, c.row, MAP_WIDTH, MAP_HEIGHT), ex = cube({ col: 150, row: 150 });
+      let nearest = Infinity, picks = 0;
+      for (let seed = 1; seed <= 12; seed++) {
+        const plan = Placement.plan(cfg, seed);
+        for (const b of plan.settlements) { picks++; nearest = Math.min(nearest, HexUtils.cubeDistance(cube(b), ex)); }
+      }
+      return { nearest, picks };
+    });
+    expect(r.picks).toBeGreaterThan(200);                        // positive control: bunkers were really planned
+    expect(r.nearest).toBeGreaterThanOrEqual(55);                // RED before B5: a bunker landed right next to the existing settlement
+  });
+
+  test('the edge resolver of region generation takes its flat-water fallbacks from the tile-class roles, not from fixed ids', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const all = HexDB.getAll();
+      const i = all.findIndex((h: any) => h.id === 'Water_Dirty_1');
+      all.splice(i, 1);                                           // the stock dark water is gone from the Hex DB
+      const roles = HexDB.getRoles();
+      // isolated directional tiles in open land: no mask matches, so every one takes a fallback
+      const cells: any[] = [];
+      for (let k = 0; k < 60; k++) { const col = 100 + (k % 10) * 5, row = 100 + Math.floor(k / 10) * 5; mapData[row * MAP_WIDTH + col] = 'River_L_1'; cells.push({ col, row, prev: 'Plain_1' }); }
+      Tools.autoResolveEdgesAround(cells);
+      const got = new Set(cells.map(c => mapData[c.row * MAP_WIDTH + c.col]));
+      const known = (id: string) => HexDB.getAll().some((h: any) => h.id === id);
+      return { got: [...got], dark: roles.WATER_DARK, allKnown: [...got].every(known) };
+    });
+    expect(r.got).not.toContain('Water_Dirty_1');                 // RED before B5: the fixed id came back although the DB no longer has it
+    expect(r.allKnown).toBe(true);
+    expect(r.got.length).toBeGreaterThan(0);
+  });
+
+  test('region generation with the stock dark water removed writes only ids the Hex DB knows', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const all = HexDB.getAll();
+      all.splice(all.findIndex((h: any) => h.id === 'Water_Dirty_1'), 1);
+      const p = Generator._buildJob().p; p.rivers = 25;
+      const cells = HexUtils.discCells(225, 225, 60, MAP_WIDTH, MAP_HEIGHT);
+      const n = await Generator.applyToRegion(cells, p, 3);
+      const used = new Set<string>(mapData);
+      const unknown = [...used].filter(id => !HexDB.getAll().some((h: any) => h.id === id));
+      return { n, unknown, water: [...used].filter(id => /^Water/.test(id)) };
+    });
+    expect(r.n).toBeGreaterThan(1000);
+    expect(r.unknown).toEqual([]);
+    expect(r.water.length).toBeGreaterThan(0);                    // positive control: the generation produced water
+  });
+});

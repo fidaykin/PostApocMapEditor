@@ -93,8 +93,8 @@ test.describe('generate into selection (T3.2)', () => {
       let left = 0; for (const x of mapData) if (x === MARK) left++;
       return { n, left, total: mapData.length };
     }, MARK);
-    expect(r.left).toBe(0);                   // the brief's maths kept only ~20% here
-    expect(r.n).toBe(r.total);
+    expect(r.left).toBe(1);                   // the brief's maths kept only ~20% here; the one cell left is the city cell (final wave B5: protected)
+    expect(r.n).toBe(r.total - 1);
   });
 
   test('mask and cell-array inputs are equivalent and the result is seeded (rivers off)', async ({ page }) => {
@@ -457,12 +457,14 @@ test.describe('Import Elevation (T3.4)', () => {
     const r = await page.evaluate(async () => {
       const job = Generator._buildJob({ skipExpensive: true });
       const viaWorker = await WorkerJobs.run('generate', job);
+      const usedWorker = WorkerJobs.usingWorker();      // like perf-workers.spec.ts: without this the comparison could be main thread against main thread
       const direct = MapJobs.generate(Generator._buildJob({ skipExpensive: true }));
       let diff = 0; for (let i = 0; i < direct.grid.length; i++) if (viaWorker.names[viaWorker.grid[i]] !== direct.names[direct.grid[i]]) diff++;
       const plain = MapJobs.generate({ ...Generator._buildJob({ skipExpensive: true }), p: { ...job.p, elevOverride: undefined } });
       let vsPlain = 0; for (let i = 0; i < direct.grid.length; i++) if (plain.names[plain.grid[i]] !== direct.names[direct.grid[i]]) vsPlain++;
-      return { diff, vsPlain, usedWorker: WorkerJobs.lastUsedWorker ?? null };
+      return { diff, vsPlain, usedWorker };
     });
+    expect(r.usedWorker, 'a real worker produced the result').toBe(true);
     expect(r.diff).toBe(0);
     expect(r.vsPlain).toBeGreaterThan(1000);     // positive control: the override really changes the map
   });
@@ -621,6 +623,21 @@ test.describe('placement primitives (T3.7)', () => {
     expect(G.spreadPick([], 3, mulberry(1), dist)).toEqual([]);
     expect(G.spreadPick(cands.slice(0, 4), 10, mulberry(1), dist)).toHaveLength(4);   // never more than there are candidates
     expect(G.spreadPick(cands, 2.9, mulberry(1), dist)).toHaveLength(2);         // non-integer counts floor
+  });
+
+  test('spreadPick with taken points (B5): every pick is a farthest point of the picks AND the taken ones; no taken = unchanged behaviour', () => {
+    const G = load(), cands = field(40);
+    const taken: C[] = [cands[0], cands[1]];                                     // two points in a corner of the field
+    const picks: C[] = G.spreadPick(cands, 5, mulberry(9), dist, taken);
+    expect(picks).toHaveLength(5);
+    for (let k = 0; k < picks.length; k++) {
+      const others = [...taken, ...picks.slice(0, k)];
+      const md = (c: C) => Math.min(...others.map(p => dist(c, p)));
+      expect(md(picks[k])).toBe(Math.max(...cands.map(md)));                    // reference replay incl. the taken points
+    }
+    expect(dist(picks[0], taken[0])).toBeGreaterThan(60);                        // the first pick runs away from them (a random first pick would not)
+    const a = G.spreadPick(cands, 4, mulberry(3), dist), b = G.spreadPick(cands, 4, mulberry(3), dist, []);
+    expect(b.map((p: C) => p.id)).toEqual(a.map((p: C) => p.id));
   });
 
   test('poissonPick: spacing, count, taken, maximality (reference scan) and no input mutation', () => {

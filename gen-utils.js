@@ -71,12 +71,21 @@ const GenUtils = (() => {
     return a;
   }
 
-  // Farthest-point sampling: the first pick is random, every next pick maximises its distance to the picks so far.
-  function spreadPick(candidates, count, rng, dist) {
+  // Farthest-point sampling: every pick maximises its distance to the picks so far AND to the points in `taken` (already placed
+  // things of other kinds). With nothing taken the first pick is random (unchanged); with `taken` the first pick is the
+  // candidate farthest from them (deterministic, first on ties).
+  function spreadPick(candidates, count, rng, dist, taken) {
     count = _count(count);
     if (!candidates.length || count === 0) return [];
-    const picked = [candidates[Math.min(candidates.length - 1, Math.floor(rng() * candidates.length))]];
-    const best = candidates.map(c => dist(c, picked[0]));
+    const t = taken || [];
+    const picked = [];
+    let best;
+    if (t.length) {
+      best = candidates.map(c => { let m = Infinity; for (let j = 0; j < t.length; j++) { const d = dist(c, t[j]); if (d < m) m = d; } return m; });
+    } else {
+      picked.push(candidates[Math.min(candidates.length - 1, Math.floor(rng() * candidates.length))]);
+      best = candidates.map(c => dist(c, picked[0]));
+    }
     while (picked.length < count && picked.length < candidates.length) {
       let bi = -1, bd = 0;
       for (let i = 0; i < candidates.length; i++) if (best[i] > bd) { bd = best[i]; bi = i; }

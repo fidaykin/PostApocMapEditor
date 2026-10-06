@@ -1363,7 +1363,7 @@ body.mode-common #map-io    { display: none; }
 
 </style>
 <script src="hex-utils.js?v=2"></script>
-<script src="gen-utils.js?v=4"></script>
+<script src="gen-utils.js?v=5"></script>
 <script src="map-format.js?v=2"></script>
 <script src="brush.js?v=1"></script>
 <script src="zone-painter.js?v=20"></script>
@@ -2700,7 +2700,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "af9af06";
+const COMMIT  = "2591489";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6637,7 +6637,9 @@ const Tools = (() => {
       for (const o of hexOffs[r & 1]) visit(c + o[0], r + o[1]);
       for (const o of EdgeTiling.legacyOffsets(r, H)) visit(c + o[0], r + o[1]);
     }
-    const fallbackIds = [_riverFallbackId('Water_Dirty_1'), _riverFallbackId('Water_1'), _riverFallbackId('Water_Rock_1')];
+    // flat-water fallbacks come from the tile-class roles (a renamed / replaced water tile is followed), never from fixed ids
+    const roles = HexDB.getRoles();
+    const fallbackIds = [roles.WATER_DARK, roles.WATER_LIGHT, roles.WATER_ROCK];
     for (const idx of toResolve) {
       const rr = Math.floor(idx / MAP_WIDTH), rc = idx % MAP_WIDTH;
       mapData[idx] = EdgeTiling.resolveEdgeTile(rc, rr, MAP_WIDTH, MAP_HEIGHT, mapData, familyTypes, Math.random, fallbackIds);
@@ -6675,14 +6677,6 @@ const Tools = (() => {
     if (footprints) invalidateSatelliteMap();      // single-tile writes cannot change a footprint: no O(W*H) rebuild per stroke move
     _autoResolveEdgesAround(touched);
     return touched;
-  }
-
-  function _riverFallbackId(hexId) {
-    if (typeof HexDB !== 'undefined') {
-      const e = HexDB.getAll().find(h => h.id && h.id.toLowerCase() === hexId.toLowerCase());
-      if (e) return e.id;
-    }
-    return hexId;
   }
 
   function _paint(col, row) {
@@ -8230,6 +8224,7 @@ const Tools = (() => {
     const pre = opts.label ? opts.label + ': ' : '';
     if (_fillBusy) { UI.toast(pre + 'a fill is still running, try again in a moment'); return false; }
     if (isStrokeActive() || isStroking()) { UI.toast(pre + 'finish the current stroke or move first (Esc)'); return false; }
+    if (opts.satellite && typeof Satellite !== 'undefined' && Satellite.isBusy()) { UI.toast(pre + 'Satellite classification is still running, try again in a moment'); return false; }
     for (const l of layers || []) if (Layers.refuse(l)) return false;
     if (!opts.dry) { cancelFloat(); _clearRoadStart(false); }
     return true;
@@ -12432,7 +12427,7 @@ const Generator = (() => {
   // no city exclusion), then only the cells in `sel` (a W*H Uint8Array mask, e.g. Selection.getMask(), or an array of
   // {col,row}) take the new terrain. Border cells dissolve over `blendWidth` steps (stochastic, seeded); a selection with
   // no boundary (whole map) gets weight 1 everywhere. Terrain only: objects, roads, zones and settlements stay (the layers
-  // lock that matters is terrain). Cells under a multi-tile footprint are skipped like the paint tools do. One History
+  // lock that matters is terrain). Cells under a multi-tile footprint are skipped like the paint tools do, and so are the city cell(s) (window mode has no city exclusion). One History
   // step, none when nothing changes. Returns the number of changed cells, or -1 when refused / discarded / failed.
   async function applyToRegion(sel, params, blendWidth) {
     if (!mapData || _applying) return -1;
@@ -12462,8 +12457,11 @@ const Generator = (() => {
       const dist = HexUtils.edgeDistances(mask, W0, H0);
       const rng = HexUtils.makeRng(((params.seed | 0) ^ 0x9e3779b9) >>> 0);
       const names = res.names, grid = res.grid, plan = [];
+      // Window mode has no centre flatten / exclusion, so the city cell(s) could come out as water, mountain or ore: they stay as they are.
+      const cityCells = new Set(settlements.filter(s => s && s.type === 'city').map(s => s.row * W0 + s.col));
+      cityCells.add(getCityRow() * W0 + getCityCol());
       for (let i = 0; i < mask.length; i++) {
-        if (!mask[i]) continue;
+        if (!mask[i] || cityCells.has(i)) continue;
         const w = HexUtils.blendWeight(dist[i], blendWidth | 0);
         if (w < 1 && rng() >= w) continue;
         const nid = names[grid[i]];
@@ -20682,7 +20680,7 @@ const Placement = (() => {
         if (!def) { out.skipped.push({ what: key, reason: `no building "${cat.id}" in BldDB` }); continue; }
         if (def.spawnsSatellites && def.spawnsSatellites.length) { out.skipped.push({ what: key, reason: `building "${cat.id}" spawns satellites (place it with the Building tool)` }); continue; }
       }
-      const picks = GenUtils.spreadPick(free(cat.minCity || 0), cat.count, rng, dist);
+      const picks = GenUtils.spreadPick(free(cat.minCity || 0), cat.count, rng, dist, takenCubes);   // artifacts keep away from the mega cities picked before them
       picks.forEach(c => { emit(cat, c); take(c); });
       out.placed[key] = picks.length; short(key, cat.count, picks.length);
     }
@@ -20713,7 +20711,9 @@ const Placement = (() => {
     if (bk && bk.count > 0) {
       const land = free(bk.minCity || 0);
       const spacing = Math.max(2, Math.floor(Math.sqrt(land.length / bk.count) * 0.7));
-      const picks = GenUtils.poissonPick(land, bk.count, spacing, rng, dist, takenCubes);
+      // settlements already on the map (the city, earlier runs, other tools) count for the spacing like this run's own picks
+      const existing = settlements.filter(s => s && HexUtils.inBounds(s.col, s.row, MAP_WIDTH, MAP_HEIGHT)).map(s => HexUtils.toCube(s.col, s.row, MAP_WIDTH, MAP_HEIGHT));
+      const picks = GenUtils.poissonPick(land, bk.count, spacing, rng, dist, takenCubes.concat(existing));
       picks.forEach(c => { emit(bk, c); take(c); });
       out.placed.bunkers = picks.length; short('bunkers', bk.count, picks.length);
     }
@@ -20731,7 +20731,7 @@ const Placement = (() => {
   // Returns false when refused / failed, else the plan report. ONE History step (none when nothing is placed).
   function place(cfg, seed) {
     if (!mapData) return false;
-    if (!Tools.guardBulkWrite(_layersFor(cfg), { label: 'Placement' })) return false;   // busy, stroke, locks; cancels a lifted region
+    if (!Tools.guardBulkWrite(_layersFor(cfg), { label: 'Placement', satellite: true })) return false;   // busy, stroke, locks; cancels a lifted region
     const p = plan(cfg, seed);
     const n = p.settlements.length + p.objects.length + p.tiles.length;
     const skippedMsg = p.skipped.length ? ' Skipped: ' + p.skipped.map(s => s.what + ' (' + s.reason + ')').join('; ') : '';
