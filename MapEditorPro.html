@@ -2713,7 +2713,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "cac1011";
+const COMMIT  = "6599948";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8781,14 +8781,6 @@ const GitHubSync = (() => {
       const err = await res.json().catch(() => ({}));
       throw new Error(`GitHub DELETE ${path}: ${res.status} — ${err.message || 'unknown'}`);
     }
-  }
-
-  async function _getFileSha(path) {
-    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
-      headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
-    });
-    if (!res.ok) throw new Error(`Cannot get SHA for ${path}: ${res.status}`);
-    return (await res.json()).sha;
   }
 
   // Compensation helpers for multi-file operations (package import). `_removeFile` deletes a file the operation
