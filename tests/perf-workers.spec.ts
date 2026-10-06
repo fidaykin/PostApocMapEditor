@@ -701,7 +701,7 @@ test('page refuses a map-jobs.js whose VERSION differs from the page constant', 
   });
   expect(r.msg).toMatch(/does not match this page/);
   expect(r.v).toBe(r.page);
-  expect(r.v).toBe(4);
+  expect(r.v).toBe(5);
 });
 
 test('version, ?v= query, worker importScripts and deploy-dev.yml agree', () => {

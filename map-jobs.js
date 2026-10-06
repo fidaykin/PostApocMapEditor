@@ -5,7 +5,7 @@
   'use strict';
   const MapJobs = {};
   // Bump when the job protocol/algorithms change; the page sends its expected value and the worker refuses on mismatch.
-  MapJobs.VERSION = 4;
+  MapJobs.VERSION = 5;
 
 // ── Satellite classification (moved verbatim from MapEditorPro.html, then parameterised) ──
   function _rgbToHsl(r, g, b) {
@@ -242,6 +242,13 @@
     const bNoise = _multiOctave(seedB, p.biomeScale);
     const halfW  = Math.floor(W / 2);
     const halfH  = Math.floor(H / 2);
+    // Flatten / ore + river exclusion centre (T3.5): the city. The default city of a W*H map is (floor(W/2), floor((H-1)/2)), which
+    // maps to exactly (halfW, halfH), so a default city (or a job without city fields) reproduces the old output bit for bit.
+    // The coastline stays centred on the map.
+    const hasCity = Number.isFinite(p.cityCol) && Number.isFinite(p.cityRow);
+    const cityC  = hasCity ? halfW + (p.cityCol - Math.floor(W / 2)) : halfW;
+    const cityR  = hasCity ? halfH + (p.cityRow - Math.floor((H - 1) / 2)) : halfH;
+    const cityOff = cityC !== halfW || cityR !== halfH;
     const elev   = new Float32Array(W * H);
     const infR   = Math.min(W, H) * 0.08;
     const win    = !!opts.window;   // window mode (generate into a region): no centre flatten, no ocean falloff, no city exclusion
@@ -265,7 +272,8 @@
       for (let col = 0; col < W; col++) {
         const dx = col - halfW, dy = row - halfH;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const t    = win ? 0 : Math.max(0, 1.0 - dist / infR);
+        const cdist = cityOff ? Math.sqrt((col - cityC) * (col - cityC) + (row - cityR) * (row - cityR)) : dist;
+        const t    = win ? 0 : Math.max(0, 1.0 - cdist / infR);
         const inf  = t * t * (3 - 2 * t);
         let e = (eo ? eo[row * W + col] : eNoise(col, row)) * (1-inf) + TARGET_E * inf;
         const m = mNoise(col, row) * (1-inf) + TARGET_M * inf;
@@ -300,7 +308,7 @@
         const sc = Math.floor(rng() * (W - 20)) + 10;
         const sr = Math.floor(rng() * (H - 20)) + 10;
         if (elev[sr * W + sc] < p.mThr) continue;
-        const ddx = sc - halfW, ddy = sr - halfH;
+        const ddx = sc - cityC, ddy = sr - cityR;
         // Seeds must start outside the city exclusion zone (cr2), not just a
         // smaller fixed radius — otherwise a seed can land in the gap between
         // the old fixed radius and cr2 and instantly fail on the first check
@@ -313,7 +321,7 @@
           const key = cr * W + cc;
           if (visited.has(key)) break;
           visited.add(key);
-          const dx = cc - halfW, dy = cr - halfH;
+          const dx = cc - cityC, dy = cr - cityR;
           if (dx * dx + dy * dy <= cr2) break;
           paintBuf.push({ idx: cr * W + cc, val: _riverV[Math.floor(rng() * 3)] });
           // Steepest-descent with a fallback: prefer a strictly-lower neighbor,
@@ -364,7 +372,7 @@
         const ar = Math.floor(rng() * (H - 8)) + 4;
         const e  = elev[ar * W + ac];
         if (e < minE || e > maxE) continue;
-        const dx = ac - halfW, dy = ar - halfH;
+        const dx = ac - cityC, dy = ar - cityR;
         if (dx * dx + dy * dy <= excR2) continue;
 
         const blobCount = Math.min(CLUSTER_SIZE, count - placed);
@@ -376,7 +384,7 @@
           if (tc < 1 || tc >= W - 1 || tr < 1 || tr >= H - 1) continue;
           const te = elev[tr * W + tc];
           if (te < minE || te > maxE) continue;
-          const tdx = tc - halfW, tdy = tr - halfH;
+          const tdx = tc - cityC, tdy = tr - cityR;
           if (tdx * tdx + tdy * tdy <= excR2) continue;
           dest[tr * W + tc] = type;
           placed++;

@@ -569,6 +569,7 @@ const SCENARIOS: Scenario[] = [
   { name: 'Connect Road', toasts: 2, tool: 'road-connect', layer: 'roads', prep: `Tools.setActive('road-connect');`, act: async p => { await click(p); await click(p, { col: 230, row: 224 }); } },
   { name: 'Erase Road', tool: 'erase-road', layer: 'roads', prep: `roadsData['228,224'] = { type: 'road_hex' }; Tools.setActive('erase-road');`, act: p => click(p) },
   { name: 'Place Settlement', tool: 'settlement', layer: 'settlements', prep: `Tools.setActive('settlement');`, act: p => click(p) },
+  { name: 'Move City', tool: 'city', layer: 'settlements', prep: `Tools.setActive('city');`, act: p => click(p) },
   { name: 'Erase Settlement', tool: 'erase', layer: 'settlements', prep: `settlements.push({ col: 228, row: 224, type: 'settlement' }); Tools.setActive('erase');`, act: p => click(p) },
   { name: 'Zone Painter', tool: 'zone', layer: 'zones', prep: `const zid = ZonePainter.addZone('Z'); ZonePainter.setSelectedZoneId(zid); Tools.setActive('zone');`, act: p => click(p) },
 ];

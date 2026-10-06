@@ -1,6 +1,6 @@
 /* map-worker.js: runs MapJobs off the main thread. Protocol:
    in : { id, type, job, version }   out: { id, kind:'progress', frac } | { id, kind:'result', result } | { id, kind:'error'|'version-mismatch', message } */
-importScripts('map-jobs.js?v=4');
+importScripts('map-jobs.js?v=5');
 
 self.onmessage = (e) => {
   const { id, type, job, version } = e.data;
