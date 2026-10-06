@@ -813,6 +813,19 @@ body.mode-packages #pkg-panel { display: block; }
 .pkg-help a { color: #89b4fa; }
 .pkg-notice { font-size: 12px; margin: 8px 0; padding: 8px 12px; border-radius: 4px; background: #181825; border-left: 3px solid #89b4fa; color: #cdd6f4; max-width: 680px; }
 .pkg-notice.warn { border-left-color: #f9e2af; }
+.pkg-desc { color: #a6adc8; font-size: 11px; margin-top: 2px; max-width: 320px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.pkg-deps { color: #a6adc8; font-size: 11px; margin-top: 2px; overflow-wrap: anywhere; }
+.pkg-dep-warn { color: #f9e2af; font-size: 11px; margin-top: 2px; overflow-wrap: anywhere; }
+.pkg-dep-link { background: none; border: 0; padding: 0; color: #89b4fa; cursor: pointer; text-decoration: underline; font-size: inherit; }
+.pkg-preview { width: 48px; height: 48px; object-fit: cover; border-radius: 4px; vertical-align: middle; margin-right: 8px; }
+tr.pkg-flash td { background: #45475a; transition: background .3s; }
+#pkg-details label { display: block; margin: 8px 0 2px; font-size: 12px; }
+#pkg-details textarea { width: 100%; min-height: 60px; box-sizing: border-box; }
+#pkg-details .pkg-det-row { display: flex; gap: 8px; align-items: center; margin: 2px 0; font-size: 12px; }
+#pkg-details .pkg-det-range { width: 90px; }
+#pkg-det-error { color: #f38ba8; font-size: 12px; margin-top: 8px; white-space: pre-wrap; }
+#pkg-det-warn { color: #f9e2af; font-size: 12px; margin-top: 4px; }
+#pkg-det-preview-img { width: 96px; height: 96px; object-fit: cover; border-radius: 4px; display: block; margin-top: 6px; }
 .pkg-active-dot { color: #a6e3a1; font-size: 11px; }
 .pkg-active-select { font-size: 11px; background: #1e1e2e; color: #cdd6f4; border: 1px solid #45475a; border-radius: 4px; padding: 2px 6px; max-width: 180px; }
 .pkg-filter-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0 8px; }
@@ -2695,7 +2708,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "67c2db8";
+const COMMIT  = "68f096e";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8580,7 +8593,17 @@ const SpriteStore = (() => {
     });
   }
 
-  return { save, loadAll, loadByCategory, loadForPackage, keyFor, remove };
+  // One record by its package + bare name, or null.
+  async function get(name, pkg = 'postapoc') {
+    const db = await _open();
+    return new Promise((res, rej) => {
+      const req = db.transaction(STORE, 'readonly').objectStore(STORE).get(keyFor(pkg, name));
+      req.onsuccess = e => res(e.target.result || null);
+      req.onerror   = e => rej(e.target.error);
+    });
+  }
+
+  return { save, get, loadAll, loadByCategory, loadForPackage, keyFor, remove };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -10728,6 +10751,8 @@ const IO = (() => {
     mapData.forEach(id => { if (id && pkgById[id]) usedPkgs.add(pkgById[id]); });
     // Also check objects layer
     Object.values(objectsData || {}).forEach(id => { if (id && pkgById[id]) usedPkgs.add(pkgById[id]); });
+    // A package's dependencies are part of what the map needs (T5.10).
+    if (typeof Packages !== 'undefined' && Packages.resolveWithDependencies) Packages.resolveWithDependencies([...usedPkgs]).forEach(p => usedPkgs.add(p));
     return [...usedPkgs].sort();
   }
 
@@ -13007,6 +13032,41 @@ const Packages = (() => {
     return _el('button', { class: 'hexdb-tool-btn', title, text: label, on, ...extra });
   }
 
+  // Name plus description and dependency summary (all text). Missing or unsatisfied dependencies get a warning; an installed
+  // one links to its own row.
+  function _nameCell(p) {
+    const td = _el('td', { class: 'pkg-name-cell' });
+    td.append(_el('span', { text: p.name }));
+    if (p.isDefault) return td;
+    const d = _effective(p);
+    if (d.description) td.appendChild(_el('div', { class: 'pkg-desc', title: d.description, text: d.description.length > 160 ? d.description.slice(0, 160) + '…' : d.description }));
+    if (d.dependencies.length) {
+      const box = _el('div', { class: 'pkg-deps' }, 'Depends on: ');
+      const warns = [];
+      d.dependencies.forEach((s, i) => {
+        const dep = parseDependency(s); if (!dep) return;
+        const inst = getEntry(dep.id);
+        if (i) box.append(', ');
+        box.append(inst ? _el('button', { class: 'pkg-dep-link', type: 'button', title: 'Show this package in the list', text: s, 'data-pkg-link': dep.id, on: () => _flashRow(dep.id) })
+                        : _el('span', { text: s }));
+        if (!inst) warns.push(`${dep.id} is not installed`);
+        else if (dep.range && inst.version && !_satisfies(inst.version, dep.range)) warns.push(`${dep.id} ${inst.version} does not satisfy ${dep.range}`);
+      });
+      td.appendChild(box);
+      if (warns.length) td.appendChild(_el('div', { class: 'pkg-dep-warn', text: '⚠ ' + warns.join('; ') }));
+    }
+    return td;
+  }
+  async function _fillPreviews() {
+    // The image only exists when a preview is stored (data URL we produced ourselves: PNG, checked in getPreview).
+    for (const tr of [...document.querySelectorAll('#pkg-panel tr[data-pkg]')]) {
+      const id = tr.dataset.pkg, cell = tr.querySelector('.pkg-name-cell');
+      if (!cell || id === 'postapoc') continue;
+      const url = await getPreview(id);
+      if (url && tr.isConnected && !cell.querySelector('img.pkg-preview')) cell.prepend(_el('img', { class: 'pkg-preview', alt: '', src: url }));
+    }
+  }
+
   function renderPanel() {
     const el = document.getElementById('pkg-panel');
     if (!el) return;
@@ -13052,11 +13112,12 @@ const Packages = (() => {
       const actions = _el('td', {},
         _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
         _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
+      if (!p.isDefault) actions.append(' ', _btn('Details', 'Edit the description, dependencies and preview image', () => openDetails(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Delete', 'Remove this package from the registry (it can be restored from Recently deleted)',
         () => confirmDelete(p.id), { 'data-pkg-id': p.id, style: 'color:#f38ba8' }));
       tbody.append(_el('tr', { data: { pkg: p.id } },
         _el('td', {}, first), idCell,
-        _el('td', { text: p.name }), _el('td', { text: p.version || '—' }),
+        _nameCell(p), _el('td', { text: p.version || '—' }),
         _el('td', { class: 'pkg-hex-count', title: 'Hex tiles tagged to this package in the editor', text: String(c.hexes) }),
         _el('td', { class: 'pkg-bld-count', title: 'Buildings tagged to this package in the editor', text: String(c.blds) }),
         actions));
@@ -13077,6 +13138,7 @@ const Packages = (() => {
           _el('button', { class: 'hexdb-tool-btn', style: 'color:#f38ba8', text: 'Discard', title: 'Delete the saved copy for good', data: { trashAct: 'discard', id: t.id } })))))));
     }
     el.replaceChildren(...kids);
+    _fillPreviews();
   }
   function renderBadges() {
     const isPostapoc = (_active === 'postapoc');
@@ -13141,6 +13203,350 @@ const Packages = (() => {
     return _jszip;
   }
 
+  // ── Package details (T5.10): description, dependencies, 512x512 preview ──────────────────────────
+  // Everything is untrusted when it comes from the server or a ZIP (ids, ranges, text): it is sanitised on the way in and
+  // only ever shown with textContent. The LOCAL description/dependencies (localStorage `pkg_details`) override the server's:
+  // the registry fetch replaces `_registry` wholesale, so edits are kept in their own store and merged on read.
+  // A dependency is "<id>" or "<id>@<range>" with a range of x.y.z (exact) or ^x.y.z; 'postapoc' is implicit.
+  const LS_DETAILS = 'pkg_details';
+  const DESC_MAX = 500;
+  const DEPS_MAX = 20;
+  const PREVIEW_NAME = '__preview';
+  const _RANGE_RE = /^\^?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/;
+  const _DESC_CTRL_RE = /[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g;
+  let _details = null;   // id -> { description?, dependencies? }, no prototype
+
+  function parseDependency(s) {
+    if (typeof s !== 'string' || s.length > 90) return null;
+    const at = s.indexOf('@');
+    const id = at < 0 ? s : s.slice(0, at), range = at < 0 ? null : s.slice(at + 1);
+    if (!id || id.length > 64 || !_ID_RE.test(id) || _FORBIDDEN_KEYS.has(id)) return null;
+    if (range !== null && !_RANGE_RE.test(range)) return null;
+    return { id, range };
+  }
+
+  // Lenient clean-up of stored/server data (never throws): keeps what is valid, drops the rest.
+  function _cleanDetails(d) {
+    if (!d || typeof d !== 'object') return null;
+    const out = {};
+    if (typeof d.description === 'string') out.description = d.description.replace(_DESC_CTRL_RE, '').slice(0, DESC_MAX);
+    if (Array.isArray(d.dependencies)) {
+      const seen = new Set(), deps = [];
+      for (const s of d.dependencies) {
+        const p = parseDependency(s);
+        if (!p || p.id === 'postapoc' || seen.has(p.id)) continue;
+        seen.add(p.id); deps.push(s);
+        if (deps.length >= DEPS_MAX) break;
+      }
+      out.dependencies = deps;
+    }
+    return out;
+  }
+
+  function _loadDetails() {
+    if (_details) return _details;
+    _details = Object.create(null);
+    try {
+      const o = JSON.parse(localStorage.getItem(LS_DETAILS) || '{}');
+      if (o && typeof o === 'object' && !Array.isArray(o))
+        for (const id of Object.keys(o)) {
+          if (_FORBIDDEN_KEYS.has(id)) continue;
+          const v = _cleanDetails(o[id]);
+          if (v) _details[id] = v;
+        }
+    } catch (e) { /* unreadable: start empty */ }
+    return _details;
+  }
+  function _saveDetails() { StorageGuard.setItem(LS_DETAILS, JSON.stringify(_loadDetails()), 'Package details'); }
+
+  // Effective details of a registry-shaped entry: the local override wins field by field.
+  function _effective(entry) {
+    const base = _cleanDetails(entry) || {};
+    const loc = _loadDetails()[entry && entry.id] || {};
+    return {
+      description: loc.description !== undefined ? loc.description : (base.description || ''),
+      dependencies: (loc.dependencies !== undefined ? loc.dependencies : (base.dependencies || [])).slice(),
+    };
+  }
+  function getDetails(id) { const e = getEntry(id); return e ? _effective(e) : { description: '', dependencies: [] }; }
+  function getDependencies(id) { return getDetails(id).dependencies; }
+  const _depId = s => { const p = parseDependency(s); return p ? p.id : null; };
+
+  // Exact/caret range check of an installed version (both strict x.y.z).
+  function _satisfies(version, range) {
+    const v = _parseVersion(version), m = _RANGE_RE.exec(range || '');
+    if (!v || !m) return false;
+    const r = [+m[1], +m[2], +m[3]];
+    const cmp = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+    if (range[0] !== '^') return cmp(v, r) === 0;
+    if (cmp(v, r) < 0) return false;
+    if (r[0] > 0) return v[0] === r[0];
+    if (r[1] > 0) return v[0] === 0 && v[1] === r[1];
+    return v[0] === 0 && v[1] === 0 && v[2] === r[2];
+  }
+
+  // graph: id -> dependency ids. Returns the cycle as an id path (first id repeated at the end) or null. Iterative (a hostile
+  // registry may chain thousands of packages) and prototype-safe (own keys only).
+  function findDependencyCycle(graph) {
+    const own = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
+    const g = graph && typeof graph === 'object' ? graph : {};
+    const state = new Map();   // 1 = on the current path, 2 = done
+    for (const start of Object.keys(g)) {
+      if (state.get(start)) continue;
+      const path = [start], next = [0];
+      state.set(start, 1);
+      while (path.length) {
+        const id = path[path.length - 1];
+        const deps = own(g, id) && Array.isArray(g[id]) ? g[id] : [];
+        const i = next[next.length - 1]++;
+        if (i >= deps.length) { state.set(id, 2); path.pop(); next.pop(); continue; }
+        const d = deps[i];
+        if (typeof d !== 'string') continue;
+        const st = state.get(d);
+        if (st === 1) return path.slice(path.indexOf(d)).concat(d);
+        if (!st) { state.set(d, 1); path.push(d); next.push(0); }
+      }
+    }
+    return null;
+  }
+
+  // The dependency graph of `list` (registry-shaped entries) with `id` replaced by `deps`.
+  function _graph(list, id, deps) {
+    const g = Object.create(null);
+    for (const p of list || []) {
+      if (!p || typeof p.id !== 'string' || _FORBIDDEN_KEYS.has(p.id)) continue;
+      g[p.id] = _effective(p).dependencies.map(_depId).filter(Boolean);
+    }
+    g[id] = deps.map(_depId).filter(Boolean);
+    return g;
+  }
+
+  // Shape rules shared by the editor, publish and the importer. -> { errors, deps } (deps = the list as given, validated)
+  function _checkDeps(deps, selfId) {
+    const errors = [];
+    if (!Array.isArray(deps)) return { errors: ['The dependencies must be a list of package ids.'], deps: [] };
+    if (deps.length > DEPS_MAX) errors.push(`Too many dependencies (${deps.length}, limit ${DEPS_MAX}).`);
+    const seen = new Set();
+    for (const s of deps.slice(0, DEPS_MAX + 1)) {
+      const shown = JSON.stringify(typeof s === 'string' ? s.slice(0, 80) : s);
+      const p = parseDependency(s);
+      if (!p) { errors.push(typeof s === 'string' && s.includes('@') && parseDependency(s.slice(0, s.indexOf('@')))
+        ? `Invalid dependency ${shown}: the version range must be x.y.z or ^x.y.z.` : `Invalid dependency ${shown}: use a lowercase package id, optionally followed by @x.y.z or @^x.y.z.`); continue; }
+      if (p.id === 'postapoc') errors.push('The default package postapoc is always included: remove it from the dependencies.');
+      else if (p.id === selfId) errors.push(`A package cannot depend on itself (dependency "${p.id}").`);
+      else if (seen.has(p.id)) errors.push(`The dependency "${p.id}" is listed twice.`);
+      seen.add(p.id);
+    }
+    return { errors, deps };
+  }
+
+  function _validate(id, d, list) {
+    const errors = [], warnings = [];
+    const out = { ok: false, errors, warnings, description: undefined, dependencies: undefined };
+    if (d && d.description !== undefined) {
+      if (typeof d.description !== 'string') errors.push('The description must be text.');
+      else if (d.description.length > DESC_MAX) errors.push(`The description is too long (${d.description.length} characters, limit ${DESC_MAX}).`);
+      else out.description = d.description.replace(_DESC_CTRL_RE, '');
+    }
+    if (d && d.dependencies !== undefined) {
+      const c = _checkDeps(d.dependencies, id);
+      errors.push(...c.errors);
+      if (!c.errors.length) {
+        out.dependencies = c.deps.slice();
+        const cycle = findDependencyCycle(_graph(list, id, out.dependencies));
+        if (cycle) errors.push(`Dependency cycle: ${cycle.join(' → ')}`);
+        for (const s of out.dependencies) {
+          const p = parseDependency(s), e = (list || []).find(x => x && x.id === p.id);
+          if (!e) warnings.push(`"${p.id}" is not an installed package; it is kept as a dependency.`);
+          else if (p.range && e.version && !_satisfies(e.version, p.range)) warnings.push(`"${p.id}" ${e.version} does not satisfy ${p.range}.`);
+        }
+      }
+    }
+    out.ok = errors.length === 0;
+    return out;
+  }
+  function validateDetails(id, d) { return _validate(id, d, _registry); }
+
+  // Pure ids, dependencies first (a dependency listed by two packages appears once; cycles cannot loop).
+  function resolveWithDependencies(ids) {
+    const out = [], done = new Set();
+    for (const root of ids || []) {
+      if (typeof root !== 'string') continue;
+      const stack = [[root, 0]];
+      done.add(root + '\u0000visiting');
+      while (stack.length) {
+        const top = stack[stack.length - 1], id = top[0];
+        const deps = getDependencies(id).map(_depId).filter(Boolean);
+        if (top[1] < deps.length) {
+          const d = deps[top[1]++];
+          if (!done.has(d) && !done.has(d + '\u0000visiting')) { done.add(d + '\u0000visiting'); stack.push([d, 0]); }
+          continue;
+        }
+        stack.pop();
+        if (!done.has(id)) { done.add(id); out.push(id); }
+      }
+    }
+    return out;
+  }
+
+  function updateDetails(id, d) {
+    const e = getEntry(id);
+    if (!e || e.isDefault) return false;
+    const r = validateDetails(id, d);
+    if (!r.ok) { UI.toast('⚠ ' + r.errors[0]); return false; }
+    const cur = _loadDetails()[id] || {};
+    const next = { ...cur };
+    if (r.description !== undefined) next.description = r.description;
+    if (r.dependencies !== undefined) next.dependencies = r.dependencies;
+    _details[id] = next;
+    _saveDetails();
+    renderPanel();
+    return true;
+  }
+
+  // What gets published/exported for a package: the local override over the server package.json over the registry entry.
+  function _mergedDetails(id, entry, serverPkg) {
+    const loc = _loadDetails()[id] || {};
+    const srv = _cleanDetails(serverPkg) || {}, ent = _cleanDetails(entry) || {};
+    return {
+      description: loc.description !== undefined ? loc.description : (srv.description !== undefined ? srv.description : (ent.description || '')),
+      dependencies: (loc.dependencies !== undefined ? loc.dependencies : (srv.dependencies !== undefined ? srv.dependencies : (ent.dependencies || []))).slice(),
+    };
+  }
+
+  // ── Preview image: always exactly 512x512 PNG (centre-cropped to a square, then scaled) ──
+  async function makePreview512(file) {
+    const bmp = await createImageBitmap(file);
+    try {
+      const s = Math.min(bmp.width, bmp.height);
+      const c = document.createElement('canvas');
+      c.width = c.height = 512;
+      c.getContext('2d').drawImage(bmp, Math.floor((bmp.width - s) / 2), Math.floor((bmp.height - s) / 2), s, s, 0, 0, 512, 512);
+      const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+      if (!blob) throw new Error('the preview could not be encoded');
+      return blob;
+    } finally { if (bmp.close) bmp.close(); }
+  }
+
+  // Validates with the T5.4 sniffing/limits, crops, and returns { ok, blob, dataUrl } | { ok:false, error }. Writes nothing.
+  async function _preparePreview(file) {
+    const n = await normalizeSpriteFile(file);
+    if (!n.ok) return n;
+    try { const blob = await makePreview512(n.file); return { ok: true, blob, dataUrl: await _blobToDataUrl(blob) }; }
+    catch (e) { return { ok: false, error: `The preview could not be processed: ${e && e.message ? e.message : e}` }; }
+  }
+
+  async function savePreview(id, file) {
+    const e = getEntry(id);
+    if (!e || e.isDefault) return { ok: false, error: 'Only custom packages have a preview.' };
+    const p = await _preparePreview(file);
+    if (!p.ok) return p;
+    try { await SpriteStore.save(PREVIEW_NAME, p.dataUrl, 'preview', id); }
+    catch (err) { return { ok: false, error: `The preview could not be stored: ${err && err.message ? err.message : err}` }; }
+    return { ok: true, dataUrl: p.dataUrl };
+  }
+  async function getPreview(id) {
+    try {
+      const r = await SpriteStore.get(PREVIEW_NAME, id);
+      return r && typeof r.dataUrl === 'string' && r.dataUrl.startsWith('data:image/png;base64,') ? r.dataUrl : null;
+    } catch (e) { return null; }
+  }
+  async function removePreview(id) { try { await SpriteStore.remove(PREVIEW_NAME, id); } catch (e) { /* nothing stored */ } }
+
+  function _flashRow(id) {
+    const tr = document.querySelector(`#pkg-panel tr[data-pkg="${CSS.escape(id)}"]`);
+    if (!tr) return;
+    tr.scrollIntoView({ block: 'center' });
+    tr.classList.add('pkg-flash');
+    setTimeout(() => tr.classList.remove('pkg-flash'), 1500);
+  }
+
+  // The details editor (opened from the PACKAGES row). Text only; all package data goes in through textContent/value.
+  function openDetails(id) {
+    const e = getEntry(id);
+    if (!e || e.isDefault) return;
+    if (document.getElementById('pkg-details-modal')) return;
+    const d = getDetails(id);
+    const T = (tag, text, props) => { const n = document.createElement(tag); if (text != null) n.textContent = text; Object.assign(n, props || {}); return n; };
+    const root = T('div', null, { id: 'pkg-details' });
+    const descLabel = T('label', 'Description ');
+    const desc = T('textarea', null, { id: 'pkg-det-desc', maxLength: DESC_MAX, value: d.description });
+    descLabel.appendChild(desc);
+    root.appendChild(descLabel);
+
+    root.appendChild(T('label', 'Depends on (other packages; optional version, x.y.z or ^x.y.z)'));
+    const parsed = d.dependencies.map(parseDependency).filter(Boolean);
+    const known = _registry.filter(p => !p.isDefault && p.id !== id && typeof p.id === 'string');
+    const ids = [...known.map(p => p.id), ...parsed.map(p => p.id).filter(x => !known.some(k => k.id === x))];
+    const list = T('div', null, { id: 'pkg-det-deps' });
+    if (!ids.length) list.appendChild(T('i', 'No other custom packages.'));
+    for (const depId of ids) {
+      const cur = parsed.find(p => p.id === depId);
+      const entry = getEntry(depId);
+      const row = T('div', null, { className: 'pkg-det-row' });
+      const cb = T('input', null, { type: 'checkbox', className: 'pkg-det-dep', value: depId, checked: !!cur });
+      const range = T('input', null, { type: 'text', className: 'pkg-det-range', placeholder: '^1.0.0', value: cur && cur.range || '', maxLength: 40 });
+      range.dataset.dep = depId;
+      row.append(cb, T('span', entry ? `${entry.name || depId} (${depId})` : `${depId} (not installed)`), range);
+      list.appendChild(row);
+    }
+    root.appendChild(list);
+    const extraLabel = T('label', 'Add a package id that is not installed ');
+    const extra = T('input', null, { type: 'text', id: 'pkg-det-extra', placeholder: 'other-pack or other-pack@^1.0.0' });
+    extraLabel.appendChild(extra);
+    root.appendChild(extraLabel);
+
+    const prevLabel = T('label', 'Preview image (cropped to a square, 512×512 PNG) ');
+    const file = T('input', null, { type: 'file', id: 'pkg-det-preview', accept: 'image/png,image/jpeg,image/webp' });
+    prevLabel.appendChild(file);
+    root.appendChild(prevLabel);
+    const img = T('img', null, { id: 'pkg-det-preview-img', alt: 'Preview', hidden: true });
+    const removeBtn = T('button', 'Remove preview', { type: 'button', id: 'pkg-det-preview-remove', hidden: true, className: 'hexdb-tool-btn' });
+    root.append(img, removeBtn);
+    const err = T('div', '', { id: 'pkg-det-error' });
+    const warn = T('div', '', { id: 'pkg-det-warn' });
+    root.append(err, warn);
+
+    let pending = null, removed = false, busy = Promise.resolve();
+    const show = url => { img.hidden = !url; removeBtn.hidden = !url; if (url) img.src = url; else img.removeAttribute('src'); };
+    getPreview(id).then(u => { if (!pending && !removed) show(u); });
+    file.addEventListener('change', () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      busy = (async () => {
+        err.textContent = '';
+        const p = await _preparePreview(f);
+        if (!p.ok) { err.textContent = p.error; file.value = ''; return; }
+        pending = p.dataUrl; removed = false; show(p.dataUrl);
+      })();
+    });
+    removeBtn.addEventListener('click', () => { pending = null; removed = true; file.value = ''; show(null); });
+
+    let m;
+    m = UI.showModal({ id: 'pkg-details', title: `Details: ${e.name || id}`, body: root, modal: true, autofocus: desc, actions: [
+      { label: 'Cancel', onClick: close => close() },
+      { label: 'Save details', primary: true, onClick: async close => {
+        await busy;
+        const deps = [];
+        root.querySelectorAll('.pkg-det-dep').forEach(cb => {
+          if (!cb.checked) return;
+          const r = root.querySelector(`.pkg-det-range[data-dep="${CSS.escape(cb.value)}"]`);
+          const range = r ? r.value.trim() : '';
+          deps.push(range ? `${cb.value}@${range}` : cb.value);
+        });
+        extra.value.split(/[\s,]+/).filter(Boolean).forEach(s => deps.push(s));
+        const r = validateDetails(id, { description: desc.value, dependencies: deps });
+        if (!r.ok) { err.textContent = r.errors.join('\n'); return; }
+        if (!updateDetails(id, { description: desc.value, dependencies: deps })) return;
+        if (pending) await SpriteStore.save(PREVIEW_NAME, pending, 'preview', id);
+        else if (removed) await removePreview(id);
+        renderPanel();
+        if (r.warnings.length) UI.toast('Details saved. ' + r.warnings.join(' '), { ms: 7000 });
+        close();
+      } },
+    ] });
+  }
+
   // ── Export Package ─────────────────────────────────────────────
   // Built from the LOCAL state (HexDB/BldDB entries of the package, its sprites from the SpriteStore, package.json from
   // the registry entry on top of the server's copy when readable). Never writes to the network; works without a token and
@@ -13202,9 +13608,21 @@ const Packages = (() => {
       const zip = new JSZip();
       const version = (serverPkg && serverPkg.version) || entry.version || '1.0.0';
       const { localOnly, ...cleanEntry } = entry;
+      const det = _mergedDetails(id, entry, serverPkg);   // local description/dependencies win
+      const previewUrl = await getPreview(id);
+      let previewBlob = null;
+      if (previewUrl) { try { previewBlob = await (await fetch(previewUrl)).blob(); } catch (e) { previewBlob = null; } }
+      else if (serverPkg) {   // published copy: only a real PNG within the importer's limits goes in
+        try {
+          const r = await fetch(`${BASE_URL}/packages/${encodeURIComponent(id)}/preview.png?_=${Date.now()}`);
+          const b = r.ok ? await r.blob() : null;
+          if (b && b.size <= SPRITE_MAX_BYTES) { const h = new Uint8Array(await b.slice(0, 24).arrayBuffer()); if (h.length >= 24 && _PNG_SIG.every((x, i) => h[i] === x)) previewBlob = b; }
+        } catch (e) { previewBlob = null; }
+      }
       const pkgText = JSON.stringify({
         ...(serverPkg || {}), ...cleanEntry, version,
-        description: (serverPkg && serverPkg.description) ?? entry.description ?? '',
+        description: det.description, dependencies: det.dependencies,
+        ...(previewBlob ? { preview: 'preview.png' } : {}),
       }, null, 2);
       const hexText = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
       const bldText = JSON.stringify({ version: 1, package: id, buildings }, null, 2);
@@ -13213,13 +13631,17 @@ const Packages = (() => {
       zip.file('package.json', pkgText);
       zip.file('hex_database.json', hexText);
       zip.file('building_database.json', bldText);
+      if (previewBlob) {
+        if (previewBlob.size > SPRITE_MAX_BYTES) throw new Error('the preview image is too large to export');
+        zip.file('preview.png', previewBlob);
+      }
 
       let baseLocal = [], pkgLocal = [];
       try { [baseLocal, pkgLocal] = await Promise.all([SpriteStore.loadForPackage('postapoc'), SpriteStore.loadForPackage(id)]); }
       catch (e) { console.warn('[Packages] local sprite store unavailable, using the server copies:', e && e.message); }
       const localByName = new Map([...baseLocal, ...pkgLocal].map(e => [e.name, e]));   // the package's own copy wins
       const refs = await _packageSpriteRefs(id);
-      let done = 0, skipped = 0, total = pkgText.length + hexText.length + bldText.length;
+      let done = 0, skipped = 0, total = pkgText.length + hexText.length + bldText.length + (previewBlob ? previewBlob.size : 0);
       for (const [name, cat] of refs) {
         const s = await _exportSprite(id, name, cat, localByName);
         if (s) {
@@ -13550,6 +13972,14 @@ const Packages = (() => {
       if (missing.length > 50) ul.appendChild(T('li', `…and ${missing.length - 50} more`));
       root.appendChild(ul);
     }
+    const dd = _mergedDetails(id, entry, null), hasPrev = !!(await getPreview(id));
+    const det = T('div', null, { id: 'pub-details' });
+    det.appendChild(T('p', `Description: ${dd.description || '(none)'}`));
+    det.appendChild(T('p', `Depends on: ${dd.dependencies.length ? dd.dependencies.join(', ') : 'nothing'}`));
+    const unknown = dd.dependencies.map(_depId).filter(x => x && !getEntry(x));
+    if (unknown.length) det.appendChild(T('p', `Not installed here: ${unknown.join(', ')}`, { className: 'pkg-notice warn' }));
+    det.appendChild(T('p', hasPrev ? 'Preview: preview.png (512×512) will be uploaded.' : 'Preview: no preview image (add one under Details).'));
+    root.appendChild(det);
     const bumpLabel = T('label', 'Version ');
     const sel = T('select', null, { id: 'pub-bump' });
     const labels = { patch: 'Patch', minor: 'Minor', major: 'Major', none: 'Keep' };
@@ -13630,6 +14060,13 @@ const Packages = (() => {
       // Its sha makes the registry write conditional: a registry changed meanwhile aborts, not overwritten.
       const { regData, sha: regSha } = await _readRegistry();
 
+      // Local description/dependencies override the server's; the result must be valid against the SERVER registry too
+      // (a cycle someone else just created), before the first write.
+      const det = _mergedDetails(id, entry, serverPkg);
+      const dv = _validate(id, det, regData.packages);
+      if (!dv.ok) throw new Error(dv.errors[0]);
+      const previewUrl = await getPreview(id);
+
       UIprogress(5, `Publishing ${id}/hex_database.json…`);
       const hexPayload = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
       await GitHubSync._putText(`packages/${id}/hex_database.json`, hexPayload, `publish ${id}: hex_database.json`);
@@ -13646,19 +14083,32 @@ const Packages = (() => {
         console.warn(`[Packages] publish ${id}: ${spriteResult.missing.length} sprite(s) not found locally or in postapoc pool:`, spriteResult.missing);
       }
 
+      if (previewUrl) {
+        UIprogress(78, `Publishing ${id}/preview.png…`);
+        await GitHubSync._putBinary(`packages/${id}/preview.png`, await (await fetch(previewUrl)).blob(), `publish ${id}: preview.png`);
+      }
+
       UIprogress(80, 'Updating registry.json…');
+      const regEntry = base => {
+        const out = { ...base, version: newVersion };
+        delete out.description; delete out.dependencies;
+        if (det.description) out.description = det.description;
+        if (det.dependencies.length) out.dependencies = det.dependencies;
+        return out;
+      };
       if (regData.packages.some(p => p.id === id))
-        regData.packages = regData.packages.map(p => p.id === id ? { ...p, version: newVersion } : p);
+        regData.packages = regData.packages.map(p => p.id === id ? regEntry(p) : p);
       else  // e.g. removed meanwhile, or created moments ago: publishing must not leave it unlisted
-        regData.packages.push({ id, name: entry.name || id, isDefault: false, version: newVersion });
+        regData.packages.push(regEntry({ id, name: entry.name || id, isDefault: false }));
       await GitHubSync._putText('packages/registry.json', JSON.stringify(regData, null, 2), `registry: bump ${id} to ${newVersion}`, regSha);
 
       UIprogress(92, `Updating ${id}/package.json…`);
       const pkgJson = JSON.stringify({
         ...(serverPkg || {}), ...entry,
         version: newVersion,
-        description: serverPkg?.description ?? entry.description ?? '',
-        preview: serverPkg?.preview ?? entry.preview ?? 'preview.png',
+        description: det.description,
+        dependencies: det.dependencies,
+        preview: previewUrl ? 'preview.png' : (serverPkg?.preview ?? entry.preview ?? 'preview.png'),
         ...(changelog.length ? { changelog: changelog.slice(-_MAX_CHANGELOG) } : {}),
       }, null, 2);
       await GitHubSync._putText(`packages/${id}/package.json`, pkgJson, `publish ${id}: package.json`, pkgFile ? pkgFile.sha : null);
@@ -13966,7 +14416,7 @@ const Packages = (() => {
 
   async function validatePackageZip(zip) {
     const errors = [], warnings = [];
-    const plan = { ok: false, errors, warnings, pkg: null, hexes: [], buildings: [], sprites: [], ignored: [], conflict: null,
+    const plan = { ok: false, errors, warnings, pkg: null, preview: null, hexes: [], buildings: [], sprites: [], ignored: [], conflict: null,
                    summary: { hexCount: 0, bldCount: 0, spriteCount: 0, missingSprites: [], ignoredCount: 0, reskinCount: 0 } };
     const finish = () => { plan.ok = errors.length === 0; return plan; };
     const names = Object.keys(zip.files);
@@ -13985,7 +14435,7 @@ const Packages = (() => {
       total += sz;
       if ((n === 'package.json' || n === 'hex_database.json' || n === 'building_database.json') && sz > IMPORT_MAX_JSON_BYTES)
         errors.push(`${n} is too large (${shown}, limit ${_mb(IMPORT_MAX_JSON_BYTES)}).`);
-      else if (/^sprites\/(hex|buildings)\/[^/]+\.png$/i.test(n) && sz > SPRITE_MAX_BYTES)
+      else if ((n === 'preview.png' || /^sprites\/(hex|buildings)\/[^/]+\.png$/i.test(n)) && sz > SPRITE_MAX_BYTES)
         errors.push(`${n} is too large (${shown}, limit ${_mb(SPRITE_MAX_BYTES)}).`);
     });
     if (total > IMPORT_MAX_TOTAL_BYTES) errors.push(`The ZIP unpacks to ${Number.isFinite(total) ? _mb(total) : 'an unknown size'} in total (limit ${_mb(IMPORT_MAX_TOTAL_BYTES)}).`);
@@ -14017,7 +14467,13 @@ const Packages = (() => {
       if (pkg.version === undefined) warnings.push('package.json has no "version"; 1.0.0 will be used.');
       else if (typeof pkg.version !== 'string' || !_SEMVER_RE.test(pkg.version)) errors.push(`package.json "version" must be a semantic version like 1.2.3 (got ${JSON.stringify(pkg.version)}).`);
       if (pkg.description !== undefined && typeof pkg.description !== 'string') warnings.push('package.json "description" is not text and is ignored.');
-      plan.pkg = { id: str('id', 64), name: str('name', 100) || str('id', 64), version: typeof pkg.version === 'string' ? pkg.version : '1.0.0', description: str('description', 500) };
+      let dependencies = [];
+      if (pkg.dependencies !== undefined) {
+        const c = _checkDeps(pkg.dependencies, typeof pkg.id === 'string' ? pkg.id : null);
+        c.errors.forEach(m => errors.push('package.json: ' + m));
+        if (!c.errors.length) dependencies = c.deps.slice();
+      }
+      plan.pkg = { id: str('id', 64), name: str('name', 100) || str('id', 64), version: typeof pkg.version === 'string' ? pkg.version : '1.0.0', description: str('description', 500).replace(_DESC_CTRL_RE, ''), dependencies };
     }
     const hexData = await readJson('hex_database.json');
     const bldData = await readJson('building_database.json');
@@ -14046,6 +14502,17 @@ const Packages = (() => {
     for (const n of names) {
       const f = zip.files[n];
       if (f.dir || n === 'package.json' || n === 'hex_database.json' || n === 'building_database.json') continue;
+      if (n === 'preview.png') {
+        try {
+          const head = await _readEntry(f, SPRITE_MAX_BYTES, 64);
+          if (!head || head.length < 24 || !_PNG_SIG.every((b, i) => head[i] === b)) { errors.push('preview.png is not a PNG image.'); continue; }
+          const dims = _headerDims(head, 'png');
+          if (!dims || !dims[0] || !dims[1] || dims[0] > SPRITE_MAX_DIM || dims[1] > SPRITE_MAX_DIM) { errors.push(`preview.png has unusable dimensions (${dims ? dims[0] + '×' + dims[1] : 'unreadable'}, limit ${SPRITE_MAX_DIM}×${SPRITE_MAX_DIM}).`); continue; }
+          if (dims[0] !== 512 || dims[1] !== 512) warnings.push(`preview.png is ${dims[0]}×${dims[1]}; it is cropped to a square and scaled to 512×512.`);
+          plan.preview = { path: n, width: dims[0], height: dims[1], size: _claimedSize(f) };
+        } catch (e) { errors.push(`preview.png could not be read: ${e && e.message}`); }
+        continue;
+      }
       const m = /^sprites\/(hex|buildings)\/([^/]+)\.png$/i.exec(n);
       if (!m) {
         plan.ignored.push(n);
@@ -14299,6 +14766,12 @@ const Packages = (() => {
     if (isDefault(newId)) return refuse(`Package "${newId}" is the default package and cannot be imported over.`);
     const zip = _importZip, plan = _importValidation;
     if (!zip || !plan || !plan.ok) { UI.toast('⚠ No validated ZIP loaded'); return; }
+    // Dependencies were shape-checked against the ZIP's own id; the id chosen here may differ, and the cycle check needs
+    // this editor's packages.
+    const zipDeps = plan.pkg.dependencies || [];
+    const depProblem = _checkDeps(zipDeps, newId).errors[0]
+      || (() => { const c = findDependencyCycle(_graph(_registry, newId, zipDeps)); return c ? `Dependency cycle: ${c.join(' → ')}` : null; })();
+    if (depProblem) return refuse(depProblem);
 
     // The id may exist in this editor (conflict flow below) but must not belong to anything else on the server.
     const localHere = !!getEntry(newId) || HexDB.getAll().some(h => h.package === newId) || BldDB.getAll().some(b => b.package === newId);
@@ -14333,6 +14806,9 @@ const Packages = (() => {
     const snapSprites = (await SpriteStore.loadAll()).filter(inPkg);
     const prevTrash = localStorage.getItem(LS_TRASH);
     const existingEntry = getEntry(newId);
+    const prevDetails = _loadDetails()[newId];
+    // Merge keeps what is already here (local details win); every other mode takes the ZIP's.
+    const det = mode === 'merge' && prevDetails ? getDetails(newId) : { description: plan.pkg.description || '', dependencies: zipDeps.slice() };
     let localTouched = false;
     const restoreLocal = async () => {
       if (!localTouched) return;
@@ -14341,6 +14817,8 @@ const Packages = (() => {
       for (const cur of (await SpriteStore.loadAll()).filter(inPkg)) if (!have.has(cur.name)) await SpriteStore.remove(cur.baseName || cur.name, newId);
       for (const r of snapSprites) await SpriteStore.save(r.baseName || r.name, r.dataUrl, r.category, newId);
       try { if (prevTrash === null) localStorage.removeItem(LS_TRASH); else localStorage.setItem(LS_TRASH, prevTrash); } catch (e) { console.warn('[Packages] trash restore failed:', e.message); }
+      if (prevDetails) _details[newId] = prevDetails; else delete _details[newId];
+      _saveDetails();
     };
 
     const written = [];
@@ -14362,7 +14840,7 @@ const Packages = (() => {
       }
       const version = (existingEntry && existingEntry.version) || '1.0.0';
       await put(`packages/${newId}/package.json`, () => GitHubSync._putText(`packages/${newId}/package.json`,
-        JSON.stringify({ id: newId, name, version, description: '', isDefault: false }, null, 2), `import package: ${newId}`));
+        JSON.stringify({ id: newId, name, version, description: det.description, dependencies: det.dependencies, ...(plan.preview ? { preview: 'preview.png' } : {}), isDefault: false }, null, 2), `import package: ${newId}`));
       UI.progress(5, 'Writing package.json…');
       await put(`packages/${newId}/hex_database.json`, () => GitHubSync._putText(`packages/${newId}/hex_database.json`,
         JSON.stringify({ version: 1, package: newId, hexes }, null, 2), `import ${newId}: hex_database.json`));
@@ -14385,8 +14863,22 @@ const Packages = (() => {
         UI.progress(25 + Math.round((done / Math.max(spriteFiles.length, 1)) * 65), `Sprites: ${done}/${spriteFiles.length}…`);
       }
 
+      let previewUrl = null;   // 512x512 PNG; a ZIP preview of another size is cropped/scaled like an upload
+      if (plan.preview) {
+        const f = zip.file(plan.preview.path);
+        const bytes = f ? await _readEntry(f, plan.preview.size) : null;
+        if (!bytes) throw new Error('preview.png is missing or larger than it claims to be');
+        let blob = new Blob([bytes], { type: 'image/png' });
+        if (plan.preview.width !== 512 || plan.preview.height !== 512) blob = await makePreview512(blob);
+        await put(`packages/${newId}/preview.png`, () => GitHubSync._putBinary(`packages/${newId}/preview.png`, blob, `import ${newId}: preview.png`));
+        previewUrl = await _blobToDataUrl(blob);
+      }
+
       // Local state, before the registry so a local failure never touches it.
       localTouched = true;
+      _details[newId] = { description: det.description, dependencies: det.dependencies.slice() };
+      _saveDetails();
+      if (previewUrl) await SpriteStore.save(PREVIEW_NAME, previewUrl, 'preview', newId);
       if (mode === 'replace') { HexDB.removeByPackage(newId); BldDB.removeByPackage(newId); }
       HexDB.addEntries(hexes);
       BldDB.addEntries(buildings);
@@ -14403,8 +14895,15 @@ const Packages = (() => {
       UI.progress(95, 'Updating registry…');
       const { regData, sha: regSha } = await _readRegistry();
       const at = regData.packages.findIndex(p => p.id === newId);
-      if (at < 0) regData.packages.push({ id: newId, name, isDefault: false, version });
-      else regData.packages[at] = { ...regData.packages[at], name };
+      const withDetails = base => {
+        const out = { ...base };
+        delete out.description; delete out.dependencies;
+        if (det.description) out.description = det.description;
+        if (det.dependencies.length) out.dependencies = det.dependencies;
+        return out;
+      };
+      if (at < 0) regData.packages.push(withDetails({ id: newId, name, isDefault: false, version }));
+      else regData.packages[at] = withDetails({ ...regData.packages[at], name });
       const regText = JSON.stringify(regData, null, 2);
       try {
         await GitHubSync._putText('packages/registry.json', regText, `registry: add ${newId}`, regSha);
@@ -14447,7 +14946,9 @@ const Packages = (() => {
            openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
-           _rewriteEntries, _rewriteAll, _rollback, getImportResult, confirmImport };
+           _rewriteEntries, _rewriteAll, _rollback, getImportResult, confirmImport,
+           parseDependency, getDetails, getDependencies, validateDetails, updateDetails, findDependencyCycle, resolveWithDependencies,
+           makePreview512, savePreview, getPreview, removePreview, openDetails };
 })();
 
 // ─────────────────────────────────────────────────────────────────
