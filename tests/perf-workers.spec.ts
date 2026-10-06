@@ -394,7 +394,7 @@ test('deploy-dev.yml publishes map-jobs.js/map-worker.js into dev/ and rewrites 
   const yml = fs.readFileSync(path.join(ROOT, '.github/workflows/deploy-dev.yml'), 'utf8');
   const html = fs.readFileSync(path.join(ROOT, 'MapEditorPro.html'), 'utf8');
   const pathsLine = (yml.match(/paths:\s*\[([^\]]*)\]/) || [])[1] || '';
-  for (const f of ['map-jobs.js', 'map-worker.js', 'hex-utils.js', 'zone-painter.js']) {
+  for (const f of ['map-jobs.js', 'map-worker.js', 'hex-utils.js', 'gen-utils.js', 'zone-painter.js']) {
     expect(pathsLine, f + ' must trigger the workflow').toContain(f);
     expect(yml, f + ' copied into dev/').toMatch(new RegExp('cp\\s+\\S*' + f.replace('.', '\\.') + '\\s+dev/' + f.replace('.', '\\.')));
     expect(yml, f + ' committed').toContain('dev/' + f);
@@ -402,6 +402,8 @@ test('deploy-dev.yml publishes map-jobs.js/map-worker.js into dev/ and rewrites 
   expect(yml).toContain('src="dev/map-jobs.js');           // script tag rewritten
   expect(yml).toContain('<script src="dev/hex-utils.js');
   expect(html).toContain('<script src="hex-utils.js');
+  expect(yml).toContain('<script src="dev/gen-utils.js');
+  expect(html).toContain('<script src="gen-utils.js');
   // zone-painter.js: tag rewritten into dev/, and the tag keeps its ?v= cache-buster, which the workflow verifies after the rewrite
   expect(yml).toContain('<script src="dev/zone-painter.js');
   expect(html).toMatch(/<script src="zone-painter\.js\?v=\d+"><\/script>/);
@@ -717,6 +719,8 @@ test('version, ?v= query, worker importScripts and deploy-dev.yml agree', () => 
   // the workflow's own grep for hex-utils.js ?v= must equal the ?v= in the HTML (bump both together)
   const hv = /<script src="hex-utils\.js\?v=(\d+)"/.exec(html)![1];
   expect(yml).toContain(`src="dev/hex-utils.js?v=${hv}"`);
+  const gv = /<script src="gen-utils\.js\?v=(\d+)"/.exec(html)![1];
+  expect(yml).toContain(`src="dev/gen-utils.js?v=${gv}"`);
 });
 
 test('generator core lives only in map-jobs.js (no duplicate in the page)', () => {

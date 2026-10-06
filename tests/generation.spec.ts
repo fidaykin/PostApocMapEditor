@@ -290,3 +290,114 @@ test.describe('Tools.guardBulkWrite (shared bulk-writer gate)', () => {
 });
 
 async function clickCellTool(page: any) { await page.evaluate(() => Tools.setActive('paint')); }
+
+// T3.3: heightmap maths (gen-utils.js). Orientation references come from the rendered world geometry
+// (Canvas.hexCenterWorld: Unity axis flip, col<->worldY, row<->worldX, stagger parity from floor(H/2)), not from the
+// index formula inside GenUtils.resampleToMap.
+test.describe('heightmap maths (T3.3)', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+
+  // helper source shared by the tests: builds a w*h luminance grid from a predicate, and the world-geometry frame
+  const FRAME = `
+    const W = MAP_WIDTH, H = MAP_HEIGHT;
+    const mk = (w, h, v) => { const px = new Uint8ClampedArray(w * h * 4);
+      for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) { const i = (y * w + x) * 4; px[i] = px[i+1] = px[i+2] = v(x, y); px[i+3] = 255; }
+      return GenUtils.luminanceGrid(px, w, h); };
+    const pos = new Array(W * H);
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+      const w = Canvas.hexCenterWorld(c, r); pos[r * W + c] = w;
+      if (w.x < minX) minX = w.x; if (w.x > maxX) maxX = w.x; if (w.y < minY) minY = w.y; if (w.y > maxY) maxY = w.y; }
+    const midX = (minX + maxX) / 2, midY = (minY + maxY) / 2;
+  `;
+
+  test('a half-bright image splits at the world midline on screen (west-left, north-top, stagger-exact)', async ({ page }) => {
+    const r = await page.evaluate(`(() => { ${FRAME}
+      const left = GenUtils.resampleToMap(mk(2, 1, x => x === 0 ? 255 : 0), 2, 1, W, H);   // west half bright
+      const top  = GenUtils.resampleToMap(mk(1, 2, (x, y) => y === 0 ? 255 : 0), 1, 2, W, H); // north half bright
+      const bad = { left: 0, top: 0 }, seen = { l1: 0, l0: 0, t1: 0, t0: 0 };
+      for (let i = 0; i < W * H; i++) {
+        const p = pos[i];
+        if (Math.abs(p.x - midX) > 1e-6) { const want = p.x < midX ? 255 : 0; if (left[i] !== want) bad.left++; seen[want ? 'l1' : 'l0']++; }
+        if (Math.abs(p.y - midY) > 1e-6) { const want = p.y < midY ? 255 : 0; if (top[i] !== want) bad.top++; seen[want ? 't1' : 't0']++; }
+      }
+      return { bad, seen };
+    })()`);
+    expect(r.bad).toEqual({ left: 0, top: 0 });
+    for (const k of ['l1', 'l0', 't1', 't0']) expect((r.seen as any)[k]).toBeGreaterThan(50000);   // positive control: both halves populated
+  });
+
+  test('a single bright pixel lands at its world position (quadrant check: x and y are not swapped or mirrored)', async ({ page }) => {
+    const r = await page.evaluate(`(() => { ${FRAME}
+      const out = [];
+      for (const [px, py] of [[2, 7], [8, 1], [0, 0], [9, 9]]) {
+        const g = GenUtils.resampleToMap(mk(10, 10, (x, y) => (x === px && y === py) ? 255 : 0), 10, 10, W, H);
+        let sx = 0, sy = 0, n = 0;
+        for (let i = 0; i < W * H; i++) if (g[i] > 127) { sx += pos[i].x; sy += pos[i].y; n++; }
+        // expected world position: the image rectangle is the cells' bounding box (centres +/- half a hex)
+        const hexHalfW = HEX_SIZE, hexHalfH = ROW_PITCH / 2;   // flat-top hex: circumradius wide, row pitch tall
+        const left = minX - hexHalfW, top = minY - hexHalfH, wid = maxX - minX + 2 * hexHalfW, hei = maxY - minY + 2 * hexHalfH;
+        out.push({ n, dx: sx / n - (left + (px + 0.5) / 10 * wid), dy: sy / n - (top + (py + 0.5) / 10 * hei), tolX: wid / 10, tolY: hei / 10 });
+      }
+      return out;
+    })()`);
+    for (const o of r as any[]) {
+      expect(o.n).toBeGreaterThan(1000);                      // positive control: the pixel actually covers cells
+      expect(Math.abs(o.dx)).toBeLessThan(o.tolX * 0.15);     // centroid within 15% of an image pixel
+      expect(Math.abs(o.dy)).toBeLessThan(o.tolY * 0.15);
+    }
+  });
+
+  test('a fine ramp image reproduces each cell\'s world position (stagger parity from floor(H/2) included)', async ({ page }) => {
+    const r = await page.evaluate(`(() => { ${FRAME}
+      const N = 4000, hexHalfW = HEX_SIZE, hexHalfH = ROW_PITCH / 2;
+      const top = minY - hexHalfH, hei = maxY - minY + 2 * hexHalfH, left = minX - hexHalfW, wid = maxX - minX + 2 * hexHalfW;
+      const rampY = GenUtils.resampleToMap(mk(1, N, () => 0).map((_, i) => i), 1, N, W, H);   // value = image row index
+      const rampX = GenUtils.resampleToMap(Float32Array.from({ length: N }, (_, i) => i), N, 1, W, H);   // value = image column index
+      let worstY = 0, worstX = 0;
+      for (let i = 0; i < W * H; i++) {
+        worstY = Math.max(worstY, Math.abs(rampY[i] + 0.5 - (pos[i].y - top) / hei * N));
+        worstX = Math.max(worstX, Math.abs(rampX[i] + 0.5 - (pos[i].x - left) / wid * N));
+      }
+      return { worstY, worstX };
+    })()`);
+    // nearest-neighbour: within one image pixel of the exact world position (a half-pitch stagger error would be ~N/(2W) = 4.4 px)
+    expect(r.worstY).toBeLessThan(1.01);
+    expect(r.worstX).toBeLessThan(1.01);
+  });
+
+  test('luminance weights, normalize (flat flag), applySeaLevel clamp', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      const lum = GenUtils.luminanceGrid(Uint8ClampedArray.from([255, 0, 0, 255, 0, 255, 0, 255, 0, 0, 255, 255]), 3, 1);
+      const n = GenUtils.normalize(Float32Array.from([10, 20, 30]));
+      const flat = GenUtils.normalize(new Float32Array(5));
+      const sea = GenUtils.applySeaLevel(Float32Array.from([0.1, 0.5, 0.9]), 0.2);
+      const neg = GenUtils.applySeaLevel(Float32Array.from([0.1, 0.9]), -0.3);
+      return { lum: Array.from(lum), grid: Array.from(n.grid), nflat: n.flat, flatFlag: flat.flat, flatVals: Array.from(flat.grid), sea: Array.from(sea), neg: Array.from(neg) };
+    });
+    expect(r.lum[0]).toBeCloseTo(0.299 * 255, 3);
+    expect(r.lum[1]).toBeCloseTo(0.587 * 255, 3);
+    expect(r.lum[2]).toBeCloseTo(0.114 * 255, 3);
+    expect(r.grid).toEqual([0, 0.5, 1]);
+    expect(r.nflat).toBe(false);
+    expect(r.flatFlag).toBe(true);
+    expect(r.flatVals).toEqual([0.5, 0.5, 0.5, 0.5, 0.5]);
+    expect(r.sea[0]).toBe(0);
+    expect(r.sea[1]).toBeCloseTo(0.3, 5);
+    expect(r.sea[2]).toBeCloseTo(0.7, 5);
+    expect(r.neg[0]).toBeCloseTo(0.4, 5);
+    expect(r.neg[1]).toBe(1);
+  });
+
+  test('resampling a huge image costs only W*H samples (work counter via Proxy, no wall clock)', async ({ page }) => {
+    const r = await page.evaluate(() => {
+      let reads = 0;
+      const sw = 8000, sh = 6000;
+      const src = new Proxy({ length: sw * sh }, { get(t: any, k: any) { if (typeof k === 'string' && /^\d+$/.test(k)) { reads++; return 0.5; } return t[k]; } });
+      const out = GenUtils.resampleToMap(src as any, sw, sh, MAP_WIDTH, MAP_HEIGHT);
+      return { reads, len: out.length, W: MAP_WIDTH * MAP_HEIGHT };
+    });
+    expect(r.len).toBe(r.W);
+    expect(r.reads).toBe(r.W);
+  });
+});
