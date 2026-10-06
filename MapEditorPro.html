@@ -2700,7 +2700,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "f633257";
+const COMMIT  = "de3bf0f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -15479,12 +15479,16 @@ const Shortcuts = (() => {
 // Cost: one pass over the cells inside analyzeMap (+ one more only when some sprite failed), one BFS over at most
 // W*H cells that stops as soon as every settlement is found, one neighbour lookup per road. No DOM, no wall clock.
 const MapValidator = (() => {
-  // Terrain a unit cannot cross: HexDB types Water / Rivers (case-insensitive) and these ids. A bridge on the cell
-  // makes it passable. This is the ONLY copy of the list in the validator (ZonePainter's forbiddenTerrain and the
-  // satellite city-clearing set are different rules with different members: Hills_1 is forbidden for zones only).
+  // Terrain a unit cannot cross, derived from the HexDB TYPE where the entry exists: Water, Rivers and Volcanic/Rift (lava,
+  // rift); mountains share the type 'Hills/Mountains' with the passable Hills_1, so they are told apart by the id prefix
+  // 'mountain_' (Mountain_1, Mountain_Kaiju_1/2, package mountains). `ids` is only the fallback for an id that is not in
+  // the HexDB at all (a map from another package). A bridge on the cell makes it passable. This is the ONLY copy of the
+  // list in the validator (ZonePainter's forbiddenTerrain and the satellite city-clearing set are different rules with
+  // different members: Hills_1 is forbidden for zones only).
   const IMPASSABLE = Object.freeze({
-    types: new Set(['water', 'rivers']),
-    ids:   new Set(['mountain_1', 'lava_plain_1', 'lava_rift_1', 'rift_1']),
+    types:    new Set(['water', 'rivers', 'volcanic/rift']),
+    prefixes: Object.freeze(['mountain_']),
+    ids:      new Set(['lava_plain_1', 'lava_rift_1', 'rift_1']),
   });
   const CELL_CAP = 200, MAX_ID_ISSUES = 50;
   const RULE_ORDER = ['unknown-id', 'unknown-object', 'missing-city', 'unreachable-settlement', 'orphan-road', 'missing-sprite'];
@@ -15553,7 +15557,8 @@ const MapValidator = (() => {
         let p = memo.get(id);
         if (p === undefined) {
           const e = st.hexById.get(_lc(id)) || st.bldById.get(_lc(id));
-          p = !(IMPASSABLE.ids.has(_lc(id)) || (e && typeof e.type === 'string' && IMPASSABLE.types.has(_lc(e.type))));
+          const lc = _lc(id);
+          p = !(IMPASSABLE.ids.has(lc) || IMPASSABLE.prefixes.some(x => lc.startsWith(x)) || (e && typeof e.type === 'string' && IMPASSABLE.types.has(_lc(e.type))));
           memo.set(id, p);
         }
         return p;
@@ -16503,6 +16508,7 @@ const HexDB = (() => {
   }
   function _autoSave() {
     _rev++;
+    _validatorStale();      // the validator's passability and id checks read the DB: a shown report is outdated now
     return StorageGuard.setItem('hexdb_autosave', JSON.stringify(_data), 'Hex DB autosave');
   }
 
@@ -18161,6 +18167,7 @@ const BldDB = (() => {
     localStorage.setItem('blddb-sec', JSON.stringify(_secState));
   }
   function _autoSave() {
+    _validatorStale();      // known building ids and needRoad feed the validator: a shown report is outdated now
     return StorageGuard.setItem('blddb_autosave', JSON.stringify(_data), 'Buildings DB autosave');
   }
 

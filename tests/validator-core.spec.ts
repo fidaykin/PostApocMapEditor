@@ -214,9 +214,10 @@ test.describe('MapValidator on the live map (real HexUtils geometry)', () => {
   });
 
   test('IMPASSABLE is one exported list the BFS actually uses', async ({ page }) => {
-    const r = await page.evaluate(() => ({ t: [...MapValidator.IMPASSABLE.types].sort(), i: [...MapValidator.IMPASSABLE.ids].sort() }));
-    expect(r.t).toEqual(['rivers', 'water']);
-    expect(r.i).toEqual(['lava_plain_1', 'lava_rift_1', 'mountain_1', 'rift_1']);
+    const r = await page.evaluate(() => ({ t: [...MapValidator.IMPASSABLE.types].sort(), i: [...MapValidator.IMPASSABLE.ids].sort(), p: [...(MapValidator.IMPASSABLE as any).prefixes] }));
+    expect(r.t).toEqual(['rivers', 'volcanic/rift', 'water']);    // from the HexDB type
+    expect(r.p).toEqual(['mountain_']);                            // Hills/Mountains share a type with the passable Hills_1
+    expect(r.i).toEqual(['lava_plain_1', 'lava_rift_1', 'rift_1']);   // fallback for ids missing from the HexDB
   });
 });
 
