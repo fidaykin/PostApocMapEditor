@@ -1806,6 +1806,25 @@ test.describe('layers: zones, fills and polygons under locks (cleanup A5)', () =
     expect(await page.evaluate(() => ZonePainter.getZones()[0].name)).toBe('Z');
   });
 
+  test('inline rename with real typing: Esc cancels after several keys (not only as the first key); Enter commits without a line break', async ({ page }) => {
+    await zoneSeed2(page, 'forest_edge');
+    await page.evaluate(() => ZonePainter._uiRebuildZoneList());
+    const span = '#zone-list .zone-name';
+    const dbl = () => page.evaluate((q) => document.querySelector(q)!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })), span);
+    const text = () => page.evaluate((q) => document.querySelector(q)!.textContent, span);
+    await dbl();
+    await page.keyboard.type('abc');
+    expect(await text(), 'typing reached the editor').toMatch(/abc/);
+    await page.keyboard.press('Escape');
+    expect(await page.evaluate(() => ZonePainter.getZones()[0].name), 'Esc after typing must not commit').toBe('Z');
+    expect(await text()).toBe('Z');
+    await dbl();
+    await page.keyboard.type('Qq');
+    await page.keyboard.press('Enter');
+    expect(await page.evaluate(() => ZonePainter.getZones()[0].name)).toBe('Qq');
+    expect(await page.evaluate((q) => document.querySelector(q)!.querySelector('br, div') === null, span)).toBe(true);
+  });
+
   test('a colour picker opened before the lock does not write zone.color once locked; unlocked it does (control)', async ({ page }) => {
     await zoneSeed2(page, 'forest_edge');
     await page.evaluate(() => { HTMLInputElement.prototype.click = function () {}; ZonePainter._uiPickColor(ZonePainter.getSelectedZoneId(), document.createElement('div')); });

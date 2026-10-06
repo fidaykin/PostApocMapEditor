@@ -726,15 +726,20 @@ const ZonePainter = (() => {
         nameSpan.focus();
         document.execCommand('selectAll', false, null);
         let cancelled = false;
-        nameSpan.addEventListener('blur', () => {
+        // The key handler lives as long as the inline editor does (not just for the first key) and goes away with it.
+        const onKey = e2 => {
+          if (e2.key === 'Enter') { e2.preventDefault(); nameSpan.blur(); }
+          else if (e2.key === 'Escape') { e2.preventDefault(); cancelled = true; nameSpan.blur(); }
+        };
+        const onBlur = () => {
+          nameSpan.removeEventListener('keydown', onKey);
+          nameSpan.removeEventListener('blur', onBlur);
           nameSpan.contentEditable = 'false';
           if (cancelled) { nameSpan.textContent = z.name; return; }   // Esc: nothing is written (and no lock toast)
           ZonePainter._uiRenameZone(z.id, nameSpan.textContent.trim());
-        }, { once: true });
-        nameSpan.addEventListener('keydown', e2 => {
-          if (e2.key === 'Enter') { e2.preventDefault(); nameSpan.blur(); }
-          if (e2.key === 'Escape') { cancelled = true; nameSpan.blur(); }
-        }, { once: true });
+        };
+        nameSpan.addEventListener('keydown', onKey);
+        nameSpan.addEventListener('blur', onBlur);
       });
       list.appendChild(el);
     });
