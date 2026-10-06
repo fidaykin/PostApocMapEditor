@@ -303,6 +303,23 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
 #goto-panel .goto-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #goto-input { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; font-family: monospace; }
 #goto-input.invalid { border-color: var(--danger) !important; }
+#bookmarks-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
+#bookmarks-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+#bookmarks-panel .bm-bar { display: flex; gap: 4px; margin-bottom: 6px; }
+#bookmarks-panel .bm-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
+#bm-name { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; }
+#bookmarks-list { max-height: 130px; overflow-y: auto; overflow-x: hidden; }
+.bm-empty { font-size: 11px; color: var(--muted); padding: 4px 0; }
+.bm-row { display: flex; align-items: center; gap: 2px; border-bottom: 1px solid var(--border); }
+.bm-go { flex: 1; min-width: 0; display: flex; align-items: baseline; gap: 6px; background: none; border: none; color: var(--text); font: inherit; font-size: 11px; text-align: left; padding: 4px 2px; cursor: pointer; }
+.bm-go:hover:not(:disabled) { background: var(--hover); }
+.bm-go:disabled, .bm-go.bm-off { opacity: 0.4; cursor: not-allowed; }
+.bm-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bm-xy { font-size: 10px; color: var(--muted); flex-shrink: 0; font-family: monospace; }
+.bm-ren, .bm-del { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 12px; padding: 4px; }
+.bm-ren:hover { color: var(--accent); }
+.bm-del:hover { color: var(--danger); }
+.bm-go:focus-visible, .bm-ren:focus-visible, .bm-del:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 #layers-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #layers-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 .layer-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
@@ -1570,6 +1587,15 @@ body.mode-common #map-io    { display: none; }
           <button id="goto-btn" class="hexdb-tool-btn" type="button" title="Centre the view on these coordinates">Go</button>
         </div>
       </div>
+      <!-- Bookmarks (T4.2): in the LEFT palette; saved in this browser, never in the map -->
+      <div id="bookmarks-panel">
+        <div class="section-title">Bookmarks</div>
+        <div class="bm-bar">
+          <input id="bm-name" class="hexdb-input" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="Name (optional)" aria-label="Bookmark name" title="Name for the new bookmark (Enter adds it)">
+          <button id="bm-add-btn" class="hexdb-tool-btn" type="button" title="Bookmark the middle of the current view">Add</button>
+        </div>
+        <div id="bookmarks-list" role="list"></div>
+      </div>
       <!-- Stamps (T2.13): in the LEFT palette, the only side panel that is on screen on common window widths -->
       <div id="stamp-panel">
         <div class="section-title">Stamps</div>
@@ -2544,7 +2570,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "f1c9888";
+const COMMIT  = "ec9f9c9";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4042,6 +4068,7 @@ const Canvas = (() => {
 
   // Re-apply the floor after the canvas, the ruler strips or the map size changed (caller renders).
   function reclampZoom() {
+    if (typeof Bookmarks !== 'undefined') Bookmarks.refresh();
     if (zoom < minZoom()) {
       zoom = minZoom();
       document.getElementById('st-zoom').textContent = zoom + '%';
@@ -4994,6 +5021,173 @@ const Canvas = (() => {
       render();
     }
   };
+})();
+// ════════════════════════════════════════════════════════════
+// BOOKMARKS (T4.2) — saved view positions: editor-only state in localStorage
+// ════════════════════════════════════════════════════════════
+// Decision: bookmarks belong to the BROWSER, not to a map. A map has no stable identity (files are renamed, autosaved,
+// reloaded), and storing them in the map JSON would change the map format; so they are never saved in a map, never part of
+// the autosave and never a History step (jumping only moves the camera, like Go to). The cost: a bookmark made on one map
+// also lists on another; a bookmark whose cell is outside the current map is shown DISABLED (it can still be renamed or
+// deleted) and is enabled again when a map that contains the cell is open. Expand Map keeps cell coordinates as they are.
+// Storage: key 'mapEditorBookmarks.v1' = { v: 1, items: [{ id, name, col, row, zoom }] }; every access is in try/catch; a
+// corrupt or unreadable value is treated as empty (and replaced by the next save). Names are untrusted (an old or
+// hand-edited value): DOM text only, never HTML. At most MAX items, names at most NAME_MAX characters.
+const Bookmarks = (() => {
+  const LS_KEY = 'mapEditorBookmarks.v1', MAX = 50, NAME_MAX = 40;
+  let _items = [];
+  let _sig = '';          // map size the list was last rendered for (refresh() rebuilds only when it changed)
+  let _idSeq = 0;
+
+  const _cleanName = n => Array.from(String(n == null ? '' : n).replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, ' ').replace(/\s+/g, ' ').trim()).slice(0, NAME_MAX).join('');
+  const _newId = () => 'bm' + Date.now().toString(36) + (++_idSeq).toString(36) + Math.random().toString(36).slice(2, 6);
+  const _inMap = b => Number.isInteger(b.col) && Number.isInteger(b.row) && b.col >= 0 && b.col < MAP_WIDTH && b.row >= 0 && b.row < MAP_HEIGHT;
+
+  function _load() {
+    _items = [];
+    let raw = null;
+    try { raw = localStorage.getItem(LS_KEY); } catch (e) { return; }
+    if (!raw) return;
+    let data;
+    try { data = JSON.parse(raw); } catch (e) { return; }
+    const arr = data && typeof data === 'object' && Array.isArray(data.items) ? data.items : [];
+    const seen = new Set();
+    for (const b of arr) {
+      if (_items.length >= MAX) break;
+      if (!b || typeof b !== 'object') continue;
+      if (!Number.isInteger(b.col) || !Number.isInteger(b.row) || b.col < 0 || b.row < 0 || b.col > 100000 || b.row > 100000) continue;
+      let id = typeof b.id === 'string' && /^[A-Za-z0-9_-]{1,40}$/.test(b.id) ? b.id : _newId();
+      if (seen.has(id)) id = _newId();
+      seen.add(id);
+      const zoom = Number.isInteger(b.zoom) && b.zoom >= 1 && b.zoom <= 200 ? b.zoom : 100;
+      _items.push({ id, name: _cleanName(b.name) || `${b.col},${b.row}`, col: b.col, row: b.row, zoom });
+    }
+  }
+  let _saveWarned = false;
+  function _save() {
+    try { localStorage.setItem(LS_KEY, JSON.stringify({ v: 1, items: _items })); _saveWarned = false; return true; }
+    catch (e) {
+      if (!_saveWarned) { _saveWarned = true; UI.toast('Bookmarks could not be saved in this browser (kept for this session only)'); }
+      return false;
+    }
+  }
+
+  const list = () => _items.map(b => Object.assign({}, b));
+  const isAvailable = id => { const b = _items.find(x => x.id === id); return !!b && _inMap(b); };
+
+  // add(name?) -> id | null. Bookmarks the tile in the middle of the view and the current zoom.
+  function add(name) {
+    if (_items.length >= MAX) { UI.toast(`Bookmarks: the limit is ${MAX}; delete one first`); return null; }
+    const c = Canvas.getViewCenterTile();
+    if (!c || !_inMap(c)) { UI.toast('Bookmarks: the view centre is outside the map'); return null; }
+    const b = { id: _newId(), name: _cleanName(name) || `${c.col},${c.row}`, col: c.col, row: c.row, zoom: Canvas.getZoom() };
+    _items.push(b);
+    _save();
+    render();
+    return b.id;
+  }
+
+  function rename(id, name) {
+    const b = _items.find(x => x.id === id), n = _cleanName(name);
+    if (!b || !n) return false;
+    b.name = n;
+    _save();
+    render();
+    return true;
+  }
+
+  function remove(id) {
+    const i = _items.findIndex(x => x.id === id);
+    if (i < 0) return false;
+    _items.splice(i, 1);
+    _save();
+    render();
+    return true;
+  }
+
+  // go(id) -> boolean. Camera only (no History step, no tool gate: works during a fill or a stroke).
+  function go(id) {
+    const b = _items.find(x => x.id === id);
+    if (!b) return false;
+    if (!_inMap(b)) { UI.toast(`Bookmark "${b.name}" is outside this map (${MAP_WIDTH} × ${MAP_HEIGHT})`); return false; }
+    Canvas.setZoom(b.zoom);
+    return Canvas.centerOnTile(b.col, b.row);
+  }
+
+  function _focusAfter(sel) { const el = document.querySelector(sel); if (el && !el.disabled) el.focus(); }
+
+  function _askRename(b, btn) {
+    const input = document.createElement('input');
+    input.type = 'text'; input.className = 'hexdb-input'; input.maxLength = NAME_MAX; input.value = b.name;
+    input.setAttribute('aria-label', 'Bookmark name'); input.style.width = '100%';
+    const body = document.createElement('div'); body.appendChild(input);
+    const doIt = close => { if (rename(b.id, input.value)) close(); else UI.toast('Bookmarks: the name cannot be empty'); };
+    input.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); const m = document.querySelector('#bookmark-rename-modal'); if (m) m.querySelector('.btn-primary').click(); } });
+    UI.showModal({
+      id: 'bookmark-rename', title: 'Rename bookmark', body, autofocus: input,
+      actions: [{ label: 'Cancel', onClick: close => close() }, { label: 'Rename', primary: true, onClick: doIt }],
+      onClose: () => _focusAfter('.bm-ren[data-id="' + b.id + '"]'),
+    });
+    input.select();
+  }
+
+  function render() {
+    const box = document.getElementById('bookmarks-list');
+    if (!box) return;
+    _sig = MAP_WIDTH + 'x' + MAP_HEIGHT;
+    box.textContent = '';
+    if (!_items.length) {
+      const d = document.createElement('div'); d.className = 'bm-empty';
+      d.textContent = 'No bookmarks yet. Move the view, type a name and press Add.';
+      box.appendChild(d);
+      return;
+    }
+    for (const b of _items) {
+      const row = document.createElement('div'); row.className = 'bm-row'; row.setAttribute('role', 'listitem');
+      const go_ = document.createElement('button'); go_.type = 'button'; go_.className = 'bm-go'; go_.dataset.id = b.id;
+      const nm = document.createElement('span'); nm.className = 'bm-name'; nm.textContent = b.name;
+      const xy = document.createElement('span'); xy.className = 'bm-xy'; xy.textContent = `${b.col},${b.row}`;
+      go_.append(nm, xy);
+      const ok = _inMap(b);
+      go_.disabled = !ok;
+      go_.classList.toggle('bm-off', !ok);
+      go_.title = ok ? `Jump to ${b.col},${b.row} at ${b.zoom}%` : `Outside this map (${MAP_WIDTH} × ${MAP_HEIGHT})`;
+      const ren = document.createElement('button'); ren.type = 'button'; ren.className = 'bm-ren'; ren.dataset.id = b.id;
+      ren.textContent = '✎'; ren.title = 'Rename bookmark'; ren.setAttribute('aria-label', 'Rename bookmark ' + b.name);
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'bm-del'; del.dataset.id = b.id;
+      del.textContent = '✕'; del.title = 'Delete bookmark'; del.setAttribute('aria-label', 'Delete bookmark ' + b.name);
+      [go_, ren, del].forEach(x => x.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); }));   // Enter/Space on a focused button reach the button only (not Space-pan / Enter-lift)
+      go_.addEventListener('click', e => { go(b.id); if (e.detail > 0) go_.blur(); });                       // pointer click: back to the map shortcuts
+      ren.addEventListener('click', e => { if (e.detail > 0) ren.blur(); _askRename(b, ren); });
+      del.addEventListener('click', e => {
+        const i = _items.findIndex(x => x.id === b.id), byPointer = e.detail > 0;
+        remove(b.id);
+        if (byPointer) return;                                                                              // keyboard: keep focus in the list
+        const next = _items[Math.min(i, _items.length - 1)];
+        if (next) _focusAfter('.bm-go[data-id="' + next.id + '"]:not(:disabled), .bm-ren[data-id="' + next.id + '"]'); else _focusAfter('#bm-name');
+      });
+      row.append(go_, ren, del);
+      box.appendChild(row);
+    }
+  }
+
+  // Re-render when the map size changed (New map, Load, Expand, undo of a resize): out-of-bounds bookmarks switch state.
+  function refresh() { if (_sig !== MAP_WIDTH + 'x' + MAP_HEIGHT) render(); }
+
+  function initPanel() {
+    _load();
+    const name = document.getElementById('bm-name'), btn = document.getElementById('bm-add-btn');
+    const doAdd = byPointer => { const id = add(name ? name.value : ''); if (id && name) name.value = ''; return id; };
+    if (name) name.addEventListener('keydown', e => {
+      e.stopPropagation();                                                                                  // typing here is never a map shortcut
+      if (e.key === 'Enter' && !e.isComposing) { e.preventDefault(); if (doAdd()) name.blur(); }
+      else if (e.key === 'Escape' && !e.isComposing) { e.preventDefault(); name.blur(); }
+    });
+    if (btn) btn.addEventListener('click', e => { doAdd(); if (e.detail > 0) btn.blur(); });
+    render();
+  }
+
+  return { initPanel, add, rename, remove, go, list, isAvailable, render, refresh, MAX, NAME_MAX };
 })();
 // ════════════════════════════════════════════════════════════
 // BRUSH MODULE — size/shape, hex neighbor expansion
@@ -9808,6 +10002,7 @@ const UI = (() => {
 
   function updateStatusSize() {
     document.getElementById('st-size').textContent = `${MAP_WIDTH} × ${MAP_HEIGHT}`;
+    if (typeof Bookmarks !== 'undefined') Bookmarks.refresh();   // out-of-bounds bookmarks switch state with the map size
   }
 
   let _progressTimer = null;
@@ -10372,6 +10567,7 @@ const IO = (() => {
   }
   function _restoreMapState(s) {
     MAP_WIDTH = s.w; MAP_HEIGHT = s.h; mapData = s.mapData; bridgesData = s.bridgesData; objectsData = s.objectsData;
+    if (typeof Bookmarks !== 'undefined') Bookmarks.refresh();
     bumpMapWrite(); _mapGen++;
     tileExtras = s.tileExtras; roadsData = s.roadsData; settlements = s.settlements; settlementSlots = s.settlementSlots;
     settlementPriority1 = s.settlementPriority1; settlementPriority2 = s.settlementPriority2;
@@ -10397,6 +10593,7 @@ const IO = (() => {
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
       mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
       _mapGen++;
+      if (typeof Bookmarks !== 'undefined') Bookmarks.refresh();
       bridgesData = Array.isArray(json.bridges)
         ? json.bridges.filter(b => typeof b.col === 'number' && typeof b.row === 'number' && typeof b.axis === 'number')
         : [];
@@ -10504,6 +10701,7 @@ const IO = (() => {
       }
       History.clear();
       History.push();
+      if (typeof Bookmarks !== 'undefined') Bookmarks.refresh();
       return;
     }
     UI.closeAllMenus();
@@ -17939,6 +18137,8 @@ window.addEventListener('load', async () => {
   Tools.init();
   try { Stamps.initPanel(); }                  // a failure here must not stop the startup steps below
   catch (e) { console.error('Stamps panel failed to start', e); UI.toast('Stamps panel failed to start: ' + (e && e.message || e)); }
+  try { Bookmarks.initPanel(); }               // same: a failure here must not stop the startup steps below
+  catch (e) { console.error('Bookmarks panel failed to start', e); UI.toast('Bookmarks panel failed to start: ' + (e && e.message || e)); }
   try { Layers.initPanel(); }                  // same: a failure here must not stop the startup steps below
   catch (e) { console.error('Layers panel failed to start', e); UI.toast('Layers panel failed to start: ' + (e && e.message || e)); }
   Brush.setSize(Brush.getSize());   // sync slider, label and buttons
