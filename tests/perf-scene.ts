@@ -14,6 +14,8 @@ import * as path from 'path';
 declare const COMMIT: string, IO: any, MAP_WIDTH: number, MAP_HEIGHT: number, mapData: string[], roadsData: any,
   objectsData: any, bridgesData: any[], BldDB: any, UI: any, Terrain: any, Canvas: any, Tools: any, Roads: any, Coastline: any;
 
+// 1400 is below the responsive layout's 1920 threshold; every perf spec opens the editor through openEditor/freshEditor, which
+// seed `rightPanelMode: 'classic'` (see tests/helpers.ts) so the canvas stays 1491x808 and the pixel-hash baselines stay valid.
 export const VIEWPORT = { width: 1400, height: 900 };
 const BASELINE_FILE = path.join(__dirname, 'perf-baseline.json');
 

@@ -287,7 +287,10 @@ export async function openEditor(page: Page, opts: OpenOptions = {}) {
   page.on('pageerror', e => pageErrors.push(e.message));
   track(page);
   await installFakeGitHub(page, gh);
-  const seed = { ...(opts.pat ? { gh_sync_pat: 'test-token' } : {}), ...(opts.storage ?? {}) };
+  // `rightPanelMode: 'classic'` keeps the old fixed layout (canvas 1491x808 at 1400x900, panel inline, page widened by the
+  // toolbar) so the perf hashes and every pre-existing canvas-size assertion stay valid. A spec that tests the responsive
+  // layout passes its own value in `storage`.
+  const seed = { rightPanelMode: 'classic', ...(opts.pat ? { gh_sync_pat: 'test-token' } : {}), ...(opts.storage ?? {}) };
   // Seed localStorage once per browser context so reloads keep whatever the test changed.
   await page.addInitScript((s: Record<string, string>) => {
     if (localStorage.getItem('__seeded')) return;

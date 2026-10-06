@@ -5,6 +5,9 @@ Format: `## [version] — [date]`
 
 ## Unreleased
 
+### Layout
+- The right panel (minimap, brush, active terrain) is collapsible. Below 1920 px wide it starts collapsed to a thin rail and opens as an overlay drawer; the canvas uses the freed width, the page no longer widens, and the top toolbar scrolls sideways inside itself. The choice is remembered (`rightPanelMode`: `auto`, `collapsed`, `expanded`, or `classic` to keep the old fixed layout).
+
 ### Developer
 - `UI.showModal({ title, body, actions, onClose, id, autofocus, modal }) -> { el, close }`: stackable modals with their own overlay (id ends in `-modal`), text-only title/body/labels (a DOM node for rich bodies), focus trap and return, Escape closes only the topmost and honours `defaultPrevented`, backdrop click closes unless `modal: true`, a throwing action never leaves an overlay. Map shortcuts, the Tab mode switch and canvas input are inert while one is open. The API is documented above `showModal` in `MapEditorPro.html`.
 

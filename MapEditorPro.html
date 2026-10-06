@@ -120,6 +120,38 @@ html, body {
   overflow: hidden;
 }
 
+/* ── Collapsible right panel (T4.11) ─────────────────────────
+   Stored mode `rightPanelMode`: auto (default) | collapsed | expanded | classic. `classic` keeps the old fixed layout
+   (the toolbar row widens the page, the panel is always inline); it is a supported setting that the perf and canvas-size
+   specs seed. Otherwise the page never widens: the toolbar scrolls inside itself, the panel is inline when expanded on a wide
+   window (>= 1920 px), a 28 px rail when collapsed, and an overlay drawer when expanded on a narrow window (the canvas
+   keeps its rail-width size, the drawer covers its right edge). body classes: layout-classic, rp-collapsed, rp-drawer. */
+#right-panel-head { display: none; }
+body:not(.layout-classic) #app { grid-template-columns: minmax(0, 1fr); }
+body:not(.layout-classic) #toolbar { overflow-x: auto; overflow-y: hidden; flex-wrap: nowrap; min-width: 0; }
+body:not(.layout-classic) #toolbar > * { flex-shrink: 0; }
+body:not(.layout-classic) #main { position: relative; grid-template-columns: 220px minmax(0, 1fr) var(--rp-col, 220px); }
+body.rp-collapsed #main, body.rp-drawer #main { --rp-col: 28px; }
+body:not(.layout-classic) #right-panel-head {
+  display: flex; align-items: center; justify-content: flex-start; flex: 0 0 auto;
+  height: 24px; border-bottom: 1px solid var(--border);
+}
+#right-panel-toggle {
+  height: 24px; min-width: 28px; padding: 0 8px; background: transparent; color: var(--text);
+  border: none; cursor: pointer; font-size: 12px;
+}
+#right-panel-toggle:hover { background: var(--hover); }
+#right-panel-toggle:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+body.rp-collapsed #right-panel > :not(#right-panel-head) { display: none; }
+body.rp-collapsed #right-panel-toggle { width: 100%; padding: 0; }
+body.rp-drawer #right-panel {
+  position: absolute; top: 0; right: 0; bottom: 0; width: 220px; z-index: 60;
+  box-shadow: -6px 0 18px rgba(0,0,0,0.55);
+}
+/* popups that live inside the scrolling toolbar must escape its clipping: fixed, placed by JS */
+body:not(.layout-classic) #toolbar .tool-btn .tooltip { position: fixed; }
+body:not(.layout-classic) #more-dropdown { position: fixed; }
+
 /* ── Left palette ─────────────────────────────────────────── */
 #palette-panel {
   background: var(--panel);
@@ -1551,6 +1583,9 @@ body.mode-common #map-io    { display: none; }
 
     <!-- Right panel -->
     <div id="right-panel">
+      <div id="right-panel-head">
+        <button type="button" id="right-panel-toggle" aria-expanded="true" aria-controls="right-panel" title="Hide the side panel (minimap, brush, active terrain)">»</button>
+      </div>
       <div id="minimap-container">
         <canvas id="minimap" width="220" height="220"></canvas>
       </div>
@@ -2494,7 +2529,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "725f8a5";
+const COMMIT  = "0294269";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -4268,15 +4303,19 @@ const Canvas = (() => {
     canvas.height = container.clientHeight;
   }
 
+  // Re-measures the canvas after a layout change (window resize, right panel toggle): once per change, never per frame.
+  function resize() {
+    if (!canvas) return;
+    _resizeCanvas();
+    reclampZoom(); render(); drawMinimap();
+  }
+
   function init() {
     canvas    = document.getElementById('map-canvas');
     ctx       = canvas.getContext('2d');
     container = document.getElementById('canvas-container');
     _resizeCanvas();
-    window.addEventListener('resize', () => {
-      _resizeCanvas();
-      reclampZoom(); render(); drawMinimap();
-    });
+    window.addEventListener('resize', resize);
 
     canvas.addEventListener('mousedown',  _onMouseDown);
     canvas.addEventListener('mousemove',  _onMouseMove);
@@ -4849,7 +4888,7 @@ const Canvas = (() => {
     init, render, drawMinimap, forceRedraw, getStats,
     _test: { /* TEST ONLY — do not call from app code */ /* calling minimapLayer advances the cache and overwrites _stats.minimapRecolored */ minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, overviewLayer() { return _overviewLayer(MAP_HEIGHT, MAP_WIDTH); }, setCamera(x, y) { cameraX = x; cameraY = y; }, selBitmap() { return _selOverlay ? _selOverlay.bitmap : null; }, setFullScan(v) { _fullScan = !!v; }, setLod(v) { _lodOverride = (v === false) ? 0 : (v === 0 || v === 1 || v === 2 ? v : null); } },
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
-    clampCamera, minZoom, reclampZoom, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
+    clampCamera, minZoom, reclampZoom, resize, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot,
     jumpToBlock,
@@ -12733,6 +12772,10 @@ const App = {
     const dd = document.getElementById('more-dropdown');
     const opening = !dd.classList.contains('open');
     dd.classList.toggle('open');
+    if (opening && !document.body.classList.contains('layout-classic')) {   // fixed popup (the toolbar scrolls): sit under the MORE tab
+      const b = document.getElementById('tab-more').getBoundingClientRect();
+      dd.style.left = b.left + 'px'; dd.style.top = b.bottom + 'px';
+    }
     if (opening) {
       const close = () => { dd.classList.remove('open'); document.removeEventListener('click', close); };
       document.addEventListener('click', close);
@@ -17737,12 +17780,73 @@ function autoPlaceSettlements() {
   UI.toast(`Auto-placed ${totalPlaced} settlements`);
 }
 
+// ── Right panel layout (T4.11) ─────────────────────────────────
+// Mode (localStorage `rightPanelMode`): 'auto' (default: inline panel at >= NARROW_BELOW px, collapsed rail below),
+// 'collapsed', 'expanded' (inline on wide windows, overlay drawer on narrow ones), 'classic' (the old fixed layout, no toggle).
+// Every storage access is try/catch: with storage blocked the page still works and the toggle keeps the mode for the session.
+const RightPanel = (() => {
+  const KEY = 'rightPanelMode', NARROW_BELOW = 1920, MODES = ['auto', 'collapsed', 'expanded', 'classic'];
+  let _mode = 'auto', _eff = null;
+
+  function _read() {
+    try { const v = localStorage.getItem(KEY); return MODES.includes(v) ? v : 'auto'; } catch (e) { return 'auto'; }
+  }
+  function _effective() {
+    if (_mode === 'classic') return 'classic';
+    const narrow = window.innerWidth < NARROW_BELOW;
+    if (_mode === 'collapsed') return 'rail';
+    if (_mode === 'expanded') return narrow ? 'drawer' : 'inline';
+    return narrow ? 'rail' : 'inline';
+  }
+  function _apply() {
+    const eff = _effective();
+    const b = document.body;
+    b.classList.toggle('layout-classic', eff === 'classic');
+    b.classList.toggle('rp-collapsed', eff === 'rail');
+    b.classList.toggle('rp-drawer', eff === 'drawer');
+    const open = eff === 'inline' || eff === 'drawer';
+    const t = document.getElementById('right-panel-toggle');
+    if (t) {
+      t.setAttribute('aria-expanded', String(open));
+      t.textContent = open ? '»' : '«';
+      t.title = open ? 'Hide the side panel (minimap, brush, active terrain)' : 'Show the side panel (minimap, brush, active terrain)';
+    }
+    if (eff !== _eff) { const first = _eff === null; _eff = eff; if (!first && typeof Canvas !== 'undefined') Canvas.resize(); }
+  }
+  function toggle() {
+    _mode = (_eff === 'inline' || _eff === 'drawer') ? 'collapsed' : 'expanded';
+    try { localStorage.setItem(KEY, _mode); } catch (e) { /* storage blocked: the mode lasts for this session */ }
+    _apply();
+  }
+  function init() {
+    _mode = _read();
+    _apply();
+    const t = document.getElementById('right-panel-toggle');
+    if (t) {
+      t.addEventListener('click', e => { toggle(); if (e.detail > 0) t.blur(); });   // pointer click: back to the map shortcuts
+      t.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });   // Space must not start a canvas pan
+    }
+    window.addEventListener('resize', _apply);
+    // the toolbar scrolls, so its tooltips are position:fixed: place them under their button
+    const tb = document.getElementById('toolbar');
+    if (tb) tb.addEventListener('mouseover', e => {
+      const btn = e.target && e.target.closest && e.target.closest('.tool-btn');
+      const tip = btn && btn.querySelector('.tooltip');
+      if (!tip || document.body.classList.contains('layout-classic')) return;
+      const r = btn.getBoundingClientRect();
+      tip.style.left = (r.left + r.width / 2) + 'px'; tip.style.top = (r.bottom + 6) + 'px';
+    });
+  }
+  return { init, toggle, getMode: () => _mode, getEffective: () => _eff };
+})();
+
 window.addEventListener('load', async () => {
   ZonePainter.init();
   ZonePainter._uiRebuildZoneList();
   // Restore last session if available, otherwise init a blank map
   const _mapRestored = await IO.tryRestoreAutosave();
   if (!_mapRestored) IO.newMap(true);
+  RightPanel.init();                           // before Canvas.init so the canvas is measured in its final layout
   Canvas.init();
   UI.init();
   Tools.init();
