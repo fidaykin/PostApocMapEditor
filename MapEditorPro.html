@@ -784,6 +784,11 @@ body.mode-packages #pkg-panel { display: block; }
 .pkg-chip  { padding: 3px 10px; border-radius: 12px; border: 1px solid #45475a;
              background: #1e1e2e; color: #cdd6f4; cursor: pointer; font-size: 11px; }
 .pkg-chip.active { background: #a6e3a1; color: #1e1e2e; border-color: #a6e3a1; }
+.pkg-help { color: #a6adc8; font-size: 12px; line-height: 1.5; margin: 0 0 12px; max-width: 680px; }
+.pkg-help a { color: #89b4fa; }
+.pkg-notice { font-size: 12px; margin: 8px 0; padding: 8px 12px; border-radius: 4px; background: #181825; border-left: 3px solid #89b4fa; color: #cdd6f4; max-width: 680px; }
+.pkg-notice.warn { border-left-color: #f9e2af; }
+.pkg-active-dot { color: #a6e3a1; font-size: 11px; }
 .pkg-filter-row { display: flex; gap: 6px; flex-wrap: wrap; padding: 4px 0 8px; }
 
 /* Dev Tools panel */
@@ -2662,7 +2667,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "3862d8c";
+const COMMIT  = "c38ece4";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -12446,6 +12451,8 @@ const Packages = (() => {
   const LS_ACTIVE   = 'pkg_active';
   const LS_REGISTRY = 'pkg_registry_cache';
   const LS_TRASH    = 'pkg_trash';
+  const GAME_LOADS_NON_DEFAULT = false;   // flip to true once the game ships runtime package loading
+  const GUIDE_URL = 'docs/guides/content-packages-editor-guide.pdf';
 
   let _registry = [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }];
   let _active   = 'postapoc';
@@ -12497,23 +12504,37 @@ const Packages = (() => {
     localStorage.setItem(LS_ACTIVE, id);
     renderBadges();
     renderActiveDropdowns();
+    renderPanel();
   }
 
   // ── Panel / badge rendering (stubs — filled in Tasks 2–5) ──────
+  // Everything below comes from package data (ids, names, versions are untrusted): DOM APIs and textContent only.
+  function _counts(id) {
+    const own = x => (x.package || 'postapoc') === id;
+    return {
+      hexes: typeof HexDB !== 'undefined' ? HexDB.getData().hexes.filter(own).length : 0,
+      blds:  typeof BldDB !== 'undefined' ? BldDB.getAll().filter(own).length : 0,
+    };
+  }
+  function _el(tag, props = {}, ...kids) {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(props)) {
+      if (k === 'text') e.textContent = v;
+      else if (k === 'on') e.addEventListener('click', v);
+      else if (k === 'data') Object.assign(e.dataset, v);
+      else if (k === 'style') e.style.cssText = v;
+      else e.setAttribute(k, v);
+    }
+    kids.forEach(k => e.append(k));
+    return e;
+  }
+  function _btn(label, title, on, extra = {}) {
+    return _el('button', { class: 'hexdb-tool-btn', title, text: label, on, ...extra });
+  }
+
   function renderPanel() {
     const el = document.getElementById('pkg-panel');
     if (!el) return;
-    const rows = _registry.map(p => `
-      <tr>
-        <td><code>${_esc(p.id)}</code>${p.isDefault ? ' <span class="pkg-badge">default</span>' : ''}</td>
-        <td>${_esc(p.name)}</td>
-        <td>${_esc(p.version || '—')}</td>
-        <td>
-          <button class="hexdb-tool-btn" data-pkg-id="${_esc(p.id)}" onclick="Packages.exportPackage(this.dataset.pkgId)">↓ Export</button>
-          <button class="hexdb-tool-btn" data-pkg-id="${_esc(p.id)}" onclick="Packages.openPublishConfirm(this.dataset.pkgId)">Publish</button>
-          ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" data-pkg-id="${_esc(p.id)}" onclick="Packages.confirmDelete(this.dataset.pkgId)">Delete</button>` : ''}
-        </td>
-      </tr>`).join('');
     if (!el._trashBound) {
       el._trashBound = true;
       el.addEventListener('click', ev => {
@@ -12523,27 +12544,64 @@ const Packages = (() => {
         else if (b.dataset.trashAct === 'discard') discardDeleted(b.dataset.id);
       });
     }
+    const kids = [];
+    kids.push(_el('h3', { style: 'color:#cdd6f4;margin:0 0 8px', text: 'Content Packages' }));
+    kids.push(_el('p', { id: 'pkg-help', class: 'pkg-help' },
+      'A content package bundles hex tiles, buildings and their sprites so they can be published separately from the base game (postapoc). Pick an active package: every new hex or building you add is tagged to it, and Publish uploads only that package’s entries. ',
+      _el('a', { id: 'pkg-guide-link', href: GUIDE_URL, target: '_blank', rel: 'noopener', text: 'Packages guide (PDF)' })));
+    if (!GitHubSync.isPATConfigured()) {
+      kids.push(_el('div', { id: 'pkg-pat-warn', class: 'pkg-notice warn' },
+        'Creating, importing and publishing packages needs a GitHub token. ',
+        _btn('⚙ Add token', 'Open the GitHub settings to paste your access token', () => GitHubSync.openPATSettings())));
+    }
+    if (!GAME_LOADS_NON_DEFAULT) {
+      kids.push(_el('div', { id: 'pkg-game-notice', class: 'pkg-notice',
+        text: 'The game does not load non-default packages yet. Published packages are stored on the server, but only postapoc content appears in the game today.' }));
+    }
+    if (!_registry.some(p => !p.isDefault)) {
+      kids.push(_el('div', { id: 'pkg-empty', class: 'pkg-notice',
+        text: 'No custom packages yet. Click + New Package to start one, or Import Package to load a ZIP.' }));
+    }
+    kids.push(_el('div', { style: 'display:flex;gap:8px;margin:12px 0' },
+      _btn('↑ Import Package', 'Create a package from a ZIP exported by this editor', () => openImportModal()),
+      _btn('+ New Package', 'Create an empty package and make it active', () => openNewModal())));
+
+    const tbody = _el('tbody');
+    for (const p of _registry) {
+      const c = _counts(p.id);
+      const first = p.id === _active
+        ? _el('span', { class: 'pkg-active-dot', title: 'Active package: new hex tiles and buildings are tagged to it', text: '● active' })
+        : _btn('Set active', 'Make this the active package', () => setActive(p.id), { class: 'hexdb-tool-btn pkg-set-active' });
+      const idCell = _el('td', {}, _el('code', { text: p.id }));
+      if (p.isDefault) idCell.append(' ', _el('span', { class: 'pkg-badge', title: 'Built-in content that ships with the game; it cannot be deleted', text: 'default' }));
+      const actions = _el('td', {},
+        _btn('↓ Export', 'Download a ZIP of this package', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
+        _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
+      if (!p.isDefault) actions.append(' ', _btn('Delete', 'Remove this package from the registry (it can be restored from Recently deleted)',
+        () => confirmDelete(p.id), { 'data-pkg-id': p.id, style: 'color:#f38ba8' }));
+      tbody.append(_el('tr', { data: { pkg: p.id } },
+        _el('td', {}, first), idCell,
+        _el('td', { text: p.name }), _el('td', { text: p.version || '—' }),
+        _el('td', { class: 'pkg-hex-count', title: 'Hex tiles tagged to this package in the editor', text: String(c.hexes) }),
+        _el('td', { class: 'pkg-bld-count', title: 'Buildings tagged to this package in the editor', text: String(c.blds) }),
+        actions));
+    }
+    kids.push(_el('table', {},
+      _el('thead', {}, _el('tr', {}, ...['', 'ID', 'Name', 'Version', 'Hex', 'Bldg', 'Actions'].map(h => _el('th', { text: h })))),
+      tbody));
+
     const trash = listTrash();
-    const trashHtml = trash.length ? `
-      <h4 style="color:#cdd6f4;margin:20px 0 8px">Recently deleted</h4>
-      <table><tbody>${trash.map(t => `
-        <tr>
-          <td><code>${_esc(t.id)}</code></td>
-          <td>${t.hexes.length} hex, ${t.buildings.length} buildings</td>
-          <td>${_esc(String(t.deletedAt ?? '').slice(0, 10))}</td>
-          <td><button class="hexdb-tool-btn" data-trash-act="restore" data-id="${_esc(t.id)}">Restore</button>
-              <button class="hexdb-tool-btn" style="color:#f38ba8" data-trash-act="discard" data-id="${_esc(t.id)}">Discard</button></td>
-        </tr>`).join('')}</tbody></table>` : '';
-    el.innerHTML = `
-      <h3 style="color:#cdd6f4;margin:0 0 16px">Content Packages</h3>
-      <div style="display:flex;gap:8px;margin-bottom:12px">
-        <button class="hexdb-tool-btn" onclick="Packages.openImportModal()">↑ Import Package</button>
-        <button class="hexdb-tool-btn" onclick="Packages.openNewModal()">+ New Package</button>
-      </div>
-      <table>
-        <thead><tr><th>ID</th><th>Name</th><th>Version</th><th>Actions</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>${trashHtml}`;
+    if (trash.length) {
+      kids.push(_el('h4', { style: 'color:#cdd6f4;margin:20px 0 8px', text: 'Recently deleted' }));
+      kids.push(_el('table', {}, _el('tbody', {}, ...trash.map(t => _el('tr', {},
+        _el('td', {}, _el('code', { text: t.id })),
+        _el('td', { text: `${t.hexes.length} hex, ${t.buildings.length} buildings` }),
+        _el('td', { text: String(t.deletedAt ?? '').slice(0, 10) }),
+        _el('td', {},
+          _el('button', { class: 'hexdb-tool-btn', text: 'Restore', title: 'Put this package and its entries back', data: { trashAct: 'restore', id: t.id } }), ' ',
+          _el('button', { class: 'hexdb-tool-btn', style: 'color:#f38ba8', text: 'Discard', title: 'Delete the saved copy for good', data: { trashAct: 'discard', id: t.id } })))))));
+    }
+    el.replaceChildren(...kids);
   }
   function renderBadges() {
     const isPostapoc = (_active === 'postapoc');
