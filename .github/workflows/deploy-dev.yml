@@ -3,7 +3,7 @@ name: Deploy Dev Editor
 on:
   push:
     branches: [dev]
-    paths: ['MapEditorPro.html', 'map-jobs.js', 'map-worker.js', 'hex-utils.js', 'gen-utils.js', 'map-format.js', 'zone-painter.js']
+    paths: ['MapEditorPro.html', 'map-jobs.js', 'map-worker.js', 'hex-utils.js', 'gen-utils.js', 'map-format.js', 'brush.js', 'zone-painter.js']
 
 permissions:
   contents: write
@@ -36,6 +36,9 @@ jobs:
           # map-format.js (map file versioning/validation): published into dev/ too; its ?v= is bumped with every change to the file.
           sed -i 's|<script src="map-format.js|<script src="dev/map-format.js|' /tmp/MapEditorPro_dev.html
           grep -q 'src="dev/map-format.js?v=1"' /tmp/MapEditorPro_dev.html
+          # brush.js (Brush module, extracted from the HTML): published into dev/ too; its ?v= is bumped with every change to the file.
+          sed -i 's|<script src="brush.js|<script src="dev/brush.js|' /tmp/MapEditorPro_dev.html
+          grep -q 'src="dev/brush.js?v=1"' /tmp/MapEditorPro_dev.html
           # zone-painter.js (Zone Painter + its layer-lock gates) is published into dev/ as well, so dev never runs the stale root copy.
           # Its ?v= is a plain cache-buster that is bumped with every change to the file: only require that the tag keeps one.
           sed -i 's|<script src="zone-painter.js|<script src="dev/zone-painter.js|' /tmp/MapEditorPro_dev.html
@@ -48,6 +51,7 @@ jobs:
           cp hex-utils.js /tmp/hex-utils.js
           cp gen-utils.js /tmp/gen-utils.js
           cp map-format.js /tmp/map-format.js
+          cp brush.js /tmp/brush.js
           cp zone-painter.js /tmp/zone-painter.js
 
       - name: Deploy to gh-pages dev/ folder
@@ -61,8 +65,9 @@ jobs:
           cp /tmp/hex-utils.js dev/hex-utils.js
           cp /tmp/gen-utils.js dev/gen-utils.js
           cp /tmp/map-format.js dev/map-format.js
+          cp /tmp/brush.js dev/brush.js
           cp /tmp/zone-painter.js dev/zone-painter.js
-          git add dev/MapEditorPro.html dev/map-jobs.js dev/map-worker.js dev/hex-utils.js dev/gen-utils.js dev/map-format.js dev/zone-painter.js
+          git add dev/MapEditorPro.html dev/map-jobs.js dev/map-worker.js dev/hex-utils.js dev/gen-utils.js dev/map-format.js dev/brush.js dev/zone-painter.js
           if git diff --cached --quiet; then
             echo "No changes to deploy"
           else

@@ -394,7 +394,7 @@ test('deploy-dev.yml publishes map-jobs.js/map-worker.js into dev/ and rewrites 
   const yml = fs.readFileSync(path.join(ROOT, '.github/workflows/deploy-dev.yml'), 'utf8');
   const html = fs.readFileSync(path.join(ROOT, 'MapEditorPro.html'), 'utf8');
   const pathsLine = (yml.match(/paths:\s*\[([^\]]*)\]/) || [])[1] || '';
-  for (const f of ['map-jobs.js', 'map-worker.js', 'hex-utils.js', 'gen-utils.js', 'map-format.js', 'zone-painter.js']) {
+  for (const f of ['map-jobs.js', 'map-worker.js', 'hex-utils.js', 'gen-utils.js', 'map-format.js', 'brush.js', 'zone-painter.js']) {
     expect(pathsLine, f + ' must trigger the workflow').toContain(f);
     expect(yml, f + ' copied into dev/').toMatch(new RegExp('cp\\s+\\S*' + f.replace('.', '\\.') + '\\s+dev/' + f.replace('.', '\\.')));
     expect(yml, f + ' committed').toContain('dev/' + f);
@@ -408,6 +408,10 @@ test('deploy-dev.yml publishes map-jobs.js/map-worker.js into dev/ and rewrites 
   expect(html).toContain('<script src="map-format.js');
   expect(yml).toContain('src="dev/map-format.js?v=1"');   // the workflow verifies the ?v= after the rewrite (bump together)
   expect(html).toContain('<script src="map-format.js?v=1"></script>');
+  expect(yml).toContain('<script src="dev/brush.js');
+  expect(html).toContain('<script src="brush.js');
+  expect(yml).toContain('src="dev/brush.js?v=1"');
+  expect(html).toContain('<script src="brush.js?v=1"></script>');
   // zone-painter.js: tag rewritten into dev/, and the tag keeps its ?v= cache-buster, which the workflow verifies after the rewrite
   expect(yml).toContain('<script src="dev/zone-painter.js');
   expect(html).toMatch(/<script src="zone-painter\.js\?v=\d+"><\/script>/);
