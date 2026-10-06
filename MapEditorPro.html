@@ -2699,7 +2699,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "b556820";
+const COMMIT  = "f133d5c";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8770,6 +8770,10 @@ const GitHubSync = (() => {
         : (err.message || 'unknown');
       throw new Error(`GitHub PUT ${path}: ${res.status} — ${why}`);
     }
+    // The blob sha this write created (null when the response carries none): multi-file operations compare it later to
+    // know whether a file is still the one THEY wrote.
+    const done = await res.json().catch(() => null);
+    return done && done.content && typeof done.content.sha === 'string' ? done.content.sha : null;
   }
 
   // Read-modify-write sites must read the live repo, not the GitHub Pages copy (it lags commits by
@@ -8816,10 +8820,21 @@ const GitHubSync = (() => {
     }
   }
 
-  // Compensation helpers for multi-file operations (package import). `_removeFile` deletes a file the operation
-  // created (false when it is already gone); `_snapshotFile` captures a file before it is overwritten (null = absent;
-  // throws when the content is not returned inline, so the caller refuses before writing anything); `_restoreFile`
-  // puts the captured bytes back unless the file is already unchanged (true = a write happened).
+  // Compensation helpers for multi-file operations (package import). `_snapshotFile` captures a file before it is
+  // overwritten (null = absent; throws when the content is not returned inline, which the Contents API does for files over
+  // 1 MB, so the caller refuses BEFORE writing anything). `_fileSha` reads only the current blob sha (null = absent).
+  // `_removeFile` / `_restoreFile` act ONLY while the server file still has the sha the operation wrote: 'removed' |
+  // 'restored' | 'gone' | 'unchanged', or 'changed' when someone else changed it meanwhile (left alone).
+  async function _fileSha(path) {
+    const res = await fetch(`${GH_API}/${_ghPath(path)}?ref=${BRANCH}`, {
+      cache: 'no-store', headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
+    });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`could not read ${path} (HTTP ${res.status})`);
+    const data = await res.json();
+    if (!data || Array.isArray(data) || typeof data.sha !== 'string') throw new Error(`could not read ${path}: unexpected answer`);
+    return data.sha;
+  }
   async function _snapshotFile(path) {
     const res = await fetch(`${GH_API}/${_ghPath(path)}?ref=${BRANCH}`, {
       cache: 'no-store', headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
@@ -8827,20 +8842,23 @@ const GitHubSync = (() => {
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`could not read ${path} (HTTP ${res.status})`);
     const data = await res.json();
-    if (typeof data.content !== 'string' || (data.encoding && data.encoding !== 'base64')) throw new Error(`could not read ${path}: no inline content`);
+    if (typeof data.content !== 'string' || (data.encoding && data.encoding !== 'base64'))
+      throw new Error(`${path} is too large to read back through the GitHub API (it returns no content for files over 1 MB), so it cannot be backed up`);
     return { sha: data.sha, content: data.content.replace(/\s/g, '') };
   }
-  async function _removeFile(path, message) {
-    const snap = await _snapshotFile(path);
-    if (!snap) return false;
-    await _deleteContents(path, snap.sha, message);
-    return true;
+  async function _removeFile(path, message, onlyIfSha) {
+    const cur = await _fileSha(path);
+    if (cur === null) return 'gone';
+    if (onlyIfSha && cur !== onlyIfSha) return 'changed';
+    await _deleteContents(path, cur, message);
+    return 'removed';
   }
-  async function _restoreFile(path, snap, message) {
-    const cur = await _snapshotFile(path);
-    if (cur && cur.sha === snap.sha) return false;
-    await _putContents(path, snap.content, message);
-    return true;
+  async function _restoreFile(path, snap, message, onlyIfSha) {
+    const cur = await _fileSha(path);
+    if (cur === snap.sha) return 'unchanged';
+    if (cur === null || (onlyIfSha && cur !== onlyIfSha)) return 'changed';   // deleted or edited by someone else: not ours to undo
+    await _putContents(path, snap.content, message, cur);
+    return 'restored';
   }
 
   async function _getFileJson(path) {
@@ -8962,11 +8980,11 @@ const GitHubSync = (() => {
 
   // ── High-level put helpers ────────────────────────────────────
   async function _putText(path, text, message, expectedSha) {
-    await _putContents(path, _encodeText(text), message, expectedSha);
+    return _putContents(path, _encodeText(text), message, expectedSha);
   }
 
   async function _putBinary(path, blob, message) {
-    await _putContents(path, await _encodeBlob(blob), message);
+    return _putContents(path, await _encodeBlob(blob), message);
   }
 
   // ── PAT validation ────────────────────────────────────────────
@@ -9467,7 +9485,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    _putText, _putBinary, _listFolder, _snapshotFile, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
+    _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
@@ -13269,6 +13287,8 @@ const Packages = (() => {
     return _details;
   }
   function _saveDetails() { StorageGuard.setItem(LS_DETAILS, JSON.stringify(_loadDetails()), 'Package details'); }
+  // Another tab may have saved details since this page cached them: every read-modify-write starts from the stored copy.
+  function _reloadDetails() { _details = null; return _loadDetails(); }
 
   // Effective details of a registry-shaped entry: the local override wins field by field.
   function _effective(entry) {
@@ -13405,7 +13425,7 @@ const Packages = (() => {
     if (!e || e.isDefault) return false;
     const r = validateDetails(id, d);
     if (!r.ok) { UI.toast('⚠ ' + r.errors[0]); return false; }
-    const cur = _loadDetails()[id] || {};
+    const cur = _reloadDetails()[id] || {};
     const next = { ...cur };
     if (r.description !== undefined) next.description = r.description;
     if (r.dependencies !== undefined) next.dependencies = r.dependencies;
@@ -14595,10 +14615,13 @@ const Packages = (() => {
         warnings.push(/\.zip$/i.test(n) ? `Ignoring nested archive ${n}.` : `Ignoring unsupported file ${n} (only sprites/hex|buildings/*.png are imported).`);
         continue;
       }
+      // Folder and extension are matched case-insensitively and normalised (lowercase folder, .png) on import; names that
+      // differ only by case would collide on a case-insensitive file system, so they are refused.
       const category = m[1].toLowerCase(), name = m[2];
       if (sanitizeSpriteName(name + '.png') !== name) { errors.push(`Unsafe sprite name in ${n}.`); continue; }
-      if (spriteNames.has(name)) { errors.push(`Sprite name "${name}" is used twice (${spriteNames.get(name)} and ${category}).`); continue; }
-      spriteNames.set(name, category);
+      const nameKey = name.toLowerCase();
+      if (spriteNames.has(nameKey)) { errors.push(`Sprite name "${name}" is used twice, ignoring case (${spriteNames.get(nameKey)} and ${category}).`); continue; }
+      spriteNames.set(nameKey, category);
       try {
         const head = await _readEntry(f, SPRITE_MAX_BYTES, 64);
         if (!head || head.length < 24 || !_PNG_SIG.every((b, i) => head[i] === b)) { errors.push(`${n} is not a PNG image.`); continue; }
@@ -14746,17 +14769,29 @@ const Packages = (() => {
     return { hexes: hexes.map(rewrite), buildings: buildings.map(rewrite), idMap };
   }
 
-  // Undoes the server writes in reverse order. `written`: [{ path, prev }] (prev = captured content, null = created).
-  // Returns the paths that could not be undone, in write order.
+  // Undoes the server writes in reverse order. `written`: [{ path, prev, attempt, wrote }]: prev = the captured content
+  // before the write (null = the import created the file), attempt = the base64 it tried to write, wrote = the blob sha
+  // the server confirmed (undefined when the PUT threw: its outcome is unknown). A file is only deleted/restored while the
+  // server still holds what THIS import wrote; anything another writer changed meanwhile is left alone.
+  // Returns { remaining, changed }: paths that could not be undone / paths left because someone else changed them.
   async function _rollback(written) {
-    const remaining = [];
+    const remaining = [], changed = [];
     for (const rec of written.slice().reverse()) {
       try {
-        if (rec.prev) await GitHubSync._restoreFile(rec.path, rec.prev, `rollback import: ${rec.path}`);
-        else await GitHubSync._removeFile(rec.path, `rollback import: ${rec.path}`);
+        let sha = rec.wrote;
+        if (!sha) {   // unknown outcome: act only when the file provably holds exactly what we tried to write
+          const cur = await GitHubSync._snapshotFile(rec.path);
+          if (!cur) continue;                                      // nothing there: nothing to undo
+          if (rec.prev && cur.sha === rec.prev.sha) continue;      // still the original
+          if (cur.content !== rec.attempt) { changed.push(rec.path); continue; }
+          sha = cur.sha;
+        }
+        const r = rec.prev ? await GitHubSync._restoreFile(rec.path, rec.prev, `rollback import: ${rec.path}`, sha)
+                           : await GitHubSync._removeFile(rec.path, `rollback import: ${rec.path}`, sha);
+        if (r === 'changed') changed.push(rec.path);
       } catch (e) { console.warn('[Packages] rollback failed for', rec.path, e && e.message); remaining.push(rec.path); }
     }
-    return remaining.reverse();
+    return { remaining: remaining.reverse(), changed: changed.reverse() };
   }
 
   function _blobToDataUrl(blob) {
@@ -14802,15 +14837,17 @@ const Packages = (() => {
     });
   }
 
-  function _showImportFailed(message, remaining) {
+  function _showImportFailed(message, remaining, changed) {
     const body = document.createElement('div');
     const p = document.createElement('p'); p.textContent = `The import failed: ${message}`; body.appendChild(p);
-    const p2 = document.createElement('p');
-    p2.textContent = 'These files could not be removed from the server again and still exist there. Remove them in the Content Manager, or run the import again (it overwrites them):';
-    body.appendChild(p2);
-    const ul = document.createElement('ul');
-    remaining.forEach(f => { const li = document.createElement('li'); li.textContent = f; ul.appendChild(li); });
-    body.appendChild(ul);
+    const list = (text, files) => {
+      const p2 = document.createElement('p'); p2.textContent = text; body.appendChild(p2);
+      const ul = document.createElement('ul');
+      files.forEach(f => { const li = document.createElement('li'); li.textContent = f; ul.appendChild(li); });
+      body.appendChild(ul);
+    };
+    if (remaining.length) list('These files could not be removed from the server again and still exist there. Remove them in the Content Manager, or run the import again (it overwrites them):', remaining);
+    if (changed && changed.length) list('These files were changed by someone else after this import wrote them (changed by someone else, left alone). They were not removed or restored:', changed);
     UI.showModal({ id: 'pkg-import-failed', title: 'Import failed: files remain on the server', body, actions: [{ label: 'Close', primary: true, onClick: close => close() }] }).el.style.zIndex = '9100';
   }
 
@@ -14823,7 +14860,7 @@ const Packages = (() => {
       console.error('[Packages] import:', e);
       UI.progressDone('');
       UI.toast(`⚠ Import failed: ${e && e.message}`);
-      _importResult = { status: 'failed', remaining: [] };
+      _importResult = { status: 'failed', remaining: [], changed: [] };
     } finally {
       _importInProgress = false;
       if (_importResult.status === 'running') _importResult = { status: 'refused', remaining: [] };
@@ -14854,7 +14891,11 @@ const Packages = (() => {
     const localMode = _isLocalMode();   // no token / offline: the import stays in this browser (T5.12), no request at all
     if (localMode) { /* cannot verify the id: allowed, with the warning shown after the import */ }
     else if (localHere) {
-      if (await _serverHasPackage(newId) === 'unknown') return refuse('Could not verify that the id is free — check your connection and try again.');
+      const st = await _serverHasPackage(newId);
+      if (st === 'unknown') return refuse('Could not verify that the id is free — check your connection and try again.');
+      const cur = getEntry(newId);
+      // A local-only package never reached the server: a package on the server under that id is somebody else's.
+      if (st === 'taken' && cur && cur.localOnly && !cur.serverClaimed) return refuse(`Package "${newId}" already exists on the server. Pick another id.`);
     } else {
       const problem = await _serverIdProblem(newId);
       if (problem) return refuse(problem);
@@ -14879,37 +14920,65 @@ const Packages = (() => {
       buildings = [...structuredClone(localBlds), ...buildings.filter(b => !bk.has(b.id))];
     }
 
-    // Snapshot everything local the import can touch.
-    const snapH = HexDB.snapshotEntries(), snapB = BldDB.snapshotEntries();
+    // Snapshot everything local the import can touch: ONLY this package (entries with their positions, its sprites, its
+    // trash item, its details), so edits made to anything else while the import runs survive a rollback.
+    const snapH = HexDB.snapshotPackage(newId), snapB = BldDB.snapshotPackage(newId);
     const snapSprites = (await SpriteStore.loadAll()).filter(inPkg);
-    const prevTrash = localStorage.getItem(LS_TRASH);
+    const prevTrashList = listTrash(), prevTrashRaw = localStorage.getItem(LS_TRASH);
     const existingEntry = getEntry(newId);
-    const prevDetails = _loadDetails()[newId];
+    const prevDetails = _reloadDetails()[newId];
     // Merge keeps what is already here (local details win); every other mode takes the ZIP's.
     const det = mode === 'merge' && prevDetails ? getDetails(newId) : { description: plan.pkg.description || '', dependencies: zipDeps.slice() };
+    const stored = new Set(snapSprites.map(r => r.baseName || r.name));
     let localTouched = false;
     const restoreLocal = async () => {
       if (!localTouched) return;
-      HexDB.restoreEntries(snapH); BldDB.restoreEntries(snapB);
+      HexDB.restorePackage(snapH); BldDB.restorePackage(snapB);
       const have = new Map(snapSprites.map(r => [r.name, r]));
       for (const cur of (await SpriteStore.loadAll()).filter(inPkg)) if (!have.has(cur.name)) await SpriteStore.remove(cur.baseName || cur.name, newId);
       for (const r of snapSprites) await SpriteStore.save(r.baseName || r.name, r.dataUrl, r.category, newId);
-      try { if (prevTrash === null) localStorage.removeItem(LS_TRASH); else localStorage.setItem(LS_TRASH, prevTrash); } catch (e) { console.warn('[Packages] trash restore failed:', e.message); }
-      if (prevDetails) _details[newId] = prevDetails; else delete _details[newId];
+      if (mode === 'replace') {   // only this package's trash item changes (plus anything the 5-item cap evicted)
+        try {
+          const rest = listTrash().filter(t => t.id !== newId);
+          for (const it of prevTrashList.filter(t => !rest.some(r => r.id === t.id))) rest.splice(Math.min(prevTrashList.indexOf(it), rest.length), 0, it);
+          if (!rest.length && prevTrashRaw === null) localStorage.removeItem(LS_TRASH); else _writeTrash(rest);
+        } catch (e) { console.warn('[Packages] trash restore failed:', e.message); }
+      }
+      const d = _reloadDetails();
+      if (prevDetails) d[newId] = prevDetails; else delete d[newId];
       _saveDetails();
     };
 
+    // Server layout: every written path is built from the ZIP's validated, canonical (lowercase folder, .png) parts.
+    const pkgJsonPath = `packages/${newId}/package.json`, hexPath = `packages/${newId}/hex_database.json`, bldPath = `packages/${newId}/building_database.json`;
+    const previewPath = `packages/${newId}/preview.png`;
+    // A kept local sprite (anything already stored for this package, except in Replace) is never pushed to the server
+    // either: the server DB then points at the sprite the user keeps, and the summary says so.
+    const spriteJobs = plan.sprites.map(sp => ({ ...sp, serverPath: `packages/${newId}/sprites/${sp.category}/${sp.name}.png`, keep: mode !== 'replace' && stored.has(sp.name) }));
+
     const written = [];
-    const put = async (path, doPut) => {
+    const snaps = new Map();   // path -> { sha, content } | null, taken for EVERY target before the first write
+    const put = async (path, base64, message) => {
       if (localMode) return;
-      const rec = { path, prev: await GitHubSync._snapshotFile(path) };
+      const rec = { path, prev: snaps.get(path) || null, attempt: base64, wrote: undefined };
       written.push(rec);
-      await doPut();
+      // The snapshot sha makes the write conditional (null = create-only): a concurrent writer gets a 409/422, not overwritten.
+      rec.wrote = await GitHubSync._putContents(path, base64, message, rec.prev ? rec.prev.sha : null);
     };
+    const putText = (path, text, message) => put(path, GitHubSync._encodeText(text), message);
+    const putBlob = async (path, blob, message) => put(path, await GitHubSync._encodeBlob(blob), message);
     let keepServer = false;
     try {
       UI.progress(0, 'Starting import…');
-      if (!localMode) await _readRegistry();   // fail closed before anything is written
+      if (!localMode) {
+        await _readRegistry();   // fail closed before anything is written
+        // Every file the import will write is read BEFORE the first write: a file the Contents API cannot return
+        // (over 1 MB) refuses the import with zero writes, and the snapshot shas make every write conditional.
+        for (const path of [pkgJsonPath, hexPath, bldPath, ...spriteJobs.filter(j => !j.keep).map(j => j.serverPath), ...(plan.preview ? [previewPath] : [])])
+          snaps.set(path, await GitHubSync._snapshotFile(path));
+        if (mode === 'new' && [pkgJsonPath, hexPath, bldPath].some(x => snaps.get(x)))
+          throw new Error(`the package id "${newId}" was taken on the server by someone else while the import started`);
+      }
       if (mode === 'replace') {
         localTouched = true;
         const kept = _storeTrash([
@@ -14917,29 +14986,38 @@ const Packages = (() => {
           ...listTrash().filter(t => t.id !== newId)]);
         if (!kept.ok) throw new Error('Could not save a restore copy of the existing package');
       }
-      const version = (existingEntry && existingEntry.version) || '1.0.0';
-      await put(`packages/${newId}/package.json`, () => GitHubSync._putText(`packages/${newId}/package.json`,
-        JSON.stringify({ id: newId, name, version, description: det.description, dependencies: det.dependencies, ...(plan.preview ? { preview: 'preview.png' } : {}), isDefault: false }, null, 2), `import package: ${newId}`));
+      // The ZIP's version is kept; the server's changelog (Replace/Merge over a published package) is preserved.
+      const version = plan.pkg.version || '1.0.0';
+      let changelog = [];
+      const prevPkg = snaps.get(pkgJsonPath);
+      if (prevPkg) {
+        try {
+          const old = JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(prevPkg.content), c => c.charCodeAt(0))));
+          if (old && Array.isArray(old.changelog)) changelog = old.changelog.filter(e => e && typeof e === 'object').slice(-_MAX_CHANGELOG);
+        } catch (e) { /* unreadable old package.json: no changelog to keep */ }
+      }
+      await putText(pkgJsonPath,
+        JSON.stringify({ id: newId, name, version, description: det.description, dependencies: det.dependencies, ...(plan.preview ? { preview: 'preview.png' } : {}), ...(changelog.length ? { changelog } : {}), isDefault: false }, null, 2), `import package: ${newId}`);
       UI.progress(5, 'Writing package.json…');
-      await put(`packages/${newId}/hex_database.json`, () => GitHubSync._putText(`packages/${newId}/hex_database.json`,
-        JSON.stringify({ version: 1, package: newId, hexes }, null, 2), `import ${newId}: hex_database.json`));
+      await putText(hexPath, JSON.stringify({ version: 1, package: newId, hexes }, null, 2), `import ${newId}: hex_database.json`);
       UI.progress(15, 'Writing hex_database.json…');
-      await put(`packages/${newId}/building_database.json`, () => GitHubSync._putText(`packages/${newId}/building_database.json`,
-        JSON.stringify({ version: 1, package: newId, buildings }, null, 2), `import ${newId}: building_database.json`));
+      await putText(bldPath, JSON.stringify({ version: 1, package: newId, buildings }, null, 2), `import ${newId}: building_database.json`);
       UI.progress(25, 'Writing building_database.json…');
 
-      const spriteFiles = plan.sprites.map(sp => ({ path: sp.path, file: zip.file(sp.path), size: sp.size, category: sp.category, name: sp.name }));
       const sprites = [];   // { name, category, dataUrl }: stored locally after the server accepted every file
+      const skipped = [];
       let done = 0;
-      for (const sp of spriteFiles) {
-        if (!sp.file) throw new Error(`${sp.path} is listed in the plan but missing from the ZIP`);
-        const bytes = await _readEntry(sp.file, sp.size);   // never inflates past the size the plan validated
+      for (const sp of spriteJobs) {
+        const file = zip.file(sp.path);
+        if (!file) throw new Error(`${sp.path} is listed in the plan but missing from the ZIP`);
+        if (sp.keep) { skipped.push(sp.name); done++; continue; }   // kept locally: neither overwritten here nor on the server
+        const bytes = await _readEntry(file, sp.size);   // never inflates past the size the plan validated
         if (!bytes) throw new Error(`${sp.path} is larger than it claims to be`);
         const blob = new Blob([bytes], { type: 'image/png' });
-        await put(`packages/${newId}/${sp.path}`, () => GitHubSync._putBinary(`packages/${newId}/${sp.path}`, blob, `import ${newId}: ${sp.path}`));
+        await putBlob(sp.serverPath, blob, `import ${newId}: sprites/${sp.category}/${sp.name}.png`);
         sprites.push({ name: sp.name, category: sp.category, dataUrl: await _blobToDataUrl(blob) });
         done++;
-        UI.progress(25 + Math.round((done / Math.max(spriteFiles.length, 1)) * 65), `Sprites: ${done}/${spriteFiles.length}…`);
+        UI.progress(25 + Math.round((done / Math.max(spriteJobs.length, 1)) * 65), `Sprites: ${done}/${spriteJobs.length}…`);
       }
 
       let previewUrl = null;   // 512x512 PNG; a ZIP preview of another size is cropped/scaled like an upload
@@ -14949,23 +15027,20 @@ const Packages = (() => {
         if (!bytes) throw new Error('preview.png is missing or larger than it claims to be');
         let blob = new Blob([bytes], { type: 'image/png' });
         if (plan.preview.width !== 512 || plan.preview.height !== 512) blob = await makePreview512(blob);
-        await put(`packages/${newId}/preview.png`, () => GitHubSync._putBinary(`packages/${newId}/preview.png`, blob, `import ${newId}: preview.png`));
+        await putBlob(previewPath, blob, `import ${newId}: preview.png`);
         previewUrl = await _blobToDataUrl(blob);
       }
 
       // Local state, before the registry so a local failure never touches it.
       localTouched = true;
-      _details[newId] = { description: det.description, dependencies: det.dependencies.slice() };
+      _reloadDetails()[newId] = { description: det.description, dependencies: det.dependencies.slice() };
       _saveDetails();
       if (previewUrl) await SpriteStore.save(PREVIEW_NAME, previewUrl, 'preview', newId);
       if (mode === 'replace') { HexDB.removeByPackage(newId); BldDB.removeByPackage(newId); }
       HexDB.addEntries(hexes);
       BldDB.addEntries(buildings);
-      const stored = new Set(snapSprites.map(r => r.baseName || r.name));
       const localSprites = {};
-      const skipped = [];
       for (const sp of sprites) {
-        if (mode !== 'replace' && stored.has(sp.name)) { skipped.push(sp.name); continue; }   // kept, never overwritten
         await SpriteStore.save(sp.name, sp.dataUrl, sp.category, newId);
         localSprites[SpriteStore.keyFor(newId, sp.name)] = sp.dataUrl;
       }
@@ -14998,7 +15073,7 @@ const Packages = (() => {
         return out;
       };
       if (at < 0) regData.packages.push(withDetails({ id: newId, name, isDefault: false, version }));
-      else regData.packages[at] = withDetails({ ...regData.packages[at], name });
+      else regData.packages[at] = withDetails({ ...regData.packages[at], name, version });
       const regText = JSON.stringify(regData, null, 2);
       try {
         await GitHubSync._putText('packages/registry.json', regText, `registry: add ${newId}`, regSha);
@@ -15010,12 +15085,13 @@ const Packages = (() => {
         if (!committed) throw e;
       }
 
+      _removeLocalRecord(newId);   // the server registry lists the id now: it is no longer a local-only package (badge gone, publish works)
       _registry = _mergeLocal(regData.packages);
       _cacheRegistry();
       Terrain.registerUploadedUrls(localSprites);
       UI.progressDone(`✅ Package '${name}' imported`);
       const verb = mode === 'replace' ? 'replaced' : mode === 'merge' ? 'merged' : 'imported';
-      UI.toast(`✅ Package '${name}' ${verb} (${hexes.length} hex tiles, ${buildings.length} buildings)` + (skipped.length ? `; ${skipped.length} sprite(s) skipped: already stored for this package` : ''),
+      UI.toast(`✅ Package '${name}' ${verb} (${hexes.length} hex tiles, ${buildings.length} buildings)` + (skipped.length ? `; ${skipped.length} sprite(s) skipped: already stored for this package (not overwritten here or on the server)` : ''),
                skipped.length ? { ms: 8000, detail: skipped.map(n => `skipped: ${n}`).join('\n') } : undefined);
       _importResult = { status: 'ok', remaining: [] };
       renderPanel();
@@ -15023,12 +15099,14 @@ const Packages = (() => {
       closeImportModal();
     } catch (e) {
       UI.progressDone('');
-      const remaining = keepServer ? written.map(r => r.path) : await _rollback(written);
+      const rb = keepServer ? { remaining: written.map(r => r.path), changed: [] } : await _rollback(written);
       try { await restoreLocal(); }
       catch (e2) { console.error('[Packages] local restore failed:', e2); UI.toast(`⚠ The editor's local copy could not be fully restored: ${e2.message}`, { sticky: true }); }
-      _importResult = { status: 'failed', remaining };
-      if (remaining.length) _showImportFailed(e.message, remaining);
-      else UI.toast(`⚠ Import failed: ${e.message}. Nothing was changed.`, { ms: 8000 });
+      _importResult = { status: 'failed', remaining: rb.remaining, changed: rb.changed };
+      if (rb.remaining.length || rb.changed.length) _showImportFailed(e.message, rb.remaining, rb.changed);
+      else if (localMode) UI.toast(`⚠ Import failed: ${e.message}. Nothing was changed.`, { ms: 8000 });
+      else if (!written.length) UI.toast(`⚠ Import refused: ${e.message}. Nothing was written to the server.`, { ms: 8000 });
+      else UI.toast(`⚠ Import failed: ${e.message}. What this import wrote to the server was removed again.`, { ms: 8000 });
       renderPanel();
       renderActiveDropdowns();
     }
@@ -17625,6 +17703,24 @@ const HexDB = (() => {
       .catch(e => console.warn('[HexDB] restoreEntries: sprite refresh failed:', e));
   }
 
+  // Per-package snapshot/restore (final wave A, import rollback): only ONE package's entries are captured with their
+  // positions, and restoring puts exactly those back, so edits made to anything else while an import ran survive.
+  function snapshotPackage(pkgId) {
+    const items = [];
+    _data.hexes.forEach((h, i) => { if ((h.package || 'postapoc') === pkgId) items.push({ i, e: structuredClone(h) }); });
+    return { pkgId, items };
+  }
+  function restorePackage(snap) {
+    const rest = _data.hexes.filter(h => (h.package || 'postapoc') !== snap.pkgId);
+    for (const it of snap.items) rest.splice(Math.min(it.i, rest.length), 0, structuredClone(it.e));
+    _data.hexes = rest;
+    _autoSave();
+    _selFilt = -1;
+    _applyFilter(); _buildList();
+    Terrain.applyHexDbOverrides(snap.items.map(it => it.e)).then(() => { UI.buildPalette(); Canvas.render(); })
+      .catch(e => console.warn('[HexDB] restorePackage: sprite refresh failed:', e));
+  }
+
   function removeByPackage(pkgId) {
     const before = _data.hexes.length;
     _data.hexes = _data.hexes.filter(h => (h.package || 'postapoc') !== pkgId);
@@ -17830,7 +17926,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, addEntries, snapshotEntries, restoreEntries, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
 })();
 
 window.HexDB = HexDB;
@@ -19078,6 +19174,21 @@ const BldDB = (() => {
     UI.buildPalette();
   }
 
+  function snapshotPackage(pkgId) {
+    const items = [];
+    _data.buildings.forEach((b, i) => { if ((b.package || 'postapoc') === pkgId) items.push({ i, e: structuredClone(b) }); });
+    return { pkgId, items };
+  }
+  function restorePackage(snap) {
+    const rest = _data.buildings.filter(b => (b.package || 'postapoc') !== snap.pkgId);
+    for (const it of snap.items) rest.splice(Math.min(it.i, rest.length), 0, structuredClone(it.e));
+    _data.buildings = rest;
+    _autoSave();
+    _selFilt = -1;
+    _applyFilter(); _buildList();
+    UI.buildPalette();
+  }
+
   function removeByPackage(pkgId) {
     const before = _data.buildings.length;
     _data.buildings = _data.buildings.filter(b => (b.package || 'postapoc') !== pkgId);
@@ -19109,7 +19220,7 @@ const BldDB = (() => {
   }
 
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
-           mergeFromServer, addEntries, snapshotEntries, restoreEntries, migrateCopy, removeByPackage,
+           mergeFromServer, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage,
            pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 

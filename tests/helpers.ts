@@ -44,6 +44,8 @@ export class FakeGitHub {
   /** Every Contents API request the page made (GET, PUT, DELETE), in order, accepted or refused. */
   requests: { method: string; path: string; status: number }[] = [];
   failDelete: (p: string) => boolean = () => false;
+  /** Contents API GETs for which this returns true answer like GitHub does for files over 1 MB: the sha but no inline content. */
+  hideContent: (p: string) => boolean = () => false;
 
   /**
    * GitHub Pages lags commits by 30 s to minutes. While pagesLag is on, Pages URLs keep serving
@@ -216,6 +218,7 @@ export async function installFakeGitHub(page: Page, gh: FakeGitHub) {
     if (req.method() === 'GET') {
       if (gh.failGet(p)) return reply(500, { message: 'forced failure' });
       const body = gh.read(p);
+      if (body && gh.hideContent(p)) return reply(200, { name: path.basename(p), path: p, sha: gh.sha(p), size: body.length, content: '', encoding: 'none' });
       if (body) return reply(200, { name: path.basename(p), path: p, sha: gh.sha(p), content: body.toString('base64') });
       const list = gh.list(p);
       return list ? reply(200, list) : reply(404, { message: 'Not Found' });
