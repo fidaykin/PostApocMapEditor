@@ -215,7 +215,8 @@ test.describe('in the editor page', () => {
     expect(await page.evaluate(() => [typeof MapFormat.validate, MapFormat.CURRENT_VERSION])).toEqual(['function', 2]);
     expect(failed).toEqual([]);
     const html = fs.readFileSync(path.join(ROOT, 'MapEditorPro.html'), 'utf8');
-    expect(html).toMatch(/<script src="map-format\.js\?v=1"><\/script>/);
+    // The number is bumped on every change of map-format.js; the deploy lint in perf-workers.spec.ts ties it to deploy-dev.yml.
+    expect(html).toMatch(/<script src="map-format\.js\?v=\d+"><\/script>/);
   });
 
   test('validate() agrees with the real loader on crafted maps (differential)', async ({ page }) => {
