@@ -406,8 +406,8 @@ test('deploy-dev.yml publishes map-jobs.js/map-worker.js into dev/ and rewrites 
   expect(html).toContain('<script src="gen-utils.js');
   expect(yml).toContain('<script src="dev/map-format.js');
   expect(html).toContain('<script src="map-format.js');
-  expect(yml).toContain('src="dev/map-format.js?v=1"');   // the workflow verifies the ?v= after the rewrite (bump together)
-  expect(html).toContain('<script src="map-format.js?v=1"></script>');
+  expect(yml).toContain('src="dev/map-format.js?v=2"');   // the workflow verifies the ?v= after the rewrite (bump together)
+  expect(html).toContain('<script src="map-format.js?v=2"></script>');
   expect(yml).toContain('<script src="dev/brush.js');
   expect(html).toContain('<script src="brush.js');
   expect(yml).toContain('src="dev/brush.js?v=1"');

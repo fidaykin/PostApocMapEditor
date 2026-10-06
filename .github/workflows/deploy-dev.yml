@@ -35,7 +35,7 @@ jobs:
           grep -q 'src="dev/gen-utils.js?v=4"' /tmp/MapEditorPro_dev.html
           # map-format.js (map file versioning/validation): published into dev/ too; its ?v= is bumped with every change to the file.
           sed -i 's|<script src="map-format.js|<script src="dev/map-format.js|' /tmp/MapEditorPro_dev.html
-          grep -q 'src="dev/map-format.js?v=1"' /tmp/MapEditorPro_dev.html
+          grep -q 'src="dev/map-format.js?v=2"' /tmp/MapEditorPro_dev.html
           # brush.js (Brush module, extracted from the HTML): published into dev/ too; its ?v= is bumped with every change to the file.
           sed -i 's|<script src="brush.js|<script src="dev/brush.js|' /tmp/MapEditorPro_dev.html
           grep -q 'src="dev/brush.js?v=1"' /tmp/MapEditorPro_dev.html

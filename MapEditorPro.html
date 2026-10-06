@@ -1363,7 +1363,7 @@ body.mode-common #map-io    { display: none; }
 </style>
 <script src="hex-utils.js?v=2"></script>
 <script src="gen-utils.js?v=4"></script>
-<script src="map-format.js?v=1"></script>
+<script src="map-format.js?v=2"></script>
 <script src="brush.js?v=1"></script>
 <script src="zone-painter.js?v=20"></script>
 <script src="map-jobs.js?v=6"></script>
@@ -2699,7 +2699,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "f2e6b9a";
+const COMMIT  = "cb4b3b5";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9370,7 +9370,7 @@ const GitHubSync = (() => {
       const res  = await fetch(`${BASE_URL}/maps/${encodeURIComponent(m.fileName)}?_=${Date.now()}`);
       if (!res.ok) throw new Error(`Download failed (${res.status})`);
       const json = await res.json();
-      IO.loadFromJSON(json);
+      if (!IO.loadFromJSON(json)) { closeMapsPopover(); return; }   // refused: the error dialog is shown (above the list), the current map and file name are untouched
       IO.setFileName(m.fileName.replace(/\.json$/i, ''));
       closeMapsPopover();
       UI.toast(`✅ Loaded ${m.name}`);
@@ -11145,7 +11145,13 @@ const IO = (() => {
       if (!saved) return false;
       const json = JSON.parse(saved);
       // Same check as the loader (errors only; an autosave this editor wrote has nothing to warn about): nothing changes if it fails.
-      if (!MapFormat.validate(json).ok) return false;
+      if (!MapFormat.validate(json).ok) {
+        // The record exists but is not a usable map. A side-copy restore (override) just reports and leaves everything as
+        // it was; at startup the stored record must NOT be replaced by a blank map's autosave: protected mode, same message
+        // as any other unreadable autosave (File > New / Open resumes normal saving).
+        if (typeof override !== 'string') { _restoreProblem = 'The saved map could not be restored (it did not pass the map format check)'; _protected = true; }
+        return false;
+      }
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
       mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
@@ -11552,8 +11558,10 @@ const IO = (() => {
           if (only) UI.showDialog({ title: 'Map loaded with warnings', message: only.message, details: only.details });
         } catch (e2) { /* the sticky toast above already tells the user */ }
       }
+      return true;
     } catch (err) {
       UI.alert('Failed to load map', err.message, String(err.stack || ''));
+      return false;
     }
   }
 
@@ -11832,8 +11840,7 @@ const IO = (() => {
       const reader = new FileReader();
       reader.onload = ev => {
         try {
-          _loadFromJSON(JSON.parse(ev.target.result));
-          _setFileNameFromHandle(file.name);
+          if (_loadFromJSON(JSON.parse(ev.target.result))) _setFileNameFromHandle(file.name);   // a refused map keeps the current file name
         }
         catch(err) { UI.alert('Could not read map file', 'The file is not valid JSON: ' + err.message, file.name); }
       };

@@ -116,7 +116,11 @@
       if (!Array.isArray(json.packages)) warnings.push('packages is not an array and is ignored.');
       else if (json.packages.some(p => typeof p !== 'string')) warnings.push('packages contains entries that are not text.');
     }
-    for (const k of ['zones', 'biomePresets', 'distance_bands'])
+    // biomePresets and zoneMap are read by ZonePainter.fromSaveObject AFTER the loader replaced the map: a truthy
+    // non-array list (.forEach) or a zoneMap that is not base64 text (atob) would throw half-way, so both are ERRORS here.
+    if (json.biomePresets && !Array.isArray(json.biomePresets)) errors.push('biomePresets must be an array.');
+    if (json.zoneMap && !isBase64Text(json.zoneMap)) errors.push('zoneMap must be base64 text.');
+    for (const k of ['zones', 'distance_bands'])
       if (json[k] !== undefined && json[k] !== null && !Array.isArray(json[k])) warnings.push(k + ' is not an array and is ignored.');
 
     // settlements outside the map (the loader drops an off-map city and keeps other entries as they are)
@@ -129,6 +133,13 @@
       }
       if (outside) warnings.push(outside + ' settlement(s) lie outside the map.');
     }
+  }
+
+  // What atob() accepts: base64 characters, optional padding, ASCII whitespace ignored. Bounded: one linear regex pass.
+  function isBase64Text(v) {
+    if (typeof v !== 'string') return false;
+    const t = v.replace(/[\t\n\f\r ]+/g, '');
+    return /^[A-Za-z0-9+/]*={0,2}$/.test(t) && t.length % 4 !== 1;
   }
 
   // The loader's own test for the old integer format (first cell of the first row is a number).
