@@ -1799,3 +1799,41 @@ test.describe('layers: zones, fills and polygons under locks (cleanup A5)', () =
     expect(await cells()).toBe(0);
   });
 });
+
+// ── cleanup A7 ─────────────────────────────────────────────────────────────────────────────────────
+test.describe('layers: status-bar indicator and the locked Settlement tool (cleanup A7)', () => {
+  test.beforeEach(async ({ page }) => { await page.setViewportSize({ width: 1400, height: 900 }); await openEditor(page); await page.evaluate(() => { Layers.NAMES.forEach((n: string) => { Layers.setVisible(n, true); Layers.setLocked(n, false); }); }); });
+  const box = (page: any) => page.evaluate(() => { const e = document.getElementById('st-layers')!; const cs = getComputedStyle(e); return { text: e.textContent, live: e.getAttribute('aria-live'), shown: cs.display !== 'none' && e.getBoundingClientRect().width > 0, size: [(document.getElementById('map-canvas') as HTMLCanvasElement).width, (document.getElementById('map-canvas') as HTMLCanvasElement).height] }; });
+
+  test('a real aria-live status element names hidden and locked layers, is empty (not shown) when there are none, and the canvas stays 1491x808', async ({ page }) => {
+    let b = await box(page);
+    expect(b).toMatchObject({ text: '', live: 'polite', shown: false });
+    expect(b.size).toEqual([1491, 808]);
+    await page.evaluate(() => { Layers.setVisible('roads', false); Layers.setLocked('terrain', true); });
+    b = await box(page);
+    expect(b).toMatchObject({ text: 'Hidden: Roads · Locked: Terrain', live: 'polite', shown: true });
+    expect(b.size).toEqual([1491, 808]);
+    await page.evaluate(() => { Layers.setVisible('roads', true); Layers.setLocked('terrain', false); });
+    expect((await box(page)).text).toBe('');
+  });
+
+  test('it also reflects a hidden layer restored from storage after a reload', async ({ page }) => {
+    await page.evaluate(() => Layers.setVisible('objects', false));
+    await page.reload(); await page.waitForFunction(() => typeof Layers !== 'undefined' && document.getElementById('layers-list')!.children.length > 0);
+    expect((await box(page)).text).toBe('Hidden: Buildings & bridges');
+    await page.evaluate(() => Layers.setVisible('objects', true));
+  });
+
+  test('setActive("settlement") with Settlements hidden and locked: no unhide, no toast, no render; hidden but unlocked: one toast and exactly one render', async ({ page }) => {
+    const count = () => page.evaluate(() => { (window as any).__r = 0; (window as any).__t = []; const r = Canvas.render, t = UI.toast; Canvas.render = function () { (window as any).__r++; return r.apply(this, arguments as any); }; UI.toast = function (m: string) { (window as any).__t.push(m); return t.apply(this, arguments as any); }; (window as any).__restore = () => { Canvas.render = r; UI.toast = t; }; });
+    const read = () => page.evaluate(() => { const o = { renders: (window as any).__r, toasts: (window as any).__t.filter((m: string) => /Settlements layer shown/.test(m)).length, visible: Layers.isVisible('settlements') }; (window as any).__restore(); return o; });
+    await page.evaluate(() => { Tools.setActive('paint'); Layers.setVisible('settlements', false); Layers.setLocked('settlements', true); });
+    await count();
+    await page.evaluate(() => Tools.setActive('settlement'));
+    expect(await read()).toEqual({ renders: 0, toasts: 0, visible: false });
+    await page.evaluate(() => { Tools.setActive('paint'); Layers.setLocked('settlements', false); });
+    await count();
+    await page.evaluate(() => Tools.setActive('settlement'));
+    expect(await read()).toEqual({ renders: 1, toasts: 1, visible: true });
+  });
+});

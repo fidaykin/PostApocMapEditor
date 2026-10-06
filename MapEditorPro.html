@@ -341,6 +341,7 @@ html, body {
   user-select: none;
 }
 .status-item span:first-child { color: var(--muted); }
+#st-layers:empty { display: none; }
 .status-item span:last-child  { color: var(--text); }
 
 /* Hide map-specific statusbar in non-map editor modes */
@@ -2082,6 +2083,7 @@ body.mode-common #map-io    { display: none; }
     <div class="status-item"><span>Dist: </span><span id="st-dist">—</span></div>
     <div class="status-item"><span>Zoom: </span><span id="st-zoom">100%</span></div>
     <div class="status-item"><span>Map: </span><span id="st-size">450 × 450</span></div>
+    <div class="status-item" id="st-layers" role="status" aria-live="polite" title="Layers that are hidden or locked (Layers panel, left palette)" style="color:var(--accent)"></div>
     <div class="status-item" style="margin-left:auto;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span>File: </span><span id="map-file-label">—</span></div>
     <div class="status-item" id="version-label" style="color:var(--muted)">DEV</div>
   </div>
@@ -2442,7 +2444,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "cd2e101";
+const COMMIT  = "0cb6240";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2949,6 +2951,12 @@ const Layers = (() => {
     });
     const zb = document.getElementById('btn-zone-overlay');
     if (zb) zb.style.opacity = isVisible('zones') ? '1' : '0.4';
+    // always-visible summary in the status bar (the panel may sit below the palette fold): 'Hidden: Roads · Locked: Terrain'
+    const st = document.getElementById('st-layers');
+    if (st) {
+      const hid = NAMES.filter(n => !isVisible(n)).map(n => LABELS[n]), lck = NAMES.filter(isLocked).map(n => LABELS[n]);
+      st.textContent = [hid.length ? 'Hidden: ' + hid.join(', ') : '', lck.length ? 'Locked: ' + lck.join(', ') : ''].filter(Boolean).join(' \u00B7 ');
+    }
   }
   // Re-reads the zone overlay switch (called by the Zone Painter whenever it changes it), stores and refreshes the panel.
   function sync() {
@@ -5766,10 +5774,11 @@ const Tools = (() => {
     if (name !== 'select') Canvas.clearSelection();
     // Settlement tools require settlements to be visible
     if (name === 'settlement' || name === 'erase') {
-      let changed = false;
+      let changed = false, rendered = false;
       if (!settlementsVisible) { settlementsVisible = true; changed = true; }
-      if (!Layers.isVisible('settlements')) { Layers.setVisible('settlements', true); UI.toast('Settlements layer shown'); changed = true; }   // the render ANDs both switches
-      if (changed) Canvas.render();
+      // a LOCKED hidden layer is left alone: showing it would not make the tool usable (writes are refused) and only adds noise
+      if (!Layers.isVisible('settlements') && !Layers.isLocked('settlements')) { Layers.setVisible('settlements', true); UI.toast('Settlements layer shown'); rendered = true; }   // setVisible renders; the render ANDs both switches
+      if (changed && !rendered) Canvas.render();
     }
     // Object tool: show/hide building picker panel
     const picker = document.getElementById('obj-building-picker');
