@@ -1175,6 +1175,29 @@ test.describe('bridge tool (T2.16)', () => {
     expect((await toasts(page)).filter(t => t === 'Not a building for this tool').length).toBe(1);
   });
 
+  test('object mode also refuses road ids (isRoad) in selectBuilding', async ({ page }) => {
+    const roadId = await page.evaluate(() => (BldDB.getAll().find((b: any) => b.isRoad) || {}).id || '');
+    expect(roadId, 'the loaded packages have a road building').not.toBe('');
+    await page.evaluate(() => { Tools.setActive('object'); Tools.selectBuilding('Artefact_Test_1'); });
+    await page.evaluate((id) => Tools.selectBuilding(id), roadId);
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe('Artefact_Test_1');
+    expect((await toasts(page)).filter(t => t === 'Not a building for this tool').length).toBe(1);
+  });
+
+  test('a disabled tool button looks disabled: faded, not-allowed cursor, no hover highlight', async ({ page }) => {
+    await page.evaluate(() => { (window as any).__o = BldDB.getAll; BldDB.getAll = () => (window as any).__o.call(BldDB).filter((b: any) => b.buildingCategory !== 'Bridge'); UI.buildPalette(); });
+    const btn = page.locator('.tool-btn[data-tool="bridge"]');
+    const css = () => btn.evaluate(b => { const c = getComputedStyle(b); return { o: c.opacity, cur: c.cursor, bg: c.backgroundColor }; });
+    const rest = await css();
+    expect(rest.o).toBe('0.45');
+    expect(rest.cur).toBe('not-allowed');
+    await btn.hover({ force: true });
+    expect((await css()).bg).toBe(rest.bg);
+    const normal = await page.locator('.tool-btn[data-tool="paint"]').evaluate(b => getComputedStyle(b).opacity);
+    expect(normal).toBe('1');
+    await page.evaluate(() => { BldDB.getAll = (window as any).__o; UI.buildPalette(); });
+  });
+
   test('with no Bridge buildings loaded the bridge button is disabled with an explaining tooltip, and enables again', async ({ page }) => {
     const state = () => page.evaluate(() => { const b = document.querySelector('.tool-btn[data-tool="bridge"]') as HTMLButtonElement; return { disabled: b.disabled, title: b.title }; });
     expect((await state()).disabled).toBe(false);

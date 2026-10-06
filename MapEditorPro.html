@@ -100,6 +100,8 @@ html, body {
 }
 .tool-btn:hover { background: var(--hover); }
 .tool-btn.active { border-color: var(--accent); background: rgba(79,195,247,0.12); }
+.tool-btn:disabled { opacity: .45; cursor: not-allowed; }
+.tool-btn:disabled:hover { background: var(--bg); }
 
 .tool-btn .tooltip {
   display: none;
@@ -2444,7 +2446,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "34b94f8";
+const COMMIT  = "4b8148b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5850,7 +5852,7 @@ const Tools = (() => {
       if (!_bridgeBuildings().some(b => b.id === id)) { UI.toast('Not a bridge building: ' + id); return; }
       _selectedBridgeId = id;
     } else {
-      if (_bridgeBuildings().some(b => b.id === id)) { UI.toast('Not a building for this tool'); return; }   // bridges belong to the Bridge tool
+      if (_bridgeBuildings().some(b => b.id === id) || BldDB.getAll().some(b => b.id === id && b.isRoad)) { UI.toast('Not a building for this tool'); return; }   // bridges belong to the Bridge tool, roads to the road tools
       _selectedBuildingId = id;
     }
     document.querySelectorAll('.bld-card').forEach(c => c.classList.toggle('selected', c.dataset.bldId === id));
