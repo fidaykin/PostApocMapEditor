@@ -65,7 +65,7 @@ The output ends with `startup retries: N`, and each retry is a `startup-retry` a
 - Page state: inside `page.evaluate`, assign the bare binding (`MAP_WIDTH = 31`, `mapData = ...`). `window.MAP_WIDTH = ...`
   does not touch a top-level `let` and makes a test pass vacuously. Restore any page-local mutation of shared data
   (HexDB entries, wrapped functions) in a `try/finally`.
-- Keep tests cheap: bare maps, few renders, low zoom. Use `freshEditor` (30x30 map) unless the test needs 450x450.
+- Keep tests cheap: bare maps, few renders, low zoom. `openEditor` gives a 30x30 map; `freshEditor` (editor-helpers.ts) gives a blank 450x450 map with the city centred. Prefer small maps (`IO.newMap` then replace `mapData`) when the test does not need the default size.
 - Make a changed or new test fail first (RED) for the right reason, and for a tightened test run one mutation of the
   code it guards.
 - Layout-sensitive tests: new controls go in the left palette, not the top toolbar (the toolbar width sets the canvas
