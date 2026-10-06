@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openEditor, FakeGitHub } from './helpers';
+import { openEditor, FakeGitHub, quiesceAfterDialog } from './helpers';
 
 const hex = (id: string, extra: object = {}) => ({ id, package: 'difpkg', spriteName: id, type: 'Plains', ...extra });
 
@@ -26,7 +26,7 @@ test('publish dialog lists new, changed and server-only entries and Cancel write
   await expect(details).toContainText('- hex Difpkg_Gone');
   await expect(details).not.toContainText('Difpkg_Same');
   await page.getByRole('button', { name: 'Cancel' }).click();
-  await page.waitForTimeout(300);
+  await quiesceAfterDialog(page);
   expect(gh.putPaths()).toEqual([]);
 });
 

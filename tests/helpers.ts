@@ -343,3 +343,18 @@ export async function reloadEditor(page: Page) {
   }
   await waitForEditor(page, Math.max(1000, STARTUP_CAP_MS - (Date.now() - start)));
 }
+
+/**
+ * Ordering barrier for "nothing was written" assertions (replaces a fixed sleep): waits for the dialog to be closed,
+ * then lets two animation frames pass and one mocked network round trip complete, so any request the closing
+ * handler started has been issued and routed before the caller looks at what was recorded. Counts events, not time.
+ */
+export async function quiesceAfterDialog(page: Page) {
+  await page.locator('#dialog-modal.open').waitFor({ state: 'detached', timeout: 5000 }).catch(async () => {
+    await page.locator('#dialog-modal.open').waitFor({ state: 'hidden', timeout: 5000 });
+  });
+  await page.evaluate(async () => {
+    await new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+    await fetch('zone-painter.js', { cache: 'no-store' }).then(r => r.text());
+  });
+}

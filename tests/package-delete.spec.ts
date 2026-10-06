@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openEditor, FakeGitHub } from './helpers';
+import { openEditor, FakeGitHub, quiesceAfterDialog } from './helpers';
 
 async function setup(page: any) {
   const gh = new FakeGitHub();
@@ -27,7 +27,7 @@ test('dialog lists entry counts and the maps that use the package', async ({ pag
   await expect(d).toContainText('m1');
   await expect(d).not.toContainText('m2');
   await page.getByRole('button', { name: 'Cancel' }).click();
-  await page.waitForTimeout(300);
+  await quiesceAfterDialog(page);
   expect(gh.putPaths()).toEqual([]);
 });
 
@@ -36,7 +36,7 @@ test('Escape produces no writes and keeps everything', async ({ page }) => {
   await page.evaluate(() => { Packages.confirmDelete('delpkg'); });
   await expect(page.locator('#dialog-details')).toBeVisible();
   await page.keyboard.press('Escape');
-  await page.waitForTimeout(300);
+  await quiesceAfterDialog(page);
   expect(gh.putPaths()).toEqual([]);
   expect(registryIds(gh)).toContain('delpkg');
   expect(await hasEntries(page)).toEqual([true, true]);

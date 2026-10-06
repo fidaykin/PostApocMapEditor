@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openEditor, reloadEditor, FakeGitHub } from './helpers';
+import { openEditor, reloadEditor, FakeGitHub, quiesceAfterDialog } from './helpers';
 
 test('a hex added locally survives a reload (the reproduced bug)', async ({ page }) => {
   await openEditor(page);
@@ -107,7 +107,7 @@ test('Load Hex DB from server asks first; Cancel changes nothing', async ({ page
   await page.evaluate(() => { GitHubSync.loadHexDbIntoEditor(); });
   await expect(page.locator('#dialog-msg')).toContainText('Replace all local hexes');
   await page.getByRole('button', { name: 'Cancel' }).click();
-  await page.waitForTimeout(300);
+  await quiesceAfterDialog(page);
   expect(await page.evaluate(() => [HexDB.getAll().length, localStorage.getItem('sync_base_hex'), localStorage.getItem('sync_base_bld')])).toEqual(before);
 });
 
