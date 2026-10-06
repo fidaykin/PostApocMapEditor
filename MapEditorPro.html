@@ -2447,7 +2447,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "04cf31b";
+const COMMIT  = "d4b4315";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5716,7 +5716,7 @@ const Tools = (() => {
   function _locks() { return { terrain: Layers.isLocked('terrain'), objects: Layers.isLocked('objects'), roads: Layers.isLocked('roads'), zones: Layers.isLocked('zones') }; }
   function _allowed(lk) { return { terrain: !lk.terrain, objects: !lk.objects, roads: !lk.roads, zones: !lk.zones }; }
   function _lockedNames(lk, keys) { return keys.filter(k => lk[k]).map(k => Layers.label(k)); }
-  // Physical-key tool shortcuts (layout independent). Later tasks add entries.
+  // Tool shortcuts follow the TYPED letter on Latin layouts and the physical key (e.code) only where no Latin letter is typed (Cyrillic, Greek; punctuation for Road/Erase Road/Select Region). Later tasks add entries.
   const _KEY_TOOLS = { p: 'paint', f: 'fill', r: 'rect', e: 'eye', s: 'select', t: 'settlement', d: 'erase', z: 'zone' };   // by typed letter
   const CODE_TOOLS = { KeyL: 'line', KeyO: 'circle', KeyG: 'polygon', KeyX: 'eraser', KeyA: 'scatter', KeyM: 'marquee', KeyH: 'replace', KeyB: 'object', KeyW: 'road', KeyC: 'road-connect', KeyQ: 'erase-road', KeyU: 'bridge' };
   const _CODE_LETTER_TOOLS = Object.assign({ y: 'symmetry' }, ...Object.entries(CODE_TOOLS).map(([c, t]) => ({ [c.slice(3).toLowerCase()]: t })));

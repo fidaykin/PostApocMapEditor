@@ -348,6 +348,8 @@ export async function reloadEditor(page: Page) {
  * Ordering barrier for "nothing was written" assertions (replaces a fixed sleep): waits for the dialog to be closed,
  * then lets two animation frames pass and one mocked network round trip complete, so any request the closing
  * handler started has been issued and routed before the caller looks at what was recorded. Counts events, not time.
+ * It orders requests that the close handler issued SYNCHRONOUSLY; a request or write the handler makes after an
+ * `await` is not covered (wait for that effect itself with `expect.poll`).
  */
 export async function quiesceAfterDialog(page: Page) {
   await page.locator('#dialog-modal.open').waitFor({ state: 'detached', timeout: 5000 }).catch(async () => {

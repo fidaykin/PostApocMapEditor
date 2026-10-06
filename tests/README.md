@@ -4,7 +4,8 @@ Playwright with the system Chrome (`channel: 'chrome'`). GitHub and the CDN are 
 
 ```sh
 npm install
-npx playwright test                      # full default suite (~2-3 min, 3 workers)
+npx playwright test                      # full default suite (~6 min, 3 workers); while iterating run only the spec(s) you touch,
+                                         # e.g. npx playwright test tests/layers.spec.ts -g "inline rename"
 npx playwright test tests/harness.spec.ts
 npx playwright test --list               # list tests without running them
 ```
@@ -62,6 +63,8 @@ The output ends with `startup retries: N`, and each retry is a `startup-retry` a
 - No wall-clock: no `waitForTimeout`, no millisecond thresholds. Count work (renders, calls, rebuilds, ticks), compare
   ratios inside the same page, `expect.poll` for something that must happen, and for "nothing happened" use an
   ordering barrier (`quiesceAfterDialog` in `helpers.ts`, or two animation frames) instead of a sleep.
+  `quiesceAfterDialog` only orders requests the dialog's close handler issued synchronously; a write that happens
+  after an `await` inside the handler is NOT covered, so wait for that effect itself (`expect.poll`) instead.
 - Page state: inside `page.evaluate`, assign the bare binding (`MAP_WIDTH = 31`, `mapData = ...`). `window.MAP_WIDTH = ...`
   does not touch a top-level `let` and makes a test pass vacuously. Restore any page-local mutation of shared data
   (HexDB entries, wrapped functions) in a `try/finally`.
