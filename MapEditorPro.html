@@ -2444,7 +2444,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "fefaf50";
+const COMMIT  = "50c186f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7267,6 +7267,10 @@ const Tools = (() => {
     if (e && e.type === 'mouseleave' && _isStrokeTool(_active)) { _hoverCell = null; _clearEraserHover(); }
     if (!_isDown) return;
     _isDown = false;
+    // NOTE (known, same for Eraser/Scatter/Object/Road strokes): a map replaced mid-stroke is detected by _eraseStale() on the
+    // NEXT mousemove (_onMove), not here. A mouseup that follows the replacement directly just ends the stroke without the
+    // stale toast: strokes write only from mousedown/mousemove, so nothing more is written, and the lazy History step (if any)
+    // stays on the stack.
     _eraseStroke = false; _eraseToken = null; _scatterRun = null;
     if ((_active === 'line' || _active === 'circle') && _shapeStart) { _finishDrag(e); return; }
 

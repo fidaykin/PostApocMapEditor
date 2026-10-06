@@ -659,7 +659,6 @@ test.describe('road tools (T2.15)', () => {
   const roadKeys = (page: Page): Promise<string[]> => page.evaluate(() => Object.keys(roadsData).sort());
   const roadSnap = (page: Page) => page.evaluate(() => JSON.stringify(roadsData));
   const startOf = (page: Page) => page.evaluate(() => Tools.getRoadConnectStart());
-  const hash = (page: Page) => page.evaluate(() => { const cv = document.getElementById('map-canvas') as HTMLCanvasElement; const d = cv.getContext('2d')!.getImageData(0, 0, cv.width, cv.height).data; let h = 0; for (let i = 0; i < d.length; i += 53) h = (h * 31 + d[i]) | 0; return h; });
 
   /** A cell that is (a) pixel-adjacent to the city (independent reference) and (b) accepted by the game gate both ways. */
   const goodNeighbour = async (page: Page): Promise<{ col: number; row: number }> => {
@@ -702,12 +701,12 @@ test.describe('road tools (T2.15)', () => {
     expect(await page.evaluate(() => ['road', 'road-connect', 'erase-road'].map(t => Tools._lazyStrokeTools.has(t)))).toEqual([true, true, true]);
   });
 
-  test('W / C / Q are physical-key shortcuts: not with Shift/Alt/Ctrl, not while typing or in a modal, no other key changed', async ({ page }) => {
+  test('W / C / Q are physical-key shortcuts: not with Shift/Alt/Ctrl/Meta (Cmd+C/W/Q), not while typing or in a modal, no other key changed', async ({ page }) => {
     for (const [code, tool] of [['KeyW', 'road'], ['KeyC', 'road-connect'], ['KeyQ', 'erase-road']]) {
       await page.evaluate(() => Tools.setActive('paint'));
       await page.keyboard.press(code);
       expect(await page.evaluate(() => Tools.getActive())).toBe(tool);
-      for (const mod of ['Shift', 'Alt', 'Control']) {
+      for (const mod of ['Shift', 'Alt', 'Control', 'Meta']) {
         await page.evaluate(() => Tools.setActive('paint'));
         await page.keyboard.down(mod); await page.keyboard.press(code); await page.keyboard.up(mod);
         expect(await page.evaluate(() => Tools.getActive())).toBe('paint');
@@ -892,11 +891,19 @@ test.describe('road tools (T2.15)', () => {
     expect(await page.evaluate(() => Tools.isStrokeActive())).toBe(false);
     await page.mouse.up();
     expect(await undoSize(page)).toBe(s0 + 1);
-    await page.mouse.down();
+    // Second gesture on a NEW tile next to the first road: a blur while the button is down must END it with the step kept
+    // (commit). A rollback would remove the tile and the step, which this version of the test can tell apart.
+    const n2 = await page.evaluate(([c, r]) => Roads.getNeighbors(c as number, r as number).find((m: any) => !(m.col === 225 && m.row === 224) && !((m.col + ',' + m.row) in roadsData)), [nb.col, nb.row]);
+    expect(n2).toBeTruthy();
+    const q = await cellPoint(page, n2!.col, n2!.row);
+    await page.mouse.move(q.x, q.y); await page.mouse.down();
+    expect(await roadKeys(page)).toContain(n2!.col + ',' + n2!.row);             // the press drew it
+    expect(await undoSize(page)).toBe(s0 + 2);
     await page.evaluate(() => window.dispatchEvent(new Event('blur')));
     expect(await page.evaluate(() => Tools.isStrokeActive())).toBe(false);
     await page.mouse.up();
-    expect(await undoSize(page)).toBe(s0 + 1);                                  // second press was on an existing road: no step
+    expect(await undoSize(page)).toBe(s0 + 2);                                  // blur kept the step
+    expect(await roadKeys(page)).toEqual([nb.col + ',' + nb.row, n2!.col + ',' + n2!.row].sort());   // and the tile
   });
 
   test('a map replaced mid-gesture stops the road tool with a road-specific toast and writes nothing to the new map', async ({ page }) => {
@@ -948,10 +955,9 @@ test.describe('road tools (T2.15)', () => {
     expect((await toasts(page)).some(t => /road start set/i.test(t))).toBe(true);
     await clickCell(page, 228, 224);
     const keys = await roadKeys(page);
-    expect(keys).toContain('222,224');
-    expect(keys).toContain('228,224');
-    expect(keys.length).toBeGreaterThanOrEqual(3);
-    expect(keys.length).toBeLessThanOrEqual(12);
+    // the N axis (same row, col 222..228) is the one straight line of 7 cells; it is the shortest path in true AND legacy adjacency
+    expect(keys).toEqual([222, 223, 224, 225, 226, 227, 228].map(c => c + ',224').sort());
+    expect(await page.evaluate(() => HexUtils.lineCells({ col: 222, row: 224 }, { col: 228, row: 224 }, MAP_WIDTH, MAP_HEIGHT).map((c: any) => c.col + ',' + c.row).sort())).toEqual(keys);   // independent reference
     expect(await undoSize(page)).toBe(s0 + 1);
     expect(await startOf(page)).toEqual({ col: 228, row: 224 });             // chaining: the destination is the next start
     await page.evaluate(() => History.undo());
