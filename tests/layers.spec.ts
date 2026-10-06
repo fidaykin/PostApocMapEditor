@@ -2,6 +2,9 @@ import { test, expect } from '@playwright/test';
 import { openEditor } from './helpers';
 import { freshEditor, clickCell, dragCells, cellPoint } from './editor-helpers';
 
+/** Every layer, in panel order (terrain, objects, roads, settlements, zones). Declared up here, before the specs that use it. */
+const Layers_NAMES = ['terrain', 'objects', 'roads', 'settlements', 'zones'];
+
 declare let settlementSlots: any[];
 
 // ── Layer visibility (T2.17) ───────────────────────────────────────────────────────────────────────
@@ -542,7 +545,8 @@ async function resetMap(page: any) {
 const cellId = (page: any, c: number, r: number): Promise<string> => page.evaluate(([c, r]: any) => mapData[r * MAP_WIDTH + c], [c, r]);
 const hidePickerL = (page: any) => page.evaluate(() => { document.getElementById('obj-building-picker')!.style.display = 'none'; });
 
-type Scenario = { name: string; tool: string; layer: string; prep: string; act: (p: any) => Promise<void> };
+/** `toasts`: how many lock toasts the refused gesture shows (default 1). Multi-click gestures refuse (and toast) once per click. */
+type Scenario = { name: string; tool: string; layer: string; prep: string; act: (p: any) => Promise<void>; toasts?: number };
 const CELL = { col: 228, row: 224 };
 const click = (p: any, c = CELL) => clickCell(p, c.col, c.row);
 const SCENARIOS: Scenario[] = [
@@ -552,7 +556,7 @@ const SCENARIOS: Scenario[] = [
   { name: 'Rectangle', tool: 'rect', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('rect');`, act: p => dragCells(p, CELL, { col: 230, row: 226 }) },
   { name: 'Line', tool: 'line', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('line');`, act: p => dragCells(p, CELL, { col: 230, row: 225 }) },
   { name: 'Circle', tool: 'circle', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('circle');`, act: p => dragCells(p, CELL, { col: 230, row: 224 }) },
-  { name: 'Polygon', tool: 'polygon', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('polygon');`, act: async p => {
+  { name: 'Polygon', toasts: 3, tool: 'polygon', layer: 'terrain', prep: `UI.selectTerrain('Water_1'); Tools.setActive('polygon');`, act: async p => {
       for (const v of [{ col: 228, row: 224 }, { col: 230, row: 224 }, { col: 229, row: 227 }]) await click(p, v);
       await p.keyboard.press('Enter'); } },
   { name: 'Scatter', tool: 'scatter', layer: 'terrain', prep: `UI.selectTerrain('Forest_1'); Tools.setActive('scatter'); document.getElementById('scatter-density').value = '100'; document.getElementById('scatter-seed').value = '4242';`, act: p => click(p) },
@@ -562,7 +566,7 @@ const SCENARIOS: Scenario[] = [
   { name: 'Erase Building', tool: 'erase-object', layer: 'objects', prep: `objectsData['228,224'] = 'Artefact_Test_1'; Tools.setActive('erase-object');`, act: p => click(p) },
   { name: 'Place Bridge', tool: 'bridge', layer: 'objects', prep: `mapData[224 * MAP_WIDTH + 228] = 'River_L_1'; Tools.setActive('bridge'); Tools.selectBuilding('Road_Bridge_NEWS_1');`, act: async p => { await hidePickerL(p); await click(p); } },
   { name: 'Draw Road', tool: 'road', layer: 'roads', prep: `Tools.setActive('road');`, act: async p => { const n = await p.evaluate(() => Roads.getNeighbors(225, 224)[0]); await clickCell(p, n.col, n.row); } },
-  { name: 'Connect Road', tool: 'road-connect', layer: 'roads', prep: `Tools.setActive('road-connect');`, act: async p => { await click(p); await click(p, { col: 230, row: 224 }); } },
+  { name: 'Connect Road', toasts: 2, tool: 'road-connect', layer: 'roads', prep: `Tools.setActive('road-connect');`, act: async p => { await click(p); await click(p, { col: 230, row: 224 }); } },
   { name: 'Erase Road', tool: 'erase-road', layer: 'roads', prep: `roadsData['228,224'] = { type: 'road_hex' }; Tools.setActive('erase-road');`, act: p => click(p) },
   { name: 'Place Settlement', tool: 'settlement', layer: 'settlements', prep: `Tools.setActive('settlement');`, act: p => click(p) },
   { name: 'Erase Settlement', tool: 'erase', layer: 'settlements', prep: `settlements.push({ col: 228, row: 224, type: 'settlement' }); Tools.setActive('erase');`, act: p => click(p) },
@@ -625,7 +629,7 @@ test.describe('layers: locks gate every tool (T2.18)', () => {
       expect(refused.same, 'whole map unchanged').toBe(true);
       expect(refused.steps, 'no History step').toBe(0);
       expect([refused.stroke, refused.shape, refused.start], 'no stroke state left behind').toEqual([false, false, null]);
-      expect(refused.locked, 'a lock toast').toBeGreaterThanOrEqual(1);
+      expect(refused.locked, 'one lock toast per refused click').toBe(sc.toasts ?? 1);
       const control = await run([]);
       expect(control.same, 'positive control: the same gesture changes the map').toBe(false);
       expect(control.steps).toBe(1);
@@ -637,11 +641,7 @@ test.describe('layers: locks gate every tool (T2.18)', () => {
     });
   }
 });
-const Layers_NAMES = ['terrain', 'objects', 'roads', 'settlements', 'zones'];
-
 // ── secondary layers: eraser, paste, stamp, cut, delete, move, replace ─────────────────────────────
-const W_ = 450;
-const idx = (c: number, r: number) => r * W_ + c;
 const S_ = { col: 226, row: 224 }, D_ = { col: 229, row: 226 };
 
 /** Cell (c,r) with a distinct value on every layer; the fabricated satellite spawner is registered once per page. */
@@ -661,7 +661,6 @@ const read = (page: any, c: number, r: number) => page.evaluate(([c, r]: any) =>
 }, [c, r]);
 const FULL = { t: 'Water_1', o: 'Grain_1', rd: 'road_hex', b: 1, x: 'Water_1', z: 3 };
 const PLAIN = { t: 'Plain_1', o: null, rd: null, b: false, x: null, z: 0 };
-const CONTENT = (c: number, r: number) => ({ t: 'Water_1', o: 'Grain_1', rd: 'road_hex', b: true, x: 'Water_1', z: 3, c, r });
 
 test.describe('layers: locks on eraser, selection commands, paste and replace (T2.18)', () => {
   test.beforeEach(async ({ page }) => { await lockEditor(page); });
