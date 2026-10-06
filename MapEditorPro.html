@@ -1236,7 +1236,7 @@ body.mode-common #map-io    { display: none; }
 
 </style>
 <script src="hex-utils.js?v=1"></script>
-<script src="zone-painter.js?v=13"></script>
+<script src="zone-painter.js?v=14"></script>
 <script src="map-jobs.js?v=2"></script>
 </head>
 <body class="mode-map">
@@ -2447,7 +2447,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "d46bc66";
+const COMMIT  = "d10f4c3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5959,18 +5959,21 @@ const Tools = (() => {
     const seen = new Set();
     const touched = [];
     const keepBridges = Layers.isLocked('objects');   // a locked objects layer keeps its bridge overlays
+    let footprints = false;                           // a multi-tile id was written or overwritten
     for (const { col: c, row: r, id } of cells) {
       if (c < 0 || c >= MAP_WIDTH || r < 0 || r >= MAP_HEIGHT) continue;
       const k = r * MAP_WIDTH + c;
       if (seen.has(k)) continue;
       seen.add(k);
       if (getSatelliteAnchor(c, r)) continue;      // never paint under a multi-tile footprint
-      touched.push({ col: c, row: r, prev: mapData[k] });
-      mapData[k] = hexId || id;
+      const prev = mapData[k], now = hexId || id;
+      touched.push({ col: c, row: r, prev });
+      mapData[k] = now;
+      if (!footprints && (_isMultiTileId(now) || _isMultiTileId(prev))) footprints = true;
       const bi = keepBridges ? -1 : bridgesData.findIndex(b => b.col === c && b.row === r);
       if (bi >= 0) bridgesData.splice(bi, 1);
     }
-    invalidateSatelliteMap();
+    if (footprints) invalidateSatelliteMap();      // single-tile writes cannot change a footprint: no O(W*H) rebuild per stroke move
     _autoResolveEdgesAround(touched);
     return touched;
   }
@@ -9906,6 +9909,7 @@ const IO = (() => {
   }
   function _restoreMapState(s) {
     MAP_WIDTH = s.w; MAP_HEIGHT = s.h; mapData = s.mapData; bridgesData = s.bridgesData; objectsData = s.objectsData;
+    bumpMapWrite();
     tileExtras = s.tileExtras; roadsData = s.roadsData; settlements = s.settlements; settlementSlots = s.settlementSlots;
     settlementPriority1 = s.settlementPriority1; settlementPriority2 = s.settlementPriority2;
     _setFileName(s.fileName);
@@ -9955,6 +9959,7 @@ const IO = (() => {
             mapData[ct.y * MAP_WIDTH + ct.x] = ct.id;
         });
       }
+      bumpMapWrite();
       settlements = json.settlements && json.settlements.length
         ? json.settlements.map(s => ({ col: s.col ?? s.x, row: s.row ?? s.y, type: s.type || 'settlement' }))
         : [{ col: getCityCol(), row: getCityRow(), type: 'city' }];
@@ -10015,6 +10020,7 @@ const IO = (() => {
       MAP_WIDTH  = 450;
       MAP_HEIGHT = 450;
       mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+      bumpMapWrite();
       bridgesData = [];
       objectsData = {};
       tileExtras  = {};
@@ -10070,6 +10076,7 @@ const IO = (() => {
     MAP_WIDTH  = w;
     MAP_HEIGHT = h;
     mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+    bumpMapWrite();
     bridgesData = [];
     objectsData = {};
     tileExtras  = {};
@@ -10200,6 +10207,7 @@ const IO = (() => {
             mapData[ct.y * MAP_WIDTH + ct.x] = ct.id;
         });
       }
+      bumpMapWrite();
 
       // Settlements: support both {x,y} and {col,row}
       if (json.settlements && json.settlements.length > 0) {
@@ -10395,6 +10403,7 @@ const IO = (() => {
       Tools.clearRoadStart(false);
       History.push();
       mapData.fill(hexId);
+      bumpMapWrite();
       Canvas.render();
       Canvas.drawMinimap();
       UI.toast(`Map filled with ${hexId}`);
@@ -10578,6 +10587,7 @@ const IO = (() => {
     MAP_WIDTH   = newW;
     MAP_HEIGHT  = newH;
     mapData     = newMapData;
+    bumpMapWrite();
     objectsData = newObjectsData;
     tileExtras  = newTileExtras;
     roadsData   = newRoadsData;
@@ -10902,6 +10912,7 @@ const Generator = (() => {
       History.push();                            // pre-state, taken right before we overwrite
       const names = res.names, grid = res.grid, md = mapData;
       for (let i = 0; i < grid.length; i++) md[i] = names[grid[i]];
+      bumpMapWrite();
       const cityC = getCityCol(), cityR = getCityRow();
       if (!Layers.isLocked('settlements')) {     // a locked settlements layer keeps its markers (the city marker included)
         settlements = settlements.filter(s => s.type !== 'city');
@@ -11101,6 +11112,7 @@ const Satellite = (() => {
     History.push();
     const len = MAP_WIDTH * MAP_HEIGHT;
     for (let i = 0; i < len; i++) mapData[i] = _classified[i];
+    bumpMapWrite();
 
     const cityC = getCityCol(), cityR = getCityRow();
     const keepCity   = document.getElementById('sat-keepCity').checked;
@@ -11119,6 +11131,7 @@ const Satellite = (() => {
           if (keepCity && dr === 0 && dc === 0) mapData[idx] = T2.PLAIN_1;
         }
       }
+      bumpMapWrite();
     }
 
     if (!Layers.isLocked('settlements')) {         // a locked settlements layer keeps its markers
@@ -16713,6 +16726,7 @@ const Dev = (() => {
       const { c, r } = positions[i];
       mapData[r * MAP_WIDTH + c] = entry.id;
     });
+    bumpMapWrite();
 
     Canvas.render();
     Canvas.drawMinimap();
@@ -16738,6 +16752,12 @@ let roadsData   = {};   // {"col,row": {type}} — painted road tiles
 // Rebuilt lazily whenever mapData changes. Satellite tiles are the 6 neighbours that
 // a multi-tile anchor (occupiedOffsets in HexDB) marks as part of its footprint.
 let _satelliteMap = null;
+// The cache is self-validating: it is only trusted while the (mapData identity, MAP_WIDTH, MAP_HEIGHT, _mapWriteSeq)
+// it was built for is still current. EVERY in-place mapData writer that can touch a multi-tile terrain calls
+// bumpMapWrite(); replacing the array or resizing the map is caught by the identity/size parts of the key.
+let _mapWriteSeq = 0;
+let _satKey = null;          // { md, w, h, seq } the cache was built for
+let _satBuilds = 0;          // work counter (tests): footprint-map builds since page load
 
 // Direction offsets in editor (col, row) coords, indexed by game-column parity.
 // Game column = worldXidx = MAP_HEIGHT-1-row. Use _DIRS_ODD when worldXidx is even,
@@ -16761,7 +16781,9 @@ function footprintCells(col, row, entry) {
 }
 
 function _buildSatelliteMap() {
+  _satBuilds++;
   _satelliteMap = {};
+  _satKey = { md: mapData, w: MAP_WIDTH, h: MAP_HEIGHT, seq: _mapWriteSeq };
   if (!mapData) return;
   for (let r = 0; r < MAP_HEIGHT; r++) {
     for (let c = 0; c < MAP_WIDTH; c++) {
@@ -16777,11 +16799,18 @@ function _buildSatelliteMap() {
 }
 
 function getSatelliteAnchor(col, row) {
-  if (_satelliteMap === null) _buildSatelliteMap();
+  const k = _satKey;
+  if (_satelliteMap === null || !k || k.md !== mapData || k.w !== MAP_WIDTH || k.h !== MAP_HEIGHT || k.seq !== _mapWriteSeq) _buildSatelliteMap();
   return _satelliteMap[col + '_' + row] || null;
 }
 
-function invalidateSatelliteMap() { _satelliteMap = null; }
+// Call after ANY in-place mapData write that wrote or overwrote a multi-tile terrain (or wrote an unknown set of cells).
+function bumpMapWrite() { _mapWriteSeq++; _satelliteMap = null; }
+function invalidateSatelliteMap() { bumpMapWrite(); }
+function _isMultiTileId(id) {
+  const e = id ? Terrain.byHexId(id) : null;
+  return !!(e && Array.isArray(e.occupiedOffsets) && e.occupiedOffsets.length);
+}
 let settlements = [];
 let settlementSlots = []; // [{minDist,maxDist,count,type,tapMultiplier,level,minSpacing,nearPct,midPct,farPct}]
 let settlementPriority1 = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];

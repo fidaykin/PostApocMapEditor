@@ -382,6 +382,7 @@ const ZonePainter = (() => {
         mapData[i] = terrainId;  // write hex ID string directly
       }
     }
+    bumpMapWrite();          // in-place bulk write: the derived footprint map is stale
   }
 
   function _tileHash(col, row, seed) {
