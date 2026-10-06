@@ -991,6 +991,27 @@ test.describe('symmetry (T2.5)', () => {
     await page.evaluate(() => { Tools.setSymmetry('none'); Tools.setActive('paint'); });
   });
 
+  test('a filled circle (Shift) with rot6 symmetry previews at most RECT_SYM_PREVIEW_CAP cells however large; small ones still show every copy; the commit is unchanged', async ({ page }) => {
+    await page.evaluate(() => { Tools.setSymmetry('rot6'); UI.selectTerrain('Water_1'); Tools.setActive('circle'); });
+    const drag = (radius: number) => page.evaluate((R) => {
+      const cv = document.getElementById('map-canvas') as HTMLCanvasElement, b = cv.getBoundingClientRect();
+      const at = (c: number, r: number) => { const p = Canvas.hexScreenPos(c, r); return { clientX: b.left + p.x, clientY: b.top + p.y }; };
+      const a = at(231, 224), z = at(231 + R, 224);
+      cv.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0, buttons: 1, ...a }));
+      cv.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, button: 0, buttons: 1, shiftKey: true, ...z }));
+      return Canvas.getHighlightPoints('shape')?.n ?? 0;
+    }, radius);
+    const finish = () => page.evaluate(() => { const cv = document.getElementById('map-canvas')!; cv.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' })); window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); });
+    const small = await drag(5);
+    expect(small, 'small circle: every copy is drawn (a 91-cell disc, several distinct copies)').toBeGreaterThan(91 * 3);
+    await finish();
+    const big = await drag(150);                                    // disc of ~67,000 cells x 6
+    expect(big, 'something is previewed (the outline)').toBeGreaterThan(0);
+    expect(big, 'never more than the cap').toBeLessThanOrEqual(4000);
+    await finish();
+    await page.evaluate(() => { Tools.setSymmetry('none'); Tools.setActive('paint'); });
+  });
+
   test('turning symmetry off mid-rectangle clears the stale copies and commits only the rectangle', async ({ page }) => {
     await page.evaluate(() => { Tools.setSymmetry('h'); UI.selectTerrain('Forest_1'); Tools.setActive('rect'); });
     const pa = await cellPoint(page, 226, 220), pb = await cellPoint(page, 228, 222);

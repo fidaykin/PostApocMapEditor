@@ -2447,7 +2447,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "4a1bd50";
+const COMMIT  = "04cf31b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6745,6 +6745,7 @@ const Tools = (() => {
   function _cancelShape() {
     _shapeStart = null; _shapeEnd = null; _shapeKey = ''; _polyVerts = [];
     Canvas.setHighlight('shape', null);
+    const cv = document.getElementById('map-canvas'); if (cv && cv.title && cv.title.startsWith('Preview shows the outline only')) cv.removeAttribute('title');
   }
   function _shapeStale() { return _shapeMd !== mapData || _shapeW !== MAP_WIDTH || _shapeH !== MAP_HEIGHT; }
   function _cancelStale() {
@@ -6778,13 +6779,33 @@ const Tools = (() => {
     return HexUtils.polygonCells(cubes, MAP_WIDTH, MAP_HEIGHT, !outlineOnly);
   }
 
+  // Preview cells for Line/Circle/Polygon. With symmetry on, the copies are only drawn while the whole expanded
+  // preview stays within RECT_SYM_PREVIEW_CAP cells; above it the preview is the shape's own outline (no copies),
+  // so a huge filled circle with rot6 does not expand hundreds of thousands of cells on every mousemove. The
+  // committed write is unchanged. The canvas tooltip says so while the preview is reduced.
+  const SYM_MAX_COPIES = 6;
+  function _shapePreviewCells(full, outline) {
+    const cv = document.getElementById('map-canvas');
+    let cells, reduced = false;
+    if (_symMode === 'none') cells = full;
+    else if (full.length * SYM_MAX_COPIES <= RECT_SYM_PREVIEW_CAP) cells = _expandSymmetry(full);
+    else {
+      reduced = true;
+      cells = outline.length * SYM_MAX_COPIES <= RECT_SYM_PREVIEW_CAP ? _expandSymmetry(outline) : outline;
+    }
+    if (cv) { if (reduced) cv.title = 'Preview shows the outline only; the full shape and its symmetry copies are written on release'; else if (cv.title && cv.title.startsWith('Preview shows the outline only')) cv.removeAttribute('title'); }
+    return cells;
+  }
+
   function _previewShape(filled, noRender) {
-    Canvas.setHighlight('shape', _expandSymmetry(_shapeCells(_active, _shapeStart, _shapeEnd, filled)), { fill: 'rgba(79,195,247,0.12)' }, { render: noRender === true ? false : true });
+    const full = _shapeCells(_active, _shapeStart, _shapeEnd, filled);
+    const outline = filled && _active === 'circle' ? _shapeCells(_active, _shapeStart, _shapeEnd, false) : full;
+    Canvas.setHighlight('shape', _shapePreviewCells(full, outline), { fill: 'rgba(79,195,247,0.12)' }, { render: noRender === true ? false : true });
   }
 
   function _previewPolygon(cursor) {
     const verts = cursor ? _polyVerts.concat([cursor]) : _polyVerts;
-    Canvas.setHighlight('shape', _expandSymmetry(_polyCells(verts, true)), { fill: 'rgba(79,195,247,0.12)' }, { render: !cursor });
+    Canvas.setHighlight('shape', _shapePreviewCells(_polyCells(verts, true), _polyCells(verts, true)), { fill: 'rgba(79,195,247,0.12)' }, { render: !cursor });
   }
 
   // One History step per shape; nothing is pushed for an empty result.
