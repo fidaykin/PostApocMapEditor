@@ -121,18 +121,6 @@ const ZonePainter = (() => {
   // HexDB is the single source of truth. No static ID tables — new tile types
   // added to HexDB automatically become available here.
 
-  // Returns terrainTypeId (integer) for a hex ID string, or -1 if not found.
-  function _hexIdToTid(hexId) {
-    if (typeof HexDB !== 'undefined') {
-      const e = HexDB.getAll().find(h => h.id === hexId);
-      if (e && typeof e.terrainTypeId !== 'undefined' && e.terrainTypeId >= 0)
-        return e.terrainTypeId;
-    }
-    // Legacy: old autosaved preset stored numeric string key (e.g. '15')
-    const n = parseInt(hexId, 10);
-    return (!isNaN(n) && String(n) === String(hexId)) ? n : -1;
-  }
-
   // Returns hex ID string for a terrainTypeId integer, or null if not found.
   function _tidToHexId(tid) {
     if (typeof HexDB !== 'undefined') {

@@ -26,6 +26,7 @@ test('dead public helpers are gone and the editor still builds its palette', asy
 // Removed definitions must not come back by accident; each name below passed `scripts/unreferenced.sh` (definition only,
 // or definition plus export) before it was deleted. REMOVED maps file -> names that must no longer be defined there.
 const REMOVED: Record<string, string[]> = {
+  'zone-painter.js': ['_hexIdToTid'],
   'MapEditorPro.html': ['_numInput', '_costRow', 'hexdb-cost-row', '_getFileSha'],
 };
 for (const [file, names] of Object.entries(REMOVED)) {
