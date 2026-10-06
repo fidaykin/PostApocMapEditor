@@ -17,7 +17,7 @@ export function checkoutPort(dir: string): number {
 }
 const PORT = Number(process.env.PW_PORT) || checkoutPort(__dirname);
 const BASE_URL = `http://localhost:${PORT}`;
-// Runs that legitimately take long get no global cap; everything else is stopped after 25 min (runaway guard).
+// Runs that legitimately take long get no global cap; everything else is stopped after 45 min (runaway guard).
 const LONG_RUN = !!(process.env.FULL_EQUIV || process.env.MEASURE_HARNESS || process.env.MEASURE_UNDO || process.env.UPDATE_BASELINE);
 
 export default defineConfig({
@@ -29,7 +29,7 @@ export default defineConfig({
   // > 2 x helpers.STARTUP_CAP_MS (20 s per startup attempt, one retry) so a startup failure reports its own diagnostic
   // before the test times out; heavy specs set their own.
   timeout: 60_000,
-  globalTimeout: LONG_RUN ? 0 : 25 * 60_000,   // runaway guard (a full run takes ~2-3 min); 0 = off
+  globalTimeout: LONG_RUN ? 0 : 45 * 60_000,   // runaway guard (a healthy full run of ~1500 tests takes ~9-10 min); 0 = off
   globalSetup: './tests/global-setup.ts',   // macOS: keep the machine awake during the run (T2.H root cause)
   workers: (process.env.UPDATE_BASELINE || process.env.MEASURE_UNDO) ? 1 : DEFAULT_WORKERS,   // baseline JSON is a read-modify-write
   reporter: [['list'], ['./tests/startup-retry-reporter.ts']],   // the second prints how many startup retries were used

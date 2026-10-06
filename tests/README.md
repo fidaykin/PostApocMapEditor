@@ -26,7 +26,7 @@ checkout path, so the main checkout and every worktree get their own server and 
 | `UPDATE_BASELINE=1` | rewrite `perf-baseline.json` (pre-change code only; see `perf-scene.ts`) |
 | `MEASURE_UNDO=1`, `MEASURE_HARNESS=1` | opt-in measurement specs (`perf-undo-measure`, `*.measure.spec.ts`) |
 
-`globalTimeout` stops a run after 25 min (a runaway guard). It is turned off when `FULL_EQUIV`,
+`globalTimeout` stops a run after 45 min (a runaway guard; a healthy full run of ~1500 tests takes ~9-10 min). It is turned off when `FULL_EQUIV`,
 `MEASURE_HARNESS`, `MEASURE_UNDO` or `UPDATE_BASELINE` is set.
 
 ## Startup failures and the sleeping Mac
