@@ -2670,7 +2670,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "ccad574";
+const COMMIT  = "421dd63";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8838,20 +8838,25 @@ const GitHubSync = (() => {
   async function _cmUploadSprite(category) {
     if (!isPATConfigured()) return UI.toast('⚠ Configure PAT first');
     const input = document.createElement('input');
-    input.type = 'file'; input.accept = 'image/png'; input.multiple = true;
+    input.type = 'file'; input.accept = 'image/png,image/jpeg,image/webp'; input.multiple = true;
     input.onchange = async () => {
       const files = Array.from(input.files);
       if (!files.length) return;
       let ok = 0, fail = 0;
-      for (const file of files) {
+      for (const rawFile of files) {
         try {
-          await _putBinary(`packages/postapoc/sprites/${category}/${file.name}`, file, `cm-upload: ${file.name}`);
-          await _putBinary(`sprites/${category}/${file.name}`, file, `cm-upload: ${file.name} (compat)`);
+          // Same validation, sanitising and collision question as the sprite picker; the content manager edits the default package.
+          const prep = await UI.prepareSpriteUpload(rawFile, 'postapoc', category);
+          if (!prep) { fail++; continue; }
+          const file = prep.file, fileName = prep.name + '.png';
+          await _putBinary(`packages/postapoc/sprites/${category}/${fileName}`, file, `cm-upload: ${fileName}`);
+          await _putBinary(`sprites/${category}/${fileName}`, file, `cm-upload: ${fileName} (compat)`);
           const dataUrl = await new Promise((res, rej) => {
             const r = new FileReader(); r.onload = e => res(e.target.result); r.onerror = rej;
             r.readAsDataURL(file);
           });
-          await SpriteStore.save(file.name.replace(/\.png$/i, ''), dataUrl, category);
+          await SpriteStore.save(prep.name, dataUrl, category, 'postapoc');
+          Terrain.registerUploadedUrls({ [SpriteStore.keyFor('postapoc', prep.name)]: dataUrl });
           ok++;
         } catch(e) { fail++; console.error(e); }
       }
@@ -10318,21 +10323,84 @@ const UI = (() => {
     return file;
   }
 
-  async function handleSpriteUpload(files) {
-    for (const file of files) {
-      const name = file.name.replace(/\.[^.]+$/, ''); // strip extension
-      const optimizedFile = await _optimizePng(file);
-      const dataUrl = await new Promise((res, rej) => {
-        const reader = new FileReader();
-        reader.onload = e => res(e.target.result);
-        reader.onerror = rej;
-        reader.readAsDataURL(optimizedFile);
+  // Resolves with 'replace' | 'both' | 'cancel' exactly once (button, Escape, backdrop all land here).
+  function _askSpriteCollision(name, pkg) {
+    return new Promise(resolve => {
+      const body = document.createElement('p');
+      body.textContent = `A sprite named "${name}" already exists in ${pkg === 'postapoc' ? 'the base content' : `package "${pkg}"`}. Replace it, or keep both and store the new one under a different name?`;
+      showModal({
+        id: 'sprite-collision', title: 'Sprite name already exists', body,
+        actions: [
+          { label: 'Replace', danger: true, onClick: close => { resolve('replace'); close(); } },
+          { label: 'Keep both', primary: true, onClick: close => { resolve('both'); close(); } },
+          { label: 'Cancel', onClick: close => { resolve('cancel'); close(); } },
+        ],
+        autofocus: 2,
+        onClose: () => resolve('cancel'),
       });
-      const uploadCategory = (_spritePickerOpts.folder || '').includes('buildings') ? 'buildings' : 'hex';
-      await SpriteStore.save(name, dataUrl, uploadCategory);
-      toast(`Uploaded "${name}"`);
-      GitHubSync.pushSprite(name, optimizedFile, uploadCategory);
+    });
+  }
+
+  // Validates one picked file and resolves its target name for `pkg`/`category`. Writes nothing. Returns
+  // { file, name, converted } (the file to store) or null (rejected or cancelled; a toast says why).
+  async function prepareSpriteUpload(rawFile, pkg, category) {
+    const norm = await Packages.normalizeSpriteFile(rawFile);
+    if (!norm.ok) { toast('⚠ ' + norm.error); return null; }
+    let name = Packages.sanitizeSpriteName(norm.file.name);
+    if (!name) { toast(`⚠ "${rawFile.name}" has no usable name.`); return null; }
+    norm.warnings.forEach(w => toast('⚠ ' + w));
+    if (norm.converted) toast(`Converted "${rawFile.name}" to PNG`);
+    const chk = await Packages.checkSpriteName(pkg, name, category);
+    if (chk.collides === 'self') {
+      const choice = await _askSpriteCollision(name, pkg);
+      if (choice === 'cancel') { toast(`Skipped "${name}"`); return null; }
+      if (choice === 'both') {
+        let n = 2;
+        while ((await Packages.checkSpriteName(pkg, `${name}_${n}`, category)).collides) n++;
+        name = `${name}_${n}`;
+      }
+    } else if (chk.collides === 'postapoc') {
+      toast(`⚠ "${name}" has the same name as a base (postapoc) sprite. It is stored in package "${pkg}" and does not replace the base one.`);
     }
+    return { file: norm.file, name, converted: norm.converted };
+  }
+
+  let _uploadChain = Promise.resolve();   // one upload batch at a time (a second pick queues behind a pending collision question)
+
+  function handleSpriteUpload(files) {
+    const run = _uploadChain.then(() => _runSpriteUpload(files));
+    _uploadChain = run.catch(() => {});
+    return run;
+  }
+
+  async function _runSpriteUpload(files) {
+    const pkg = (typeof Packages !== 'undefined') ? Packages.getActive() : 'postapoc';
+    const uploadCategory = (_spritePickerOpts.folder || '').includes('buildings') ? 'buildings' : 'hex';
+    let ok = 0, skipped = 0;
+    for (const rawFile of files) {
+      try {
+        const prep = await prepareSpriteUpload(rawFile, pkg, uploadCategory);
+        if (!prep) { skipped++; continue; }
+        const optimizedFile = await _optimizePng(prep.file);
+        const dataUrl = await new Promise((res, rej) => {
+          const reader = new FileReader();
+          reader.onload = e => res(e.target.result);
+          reader.onerror = () => rej(reader.error);
+          reader.readAsDataURL(optimizedFile);
+        });
+        await SpriteStore.save(prep.name, dataUrl, uploadCategory, pkg);
+        Terrain.registerUploadedUrls({ [SpriteStore.keyFor(pkg, prep.name)]: dataUrl });
+        ok++;
+        toast(`Uploaded "${prep.name}"` + (pkg !== 'postapoc' ? ` to package "${pkg}"` : ''));
+        // Only the default package's sprites go to the shared server pool; other packages ship them on publish.
+        if (pkg === 'postapoc') GitHubSync.pushSprite(prep.name, optimizedFile, uploadCategory);
+      } catch (e) {
+        console.error(e);
+        skipped++;
+        toast(`⚠ Could not upload "${rawFile.name}": ${e && e.message ? e.message : e}`);
+      }
+    }
+    if (files.length > 1) toast(`${ok} uploaded` + (skipped ? `, ${skipped} skipped` : ''));
     if (document.getElementById('sprite-picker-modal').classList.contains('open')) {
       showSpritePicker(_spritePickerCallback, _spritePickerOpts);
     }
@@ -10392,7 +10460,7 @@ const UI = (() => {
     toggleSettlements, closeAllMenus,
     showConfirm, closeConfirm, toast,
     showModal, showDialog, closeDialog: result => _dlgClose(result || { button: null, input: undefined }), alert: alertDialog, prompt: promptDialog, confirm: confirmDialog,
-    showSpritePicker, closeSpritePicker,
+    showSpritePicker, closeSpritePicker, prepareSpriteUpload,
     updateStatusTool, updateStatusSize,
     rebuildSlotPanel,
     progress, progressDone
@@ -12495,6 +12563,108 @@ const Packages = (() => {
     return pkg === 'postapoc' ? rel : `${BASE_URL}/${rel}`;
   }
 
+  // ── Sprite upload validation (T5.4) ────────────────────────────────────────────────────────────
+  // Everything runs BEFORE any write. Size is checked from file.size alone (nothing is read for an oversize file), the
+  // header is sniffed from the first 64 KB, dimensions come from the header (a decompression bomb is never decoded).
+  const SPRITE_MAX_BYTES = 4 * 1024 * 1024;
+  const SPRITE_MAX_DIM = 2048;
+  const SPRITE_NAME_MAX = 64;
+  const _PNG_SIG = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+
+  // Untrusted file name -> safe sprite name (no extension), or null when nothing usable is left.
+  function sanitizeSpriteName(fileName) {
+    let n = String(fileName == null ? '' : fileName).split(/[\\/]/).pop();   // no directories, either separator
+    n = n.replace(/\.[^.]*$/, '');                                          // extension (re-added as .png on write)
+    n = n.replace(/[\u0000-\u001f\u007f]/g, '').replace(/\.\./g, '').replace(/[<>:"|?*#%]/g, '_').trim();
+    n = n.replace(/^\.+/, '').slice(0, SPRITE_NAME_MAX).trim();
+    return n || null;
+  }
+
+  function _headerKind(h) {
+    if (_PNG_SIG.every((b, i) => h[i] === b)) return 'png';
+    if (h[0] === 0xFF && h[1] === 0xD8 && h[2] === 0xFF) return 'jpeg';
+    if (h[0] === 0x52 && h[1] === 0x49 && h[2] === 0x46 && h[3] === 0x46 && h[8] === 0x57 && h[9] === 0x45 && h[10] === 0x42 && h[11] === 0x50) return 'webp';
+    return null;
+  }
+
+  // [width, height] from the header bytes, or null when it cannot be read there (decode then reports the problem).
+  function _headerDims(h, kind) {
+    const dv = new DataView(h.buffer, h.byteOffset, h.byteLength);
+    try {
+      if (kind === 'png') return h.length >= 24 ? [dv.getUint32(16), dv.getUint32(20)] : null;
+      if (kind === 'jpeg') {
+        let i = 2;
+        while (i + 9 < h.length) {
+          if (h[i] !== 0xFF) { i++; continue; }
+          const m = h[i + 1];
+          if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return [dv.getUint16(i + 7), dv.getUint16(i + 5)];
+          if (m === 0xD8 || m === 0x01 || (m >= 0xD0 && m <= 0xD7) || m === 0xFF) { i += (m === 0xFF ? 1 : 2); continue; }
+          i += 2 + dv.getUint16(i + 2);
+        }
+        return null;
+      }
+      if (kind === 'webp') {
+        const fourcc = String.fromCharCode(h[12], h[13], h[14], h[15]);
+        if (fourcc === 'VP8X') return [1 + (h[24] | h[25] << 8 | h[26] << 16), 1 + (h[27] | h[28] << 8 | h[29] << 16)];
+        if (fourcc === 'VP8 ') return [dv.getUint16(26, true) & 0x3FFF, dv.getUint16(28, true) & 0x3FFF];
+        if (fourcc === 'VP8L') { const b = dv.getUint32(21, true); return [(b & 0x3FFF) + 1, ((b >> 14) & 0x3FFF) + 1]; }
+      }
+    } catch (e) { /* short header */ }
+    return null;
+  }
+
+  // Keeps real PNGs untouched (alpha, metadata), converts a readable JPEG/WebP to PNG through a canvas, rejects the rest
+  // (SVG always). Never writes anything. Object URLs are not used (createImageBitmap), the bitmap is closed.
+  async function normalizeSpriteFile(file) {
+    const label = `"${file && file.name || 'file'}"`;
+    const fail = error => ({ ok: false, error });
+    if (!file) return fail('No file.');
+    if (/\.svg$/i.test(file.name || '') || /svg/i.test(file.type || '')) return fail(`${label}: SVG images are not supported (use PNG).`);
+    if (file.size > SPRITE_MAX_BYTES) return fail(`${label} is too large (${(file.size / 1048576).toFixed(1)} MB, limit ${SPRITE_MAX_BYTES / 1048576} MB).`);
+    let head;
+    try { head = new Uint8Array(await file.slice(0, 65536).arrayBuffer()); }
+    catch (e) { return fail(`${label} could not be read.`); }
+    const kind = _headerKind(head);
+    if (!kind) {
+      const txt = new TextDecoder().decode(head.slice(0, 512)).toLowerCase();
+      return fail(/<svg|<\?xml/.test(txt) ? `${label}: SVG images are not supported (use PNG).` : `${label} is not a PNG, JPEG or WebP image.`);
+    }
+    const dims = _headerDims(head, kind);
+    if (dims && (dims[0] > SPRITE_MAX_DIM || dims[1] > SPRITE_MAX_DIM || !dims[0] || !dims[1]))
+      return fail(`${label} has too large dimensions (${dims[0]}×${dims[1]}, limit ${SPRITE_MAX_DIM}×${SPRITE_MAX_DIM}).`);
+    let bmp;
+    try { bmp = await createImageBitmap(file); }
+    catch (e) { return fail(`${label} is not a readable image (corrupt or truncated).`); }
+    const w = bmp.width, h = bmp.height;
+    if (w > SPRITE_MAX_DIM || h > SPRITE_MAX_DIM) { bmp.close && bmp.close(); return fail(`${label} has too large dimensions (${w}×${h}, limit ${SPRITE_MAX_DIM}×${SPRITE_MAX_DIM}).`); }
+    const warnings = [];
+    if (w !== 512 || h !== 512) warnings.push(`${label} is ${w}×${h}; sprites are expected to be 512×512.`);
+    if (kind === 'png') { bmp.close && bmp.close(); return { ok: true, file, converted: false, warnings }; }
+    const c = document.createElement('canvas');
+    c.width = w; c.height = h;
+    c.getContext('2d').drawImage(bmp, 0, 0);
+    bmp.close && bmp.close();
+    const blob = await new Promise(res => c.toBlob(res, 'image/png'));
+    if (!blob) return fail(`${label} could not be converted to PNG.`);
+    const out = new File([blob], String(file.name || 'sprite').replace(/\.[^.]*$/, '') + '.png', { type: 'image/png' });
+    return { ok: true, file: out, converted: true, warnings };
+  }
+
+  // Does `name` already exist for this target? 'self': the package's own store (any category: the store key is the
+  // name) or, for the default package, a sprite the databases reference in this category (it lives on the server pool,
+  // overwriting it would be silent). 'postapoc': another package's upload shares a name with a base sprite.
+  async function checkSpriteName(pkg, name, category) {
+    const target = pkg || 'postapoc';
+    const dbHas = (cat, p) => (cat === 'buildings' ? BldDB.getAll() : HexDB.getAll())
+      .some(r => (r.package || 'postapoc') === p && r.spriteName === name);
+    let own = [], base = [];
+    try { own = await SpriteStore.loadForPackage(target); if (target !== 'postapoc') base = await SpriteStore.loadForPackage('postapoc'); }
+    catch (e) { /* IndexedDB unavailable: DB references still count */ }
+    if (own.some(e => e.name === name) || (target === 'postapoc' && dbHas(category, 'postapoc'))) return { collides: 'self' };
+    if (target !== 'postapoc' && (base.some(e => e.name === name) || dbHas(category, 'postapoc'))) return { collides: 'postapoc' };
+    return { collides: null };
+  }
+
   // One-time, idempotent move of flat sprites (the old single namespace) that only non-default packages use into their
   // package namespace. Lossless: a flat copy is deleted only after an identical package copy exists; a postapoc-used,
   // unreferenced or conflicting flat copy is left alone. IndexedDB failures are tolerated.
@@ -13524,7 +13694,7 @@ const Packages = (() => {
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
-           spriteSrc, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
+           spriteSrc, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal,
@@ -16148,6 +16318,7 @@ const HexDB = (() => {
     const realIdx = _filtered[_selFilt];
     const hex = _data.hexes[realIdx];
     const label = hex.id || '(unnamed)';
+    const hexPkg = hex.package || 'postapoc';
 
     UI.showConfirm('Migrate to Buildings DB',
       `Move "${label}" from HexDB → BldDB and remove from HexDB?`,
@@ -16171,6 +16342,7 @@ const HexDB = (() => {
           biome: hex.biome || 'Summer',
           filter: 'FilterBuilding',
           spriteName: hex.spriteName || '',
+          ...(hexPkg !== 'postapoc' ? { package: hexPkg } : {}),   // the building stays in the hex's package (its sprite is stored there)
           baseCostTaps: hex.baseCostTaps ?? 0,
           // Destroy
           canDestroy: hex.canDestroy ?? false,
@@ -16230,7 +16402,7 @@ const HexDB = (() => {
             let spriteBlob = null;
             let spriteDataUrl = null;
 
-            const all = await SpriteStore.loadAll();
+            const all = [...await SpriteStore.loadForPackage(hexPkg), ...(hexPkg !== 'postapoc' ? await SpriteStore.loadForPackage('postapoc') : [])];
             const entry = all.find(e => e.name === newBld.spriteName && (e.category || 'hex') === 'hex');
             if (entry?.dataUrl) {
               spriteDataUrl = entry.dataUrl;
@@ -16238,7 +16410,7 @@ const HexDB = (() => {
               spriteBlob = await res.blob();
             } else {
               // Fallback: fetch directly from GitHub Pages hex folder
-              const hexUrl = `${GitHubSync.BASE_URL}/packages/postapoc/sprites/hex/${newBld.spriteName}.png`;
+              const hexUrl = `${GitHubSync.BASE_URL}/packages/${encodeURIComponent(hexPkg)}/sprites/hex/${encodeURIComponent(newBld.spriteName)}.png`;
               const res = await fetch(hexUrl);
               if (res.ok) {
                 spriteBlob = await res.blob();
@@ -16252,14 +16424,14 @@ const HexDB = (() => {
 
             if (spriteBlob && spriteDataUrl) {
               // Register in local cache so canvas still resolves this sprite ID
-              Terrain.registerUploadedUrls({ [newBld.spriteName]: spriteDataUrl });
+              Terrain.registerUploadedUrls({ [SpriteStore.keyFor(hexPkg, newBld.spriteName)]: spriteDataUrl });
               if (newBld.buildingCategory === 'Bridge') {
                 // Bridge sprites live in sprites/hex/ — no copy to buildings folder needed
-                await SpriteStore.save(newBld.spriteName, spriteDataUrl, 'hex');
+                await SpriteStore.save(newBld.spriteName, spriteDataUrl, 'hex', hexPkg);
               } else {
-                await SpriteStore.save(newBld.spriteName, spriteDataUrl, 'buildings');
-                // Push to GitHub buildings folder (fire-and-forget)
-                GitHubSync.pushSprite(newBld.spriteName, spriteBlob, 'buildings')
+                await SpriteStore.save(newBld.spriteName, spriteDataUrl, 'buildings', hexPkg);
+                // Push to GitHub buildings folder (fire-and-forget); other packages ship their sprites on publish
+                if (hexPkg === 'postapoc') GitHubSync.pushSprite(newBld.spriteName, spriteBlob, 'buildings')
                   .catch(e => console.warn('[migrate] pushSprite buildings failed:', e.message));
               }
             } else {
