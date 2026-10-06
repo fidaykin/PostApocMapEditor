@@ -1108,6 +1108,33 @@ test.describe('road tools (T2.15)', () => {
     await noStart(page, 'Clear Map');
   });
 
+  test('Connect Road: Generator apply, Satellite apply and the QA placer drop a pending start', async ({ page }) => {
+    await setStart(page);
+    const s0 = await page.evaluate(() => History.undoSize());
+    await page.evaluate(async () => { await Generator.apply(); });
+    expect(await page.evaluate(() => History.undoSize()), 'the generator really applied').toBe(s0 + 1);
+    await noStart(page, 'Generator apply');
+    await setStart(page);
+    const png = await page.evaluate(() => {
+      const c = document.createElement('canvas'); c.width = 64; c.height = 64; const x = c.getContext('2d')!;
+      for (let j = 0; j < 64; j += 8) for (let i = 0; i < 64; i += 8) { x.fillStyle = `hsl(${(i * 7 + j * 3) % 360},50%,${20 + (j % 5) * 12}%)`; x.fillRect(i, j, 8, 8); }
+      return c.toDataURL('image/png');
+    });
+    await page.evaluate(() => Satellite.open());
+    await page.locator('#sat-modal input[type=file]').setInputFiles({ name: 'sat.png', mimeType: 'image/png', buffer: Buffer.from(png.split(',')[1], 'base64') });
+    await page.waitForFunction(() => !(document.getElementById('sat-apply-btn') as HTMLButtonElement).disabled);
+    await setStart(page);
+    const s1 = await page.evaluate(() => History.undoSize());
+    await page.evaluate(() => Satellite.apply());
+    expect(await page.evaluate(() => History.undoSize()), 'the satellite really applied').toBe(s1 + 1);
+    await noStart(page, 'Satellite apply');
+    await setStart(page);
+    const s2 = await page.evaluate(() => History.undoSize());
+    await page.evaluate(() => Dev.qaPlaceAllTiles());
+    expect(await page.evaluate(() => History.undoSize()), 'the QA placer really applied').toBe(s2 + 1);
+    await noStart(page, 'QA placer');
+  });
+
   test('Connect Road: Escape with only a pending start is consumed (preventDefault) and keeps the tool', async ({ page }) => {
     await setStart(page);
     const prevented = await page.evaluate(() => { const ev = new KeyboardEvent('keydown', { key: 'Escape', code: 'Escape', bubbles: true, cancelable: true }); window.dispatchEvent(ev); return ev.defaultPrevented; });
