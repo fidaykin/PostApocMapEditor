@@ -22,3 +22,29 @@ test('dead public helpers are gone and the editor still builds its palette', asy
   expect(r.buttons).toBeGreaterThan(20);
   expect(errors).toEqual([]);
 });
+
+// Removed definitions must not come back by accident; each name below passed `scripts/unreferenced.sh` (definition only,
+// or definition plus export) before it was deleted. REMOVED maps file -> names that must no longer be defined there.
+const REMOVED: Record<string, string[]> = {
+  'MapEditorPro.html': ['_numInput', '_costRow', 'hexdb-cost-row'],
+};
+for (const [file, names] of Object.entries(REMOVED)) {
+  for (const n of names) {
+    test(`${file} no longer defines ${n}`, () => {
+      expect(read(file).includes(n)).toBe(false);
+    });
+  }
+}
+
+test('the HEX DB editor still renders a record form and its rows', async ({ page }) => {
+  const errors: string[] = [];
+  page.on('pageerror', e => errors.push(e.message));
+  await openEditor(page);
+  await page.evaluate(() => App.setMode('hexdb'));
+  const first = page.locator('.hexdb-list-row').first();
+  await expect(first).toBeVisible();
+  await first.click();
+  await expect(page.locator('#hexdb-main .hexdb-row').first()).toBeVisible();
+  expect(await page.locator('#hexdb-main input[data-field]').count()).toBeGreaterThan(5);   // number/text inputs built by the remaining helpers
+  expect(errors).toEqual([]);
+});

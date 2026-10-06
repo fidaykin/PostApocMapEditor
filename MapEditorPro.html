@@ -1079,14 +1079,6 @@ body.mode-common #map-io    { display: none; }
   opacity: 0.35; background: var(--border); cursor: not-allowed;
 }
 .hexdb-input.error { border-color: #e55 !important; }
-.hexdb-cost-row { display: flex; align-items: center; gap: 6px; flex: 1; }
-.hexdb-cost-row label { font-size: 11px; color: var(--muted); }
-.hexdb-cost-row input {
-  width: 54px; background: var(--bg); border: 1px solid var(--border);
-  color: var(--text); padding: 4px 6px; border-radius: 3px;
-  font-size: 13px; text-align: right;
-}
-.hexdb-cost-row input:focus { outline: none; border-color: var(--accent); }
 .hexdb-checkbox-row { display: flex; align-items: center; gap: 8px; }
 .hexdb-checkbox-row label { font-size: 12px; color: var(--muted); }
 .hexdb-actions {
@@ -2721,7 +2713,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "e965a94";
+const COMMIT  = "cac1011";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -16543,16 +16535,8 @@ const HexDB = (() => {
       : '';
     return `<div class="hexdb-row"><span class="hexdb-label">${label}${tipHTML}</span>${inputHTML}</div>`;
   }
-  function _numInput(field, val) {
-    return `<input class="hexdb-input" type="number" step="1" data-field="${field}" value="${val}">`;
-  }
   function _textInput(field, val, extraAttr = '') {
     return `<input class="hexdb-input" data-field="${field}" value="${_esc(val)}"${extraAttr}>`;
-  }
-  function _costRow(fields, vals) {
-    return `<div class="hexdb-cost-row">${fields.map((f,i) =>
-      `<label>${f.label}</label><input type="number" step="1" data-field="${f.field}" value="${vals[i]}">`
-    ).join('')}</div>`;
   }
   function _checkRow(field, val, labelText) {
     return `<div class="hexdb-row hexdb-checkbox-row">
