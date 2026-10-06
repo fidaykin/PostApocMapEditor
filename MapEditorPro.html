@@ -1500,6 +1500,11 @@ body.mode-common #map-io    { display: none; }
                  onchange="DistanceBands.commit(this.value)"
                  onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){event.stopPropagation();DistanceBands.syncInput();this.blur()}">
         </div>
+        <div style="padding-top:8px" title="Scatters bunkers, mega cities, artifacts and ore clusters over free land, beyond the minimum distance from the city. One undo step. Needs the Terrain / Buildings / Settlements layers unlocked for what it writes. Same seed on the same map gives the same result; empty seed = random">Placement helper</div>
+        <div id="pl-form" style="display:grid;grid-template-columns:1fr 64px;gap:3px 6px;align-items:center;padding-top:4px"></div>
+        <div style="display:flex;gap:6px;padding:6px 0 4px">
+          <button class="hexdb-tool-btn" id="pl-apply" type="button" onclick="Placement.apply()" title="Place everything above (one undo step)">Place</button>
+        </div>
       </details>
       <div class="pkg-filter-row" id="pkg-filter-terrain"></div>
       <div id="palette-scroll"></div>
@@ -2489,7 +2494,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "fe67c1a";
+const COMMIT  = "ca5dcf7";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -17341,6 +17346,202 @@ function _fisherYates(arr) {
   }
   return arr;
 }
+
+// ════════════════════════════════════════════════════════════
+// PLACEMENT HELPER (T3.8): bunkers, mega cities, artifacts and ore clusters at game scale. Controls live in the LEFT palette
+// ('Map design'). plan() only READS the map; place() is the bulk writer (guard, ONE History step, write, rollback on error).
+// OWNER QUESTIONS (assumptions, edit them HERE and nowhere else): the real ore cluster counts and sizes; the settlement type ids
+// 'bunker' / 'megacity'; whether artifacts are objects (Artefact_Test_1 is a BldDB building) or settlements; copper / uranium
+// tile ids (CopperVein_1 / Uranium_1 are not in hex_database.json today: they are reported as "no tile" until added).
+// ════════════════════════════════════════════════════════════
+const Placement = (() => {
+  const CONFIG = {
+    bunkers:    { label: 'Bunkers',     count: 450, kind: 'settlement', id: 'bunker',   minCity: 6,  max: 5000 },
+    megaCities: { label: 'Mega cities', count: 5,   kind: 'settlement', id: 'megacity', minCity: 40, max: 100 },
+    artifacts:  { label: 'Artifacts',   count: 12,  kind: 'object',     id: 'Artefact_Test_1', minCity: 25, max: 200 },
+    ores: [
+      { name: 'gold',    id: 'GoldVein_1',   clusters: 10, size: 4 },
+      { name: 'copper',  id: 'CopperVein_1', clusters: 10, size: 4 },
+      { name: 'gems',    id: 'GemField_1',   clusters: 6,  size: 3 },
+      { name: 'uranium', id: 'Uranium_1',    clusters: 4,  size: 3 },
+    ],
+    oreMax: 100, oreMinCity: 10, oreSpacing: 10,
+  };
+  const BLOCKED_TYPES = ['Water', 'Rivers', 'Hills/Mountains', 'Volcanic/Rift'];
+  const SEED_MAX = 4294967295;
+  function defaults() { return JSON.parse(JSON.stringify(CONFIG)); }
+
+  // Free land: not water/rivers/mountains/volcanic/unknown, not the city cell, no settlement / building / road / bridge,
+  // never a multi-tile terrain cell (anchor or footprint). Each candidate carries its cube coordinates and city distance.
+  function _candidates() {
+    const out = [], occupied = new Set(settlements.map(s => s.col + ',' + s.row));
+    const bridges = new Set(bridgesData.map(b => b.col + ',' + b.row)), blockedById = new Map();
+    const isBlocked = id => {
+      let b = blockedById.get(id);
+      if (b === undefined) { const e = Terrain.byHexId(id); b = !e || BLOCKED_TYPES.includes(e.type) || _isMultiTileId(id); blockedById.set(id, b); }
+      return b;
+    };
+    const cc = getCityCol(), cr = getCityRow();
+    for (let row = 0; row < MAP_HEIGHT; row++) {
+      for (let col = 0; col < MAP_WIDTH; col++) {
+        const k = col + ',' + row;
+        if ((col === cc && row === cr) || occupied.has(k) || objectsData[k] || roadsData[k] || bridges.has(k)) continue;
+        if (isBlocked(mapData[row * MAP_WIDTH + col]) || getSatelliteAnchor(col, row)) continue;
+        out.push(Object.assign({ col, row, d: cityDistance(col, row) }, HexUtils.toCube(col, row, MAP_WIDTH, MAP_HEIGHT)));
+      }
+    }
+    return out;
+  }
+
+  function plan(cfg, seed) {
+    cfg = cfg || CONFIG;
+    const rng = HexUtils.makeRng(seed >>> 0);
+    const out = { settlements: [], objects: [], tiles: [], placed: {}, skipped: [], short: {} };
+    const all = _candidates(), used = new Set(), takenCubes = [];
+    const dist = (a, b) => HexUtils.cubeDistance(a, b);
+    const free = (minCity) => all.filter(c => c.d >= minCity && !used.has(c.col + ',' + c.row));
+    const take = c => { used.add(c.col + ',' + c.row); takenCubes.push(c); };
+    const emit = (cat, c) => { if (cat.kind === 'object') out.objects.push({ col: c.col, row: c.row, id: cat.id }); else out.settlements.push({ col: c.col, row: c.row, type: cat.id }); };
+    const short = (key, want, got) => { if (got < want) out.short[key] = { wanted: want, placed: got }; };
+
+    // mega cities, then artifacts: farthest-point spread beyond minCity
+    for (const key of ['megaCities', 'artifacts']) {
+      const cat = cfg[key];
+      if (!cat || !(cat.count > 0)) continue;
+      if (cat.kind === 'object') {
+        const def = BldDB.getAll().find(b => b.id === cat.id);
+        if (!def) { out.skipped.push({ what: key, reason: `no building "${cat.id}" in BldDB` }); continue; }
+        if (def.spawnsSatellites && def.spawnsSatellites.length) { out.skipped.push({ what: key, reason: `building "${cat.id}" spawns satellites (place it with the Building tool)` }); continue; }
+      }
+      const picks = GenUtils.spreadPick(free(cat.minCity || 0), cat.count, rng, dist);
+      picks.forEach(c => { emit(cat, c); take(c); });
+      out.placed[key] = picks.length; short(key, cat.count, picks.length);
+    }
+
+    // ore deposits: Poisson-spaced clusters written as tiles, only onto free land
+    for (const ore of cfg.ores || []) {
+      if (!(ore.clusters > 0)) continue;
+      const entry = HexDB.getAll().find(h => h.id && h.id.toLowerCase() === String(ore.id).toLowerCase());
+      if (!entry) { out.skipped.push({ what: ore.name, reason: `no tile "${ore.id}" in HexDB` }); continue; }
+      if (Array.isArray(entry.occupiedOffsets) && entry.occupiedOffsets.length) { out.skipped.push({ what: ore.name, reason: `tile "${entry.id}" is multi-tile` }); continue; }
+      const land = free(cfg.oreMinCity === undefined ? CONFIG.oreMinCity : cfg.oreMinCity);
+      const centres = GenUtils.poissonPick(land, ore.clusters, cfg.oreSpacing || CONFIG.oreSpacing, rng, dist, takenCubes);
+      const freeKeys = new Map(); for (const c of all) if (!used.has(c.col + ',' + c.row)) freeKeys.set(c.col + ',' + c.row, c);
+      let tiles = 0;
+      for (const centre of centres) {
+        for (const cube of GenUtils.oreCluster(centre, ore.size, rng)) {
+          const p = HexUtils.fromCube(cube, MAP_WIDTH, MAP_HEIGHT), k = p.col + ',' + p.row;
+          if (!HexUtils.inBounds(p.col, p.row, MAP_WIDTH, MAP_HEIGHT) || !freeKeys.has(k) || used.has(k)) continue;
+          used.add(k); out.tiles.push({ col: p.col, row: p.row, id: entry.id }); tiles++;
+        }
+        takenCubes.push(centre);
+      }
+      out.placed[ore.name] = tiles; short(ore.name, ore.clusters * ore.size, tiles);
+    }
+
+    // bunkers: the remaining land with even spacing
+    const bk = cfg.bunkers;
+    if (bk && bk.count > 0) {
+      const land = free(bk.minCity || 0);
+      const spacing = Math.max(2, Math.floor(Math.sqrt(land.length / bk.count) * 0.7));
+      const picks = GenUtils.poissonPick(land, bk.count, spacing, rng, dist, takenCubes);
+      picks.forEach(c => { emit(bk, c); take(c); });
+      out.placed.bunkers = picks.length; short('bunkers', bk.count, picks.length);
+    }
+    return out;
+  }
+
+  // Layers a run writes (a layer whose work count is zero is not needed, so locking it does not block).
+  function _layersFor(cfg) {
+    const l = new Set();
+    for (const key of ['bunkers', 'megaCities', 'artifacts']) { const c = cfg[key]; if (c && c.count > 0) l.add(c.kind === 'object' ? 'objects' : 'settlements'); }
+    if ((cfg.ores || []).some(o => o.clusters > 0)) l.add('terrain');
+    return Array.from(l);
+  }
+
+  // Returns false when refused / failed, else the plan report. ONE History step (none when nothing is placed).
+  function place(cfg, seed) {
+    if (!mapData) return false;
+    if (!Tools.guardBulkWrite(_layersFor(cfg), { label: 'Placement' })) return false;   // busy, stroke, locks; cancels a lifted region
+    const p = plan(cfg, seed);
+    const n = p.settlements.length + p.objects.length + p.tiles.length;
+    const skippedMsg = p.skipped.length ? ' Skipped: ' + p.skipped.map(s => s.what + ' (' + s.reason + ')').join('; ') : '';
+    if (n === 0) { UI.toast('Placement: nothing to place (no free land for the requested counts).' + skippedMsg); return p; }
+    const token = History.push();      // before the first write
+    try {
+      for (const s of p.settlements) settlements.push(s);
+      for (const o of p.objects) objectsData[o.col + ',' + o.row] = o.id;
+      for (const t of p.tiles) mapData[t.row * MAP_WIDTH + t.col] = t.id;
+      bumpMapWrite();
+      if (p.settlements.length) { settlementsVisible = true; if (!Layers.isVisible('settlements')) Layers.setVisible('settlements', true); }
+      if (p.objects.length && !Layers.isVisible('objects')) Layers.setVisible('objects', true);
+      UI.updateSettlementCount();
+    } catch (err) {
+      console.error('[placement] failed:', err);
+      History.rollback(token);
+      bumpMapWrite();
+      Canvas.render();
+      UI.toast('Placement failed: the map was restored');
+      return false;
+    }
+    IO.scheduleAutoSave();
+    Canvas.render();
+    Canvas.drawMinimap();
+    const msg = Object.entries(p.placed).map(([k, v]) => k + ': ' + v).join(', ');
+    const shortMsg = Object.keys(p.short).length ? ' Fewer than asked: ' + Object.entries(p.short).map(([k, v]) => k + ' ' + v.placed + '/' + v.wanted).join(', ') + '.' : '';
+    UI.toast('Placed ' + msg + ' (seed ' + (seed >>> 0) + ').' + shortMsg + skippedMsg);
+    return p;
+  }
+
+  // ── Palette UI (DOM APIs only) ──
+  function _field(id, label, def, title) {
+    const form = document.getElementById('pl-form');
+    const lab = document.createElement('label'); lab.htmlFor = id; lab.textContent = label; if (title) lab.title = title;
+    const inp = document.createElement('input');
+    inp.id = id; inp.type = 'text'; inp.value = String(def); inp.dataset.def = String(def); inp.autocomplete = 'off'; inp.spellcheck = false; inp.inputMode = 'numeric';
+    inp.style.cssText = 'width:100%;min-width:0;box-sizing:border-box;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px';
+    form.appendChild(lab); form.appendChild(inp);
+    return inp;
+  }
+  function buildUI() {
+    const form = document.getElementById('pl-form');
+    if (!form) return;
+    form.textContent = '';
+    const seed = _field('pl-seed', 'Seed', '', 'Whole number 0..' + SEED_MAX + '; empty = random (the seed used is shown here and in the toast)');
+    seed.value = ''; seed.dataset.def = ''; seed.placeholder = 'random';
+    for (const key of ['bunkers', 'megaCities', 'artifacts']) _field('pl-' + key, CONFIG[key].label, CONFIG[key].count, `${CONFIG[key].label} (0..${CONFIG[key].max}), written as ${CONFIG[key].kind} "${CONFIG[key].id}", at least ${CONFIG[key].minCity} tiles from the city`);
+    for (const o of CONFIG.ores) _field('pl-ore-' + o.name, 'Ore: ' + o.name, o.clusters, `Clusters of ${o.size} "${o.id}" tiles (0..${CONFIG.oreMax})`);
+  }
+  function _readInt(id, label, max) {
+    const el = document.getElementById(id), t = el ? el.value.trim() : '';
+    if (!/^\d+$/.test(t) || Number(t) > max) { UI.toast(`Placement: ${label} must be a whole number from 0 to ${max}`); if (el) el.focus(); return null; }
+    return Number(t);
+  }
+  // Reads and validates the palette (nothing is written on a bad value), then runs place().
+  function apply() {
+    const cfg = defaults();
+    for (const key of ['bunkers', 'megaCities', 'artifacts']) {
+      const n = _readInt('pl-' + key, CONFIG[key].label, CONFIG[key].max);
+      if (n === null) return false;
+      cfg[key].count = n;
+    }
+    for (const o of cfg.ores) {
+      const n = _readInt('pl-ore-' + o.name, 'ore ' + o.name, CONFIG.oreMax);
+      if (n === null) return false;
+      o.clusters = n;
+    }
+    const sEl = document.getElementById('pl-seed'), st = sEl.value.trim();
+    let seed;
+    if (st === '') { const a = new Uint32Array(1); (self.crypto || window.crypto).getRandomValues(a); seed = a[0]; }
+    else if (/^\d+$/.test(st) && Number(st) <= SEED_MAX) seed = Number(st);
+    else { UI.toast(`Placement: seed must be a whole number from 0 to ${SEED_MAX}, or empty for random`); sEl.focus(); return false; }
+    sEl.placeholder = st === '' ? String(seed) : 'random';
+    return place(cfg, seed);
+  }
+
+  buildUI();
+  return { defaults, plan, place, apply, buildUI };
+})();
 
 function autoPlaceSettlements() {
   if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }
