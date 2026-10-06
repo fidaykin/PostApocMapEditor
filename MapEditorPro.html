@@ -377,6 +377,7 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .shortcut-help td { padding: 2px 10px 2px 0; vertical-align: top; }
 .shortcut-help td:first-child { white-space: nowrap; }
 .shortcut-help kbd { background: var(--hover); border: 1px solid var(--border); border-radius: 3px; padding: 0 5px; font-family: monospace; }
+.shortcut-help-note { margin: 12px 0 0; font-size: 11px; color: var(--muted); line-height: 1.4; }
 #layers-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #layers-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 .layer-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
@@ -2699,7 +2700,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "e00c935";
+const COMMIT  = "f633257";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8144,15 +8145,25 @@ const Tools = (() => {
     });
     // Keyboard tool shortcuts
     window.addEventListener('keydown', e => {
-      if (e.ctrlKey || e.metaKey) return;
-      if (e.code === 'BracketLeft' || e.code === 'BracketRight') {   // brush radius, by physical key (layout independent)
-        if (e.altKey || e.repeat || !document.body.classList.contains('mode-map') || _isTypingOrModal()) return;
+      // Brush radius keys: a TYPED '[' / ']' works wherever it sits (Dvorak Minus/Equal, QWERTZ AltGr+8/9 = Ctrl+Alt with AltGraph on
+      // Windows, Option+5/6 on macOS); the PHYSICAL BracketLeft / BracketRight keys work on every layout too (US [ ], AZERTY ^ $,
+      // Cyrillic, Turkish-F q w) EXCEPT where they type a zoom character: QWERTZ '+' and Dvorak '=' zoom in (Shortcuts owns them).
+      const k0 = typeof e.key === 'string' ? e.key : '';
+      const altGr = e.ctrlKey && e.altKey && !e.metaKey && typeof e.getModifierState === 'function' && e.getModifierState('AltGraph');
+      const typedBracket = (k0 === '[' || k0 === ']') && !e.metaKey && (!e.ctrlKey || altGr);
+      if ((e.ctrlKey || e.metaKey) && !typedBracket) return;
+      const zoomChar = k0 === '+' || k0 === '=' || k0 === '-';
+      const physBracket = (e.code === 'BracketLeft' || e.code === 'BracketRight') && !zoomChar && !e.altKey && !e.ctrlKey && !e.metaKey;
+      if (physBracket || typedBracket) {
+        if (e.repeat || !document.body.classList.contains('mode-map') || _isTypingOrModal()) return;
         e.preventDefault();
         const before = Brush.getSize();
-        if (e.code === 'BracketLeft') Brush.shrink(); else Brush.grow();
+        const larger = typedBracket ? k0 === ']' : e.code === 'BracketRight';
+        if (larger) Brush.grow(); else Brush.shrink();
         if (Brush.getSize() !== before) { _updateEraserHover(_hoverCell); Canvas.render(); }
         return;
       }
+      if (e.altKey && (e.code === 'BracketLeft' || e.code === 'BracketRight')) return;   // Alt + a bracket key: not ours (unchanged)
       const mapMode = document.body.classList.contains('mode-map');
       if (e.key === 'Escape' && _eraseStroke) {      // cancel the stroke: roll back ITS History step (no-op if it is no longer on top)
         _eraseStroke = false; _isDown = false; _lastPainted = null; _lastRoadPainted = null; _scatterRun = null;
@@ -15406,6 +15417,10 @@ const Shortcuts = (() => {
       });
       body.appendChild(t);
     });
+    const note = document.createElement('p');
+    note.className = 'shortcut-help-note';
+    note.textContent = 'Layouts: + = - zoom wherever they sit (QWERTZ +, Dvorak =, AZERTY -). A typed [ or ] sets the brush wherever it sits (Dvorak: right of 0; QWERTZ: AltGr+8 / AltGr+9 or Option+5 / Option+6). The physical keys at the US [ ] positions also set the brush unless they type + = -.';
+    body.appendChild(note);
     return UI.showModal({ title: 'Keyboard shortcuts', body, actions: [{ label: 'Close', primary: true, onClick: close => close() }] });
   }
 

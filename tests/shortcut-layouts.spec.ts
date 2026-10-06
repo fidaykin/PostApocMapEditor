@@ -33,6 +33,62 @@ const ZOOM: Record<string, string[]> = {
 };
 const TOOL: Record<string, string> = { p: 'paint', f: 'fill', r: 'rect', e: 'eye', s: 'select', t: 'settlement', d: 'erase', z: 'zone', l: 'line', o: 'circle', g: 'polygon', x: 'eraser', a: 'scatter', m: 'marquee', h: 'replace', b: 'object', w: 'road', c: 'road-connect', q: 'erase-road', u: 'bridge', y: 'symmetry' };
 
+// Final wave B2: the number row, Minus/Equal and the two bracket keys (the keys of the zoom, fit, overlay and brush shortcuts) on all nine layouts.
+// Rule under test (all expectations below are hand-written): a typed '+', '=' or '-' zooms (zoom keys follow the TYPED character, so QWERTZ '+' on the
+// physical BracketRight and Dvorak '=' on it zoom in); a typed '[' or ']' changes the brush radius wherever it sits (Dvorak Minus/Equal, QWERTZ AltGr or
+// Option); the physical BracketLeft / BracketRight keys change the brush radius unless they type + = - (so the US keys, AZERTY ^ $, Cyrillic, Turkish-F
+// q w and Dvorak / keep working). Digits 0 1 2 3 are fit-to-screen and the overlay toggles by typed character, Shift ignored (AZERTY).
+// Codes: zi zoom in, zo zoom out, fit fit map, r1 r2 r3 overlays, b- b+ brush smaller / larger, '.' nothing.
+const NUMROW = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal', 'BracketLeft', 'BracketRight'];
+type Press = { code: string; key: string; expect: string; shift?: boolean; ctrl?: boolean; alt?: boolean; altGr?: boolean };
+const plain = (typed: string[], expect: string[]): Press[] => typed.map((key, i) => ({ code: NUMROW[i], key, expect: expect[i] }));
+const DIGITS_QWERTY = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
+const DIGIT_EXPECT = ['r1', 'r2', 'r3', '.', '.', '.', '.', '.', '.', 'fit'];
+const NUMROW_PRESSES: Record<string, Press[]> = {
+  qwerty:    plain([...DIGITS_QWERTY, '-', '=', '[', ']'], [...DIGIT_EXPECT, 'zo', 'zi', 'b-', 'b+']),
+  azerty:    [...plain(['&', 'é', '"', "'", '(', '-', 'è', '_', 'ç', 'à', ')', '=', 'Dead', '$'], ['.', '.', '.', '.', '.', 'zo', '.', '.', '.', '.', '.', 'zi', 'b-', 'b+']),
+              // digits are typed with Shift on AZERTY: still the digit shortcuts
+              ...DIGITS_QWERTY.map((key, i) => ({ code: NUMROW[i], key, shift: true, expect: DIGIT_EXPECT[i] }))],
+  qwertz:    [...plain([...DIGITS_QWERTY, 'ß', 'Dead', 'ü', '+'], [...DIGIT_EXPECT, '.', '.', 'b-', 'zi']),
+              { code: 'Digit8', key: '[', ctrl: true, alt: true, altGr: true, expect: 'b-' },   // Windows AltGr+8 reports Ctrl+Alt
+              { code: 'Digit9', key: ']', ctrl: true, alt: true, altGr: true, expect: 'b+' },
+              { code: 'Digit5', key: '[', alt: true, expect: 'b-' },                              // macOS German Option+5
+              { code: 'Digit6', key: ']', alt: true, expect: 'b+' },
+              { code: 'Digit8', key: '[', ctrl: true, expect: '.' }],                             // Ctrl+[ with no AltGr stays a plain Ctrl shortcut: nothing here
+  dvorak:    [...plain([...DIGITS_QWERTY, '[', ']', '/', '='], [...DIGIT_EXPECT, 'b-', 'b+', 'b-', 'zi']), { code: 'Quote', key: '-', expect: 'zo' }],
+  colemak:   plain([...DIGITS_QWERTY, '-', '=', '[', ']'], [...DIGIT_EXPECT, 'zo', 'zi', 'b-', 'b+']),
+  workman:   plain([...DIGITS_QWERTY, '-', '=', '[', ']'], [...DIGIT_EXPECT, 'zo', 'zi', 'b-', 'b+']),
+  turkishF:  plain([...DIGITS_QWERTY, '*', '-', 'q', 'w'], [...DIGIT_EXPECT, '.', 'zo', 'b-', 'b+']),
+  ukrainian: plain([...DIGITS_QWERTY, '-', '=', 'х', 'ї'], [...DIGIT_EXPECT, 'zo', 'zi', 'b-', 'b+']),
+  russian:   plain([...DIGITS_QWERTY, '-', '=', 'х', 'ъ'], [...DIGIT_EXPECT, 'zo', 'zi', 'b-', 'b+']),
+};
+
+test.describe('number row, Minus/Equal and bracket keys on every layout (final wave B2)', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+  for (const [name, presses] of Object.entries(NUMROW_PRESSES)) {
+    test(`${name}: zoom, fit, overlay and brush keys do what the typed character says`, async ({ page }) => {
+      const res = await page.evaluate((ps) => ps.map(p => {
+        Canvas.setZoom(100); Brush.setSize(3); Tools.setActive('paint');
+        const counts: Record<string, number> = { fit: 0, r1: 0, r2: 0, r3: 0 };
+        const orig = { fit: Canvas.fitToScreen, r1: Canvas.toggleZones, r2: Canvas.toggleRulers, r3: Canvas.toggleCoastline };
+        (Canvas as any).fitToScreen = () => { counts.fit++; };
+        (Canvas as any).toggleZones = () => { counts.r1++; };
+        (Canvas as any).toggleRulers = () => { counts.r2++; };
+        (Canvas as any).toggleCoastline = () => { counts.r3++; };
+        const ev = new KeyboardEvent('keydown', { key: p.key, code: p.code, shiftKey: !!p.shift, ctrlKey: !!p.ctrl, altKey: !!p.alt, modifierAltGraph: !!p.altGr, bubbles: true, cancelable: true });
+        window.dispatchEvent(ev);
+        (Canvas as any).fitToScreen = orig.fit; (Canvas as any).toggleZones = orig.r1; (Canvas as any).toggleRulers = orig.r2; (Canvas as any).toggleCoastline = orig.r3;
+        const z = Canvas.getZoom() - 100, b = Brush.getSize() - 3;
+        const fired = ['fit', 'r1', 'r2', 'r3'].filter(k => counts[k] > 0);
+        const acts = [...(z > 0 ? ['zi'] : z < 0 ? ['zo'] : []), ...(b > 0 ? ['b+'] : b < 0 ? ['b-'] : []), ...fired];
+        return acts.length ? acts.join(',') : '.';
+      }), presses);
+      presses.forEach((p, i) => expect(res[i], `${name} ${p.code} typed '${p.key}'${p.shift ? ' +Shift' : ''}${p.ctrl ? ' +Ctrl' : ''}${p.alt ? ' +Alt' : ''}`).toBe(p.expect));
+      expect(new Set(res).size, 'positive control: the table exercises more than one action').toBeGreaterThan(2);
+    });
+  }
+});
+
 test.describe('shortcut layouts (cleanup A1)', () => {
   test.beforeEach(async ({ page }) => { await freshEditor(page); });
 

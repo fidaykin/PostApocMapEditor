@@ -233,7 +233,7 @@ test.describe('brush sizes and shortcuts (T2.3)', () => {
     expect(r.off).toBe(0);
   });
 
-  test('[ and ] change the size by code, regardless of the layout character', async ({ page }) => {
+  test('[ and ] change the size by code (and by the typed character), regardless of the layout character', async ({ page }) => {
     const press = (code: string, key: string) => page.evaluate(([code, key]) => {
       window.dispatchEvent(new KeyboardEvent('keydown', { code, key, bubbles: true, cancelable: true }));
     }, [code, key]);
@@ -246,8 +246,10 @@ test.describe('brush sizes and shortcuts (T2.3)', () => {
     expect(await page.evaluate(() => Brush.getSize())).toBe(0);
     for (let i = 0; i < 20; i++) await press('BracketRight', ']');
     expect(await page.evaluate(() => Brush.getSize())).toBe(12);
-    // a key whose character is '[' but a different physical code must do nothing
+    // B2: a key that TYPES '[' / ']' works on any physical key (Dvorak Minus/Equal, QWERTZ AltGr), see shortcut-layouts.spec.ts
     await press('KeyA', '[');
+    expect(await page.evaluate(() => Brush.getSize())).toBe(11);
+    await press('KeyA', ']');
     expect(await page.evaluate(() => Brush.getSize())).toBe(12);
     // the slider and label follow
     expect(await page.evaluate(() => [(document.getElementById('brush-size-range') as HTMLInputElement).value,

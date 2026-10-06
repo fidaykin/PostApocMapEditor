@@ -205,6 +205,7 @@ Keyboard layouts and the typed-letter rule: tool keys follow the letter you actu
 - On the Turkish-F layout there is no `W` or `Q` key, so Draw Road and Erase Road have no shortcut; use the buttons.
 - The rotate and mirror keys `. , / ;` are physical keys (US positions). On Dvorak the key that types a comma is the `W` key, so while a region floats it does not rotate, and without one it switches to Draw Road.
 - Where a tool key is punctuation on your layout the physical key decides (for example on Dvorak `'` is Erase Road).
+- Zoom and brush keys follow the character you type, with the physical bracket keys as the fallback. `+`, `=` and `-` zoom wherever they sit: on QWERTZ `+` is the key right of `ü`, on Dvorak `=` is the key right of `/`, on AZERTY `-` is the `6` key. A typed `[` or `]` changes the brush wherever it sits: on Dvorak the two keys right of `0`, on QWERTZ AltGr+8 / AltGr+9 (Windows) or Option+5 / Option+6 (macOS). The two physical keys at the `[` `]` positions of the US layout change the brush on every layout unless they type `+`, `=` or `-`; so on QWERTZ `ü` is the smaller brush and the larger brush is AltGr+9 or Option+6 (the `+` key zooms in), and on Dvorak the `/` key is the smaller brush (the `=` key zooms in). On Turkish-F the keys that type `q` and `w` are those two brush keys.
 - `Ctrl` or Cmd with `A`, `C`, `X`, `V`, `D` use the physical key; Undo and Redo use the typed letter.
 - The AZERTY digit row needs `Shift` for `1`, `2`, `3`; the numpad digits also work.
 
