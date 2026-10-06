@@ -214,7 +214,7 @@ test.describe('layers: visibility (T2.17)', () => {
     await page.evaluate(() => { roadsData['226,224'] = { type: 'road_hex' }; Layers.setVisible('roads', false); Canvas.render(); });
     const box = await page.evaluate(() => { const p = Canvas.hexScreenPos(226, 224); const b = document.getElementById('map-canvas')!.getBoundingClientRect(); return { x: b.left + p.x, y: b.top + p.y }; });
     await page.mouse.move(box.x, box.y);
-    const status = () => page.evaluate(() => document.getElementById('statusbar')!.textContent || '');
+    const status = () => page.evaluate(() => { const c = document.getElementById('statusbar')!.cloneNode(true) as HTMLElement; c.querySelector('#st-layers')!.remove(); return c.textContent || ''; });   // cleanup A7: the layer summary legitimately names the hidden layer, so it is excluded
     expect(await page.evaluate(() => document.getElementById('st-tile')!.textContent)).toBe('226, 224');
     const hidden = await status();
     // positive control: the status bar text really is read (it contains the hovered coordinates) ...
