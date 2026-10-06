@@ -181,9 +181,43 @@ test.describe('refusals and caps', () => {
     expect(p[3]).toBe(255);
   });
 
-  test('no map: nothing happens', async ({ page }) => {
+  // B7: the real behaviour, not "it did not throw". Two paths: no map at the call (nothing starts), and the map vanishing while the
+  // export waits for its paint yield (the progress bar was already started and must not stay on 'Rendering PNG...').
+  test('no map: no download, no progress bar left, the control stays enabled', async ({ page }) => {
     await openEditor(page);
-    const r = await page.evaluate(async () => { const m = mapData; mapData = null as any; try { await IO.exportPNG({ scale: 0.1 }); } finally { mapData = m; } return true; });
-    expect(r).toBe(true);
+    let downloads = 0; page.on('download', () => downloads++);
+    await page.evaluate(async () => { const m = mapData; mapData = null as any; try { await IO.exportPNG({ scale: 0.1 }); } finally { mapData = m; } });
+    expect(downloads).toBe(0);
+    await expect(page.locator('#progress-wrap')).not.toHaveClass(/active/);
+    await page.evaluate(async () => { const m = mapData; const p = IO.exportPNG({ scale: 0.1 }); mapData = null as any; try { await p; } finally { mapData = m; } });
+    await expect(page.locator('#progress-wrap')).not.toHaveClass(/active/);            // RED before B4: stuck at 10 % 'Rendering PNG...'
+    expect(downloads).toBe(0);
+    expect(await page.evaluate(() => (document.getElementById('png-export-btn') as HTMLButtonElement).disabled)).toBe(false);
+  });
+
+  test("'Largest allowed' stays within the 36 MP cap and the 8192 px side limit (rounding included)", async ({ page }) => {
+    test.setTimeout(90_000);
+    await freshEditor(page);
+    const { buf } = await exportPng(page, { scale: 'max' });
+    const w = buf.readUInt32BE(16), h = buf.readUInt32BE(20);
+    expect(Math.max(w, h)).toBeLessThanOrEqual(8192);
+    expect(w * h).toBeLessThanOrEqual(36_000_000);                  // RED before B4: 5582 x 6450 = 36,003,900 (rounded past the cap)
+    expect(w * h).toBeGreaterThan(30_000_000);                      // the largest, not a collapsed image
+    await expect(page.locator('.toast', { hasText: /PNG exported/ }).first()).toBeVisible();
+  });
+
+  test('a canvas that cannot be created (getContext null) gives a size message, no download, no stuck progress', async ({ page }) => {
+    await openEditor(page);
+    let downloads = 0; page.on('download', () => downloads++);
+    await page.evaluate(async () => {
+      const orig = HTMLCanvasElement.prototype.getContext;
+      HTMLCanvasElement.prototype.getContext = function (this: HTMLCanvasElement, ...a: any[]) { return this.id === 'map-canvas' ? (orig as any).apply(this, a) : null; } as any;
+      try { await IO.exportPNG({ scale: 1 }); } finally { HTMLCanvasElement.prototype.getContext = orig; }
+    });
+    await expect(page.locator('.toast', { hasText: /smaller size/i }).first()).toBeVisible();
+    await expect(page.locator('.toast', { hasText: /smaller size/i }).first()).toContainText(/\d+ x \d+ px/);
+    expect(downloads).toBe(0);
+    await expect(page.locator('#progress-wrap')).not.toHaveClass(/active/);
+    expect(await page.evaluate(() => (document.getElementById('png-export-btn') as HTMLButtonElement).disabled)).toBe(false);
   });
 });

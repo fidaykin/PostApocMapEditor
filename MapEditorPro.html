@@ -2700,7 +2700,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "615f96e";
+const COMMIT  = "b96ad8c";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -11690,6 +11690,7 @@ const IO = (() => {
     c.width = Math.max(1, Math.round(pw * scale));
     c.height = Math.max(1, Math.round(ph * scale));
     const g = c.getContext('2d');
+    if (!g) throw new Error(`the browser could not create a ${c.width} x ${c.height} px image (too large for this device). Choose a smaller size`);
     g.fillStyle = PNG_BG;
     g.fillRect(0, 0, c.width, c.height);
     const at = (col, row) => { const w = Canvas.hexCenterWorld(col, row); return [(w.x + HEX_SIZE) * scale, (w.y + HEX_SIZE) * scale]; };
@@ -11744,7 +11745,7 @@ const IO = (() => {
 
   function _canvasToBlob(c) {
     return new Promise((res, rej) => {
-      try { c.toBlob(b => b ? res(b) : rej(new Error('PNG encoding failed')), 'image/png'); } catch (e) { rej(e); }
+      try { c.toBlob(b => b ? res(b) : rej(new Error(`PNG encoding failed (the ${c.width} x ${c.height} px image may be too large for this device; choose a smaller size)`)), 'image/png'); } catch (e) { rej(e); }
     });
   }
 
@@ -11757,6 +11758,7 @@ const IO = (() => {
     _pngBusy = true;
     _pngButton(true);
     UI.progress(10, 'Rendering PNG…');
+    let doneLabel = '';      // every exit (early returns included) ends the progress bar
     try {
       await new Promise(r => setTimeout(r, 0)); await new Promise(r => setTimeout(r, 0));   // let the disabled state paint
       if (!mapData) return;
@@ -11766,7 +11768,7 @@ const IO = (() => {
       const cap = _pngMaxScale(pw, ph);
       let scale = want === 'max' ? Math.min(1, cap) : Math.min(1, Math.max(0.01, +want || PNG_DEFAULT_SCALE));
       const clamped = scale > cap;
-      if (clamped) scale = cap * 0.999;                          // rounding the pixel size must not push the area over the cap
+      if (scale >= cap && cap < 1) scale = cap * 0.999;          // rounding the pixel size must not push the area over the cap (also for 'Largest allowed')
       const canvas = _renderMapImage(scale);
       UI.progress(70, 'Encoding PNG…');
       const blob = await _canvasToBlob(canvas);
@@ -11778,11 +11780,12 @@ const IO = (() => {
       const hidden = Layers.NAMES.filter(n => !Layers.isVisible(n)).map(n => Layers.label(n));
       UI.toast(`PNG exported (${canvas.width} x ${canvas.height} px)` + (clamped ? '. Scale reduced to fit the size limit' : '')
         + (hidden.length ? '. Hidden layers are not included: ' + hidden.join(', ') : ''));
-      UI.progressDone('PNG exported');
+      doneLabel = 'PNG exported';
     } catch (e) {
-      UI.progressDone('PNG export failed');
+      doneLabel = 'PNG export failed';
       UI.toast('PNG export failed: ' + (e && e.message ? e.message : String(e)));
     } finally {
+      UI.progressDone(doneLabel);
       _pngBusy = false;
       _pngButton(false);
     }
