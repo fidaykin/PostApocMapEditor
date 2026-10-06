@@ -331,6 +331,24 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .bm-ren:hover { color: var(--accent); }
 .bm-del:hover { color: var(--danger); }
 .bm-go:focus-visible, .bm-ren:focus-visible, .bm-del:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+#validator-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
+#validator-panel > summary { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; cursor: pointer; user-select: none; }
+#validator-panel .val-bar { display: flex; gap: 4px; margin-top: 8px; }
+#validator-panel .val-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
+#val-filter { flex: 1; min-width: 0; font-size: 11px; padding: 2px 4px; }
+#val-summary { font-size: 11px; color: var(--text); padding: 6px 0 4px; }
+#val-summary.stale, #val-list.stale { color: var(--warn, #e0a030); }
+#val-list { max-height: 220px; overflow-y: auto; overflow-x: hidden; }
+#val-list.stale { opacity: 0.6; }
+.val-empty { font-size: 11px; color: var(--muted); padding: 4px 0; }
+.val-row { display: flex; align-items: baseline; gap: 5px; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--border);
+  color: var(--text); font: inherit; font-size: 11px; padding: 4px 2px; cursor: pointer; }
+.val-row:hover { background: var(--hover); }
+.val-row.sel { background: var(--hover); box-shadow: inset 2px 0 0 var(--accent); }
+.val-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+.val-ic { flex-shrink: 0; }
+.val-msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.val-n { flex-shrink: 0; font-size: 10px; color: var(--muted); font-family: monospace; }
 #shortcuts-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #shortcuts-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #shortcuts-panel .hexdb-tool-btn { width: 100%; height: 26px; padding: 0 8px; font-size: 11px; }
@@ -1646,6 +1664,19 @@ body.mode-common #map-io    { display: none; }
         <div class="section-title">Layers</div>
         <div id="layers-list"></div>
       </div>
+      <!-- Map validator (T4.6): collapsible, LEFT palette; nothing runs until Run is pressed -->
+      <details id="validator-panel">
+        <summary>Validate map</summary>
+        <div class="val-bar">
+          <button id="val-run" class="hexdb-tool-btn" type="button" title="Check the map now (it is never checked automatically)">Run</button>
+          <select id="val-filter" class="hexdb-input" aria-label="Show issues of severity" title="Which issues to list">
+            <option value="all">All</option><option value="error">Errors</option><option value="warning">Warnings</option>
+          </select>
+          <button id="val-clear" class="hexdb-tool-btn" type="button" title="Remove the red marks from the map">Clear marks</button>
+        </div>
+        <div id="val-summary" role="status" aria-live="polite">Not run yet. Press Run to check the map.</div>
+        <div id="val-list" role="list"></div>
+      </details>
       <!-- Keyboard shortcuts (T4.4): the list is generated from the Shortcuts registry; LEFT palette, no key opens it -->
       <div id="shortcuts-panel">
         <div class="section-title">Help</div>
@@ -2606,7 +2637,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "96aada9";
+const COMMIT  = "d0d9ea7";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8243,6 +8274,7 @@ const History = (() => {
     const redo = _redo.slice();
     _redo.length = 0;   // clear redo on new action
     UI.updateMenuHistoryState();
+    _validatorStale();
     return { snap, evicted, redo };
   }
 
@@ -8252,6 +8284,7 @@ const History = (() => {
     const snap = _undo.pop();
     _restore(snap);
     _last = snap;   // live now equals this snapshot: the next push shares its rows
+    _validatorStale();
     Canvas.render();
     Canvas.drawMinimap();
     UI.updateMenuHistoryState();
@@ -8264,6 +8297,7 @@ const History = (() => {
     const snap = _redo.pop();
     _restore(snap);
     _last = snap;
+    _validatorStale();
     Canvas.render();
     Canvas.drawMinimap();
     UI.updateMenuHistoryState();
@@ -8282,6 +8316,7 @@ const History = (() => {
     _redo.length = 0;
     for (const r of token.redo) _redo.push(r);
     UI.updateMenuHistoryState();
+    _validatorStale();
     return true;
   }
 
@@ -8290,6 +8325,7 @@ const History = (() => {
     _redo.length = 0;
     _last = null;
     UI.updateMenuHistoryState();
+    _validatorStale();
   }
 
   function undoSize() { return _undo.length; }
@@ -10717,6 +10753,7 @@ const IO = (() => {
   function scheduleAutoSave() {
     clearTimeout(_autoSaveTimer);
     _autoSaveTimer = setTimeout(_autoSave, 2000);
+    _validatorStale();
   }
 
   // Attempts to restore the last autosaved map. Returns true on success.
@@ -13532,7 +13569,96 @@ const MapValidator = (() => {
     return { issues, errors, warnings: issues.length - errors, pendingSprites: Terrain.pendingSprites(), stats };
   }
 
-  return { validate, collectState, run, IMPASSABLE, CELL_CAP };
+  // ── Results panel (T4.6) ─────────────────────────────────
+  // Left-palette <details>. Nothing runs by itself: Run is the only trigger. A change to the map (History push / undo /
+  // redo / rollback / clear, autosave scheduling, bulk writes, new/loaded maps) calls invalidate(), which keeps the list
+  // and marks it 'outdated'. Everything shown comes from the map (ids are untrusted): textContent / setAttribute only.
+  const HL_NAME = 'validator';
+  const HL_STYLE = { stroke: 'rgba(255,82,82,0.95)', fill: 'rgba(255,82,82,0.22)' };
+  let _report = null, _stale = false, _selKey = null, _filter = 'all';
+  const _el = id => document.getElementById(id);
+
+  function _renderPanel() {
+    const sum = _el('val-summary'), list = _el('val-list');
+    if (!sum || !list) return;
+    list.textContent = '';
+    sum.classList.toggle('stale', !!(_report && _stale));
+    list.classList.toggle('stale', !!(_report && _stale));
+    if (!_report) { sum.textContent = 'Not run yet. Press Run to check the map.'; return; }
+    const n = (k, w) => `${k} ${w}${k === 1 ? '' : 's'}`;
+    let text = _report.issues.length ? `${n(_report.errors, 'error')}, ${n(_report.warnings, 'warning')}` : '✓ No problems found';
+    if (_report.pendingSprites) text += ` · ${n(_report.pendingSprites, 'sprite')} still loading (not checked)`;
+    if (_stale) text = 'Results outdated (the map changed): press Run again. ' + text;
+    sum.textContent = text;
+    const shown = _report.issues.filter(i => _filter === 'all' || i.severity === _filter);
+    if (_report.issues.length && !shown.length) {
+      const d = document.createElement('div'); d.className = 'val-empty'; d.textContent = 'No issues of this kind.'; list.appendChild(d);
+    }
+    shown.forEach(issue => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'val-row ' + issue.severity; b.dataset.key = issue.key;
+      if (issue.key === _selKey) b.classList.add('sel');
+      const ic = document.createElement('span'); ic.className = 'val-ic'; ic.textContent = issue.severity === 'error' ? '⛔' : '⚠'; ic.setAttribute('aria-hidden', 'true');
+      const msg = document.createElement('span'); msg.className = 'val-msg'; msg.textContent = issue.message;
+      const cnt = document.createElement('span'); cnt.className = 'val-n'; cnt.textContent = '×' + issue.total;
+      b.append(ic, msg, cnt);
+      b.title = issue.message + (issue.cells.length ? `\nFirst cell ${issue.cells[0].col},${issue.cells[0].row}` : '');
+      b.setAttribute('aria-label', `${issue.severity}: ${issue.message}`);
+      b.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });   // button keys, not Space-pan / Enter-lift
+      b.addEventListener('click', e => { jumpTo(issue.key); if (e.detail > 0) b.blur(); });                        // pointer click: back to the map shortcuts
+      list.appendChild(b);
+    });
+  }
+
+  function runPanel() {
+    clearMarks(false);
+    _report = run();
+    _stale = false; _selKey = null;
+    _renderPanel();
+    return _report;
+  }
+  // Called from the map-change hooks: cheap (a flag) and idempotent.
+  function invalidate() {
+    if (!_report || _stale) return;
+    _stale = true;
+    _renderPanel();
+  }
+  function clearMarks(render) {
+    _selKey = null;
+    if (Canvas.hasHighlight(HL_NAME)) Canvas.setHighlight(HL_NAME, null, null, { render: render !== false });
+    if (render !== false) _renderPanel();
+  }
+  // View only: no map write, no History step, no gate (it works in the middle of a stroke or a fill).
+  function jumpTo(key) {
+    const issue = _report && _report.issues.find(i => i.key === key);
+    if (!issue) return false;
+    _selKey = key;
+    const cells = issue.cells.filter(c => Number.isInteger(c.col) && Number.isInteger(c.row) && c.col >= 0 && c.col < MAP_WIDTH && c.row >= 0 && c.row < MAP_HEIGHT);
+    Canvas.setHighlight(HL_NAME, cells, HL_STYLE, { render: false });
+    if (!cells.length || !Canvas.centerOnTile(cells[0].col, cells[0].row)) Canvas.render();
+    document.querySelectorAll('#val-list .val-row').forEach(b => b.classList.toggle('sel', b.dataset.key === key));
+    return true;
+  }
+  function getReport() { return _report ? { stale: _stale, selected: _selKey, report: _report } : null; }
+
+  function initPanel() {
+    const run_ = _el('val-run'), clr = _el('val-clear'), flt = _el('val-filter'), sm = document.querySelector('#validator-panel > summary');
+    if (!run_) return;
+    run_.addEventListener('click', e => { runPanel(); if (e.detail > 0) run_.blur(); });
+    clr.addEventListener('click', e => { clearMarks(true); if (e.detail > 0) clr.blur(); });
+    let byPointer = false;
+    flt.addEventListener('pointerdown', () => { byPointer = true; });
+    flt.addEventListener('keydown', e => { e.stopPropagation(); byPointer = false; });                              // typing in the select is never a map shortcut
+    flt.addEventListener('change', () => { _filter = flt.value; _renderPanel(); if (byPointer) { flt.blur(); byPointer = false; } });
+    [run_, clr].forEach(b => b.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); }));
+    if (sm) {
+      sm.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });
+      sm.addEventListener('click', e => { if (e.detail > 0) sm.blur(); });
+    }
+    _renderPanel();
+  }
+
+  return { validate, collectState, run, IMPASSABLE, CELL_CAP, initPanel, runPanel, invalidate, jumpTo, clearMarks, getReport };
 })();
 
 // ── App: mode switching ────────────────────────────────────
@@ -18143,7 +18269,9 @@ function getSatelliteAnchor(col, row) {
 }
 
 // Call after ANY in-place mapData write that wrote or overwrote a multi-tile terrain (or wrote an unknown set of cells).
-function bumpMapWrite() { _mapWriteSeq++; _satelliteMap = null; }
+function bumpMapWrite() { _mapWriteSeq++; _satelliteMap = null; _validatorStale(); }
+// The validator panel keeps its list but flags it 'outdated' whenever the map may have changed (T4.6).
+function _validatorStale() { if (typeof MapValidator !== 'undefined') MapValidator.invalidate(); }
 function invalidateSatelliteMap() { bumpMapWrite(); }
 function _isMultiTileId(id) {
   const e = id ? Terrain.byHexId(id) : null;
@@ -18645,6 +18773,8 @@ window.addEventListener('load', async () => {
   IO.initFileInput();
   IO.initKeyboard();
   Shortcuts.init();
+  try { MapValidator.initPanel(); }            // same: a failure here must not stop the startup steps below
+  catch (e) { console.error('Validator panel failed to start', e); UI.toast('Validator panel failed to start: ' + (e && e.message || e)); }
   Roads.loadSprites();
   Coastline.loadSprites().then(() => Canvas.forceRedraw());
   // Pre-load user-uploaded sprites from IndexedDB so applyHexDbOverrides
