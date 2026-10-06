@@ -32,7 +32,7 @@ jobs:
           grep -q 'src="dev/hex-utils.js?v=2"' /tmp/MapEditorPro_dev.html
           # gen-utils.js (heightmap import maths): published into dev/ too; its ?v= is bumped with every change to the file.
           sed -i 's|<script src="gen-utils.js|<script src="dev/gen-utils.js|' /tmp/MapEditorPro_dev.html
-          grep -q 'src="dev/gen-utils.js?v=2"' /tmp/MapEditorPro_dev.html
+          grep -q 'src="dev/gen-utils.js?v=3"' /tmp/MapEditorPro_dev.html
           # zone-painter.js (Zone Painter + its layer-lock gates) is published into dev/ as well, so dev never runs the stale root copy.
           # Its ?v= is a plain cache-buster that is bumped with every change to the file: only require that the tag keeps one.
           sed -i 's|<script src="zone-painter.js|<script src="dev/zone-painter.js|' /tmp/MapEditorPro_dev.html

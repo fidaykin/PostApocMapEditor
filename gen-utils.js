@@ -58,5 +58,60 @@ const GenUtils = (() => {
     return out;
   }
 
-  return { luminanceGrid, resampleToMap, fitWithin, normalize, applySeaLevel };
+  // ── Placement primitives (T3.7) ──────────────────────────────
+  // Pure: the caller supplies the candidates, a seeded rng (never Math.random here) and the metric `dist(a, b)`; nothing is
+  // read from the page and no input is mutated. Cost: spreadPick O(candidates * count), poissonPick O(candidates * picks) worst case.
+  function _count(n) { n = Math.floor(Number(n)); return n > 0 ? n : 0; }
+  function _shuffled(list, rng) {
+    const a = list.slice();
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+
+  // Farthest-point sampling: the first pick is random, every next pick maximises its distance to the picks so far.
+  function spreadPick(candidates, count, rng, dist) {
+    count = _count(count);
+    if (!candidates.length || count === 0) return [];
+    const picked = [candidates[Math.min(candidates.length - 1, Math.floor(rng() * candidates.length))]];
+    const best = candidates.map(c => dist(c, picked[0]));
+    while (picked.length < count && picked.length < candidates.length) {
+      let bi = -1, bd = 0;
+      for (let i = 0; i < candidates.length; i++) if (best[i] > bd) { bd = best[i]; bi = i; }
+      if (bi < 0) break;                                   // every remaining candidate coincides with a pick
+      picked.push(candidates[bi]);
+      for (let i = 0; i < candidates.length; i++) { const d = dist(candidates[i], candidates[bi]); if (d < best[i]) best[i] = d; }
+    }
+    return picked;
+  }
+
+  // Random-order rejection sampling: nothing closer than `minSpacing` to an earlier pick or to anything in `taken`.
+  function poissonPick(candidates, count, minSpacing, rng, dist, taken) {
+    count = _count(count);
+    const picked = [], all = (taken || []).slice();
+    if (count === 0) return picked;
+    for (const c of _shuffled(candidates, rng)) {
+      if (picked.length >= count) break;
+      let ok = true;
+      for (let i = 0; i < all.length; i++) if (dist(c, all[i]) < minSpacing) { ok = false; break; }
+      if (ok) { picked.push(c); all.push(c); }
+    }
+    return picked;
+  }
+
+  // A deposit: the centre first, then random distinct cells of its radius-2 disc (at most the 19 cells of the disc).
+  // `center` is a cube {q,r,s}; the cells are cubes too.
+  function oreCluster(center, size, rng) {
+    size = Math.min(_count(size), 19);
+    if (size === 0) return [];
+    const ring = [];
+    for (let dq = -2; dq <= 2; dq++)
+      for (let dr = Math.max(-2, -dq - 2); dr <= Math.min(2, -dq + 2); dr++)
+        if (dq !== 0 || dr !== 0) ring.push({ q: center.q + dq, r: center.r + dr, s: center.s - dq - dr });
+    return [{ q: center.q, r: center.r, s: center.s }].concat(_shuffled(ring, rng).slice(0, size - 1));
+  }
+
+  return { luminanceGrid, resampleToMap, fitWithin, normalize, applySeaLevel, spreadPick, poissonPick, oreCluster };
 })();

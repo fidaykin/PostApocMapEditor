@@ -582,3 +582,88 @@ test.describe('Import Elevation (T3.4)', () => {
     expect(r).toEqual({ has: true, len: 60 * 40 });
   });
 });
+
+// T3.7: pure placement primitives (gen-utils.js). Run in an EMPTY vm context (no DOM, no editor globals, Math.random
+// poisoned) so the "pure and seeded" contract is enforced, with references computed here from axial coordinates.
+import * as nodeFs from 'fs';
+import * as nodeVm from 'vm';
+test.describe('placement primitives (T3.7)', () => {
+  type C = { q: number; r: number; s: number; id: number };
+  const src = nodeFs.readFileSync(require('path').join(__dirname, '..', 'gen-utils.js'), 'utf8');
+  const load = () => {
+    const ctx: any = nodeVm.createContext({ Math: Object.assign(Object.create(Math), { random: () => { throw new Error('Math.random used'); } }) });
+    return nodeVm.runInContext(src + '\n;GenUtils', ctx);
+  };
+  const dist = (a: C, b: C) => Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r), Math.abs(a.s - b.s));
+  const mulberry = (seed: number) => () => { seed = (seed + 0x6D2B79F5) >>> 0; let t = seed; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  // a hexagonal field of radius R (axial), ids unique
+  const field = (R: number): C[] => { const o: C[] = []; for (let q = -R; q <= R; q++) for (let r = Math.max(-R, -q - R); r <= Math.min(R, -q + R); r++) o.push({ q, r, s: -q - r, id: o.length }); return o; };
+  const minPair = (a: C[]) => { let m = Infinity; for (let i = 0; i < a.length; i++) for (let j = i + 1; j < a.length; j++) m = Math.min(m, dist(a[i], a[j])); return m; };
+
+  test('spreadPick: count, distinct subset, and every pick is a farthest point of the earlier picks (brute-force replay)', () => {
+    const G = load(), cands = field(40);
+    const picks: C[] = G.spreadPick(cands, 6, mulberry(5), dist);
+    expect(picks).toHaveLength(6);
+    expect(new Set(picks.map(p => p.id)).size).toBe(6);
+    expect(picks.every(p => cands[p.id] === p)).toBe(true);                      // elements of the input, not copies
+    for (let k = 1; k < picks.length; k++) {                                     // reference: no candidate is farther from the earlier picks
+      const md = (c: C) => Math.min(...picks.slice(0, k).map(p => dist(c, p)));
+      const best = Math.max(...cands.map(md));
+      expect(md(picks[k])).toBe(best);
+    }
+    expect(minPair(picks)).toBeGreaterThan(20);                                  // 6 spread points of a radius-40 field (crowded random picks fall below this)
+    expect(G.spreadPick(cands, 0, mulberry(1), dist)).toEqual([]);
+    expect(G.spreadPick([], 3, mulberry(1), dist)).toEqual([]);
+    expect(G.spreadPick(cands.slice(0, 4), 10, mulberry(1), dist)).toHaveLength(4);   // never more than there are candidates
+    expect(G.spreadPick(cands, 2.9, mulberry(1), dist)).toHaveLength(2);         // non-integer counts floor
+  });
+
+  test('poissonPick: spacing, count, taken, maximality (reference scan) and no input mutation', () => {
+    const G = load(), cands = field(60), copy = cands.slice();
+    const taken = [cands[0], cands[500]];
+    const picks: C[] = G.poissonPick(cands, 40, 12, mulberry(9), dist, taken);
+    expect(picks).toHaveLength(40);
+    expect(minPair(picks)).toBeGreaterThanOrEqual(12);
+    for (const p of picks) for (const t of taken) expect(dist(p, t)).toBeGreaterThanOrEqual(12);
+    expect(new Set(picks.map(p => p.id)).size).toBe(40);
+    expect(cands).toEqual(copy);                                                 // candidates (order too) untouched
+    expect(taken).toHaveLength(2);
+    // saturation: asking for more than fit returns a MAXIMAL set (every candidate left out is within spacing of a pick or taken)
+    const sat: C[] = G.poissonPick(cands, 100000, 12, mulberry(3), dist, taken);
+    expect(sat.length).toBeGreaterThan(40);
+    expect(sat.length).toBeLessThan(cands.length);
+    const ids = new Set(sat.map(p => p.id));
+    for (const c of cands) if (!ids.has(c.id)) expect([...sat, ...taken].some(p => dist(c, p) < 12)).toBe(true);
+    expect(minPair(sat)).toBeGreaterThanOrEqual(12);
+    expect(G.poissonPick(cands, 0, 5, mulberry(1), dist)).toEqual([]);
+    expect(G.poissonPick(cands, 5, 5, mulberry(1), dist, undefined)).toHaveLength(5);   // `taken` is optional
+    // exclusion mask: nothing is picked inside a taken disc
+    const centre = cands[Math.floor(cands.length / 2)];
+    const ex: C[] = G.poissonPick(cands, 500, 1, mulberry(4), dist, [centre]);
+    expect(ex.every(p => dist(p, centre) >= 1)).toBe(true);
+  });
+
+  test('oreCluster: centre first, distinct cells inside the radius-2 disc, size clamps to the 19 cells of the disc', () => {
+    const G = load(), c = { q: 7, r: -3, s: -4 };
+    for (const size of [1, 2, 4, 7, 19, 30]) {
+      const cl: any[] = G.oreCluster(c, size, mulberry(size));
+      expect(cl).toHaveLength(Math.min(size, 19));
+      expect([cl[0].q, cl[0].r, cl[0].s]).toEqual([7, -3, -4]);
+      expect(new Set(cl.map(x => x.q + ',' + x.r)).size).toBe(cl.length);
+      expect(cl.every(x => dist(x, c as any) <= 2 && x.q + x.r + x.s === 0)).toBe(true);
+    }
+    expect(G.oreCluster(c, 0, mulberry(1))).toEqual([]);
+    // 19 = the whole disc: reference count of axial cells with distance <= 2
+    expect(field(2)).toHaveLength(19);
+    // different seeds give different 4-cell clusters (the pick is random, not a fixed ring slice)
+    const shapes = new Set([1, 2, 3, 4, 5, 6].map(sd => JSON.stringify(G.oreCluster(c, 4, mulberry(sd)))));
+    expect(shapes.size).toBeGreaterThan(1);
+  });
+
+  test('deterministic per seed, different across seeds, and never touches Math.random', () => {
+    const G = load(), cands = field(50);
+    const run = (seed: number) => { const r = mulberry(seed); return JSON.stringify([G.spreadPick(cands, 5, r, dist).map((p: C) => p.id), G.poissonPick(cands, 30, 8, r, dist, []).map((p: C) => p.id), G.oreCluster(cands[1000], 5, r)]); };
+    expect(run(11)).toBe(run(11));
+    expect(run(11)).not.toBe(run(12));
+  });
+});
