@@ -333,8 +333,10 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .bm-go:focus-visible, .bm-ren:focus-visible, .bm-del:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
 #validator-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #validator-panel > summary { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; cursor: pointer; user-select: none; }
-#validator-panel .val-bar { display: flex; gap: 4px; margin-top: 8px; }
-#validator-panel .val-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
+#validator-panel .val-bar, #png-export-panel .val-bar { display: flex; gap: 4px; margin-top: 8px; }
+#validator-panel .val-bar .hexdb-tool-btn, #png-export-panel .val-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
+#png-export-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
+#png-export-panel > summary { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; cursor: pointer; user-select: none; }
 #val-filter { flex: 1; min-width: 0; font-size: 11px; padding: 2px 4px; }
 #val-summary { font-size: 11px; color: var(--text); padding: 6px 0 4px; }
 #val-summary.stale, #val-list.stale { color: var(--warn, #e0a030); }
@@ -1349,6 +1351,7 @@ body.mode-common #map-io    { display: none; }
         <button onclick="IO.openRecoveryDialog(true)">Recover autosave copies…</button>
         <div class="separator"></div>
         <button onclick="IO.exportCSV()">Export CSV</button>
+        <button onclick="IO.exportPNG()">Export PNG (whole map)</button>
       </div>
     </div>
     <div class="menu-item" id="menu-edit">Edit
@@ -1676,6 +1679,16 @@ body.mode-common #map-io    { display: none; }
         </div>
         <div id="val-summary" role="status" aria-live="polite">Not run yet. Press Run to check the map.</div>
         <div id="val-list" role="list"></div>
+      </details>
+      <!-- PNG export (T4.8): whole map into an offscreen canvas; hidden layers are not exported; no shortcut -->
+      <details id="png-export-panel">
+        <summary>Export image</summary>
+        <div class="val-bar">
+          <select id="png-scale" class="hexdb-input" aria-label="PNG scale" title="Pixels per world pixel. Larger maps are scaled down to fit 8192 px per side and 36 megapixels.">
+            <option value="0.05">5 %</option><option value="0.1" selected>10 %</option><option value="0.2">20 %</option><option value="0.5">50 %</option><option value="1">100 %</option><option value="max">Largest allowed</option>
+          </select>
+          <button id="png-export-btn" class="hexdb-tool-btn" type="button" onclick="IO.exportPNG()" title="Download the whole map as a PNG (hidden layers are not included)">Export PNG</button>
+        </div>
       </details>
       <!-- Keyboard shortcuts (T4.4): the list is generated from the Shortcuts registry; LEFT palette, no key opens it -->
       <div id="shortcuts-panel">
@@ -2637,7 +2650,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "efee9d4";
+const COMMIT  = "85420ec";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -11224,6 +11237,138 @@ const IO = (() => {
     UI.toast('CSV exported');
   }
 
+  // ── PNG export (T4.8) ──────────────────────────────────────
+  // Renders the whole map into an OFFSCREEN canvas (the live canvas, camera, zoom and LOD are never touched): one flat colour
+  // hexagon per tile (Terrain.color), then the visible layers as simple marks (zone tint, roads, buildings/bridges, settlements).
+  // Hidden layers (Layers panel) are not exported. Size cap: each side <= PNG_MAX_SIDE and the area <= PNG_MAX_PIXELS (one
+  // canvas, ~144 MB at the cap); a bigger request is scaled down (and the toast says so) instead of tiled. The render is
+  // synchronous after one paint yield, so the picture is a consistent snapshot of the map.
+  const PNG_MAX_SIDE = 8192, PNG_MAX_PIXELS = 36e6, PNG_DEFAULT_SCALE = 0.1, PNG_BG = '#111111';
+  let _pngBusy = false;
+
+  function _pngButton(busy) {
+    const b = document.getElementById('png-export-btn');
+    if (b) { b.disabled = busy; b.textContent = busy ? 'Rendering…' : 'Export PNG'; }
+  }
+  function _pngScaleFromUi() {
+    const sel = document.getElementById('png-scale');
+    const v = sel ? sel.value : '';
+    return v === 'max' ? 'max' : (parseFloat(v) || PNG_DEFAULT_SCALE);
+  }
+  function _pngFileName(d) {
+    const p = n => String(n).padStart(2, '0');
+    return 'map-' + d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + '.png';   // local date
+  }
+  // The largest scale that respects both caps.
+  function _pngMaxScale(pw, ph) {
+    return Math.min(PNG_MAX_SIDE / pw, PNG_MAX_SIDE / ph, Math.sqrt(PNG_MAX_PIXELS / (pw * ph)));
+  }
+
+  function _renderMapImage(scale) {
+    const W = MAP_WIDTH, H = MAP_HEIGHT, md = mapData;
+    const pw = (H - 1) * COL_PITCH + HEX_SIZE * 2, ph = (W - 1) * ROW_PITCH + STAGGER + HEX_SIZE * 2;
+    const c = document.createElement('canvas');
+    c.width = Math.max(1, Math.round(pw * scale));
+    c.height = Math.max(1, Math.round(ph * scale));
+    const g = c.getContext('2d');
+    g.fillStyle = PNG_BG;
+    g.fillRect(0, 0, c.width, c.height);
+    const at = (col, row) => { const w = Canvas.hexCenterWorld(col, row); return [(w.x + HEX_SIZE) * scale, (w.y + HEX_SIZE) * scale]; };
+    const hexPath = (cx, cy, r) => { g.beginPath(); for (let i = 0; i < 6; i++) { const a = Math.PI / 3 * i; g.lineTo(cx + r * Math.cos(a), cy + r * Math.sin(a)); } g.closePath(); };
+    const r = HEX_SIZE * scale * 1.02;                                  // a slight overlap hides the seams
+    const zp = typeof ZonePainter !== 'undefined' ? ZonePainter : null;
+    const zones = zp && Layers.isVisible('zones') ? zp.getZones() : [], zl = zones.length && zp.getZoneLayer();
+    const zoneRgb = {};
+    zones.forEach(z => { const m = /^#([0-9a-f]{6})$/i.exec(z.color || ''); const n = m ? parseInt(m[1], 16) : 0x808080; zoneRgb[z.id] = `rgba(${(n >> 16) & 255},${(n >> 8) & 255},${n & 255},0.35)`; });
+    const useZones = !!zl && zl.length === W * H;
+    const memo = new Map();
+    if (Layers.isVisible('terrain')) {
+      for (let row = 0; row < H; row++) {
+        for (let col = 0; col < W; col++) {
+          const id = md[row * W + col];
+          let css = memo.get(id);
+          if (css === undefined) { const k = Terrain.color(id); css = `rgb(${k[0]},${k[1]},${k[2]})`; memo.set(id, css); }
+          const [cx, cy] = at(col, row);
+          g.fillStyle = css;
+          hexPath(cx, cy, r);
+          g.fill();
+        }
+      }
+    }
+    if (useZones) {
+      for (let row = 0; row < H; row++) for (let col = 0; col < W; col++) {
+        const z = zoneRgb[zl[row * W + col]];
+        if (!z) continue;
+        const [cx, cy] = at(col, row);
+        g.fillStyle = z; hexPath(cx, cy, r); g.fill();
+      }
+    }
+    const dot = (key, fill, rad) => {
+      const parts = key.split(','), col = +parts[0], row = +parts[1];
+      if (!(col >= 0 && col < W && row >= 0 && row < H)) return;
+      const [cx, cy] = at(col, row);
+      g.fillStyle = fill; g.beginPath(); g.arc(cx, cy, Math.max(0.6, HEX_SIZE * scale * rad), 0, Math.PI * 2); g.fill();
+    };
+    if (Layers.isVisible('roads')) Object.keys(roadsData).forEach(k => dot(k, '#d9d2c0', 0.35));
+    if (Layers.isVisible('objects')) {
+      Object.keys(objectsData).forEach(k => dot(k, '#6b3f1d', 0.4));
+      bridgesData.forEach(b => dot(b.col + ',' + b.row, '#6b3f1d', 0.4));
+    }
+    if (Layers.isVisible('settlements')) {
+      settlements.forEach(s => {
+        if (s.type !== 'city' && !settlementsVisible) return;
+        dot(s.col + ',' + s.row, s.type === 'city' ? '#ffffff' : '#ffd54f', s.type === 'city' ? 1.4 : 0.8);
+      });
+    }
+    return c;
+  }
+
+  function _canvasToBlob(c) {
+    return new Promise((res, rej) => {
+      try { c.toBlob(b => b ? res(b) : rej(new Error('PNG encoding failed')), 'image/png'); } catch (e) { rej(e); }
+    });
+  }
+
+  // opts: { scale: number | 'max' } (default: the palette selection, else 0.1).
+  async function exportPNG(opts) {
+    UI.closeAllMenus();
+    if (!mapData) return;
+    if (_pngBusy) return;
+    if (Tools.isFillBusy()) { UI.toast('Wait for the fill to finish before exporting a PNG'); return; }
+    _pngBusy = true;
+    _pngButton(true);
+    UI.progress(10, 'Rendering PNG…');
+    try {
+      await new Promise(r => setTimeout(r, 0)); await new Promise(r => setTimeout(r, 0));   // let the disabled state paint
+      if (!mapData) return;
+      if (Tools.isFillBusy()) { UI.toast('Wait for the fill to finish before exporting a PNG'); return; }
+      const pw = (MAP_HEIGHT - 1) * COL_PITCH + HEX_SIZE * 2, ph = (MAP_WIDTH - 1) * ROW_PITCH + STAGGER + HEX_SIZE * 2;
+      const want = opts && opts.scale != null ? opts.scale : _pngScaleFromUi();
+      const cap = _pngMaxScale(pw, ph);
+      let scale = want === 'max' ? Math.min(1, cap) : Math.min(1, Math.max(0.01, +want || PNG_DEFAULT_SCALE));
+      const clamped = scale > cap;
+      if (clamped) scale = cap * 0.999;                          // rounding the pixel size must not push the area over the cap
+      const canvas = _renderMapImage(scale);
+      UI.progress(70, 'Encoding PNG…');
+      const blob = await _canvasToBlob(canvas);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = _pngFileName(new Date());
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 100);
+      const hidden = Layers.NAMES.filter(n => !Layers.isVisible(n)).map(n => Layers.label(n));
+      UI.toast(`PNG exported (${canvas.width} x ${canvas.height} px)` + (clamped ? '. Scale reduced to fit the size limit' : '')
+        + (hidden.length ? '. Hidden layers are not included: ' + hidden.join(', ') : ''));
+      UI.progressDone('PNG exported');
+    } catch (e) {
+      UI.progressDone('PNG export failed');
+      UI.toast('PNG export failed: ' + (e && e.message ? e.message : String(e)));
+    } finally {
+      _pngBusy = false;
+      _pngButton(false);
+    }
+  }
+
   // What Clear Map would do right now, given the live layer locks. Terrain clears to DEFAULT_TILE_ID together with the
   // under-terrain extras (tileExtras follow the TERRAIN lock); bridge overlays sit on terrain and are cleared only when both
   // terrain and buildings are free; buildings, roads, zones and the non-city settlements follow their own locks. The city
@@ -11511,7 +11656,7 @@ const IO = (() => {
     _autoSave();
   }
 
-  return { newMap, openMap, saveMap, exportCSV, gateExport, clearMap, fillMap, initFileInput, initKeyboard,
+  return { newMap, openMap, saveMap, exportCSV, exportPNG, gateExport, clearMap, fillMap, initFileInput, initKeyboard,
            showNewMapPrompt, closeNewMap, setNewMapSize, applyNewMap,
            openExpandMap, closeExpandMap, applyExpandMap, _validateExpandInput, _updateExpandPreview,
            autoSave: _autoSave, scheduleAutoSave, tryRestoreAutosave, getRestoreProblem: () => _restoreProblem, openRecoveryDialog, sideCopyCount: () => _sideList.length, hasUserMap: () => _userMap,
