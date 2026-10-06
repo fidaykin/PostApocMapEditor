@@ -1521,7 +1521,7 @@ test.describe('Clear Map clears every layer (T2.19)', () => {
     m = await confirmMsg(page);
     expect(m).not.toMatch(/Clear all terrain/);
     expect(m).toMatch(/Clear: Buildings, Roads, Zones, Settlements\./);
-    expect(m).toMatch(/Kept \(locked\): Terrain, Bridges\./);
+    expect(m).toMatch(/Kept \(locked\): Terrain, Bridges \(follow the Terrain and Buildings locks\)\./);   // cleanup A6: 'Bridges' carries its reason
     await closeConfirmDlg(page);
   });
 
@@ -1542,13 +1542,48 @@ test.describe('Clear Map clears every layer (T2.19)', () => {
     expect(await steps(page)).toBe(s1);
   });
 
-  test('the map replaced while the dialog is open: confirming clears nothing and adds no step', async ({ page }) => {
+  test('the map replaced while the dialog is open (the new map HAS content): confirming clears nothing of it, adds no step and toasts', async ({ page }) => {
     await page.evaluate(() => IO.clearMap());
-    await page.evaluate(() => { IO.newMap(true); });
+    await page.evaluate(() => {
+      IO.newMap(true);                                         // a different map object, then give it content
+      mapData[224 * MAP_WIDTH + 226] = 'Water_1'; objectsData['226,224'] = 'Grain_1'; roadsData['227,224'] = { type: 'road_hex' };
+      (window as any).__toasts = [];
+    });
     const before = await snap(page), s0 = await steps(page);
+    expect(before).not.toBe(blank);
     await page.click('#confirm-ok');
     expect(await snap(page)).toBe(before);
     expect(await steps(page)).toBe(s0);
+    expect((await toastLog(page)).some(t => /map was replaced/.test(t))).toBe(true);
+    await clearOk(page);                                       // positive control: a fresh dialog on the new map clears it
+    expect(await snap(page)).toBe(blank);
+  });
+
+  test('the dialog marks hidden-but-unlocked layers "(hidden)"; locked or visible layers carry no suffix', async ({ page }) => {
+    await page.evaluate(() => { Layers.setVisible('roads', false); Layers.setVisible('terrain', false); });
+    await page.evaluate(() => IO.clearMap());
+    expect(await confirmMsg(page)).toMatch(/Clear: Terrain \(hidden\), Buildings, Bridges, Roads \(hidden\), Zones, Settlements\./);
+    await closeConfirmDlg(page);
+    await setLocks(page, ['roads']);
+    await page.evaluate(() => IO.clearMap());
+    const m = await confirmMsg(page);
+    expect(m).toMatch(/Kept \(locked\): Roads\./);
+    expect(m).not.toContain('Roads (hidden)');
+    await closeConfirmDlg(page);
+    await page.evaluate(() => { Layers.setVisible('roads', true); Layers.setVisible('terrain', true); });
+  });
+
+  test('Zones is not listed under Kept (locked) merely because the zone layer is missing; Bridges is kept only with its reason', async ({ page }) => {
+    await page.evaluate(() => { (window as any).__zl = ZonePainter.getZoneLayer; ZonePainter.getZoneLayer = () => null as any; IO.clearMap(); });
+    const m = await confirmMsg(page);
+    expect(m).not.toContain('Kept (locked)');
+    expect(m).not.toMatch(/Zones/);
+    await closeConfirmDlg(page);
+    await page.evaluate(() => { ZonePainter.getZoneLayer = (window as any).__zl; });
+    await setLocks(page, ['objects']);
+    await page.evaluate(() => IO.clearMap());
+    expect(await confirmMsg(page)).toMatch(/Kept \(locked\): Buildings, Bridges \(follow the Terrain and Buildings locks\)\./);
+    await closeConfirmDlg(page);
   });
 
   test('refused while a stroke is in progress (no dialog), works after the stroke ends', async ({ page }) => {

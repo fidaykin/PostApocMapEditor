@@ -2442,7 +2442,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "d39667a";
+const COMMIT  = "cd2e101";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10306,10 +10306,10 @@ const IO = (() => {
     p.change = Object.values(has).some(Boolean);
     p.anyFree = p.terrain || p.objects || p.roads || p.zones || p.settlements;
     const names = { terrain: 'Terrain', objects: 'Buildings', roads: 'Roads', zones: 'Zones', settlements: 'Settlements' };
-    p.cleared = Object.keys(names).filter(k => p[k]).map(k => names[k]);
+    p.cleared = Object.keys(names).filter(k => p[k]).map(k => names[k] + (Layers.isVisible(k) ? '' : ' (hidden)'));   // a hidden layer is cleared too: say so
     if (p.bridges) p.cleared.splice(p.cleared.indexOf('Buildings') + 1, 0, 'Bridges');
-    p.kept = Object.keys(names).filter(k => !p[k]).map(k => names[k]);
-    if (!p.bridges) p.kept.splice(p.kept.includes('Buildings') ? p.kept.indexOf('Buildings') + 1 : p.kept.length, 0, 'Bridges');
+    p.kept = Object.keys(names).filter(k => !free(k)).map(k => names[k]);   // locked layers only (a missing zone layer is not a lock)
+    if (!p.bridges) p.kept.splice(p.kept.includes('Buildings') ? p.kept.indexOf('Buildings') + 1 : p.kept.length, 0, 'Bridges (follow the Terrain and Buildings locks)');
     return p;
   }
 
@@ -10322,7 +10322,9 @@ const IO = (() => {
     if (!plan.change) { UI.toast('Nothing to clear' + (plan.kept.length ? ' (locked layers are kept: ' + plan.kept.join(', ') + ')' : '')); return; }
     const msg = 'Clear: ' + plan.cleared.join(', ') + '.' + (plan.kept.length ? ' Kept (locked): ' + plan.kept.join(', ') + '.' : '') +
       (plan.settlements ? ' The city is kept.' : '');
+    const md0 = mapData, W0 = MAP_WIDTH, H0 = MAP_HEIGHT;     // the map this dialog was opened for
     UI.showConfirm('Clear Map', msg, () => {
+      if (mapData !== md0 || MAP_WIDTH !== W0 || MAP_HEIGHT !== H0) { UI.toast('The map was replaced while the dialog was open — nothing was cleared'); return; }
       if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return; }   // a fill may have started while the dialog was open
       if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return; }
       const pl = _clearPlan();                 // locks and content are re-read: they may have changed while the dialog was open
