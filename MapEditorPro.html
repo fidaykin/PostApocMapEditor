@@ -2670,7 +2670,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "b9b2aa7";
+const COMMIT  = "ccad574";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2814,7 +2814,11 @@ const Terrain = (() => {
     for (const h of hexes) {
       if (!h.id || !h.spriteName) continue;
       const key = h.id.toLowerCase();
-      const src = _uploadedUrls[h.spriteName] || (spriteDir + h.spriteName + '.png');
+      const pkg = h.package || 'postapoc';
+      const seg = encodeURIComponent(String(h.spriteName));   // one path segment: names are untrusted
+      const src = getUploadedUrl(h.spriteName, pkg) ||
+        (pkg === 'postapoc' ? spriteDir + seg + '.png'
+                            : `${GitHubSync.BASE_URL}/${spriteDir.replace(/^packages\/postapoc\//, 'packages/' + encodeURIComponent(pkg) + '/')}${seg}.png`);
       _spritePending.set(key, (_spritePending.get(key) || 0) + 1);
       jobs.push(new Promise(resolve => {
         const img = new Image();
@@ -2844,10 +2848,15 @@ const Terrain = (() => {
   // applyHexDbOverrides can resolve user-uploaded sprites on reload.
   const _uploadedUrls = {};
   function registerUploadedUrls(map) { Object.assign(_uploadedUrls, map); }
-  function getUploadedUrl(name) { return _uploadedUrls[name] || null; }
+  // Package-qualified entry first, then the bare (default package) name: a package without its own copy falls back.
+  function getUploadedUrl(name, pkg) {
+    if (pkg && pkg !== 'postapoc' && _uploadedUrls[pkg + '/' + name]) return _uploadedUrls[pkg + '/' + name];
+    return _uploadedUrls[name] || null;
+  }
+  function unregisterUploadedUrls(keys) { for (const k of keys) delete _uploadedUrls[k]; }
 
   return { applyHexDbOverrides, getSprite, spriteState, pendingSprites, getCustomSprite, getCitySprite, getSettlementSprite,
-           color, byId, byHexId, getAll, registerUploadedUrls, getUploadedUrl,
+           color, byId, byHexId, getAll, registerUploadedUrls, unregisterUploadedUrls, getUploadedUrl,
            getTerrainSpriteForType, isLayeredHex };
 })();
 // ════════════════════════════════════════════════════════════
@@ -6473,15 +6482,7 @@ const Tools = (() => {
     }
   }
 
-  function _bldSpriteUrl(b) {
-    if (!b.spriteName) return '';
-    const uploaded = Terrain.getUploadedUrl ? Terrain.getUploadedUrl(b.spriteName) : null;
-    if (uploaded) return uploaded;
-    const seg = encodeURIComponent(String(b.spriteName));     // one path segment: a name can never add '/', '..', quotes or a scheme
-    if (b.buildingCategory === 'Bridge') return `packages/postapoc/sprites/hex/${seg}.png`;
-    if (b.isRoad) return `packages/postapoc/sprites/terrain/roads/${seg}.png`;
-    return `packages/postapoc/sprites/buildings/${seg}.png`;
-  }
+  function _bldSpriteUrl(b) { return Packages.spriteSrc(b, 'bld'); }
 
   // The button is in the left palette: open the picker to the right of the palette, level with the button, and cap its
   // height to the room below that point so it always lies inside the window (the grid scrolls).
@@ -8500,20 +8501,27 @@ const SpriteStore = (() => {
       if (_db) return res(_db);
       const req = indexedDB.open(DB_NAME, VERSION);
       req.onupgradeneeded = e => e.target.result.createObjectStore(STORE, { keyPath: 'name' });
-      req.onsuccess = e => { _db = e.target.result; res(_db); };
+      req.onsuccess = e => { _db = e.target.result; _db.onversionchange = () => { try { _db.close(); } catch(_) {} _db = null; }; res(_db); };
       req.onerror   = e => rej(e.target.error);
     });
   }
 
-  async function save(name, dataUrl, category = 'hex') {
+  // Key of a sprite inside the store: the default package keeps its bare name (existing data is unchanged),
+  // every other package is namespaced as "<package>/<name>" so two packages can never overwrite each other.
+  function keyFor(pkg, name) { return (!pkg || pkg === 'postapoc') ? name : `${pkg}/${name}`; }
+
+  async function save(name, dataUrl, category = 'hex', pkg = 'postapoc') {
     const db = await _open();
+    const rec = { name: keyFor(pkg, name), dataUrl, category };
+    if (pkg && pkg !== 'postapoc') { rec.package = pkg; rec.baseName = name; }
     return new Promise((res, rej) => {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).put({ name, dataUrl, category });
+      tx.objectStore(STORE).put(rec);
       tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
     });
   }
 
+  // Raw records (names are store keys: qualified for non-default packages).
   async function loadAll() {
     const db = await _open();
     return new Promise((res, rej) => {
@@ -8523,21 +8531,30 @@ const SpriteStore = (() => {
     });
   }
 
-  async function loadByCategory(category) {
+  // One package's own records, with the bare sprite name.
+  async function loadForPackage(pkg = 'postapoc') {
     const all = await loadAll();
-    return all.filter(e => (e.category || 'hex') === category);
+    return all.filter(e => (e.package || 'postapoc') === pkg).map(e => ({ ...e, name: e.baseName || e.name }));
   }
 
-  async function remove(name) {
+  // Default-package records plus the given package's; the package wins on equal names. Names are bare.
+  async function loadByCategory(category, pkg = 'postapoc') {
+    const merged = new Map();
+    for (const e of await loadForPackage('postapoc')) merged.set(e.name, e);
+    if (pkg !== 'postapoc') for (const e of await loadForPackage(pkg)) merged.set(e.name, e);
+    return [...merged.values()].filter(e => (e.category || 'hex') === category);
+  }
+
+  async function remove(name, pkg = 'postapoc') {
     const db = await _open();
     return new Promise((res, rej) => {
       const tx = db.transaction(STORE, 'readwrite');
-      tx.objectStore(STORE).delete(name);
+      tx.objectStore(STORE).delete(keyFor(pkg, name));
       tx.oncomplete = res; tx.onerror = e => rej(e.target.error);
     });
   }
 
-  return { save, loadAll, loadByCategory, remove };
+  return { save, loadAll, loadByCategory, loadForPackage, keyFor, remove };
 })();
 
 // ════════════════════════════════════════════════════════════
@@ -8991,7 +9008,7 @@ const GitHubSync = (() => {
 
   async function publishAllSprites() {
     await _withPublishBtn('Publish Sprites', async () => {
-      const all = await SpriteStore.loadAll();
+      const all = await SpriteStore.loadForPackage('postapoc');   // the shared pool only: package sprites go out with their package
       if (!all.length) { UI.toast('No sprites in local store'); return; }
       UI.progress(10, `Uploading ${all.length} sprites…`);
       let done = 0;
@@ -9020,7 +9037,7 @@ const GitHubSync = (() => {
       ]);
 
       UI.progress(50, 'Scanning local cache…');
-      const local = await SpriteStore.loadAll();
+      const local = await SpriteStore.loadForPackage('postapoc');
       const ghosts = local.filter(e => !onGitHub.has(`${e.category || 'hex'}/${e.name}`));
 
       if (!ghosts.length) {
@@ -9550,7 +9567,7 @@ const UI = (() => {
 
       const img = document.createElement('img');
       const spr = Terrain.getSprite(h.id);
-      img.src = spr ? spr.src : (h.spriteName ? `packages/postapoc/sprites/hex/${h.spriteName}.png` : '');
+      img.src = spr ? spr.src : Packages.spriteSrc(h, 'hex');
       img.alt = h.id;
       btn.addEventListener('click', () => selectTerrain(h.id));
       btn.appendChild(img);
@@ -9595,7 +9612,7 @@ const UI = (() => {
         btn.className = 'tile-btn';
         btn.dataset.hexId = bld.id;
         const img = document.createElement('img');
-        img.src = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `packages/postapoc/sprites/buildings/${bld.spriteName}.png`) : '';
+        img.src = Packages.spriteSrc(bld, 'bld');
         img.alt = bld.id;
         btn.appendChild(img);
         const tt = document.createElement('span');
@@ -10216,10 +10233,11 @@ const UI = (() => {
     const shown = new Set();
 
     // Build SpriteStore cache map once for fast lookup
-    let cacheMap = {};
+    let cacheMap = {}, cacheOwner = {};
     try {
-      const cached = await SpriteStore.loadByCategory(category);
-      cacheMap = Object.fromEntries(cached.map(e => [e.name, e.dataUrl]));
+      const cached = await SpriteStore.loadByCategory(category, Packages.getActive());
+      cacheMap   = Object.fromEntries(cached.map(e => [e.name, e.dataUrl]));
+      cacheOwner = Object.fromEntries(cached.map(e => [e.name, e.package || 'postapoc']));
     } catch(e) { /* IndexedDB unavailable */ }
 
     // 1. DB-referenced sprites — use cached dataUrl when available, fall back to server
@@ -10233,7 +10251,7 @@ const UI = (() => {
       if (shown.has(name)) return;
       shown.add(name);
       grid.appendChild(_makeThumb(name, dataUrl, true, async n => {
-        await SpriteStore.remove(n);
+        await SpriteStore.remove(n, cacheOwner[n] || 'postapoc');
         toast(`Removed "${n}"`);
       }));
     });
@@ -12465,6 +12483,51 @@ const Packages = (() => {
 
   function _esc(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
+  // Best <img src> for a hex ('hex') or building ('bld') record, honouring its package. Names and package ids are
+  // untrusted: each is one encoded path segment.
+  function spriteSrc(rec, kind) {
+    if (!rec || !rec.spriteName) return '';
+    const pkg = rec.package || 'postapoc';
+    const uploaded = Terrain.getUploadedUrl(rec.spriteName, pkg);
+    if (uploaded) return uploaded;
+    const dir = kind === 'bld' ? (rec.buildingCategory === 'Bridge' ? 'hex' : rec.isRoad ? 'terrain/roads' : 'buildings') : 'hex';
+    const rel = `packages/${pkg === 'postapoc' ? pkg : encodeURIComponent(pkg)}/sprites/${dir}/${encodeURIComponent(String(rec.spriteName))}.png`;
+    return pkg === 'postapoc' ? rel : `${BASE_URL}/${rel}`;
+  }
+
+  // One-time, idempotent move of flat sprites (the old single namespace) that only non-default packages use into their
+  // package namespace. Lossless: a flat copy is deleted only after an identical package copy exists; a postapoc-used,
+  // unreferenced or conflicting flat copy is left alone. IndexedDB failures are tolerated.
+  async function migrateFlatSprites() {
+    const res = { moved: 0, kept: 0 };
+    let all;
+    try { all = await SpriteStore.loadAll(); } catch(e) { console.warn('[Packages] sprite migration skipped:', e && e.message); return res; }
+    const users = new Map();   // sprite name -> Set of packages whose records use it
+    const note = r => { if (r.spriteName) { const k = String(r.spriteName); if (!users.has(k)) users.set(k, new Set()); users.get(k).add(r.package || 'postapoc'); } };
+    if (typeof HexDB !== 'undefined') HexDB.getData().hexes.forEach(note);
+    if (typeof BldDB !== 'undefined') BldDB.getAll().forEach(note);
+    const have = new Map(all.map(e => [e.name, e]));
+    const gone = [];
+    for (const e of all) {
+      if (e.package || String(e.name).includes('/')) continue;           // already namespaced
+      const pk = users.get(e.name);
+      if (!pk || pk.has('postapoc')) { res.kept++; continue; }
+      let safe = true;
+      try {
+        for (const p of pk) {
+          const ex = have.get(SpriteStore.keyFor(p, e.name));
+          if (!ex) { await SpriteStore.save(e.name, e.dataUrl, e.category || 'hex', p); Terrain.registerUploadedUrls({ [SpriteStore.keyFor(p, e.name)]: e.dataUrl }); }
+          else if (ex.dataUrl !== e.dataUrl) safe = false;             // a different package copy exists: keep the flat one too
+        }
+        if (!safe) { res.kept++; continue; }
+        await SpriteStore.remove(e.name);
+        gone.push(e.name); res.moved++;
+      } catch(err) { console.warn('[Packages] sprite migration failed for', e.name, err && err.message); res.kept++; }
+    }
+    if (gone.length) Terrain.unregisterUploadedUrls(gone);
+    return res;
+  }
+
   // ── Init ───────────────────────────────────────────────────────
   function init() {
     try { _active = localStorage.getItem(LS_ACTIVE) || 'postapoc'; } catch(e) { _active = 'postapoc'; }
@@ -12893,8 +12956,10 @@ const Packages = (() => {
     const refs = await _packageSpriteRefs(id);
     if (!refs.size) return { total: 0, pushed: 0, missing: [] };
 
-    const local = await SpriteStore.loadAll();
-    const localByName = new Map(local.map(e => [e.name, e]));
+    let baseLocal = [], pkgLocal = [];
+    try { [baseLocal, pkgLocal] = await Promise.all([SpriteStore.loadForPackage('postapoc'), SpriteStore.loadForPackage(id)]); }
+    catch(e) { console.warn('[Packages] local sprite store unavailable, using the server copies:', e && e.message); }
+    const localByName = new Map([...baseLocal, ...pkgLocal].map(e => [e.name, e]));   // the package's own copy wins
 
     let pushed = 0, done = 0;
     const missing = [];
@@ -13398,7 +13463,8 @@ const Packages = (() => {
       const localSprites = {};   // name -> dataUrl, so imported tiles render before any publish round-trip
       const skippedSprites = []; // names that already exist locally (kept, not overwritten)
       const failedSprites = [];  // names that could not be stored locally
-      const existingNames = new Set((await SpriteStore.loadAll()).map(e => e.name));
+      let existingNames = new Set();   // this package's own stored sprites only: another package's same-named sprite is a different file
+      try { existingNames = new Set((await SpriteStore.loadForPackage(newId)).map(e => e.name)); } catch(e) { /* IndexedDB unavailable: sprites still go to the server */ }
       for (const { path, file } of spriteFiles) {
         try {
           // path example: 'sprites/hex/Forest.png' → dest: 'packages/medieval/sprites/hex/Forest.png'
@@ -13409,8 +13475,8 @@ const Packages = (() => {
             if (existingNames.has(m[2])) { skippedSprites.push(m[2]); done++; continue; }
             try {
               const dataUrl = await _blobToDataUrl(blob);
-              await SpriteStore.save(m[2], dataUrl, m[1].toLowerCase());
-              localSprites[m[2]] = dataUrl;
+              await SpriteStore.save(m[2], dataUrl, m[1].toLowerCase(), newId);
+              localSprites[SpriteStore.keyFor(newId, m[2])] = dataUrl;
             } catch (e) {
               failedSprites.push(m[2]);
               console.warn(`[Packages] import: could not store sprite ${m[2]} locally:`, e && e.message);
@@ -13439,7 +13505,7 @@ const Packages = (() => {
       const addedBld = BldDB.addEntries(buildings);
       UI.progressDone(`✅ Package '${name}' imported`);
       const notes = [];
-      if (skippedSprites.length) notes.push(`${skippedSprites.length} sprite(s) skipped: name already exists locally`);
+      if (skippedSprites.length) notes.push(`${skippedSprites.length} sprite(s) skipped: already stored for this package`);
       if (failedSprites.length) notes.push(`${failedSprites.length} sprite(s) could not be stored locally`);
       const detail = [...skippedSprites.map(n => `skipped: ${n}`), ...failedSprites.map(n => `failed: ${n}`)].join('\n');
       UI.toast(`✅ Package '${name}' imported (${addedHex} hex tiles, ${addedBld} buildings loaded)` + (notes.length ? '; ' + notes.join('; ') : ''),
@@ -13458,7 +13524,7 @@ const Packages = (() => {
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
-           openNewModal, closeNewModal, _autoSlugId, createPackage,
+           spriteSrc, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal,
@@ -15289,9 +15355,7 @@ const HexDB = (() => {
       _data.hexes.map(h => `<option value="${_esc(h.id)}">`).join('') +
       '</datalist>';
 
-    const spriteSrc = hex.spriteName
-      ? (Terrain.getUploadedUrl(hex.spriteName) || `packages/postapoc/sprites/hex/${_esc(hex.spriteName)}.png`)
-      : '';
+    const spriteSrc = _esc(Packages.spriteSrc(hex, 'hex'));
     const visualHTML = `<div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0">
       <img src="${spriteSrc}" alt=""
         style="width:64px;height:64px;image-rendering:pixelated;flex-shrink:0;
@@ -16908,10 +16972,7 @@ const BldDB = (() => {
       <button onclick="BldDB.paste()">Paste</button>
     </div>`;
 
-    const _sprDir = bld.buildingCategory === 'Bridge' ? 'packages/postapoc/sprites/hex/'
-                   : bld.isRoad ? 'packages/postapoc/sprites/terrain/roads/'
-                   : 'packages/postapoc/sprites/buildings/';
-    const spriteSrc = bld.spriteName ? (Terrain.getUploadedUrl(bld.spriteName) || `${_sprDir}${_esc(bld.spriteName)}.png`) : '';
+    const spriteSrc = _esc(Packages.spriteSrc(bld, 'bld'));
     const visualHTML = `
     <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-bottom:1px solid var(--border);background:var(--panel);flex-shrink:0;margin:-12px -12px 0">
       <img src="${spriteSrc}" alt=""
@@ -19225,6 +19286,7 @@ window.addEventListener('load', async () => {
     await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory !== 'Bridge' && !b.isRoad), 'packages/postapoc/sprites/buildings/');
     await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.buildingCategory === 'Bridge'), 'packages/postapoc/sprites/hex/');
     await Terrain.applyHexDbOverrides(_allBlds.filter(b => b.isRoad), 'packages/postapoc/sprites/terrain/roads/');
+    try { await Packages.migrateFlatSprites(); } catch(e) { console.warn('[init] sprite migration failed:', e && e.message); }
     Canvas.render();
   })();
   // Tab key: cycle MAP → HEX DB → BUILDINGS → SETTLEMENTS (when no input focused)

@@ -23,21 +23,25 @@ test('importing a ZIP puts its hexes, buildings and sprites into the editor', as
   await page.locator('#pkg-import-modal').getByRole('button', { name: 'Import' }).click();
   await expect.poll(() => page.evaluate(() => HexDB.getAll().some(h => h.id === 'Zipimp_Hex_1' && h.package === 'zipimp'))).toBe(true);
   expect(await page.evaluate(() => BldDB.getAll().some(b => b.id === 'Zipimp_Bld_1' && b.package === 'zipimp'))).toBe(true);
-  expect(await page.evaluate(async () => (await SpriteStore.loadAll()).some(s => s.name === 'Zipmod_Hex_1' && s.category === 'hex'))).toBe(true);
-  expect(await page.evaluate(() => typeof Terrain.getUploadedUrl('Zipmod_Hex_1'))).toBe('string');
+  // sprites are stored under the importing package (T5.3), not in the flat postapoc namespace
+  expect(await page.evaluate(async () => (await SpriteStore.loadAll()).map(s => [s.name, s.category, s.package]))).toEqual([['zipimp/Zipmod_Hex_1', 'hex', 'zipimp']]);
+  expect(await page.evaluate(() => [typeof Terrain.getUploadedUrl('Zipmod_Hex_1', 'zipimp'), Terrain.getUploadedUrl('Zipmod_Hex_1', 'postapoc')])).toEqual(['string', null]);
 });
 
-test('importing a ZIP never overwrites an existing local sprite of the same name', async ({ page }) => {
+test('importing a ZIP never overwrites a postapoc sprite of the same name; the package gets its own copy', async ({ page }) => {
   await openEditor(page, { pat: true });
   const orig = 'data:image/png;base64,ORIGINAL';
   await page.evaluate((u) => SpriteStore.save('Zipmod_Hex_1', u, 'hex'), orig);
   await pickZip(page, await zipFor('zipmod', 'Zip Mod'));
   await page.fill('#pkg-import-id', 'zipimp');
   await page.locator('#pkg-import-modal').getByRole('button', { name: 'Import' }).click();
-  await expect(page.locator('.toast', { hasText: '1 sprite(s) skipped' })).toContainText('Zipmod_Hex_1');
-  const stored = await page.evaluate(async () => (await SpriteStore.loadAll()).find(s => s.name === 'Zipmod_Hex_1')!.dataUrl);
-  expect(stored).toBe(orig);
-  expect(await page.evaluate(() => HexDB.getAll().some(h => h.id === 'Zipimp_Hex_1'))).toBe(true);
+  await expect.poll(() => page.evaluate(() => HexDB.getAll().some(h => h.id === 'Zipimp_Hex_1'))).toBe(true);
+  const all = await page.evaluate(async () => Object.fromEntries((await SpriteStore.loadAll()).map(s => [s.name, s.dataUrl])));
+  expect(all['Zipmod_Hex_1']).toBe(orig);                              // the flat (postapoc) copy is untouched
+  expect(all['zipimp/Zipmod_Hex_1']).toMatch(/^data:image\/png;base64,/);   // the package copy is separate
+  expect(all['zipimp/Zipmod_Hex_1']).not.toBe(orig);
+  // and the imported hex renders its own sprite, not the local postapoc one
+  expect(await page.evaluate(() => Terrain.getUploadedUrl('Zipmod_Hex_1', 'zipimp') !== Terrain.getUploadedUrl('Zipmod_Hex_1', 'postapoc'))).toBe(true);
 });
 
 function seedTaken(gh: FakeGitHub) {
