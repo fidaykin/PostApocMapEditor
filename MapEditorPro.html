@@ -343,6 +343,7 @@ html, body {
   user-select: none;
 }
 .status-item span:first-child { color: var(--muted); }
+#st-layers { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 420px; }
 #st-layers:empty { display: none; }
 .status-item span:last-child  { color: var(--text); }
 
@@ -2446,7 +2447,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "82dbcb3";
+const COMMIT  = "04fecb5";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2957,7 +2958,10 @@ const Layers = (() => {
     const st = document.getElementById('st-layers');
     if (st) {
       const hid = NAMES.filter(n => !isVisible(n)).map(n => LABELS[n]), lck = NAMES.filter(isLocked).map(n => LABELS[n]);
-      st.textContent = [hid.length ? 'Hidden: ' + hid.join(', ') : '', lck.length ? 'Locked: ' + lck.join(', ') : ''].filter(Boolean).join(' \u00B7 ');
+      const txt = [hid.length ? 'Hidden: ' + hid.join(', ') : '', lck.length ? 'Locked: ' + lck.join(', ') : ''].filter(Boolean).join(' \u00B7 ');
+      const tip = txt ? txt + ' (Layers panel, left palette)' : 'Layers that are hidden or locked (Layers panel, left palette)';
+      if (st.textContent !== txt) st.textContent = txt;      // an unchanged summary is not rewritten (it is a live region)
+      if (st.title !== tip) st.title = tip;
     }
   }
   // Re-reads the zone overlay switch (called by the Zone Painter whenever it changes it), stores and refreshes the panel.

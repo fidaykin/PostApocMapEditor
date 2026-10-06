@@ -1895,6 +1895,42 @@ test.describe('layers: status-bar indicator and the locked Settlement tool (clea
     expect((await box(page)).text).toBe('');
   });
 
+  test('worst case (all five layers hidden AND locked): status bar height and canvas size unchanged, the element stays inside its box, and its title carries the full text', async ({ page }) => {
+    const m = () => page.evaluate(() => {
+      const e = document.getElementById('st-layers')!, bar = document.getElementById('statusbar')!, r = e.getBoundingClientRect(), br = bar.getBoundingClientRect(), c = document.getElementById('map-canvas') as HTMLCanvasElement;
+      return { barH: br.height, canvas: [c.width, c.height], right: r.right, barRight: br.right, width: r.width, clipped: e.scrollWidth > e.clientWidth, text: e.textContent, title: e.title, docOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth };
+    });
+    const base = await m();
+    await page.evaluate(() => Layers.NAMES.forEach((n: string) => { Layers.setVisible(n, false); Layers.setLocked(n, true); }));
+    const w = await m();
+    expect(w.text).toContain('Hidden: Terrain, Buildings & bridges, Roads, Settlements, Zone overlay');
+    expect(w.text).toContain('Locked: ');
+    expect(w.barH).toBe(base.barH);
+    expect(w.canvas).toEqual([1491, 808]);
+    expect(w.canvas).toEqual(base.canvas);
+    expect(w.width).toBeLessThanOrEqual(420);
+    expect(w.right).toBeLessThanOrEqual(w.barRight);
+    expect(w.clipped, 'the long text is clipped by the box, not wrapped or overflowing').toBe(true);
+    expect(w.title).toContain(w.text!);
+    expect(w.docOverflow).toBe(base.docOverflow);
+  });
+
+  test('the summary is not rewritten when its text is unchanged (no DOM mutation over a no-op toggle sequence); a real change mutates', async ({ page }) => {
+    await page.evaluate(() => { Layers.setVisible('roads', false); Layers.setLocked('terrain', true); });
+    const n = await page.evaluate(() => {
+      const e = document.getElementById('st-layers')!, o = new MutationObserver(() => {});
+      o.observe(e, { childList: true, characterData: true, subtree: true, attributes: true });
+      Layers.setVisible('roads', false); Layers.setLocked('terrain', true); Layers.setVisible('zones', true); Layers.sync(); Layers.setLocked('roads', false);
+      const noop = o.takeRecords().length;
+      Layers.setVisible('roads', true);
+      const real = o.takeRecords().length;
+      o.disconnect();
+      return { noop, real };
+    });
+    expect(n.noop).toBe(0);
+    expect(n.real).toBeGreaterThan(0);
+  });
+
   test('it also reflects a hidden layer restored from storage after a reload', async ({ page }) => {
     await page.evaluate(() => Layers.setVisible('objects', false));
     await page.reload(); await page.waitForFunction(() => typeof Layers !== 'undefined' && document.getElementById('layers-list')!.children.length > 0);
