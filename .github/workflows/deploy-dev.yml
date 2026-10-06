@@ -29,7 +29,7 @@ jobs:
           sed -i 's|<script src="map-jobs.js|<script src="dev/map-jobs.js|; s|new Worker(.map-worker.js|new Worker('"'"'dev/map-worker.js|' /tmp/MapEditorPro_dev.html
           # hex-utils.js is new with the editing tools: dev serves its own copy too (prod has none at first deploy).
           sed -i 's|<script src="hex-utils.js|<script src="dev/hex-utils.js|' /tmp/MapEditorPro_dev.html
-          grep -q 'src="dev/hex-utils.js?v=1"' /tmp/MapEditorPro_dev.html
+          grep -q 'src="dev/hex-utils.js?v=2"' /tmp/MapEditorPro_dev.html
           # zone-painter.js (Zone Painter + its layer-lock gates) is published into dev/ as well, so dev never runs the stale root copy.
           # Its ?v= is a plain cache-buster that is bumped with every change to the file: only require that the tag keeps one.
           sed -i 's|<script src="zone-painter.js|<script src="dev/zone-painter.js|' /tmp/MapEditorPro_dev.html
