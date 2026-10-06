@@ -36,3 +36,37 @@ runs only in ~45 s maintenance wake windows every ~9 min, so any wait that spans
 page state, the requests still in flight and whether the test process was frozen (asleep).
 **Suite numbers from a machine that slept during the run are unreliable.** Re-run while the machine is awake.
 The output ends with `startup retries: N`, and each retry is a `startup-retry` annotation on its test.
+
+## Reading a run
+
+- The default `list` reporter is required to see the final `startup retries: N` line (a second reporter prints it).
+  `--reporter=line` or `--reporter=dot` replaces the config reporters and hides it. A run with retries above 0 hit a
+  slow editor startup: look at the `startup-retry` annotations before trusting timing-sensitive results.
+- Expected totals move as specs are added: record `passed / skipped / failed`, wall time, `startup retries` and `uptime`
+  (load average) for any "suite is green" claim. Do not start a second run while one is going (one machine, one
+  per-checkout server port); a busy port fails the run on purpose.
+- Mutation runs (change the editor, run a focused subset, restore from a saved copy and `cmp`): use
+  `--workers=2 --max-failures=1 --timeout=15000` and `-g "<test title>"` so a caught mutation stops at once. A cap
+  like `--max-failures=3` makes failure counts "at least", not exact. Never restore with `git checkout -- <file>`:
+  copy the file first (`cp MapEditorPro.html /tmp/h.bak`) and `cmp` after restoring.
+- Focused runs share the default 60 s per-test timeout; heavy specs set their own.
+
+## Writing tests here (standing rules)
+
+- No vacuous assertions: a `>= 1`, `<= n` or "did not throw" check must be paired with proof that work happened
+  (counts of cells written, rebuilds, calls). Give every negative check a positive control (the same gesture works
+  unlocked / on the other layer) so a broken setup cannot pass.
+- Independent references: compute expectations from pixel geometry (`Canvas.hexCenterWorld`, `ROW_PITCH`) or from a
+  hand-written model, never from the function under test. Cover both parities (even and odd map height, odd and even
+  q) and the map corners.
+- No wall-clock: no `waitForTimeout`, no millisecond thresholds. Count work (renders, calls, rebuilds, ticks), compare
+  ratios inside the same page, `expect.poll` for something that must happen, and for "nothing happened" use an
+  ordering barrier (`quiesceAfterDialog` in `helpers.ts`, or two animation frames) instead of a sleep.
+- Page state: inside `page.evaluate`, assign the bare binding (`MAP_WIDTH = 31`, `mapData = ...`). `window.MAP_WIDTH = ...`
+  does not touch a top-level `let` and makes a test pass vacuously. Restore any page-local mutation of shared data
+  (HexDB entries, wrapped functions) in a `try/finally`.
+- Keep tests cheap: bare maps, few renders, low zoom. Use `freshEditor` (30x30 map) unless the test needs 450x450.
+- Make a changed or new test fail first (RED) for the right reason, and for a tightened test run one mutation of the
+  code it guards.
+- Layout-sensitive tests: new controls go in the left palette, not the top toolbar (the toolbar width sets the canvas
+  width and the perf hash baselines). `tests/perf-baseline.json` is never edited by hand.
