@@ -464,11 +464,11 @@ const ZonePainter = (() => {
 
     const minDist = preset.settlementMinSpacing || 15;
 
-    // Remove existing auto-placed settlements inside this zone first
-    // (keep city type settlements)
+    // Remove existing zone-placed settlements inside this zone first: only type 'settlement' is ours (the city, the
+    // Placement helper's bunkers / mega cities and any other type stay)
     const existingInZone = settlements.filter(s => {
       const i = s.row * w + s.col;
-      return _zoneLayer[i] === zoneId && s.type !== 'city';
+      return _zoneLayer[i] === zoneId && s.type === 'settlement';
     });
     existingInZone.forEach(s => {
       const idx = settlements.indexOf(s);

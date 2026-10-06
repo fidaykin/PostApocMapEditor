@@ -1365,7 +1365,7 @@ body.mode-common #map-io    { display: none; }
 <script src="gen-utils.js?v=4"></script>
 <script src="map-format.js?v=1"></script>
 <script src="brush.js?v=1"></script>
-<script src="zone-painter.js?v=19"></script>
+<script src="zone-painter.js?v=20"></script>
 <script src="map-jobs.js?v=6"></script>
 </head>
 <body class="mode-map">
@@ -1812,7 +1812,7 @@ body.mode-common #map-io    { display: none; }
         </div>
         <div class="slot-rows" id="slot-rows"></div>
         <button id="slot-add" title="Add a new slot — each slot places settlements of one type within its own distance range">+ Add Slot</button>
-        <button id="slot-autogen" onclick="autoPlaceSettlements()" title="Remove all non-city settlements and re-place them from scratch using every defined slot and the priority hex lists below">⚡ Auto-Place All Slots</button>
+        <button id="slot-autogen" onclick="autoPlaceSettlements()" title="Remove the settlements slots created (settlement, outpost, trading post, custom slot types) and re-place them from scratch using every defined slot and the priority hex lists below. The city, bunkers and mega cities stay.">⚡ Auto-Place All Slots</button>
         <div id="priority-config">
           <label title="Terrain IDs tried first when scanning hexes for placement. Comma-separated. Example: Plain_1, Rubble_2">Priority 1 hexes (preferred)</label>
           <input id="priority-p1" type="text" placeholder="Plain_1, Plain_2, Rubble_1, Rubble_2, Rubble_3"
@@ -2699,7 +2699,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "7a0cc88";
+const COMMIT  = "f2e6b9a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -20726,7 +20726,9 @@ const Placement = (() => {
   }
 
   buildUI();
-  return { defaults, plan, place, apply, buildUI };
+  // The settlement type ids this helper writes: never removed by Auto-place.
+  function settlementTypes() { return Object.values(CONFIG).filter(c => c && c.kind === 'settlement').map(c => c.id); }
+  return { defaults, plan, place, apply, buildUI, settlementTypes };
 })();
 
 function autoPlaceSettlements() {
@@ -20738,8 +20740,12 @@ function autoPlaceSettlements() {
   settlementsVisible = true;
   if (!Layers.isVisible('settlements')) { Layers.setVisible('settlements', true); UI.toast('Settlements layer shown'); }   // never place invisibly
 
-  // Remove all non-city settlements, keep city marker
-  settlements = settlements.filter(s => s.type === 'city');
+  // Remove only what slots create: the slot kinds (settlement / outpost / trading_post and any custom slot type). The city
+  // marker and everything else (the Placement helper's bunkers and mega cities, other tools' types) stays.
+  const slotTypes = new Set(['settlement', 'outpost', 'trading_post', ...settlementSlots.map(sl => sl.type).filter(t => typeof t === 'string' && t)]);
+  slotTypes.delete('city');
+  Placement.settlementTypes().forEach(t => slotTypes.delete(t));
+  settlements = settlements.filter(s => !slotTypes.has(s.type));
 
   let totalPlaced = 0;
   // occupied grows across slots so spacing is enforced globally
