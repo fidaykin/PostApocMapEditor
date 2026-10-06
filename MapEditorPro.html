@@ -2687,7 +2687,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "c3e02e2";
+const COMMIT  = "77c8709";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -12952,7 +12952,7 @@ const Packages = (() => {
       const idCell = _el('td', {}, _el('code', { text: p.id }));
       if (p.isDefault) idCell.append(' ', _el('span', { class: 'pkg-badge', title: 'Built-in content that ships with the game; it cannot be deleted', text: 'default' }));
       const actions = _el('td', {},
-        _btn('↓ Export', 'Download a ZIP of this package', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
+        _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
         _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Delete', 'Remove this package from the registry (it can be restored from Recently deleted)',
         () => confirmDelete(p.id), { 'data-pkg-id': p.id, style: 'color:#f38ba8' }));
@@ -13044,83 +13044,108 @@ const Packages = (() => {
   }
 
   // ── Export Package ─────────────────────────────────────────────
-  async function exportPackage(id) {
+  // Built from the LOCAL state (HexDB/BldDB entries of the package, its sprites from the SpriteStore, package.json from
+  // the registry entry on top of the server's copy when readable). Never writes to the network; works without a token and
+  // offline (the comparison with the published copy is then reported as "could not compare").
+  let _exportBusy = false;
+
+  // The sprite bytes for `name`: the package's own local copy, the shared local copy, the published package copy, then
+  // the postapoc pool. null when nowhere to be found. Category comes from the local entry when there is one.
+  async function _exportSprite(id, name, fallbackCategory, localByName) {
+    const loc = localByName.get(name);
+    const category = (loc && loc.category) || fallbackCategory;
+    const get = async url => { try { const r = await fetch(url); return r.ok ? await r.blob() : null; } catch (e) { return null; } };
+    let blob = loc ? await get(loc.dataUrl) : null;
+    const seg = `${category}/${encodeURIComponent(name)}.png`;
+    if (!blob) blob = await get(`${BASE_URL}/packages/${encodeURIComponent(id)}/sprites/${seg}?_=${Date.now()}`);
+    if (!blob) blob = await get(`${BASE_URL}/packages/postapoc/sprites/${seg}?_=${Date.now()}`);
+    return blob ? { blob, category } : null;
+  }
+
+  async function exportPackage(id, opts = {}) {
     const entry = getEntry(id);
     if (!entry) return UI.toast('⚠ Package not found');
+    if (_exportBusy) return UI.toast('⚠ An export is already running');
+    _exportBusy = true;
     try {
-      UI.progress(0, `Preparing export for "${_esc(entry.name)}"…`);
-      const JSZip = await _loadJSZip();
+      const hexes    = HexDB.getData().hexes.filter(h => h.package === id);
+      const buildings = BldDB.getAll().filter(b => b.package === id);
+      if (hexes.length + buildings.length > IMPORT_MAX_ENTRIES)
+        return UI.toast(`⚠ Export refused: too many entries (${hexes.length + buildings.length}, the importer accepts ${IMPORT_MAX_ENTRIES}).`, { ms: 6000 });
 
-      // Fetch JSON files
-      UI.progress(5, 'Fetching package.json…');
-      const pkgRes = await fetch(`${BASE_URL}/packages/${id}/package.json?_=${Date.now()}`);
-      if (!pkgRes.ok) {
-        UI.progressDone('');
-        return UI.toast('⚠ Package must be published before exporting');
-      }
-      const pkgText = await pkgRes.text();
-
-      UI.progress(10, 'Fetching hex_database.json…');
-      const hexRes = await fetch(`${BASE_URL}/packages/${id}/hex_database.json?_=${Date.now()}`);
-      const hexText = hexRes.ok ? await hexRes.text() : '{"version":1,"hexes":[]}';
-
-      UI.progress(15, 'Fetching building_database.json…');
-      const bldRes = await fetch(`${BASE_URL}/packages/${id}/building_database.json?_=${Date.now()}`);
-      const bldText = bldRes.ok ? await bldRes.text() : '{"version":1,"buildings":[]}';
-
-      // List sprites
-      UI.progress(20, 'Listing sprites…');
-      const [hexSprites, bldSprites] = await Promise.all([
-        GitHubSync._listFolder(`packages/${id}/sprites/hex`).catch(() => []),
-        GitHubSync._listFolder(`packages/${id}/sprites/buildings`).catch(() => []),
-      ]);
-      const allSprites = [
-        ...hexSprites.map(f => ({ category: 'hex',       name: f.name, url: f.download_url })),
-        ...bldSprites.map(f => ({ category: 'buildings', name: f.name, url: f.download_url })),
-      ];
-
-      // Build ZIP
-      const zip = new JSZip();
-      zip.file('package.json',          pkgText);
-      zip.file('hex_database.json',     hexText);
-      zip.file('building_database.json', bldText);
-      const hexDir = zip.folder('sprites').folder('hex');
-      const bldDir = zip.folder('sprites').folder('buildings');
-
-      // Fetch and add sprites
-      let done = 0;
-      for (const spr of allSprites) {
-        try {
-          const res = await fetch(spr.url);
-          if (res.ok) {
-            const blob = await res.blob();
-            (spr.category === 'hex' ? hexDir : bldDir).file(spr.name, blob);
-          }
-        } catch(e) {
-          console.warn(`[Packages] export: skipped ${spr.name}:`, e.message);
+      // Same comparison publish shows (diffAgainstServer); a failed comparison is reported, never fatal.
+      let diff = null, compareError = null, serverPkg = null, missing = [];
+      try { diff = await diffAgainstServer(id); serverPkg = diff.pkg || null; } catch (e) { compareError = e && e.message ? e.message : String(e); }
+      try { missing = await findMissingSprites(id); } catch (e) { missing = []; }
+      const differs = x => x.added.length + x.changed.length + x.removed.length + x.unkeyedLocal.length + x.unkeyedServer.length;
+      const nHex = diff ? differs(diff.hex) : 0, nBld = diff ? differs(diff.bld) : 0;
+      if (!opts.skipWarning && (compareError || diff.firstPublish || nHex + nBld > 0 || missing.length)) {
+        const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+        const root = T('div', null, { id: 'pkg-export-warn' });
+        if (compareError) root.appendChild(T('p', `Could not compare with the published version (${compareError}). The ZIP will contain your local version.`));
+        else if (diff.firstPublish) root.appendChild(T('p', 'This package has never been published. The ZIP will contain your local version.'));
+        else if (nHex + nBld) root.appendChild(T('p', `Unpublished changes: ${nHex} hex tile${nHex === 1 ? '' : 's'} and ${nBld} building${nBld === 1 ? '' : 's'} differ from the published version (new, changed or only on the server). The ZIP will contain your local version.`));
+        if (missing.length) {
+          root.appendChild(T('p', `${missing.length} sprite(s) were found neither locally nor on the server and will be missing from the ZIP:`));
+          const ul = T('ul', null, { id: 'pkg-export-missing' });
+          for (const m of missing.slice(0, 50)) ul.appendChild(T('li', `${m.category}/${m.name}.png`));
+          if (missing.length > 50) ul.appendChild(T('li', `…and ${missing.length - 50} more`));
+          root.appendChild(ul);
         }
-        done++;
-        const pct = 20 + Math.round((done / Math.max(allSprites.length, 1)) * 70);
-        UI.progress(pct, `Sprites: ${done}/${allSprites.length}…`);
+        const m = UI.showModal({ id: 'pkg-export', title: 'Export local version?', body: root, actions: [
+          { label: 'Cancel', onClick: () => m.close('cancel') },
+          { label: 'Export local', primary: true, onClick: () => { m.close('export'); exportPackage(id, { skipWarning: true }); } },
+        ] });
+        return;
       }
 
+      UI.progress(0, `Preparing export for "${entry.name}"…`);
+      const JSZip = await _loadJSZip();
+      const zip = new JSZip();
+      const version = (serverPkg && serverPkg.version) || entry.version || '1.0.0';
+      const { localOnly, ...cleanEntry } = entry;
+      const pkgText = JSON.stringify({
+        ...(serverPkg || {}), ...cleanEntry, version,
+        description: (serverPkg && serverPkg.description) ?? entry.description ?? '',
+      }, null, 2);
+      const hexText = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
+      const bldText = JSON.stringify({ version: 1, package: id, buildings }, null, 2);
+      for (const t of [pkgText, hexText, bldText])
+        if (t.length > IMPORT_MAX_JSON_BYTES) throw new Error('a database file is too large to export');
+      zip.file('package.json', pkgText);
+      zip.file('hex_database.json', hexText);
+      zip.file('building_database.json', bldText);
+
+      let baseLocal = [], pkgLocal = [];
+      try { [baseLocal, pkgLocal] = await Promise.all([SpriteStore.loadForPackage('postapoc'), SpriteStore.loadForPackage(id)]); }
+      catch (e) { console.warn('[Packages] local sprite store unavailable, using the server copies:', e && e.message); }
+      const localByName = new Map([...baseLocal, ...pkgLocal].map(e => [e.name, e]));   // the package's own copy wins
+      const refs = await _packageSpriteRefs(id);
+      let done = 0, skipped = 0, total = pkgText.length + hexText.length + bldText.length;
+      for (const [name, cat] of refs) {
+        const s = await _exportSprite(id, name, cat, localByName);
+        if (s) {
+          if (s.blob.size > SPRITE_MAX_BYTES) throw new Error(`sprite ${name} is larger than ${SPRITE_MAX_BYTES / 1048576} MB, the importer would refuse it`);
+          total += s.blob.size;
+          if (total > IMPORT_MAX_TOTAL_BYTES) throw new Error('the package is too large to export (over 64 MB unpacked)');
+          zip.file(`sprites/${s.category}/${name}.png`, s.blob);
+        } else skipped++;
+        UI.progress(Math.round((++done / Math.max(refs.size, 1)) * 85), `Sprites: ${done}/${refs.size}…`);
+      }
       UI.progress(92, 'Generating ZIP…');
       const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
-
-      // Trigger download
-      const version = JSON.parse(pkgText).version || '1.0.0';
+      const fileName = `${id}-${version}.zip`;
       const a = document.createElement('a');
       a.href = URL.createObjectURL(blob);
-      a.download = `${id}-${version}.zip`;
+      a.download = fileName;
       a.click();
-      URL.revokeObjectURL(a.href);
-
-      UI.progressDone(`✅ Exported ${id}-${version}.zip`);
-      UI.toast(`✅ Package "${entry.name}" exported`);
-    } catch(e) {
+      setTimeout(() => URL.revokeObjectURL(a.href), 100);
+      UI.progressDone(`✅ Exported ${fileName}`);
+      UI.toast(skipped ? `⚠ Exported "${entry.name}" without ${skipped} missing sprite(s)` : `✅ Package "${entry.name}" exported`);
+    } catch (e) {
       UI.progressDone('');
-      UI.toast(`⚠ Export failed: ${e.message}`);
-    }
+      UI.toast(`⚠ Export failed: ${e && e.message ? e.message : e}`);
+    } finally { _exportBusy = false; }
   }
 
   // ── New Package modal ──────────────────────────────────────────
@@ -13304,6 +13329,7 @@ const Packages = (() => {
       bld: SyncMerge.diff(localBld, BldDB.migrateCopy(pub.buildings)),
       firstPublish: !pub.pkg,
       version: pub.pkg?.version || null,
+      pkg: pub.pkg || null,
     };
   }
 
