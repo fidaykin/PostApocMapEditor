@@ -242,8 +242,9 @@ const ZonePainter = (() => {
     // Ensure zoneLayer matches current map dimensions and is cleared
     if (!_zoneLayer || _zoneLayer.length !== w * h) _zoneLayer = new Uint8Array(w * h);
     else _zoneLayer.fill(0);
-    _zones = obj.zones || [];
-    _nextZoneId = obj._nextZoneId || (_zones.reduce((m, z) => Math.max(m, z.id), 0) + 1);
+    // zone ids index a Uint8Array layer: anything but an integer 1..255 (a hand-edited / hostile map file) is dropped
+    _zones = (Array.isArray(obj.zones) ? obj.zones : []).filter(z => z && Number.isInteger(z.id) && z.id >= 1 && z.id <= 255);
+    _nextZoneId = Number.isInteger(obj._nextZoneId) && obj._nextZoneId >= 1 ? obj._nextZoneId : (_zones.reduce((m, z) => Math.max(m, z.id), 0) + 1);
     _presets = BUILTIN_PRESETS.map(p => Object.assign({}, p, {
       terrainWeights: Object.assign({}, p.terrainWeights),
       forbiddenTerrain: p.forbiddenTerrain.slice()
@@ -697,17 +698,17 @@ const ZonePainter = (() => {
       const el = document.createElement('div');
       el.className = 'zone-item' + (z.id === _selectedZoneId ? ' selected' : '');
       el.dataset.zoneId = z.id;
-      // swatch and delete button use integer z.id (safe); name uses textContent (XSS-safe)
-      el.innerHTML = `
-        <div class="zone-swatch" title="Click to change color"
-             onclick="ZonePainter._uiPickColor(${z.id}, this)"></div>
-        <span class="zone-name" title="Double-click to rename"></span>
-        <button class="zone-del" onclick="event.stopPropagation(); ZonePainter._uiDeleteZone(${z.id})" title="Delete zone">✕</button>
-      `;
-      // Set name and swatch color via DOM properties (avoids XSS and CSS injection)
-      const nameSpan = el.querySelector('.zone-name');
+      // Built with DOM APIs only (no markup, no inline handlers): a zone id / name / colour comes from the map file.
+      const swatch = document.createElement('div');
+      swatch.className = 'zone-swatch'; swatch.title = 'Click to change color';
+      swatch.addEventListener('click', () => ZonePainter._uiPickColor(z.id, swatch));
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'zone-name'; nameSpan.title = 'Double-click to rename';
       nameSpan.textContent = z.name;
-      const swatch = el.querySelector('.zone-swatch');
+      const del = document.createElement('button');
+      del.className = 'zone-del'; del.title = 'Delete zone'; del.textContent = '\u2715';
+      del.addEventListener('click', ev => { ev.stopPropagation(); ZonePainter._uiDeleteZone(z.id); });
+      el.append(swatch, nameSpan, del);
       swatch.style.background = _safeColor(z.color);
       // Single click: select zone
       el.addEventListener('click', e => {

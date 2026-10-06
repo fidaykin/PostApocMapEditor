@@ -377,4 +377,132 @@ test.describe('W1-2 zone painter bulk writers', () => {
   });
 });
 
-declare const Dev: any;
+// ---------------------------------------------------------------------------------------------------------------------
+// W1-3: ids / names / sprite names that come from imported packages, shared maps and localisation files are DATA.
+const P1 = '"><img src=x onerror=window.__pwn=1>';
+const P2 = "');window.__pwn=1;//";
+const bld = (id: string, extra: any = {}) => Object.assign({ id, spriteName: id, buildingCategory: 'Industrial', package: 'evil' }, extra);
+
+/** Nothing executed, and no element carries an inline handler that the payload could have created. */
+const noPwn = async (page: Page, where: string) => {
+  await page.waitForFunction(() => Array.from(document.images).every(i => i.complete || !i.src));
+  await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+  expect(await page.evaluate(() => (window as any).__pwn), where + ': window.__pwn').toBeUndefined();
+  expect(await page.evaluate(() => document.querySelectorAll('img[onerror]').length), where + ': img[onerror]').toBe(0);
+};
+
+test.describe('W1-3 untrusted ids never become markup', () => {
+  test.beforeEach(async ({ page }) => {
+    await freshEditor(page);
+    await page.evaluate(([a, b]) => {
+      BldDB.addEntries([
+        { id: a, spriteName: a, buildingCategory: 'Industrial', package: 'evil' },
+        { id: b, spriteName: b, buildingCategory: 'Industrial', package: 'evil' },
+        { id: 'Evil_Bridge_' + a, spriteName: a, buildingCategory: 'Bridge', package: 'evil' },
+        { id: 'Evil_Bridge_' + b, spriteName: b, buildingCategory: 'Bridge', package: 'evil' },
+      ]);
+      HexDB.addEntries([{ id: a, spriteName: a, package: 'evil' }, { id: b, spriteName: b, package: 'evil' }]);
+    }, [P1, P2]);
+  });
+
+  test('the building picker renders the raw id as text, executes nothing, and selecting the card selects the raw id', async ({ page }) => {
+    await page.evaluate(() => Tools.setActive('object'));
+    const info = await page.evaluate(([a, b]) => {
+      const cards = Array.from(document.querySelectorAll('#obj-building-picker-grid .bld-card')) as HTMLElement[];
+      const by = (id: string) => cards.find(c => c.dataset.bldId === id) as HTMLElement | undefined;
+      return {
+        n: cards.length, imgs: document.querySelectorAll('#obj-building-picker-grid img').length,
+        texts: [a, b].map(id => { const c = by(id); return c ? c.querySelector('span')!.textContent : null; }),
+        inlineHandlers: cards.filter(c => c.hasAttribute('onclick') || c.hasAttribute('onkeydown')).length,
+        total: BldDB.getAll().filter((x: any) => x.id && x.buildingCategory !== 'Bridge' && !x.isRoad).length,
+      };
+    }, [P1, P2]);
+    expect(info.texts).toEqual([P1, P2]);
+    expect(info.n).toBe(info.total);
+    expect(info.imgs, 'one img per card, nothing injected').toBe(info.n);
+    expect(info.inlineHandlers).toBe(0);
+    for (const id of [P1, P2]) {
+      await page.evaluate(i => { (Array.from(document.querySelectorAll('#obj-building-picker-grid .bld-card')) as HTMLElement[]).find(c => c.dataset.bldId === i)!.click(); }, id);
+      expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe(id);
+    }
+    // keyboard selection too
+    await page.evaluate(() => Tools.selectBuilding('Artefact_Test_1'));
+    await page.evaluate(i => { (Array.from(document.querySelectorAll('#obj-building-picker-grid .bld-card')) as HTMLElement[]).find(c => c.dataset.bldId === i)!.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })); }, P2);
+    expect(await page.evaluate(() => Tools.getSelectedBuildingId())).toBe(P2);
+    await noPwn(page, 'building picker');
+  });
+
+  test('the bridge picker is safe too', async ({ page }) => {
+    await page.evaluate(() => Tools.setActive('bridge'));
+    const ids = await page.evaluate(() => (Array.from(document.querySelectorAll('#obj-building-picker-grid .bld-card')) as HTMLElement[]).map(c => [c.dataset.bldId, c.querySelector('span')!.textContent]));
+    expect(ids.length).toBeGreaterThanOrEqual(2);
+    expect(ids.every(([a, b]) => a === b)).toBe(true);
+    for (const id of [P1, P2].map(x => 'Evil_Bridge_' + x)) {
+      expect(ids.some(([a]) => a === id)).toBe(true);
+      await page.evaluate(i => { (Array.from(document.querySelectorAll('#obj-building-picker-grid .bld-card')) as HTMLElement[]).find(c => c.dataset.bldId === i)!.click(); }, id);
+      expect(await page.evaluate(() => Tools.getSelectedBridgeId())).toBe(id);
+    }
+    await noPwn(page, 'bridge picker');
+  });
+
+  test('the Replace dialog datalist holds the raw ids as option values and nothing else', async ({ page }) => {
+    await page.evaluate(() => Tools.openReplace());
+    const r = await page.evaluate(() => {
+      const dl = document.getElementById('replace-id-list')!;
+      return { values: Array.from(dl.querySelectorAll('option')).map(o => (o as HTMLOptionElement).value), kids: dl.children.length, nonOption: Array.from(dl.children).filter(c => c.tagName !== 'OPTION').length, hexes: HexDB.getAll().length };
+    });
+    expect(r.nonOption).toBe(0);
+    expect(r.kids).toBe(r.hexes);
+    expect(r.values).toContain(P1);
+    expect(r.values).toContain(P2);
+    await noPwn(page, 'replace dialog');
+  });
+
+  test('zone list: hostile zone ids / names from a map file are inert', async ({ page }) => {
+    await page.evaluate(([a, b]) => {
+      ZonePainter.fromSaveObject({ zones: [{ id: 2, name: a, color: 'red', presetId: 'x' }, { id: b, name: b, color: 'blue', presetId: 'x' }, { id: '3', name: 'str id', presetId: 'x' }] });
+      ZonePainter._uiRebuildZoneList();
+    }, [P1, P2]);
+    const r = await page.evaluate(() => ({
+      zones: ZonePainter.getZones().map((z: any) => z.id),
+      names: Array.from(document.querySelectorAll('#zone-list .zone-name')).map(n => n.textContent),
+      inline: document.querySelectorAll('#zone-list [onclick]').length,
+    }));
+    expect(r.zones).toEqual([2]);                         // ids that are not integers 1..255 are dropped on load
+    expect(r.names).toEqual([P1]);
+    expect(r.inline).toBe(0);
+    await page.evaluate(() => { (document.querySelector('#zone-list .zone-swatch') as HTMLElement).click(); });
+    await noPwn(page, 'zone list');
+  });
+
+  test('package panel and filter chips: a hostile package id travels through data-pkg-id, not through script text', async ({ page }) => {
+    await page.evaluate(([a, b]) => {
+      Packages.getAll().push({ id: b, name: a, version: '1', isDefault: false });
+      Packages.renderPanel(); Packages.renderFilterChips();
+    }, [P1, P2]);
+    const r = await page.evaluate((b) => {
+      const btns = Array.from(document.querySelectorAll('#pkg-panel button[data-pkg-id], .pkg-chip[data-pkg-id]')) as HTMLElement[];
+      return { ids: Array.from(new Set(btns.map(x => x.dataset.pkgId))).filter(x => x === b), handlers: btns.map(x => x.getAttribute('onclick') || '') };
+    }, P2);
+    expect(r.ids).toEqual([P2]);
+    expect(r.handlers.every(h => /this\.dataset\.pkgId/.test(h) && !h.includes('window.__pwn'))).toBe(true);
+    await page.evaluate(() => { const c = document.querySelector('.pkg-chip[data-pkg-id]') as HTMLElement; c.click(); });
+    await noPwn(page, 'package panel');
+  });
+
+  test('localisation key rows: a hostile key cannot break out of the inline handler', async ({ page }) => {
+    await page.evaluate(() => { window.confirm = () => true; });   // remove() asks with a native confirm
+    await page.evaluate((b) => { LocalizationKeys.add(b, 'en', 'uk'); LocalizationKeys._renderList(); }, P2);
+    const rowButton = () => page.evaluate((b) => {
+      const inp = Array.from(document.querySelectorAll('#loc-keys-list input[data-orig]')).find(i => (i as HTMLInputElement).value === b);
+      return !!inp && !!inp.parentElement!.querySelector('button[onclick*="LocalizationKeys.remove("]');
+    }, P2);
+    expect(await rowButton(), 'the hostile key has its own row and remove button').toBe(true);
+    await page.evaluate((b) => {
+      const inp = Array.from(document.querySelectorAll('#loc-keys-list input[data-orig]')).find(i => (i as HTMLInputElement).value === b)!;
+      (inp.parentElement!.querySelector('button[onclick*="LocalizationKeys.remove("]') as HTMLElement).click();
+    }, P2);
+    expect(await page.evaluate((b) => LocalizationKeys.getKeys().includes(b), P2), 'the click removed exactly that key').toBe(false);
+    await noPwn(page, 'localisation list');
+  });
+});

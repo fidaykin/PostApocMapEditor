@@ -1236,7 +1236,7 @@ body.mode-common #map-io    { display: none; }
 
 </style>
 <script src="hex-utils.js?v=1"></script>
-<script src="zone-painter.js?v=15"></script>
+<script src="zone-painter.js?v=16"></script>
 <script src="map-jobs.js?v=2"></script>
 </head>
 <body class="mode-map">
@@ -2447,7 +2447,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "78a1b88";
+const COMMIT  = "4580717";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5806,9 +5806,10 @@ const Tools = (() => {
     if (!b.spriteName) return '';
     const uploaded = Terrain.getUploadedUrl ? Terrain.getUploadedUrl(b.spriteName) : null;
     if (uploaded) return uploaded;
-    if (b.buildingCategory === 'Bridge') return `packages/postapoc/sprites/hex/${b.spriteName}.png`;
-    if (b.isRoad) return `packages/postapoc/sprites/terrain/roads/${b.spriteName}.png`;
-    return `packages/postapoc/sprites/buildings/${b.spriteName}.png`;
+    const seg = encodeURIComponent(String(b.spriteName));     // one path segment: a name can never add '/', '..', quotes or a scheme
+    if (b.buildingCategory === 'Bridge') return `packages/postapoc/sprites/hex/${seg}.png`;
+    if (b.isRoad) return `packages/postapoc/sprites/terrain/roads/${seg}.png`;
+    return `packages/postapoc/sprites/buildings/${seg}.png`;
   }
 
   // The button is in the left palette: open the picker to the right of the palette, level with the button, and cap its
@@ -5840,13 +5841,28 @@ const Tools = (() => {
     else if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
     const selId = bridges ? _selectedBridgeId : _selectedBuildingId;
 
-    grid.innerHTML = buildings.map(b => {
+    // Built with DOM APIs only: building ids, sprite names and uploaded-sprite URLs come from imported packages (untrusted).
+    grid.textContent = '';
+    for (const b of buildings) {
       const src = _bldSpriteUrl(b);
-      const sel = b.id === selId ? ' selected' : '';
-      return `<div class="bld-card${sel}" data-bld-id="${b.id}" tabindex="0" role="button" onclick="Tools.selectBuilding('${b.id.replace(/'/g,"\\'")}')" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); Tools.selectBuilding(this.dataset.bldId); }">` +
-        `<img src="${src}" alt="" onerror="this.style.visibility='hidden'">` +
-        `<span>${b.id}</span></div>`;
-    }).join('');
+      const card = document.createElement('div');
+      card.className = 'bld-card' + (b.id === selId ? ' selected' : '');
+      card.dataset.bldId = b.id;
+      card.tabIndex = 0;
+      card.setAttribute('role', 'button');
+      card.addEventListener('click', function () { selectBuilding(this.dataset.bldId); });
+      card.addEventListener('keydown', function (event) {
+        if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); event.stopPropagation(); selectBuilding(this.dataset.bldId); }
+      });
+      const img = document.createElement('img');
+      img.alt = '';
+      img.addEventListener('error', () => { img.style.visibility = 'hidden'; });
+      if (src) img.src = src;
+      const label = document.createElement('span');
+      label.textContent = b.id;
+      card.append(img, label);
+      grid.appendChild(card);
+    }
     _updateBuildingLabel();
   }
 
@@ -6316,7 +6332,10 @@ const Tools = (() => {
     if (_fillBusy) { UI.toast('Wait for the fill to finish'); return; }
     if (isStroking()) { UI.toast('Finish the move first (Esc)'); return; }
     const dl = document.getElementById('replace-id-list');
-    if (dl) dl.innerHTML = HexDB.getAll().map(h => `<option value="${h.id}">`).join('');
+    if (dl) {                                                   // ids come from imported packages: DOM APIs, never markup
+      dl.textContent = '';
+      for (const h of HexDB.getAll()) { const o = document.createElement('option'); o.value = String(h.id); dl.appendChild(o); }
+    }
     document.getElementById('replace-to').value = UI.getSelectedTerrain();
     document.getElementById('replace-sel-only').checked = !Selection.isEmpty();
     _replaceModal = { md: mapData, W: MAP_WIDTH, H: MAP_HEIGHT };
@@ -8381,7 +8400,7 @@ const GitHubSync = (() => {
 
   // ── Maps popover ─────────────────────────────────────────
   let _mapsCache = [];
-  function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function _escHtml(s) { return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
   async function openMapsPopover() {
     const modal = document.getElementById('gh-maps-modal');
@@ -8416,14 +8435,14 @@ const GitHubSync = (() => {
     const m = _mapsCache[index];
     if (!m) return;
     try {
-      UI.toast(`⏳ Loading ${_escHtml(m.name)}…`);
+      UI.toast(`⏳ Loading ${m.name}…`);   // toast text is textContent: no HTML escaping
       const res  = await fetch(`${BASE_URL}/maps/${encodeURIComponent(m.fileName)}?_=${Date.now()}`);
       if (!res.ok) throw new Error(`Download failed (${res.status})`);
       const json = await res.json();
       IO.loadFromJSON(json);
       IO.setFileName(m.fileName.replace(/\.json$/i, ''));
       closeMapsPopover();
-      UI.toast(`✅ Loaded ${_escHtml(m.name)}`);
+      UI.toast(`✅ Loaded ${m.name}`);
     } catch(e) {
       UI.toast('❌ Load failed: ' + e.message);
     }
@@ -8463,7 +8482,7 @@ const GitHubSync = (() => {
       const totalSize = [...hexFiles, ...bldFiles].reduce((s, f) => s + (f.size || 0), 0);
       const authed = isPATConfigured();
       const e = _escHtml;
-      const sq = s => String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const sq = s => _escHtml(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));   // JS string literal first, then HTML attribute text
 
       const spriteCard = (f, cat) => {
         const nameNoExt = f.name.replace(/\.png$/i, '');
@@ -8842,17 +8861,17 @@ const UI = (() => {
         <div class="slot-grid3">
           <div class="slot-field">
             <label title="Closest hex distance from city center where this slot may place settlements">Min dist</label>
-            <input type="number" class="hexdb-input slot-min" min="0" value="${slot.minDist}"
+            <input type="number" class="hexdb-input slot-min" min="0" value="${esc(slot.minDist)}"
               title="Minimum hex distance from city (0 = city tile itself). Settlements are only placed at distance ≥ this value.">
           </div>
           <div class="slot-field">
             <label title="Farthest hex distance from city center for this slot">Max dist</label>
-            <input type="number" class="hexdb-input slot-max" min="0" value="${slot.maxDist}"
+            <input type="number" class="hexdb-input slot-max" min="0" value="${esc(slot.maxDist)}"
               title="Maximum hex distance from city. Settlements are only placed at distance ≤ this value. Must be ≥ Min dist.">
           </div>
           <div class="slot-field">
             <label title="Total number of settlements to place for this slot across all distance bands">Count</label>
-            <input type="number" class="hexdb-input slot-count" min="1" max="99" value="${slot.count}"
+            <input type="number" class="hexdb-input slot-count" min="1" max="99" value="${esc(slot.count)}"
               title="How many settlements to place in total for this slot. Distributed across near/mid/far bands according to the percentages below.">
           </div>
         </div>
@@ -8860,19 +8879,19 @@ const UI = (() => {
           <div class="slot-field">
             <label title="Share of Count placed in the near third of the distance range (Min dist → Min+⅓ span)">Near %</label>
             <input type="number" class="hexdb-input slot-near" min="0" max="100" step="1"
-              value="${slot.nearPct ?? 20}"
+              value="${esc(slot.nearPct ?? 20)}"
               title="% of Count placed in the near band (first third of Min→Max range). Remaining Count after Near+Far is assigned to Mid.">
           </div>
           <div class="slot-field">
             <label title="Share of Count placed in the middle third of the distance range">Mid %</label>
             <input type="number" class="hexdb-input slot-mid" min="0" max="100" step="1"
-              value="${slot.midPct ?? 30}"
+              value="${esc(slot.midPct ?? 30)}"
               title="% of Count placed in the mid band (middle third). If Near+Far already account for 100%, Mid receives 0 regardless of this value.">
           </div>
           <div class="slot-field">
             <label title="Share of Count placed in the far third of the distance range (Max−⅓ span → Max dist)">Far %</label>
             <input type="number" class="hexdb-input slot-far" min="0" max="100" step="1"
-              value="${slot.farPct ?? 50}"
+              value="${esc(slot.farPct ?? 50)}"
               title="% of Count placed in the far band (last third of Min→Max range). Near + Mid + Far should sum to 100.">
           </div>
         </div>
@@ -8880,13 +8899,13 @@ const UI = (() => {
           <div class="slot-field">
             <label title="Starting level assigned to each settlement placed by this slot">Level</label>
             <input type="number" class="hexdb-input slot-level" min="1" max="99" step="1"
-              value="${slot.level ?? 1}"
+              value="${esc(slot.level ?? 1)}"
               title="Initial level for every settlement placed by this slot (1–99). Higher levels start with more resources or unlock different game content.">
           </div>
           <div class="slot-field">
             <label title="Minimum hex distance required between any two settlements placed by this slot (and from already-placed ones)">Spacing</label>
             <input type="number" class="hexdb-input slot-spacing" min="1" max="20" step="1"
-              value="${slot.minSpacing ?? 2}"
+              value="${esc(slot.minSpacing ?? 2)}"
               title="Minimum hexes between placed settlements. Increase to spread settlements further apart. Applied globally across all slots.">
           </div>
           <div class="slot-field">
@@ -11226,9 +11245,9 @@ const Packages = (() => {
         <td>${_esc(p.name)}</td>
         <td>${_esc(p.version || '—')}</td>
         <td>
-          <button class="hexdb-tool-btn" onclick="Packages.exportPackage('${_esc(p.id)}')">↓ Export</button>
-          <button class="hexdb-tool-btn" onclick="Packages.openPublishConfirm('${_esc(p.id)}')">Publish</button>
-          ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" onclick="Packages.confirmDelete('${_esc(p.id)}')">Delete</button>` : ''}
+          <button class="hexdb-tool-btn" data-pkg-id="${_esc(p.id)}" onclick="Packages.exportPackage(this.dataset.pkgId)">↓ Export</button>
+          <button class="hexdb-tool-btn" data-pkg-id="${_esc(p.id)}" onclick="Packages.openPublishConfirm(this.dataset.pkgId)">Publish</button>
+          ${!p.isDefault ? `<button class="hexdb-tool-btn" style="color:#f38ba8" data-pkg-id="${_esc(p.id)}" onclick="Packages.confirmDelete(this.dataset.pkgId)">Delete</button>` : ''}
         </td>
       </tr>`).join('');
     if (!el._trashBound) {
@@ -11892,7 +11911,7 @@ const Packages = (() => {
       if (!el) return;
       el.innerHTML = _registry.map(p =>
         `<button class="pkg-chip ${_hiddenPkgs.has(p.id) ? '' : 'active'}"
-                 onclick="Packages.togglePkgFilter('${_esc(p.id)}')">${_esc(p.name)}</button>`
+                 data-pkg-id="${_esc(p.id)}" onclick="Packages.togglePkgFilter(this.dataset.pkgId)">${_esc(p.name)}</button>`
       ).join('');
     });
   }
@@ -12367,7 +12386,8 @@ const LocalizationKeys = (() => {
   function _populateDatalist() {
     const dl = document.getElementById('loc-keys-datalist');
     if (!dl) return;
-    dl.innerHTML = _entries.map(e => `<option value="${e.key}">`).join('');
+    dl.textContent = '';                       // keys come from imported / pulled localisation files: DOM APIs, never markup
+    for (const e of _entries) { const o = document.createElement('option'); o.value = String(e.key); dl.appendChild(o); }
   }
 
   function getExportData() {
@@ -12465,7 +12485,7 @@ const LocalizationKeys = (() => {
         ${_groups.map(g => `
           <div style="display:flex;align-items:center;gap:6px;padding:3px 0">
             <span style="flex:1;color:#ccc;font-size:12px">${_ex(g)}</span>
-            ${g === 'Universal Keys' ? '' : `<button onclick="LocalizationKeys.removeGroup('${_ea(g)}')" style="background:none;border:none;color:#e57373;cursor:pointer;font-size:12px;line-height:1">✕</button>`}
+            ${g === 'Universal Keys' ? '' : `<button onclick="LocalizationKeys.removeGroup('${_ej(g)}')" style="background:none;border:none;color:#e57373;cursor:pointer;font-size:12px;line-height:1">✕</button>`}
           </div>`).join('')}
       </div>
       <div style="display:flex;gap:6px;align-items:center">
@@ -12621,15 +12641,15 @@ const LocalizationKeys = (() => {
       onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){this.value=this.dataset.orig;this.blur()}">
     <input type="text" value="${_ea(e.en)}" placeholder="EN"
       style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px;width:100%"
-      onchange="LocalizationKeys._updateField('${_ea(e.key)}','en',this.value)">
+      onchange="LocalizationKeys._updateField('${_ej(e.key)}','en',this.value)">
     <input type="text" value="${_ea(e.uk)}" placeholder="UK"
       style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:3px;font-size:12px;width:100%"
-      onchange="LocalizationKeys._updateField('${_ea(e.key)}','uk',this.value)">
-    <select onchange="LocalizationKeys.setEntryGroup('${_ea(e.key)}',this.value)"
+      onchange="LocalizationKeys._updateField('${_ej(e.key)}','uk',this.value)">
+    <select onchange="LocalizationKeys.setEntryGroup('${_ej(e.key)}',this.value)"
       style="background:#2a2a2a;border:1px solid #555;color:#aaa;padding:3px 2px;border-radius:3px;font-size:11px;width:100%">
       ${_groups.map(g => `<option value="${_ea(g)}"${g === e.group ? ' selected' : ''}>${_ex(g)}</option>`).join('')}
     </select>
-    <button onclick="LocalizationKeys.remove('${_ea(e.key)}')"
+    <button onclick="LocalizationKeys.remove('${_ej(e.key)}')"
       style="background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;padding:0 4px;line-height:1">✕</button>
   </div>`;
   }
@@ -12654,11 +12674,11 @@ const LocalizationKeys = (() => {
       const collapsed = !!_collapseState[group];
       return `<div>
       <div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:#1e1e1e;border-radius:3px;margin-bottom:2px;cursor:pointer;user-select:none"
-        onclick="LocalizationKeys.toggleGroup('${_ea(group)}')">
+        onclick="LocalizationKeys.toggleGroup('${_ej(group)}')">
         <span style="font-size:9px;display:inline-block;transform:rotate(${collapsed ? '-90' : '0'}deg);transition:transform 0.15s">▼</span>
         <span style="color:#aaa;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:0.5px">${_ex(group)}</span>
         <span style="color:#666;font-size:11px">(${entries.length})</span>
-        <button onclick="event.stopPropagation();LocalizationKeys.addKeyToGroup('${_ea(group)}')"
+        <button onclick="event.stopPropagation();LocalizationKeys.addKeyToGroup('${_ej(group)}')"
           style="margin-left:auto;background:none;border:1px solid #555;color:#aaa;padding:1px 7px;border-radius:3px;cursor:pointer;font-size:11px">+ Add Key</button>
       </div>
       <div style="display:${collapsed ? 'none' : 'block'};margin-bottom:6px">${entries.map(_renderRow).join('')}</div>
@@ -12686,6 +12706,9 @@ const LocalizationKeys = (() => {
 
   function _ex(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
   function _ea(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  // A value that sits inside a JS string literal inside an inline handler attribute: JS-escape first, then HTML-escape (the
+  // browser decodes entities BEFORE the script is parsed, so _ea alone lets a quote through).
+  function _ej(s) { return _ea(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n').replace(/\r/g, '\\r')); }
 
   // ── Public ────────────────────────────────────────────────
 
