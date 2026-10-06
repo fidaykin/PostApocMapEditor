@@ -107,12 +107,12 @@ test('hostile names are shown as text only; nothing executes', async ({ page }) 
   const evil = '<img src=x onerror="window.__xss=1">';
   await PICK(page, await buildZip({
     'package.json': JSON.stringify({ id: 'old', name: evil, version: '1.0.0', description: evil }),
-    'hex_database.json': JSON.stringify({ hexes: [hexRec('Old_A', 'old', { spriteName: evil })] }),
+    'hex_database.json': JSON.stringify({ hexes: [hexRec('Old_A', 'old', { spriteName: 'Missing_1' })] }),   // a hostile spriteName itself is refused (final-wave-a-packages)
     [`sprites/hex/${evil}.txt`]: 'x',
   }));
   await expect(page.locator('#pkg-import-modal')).toBeVisible();
   const s = page.locator('#pkg-import-summary');
-  await expect(s).toContainText(evil);                       // literally, as text (ignored file + missing sprite warnings)
+  await expect(s).toContainText(evil);                       // literally, as text (ignored file warning)
   expect(await s.locator('img').count()).toBe(0);
   await expect(page.locator('#pkg-import-name')).toHaveValue(evil);
   await page.evaluate(() => Packages.closeImportModal());

@@ -95,10 +95,10 @@ test('offline / server unreadable: warns it could not compare and still exports 
 
 test('missing sprites are listed in the warning and left out of the ZIP; hostile names stay plain text', async ({ page }) => {
   await setup(page, 'same');
-  await page.evaluate(() => HexDB.addEntries([{ id: 'Pp_X', type: 'Plains', package: 'pp', spriteName: 'x<img src=x onerror=window.__xss=1>' }]));
+  await page.evaluate(() => HexDB.addEntries([{ id: 'Pp_X', type: 'Plains', package: 'pp', spriteName: 'x img src=x onerror=window.__xss=1' }]));   // markup characters are refused as names (final-wave-a-packages)
   await exportBtn(page).click();
   const list = page.locator('#pkg-export-missing');
-  await expect(list).toContainText('hex/x<img src=x onerror=window.__xss=1>.png');
+  await expect(list).toContainText('hex/x img src=x onerror=window.__xss=1.png');
   await expect(list.locator('img')).toHaveCount(0);
   expect(await page.evaluate(() => (window as any).__xss)).toBeUndefined();
   const { buf } = await download(page, () => page.getByRole('button', { name: 'Export local' }).click());

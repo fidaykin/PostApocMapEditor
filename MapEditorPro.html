@@ -2699,11 +2699,54 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "4ddc9dd";
+const COMMIT  = "b556820";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
 // ════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════
+// IMAGE HEADER (final wave A): kind and pixel size from the first bytes of a file, so size limits can be enforced
+// BEFORE anything is decoded. dims() returns null when the header does not carry the size (callers refuse then).
+// ════════════════════════════════════════════════════════════
+const ImageHeader = (() => {
+  const PNG_SIG = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+  function kind(h) {
+    if (PNG_SIG.every((b, i) => h[i] === b)) return 'png';
+    if (h[0] === 0xFF && h[1] === 0xD8 && h[2] === 0xFF) return 'jpeg';
+    if (h[0] === 0x52 && h[1] === 0x49 && h[2] === 0x46 && h[3] === 0x46 && h[8] === 0x57 && h[9] === 0x45 && h[10] === 0x42 && h[11] === 0x50) return 'webp';
+    if (h[0] === 0x42 && h[1] === 0x4D) return 'bmp';
+    if (h[0] === 0x47 && h[1] === 0x49 && h[2] === 0x46 && h[3] === 0x38) return 'gif';
+    return null;
+  }
+  function dims(h, kind) {
+    const dv = new DataView(h.buffer, h.byteOffset, h.byteLength);
+    try {
+      if (kind === 'png') return h.length >= 24 ? [dv.getUint32(16), dv.getUint32(20)] : null;
+      if (kind === 'gif') return h.length >= 10 ? [dv.getUint16(6, true), dv.getUint16(8, true)] : null;
+      if (kind === 'bmp') return h.length >= 26 ? [Math.abs(dv.getInt32(18, true)), Math.abs(dv.getInt32(22, true))] : null;
+      if (kind === 'jpeg') {
+        let i = 2;
+        while (i + 9 < h.length) {
+          if (h[i] !== 0xFF) { i++; continue; }
+          const m = h[i + 1];
+          if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return [dv.getUint16(i + 7), dv.getUint16(i + 5)];
+          if (m === 0xD8 || m === 0x01 || (m >= 0xD0 && m <= 0xD7) || m === 0xFF) { i += (m === 0xFF ? 1 : 2); continue; }
+          i += 2 + dv.getUint16(i + 2);
+        }
+        return null;
+      }
+      if (kind === 'webp') {
+        const fourcc = String.fromCharCode(h[12], h[13], h[14], h[15]);
+        if (fourcc === 'VP8X') return [1 + (h[24] | h[25] << 8 | h[26] << 16), 1 + (h[27] | h[28] << 8 | h[29] << 16)];
+        if (fourcc === 'VP8 ') return [dv.getUint16(26, true) & 0x3FFF, dv.getUint16(28, true) & 0x3FFF];
+        if (fourcc === 'VP8L') { const b = dv.getUint32(21, true); return [(b & 0x3FFF) + 1, ((b >> 14) & 0x3FFF) + 1]; }
+      }
+    } catch (e) { /* short header */ }
+    return null;
+  }
+  return { PNG_SIG, kind, dims };
+})();
 
 // ════════════════════════════════════════════════════════════
 // TERRAIN MODULE
@@ -2874,7 +2917,7 @@ const Terrain = (() => {
 
   // Called at startup with { name → dataUrl } from IndexedDB so that
   // applyHexDbOverrides can resolve user-uploaded sprites on reload.
-  const _uploadedUrls = {};
+  const _uploadedUrls = Object.create(null);   // no inherited keys: a sprite called 'constructor' or 'toString' is harmless
   function registerUploadedUrls(map) { Object.assign(_uploadedUrls, map); }
   // Package-qualified entry first, then the bare (default package) name: a package without its own copy falls back.
   function getUploadedUrl(name, pkg) {
@@ -8682,6 +8725,10 @@ const GitHubSync = (() => {
   function setPAT(pat)        { localStorage.setItem(PAT_KEY, pat.trim()); }
   function isPATConfigured()  { return !!localStorage.getItem(PAT_KEY); }
 
+  // Every Contents API URL is built from a repo path whose SEGMENTS are untrusted-capable (sprite and package names): each
+  // segment is encoded, so '?', '#', '%' or '..' inside a name can never change which file is addressed.
+  const _ghPath = path => String(path).split('/').map(encodeURIComponent).join('/');
+
   // ── Core Contents API write ───────────────────────────────────
   // expectedSha (optional) makes the write conditional: pass the sha returned by readRepoFile
   // (null = "the file must not exist yet"). If the file changed since that read, GitHub answers
@@ -8693,7 +8740,7 @@ const GitHubSync = (() => {
       // GET existing file SHA (required by GitHub API when updating)
       // cache: 'no-store' prevents browser from returning a stale SHA from a prior request.
       try {
-        const getRes = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
+        const getRes = await fetch(`${GH_API}/${_ghPath(path)}?ref=${BRANCH}`, {
           cache: 'no-store',
           headers: {
             'Authorization': `Bearer ${getPAT()}`,
@@ -8707,7 +8754,7 @@ const GitHubSync = (() => {
     const body = { message, content: base64Content, branch: BRANCH };
     if (sha) body.sha = sha;
 
-    const res = await fetch(`${GH_API}/${path}`, {
+    const res = await fetch(`${GH_API}/${_ghPath(path)}`, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${getPAT()}`,
@@ -8731,7 +8778,7 @@ const GitHubSync = (() => {
   async function readRepoFile(path) {
     const headers = { 'Accept': 'application/vnd.github+json' };
     if (getPAT()) headers['Authorization'] = `Bearer ${getPAT()}`;
-    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, { cache: 'no-store', headers });
+    const res = await fetch(`${GH_API}/${_ghPath(path)}?ref=${BRANCH}`, { cache: 'no-store', headers });
     if (res.status === 404) return null;
     if (!res.ok) throw new Error(`could not read ${path} (HTTP ${res.status})`);
     const data = await res.json();
@@ -8747,14 +8794,14 @@ const GitHubSync = (() => {
   }
 
   async function _listFolder(path) {
-    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`);
+    const res = await fetch(`${GH_API}/${_ghPath(path)}?ref=${BRANCH}`);
     if (res.status === 404) return [];
     if (!res.ok) throw new Error(`GitHub LIST ${path}: ${res.status}`);
     return await res.json(); // [{name, sha, size, download_url, ...}]
   }
 
   async function _deleteContents(path, sha, message) {
-    const res = await fetch(`${GH_API}/${path}`, {
+    const res = await fetch(`${GH_API}/${_ghPath(path)}`, {
       method: 'DELETE',
       headers: {
         'Authorization': `Bearer ${getPAT()}`,
@@ -8774,7 +8821,7 @@ const GitHubSync = (() => {
   // throws when the content is not returned inline, so the caller refuses before writing anything); `_restoreFile`
   // puts the captured bytes back unless the file is already unchanged (true = a write happened).
   async function _snapshotFile(path) {
-    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
+    const res = await fetch(`${GH_API}/${_ghPath(path)}?ref=${BRANCH}`, {
       cache: 'no-store', headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
     });
     if (res.status === 404) return null;
@@ -8797,7 +8844,7 @@ const GitHubSync = (() => {
   }
 
   async function _getFileJson(path) {
-    const res = await fetch(`${GH_API}/${path}?ref=${BRANCH}`, {
+    const res = await fetch(`${GH_API}/${_ghPath(path)}?ref=${BRANCH}`, {
       headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
     });
     if (!res.ok) throw new Error(`Cannot get ${path}: ${res.status}`);
@@ -8883,7 +8930,7 @@ const GitHubSync = (() => {
     if (!confirm(`Delete map "${mapName}"?\nThis removes it from GitHub permanently.`)) return;
     try {
       // File may already be absent — only delete if it exists
-      const shaRes = await fetch(`${GH_API}/maps/${fileName}?ref=${BRANCH}`, {
+      const shaRes = await fetch(`${GH_API}/maps/${encodeURIComponent(fileName)}?ref=${BRANCH}`, {
         headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
       });
       if (shaRes.ok) {
@@ -12709,49 +12756,31 @@ const Packages = (() => {
   const SPRITE_MAX_BYTES = 4 * 1024 * 1024;
   const SPRITE_MAX_DIM = 2048;
   const SPRITE_NAME_MAX = 64;
-  const _PNG_SIG = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
+  const _PNG_SIG = ImageHeader.PNG_SIG;
 
-  // Untrusted file name -> safe sprite name (no extension), or null when nothing usable is left.
+  // Untrusted file name -> safe sprite name (no extension), or null when nothing usable is left. Rules: no directories,
+  // no extension, NFC, no control characters / '..' / URL- and path-significant characters, no trailing dots or spaces
+  // (Windows drops them), no Windows device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9, with or without an extension) and
+  // no '__'-prefixed names (internal keys such as the package preview share the sprite store's key space).
+  const _WIN_RESERVED_RE = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
   function sanitizeSpriteName(fileName) {
     let n = String(fileName == null ? '' : fileName).split(/[\\/]/).pop();   // no directories, either separator
     n = n.replace(/\.[^.]*$/, '');                                          // extension (re-added as .png on write)
+    n = n.normalize('NFC');
     n = n.replace(/[\u0000-\u001f\u007f]/g, '').replace(/\.\./g, '').replace(/[<>:"|?*#%]/g, '_').trim();
-    n = n.replace(/^\.+/, '').slice(0, SPRITE_NAME_MAX).trim();
-    return n || null;
+    n = n.replace(/^\.+/, '').slice(0, SPRITE_NAME_MAX).replace(/[. ]+$/, '');
+    if (!n || n.startsWith('__') || _WIN_RESERVED_RE.test(n.split('.')[0])) return null;
+    return n;
   }
+  // A spriteName that came from outside (ZIP, server, older data) is only ever written into a path when it is already
+  // exactly what sanitizeSpriteName would produce.
+  function isSafeSpriteName(n) { return typeof n === 'string' && n.length > 0 && sanitizeSpriteName(n + '.png') === n; }
 
-  function _headerKind(h) {
-    if (_PNG_SIG.every((b, i) => h[i] === b)) return 'png';
-    if (h[0] === 0xFF && h[1] === 0xD8 && h[2] === 0xFF) return 'jpeg';
-    if (h[0] === 0x52 && h[1] === 0x49 && h[2] === 0x46 && h[3] === 0x46 && h[8] === 0x57 && h[9] === 0x45 && h[10] === 0x42 && h[11] === 0x50) return 'webp';
-    return null;
-  }
+  // Sprites accept PNG, JPEG and WebP only (BMP/GIF are recognised by ImageHeader for the heightmap import, not here).
+  function _headerKind(h) { const k = ImageHeader.kind(h); return k === 'bmp' || k === 'gif' ? null : k; }
 
-  // [width, height] from the header bytes, or null when it cannot be read there (decode then reports the problem).
-  function _headerDims(h, kind) {
-    const dv = new DataView(h.buffer, h.byteOffset, h.byteLength);
-    try {
-      if (kind === 'png') return h.length >= 24 ? [dv.getUint32(16), dv.getUint32(20)] : null;
-      if (kind === 'jpeg') {
-        let i = 2;
-        while (i + 9 < h.length) {
-          if (h[i] !== 0xFF) { i++; continue; }
-          const m = h[i + 1];
-          if (m >= 0xC0 && m <= 0xCF && m !== 0xC4 && m !== 0xC8 && m !== 0xCC) return [dv.getUint16(i + 7), dv.getUint16(i + 5)];
-          if (m === 0xD8 || m === 0x01 || (m >= 0xD0 && m <= 0xD7) || m === 0xFF) { i += (m === 0xFF ? 1 : 2); continue; }
-          i += 2 + dv.getUint16(i + 2);
-        }
-        return null;
-      }
-      if (kind === 'webp') {
-        const fourcc = String.fromCharCode(h[12], h[13], h[14], h[15]);
-        if (fourcc === 'VP8X') return [1 + (h[24] | h[25] << 8 | h[26] << 16), 1 + (h[27] | h[28] << 8 | h[29] << 16)];
-        if (fourcc === 'VP8 ') return [dv.getUint16(26, true) & 0x3FFF, dv.getUint16(28, true) & 0x3FFF];
-        if (fourcc === 'VP8L') { const b = dv.getUint32(21, true); return [(b & 0x3FFF) + 1, ((b >> 14) & 0x3FFF) + 1]; }
-      }
-    } catch (e) { /* short header */ }
-    return null;
-  }
+  // [width, height] from the header bytes, or null when it cannot be read there.
+  function _headerDims(h, kind) { return ImageHeader.dims(h, kind); }
 
   // Keeps real PNGs untouched (alpha, metadata), converts a readable JPEG/WebP to PNG through a canvas, rejects the rest
   // (SVG always). Never writes anything. Object URLs are not used (createImageBitmap), the bitmap is closed.
@@ -12770,7 +12799,8 @@ const Packages = (() => {
       return fail(/<svg|<\?xml/.test(txt) ? `${label}: SVG images are not supported (use PNG).` : `${label} is not a PNG, JPEG or WebP image.`);
     }
     const dims = _headerDims(head, kind);
-    if (dims && (dims[0] > SPRITE_MAX_DIM || dims[1] > SPRITE_MAX_DIM || !dims[0] || !dims[1]))
+    if (!dims) return fail(`${label}: the image size could not be read from the file header, so the file is refused.`);
+    if (dims[0] > SPRITE_MAX_DIM || dims[1] > SPRITE_MAX_DIM || !dims[0] || !dims[1])
       return fail(`${label} has too large dimensions (${dims[0]}×${dims[1]}, limit ${SPRITE_MAX_DIM}×${SPRITE_MAX_DIM}).`);
     let bmp;
     try { bmp = await createImageBitmap(file); }
@@ -13587,6 +13617,8 @@ const Packages = (() => {
         return;
       }
 
+      const unsafeNames = [...hexes, ...buildings].map(e => e.spriteName).filter(n => n !== undefined && n !== '' && !isSafeSpriteName(n));
+      if (unsafeNames.length) throw new Error(_unsafeNamesMessage(unsafeNames).replace('before publishing', 'before exporting').replace('Nothing was written.', 'No file was created.'));
       UI.progress(0, `Preparing export for "${entry.name}"…`);
       const JSZip = await _loadJSZip();
       const zip = new JSZip();
@@ -13632,7 +13664,7 @@ const Packages = (() => {
           if (s.blob.size > SPRITE_MAX_BYTES) throw new Error(`sprite ${name} is larger than ${SPRITE_MAX_BYTES / 1048576} MB, the importer would refuse it`);
           total += s.blob.size;
           if (total > IMPORT_MAX_TOTAL_BYTES) throw new Error('the package is too large to export (over 64 MB unpacked)');
-          zip.file(`sprites/${s.category}/${name}.png`, s.blob);
+          zip.file(`sprites/${_zipSpriteDir(s.category)}/${name}.png`, s.blob);
         } else skipped++;
         UI.progress(Math.round((++done / Math.max(refs.size, 1)) * 85), `Sprites: ${done}/${refs.size}…`);
       }
@@ -13790,9 +13822,16 @@ const Packages = (() => {
     return refs;
   }
 
+  const _unsafeNamesMessage = names => `Unsafe sprite name${names.length === 1 ? '' : 's'} in this package (${names.slice(0, 5).map(n => JSON.stringify(String(n).slice(0, 40))).join(', ')}${names.length > 5 ? ', ...' : ''}): rename ${names.length === 1 ? 'it' : 'them'} before publishing. Nothing was written.`;
+  // The category of a local sprite record is data too: a plain folder name (or terrain/roads style pair) or the fallback.
+  const _spriteDir = (c, fallback) => (typeof c === 'string' && /^[a-z][a-z0-9_]*(\/[a-z][a-z0-9_]*)?$/.test(c)) ? c : fallback;
+  const _zipSpriteDir = c => c === 'buildings' ? 'buildings' : 'hex';   // the only two folders the importer reads
+
   async function publishPackageSprites(id, onProgress) {
     const refs = await _packageSpriteRefs(id);
     if (!refs.size) return { total: 0, pushed: 0, missing: [] };
+    const unsafe = [...refs.keys()].filter(n => !isSafeSpriteName(n));
+    if (unsafe.length) throw new Error(_unsafeNamesMessage(unsafe));   // never build a repo path from such a name
 
     let baseLocal = [], pkgLocal = [];
     try { [baseLocal, pkgLocal] = await Promise.all([SpriteStore.loadForPackage('postapoc'), SpriteStore.loadForPackage(id)]); }
@@ -13803,21 +13842,21 @@ const Packages = (() => {
     const missing = [];
     for (const [name, fallbackCategory] of refs) {
       const localEntry = localByName.get(name);
-      const category = localEntry?.category || fallbackCategory;
+      const category = _spriteDir(localEntry?.category, fallbackCategory);
       let blob = null;
       if (localEntry) {
         try { blob = await (await fetch(localEntry.dataUrl)).blob(); } catch(e) {}
       }
       if (!blob) {
         try {
-          const res = await fetch(`${BASE_URL}/packages/postapoc/sprites/${category}/${name}.png?_=${Date.now()}`);
+          const res = await fetch(`${BASE_URL}/packages/postapoc/sprites/${encodeURIComponent(category)}/${encodeURIComponent(name)}.png?_=${Date.now()}`);
           if (res.ok) blob = await res.blob();
         } catch(e) {}
       }
       done++;
       if (onProgress) onProgress(done, refs.size, name);
       if (!blob) { missing.push(name); continue; }
-      await GitHubSync._putBinary(`packages/${id}/sprites/${category}/${name}.png`, blob, `publish ${id}: sprite ${name}.png`);
+      await GitHubSync._putBinary(`packages/${id}/sprites/${_spriteDir(category, fallbackCategory)}/${name}.png`, blob, `publish ${id}: sprite ${name}.png`);
       pushed++;
     }
     return { total: refs.size, pushed, missing };
@@ -14041,6 +14080,9 @@ const Packages = (() => {
       // The published package.json is the commit marker: it is written last, and the next version
       // is derived from it (not from the registry cache), so a retry after a partial failure
       // computes the same version again.
+      // Defence in depth: names that came from the server or from older data are checked again before any path is built.
+      const unsafeNames = [...hexes, ...buildings].map(e => e.spriteName).filter(n => n !== undefined && n !== '' && !isSafeSpriteName(n));
+      if (unsafeNames.length) throw new Error(_unsafeNamesMessage(unsafeNames));
       // A local-only package must not land on an id somebody else published meanwhile (never overwritten, nothing written).
       if (entry.localOnly && !entry.serverClaimed) {
         const clash = await _serverIdProblem(id);
@@ -14522,6 +14564,9 @@ const Packages = (() => {
         if (typeof e.id !== 'string' || !e.id) return bad(`${at} has no usable "id".`);
         if (!_ENTRY_ID_RE.test(e.id)) return bad(`${at} has an id with unsupported characters or length: ${JSON.stringify(e.id.slice(0, 80))}.`);
         if (e.spriteName !== undefined && typeof e.spriteName !== 'string') return bad(`${at} ("${e.id}") has a spriteName that is not text.`);
+        // '' means "no sprite" (no path is ever built from it); anything else must already be canonical, because it
+        // becomes part of a repository path on publish.
+        if (typeof e.spriteName === 'string' && e.spriteName !== '' && !isSafeSpriteName(e.spriteName)) return bad(`${at} ("${e.id}") has an unsafe spriteName: ${JSON.stringify(e.spriteName.slice(0, 60))}.`);
         if (seen.has(e.id)) return bad(`Duplicate entry id "${e.id}"`);
         seen.add(e.id);
       }));
@@ -14992,7 +15037,7 @@ const Packages = (() => {
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
-           spriteSrc, openReskinPicker, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
+           spriteSrc, openReskinPicker, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
