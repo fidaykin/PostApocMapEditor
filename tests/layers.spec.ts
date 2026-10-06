@@ -1645,3 +1645,25 @@ test.describe('Clear Map clears every layer (T2.19)', () => {
     expect(r.after).toBe(0);
   });
 });
+
+// ── cleanup A5: lock gaps ───────────────────────────────────────────────────────────────────────────
+const typeInto = (page: any, id: string, v: string) => page.evaluate(([i, val]: any) => { const el = document.getElementById(i) as HTMLInputElement; el.value = val; el.dispatchEvent(new Event('change', { bubbles: true })); }, [id, v]);
+test.describe('layers: lock gaps (cleanup A5)', () => {
+  test.beforeEach(async ({ page }) => { await lockEditor(page); await page.evaluate(() => { window.confirm = () => true; }); });
+
+  test('the settlement priority inputs revert and toast once while Settlements is locked; unlocked they save (control)', async ({ page }) => {
+    await resetMap(page);
+    const stored = await page.evaluate(() => [settlementPriority1.join(', '), settlementPriority2.join(', ')]);
+    await setLocks(page, ['settlements']);
+    for (const [id, i] of [['priority-p1', 0], ['priority-p2', 1]] as const) {
+      await page.evaluate(() => { (window as any).__toasts = []; });
+      await typeInto(page, id, 'Water_1, Forest_1');
+      expect(await page.evaluate((x) => (document.getElementById(x) as HTMLInputElement).value, id)).toBe(stored[i]);
+      expect((await lockedToasts(page)).length).toBe(1);
+    }
+    expect(await page.evaluate(() => [settlementPriority1.join(', '), settlementPriority2.join(', ')])).toEqual(stored);
+    await unlockAll(page);
+    await typeInto(page, 'priority-p1', 'Water_1, Forest_1');
+    expect(await page.evaluate(() => settlementPriority1)).toEqual(['Water_1', 'Forest_1']);
+  });
+});

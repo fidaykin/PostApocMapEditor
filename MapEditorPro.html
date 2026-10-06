@@ -2442,7 +2442,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "95d4e5a";
+const COMMIT  = "1963bd3";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8993,6 +8993,7 @@ const UI = (() => {
         const p1New = p1El.cloneNode(true);
         p1El.replaceWith(p1New);
         p1New.addEventListener('change', e => {
+          if (Layers.refuse('settlements')) { e.target.value = settlementPriority1.join(', '); return; }   // locked: keep the stored list
           settlementPriority1 = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
           IO.scheduleAutoSave();
         });
@@ -9003,6 +9004,7 @@ const UI = (() => {
         const p2New = p2El.cloneNode(true);
         p2El.replaceWith(p2New);
         p2New.addEventListener('change', e => {
+          if (Layers.refuse('settlements')) { e.target.value = settlementPriority2.join(', '); return; }   // locked: keep the stored list
           settlementPriority2 = e.target.value.split(',').map(s => s.trim()).filter(Boolean);
           IO.scheduleAutoSave();
         });
