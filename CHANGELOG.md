@@ -9,6 +9,9 @@ Format: `## [version] — [date]`
 - A "Go to" box in the left palette jumps the view to `col,row`, Unity `app:x,y` coordinates (as the status bar shows them) or a block address such as `B:4`; bad input is flagged with a message and the view stays put.
 - Bookmarks in the left palette: Add saves the middle of the view and the zoom, click jumps back, rename and delete. They are stored in this browser only (never in the map file); a bookmark outside the current map is greyed out.
 
+- Minimap options in the left palette: Bigger (340 px minimap, remembered in this browser; off by default), and Zones / Towns switches that draw the zone overlay and the non-city settlements on the minimap. They follow the Layers visibility.
+- Keyboard shortcuts: `+` / `=` zoom in, `-` zoom out, `0` fits the map, `1` / `2` / `3` toggle the distance rings, block rulers and coastline. A "Keyboard shortcuts" button in the left palette (and View menu) lists every shortcut, tool keys included; the list is generated from one registry.
+
 ### Layout
 - The right panel (minimap, brush, active terrain) is collapsible. Below 1920 px wide it starts collapsed to a thin rail and opens as an overlay drawer; the canvas uses the freed width, the page no longer widens, and the top toolbar scrolls sideways inside itself. The choice is remembered (`rightPanelMode`: `auto`, `collapsed`, `expanded`, or `classic` to keep the old fixed layout).
 

@@ -331,6 +331,15 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .bm-ren:hover { color: var(--accent); }
 .bm-del:hover { color: var(--danger); }
 .bm-go:focus-visible, .bm-ren:focus-visible, .bm-del:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
+#shortcuts-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
+#shortcuts-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+#shortcuts-panel .hexdb-tool-btn { width: 100%; height: 26px; padding: 0 8px; font-size: 11px; }
+.shortcut-help-body { max-height: 70vh; overflow-y: auto; }
+.shortcut-help-body h4 { margin: 10px 0 4px; font-size: 12px; color: var(--accent); }
+.shortcut-help { border-collapse: collapse; font-size: 12px; width: 100%; }
+.shortcut-help td { padding: 2px 10px 2px 0; vertical-align: top; }
+.shortcut-help td:first-child { white-space: nowrap; }
+.shortcut-help kbd { background: var(--hover); border: 1px solid var(--border); border-radius: 3px; padding: 0 5px; font-family: monospace; }
 #layers-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #layers-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 .layer-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
@@ -1343,9 +1352,11 @@ body.mode-common #map-io    { display: none; }
     </div>
     <div class="menu-item" id="menu-view">View
       <div class="menu-dropdown">
-        <button onclick="Canvas.zoomIn()">Zoom In</button>
-        <button onclick="Canvas.zoomOut()">Zoom Out</button>
-        <button onclick="Canvas.fitToScreen()">Fit Map</button>
+        <button onclick="Canvas.zoomIn()">Zoom In <span class="menu-shortcut">+</span></button>
+        <button onclick="Canvas.zoomOut()">Zoom Out <span class="menu-shortcut">-</span></button>
+        <button onclick="Canvas.fitToScreen()">Fit Map <span class="menu-shortcut">0</span></button>
+        <div class="separator"></div>
+        <button onclick="UI.closeAllMenus(); Shortcuts.showHelp()">Keyboard Shortcuts…</button>
       </div>
     </div>
     <div class="menu-item" id="menu-generate">Generate
@@ -1634,6 +1645,11 @@ body.mode-common #map-io    { display: none; }
       <div id="layers-panel">
         <div class="section-title">Layers</div>
         <div id="layers-list"></div>
+      </div>
+      <!-- Keyboard shortcuts (T4.4): the list is generated from the Shortcuts registry; LEFT palette, no key opens it -->
+      <div id="shortcuts-panel">
+        <div class="section-title">Help</div>
+        <button id="btn-shortcut-help" class="hexdb-tool-btn" type="button" onclick="Shortcuts.showHelp()" title="List every keyboard shortcut">Keyboard shortcuts</button>
       </div>
     </div>
 
@@ -2590,7 +2606,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "b0c44e7";
+const COMMIT  = "499e4c9";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8117,7 +8133,7 @@ const Tools = (() => {
     return true;
   }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite,
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
            fillAt: _fill, applyRect: _applyRect,
@@ -13172,6 +13188,130 @@ const DevTools = (() => {
   }
 
   return { renderPanel, _filter: _filterTable };
+})();
+
+// ════════════════════════════════════════════════════════════
+// SHORTCUTS (T4.4) — ONE registry: it resolves the keys it owns AND generates the help panel
+// ════════════════════════════════════════════════════════════
+// Entries WITHOUT `run` document a key that an existing handler owns (Tools: tool letters, [ ], float transform keys, Ctrl+A/D/C/X/V,
+// Delete/Enter/Esc; History: Ctrl+Z/Y; IO: Ctrl+N/O/S; Canvas: Space pan; the Tab mode switch). They are never executed from here, so a
+// key is never handled twice. Tool entries are DERIVED from `Tools.toolKeys()` (the very tables the Tools dispatcher reads), so they
+// cannot drift; the rest is hand-listed and tests/shortcuts.spec.ts presses every entry. `[` and `]` stay documentation-only: the brush
+// owns them. Entries WITH `run` (zoom, fit, overlay toggles) match the TYPED character (`e.key`), ignore Shift (a digit typed with
+// Shift on AZERTY is still a '1'), and never fire with Ctrl/Meta/Alt, during IME composition, while typing or a modal is open (the same
+// `Tools.isTypingOrModal(e)` the tool keys use), outside the map mode, or when a paste float owns the physical key.
+// Letter entries (`letter`) follow the typed-letter rule used by the tool keys: a typed Latin letter decides; where the typed key is not
+// a Latin letter the physical key decides (`fallback`: 'letter' = only a typed letter of another script, 'any' = also punctuation).
+// There is deliberately NO key for the help panel (button in the left palette and the View menu): every free key is spoken for.
+const Shortcuts = (() => {
+  const _defs = [];
+  const _FLOAT_CODES = ['Period', 'Comma', 'Slash', 'Semicolon'];
+
+  function register(def) {
+    if (!def || typeof def.id !== 'string' || !def.id) throw new Error('Shortcuts.register: id required');
+    const d = Object.assign({ group: 'Other', keys: [], display: '', label: '' }, def);
+    d.keys = Array.isArray(d.keys) ? d.keys.slice() : [];
+    const i = _defs.findIndex(x => x.id === d.id);
+    if (i >= 0) _defs[i] = d; else _defs.push(d);
+  }
+  function getAll() {
+    return _defs.map(d => ({ id: d.id, group: d.group, keys: d.keys.slice(), display: String(d.display), label: String(d.label), bound: typeof d.run === 'function' }));
+  }
+
+  // The definition a key event belongs to (documentation entries included), or null. Pure: nothing runs.
+  function resolve(e) {
+    if (!e || e.isComposing || e.ctrlKey || e.metaKey || e.altKey) return null;
+    const k = typeof e.key === 'string' ? e.key : '';
+    if (k === 'Process' || k === 'Dead' || k === 'Unidentified') return null;
+    const ch = [...k].length === 1 ? k : '';                                 // one character, not a key name
+    const typed = /^[a-zA-Z]$/.test(ch) ? ch.toLowerCase() : '';
+    const typedLatin = /^\p{Script=Latin}$/u.test(ch);                        // non-ASCII Latin letters never fall back to the physical key
+    const physical = /^Key([A-Z])$/.exec(e.code || '');
+    for (const d of _defs) {
+      if (d.letter) {
+        if (e.repeat) continue;
+        let letter = typed;
+        if (!letter && !typedLatin && physical) {
+          if (d.fallback === 'any') letter = physical[1].toLowerCase();
+          else if (/^\p{L}$/u.test(ch) && !e.shiftKey) letter = physical[1].toLowerCase();
+        }
+        if (letter === d.letter && !(d.noShift && e.shiftKey)) return d;
+      } else if (ch && d.keys.includes(ch)) return d;
+    }
+    return null;
+  }
+
+  function _onKey(e) {
+    if (e.defaultPrevented || !document.body.classList.contains('mode-map')) return;
+    if (Tools.isTypingOrModal(e)) return;
+    if (Tools.isPasting() && !e.shiftKey && _FLOAT_CODES.includes(e.code)) return;   // the paste float's transform keys own these
+    const d = resolve(e);
+    if (!d || typeof d.run !== 'function') return;
+    if (e.repeat && !d.repeat) return;
+    e.preventDefault();
+    d.run(e);
+  }
+
+  function showHelp() {
+    const body = document.createElement('div');
+    body.className = 'shortcut-help-body';
+    const groups = new Map();
+    getAll().forEach(d => { if (!groups.has(d.group)) groups.set(d.group, []); groups.get(d.group).push(d); });
+    groups.forEach((rows, g) => {
+      const h = document.createElement('h4'); h.textContent = g; body.appendChild(h);
+      const t = document.createElement('table'); t.className = 'shortcut-help';
+      rows.forEach(d => {
+        const tr = document.createElement('tr');
+        const k = document.createElement('td'), kbd = document.createElement('kbd');
+        kbd.textContent = d.display; k.appendChild(kbd);
+        const l = document.createElement('td'); l.textContent = d.label;
+        tr.appendChild(k); tr.appendChild(l); t.appendChild(tr);
+      });
+      body.appendChild(t);
+    });
+    return UI.showModal({ title: 'Keyboard shortcuts', body, actions: [{ label: 'Close', primary: true, onClick: close => close() }] });
+  }
+
+  function init() {
+    const doc = (id, group, display, label, extra) => register(Object.assign({ id, group, keys: [], display, label }, extra));
+    // Tools: derived from the dispatcher's own tables
+    const names = Tools.toolNames(), tk = Tools.toolKeys();
+    Object.entries(tk.key).forEach(([l, t]) => doc('tool-' + t, 'Tools', l.toUpperCase(), names[t] || t, { letter: l, fallback: 'letter', keys: [l] }));
+    Object.entries(tk.code).forEach(([l, t]) => {
+      if (t === 'symmetry') doc('tool-symmetry', 'Tools', l.toUpperCase(), 'Cycle symmetry mode (Paint, Eraser, Scatter ...)', { letter: l, fallback: 'any', noShift: true, keys: [l] });
+      else doc('tool-' + t, 'Tools', l.toUpperCase(), names[t] || t, { letter: l, fallback: 'any', noShift: true, keys: [l] });
+    });
+    doc('undo', 'Edit', 'Ctrl+Z', 'Undo');
+    doc('redo', 'Edit', 'Ctrl+Y / Ctrl+Shift+Z', 'Redo');
+    doc('select-all', 'Edit', 'Ctrl+A', 'Select the whole map');
+    doc('deselect', 'Edit', 'Ctrl+D', 'Clear the selection');
+    doc('copy', 'Edit', 'Ctrl+C', 'Copy the selection');
+    doc('cut', 'Edit', 'Ctrl+X', 'Cut the selection');
+    doc('paste', 'Edit', 'Ctrl+V', 'Paste (click to place)');
+    doc('delete-selection', 'Edit', 'Delete / Backspace', 'Erase the selection');
+    doc('move-selection', 'Edit', 'Enter', 'Lift the selection to move it');
+    doc('cancel-selection', 'Edit', 'Esc', 'Cancel the current action / clear the selection');
+    doc('file-new', 'File', 'Ctrl+N', 'New map');
+    doc('file-open', 'File', 'Ctrl+O', 'Open a map');
+    doc('file-save', 'File', 'Ctrl+S', 'Save the map');
+    doc('brush-smaller', 'Brush', '[', 'Smaller brush');
+    doc('brush-larger', 'Brush', ']', 'Larger brush');
+    doc('float-rotate-cw', 'While pasting or moving', '.', 'Rotate clockwise');
+    doc('float-rotate-ccw', 'While pasting or moving', ',', 'Rotate counter-clockwise');
+    doc('float-flip-h', 'While pasting or moving', '/', 'Flip horizontally');
+    doc('float-flip-v', 'While pasting or moving', ';', 'Flip vertically');
+    doc('pan-space', 'View', 'Space + drag', 'Pan the map (also right or middle mouse button)');
+    doc('mode-tab', 'View', 'Tab', 'Switch to the next editor section');
+    register({ id: 'zoom-in', group: 'View', keys: ['+', '='], display: '+ / =', label: 'Zoom in', repeat: true, run: () => Canvas.zoomIn() });
+    register({ id: 'zoom-out', group: 'View', keys: ['-'], display: '-', label: 'Zoom out', repeat: true, run: () => Canvas.zoomOut() });
+    register({ id: 'fit-map', group: 'View', keys: ['0'], display: '0', label: 'Fit the whole map on screen', run: () => Canvas.fitToScreen() });
+    register({ id: 'ov-rings', group: 'Overlays', keys: ['1'], display: '1', label: 'Show or hide the distance rings', run: () => Canvas.toggleZones() });
+    register({ id: 'ov-rulers', group: 'Overlays', keys: ['2'], display: '2', label: 'Show or hide the block rulers', run: () => Canvas.toggleRulers() });
+    register({ id: 'ov-coast', group: 'Overlays', keys: ['3'], display: '3', label: 'Show or hide the coastline preview', run: () => Canvas.toggleCoastline() });
+    window.addEventListener('keydown', _onKey);
+  }
+
+  return { init, register, getAll, resolve, showHelp };
 })();
 
 // ── App: mode switching ────────────────────────────────────
@@ -18283,6 +18423,7 @@ window.addEventListener('load', async () => {
   History.initKeyboard();
   IO.initFileInput();
   IO.initKeyboard();
+  Shortcuts.init();
   Roads.loadSprites();
   Coastline.loadSprites().then(() => Canvas.forceRedraw());
   // Pre-load user-uploaded sprites from IndexedDB so applyHexDbOverrides

@@ -23,6 +23,14 @@ const LAYOUTS: Record<string, { typed: string[]; expect: string[] }> = {
 // keys outside the three letter rows that a layout types a letter on: Turkish-F has s-cedilla on the quote key and x on the backslash key (ISO).
 // Its q and w sit on the bracket keys, which are the brush-radius keys by design, so Road and Erase Road have no shortcut there (reachable with the toolbar).
 const EXTRA: Record<string, { code: string; key: string; expect: string }[]> = { turkishF: [{ code: 'Quote', key: '\u015f', expect: '.' }, { code: 'Backslash', key: 'x', expect: 'x' }] };
+// T4.4: the shortcut registry also owns the non-letter keys + - = 0 1 2 3 (matched by the typed character). Hand-written, per layout: which of the
+// letter-row keys type one of them. Only QWERTZ types one ('-' on its Slash key = zoom out); every other layout types none of them on these rows,
+// so every press must leave the zoom alone. ('.' = no zoom change, '-' = zoom out.) The registry's own resolver must agree with each press.
+const ZOOM: Record<string, string[]> = {
+  qwerty: ['..........', '..........', '..........'], azerty: ['..........', '..........', '..........'], qwertz: ['..........', '..........', '.........-'],
+  dvorak: ['..........', '..........', '..........'], colemak: ['..........', '..........', '..........'], workman: ['..........', '..........', '..........'],
+  turkishF: ['..........', '..........', '..........'], ukrainian: ['..........', '..........', '..........'], russian: ['..........', '..........', '..........'],
+};
 const TOOL: Record<string, string> = { p: 'paint', f: 'fill', r: 'rect', e: 'eye', s: 'select', t: 'settlement', d: 'erase', z: 'zone', l: 'line', o: 'circle', g: 'polygon', x: 'eraser', a: 'scatter', m: 'marquee', h: 'replace', b: 'object', w: 'road', c: 'road-connect', q: 'erase-road', u: 'bridge', y: 'symmetry' };
 
 test.describe('shortcut layouts (cleanup A1)', () => {
@@ -30,16 +38,19 @@ test.describe('shortcut layouts (cleanup A1)', () => {
 
   for (const [name, lay] of Object.entries(LAYOUTS)) {
     test(`${name}: every bound shortcut is reachable and each key press triggers exactly its own tool`, async ({ page }) => {
-      const presses: { code: string; key: string; expect: string }[] = [];
-      lay.typed.forEach((row, i) => [...row].forEach((ch, j) => presses.push({ code: ROWS[i][j], key: ch, expect: lay.expect[i][j] })));
-      presses.push(...(EXTRA[name] || []));
+      const presses: { code: string; key: string; expect: string; zoom: string }[] = [];
+      lay.typed.forEach((row, i) => [...row].forEach((ch, j) => presses.push({ code: ROWS[i][j], key: ch, expect: lay.expect[i][j], zoom: ZOOM[name][i][j] })));
+      presses.push(...(EXTRA[name] || []).map(x => ({ ...x, zoom: '.' })));
       const res = await page.evaluate((ps) => {
-        const out: { sentinel: string; tool: string; symChanged: boolean }[] = [];
+        const out: { sentinel: string; tool: string; symChanged: boolean; zoomDelta: number; resolved: string | null }[] = [];
         for (const sentinel of ['line', 'paint']) for (const p of ps) {
           Tools.setActive(sentinel);
+          Canvas.setZoom(100);
           const sym0 = Tools.getSymmetry();
-          window.dispatchEvent(new KeyboardEvent('keydown', { key: p.key, code: p.code, bubbles: true, cancelable: true }));
-          out.push({ sentinel, tool: Tools.getActive(), symChanged: Tools.getSymmetry() !== sym0 });
+          const ev = new KeyboardEvent('keydown', { key: p.key, code: p.code, bubbles: true, cancelable: true });
+          window.dispatchEvent(ev);
+          const hit = Shortcuts.resolve(ev);
+          out.push({ sentinel, tool: Tools.getActive(), symChanged: Tools.getSymmetry() !== sym0, zoomDelta: Canvas.getZoom() - 100, resolved: hit ? hit.id : null });
           while (Tools.getSymmetry() !== sym0) Tools.cycleSymmetry();
         }
         return out;
@@ -49,6 +60,9 @@ test.describe('shortcut layouts (cleanup A1)', () => {
         const p = presses[i % presses.length];
         const where = `${name} ${p.code}/${p.key} (from ${r.sentinel})`;
         const bound = p.expect === '.' ? '' : TOOL[p.expect];
+        if (p.zoom === '-') { expect(r.zoomDelta, where + ' types - : zoom out').toBeLessThan(0); expect(r.resolved, where).toBe('zoom-out'); }
+        else expect(r.zoomDelta, where + ' must not zoom').toBe(0);
+        if (p.zoom !== '-') expect(r.resolved, where + ' registry resolver').toBe(bound ? 'tool-' + bound : null);
         if (bound === 'symmetry') { expect(r.symChanged, where).toBe(true); expect(r.tool, where).toBe(r.sentinel); reached.add(bound); }
         else if (bound) { expect(r.tool, where).toBe(bound); expect(r.symChanged, where).toBe(false); reached.add(bound); }
         else { expect(r.tool, where + ' must do nothing').toBe(r.sentinel); expect(r.symChanged, where).toBe(false); }
