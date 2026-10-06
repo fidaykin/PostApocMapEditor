@@ -1,4 +1,4 @@
-import { Page, Route, test } from '@playwright/test';
+import { expect, Page, Route, test } from '@playwright/test';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -34,29 +34,50 @@ export class FakeGitHub {
   /** Contents API GETs for which this returns true answer HTTP 500 (Pages reads are unaffected). */
   failGet: (p: string) => boolean = () => false;
   private pagesSnapshot: Map<string, Buffer> | null = null;
+  /** Paths removed through the Contents API DELETE (hides the repo copy on disk too). */
+  private deleted = new Set<string>();
+  private pagesDeleted = new Set<string>();
+  /** Paths of accepted DELETEs, in order. */
+  deletes: string[] = [];
+  /** Accepted writes (PUT and DELETE) in the order the server applied them: wait on the LAST one (waitForLastWrite). */
+  writeLog: { op: 'PUT' | 'DELETE'; path: string }[] = [];
+  /** Every Contents API request the page made (GET, PUT, DELETE), in order, accepted or refused. */
+  requests: { method: string; path: string; status: number }[] = [];
+  failDelete: (p: string) => boolean = () => false;
 
   /**
    * GitHub Pages lags commits by 30 s to minutes. While pagesLag is on, Pages URLs keep serving
    * the content as of the moment it was switched on; the Contents API keeps serving the live store.
    */
   get pagesLag() { return this.pagesSnapshot !== null; }
-  set pagesLag(on: boolean) { this.pagesSnapshot = on ? new Map(this.overrides) : null; }
+  set pagesLag(on: boolean) {
+    this.pagesSnapshot = on ? new Map(this.overrides) : null;
+    this.pagesDeleted = new Set(this.deleted);
+  }
 
   read(p: string): Buffer | null {
     return this.readFrom(this.overrides, p);
   }
   /** What the GitHub Pages site serves (lagging behind the store while pagesLag is on). */
   readPages(p: string): Buffer | null {
-    return this.readFrom(this.pagesSnapshot ?? this.overrides, p);
+    return this.readFrom(this.pagesSnapshot ?? this.overrides, p, this.pagesSnapshot ? this.pagesDeleted : this.deleted);
   }
-  private readFrom(store: Map<string, Buffer>, p: string): Buffer | null {
+  private readFrom(store: Map<string, Buffer>, p: string, gone: Set<string> = this.deleted): Buffer | null {
     if (store.has(p)) return store.get(p)!;
+    if (gone.has(p)) return null;
     const f = path.join(ROOT, p);
     return fs.existsSync(f) && fs.statSync(f).isFile() ? fs.readFileSync(f) : null;
   }
   write(p: string, data: Buffer | string) {
     this.overrides.set(p, Buffer.from(data));
+    this.deleted.delete(p);
     this.shas.set(p, `sha${++this.n}`);
+  }
+  /** What the Contents API DELETE does: the file is gone from the store and from the disk fallback. */
+  remove(p: string) {
+    this.overrides.delete(p);
+    this.deleted.add(p);
+    this.shas.delete(p);
   }
   setJson(p: string, obj: unknown) { this.write(p, JSON.stringify(obj, null, 2)); }
   json<T = any>(p: string): T | null {
@@ -74,6 +95,7 @@ export class FakeGitHub {
       fs.readdirSync(abs).filter(f => fs.statSync(path.join(abs, f)).isFile()).forEach(f => names.add(f));
     for (const k of this.overrides.keys())
       if (k.startsWith(dir + '/') && !k.slice(dir.length + 1).includes('/')) names.add(k.slice(dir.length + 1));
+    for (const k of this.deleted) names.delete(k.startsWith(dir + '/') ? k.slice(dir.length + 1) : '');
     if (!names.size) return null;
     return [...names].map(name => ({
       name, sha: this.sha(`${dir}/${name}`),
@@ -104,6 +126,69 @@ export async function buildZip(files: Record<string, string | Buffer>): Promise<
   return zip.generateAsync({ type: 'nodebuffer' });
 }
 
+export const readZip = (buf: Buffer) => JSZip.loadAsync(buf);
+
+export const dataUrl = (b: Buffer) => 'data:image/png;base64,' + b.toString('base64');
+export const hexRec = (id: string, pkg: string, extra: object = {}) =>
+  ({ id, type: 'Plains', spriteName: id, package: pkg, ...extra });
+export const bldRec = (id: string, pkg: string, extra: object = {}) =>
+  ({ id, spriteName: id, package: pkg, ...extra });
+
+export interface PackageFiles {
+  hexes?: object[];
+  buildings?: object[];
+  /** '<category>/<name>.png' -> bytes */
+  sprites?: Record<string, Buffer>;
+  version?: string;
+  description?: string;
+}
+
+/** A package ZIP in the layout Packages.exportPackage writes. */
+export async function packageZip(id: string, name: string, f: PackageFiles = {}): Promise<Buffer> {
+  const files: Record<string, string | Buffer> = {
+    'package.json': JSON.stringify({ id, name, version: f.version ?? '1.0.0', description: f.description ?? '' }),
+    'hex_database.json': JSON.stringify({ version: 1, package: id, hexes: f.hexes ?? [] }),
+    'building_database.json': JSON.stringify({ version: 1, package: id, buildings: f.buildings ?? [] }),
+  };
+  for (const [p, b] of Object.entries(f.sprites ?? {})) files['sprites/' + p] = b;
+  return buildZip(files);
+}
+
+/** Put a published package on the fake server (registry entry + package.json + DBs + sprites). */
+export function seedServerPackage(gh: FakeGitHub, id: string, f: PackageFiles & { name?: string } = {}) {
+  const name = f.name ?? id;
+  const version = f.version ?? '1.0.0';
+  gh.setRegistry([{ id, name, version }]);
+  gh.setJson(`packages/${id}/package.json`, { id, name, version, description: f.description ?? '', isDefault: false });
+  gh.setJson(`packages/${id}/hex_database.json`, { version: 1, package: id, hexes: f.hexes ?? [] });
+  gh.setJson(`packages/${id}/building_database.json`, { version: 1, package: id, buildings: f.buildings ?? [] });
+  for (const [p, b] of Object.entries(f.sprites ?? {})) gh.write(`packages/${id}/sprites/${p}`, b);
+}
+
+/** Local entries, through the real addEntries (replaces same package+id). */
+export async function seedHexes(page: Page, hexes: object[]) {
+  await page.evaluate(h => { HexDB.addEntries(h); }, hexes);
+}
+export async function seedBuildings(page: Page, blds: object[]) {
+  await page.evaluate(b => { BldDB.addEntries(b); }, blds);
+}
+/** Local sprites: stored in the SpriteStore and registered so tiles render at once. */
+export async function seedSprites(page: Page, sprites: { name: string; category: string; dataUrl: string }[]) {
+  await page.evaluate(async list => {
+    const urls: Record<string, string> = {};
+    for (const s of list) { await SpriteStore.save(s.name, s.dataUrl, s.category); urls[s.name] = s.dataUrl; }
+    Terrain.registerUploadedUrls(urls);
+  }, sprites);
+}
+
+/**
+ * Waits until the fake server applied `lastPath` as a write. Pass the path the operation writes LAST
+ * (publish = package.json, import = registry.json) so every earlier write is already in the log.
+ */
+export async function waitForLastWrite(gh: FakeGitHub, lastPath: string, timeout = 10_000) {
+  await expect.poll(() => gh.writeLog.some(w => w.path === lastPath), { timeout, message: `write to ${lastPath}` }).toBe(true);
+}
+
 export async function installFakeGitHub(page: Page, gh: FakeGitHub) {
   // Registered first = lowest priority: anything that is not localhost fails fast.
   await page.route(/^https?:\/\/(?!localhost|127\.0\.0\.1)/, r => r.abort());
@@ -124,23 +209,38 @@ export async function installFakeGitHub(page: Page, gh: FakeGitHub) {
     const req = route.request();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
     const p = decodeURIComponent(API_RE.exec(req.url())![1]);
+    const reply = (status: number, obj: unknown) => {
+      gh.requests.push({ method: req.method(), path: p, status });
+      return json(route, status, obj);
+    };
     if (req.method() === 'GET') {
-      if (gh.failGet(p)) return json(route, 500, { message: 'forced failure' });
+      if (gh.failGet(p)) return reply(500, { message: 'forced failure' });
       const body = gh.read(p);
-      if (body) return json(route, 200, { name: path.basename(p), path: p, sha: gh.sha(p), content: body.toString('base64') });
+      if (body) return reply(200, { name: path.basename(p), path: p, sha: gh.sha(p), content: body.toString('base64') });
       const list = gh.list(p);
-      return list ? json(route, 200, list) : json(route, 404, { message: 'Not Found' });
+      return list ? reply(200, list) : reply(404, { message: 'Not Found' });
     }
     if (req.method() === 'PUT') {
       const b = JSON.parse(req.postData() || '{}');
-      if (gh.failPut(p)) return json(route, 500, { message: 'forced failure' });
-      if (gh.read(p) !== null && b.sha !== gh.sha(p)) return json(route, 409, { message: 'sha mismatch' });
+      if (gh.failPut(p)) return reply(500, { message: 'forced failure' });
+      if (gh.read(p) !== null && b.sha !== gh.sha(p)) return reply(409, { message: 'sha mismatch' });
       const buf = Buffer.from(b.content, 'base64');
       gh.puts.push({ path: p, text: buf.toString('utf8'), message: b.message });
       gh.write(p, buf);
-      return json(route, 200, { content: { sha: gh.sha(p) } });
+      gh.writeLog.push({ op: 'PUT', path: p });
+      return reply(200, { content: { sha: gh.sha(p) } });
     }
-    return json(route, 405, { message: 'not supported by FakeGitHub' });
+    if (req.method() === 'DELETE') {
+      const b = JSON.parse(req.postData() || '{}');
+      if (gh.failDelete(p)) return reply(500, { message: 'forced failure' });
+      if (gh.read(p) === null) return reply(404, { message: 'Not Found' });
+      if (b.sha !== gh.sha(p)) return reply(409, { message: 'sha mismatch' });
+      gh.remove(p);
+      gh.deletes.push(p);
+      gh.writeLog.push({ op: 'DELETE', path: p });
+      return reply(200, { commit: { sha: 'c' + gh.writeLog.length } });
+    }
+    return reply(405, { message: 'not supported by FakeGitHub' });
   });
 }
 
