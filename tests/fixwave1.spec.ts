@@ -266,4 +266,115 @@ test.describe('W1-1 footprint map self-validates', () => {
   });
 });
 
+
+// ---------------------------------------------------------------------------------------------------------------------
+// W1-2: the zone painter's bulk writers follow the bulk-writer contract of Clear Map / Fill Map.
+const zoneSeed = (page: Page) => page.evaluate(() => {
+  const id = ZonePainter.addZone('Z'); ZonePainter.setSelectedZoneId(id);
+  const zl = ZonePainter.getZoneLayer();
+  for (let r = 215; r < 235; r++) for (let c = 215; c < 235; c++) zl[r * MAP_WIDTH + c] = id;
+  return id;
+});
+const ZONE_WRITERS = ['_fillAllZones', '_uiFillThisZone', '_randomizeFillUI'];
+const fingerprint = (page: Page) => page.evaluate(() => {
+  let h = 0; const zl = ZonePainter.getZoneLayer();
+  for (let i = 0; i < mapData.length; i += 7) h = (h * 31 + mapData[i].charCodeAt(0) + mapData[i].length + zl[i]) | 0;
+  return h + ':' + JSON.stringify(ZonePainter.getZones()) + ':' + JSON.stringify(bridgesData);
+});
+
+test.describe('W1-2 zone painter bulk writers', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); await spyToasts(page); });
+
+  for (const w of ZONE_WRITERS) {
+    test(`${w}: refused while an async fill runs (no step, nothing written, toast); works afterwards`, async ({ page }) => {
+      await zoneSeed(page);
+      const r = await page.evaluate(async (w) => {
+        UI.selectTerrain('Forest_1'); Tools.setActive('fill');
+        const p = Tools.fill(100, 100);
+        const busy = Tools.isFillBusy();
+        const s0 = History.undoSize(), z0 = JSON.stringify(ZonePainter.getZones()), zl0 = ZonePainter.getZoneLayer().slice();
+        (ZonePainter as any)[w]();
+        const out = { busy, steps: History.undoSize() - s0, zones: JSON.stringify(ZonePainter.getZones()) === z0, layer: ZonePainter.getZoneLayer().every((v: number, i: number) => v === zl0[i]) };
+        await p;
+        return out;
+      }, w);
+      expect(r.busy, 'positive control: the fill was running').toBe(true);
+      expect(r).toEqual({ busy: true, steps: 0, zones: true, layer: true });
+      expect((await toasts(page)).some(t => /fill is still running/i.test(t))).toBe(true);
+      const s1 = await page.evaluate(() => History.undoSize());
+      await page.evaluate((w) => { Tools.setActive('paint'); (ZonePainter as any)[w](); }, w);
+      expect(await page.evaluate(() => History.undoSize()), 'control: the writer runs once the fill is done').toBe(s1 + 1);
+    });
+
+    test(`${w}: refused during a mouse stroke (only the stroke's own step exists)`, async ({ page }) => {
+      await zoneSeed(page);
+      const fp0 = await fingerprint(page), s0 = await page.evaluate(() => History.undoSize());
+      const a = await cellPoint(page, 226, 224), b = await cellPoint(page, 228, 224);
+      await page.mouse.move(a.x, a.y); await page.mouse.down();
+      await page.mouse.move(b.x, b.y, { steps: 3 });
+      expect(await page.evaluate(() => Tools.isStrokeActive()), 'positive control').toBe(true);
+      await page.evaluate((w) => { (ZonePainter as any)[w](); }, w);
+      expect(await page.evaluate(() => History.undoSize())).toBe(s0 + 1);
+      expect((await toasts(page)).some(t => /finish the current stroke/i.test(t))).toBe(true);
+      await page.mouse.up();
+      expect(await page.evaluate(() => History.undoSize()), 'the stroke kept its own single step').toBe(s0 + 1);
+      expect(await page.evaluate(() => mapData.some((t: string) => t !== 'Plain_1')), 'the writer wrote no terrain').toBe(false);
+      expect(await fingerprint(page)).toBe(fp0);
+    });
+
+    test(`${w}: cancels a lifted region (float)`, async ({ page }) => {
+      await zoneSeed(page);
+      const r = await page.evaluate((w) => {
+        Selection.setCells([{ col: 226, row: 224 }]);
+        const lifted = Tools.beginMove();
+        const during = Tools.isMoving();
+        (ZonePainter as any)[w]();
+        return { lifted, during, after: Tools.isMoving(), pasting: Tools.isPasting(), buf: Tools.getFloatBuffer() };
+      }, w);
+      expect(r).toEqual({ lifted: true, during: true, after: false, pasting: false, buf: null });
+    });
+  }
+
+  test('Fill Zones: bridges on repainted cells are dropped, edges are re-resolved over the written cells, footprints are kept', async ({ page }) => {
+    await zoneSeed(page);
+    const r = await page.evaluate(() => {
+      bridgesData.push({ col: 220, row: 220, axis: 1 }, { col: 100, row: 100, axis: 1 });
+      // an anchor OUTSIDE the zone whose footprint reaches INTO it: the zone fill must keep that footprint cell
+      const e = Terrain.byHexId('Rabbit_Flat_1'); let pick: any = null;
+      for (let c = 212; c <= 238 && !pick; c++) for (let rw = 212; rw <= 238 && !pick; rw++) {
+        if (c >= 215 && c < 235 && rw >= 215 && rw < 235) continue;
+        const inside = footprintCells(c, rw, e).filter((f: any) => f.col >= 215 && f.col < 235 && f.row >= 215 && f.row < 235);
+        if (inside.length) pick = { c, rw, inside };
+      }
+      mapData[pick.rw * MAP_WIDTH + pick.c] = 'Rabbit_Flat_1'; bumpMapWrite();
+      const calls: number[] = []; const orig = Tools.autoResolveEdgesAround;
+      Tools.autoResolveEdgesAround = (t: any[]) => { calls.push(t.length); return orig(t); };
+      try { ZonePainter._fillAllZones(); } finally { Tools.autoResolveEdgesAround = orig; }
+      return { pick, calls, bridges: bridgesData.map((b: any) => b.col + ',' + b.row), anchor: mapData[pick.rw * MAP_WIDTH + pick.c],
+               fpTerrain: pick.inside.map((f: any) => mapData[f.row * MAP_WIDTH + f.col]), written: 400 - pick.inside.length };
+    });
+    expect(r.bridges).toEqual(['100,100']);
+    expect(r.anchor).toBe(MULTI);
+    expect(r.fpTerrain.every((t: string) => t === 'Plain_1'), 'footprint cells inside the zone keep their terrain').toBe(true);
+    expect(r.calls).toEqual([r.written]);
+    expect(await truthDiff(page)).toMatchObject({ bad: 0 });
+  });
+
+  test('Fill Zones keeps bridges while the objects layer is locked', async ({ page }) => {
+    await zoneSeed(page);
+    const n = await page.evaluate(() => { bridgesData.push({ col: 220, row: 220, axis: 1 }); Layers.setLocked('objects', true); ZonePainter._fillAllZones(); return bridgesData.length; });
+    expect(n).toBe(1);
+  });
+
+  test('Generator apply cancels a lifted region', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      Selection.setCells([{ col: 226, row: 224 }]);
+      const lifted = Tools.beginMove();
+      await Generator.apply();
+      return { lifted, after: Tools.isMoving(), pasting: Tools.isPasting() };
+    });
+    expect(r).toEqual({ lifted: true, after: false, pasting: false });
+  });
+});
+
 declare const Dev: any;

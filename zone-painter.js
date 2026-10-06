@@ -311,7 +311,8 @@ const ZonePainter = (() => {
   }
 
   // Fills terrain for all tiles in zoneId using preset's noise parameters.
-  function fillZoneTerrain(zoneId, mapData) {
+  // `touched` (optional array) collects {col,row,prev} for every cell written; cells under a multi-tile footprint are skipped.
+  function fillZoneTerrain(zoneId, mapData, touched) {
     if (typeof HexDB === 'undefined') { console.warn('ZonePainter: HexDB not loaded, fill skipped'); return; }
     const zone = _zones.find(z => z.id === zoneId);
     if (!zone) return;
@@ -379,6 +380,8 @@ const ZonePainter = (() => {
           }
         }
 
+        if (touched && typeof getSatelliteAnchor === 'function' && getSatelliteAnchor(col, row)) continue;   // never paint under a multi-tile footprint
+        if (touched) touched.push({ col, row, prev: mapData[i] });
         mapData[i] = terrainId;  // write hex ID string directly
       }
     }
@@ -505,9 +508,33 @@ const ZonePainter = (() => {
     if (t && s) { _refuse('terrain'); return null; }
     return { terrain: !t, settlements: !s };
   }
-  function _fillZone(id, allow) {
-    if (allow.terrain) fillZoneTerrain(id, mapData);
+  function _fillZone(id, allow, touched) {
+    if (allow.terrain) fillZoneTerrain(id, mapData, touched);
     if (allow.settlements) fillZoneSettlements(id, mapData, settlements);
+  }
+  // The bulk-writer contract of Clear Map / Fill Map: nothing runs while an async fill or a mouse gesture is active.
+  function _guardBulk() {
+    if (typeof Tools === 'undefined') return true;
+    if (Tools.isFillBusy()) { UI.toast('A fill is still running — try again in a moment'); return false; }
+    if (Tools.isStrokeActive()) { UI.toast('Finish the current stroke first (Esc)'); return false; }
+    return true;
+  }
+  // Called right before the first write: a lifted selection would drop its old content back, a pending road start points at old data.
+  function _beginBulkWrite() {
+    if (typeof Tools === 'undefined') return;
+    Tools.cancelFloat();
+    Tools.clearRoadStart(false);
+  }
+  // After terrain was written in place: footprints are stale, bridges on repainted cells go (unless the objects layer is
+  // locked) and the edge tiles around the written cells are re-resolved (the same finish as the Fill tool).
+  function _finishTerrainWrite(touched) {
+    if (!touched.length) return;
+    bumpMapWrite();
+    if (bridgesData.length && !_isLocked('objects')) {
+      const gone = new Set(touched.map(t => t.row * MAP_WIDTH + t.col));
+      for (let k = bridgesData.length - 1; k >= 0; k--) if (gone.has(bridgesData[k].row * MAP_WIDTH + bridgesData[k].col)) bridgesData.splice(k, 1);
+    }
+    if (typeof Tools !== 'undefined' && Tools.autoResolveEdgesAround) Tools.autoResolveEdgesAround(touched);
   }
 
   // Fills the given zones as ONE History step. With terrain free the step is always taken (terrain is written). With terrain
@@ -515,8 +542,11 @@ const ZonePainter = (() => {
   // list really changes (never an empty step); the result is written AFTER History.push. Returns true when something was written.
   function _fillZonesStep(ids, allow) {
     if (allow.terrain) {
+      _beginBulkWrite();
       if (typeof History !== 'undefined') History.push();
-      ids.forEach(id => _fillZone(id, allow));
+      const touched = [];
+      ids.forEach(id => _fillZone(id, allow, touched));
+      _finishTerrainWrite(touched);
       return true;
     }
     const before = settlements.slice(), beforeJson = JSON.stringify(before);
@@ -524,6 +554,7 @@ const ZonePainter = (() => {
     const result = settlements.slice();
     settlements.splice(0, settlements.length, ...before);          // undo the dry run
     if (JSON.stringify(result) === beforeJson) { if (typeof UI !== 'undefined') UI.toast('Nothing to place: terrain is locked and no settlements would change'); return false; }
+    _beginBulkWrite();
     if (typeof History !== 'undefined') History.push();
     settlements.splice(0, settlements.length, ...result);
     return true;
@@ -532,6 +563,7 @@ const ZonePainter = (() => {
   function _fillAllZones() {
     const zones = _zones;
     if (zones.length === 0) { UI.toast('⚠ No zones defined. Add a zone first.', { ms: 3000 }); return; }
+    if (!_guardBulk()) return;
     const allow = _lockedFill();
     if (!allow) return;
     if (!_fillZonesStep(zones.map(z => z.id), allow)) return;
@@ -599,9 +631,11 @@ const ZonePainter = (() => {
   // Randomizes zone territories then immediately fills terrain for all zones.
   function _randomizeFillUI() {
     if (typeof mapData === 'undefined' || !mapData) { UI.toast('⚠ No map loaded'); return; }
+    if (!_guardBulk()) return;
     if (_refuse('zones')) return;                 // it replaces the zone list and the zone layer
     // terrain and settlements both locked: only the zone layer is randomised (zones are free)
     const allow = { terrain: !_isLocked('terrain'), settlements: !_isLocked('settlements') };
+    _beginBulkWrite();
     if (typeof History !== 'undefined') History.push();        // before the first write (zone list and layer)
 
     // Build one zone per available preset (builtins + any user presets).
@@ -619,7 +653,9 @@ const ZonePainter = (() => {
     const scaleEl = document.getElementById('rnd-zone-scale');
     const scale = scaleEl ? parseFloat(scaleEl.value) || 0.04 : 0.04;
     _randomizeZoneLayer(seed, scale);
-    if (allow.terrain || allow.settlements) _zones.forEach(z => _fillZone(z.id, allow));
+    const touched = [];
+    if (allow.terrain || allow.settlements) _zones.forEach(z => _fillZone(z.id, allow, touched));
+    _finishTerrainWrite(touched);
 
     _showOverlay = true;
     const btn = document.getElementById('btn-zone-overlay');
@@ -843,6 +879,7 @@ const ZonePainter = (() => {
 
   function _uiFillThisZone() {
     if (!_selectedZoneId) return;
+    if (!_guardBulk()) return;
     const allow = _lockedFill();
     if (!allow) return;
     if (!_fillZonesStep([_selectedZoneId], allow)) return;

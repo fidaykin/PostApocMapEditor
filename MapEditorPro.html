@@ -1236,7 +1236,7 @@ body.mode-common #map-io    { display: none; }
 
 </style>
 <script src="hex-utils.js?v=1"></script>
-<script src="zone-painter.js?v=14"></script>
+<script src="zone-painter.js?v=15"></script>
 <script src="map-jobs.js?v=2"></script>
 </head>
 <body class="mode-map">
@@ -2447,7 +2447,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "d10f4c3";
+const COMMIT  = "78a1b88";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10908,6 +10908,7 @@ const Generator = (() => {
       if (Tools.isFillBusy()) { UI.toast('A fill started while generating — result discarded'); return; }
       if (Tools.isStrokeActive()) { UI.toast('A stroke started while generating — result discarded'); return; }
       if (Layers.isLocked('terrain')) { UI.toast('Terrain layer was locked while generating — result discarded'); return; }
+      Tools.cancelFloat();                       // a lifted region would otherwise drop its old content back onto the new map
       Tools.clearRoadStart(false);
       History.push();                            // pre-state, taken right before we overwrite
       const names = res.names, grid = res.grid, md = mapData;
