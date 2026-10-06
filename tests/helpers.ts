@@ -305,6 +305,13 @@ function frozenMsSince(since: number) {
   return gaps.filter(g => g.end > since).reduce((a, g) => a + g.ms, 0) + Math.max(0, now - lastBeat - 1000);
 }
 
+/** First line of a startup diagnostic (the one the retry log prints). A wait that spanned a freeze says so here:
+ *  Node timers stop while the machine sleeps, so the cap holds in awake time and the wall-clock excess is the freeze. */
+export function startupHeadline(elapsedMs: number, capMs: number, step: string, frozenMs: number) {
+  const frozen = frozenMs > 4000 ? `; test process frozen ~${Math.round(frozenMs / 1000)} s (machine asleep?)` : '';
+  return `editor startup not ready after ${(elapsedMs / 1000).toFixed(1)} s (cap ${(capMs / 1000).toFixed(1)} s)${frozen}; waiting for: ${step}`;
+}
+
 async function startupDiagnostic(page: Page, step: string, start: number, cap: number, cause: unknown) {
   const tr = trackers.get(page);
   const state = await raceDeadline(page.evaluate(() => {
@@ -320,7 +327,7 @@ async function startupDiagnostic(page: Page, step: string, start: number, cap: n
   const now = Date.now();
   const frozen = frozenMsSince(start);
   const lines = [
-    `editor startup not ready after ${((now - start) / 1000).toFixed(1)} s (cap ${(cap / 1000).toFixed(1)} s); waiting for: ${step}`,
+    startupHeadline(now - start, cap, step, frozen),
     `  page: ${typeof state === 'string' ? state : JSON.stringify(state)}`,
     `  requests in flight: ${tr ? JSON.stringify([...tr.inflight.values()].map(r => `${r.url} (${now - r.t} ms)`).slice(0, 15)) : 'not tracked'}`,
     `  failed requests: ${tr ? JSON.stringify(tr.failed.slice(-10)) : 'not tracked'}`,
