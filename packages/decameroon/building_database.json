@@ -103,7 +103,7 @@
         }
       ],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -183,7 +183,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_GoldVein_1"
@@ -326,7 +326,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_GoldVein_1"
@@ -404,7 +404,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -492,7 +492,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -589,7 +589,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -681,7 +681,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -841,7 +841,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -1116,7 +1116,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Mountain_1",
@@ -1201,7 +1201,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Hills_1",
@@ -1291,7 +1291,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -1378,7 +1378,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Mountain_1",
@@ -1454,7 +1454,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Mountain_1",
