@@ -39,19 +39,22 @@ const snapshot = (page: Page) => page.evaluate(() => JSON.stringify({ m: mapData
 /** Places `bufJson` (a buffer) at a target on the SAME starting map twice: once as given, once via the stored stamp. */
 async function placeBoth(page: Page, orig: any, xf: any) {
   return page.evaluate(([orig, xf]) => {
-    const snap = () => JSON.stringify({ m: mapData.join('|'), o: objectsData, r: roadsData, b: bridgesData, x: tileExtras, z: Array.from(ZonePainter.getZoneLayer()).join('') });
+    const snap = () => JSON.stringify({ m: mapData.join('|'), o: objectsData, r: roadsData, b: bridgesData, x: tileExtras });   // the zone layer is compared apart (stamps carry no zones)
+    const zonesNow = () => Array.from(ZonePainter.getZoneLayer()).join('');
+    const here = Clipboard.capture(Selection.getCells());            // a buffer that belongs to THIS map (one passed in from Node lost its map token)
+    if (JSON.stringify(here.cells) !== JSON.stringify(orig.cells)) throw new Error('capture differs');
     const zl = ZonePainter.getZoneLayer();
     const base = { m: mapData.slice(), o: JSON.parse(JSON.stringify(objectsData)), r: JSON.parse(JSON.stringify(roadsData)), b: JSON.parse(JSON.stringify(bridgesData)), x: JSON.parse(JSON.stringify(tileExtras)), z: zl.slice() };
     const restore = () => { mapData = base.m.slice(); objectsData = JSON.parse(JSON.stringify(base.o)); roadsData = JSON.parse(JSON.stringify(base.r)); bridgesData = JSON.parse(JSON.stringify(base.b)); tileExtras = JSON.parse(JSON.stringify(base.x)); zl.set(base.z); invalidateSatelliteMap(); };
     const target = { col: 300, row: 300 };
     return Stamps.list().then((l: any[]) => {
-      const baseS = snap();
-      Clipboard.place(orig, target, xf, {});
-      const a = snap(); restore();
-      if (snap() !== baseS) throw new Error('restore failed');
+      const baseS = snap(), zoneBase = zonesNow();
+      Clipboard.place(here, target, xf, {});
+      const a = snap(), zoneA = zonesNow(); restore();
+      if (snap() !== baseS || zonesNow() !== zoneBase) throw new Error('restore failed');
       Clipboard.place(Stamps.toBuffer(l[0]), target, xf, {});
-      const b = snap();
-      return { a, b, baseS };
+      const b = snap(), zoneB = zonesNow();
+      return { a, b, baseS, zoneBase, zoneA, zoneB };
     });
   }, [orig, xf]);
 }
@@ -232,7 +235,7 @@ test.describe('stamp store (T2.12)', () => {
     const one = r.list.find((s: any) => s.name === 'one');
     expect(one.v).toBe(1);
     expect(one.created).toBe(5);
-    expect(one.cells).toEqual([{ dq: 0, dr: 0, t: 'Forest_1', o: 'Grain_1', rd: { type: 'road_hex' }, b: 1, x: { underTerrainId: 'Water_1' }, z: 4, sat: true }]);
+    expect(one.cells).toEqual([{ dq: 0, dr: 0, t: 'Forest_1', o: 'Grain_1', rd: { type: 'road_hex' }, b: 1, x: { underTerrainId: 'Water_1' }, sat: true }]);   // z is validated but NOT stored: zone ids are map-local
     expect(r.list.map((s: any) => s.name).sort()).toEqual(['one', 'two']);
     expect(r.list.every((s: any) => /^s/.test(s.id))).toBe(true);
   });
@@ -382,15 +385,18 @@ test.describe('stamp store (T2.12)', () => {
     expect(new Set(orig.cells.filter((c: any) => c.rd).map((c: any) => c.rd.type))).toEqual(new Set(['road_hex', 'road_alt']));
     await page.evaluate(async (b) => { await Stamps.save('rich', b); }, orig);
     await freshEditor(page);                                           // a brand-new page session: only IndexedDB survives
-    await seedRich(page);
+    const origHere = await seedRich(page);                             // a capture of THIS session's map (the first one belongs to a map that no longer exists)
     const got = await page.evaluate(async () => { const l = await Stamps.list(); return { n: l.length, buf: Stamps.toBuffer(l[0]) }; });
     expect(got.n).toBe(1);
-    expect(got.buf.cells).toEqual(orig.cells);                          // deep equality on every layer and every cell
+    expect(got.buf.cells).toEqual(orig.cells.map((c: any) => { const { z, ...rest } = c; return rest; }));   // every layer and cell, except zones (map-local ids are not stored)
     expect(got.buf.v).toBe(1);
     for (const xf of [null, { rot: 1, mh: false, mv: false }, { rot: 2, mh: true, mv: false }, { rot: 4, mh: false, mv: true }]) {
-      const r = await placeBoth(page, orig, xf);
+      await seedRich(page);                                             // the restore inside placeBoth reassigns mapData, which clears the selection
+      const r = await placeBoth(page, origHere, xf);
       expect(r.a).not.toBe(r.baseS);                                    // the placement did something
-      expect(r.b).toBe(r.a);                                            // and the stamp does exactly the same
+      expect(r.b).toBe(r.a);                                            // and the stamp does exactly the same (terrain, objects, roads, bridges, extras)
+      expect(r.zoneA, 'the same-map capture does paste its zones').not.toBe(r.zoneBase);
+      expect(r.zoneB, 'the stamp pastes no zone').toBe(r.zoneBase);
     }
   });
 
@@ -529,7 +535,7 @@ test.describe('stamp store (T2.12)', () => {
   });
 
   // ---------- layer values must survive paste AND map save/load ---------------------------------
-  test('save rejects the same corrupting buffers and accepts the boundary values (z 255, real road/extras)', async ({ page }) => {
+  test('save rejects the same corrupting buffers and accepts the boundary values (z 255 validated but not stored, real road/extras)', async ({ page }) => {
     await freshEditor(page);
     const r = await page.evaluate(async () => {
       const mk = (extra: any) => ({ v: 1, origin: null, cells: [Object.assign({ dq: 0, dr: 0, t: 'A' }, extra)] });
@@ -538,21 +544,21 @@ test.describe('stamp store (T2.12)', () => {
         try { await Stamps.save('bad', mk(extra)); out[k] = 'saved'; } catch (e: any) { out[k] = /^Invalid stamp/.test(e.message); }
       }
       const ok = await Stamps.save('ok', mk({ z: 255, rd: { type: 'road_alt', extra: 1 }, x: { underTerrainId: 'Water_1', tag: 7 } }));
-      out.n = (await Stamps.list()).length; out.okZ = ok.cells[0].z;
+      out.n = (await Stamps.list()).length; out.okZ = ok.cells[0].z === undefined ? 'not stored' : ok.cells[0].z;
       return out;
     });
-    expect(r).toEqual({ z256: true, rdcol: true, xrow: true, notype: true, n: 1, okZ: 255 });
+    expect(r).toEqual({ z256: true, rdcol: true, xrow: true, notype: true, n: 1, okZ: 'not stored' });
   });
 
-  test('import accepts the boundary values a real capture can hold (z 255, a plain road_hex) unchanged', async ({ page }) => {
+  test('import accepts the boundary values a real capture can hold (z 255 is ignored, a plain road_hex is kept unchanged)', async ({ page }) => {
     await freshEditor(page);
     const r = await page.evaluate(async () => {
       const text = '{"format":"mapeditor-stamps","version":1,"stamps":[{"name":"s","cells":[{"dq":0,"dr":0,"t":"Plain_1","z":255,"rd":{"type":"road_hex"}}]}]}';
       await Stamps.importJson(text);
       const rec = (await Stamps.list())[0];
-      return { z: rec.cells[0].z, rd: rec.cells[0].rd };
+      return { z: rec.cells[0].z === undefined ? 'not stored' : rec.cells[0].z, rd: rec.cells[0].rd };
     });
-    expect(r).toEqual({ z: 255, rd: { type: 'road_hex' } });
+    expect(r).toEqual({ z: 'not stored', rd: { type: 'road_hex' } });
   });
 
   // ---------- created / ids / thumbnails (fix round 1) --------------------------------------------

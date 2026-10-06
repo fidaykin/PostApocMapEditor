@@ -2447,7 +2447,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "4580717";
+const COMMIT  = "c0acf91";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5014,7 +5014,7 @@ const Clipboard = (() => {
       if (zl && zl[idx]) e.z = zl[idx];
       return e;
     });
-    return { v: 1, origin: HexUtils.fromCube(anchor, W, H), cells: out };
+    return { v: 1, origin: HexUtils.fromCube(anchor, W, H), cells: out, map: _mapToken() };
   }
 
   // xf = { rot: 0..5, mh, mv } (null = identity): the cube offset of a buffer cell about the anchor (origin) cell, mirrored
@@ -5057,6 +5057,8 @@ const Clipboard = (() => {
   function plan(buf, target, xf) {
     const items = _plan(buf, target, xf);
     items.carry = []; items.dropped = 0;
+    // Zone ids are map-local: a buffer only pastes its zones onto the map it was captured from (stamp buffers have no token)
+    items.zonesOk = _mapTokenCurrent(buf.map);
     if (_xfIdentity(xf)) return items;
     const W = MAP_WIDTH, H = MAP_HEIGHT, t0 = HexUtils.toCube(target.col, target.row, W, H);
     for (const e of buf.cells) {
@@ -5068,6 +5070,7 @@ const Clipboard = (() => {
       if (HexUtils.inBounds(p.col, p.row, W, H)) items.carry.push({ col: p.col, row: p.row, idx: p.row * W + p.col, e });
       else if (!lostLayer) items.dropped++;
     }
+    items.carry.zonesOk = items.zonesOk; items.carry.quiet = true;       // the carry shares the paste's zone decision; the paste toasts once
     return items;
   }
   function _plan(buf, target, xf) {
@@ -5129,9 +5132,11 @@ const Clipboard = (() => {
     layers = { terrain: layers.terrain !== false && !Layers.isLocked('terrain'), objects: layers.objects !== false && !Layers.isLocked('objects'),
                roads: layers.roads !== false && !Layers.isLocked('roads'), zones: layers.zones !== false && !Layers.isLocked('zones') };
     if (!items.length) return 0;
+    const zonesOk = items.zonesOk !== false;                 // false: the buffer came from another map (zone ids are map-local)
     const zl0 = typeof ZonePainter !== 'undefined' ? ZonePainter.getZoneLayer() : null;
-    if (layers.terrain === false && !items.some(it => (layers.objects !== false && it.e.o) || (layers.roads !== false && it.e.rd) || (layers.zones !== false && zl0 && it.e.z))) return 0;
+    if (layers.terrain === false && !items.some(it => (layers.objects !== false && it.e.o) || (layers.roads !== false && it.e.rd) || (layers.zones !== false && zonesOk && zl0 && it.e.z))) return 0;
     if (beforeWrite) beforeWrite();
+    if (!zonesOk && layers.zones !== false && !items.quiet && items.some(it => it.e.z)) UI.toast('Zones were not pasted (copied from a different map)');
     const W = MAP_WIDTH, H = MAP_HEIGHT;
     const zl = typeof ZonePainter !== 'undefined' ? ZonePainter.getZoneLayer() : null;
     const wantB = layers.terrain !== false;
@@ -5154,7 +5159,7 @@ const Clipboard = (() => {
       }
       if (layers.objects !== false && e.o) objectsData[k] = e.o;
       if (layers.roads !== false && e.rd) roadsData[k] = Object.assign({}, e.rd);
-      if (layers.zones !== false && zl && e.z) zl[it.idx] = e.z;
+      if (layers.zones !== false && zonesOk && zl && e.z) zl[it.idx] = e.z;
     });
     invalidateSatelliteMap();
     // Identity paste: re-resolve edges around the BORDER only (interior cells keep the tiles that were copied). A
@@ -5386,7 +5391,7 @@ const Stamps = (() => {
       if (c.rd !== undefined) { if (!c.rd || typeof c.rd !== 'object' || Array.isArray(c.rd)) throw _bad('cell ' + i + ' has a bad road', label); e.rd = _cleanRecord(c.rd, label, 'cell ' + i + ' road', true); }
       if (c.b !== undefined) { if (!_isInt(c.b, -1000, 1000)) throw _bad('cell ' + i + ' has a bad bridge axis', label); e.b = c.b; }
       if (c.x !== undefined) { if (!c.x || typeof c.x !== 'object' || Array.isArray(c.x)) throw _bad('cell ' + i + ' has bad extras', label); e.x = _cleanRecord(c.x, label, 'cell ' + i + ' extras', false); }
-      if (c.z !== undefined) { if (!_isInt(c.z, 0, 255)) throw _bad('cell ' + i + ' has a bad zone', label); e.z = c.z; }
+      if (c.z !== undefined && !_isInt(c.z, 0, 255)) throw _bad('cell ' + i + ' has a bad zone', label);   // zone ids are map-local: validated, never stored
       out[i] = e;
     }
     return out;
@@ -5596,11 +5601,13 @@ const Stamps = (() => {
     const input = _$('stamp-name'), typed = input ? input.value : '';
     const buf = Clipboard.capture(Selection.getCells());
     if (!buf) { _toast('Select a region first (M)'); return; }
+    const hadZones = buf.cells.some(c => c.z);
     _saving = true;
     try {
       const rec = await save(typed, buf);
       if (input && input.value === typed) input.value = '';
       _toast('Stamp saved: ' + rec.name);
+      if (hadZones) _toast('Zones are not saved in stamps');
     } catch (e) { _toast('Could not save stamp: ' + e.message); }
     finally { _saving = false; }
     await refresh();
@@ -9928,7 +9935,7 @@ const IO = (() => {
   }
   function _restoreMapState(s) {
     MAP_WIDTH = s.w; MAP_HEIGHT = s.h; mapData = s.mapData; bridgesData = s.bridgesData; objectsData = s.objectsData;
-    bumpMapWrite();
+    bumpMapWrite(); _mapGen++;
     tileExtras = s.tileExtras; roadsData = s.roadsData; settlements = s.settlements; settlementSlots = s.settlementSlots;
     settlementPriority1 = s.settlementPriority1; settlementPriority2 = s.settlementPriority2;
     _setFileName(s.fileName);
@@ -9951,6 +9958,7 @@ const IO = (() => {
       MAP_WIDTH  = Math.max(10, Math.min(450, json.width));
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
       mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+      _mapGen++;
       bridgesData = Array.isArray(json.bridges)
         ? json.bridges.filter(b => typeof b.col === 'number' && typeof b.row === 'number' && typeof b.axis === 'number')
         : [];
@@ -10039,7 +10047,7 @@ const IO = (() => {
       MAP_WIDTH  = 450;
       MAP_HEIGHT = 450;
       mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
-      bumpMapWrite();
+      bumpMapWrite(); _mapGen++;
       bridgesData = [];
       objectsData = {};
       tileExtras  = {};
@@ -10095,7 +10103,7 @@ const IO = (() => {
     MAP_WIDTH  = w;
     MAP_HEIGHT = h;
     mapData    = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
-    bumpMapWrite();
+    bumpMapWrite(); _mapGen++;
     bridgesData = [];
     objectsData = {};
     tileExtras  = {};
@@ -10199,6 +10207,7 @@ const IO = (() => {
       MAP_HEIGHT = Math.max(10, Math.min(450, json.height));
 
       mapData = new Array(MAP_WIDTH * MAP_HEIGHT).fill('Plain_1');
+      _mapGen++;
       bridgesData = Array.isArray(json.bridges)
         ? json.bridges.filter(b => typeof b.col === 'number' && typeof b.row === 'number' && typeof b.axis === 'number')
         : [];
@@ -10606,7 +10615,7 @@ const IO = (() => {
     MAP_WIDTH   = newW;
     MAP_HEIGHT  = newH;
     mapData     = newMapData;
-    bumpMapWrite();
+    bumpMapWrite(); _mapGen++;
     objectsData = newObjectsData;
     tileExtras  = newTileExtras;
     roadsData   = newRoadsData;
@@ -16780,6 +16789,15 @@ let _satelliteMap = null;
 // it was built for is still current. EVERY in-place mapData writer that can touch a multi-tile terrain calls
 // bumpMapWrite(); replacing the array or resizing the map is caught by the identity/size parts of the key.
 let _mapWriteSeq = 0;
+// Bumped whenever the map is REPLACED (New, Open, Expand, autosave / side-copy restore): zone ids are per-map counters, so
+// anything that carries them (the session clipboard) must know whether it still belongs to the map it was captured from.
+let _mapGen = 0;
+function _mapToken() {
+  const t = { gen: _mapGen, w: MAP_WIDTH, h: MAP_HEIGHT };
+  Object.defineProperty(t, 'md', { value: mapData });      // not enumerable: a serialised / cloned buffer never drags the whole map along (and is no longer "current")
+  return t;
+}
+function _mapTokenCurrent(t) { return !!t && t.md === mapData && t.gen === _mapGen && t.w === MAP_WIDTH && t.h === MAP_HEIGHT; }
 let _satKey = null;          // { md, w, h, seq } the cache was built for
 let _satBuilds = 0;          // work counter (tests): footprint-map builds since page load
 

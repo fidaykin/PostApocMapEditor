@@ -506,3 +506,118 @@ test.describe('W1-3 untrusted ids never become markup', () => {
     await noPwn(page, 'localisation list');
   });
 });
+
+// ---------------------------------------------------------------------------------------------------------------------
+// W1-4: zone ids are map-local.
+test.describe('W1-4 zone ids are map-local', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); await spyToasts(page); });
+  const ZMSG = /Zones were not pasted \(copied from a different map\)/;
+  const seedZones = (page: Page) => page.evaluate(() => {
+    const id = ZonePainter.addZone('A'), zl = ZonePainter.getZoneLayer();
+    const cells = [{ col: 220, row: 220 }, { col: 221, row: 220 }, { col: 220, row: 221 }];
+    cells.forEach((c, i) => { mapData[c.row * MAP_WIDTH + c.col] = 'Forest_1'; zl[c.row * MAP_WIDTH + c.col] = id; });
+    Selection.setCells(cells); Tools.copySelection();
+    return id;
+  });
+  const replacements: Record<string, (page: Page) => Promise<void>> = {
+    'File > New': p => p.evaluate(() => { IO.newMap(true); }),
+    'Open (load)': p => p.evaluate(() => { IO.loadFromJSON({ width: 60, height: 60, data: Array.from({ length: 60 }, () => Array.from({ length: 60 }, () => 'Plain_1')) }); }),
+    'Expand Map': p => p.evaluate(() => { IO.loadFromJSON({ width: 60, height: 60, data: Array.from({ length: 60 }, () => Array.from({ length: 60 }, () => 'Plain_1')) }); Selection.setCells([{ col: 20, row: 20 }]); }).then(async () => {
+      // copy on the 60x60 map (with a zone), then expand it: the expanded map is a different map
+      await p.evaluate(() => { const id = ZonePainter.addZone('B'); ZonePainter.getZoneLayer()[20 * MAP_WIDTH + 20] = id; Tools.copySelection(); IO.openExpandMap(); IO.applyExpandMap(); });
+    }),
+  };
+  for (const [name, replace] of Object.entries(replacements)) {
+    test(`${name}: pasting a buffer copied before it skips the zones, keeps the rest, and toasts once`, async ({ page }) => {
+      if (name !== 'Expand Map') await seedZones(page);
+      await replace(page);
+      await page.evaluate(() => { window.confirm = () => true; });
+      const r = await page.evaluate(() => {
+        const zl = ZonePainter.getZoneLayer(), t = { col: 30, row: 30 };
+        zl[30 * MAP_WIDTH + 30] = 7;                                    // a sentinel zone of the NEW map where the paste lands
+        const count = () => Array.from(zl).filter((v: number) => v !== 0).length, before = count();
+        const buf = Clipboard.get(), n = Clipboard.place(buf, t, null, {});
+        const cell = buf.cells.find((c: any) => c.dq === 0 && c.dr === 0);
+        const after = count() - before;
+        return { n, sentinel: zl[30 * MAP_WIDTH + 30], zonesAfter: after, hadZone: buf.cells.some((c: any) => c.z), terrain: mapData[30 * MAP_WIDTH + 30], t: cell.t };
+      });
+      expect(r.hadZone, 'positive control: the buffer carries zones').toBe(true);
+      expect(r.n).toBeGreaterThan(0);
+      expect(r.terrain).toBe(r.t);
+      expect(r.sentinel).toBe(7);
+      expect(r.zonesAfter, 'no zone of the buffer reached the new map').toBe(0);
+      expect((await toasts(page)).filter(t => ZMSG.test(t)).length).toBe(1);
+    });
+  }
+
+  test('a rotated paste (zones carried from footprint cells) from another map also skips zones with ONE toast', async ({ page }) => {
+    await page.evaluate(() => {
+      const id = ZonePainter.addZone('A'), zl = ZonePainter.getZoneLayer(), W = MAP_WIDTH;
+      mapData.fill('Plain_1');
+      Tools.applyTerrainCells([{ col: 200, row: 200 }], 'Rabbit_Flat_1');
+      const cells: any[] = [];
+      for (let r = 198; r <= 202; r++) for (let c = 198; c <= 203; c++) { cells.push({ col: c, row: r }); zl[r * W + c] = id; roadsData[c + ',' + r] = { type: 'road_hex' }; }   // roads too: the carried footprint cells then reach write() with a road AND a zone
+      Selection.setCells(cells); Tools.copySelection();
+      IO.newMap(true);
+    });
+    const r = await page.evaluate(() => {
+      const buf = Clipboard.get(), zl = ZonePainter.getZoneLayer();
+      const n = Clipboard.place(buf, { col: 100, row: 100 }, { rot: 1, mh: false, mv: false }, {});
+      return { n, zones: Array.from(zl).filter((v: number) => v !== 0).length, anchor: mapData.filter((t: string) => t === 'Rabbit_Flat_1').length, roads: Object.keys(roadsData).length };
+    });
+    expect(r.n).toBeGreaterThan(0);
+    expect(r.anchor).toBe(1);
+    expect(r.roads, 'the carried roads were pasted').toBeGreaterThan(0);
+    expect(r.zones).toBe(0);
+    expect((await toasts(page)).filter(t => ZMSG.test(t)).length).toBe(1);
+  });
+
+  test('same map: paste, move and cut keep the zones, no toast', async ({ page }) => {
+    const id = await seedZones(page);
+    const r = await page.evaluate(() => {
+      const zl = ZonePainter.getZoneLayer(), buf = Clipboard.get();
+      const n = Clipboard.place(buf, { col: 250, row: 250 }, null, {});
+      return { n, zones: Array.from(zl).filter((v: number) => v !== 0).length };
+    });
+    expect(r.n).toBe(3);
+    expect(r.zones).toBe(6);                                            // the 3 originals + the 3 pasted
+    // move: lift the original cells and drop them elsewhere
+    const m = await page.evaluate((id) => {
+      const zl = ZonePainter.getZoneLayer();
+      Selection.setCells([{ col: 220, row: 220 }, { col: 221, row: 220 }, { col: 220, row: 221 }]);
+      Tools.beginMove();
+      const buf = Tools.getFloatBuffer();
+      Clipboard.place(buf, { col: 300, row: 300 }, null, {});
+      return { atTarget: zl[300 * MAP_WIDTH + 300], id };
+    }, id);
+    expect(m.atTarget).toBe(m.id);
+    expect((await toasts(page)).some(t => ZMSG.test(t))).toBe(false);
+  });
+
+  test('a stamp pastes no zones and saving a selection with zones says so', async ({ page }) => {
+    await seedZones(page);
+    await page.evaluate(() => { Selection.setCells([{ col: 220, row: 220 }, { col: 221, row: 220 }, { col: 220, row: 221 }]); });
+    await page.evaluate(async () => { await Stamps.saveSelection(); });
+    expect((await toasts(page)).some(t => /Zones are not saved in stamps/.test(t))).toBe(true);
+    const r = await page.evaluate(async () => {
+      const rec = (await Stamps.list())[0], buf = Stamps.toBuffer(rec), zl = ZonePainter.getZoneLayer();
+      const before = Array.from(zl).filter((v: number) => v !== 0).length;
+      const n = Clipboard.place(buf, { col: 250, row: 250 }, null, {});
+      return { stored: rec.cells.some((c: any) => c.z !== undefined), n, grew: Array.from(zl).filter((v: number) => v !== 0).length - before, terrain: mapData[250 * MAP_WIDTH + 250] };
+    });
+    expect(r).toEqual({ stored: false, n: 3, grew: 0, terrain: 'Forest_1' });
+    expect((await toasts(page)).some(t => ZMSG.test(t)), 'a stamp has nothing to skip: no zone toast').toBe(false);
+  });
+
+  test('a stamp file with a zone id per cell imports; the zone is ignored (still range-checked)', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const mk = (z: any) => '{"format":"mapeditor-stamps","version":1,"stamps":[{"name":"s","cells":[{"dq":0,"dr":0,"t":"Forest_1","z":' + z + '}]}]}';
+      const out: any = {};
+      out.ok = await Stamps.importJson(mk(5));
+      try { await Stamps.importJson(mk(300)); out.bad = 'imported'; } catch (e: any) { out.bad = /bad zone/.test(e.message); }
+      out.stored = (await Stamps.list()).map((s: any) => s.cells.some((c: any) => 'z' in c));
+      return out;
+    });
+    expect(r).toEqual({ ok: 1, bad: true, stored: [false] });
+  });
+});
