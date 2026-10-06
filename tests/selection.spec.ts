@@ -3279,24 +3279,27 @@ test.describe('replace (T2.11)', () => {
       const W = MAP_WIDTH, dr = Terrain.byHexId(DR), rb = Terrain.byHexId(RB);
       // In the real database every Y footprint that is larger than X's is adjacent to X, so two valid X anchors can never
       // stand on each other's new cells. Shrink this page's Rabbit to ONE satellite (NW) to make that reachable.
-      rb.occupiedOffsets.length = 0; rb.occupiedOffsets.push('NW'); invalidateSatelliteMap();
-      // B sits on one cell of A's DRAGON footprint, with an RB footprint that is valid and disjoint from A's; A is tried
-      // on both row parities (the legacy footprint tables differ between them). Every such fixture is run: B comes both
-      // before and after A in row-major order (the earlier anchor wins an overlap, so both orders take different paths).
-      const out: any[] = [];
-      for (const A of [{ col: 200, row: 200 }, { col: 200, row: 201 }]) {
-        const oldA = footprintCells(A.col, A.row, rb).map((f: any) => f.col + ',' + f.row);
-        for (const f of footprintCells(A.col, A.row, dr)) {
-          const k = f.col + ',' + f.row; if (oldA.includes(k)) continue;
-          const bFp = footprintCells(f.col, f.row, rb).map((q: any) => q.col + ',' + q.row);
-          if (bFp.includes(A.col + ',' + A.row) || bFp.some((x: string) => oldA.includes(x))) continue;
-          mapData.fill('Plain_1'); mapData[A.row * W + A.col] = RB; mapData[f.row * W + f.col] = RB; invalidateSatelliteMap();
-          if ((window as any).__inv(190, 215, 190, 215).length) continue;
-          const n = Tools.replaceTerrain(RB, DR, null), info = Tools.replaceInfo();
-          out.push({ B: k, A: A.col + ',' + A.row, bAfterA: f.row * W + f.col > A.row * W + A.col, n, skipped: info.skipped, bad: (window as any).__inv(190, 215, 190, 215) });
+      const savedOffs = rb.occupiedOffsets.slice();
+      try {
+        rb.occupiedOffsets.length = 0; rb.occupiedOffsets.push('NW'); invalidateSatelliteMap();
+        // B sits on one cell of A's DRAGON footprint, with an RB footprint that is valid and disjoint from A's; A is tried
+        // on both row parities (the legacy footprint tables differ between them). Every such fixture is run: B comes both
+        // before and after A in row-major order (the earlier anchor wins an overlap, so both orders take different paths).
+        const out: any[] = [];
+        for (const A of [{ col: 200, row: 200 }, { col: 200, row: 201 }]) {
+          const oldA = footprintCells(A.col, A.row, rb).map((f: any) => f.col + ',' + f.row);
+          for (const f of footprintCells(A.col, A.row, dr)) {
+            const k = f.col + ',' + f.row; if (oldA.includes(k)) continue;
+            const bFp = footprintCells(f.col, f.row, rb).map((q: any) => q.col + ',' + q.row);
+            if (bFp.includes(A.col + ',' + A.row) || bFp.some((x: string) => oldA.includes(x))) continue;
+            mapData.fill('Plain_1'); mapData[A.row * W + A.col] = RB; mapData[f.row * W + f.col] = RB; invalidateSatelliteMap();
+            if ((window as any).__inv(190, 215, 190, 215).length) continue;
+            const n = Tools.replaceTerrain(RB, DR, null), info = Tools.replaceInfo();
+            out.push({ B: k, A: A.col + ',' + A.row, bAfterA: f.row * W + f.col > A.row * W + A.col, n, skipped: info.skipped, bad: (window as any).__inv(190, 215, 190, 215) });
+          }
         }
-      }
-      return { out };
+        return { out };
+      } finally { rb.occupiedOffsets.length = 0; rb.occupiedOffsets.push(...savedOffs); invalidateSatelliteMap(); }
     }, [RB, DR]);
     expect(r.out.filter((o: any) => o.bAfterA).length).toBeGreaterThan(0);
     expect(r.out.filter((o: any) => !o.bAfterA).length).toBeGreaterThan(0);
@@ -3310,20 +3313,23 @@ test.describe('replace (T2.11)', () => {
       const W = MAP_WIDTH, dr = Terrain.byHexId(DR), rb = Terrain.byHexId(RB);
       // In the real database every Y footprint that is larger than X's is adjacent to X, so two valid X anchors can never
       // stand on each other's new cells. Shrink this page's Rabbit to ONE satellite (NW) to make that reachable.
-      rb.occupiedOffsets.length = 0; rb.occupiedOffsets.push('NW'); invalidateSatelliteMap();
-      const keys = (a: any[]) => a.map((q: any) => q.col + ',' + q.row);
-      // search a chain A -> B -> C: B on a cell of A's dragon footprint, C on a cell of B's; every old RB footprint valid and disjoint
-      for (const A of [{ col: 200, row: 200 }, { col: 200, row: 201 }]) for (const fb of footprintCells(A.col, A.row, dr)) for (const fc of footprintCells(fb.col, fb.row, dr)) {
-        const pts = [A, fb, fc];
-        if (new Set(keys(pts)).size !== 3) continue;
-        mapData.fill('Plain_1');
-        for (const q of pts) mapData[q.row * W + q.col] = RB;
-        invalidateSatelliteMap();
-        if ((window as any).__inv(190, 215, 190, 215).length) continue;
-        const n = Tools.replaceTerrain(RB, DR, null), info = Tools.replaceInfo();
-        return { found: true, n, info, bad: (window as any).__inv(190, 215, 190, 215), pts: keys(pts) };
-      }
-      return { found: false };
+      const savedOffs = rb.occupiedOffsets.slice();
+      try {
+        rb.occupiedOffsets.length = 0; rb.occupiedOffsets.push('NW'); invalidateSatelliteMap();
+        const keys = (a: any[]) => a.map((q: any) => q.col + ',' + q.row);
+        // search a chain A -> B -> C: B on a cell of A's dragon footprint, C on a cell of B's; every old RB footprint valid and disjoint
+        for (const A of [{ col: 200, row: 200 }, { col: 200, row: 201 }]) for (const fb of footprintCells(A.col, A.row, dr)) for (const fc of footprintCells(fb.col, fb.row, dr)) {
+          const pts = [A, fb, fc];
+          if (new Set(keys(pts)).size !== 3) continue;
+          mapData.fill('Plain_1');
+          for (const q of pts) mapData[q.row * W + q.col] = RB;
+          invalidateSatelliteMap();
+          if ((window as any).__inv(190, 215, 190, 215).length) continue;
+          const n = Tools.replaceTerrain(RB, DR, null), info = Tools.replaceInfo();
+          return { found: true, n, info, bad: (window as any).__inv(190, 215, 190, 215), pts: keys(pts) };
+        }
+        return { found: false };
+      } finally { rb.occupiedOffsets.length = 0; rb.occupiedOffsets.push(...savedOffs); invalidateSatelliteMap(); }
     }, [RB, DR]);
     expect(r.found).toBe(true);
     expect(r.info!.matched).toBe(3);
@@ -3338,7 +3344,7 @@ test.describe('replace (T2.11)', () => {
       const rnd = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
       const W = MAP_WIDTH, C0 = 200, R0 = 200, S = 20;
       const fails: string[] = [];
-      let replacedTotal = 0, skippedTotal = 0;
+      let replacedTotal = 0, skippedTotal = 0, conflictLayouts = 0;
       for (let layout = 0; layout < 200; layout++) {
         mapData.fill('Plain_1');
         const used = new Set<string>();
@@ -3359,12 +3365,14 @@ test.describe('replace (T2.11)', () => {
         if (bad.length) fails.push(`layout ${layout} ${from}->${to}: ${bad[0]}`);
         if (info.matched !== matched || n + info.skipped !== matched || toAfter !== toBefore + n) fails.push(`layout ${layout}: counts ${JSON.stringify(info)} n=${n} matched=${matched}`);
         replacedTotal += n; skippedTotal += info.skipped;
+        if (info.skipped > 0) conflictLayouts++;
       }
-      return { fails: fails.slice(0, 5), replacedTotal, skippedTotal };
+      return { fails: fails.slice(0, 5), replacedTotal, skippedTotal, conflictLayouts };
     }, [RB, DR]);
     expect(r.fails).toEqual([]);
     expect(r.replacedTotal).toBeGreaterThan(100);       // the sweep really replaces ...
     expect(r.skippedTotal).toBeGreaterThan(20);         // ... and really hits the skip paths
+    expect(r.conflictLayouts).toBeGreaterThanOrEqual(30);   // seeded: 59 of the 200 layouts hit at least one conflict; many layouts, not one lucky case
   });
 
   // ---- busy / stale / state ----
