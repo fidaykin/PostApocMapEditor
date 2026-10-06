@@ -1565,7 +1565,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_LavaPlain_1",
-      "category": "🌾 PLAINS",
+      "category": "🌋 VOLCANIC/RIFT",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -1608,7 +1608,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
       "spriteName": "Decameroon_LavaRift_1",
-      "category": "🌾 PLAINS",
+      "category": "🌋 VOLCANIC/RIFT",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -1651,7 +1651,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterWater",
       "spriteName": "Decameroon_Swamp_1",
-      "category": "💧 WATER / RIVER",
+      "category": "🟫 SWAMP",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -1694,7 +1694,7 @@
       "biome": "Decameron",
       "filterCategory": "FilterWater",
       "spriteName": "Decameroon_RockySwamp_1",
-      "category": "💧 WATER / RIVER",
+      "category": "🟫 SWAMP",
       "terrainTypeId": -1,
       "fallback": false,
       "roadAllowed": false,
@@ -2857,6 +2857,59 @@
         "N",
         "SW"
       ]
+    },
+    {
+      "id": "Decameroon_Rift_1",
+      "textId": "",
+      "type": "Volcanic/Rift",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Decameroon_Rift_1",
+      "category": "🌾 PLAINS",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 195,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Steel",
+          "amount": 25
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": true,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": []
     }
   ]
 }
