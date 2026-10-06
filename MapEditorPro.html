@@ -275,6 +275,12 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
   position: relative; cursor: crosshair;
 }
 #minimap { display: block; width: 220px; height: 220px; }
+/* Bigger minimap (T4.3, opt-in): the right column and the drawer widen with it; the default 220 px layout is untouched. */
+body.minimap-big #minimap-container { width: 340px; height: 340px; }
+body.minimap-big #minimap { width: 340px; height: 340px; }
+body.layout-classic.minimap-big #main { grid-template-columns: 220px 1fr 340px; }
+body.minimap-big:not(.rp-collapsed):not(.rp-drawer) #main { --rp-col: 340px; }
+body.rp-drawer.minimap-big #right-panel { width: 340px; }
 
 #brush-panel { padding: 10px; border-bottom: 1px solid var(--border); }
 #brush-panel .section-title {
@@ -303,6 +309,11 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
 #goto-panel .goto-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #goto-input { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; font-family: monospace; }
 #goto-input.invalid { border-color: var(--danger) !important; }
+#minimap-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
+#minimap-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+#minimap-panel .mm-bar { display: flex; gap: 4px; }
+#minimap-panel .mm-bar .hexdb-tool-btn { flex: 1; height: 26px; padding: 0 4px; font-size: 11px; }
+#minimap-panel .mm-bar .hexdb-tool-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 #bookmarks-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
 #bookmarks-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #bookmarks-panel .bm-bar { display: flex; gap: 4px; margin-bottom: 6px; }
@@ -1292,7 +1303,7 @@ body.mode-common #map-io    { display: none; }
 </style>
 <script src="hex-utils.js?v=2"></script>
 <script src="gen-utils.js?v=4"></script>
-<script src="zone-painter.js?v=17"></script>
+<script src="zone-painter.js?v=18"></script>
 <script src="map-jobs.js?v=6"></script>
 </head>
 <body class="mode-map">
@@ -1585,6 +1596,15 @@ body.mode-common #map-io    { display: none; }
           <input id="goto-input" class="hexdb-input" type="text" autocomplete="off" spellcheck="false" placeholder="col,row" aria-label="Go to coordinates" aria-invalid="false"
                  title='Tile "col,row", Unity "app:x,y" or a block such as "B:4", then Enter'>
           <button id="goto-btn" class="hexdb-tool-btn" type="button" title="Centre the view on these coordinates">Go</button>
+        </div>
+      </div>
+      <!-- Minimap options (T4.3): in the LEFT palette; the minimap itself lives in the right panel -->
+      <div id="minimap-panel">
+        <div class="section-title">Minimap</div>
+        <div class="mm-bar">
+          <button id="mm-size-btn" class="hexdb-tool-btn" type="button" aria-pressed="false" title="Enlarge the minimap (remembered in this browser)">Bigger</button>
+          <button id="mm-zones-btn" class="hexdb-tool-btn" type="button" aria-pressed="true" title="Show zones on the minimap (follows the Zone overlay layer)">Zones</button>
+          <button id="mm-settle-btn" class="hexdb-tool-btn" type="button" aria-pressed="true" title="Show settlements as yellow dots on the minimap (follows the Settlements layer)">Towns</button>
         </div>
       </div>
       <!-- Bookmarks (T4.2): in the LEFT palette; saved in this browser, never in the map -->
@@ -2570,7 +2590,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "ec9f9c9";
+const COMMIT  = "b0c44e7";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3147,13 +3167,14 @@ const Layers = (() => {
   function sync() {
     _state.zones.visible = isVisible('zones');
     _save(); _refreshRows();
+    if (typeof Canvas !== 'undefined') Canvas.drawMinimap();   // the minimap overlays follow the layer visibility
   }
   function setVisible(n, v) {
     if (!_state[n]) return;
     v = !!v;
     if (n === 'zones' && _zp() && _zp().isOverlayVisible() !== v) _zp().toggleOverlay();
     _state[n].visible = v; _save(); _refreshRows();
-    if (typeof Canvas !== 'undefined') Canvas.render();
+    if (typeof Canvas !== 'undefined') { Canvas.render(); Canvas.drawMinimap(); }
   }
   function setLocked(n, v) {
     if (!_state[n]) return;
@@ -3218,7 +3239,7 @@ const Canvas = (() => {
   let _showCoastline = true;
   let _selectedSlotIdx = -1;
   // Cheap counters for tests and profiling (render counters reset every frame).
-  const _stats = { tilesVisited: 0, tilesDrawn: 0, overlayRebuilds: 0, minimapRecolored: 0, overviewRecolored: 0, lod: 0, selCellsTested: 0, selCellsDrawn: 0, selMode: '' };
+  const _stats = { tilesVisited: 0, tilesDrawn: 0, overlayRebuilds: 0, minimapRecolored: 0, minimapOverlayRebuilds: 0, overviewRecolored: 0, lod: 0, selCellsTested: 0, selCellsDrawn: 0, selMode: '' };
   function getStats() { return { ..._stats }; }
   // Level of detail, a pure function of the on-screen hex radius (px) so zooming around a threshold cannot flicker:
   //   0  radius >= 10 (zoom >= 25%): the original draw path, pixel-identical to before
@@ -4235,6 +4256,110 @@ const Canvas = (() => {
     ctx.fillRect(cx - radius, cy - radius, radius * 2, radius * 2);
   }
 
+  // ── Minimap size + overlays (T4.3) ─────────────────────
+  // Size is an opt-in toggle persisted per browser (default 220 px = the classic layout). Zones and non-city settlements are
+  // drawn into ONE cached overlay canvas (like the terrain layer); drawMinimap() only blits it. The cache validates itself against
+  // live data on every call (the zone ids under the minimap pixels, the settlement positions, zone colours, size, visibility), so it
+  // is exact for every way the data changes (paint, undo/redo, load, generator, reassignment) and rebuilds only on a real change
+  // (_stats.minimapOverlayRebuilds). With both overlays off, or nothing to show, no overlay work happens at all.
+  const MM_SMALL = 220, MM_BIG = 340, MM_KEY = 'minimapBig';
+  let _mmBig = false;
+  const _mmOverlay = { zones: true, settlements: true };
+  const _ov = { cv: null, key: '', zlast: null, zsrc: null, spos: null, built: false };
+
+  function _readMinimapSize() { try { return localStorage.getItem(MM_KEY) === '1'; } catch (e) { return false; } }
+  function _applyMinimapSize() {
+    const mc = document.getElementById('minimap');
+    if (mc) { mc.width = mc.height = _mmBig ? MM_BIG : MM_SMALL; }
+    document.body.classList.toggle('minimap-big', _mmBig);
+    const b = document.getElementById('mm-size-btn');
+    if (b) b.setAttribute('aria-pressed', String(_mmBig));
+  }
+  function toggleMinimapSize() {
+    _mmBig = !_mmBig;
+    try { localStorage.setItem(MM_KEY, _mmBig ? '1' : '0'); } catch (e) { /* storage blocked: the size lasts for this session */ }
+    _applyMinimapSize();
+    resize();   // the panel column changes width: re-measure the canvas, then redraw the (cleared) minimap
+  }
+  function isMinimapBig() { return _mmBig; }
+  function toggleMinimapOverlay(which) {
+    if (!(which in _mmOverlay)) return;
+    _mmOverlay[which] = !_mmOverlay[which];
+    const b = document.getElementById(which === 'zones' ? 'mm-zones-btn' : 'mm-settle-btn');
+    if (b) b.setAttribute('aria-pressed', String(_mmOverlay[which]));
+    drawMinimap();
+  }
+  function _hexRgb(hex) {
+    const m = /^#([0-9a-f]{6})$/i.exec(hex || '');
+    if (!m) return [128, 128, 128];
+    const n = parseInt(m[1], 16);
+    return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  }
+  // Returns the overlay canvas (mw x mh) or null when there is nothing to draw. Same axis flip as the terrain layer.
+  function _minimapOverlayLayer(mw, mh) {
+    const zp = typeof ZonePainter !== 'undefined' ? ZonePainter : null;
+    const zones = zp ? zp.getZones() : [], zl = zp ? zp.getZoneLayer() : null;
+    const zonesOn = _mmOverlay.zones && Layers.isVisible('zones') && !!zl && zones.length > 0 && zl.length === MAP_WIDTH * MAP_HEIGHT;
+    const setOn = _mmOverlay.settlements && settlementsVisible && Layers.isVisible('settlements');
+    let ns = 0;
+    if (setOn) for (let i = 0; i < settlements.length; i++) if (settlements[i].type !== 'city') ns++;
+    if (!zonesOn && ns === 0) return null;
+    const key = mw + 'x' + mh + ':' + MAP_WIDTH + 'x' + MAP_HEIGHT + ':' + (zonesOn ? zones.map(z => z.id + z.color).join(',') : '-') + ':' + ns;
+    let stale = !_ov.built || key !== _ov.key;
+    if (key !== _ov.key || !_ov.cv) {
+      _ov.cv = document.createElement('canvas'); _ov.cv.width = mw; _ov.cv.height = mh;
+      _ov.zlast = null; _ov.zsrc = null; _ov.spos = new Int32Array(ns * 2);
+    }
+    if (zonesOn) {
+      if (!_ov.zsrc) {
+        _ov.zsrc = new Int32Array(mw * mh); _ov.zlast = new Int16Array(mw * mh).fill(-1);
+        for (let py = 0; py < mh; py++) {
+          const col = MAP_WIDTH - 1 - (mh === MAP_WIDTH ? py : Math.floor(py / mh * MAP_WIDTH));
+          for (let pxx = 0; pxx < mw; pxx++) {
+            const row = MAP_HEIGHT - 1 - (mw === MAP_HEIGHT ? pxx : Math.floor(pxx / mw * MAP_HEIGHT));
+            _ov.zsrc[py * mw + pxx] = row * MAP_WIDTH + col;
+          }
+        }
+      }
+      const zs = _ov.zsrc, last = _ov.zlast;
+      for (let i = 0, n = mw * mh; i < n; i++) { const v = zl[zs[i]]; if (v !== last[i]) { last[i] = v; stale = true; } }
+    } else if (_ov.zlast) { _ov.zlast = null; _ov.zsrc = null; stale = true; }
+    if (setOn) {
+      let k = 0;
+      for (let i = 0; i < settlements.length; i++) {
+        const s = settlements[i]; if (s.type === 'city') continue;
+        if (_ov.spos[k] !== s.col || _ov.spos[k + 1] !== s.row) { _ov.spos[k] = s.col; _ov.spos[k + 1] = s.row; stale = true; }
+        k += 2;
+      }
+    }
+    _ov.key = key;
+    if (!stale) return _ov.cv;
+    _ov.built = true;
+    _stats.minimapOverlayRebuilds++;
+    const cx = _ov.cv.getContext('2d');
+    if (zonesOn) {
+      const rgb = {};
+      zones.forEach(z => { rgb[z.id] = _hexRgb(z.color); });
+      const img = cx.createImageData(mw, mh), d = img.data, last = _ov.zlast;
+      for (let i = 0, n = mw * mh; i < n; i++) {
+        const c = rgb[last[i]];
+        if (!c) continue;
+        const o = i * 4;
+        d[o] = c[0]; d[o + 1] = c[1]; d[o + 2] = c[2]; d[o + 3] = 89;   // 35 % tint, composited by the blit
+      }
+      cx.putImageData(img, 0, 0);
+    } else cx.clearRect(0, 0, mw, mh);
+    if (ns) {
+      cx.fillStyle = '#ffd54f'; cx.strokeStyle = '#000'; cx.lineWidth = 0.5;
+      const rad = _mmBig ? 2.5 : 2;
+      for (let k = 0; k < ns * 2; k += 2) {
+        const x = (MAP_HEIGHT - 1 - _ov.spos[k + 1] + 0.5) / MAP_HEIGHT * mw, y = (MAP_WIDTH - 1 - _ov.spos[k] + 0.5) / MAP_WIDTH * mh;
+        cx.beginPath(); cx.arc(x, y, rad, 0, Math.PI * 2); cx.fill(); cx.stroke();
+      }
+    }
+    return _ov.cv;
+  }
+
   // ── Minimap ───────────────────────────────────────────────
   function drawMinimap() {
     if (!canvas || !mapData) return;
@@ -4243,6 +4368,8 @@ const Canvas = (() => {
     const mw = mc.width, mh = mc.height;
     // px→x→row (E-W, flipped), py→y→col (N-S, flipped); see _makeColorLayer
     mCtx.drawImage(_minimapLayer(mw, mh), 0, 0);
+    const _ovl = _minimapOverlayLayer(mw, mh);
+    if (_ovl) mCtx.drawImage(_ovl, 0, 0);
 
     // Viewport rect
     const scale = zoom / 100;
@@ -4356,6 +4483,8 @@ const Canvas = (() => {
     canvas    = document.getElementById('map-canvas');
     ctx       = canvas.getContext('2d');
     container = document.getElementById('canvas-container');
+    _mmBig = _readMinimapSize();
+    _applyMinimapSize();
     _resizeCanvas();
     window.addEventListener('resize', resize);
 
@@ -4375,6 +4504,13 @@ const Canvas = (() => {
     const mc = document.getElementById('minimap');
     mc.addEventListener('mousedown', e => { e.preventDefault(); _minimapPan(e); mc.addEventListener('mousemove', _minimapPan); });
     window.addEventListener('mouseup', () => mc.removeEventListener('mousemove', _minimapPan));
+
+    [['mm-size-btn', () => toggleMinimapSize()], ['mm-zones-btn', () => toggleMinimapOverlay('zones')], ['mm-settle-btn', () => toggleMinimapOverlay('settlements')]].forEach(([id, fn]) => {
+      const b = document.getElementById(id);
+      if (!b) return;
+      b.addEventListener('click', e => { fn(); if (e.detail > 0) b.blur(); });   // pointer click: back to the map shortcuts
+      b.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });
+    });
 
     const gotoInput = document.getElementById('goto-input'), gotoBtn = document.getElementById('goto-btn');
     if (gotoInput) {
@@ -5004,7 +5140,7 @@ const Canvas = (() => {
     hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
     clampCamera, minZoom, reclampZoom, resize, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
-    toggleZones, hexDist, setSelectedSlot,
+    toggleZones, hexDist, setSelectedSlot, toggleMinimapSize, isMinimapBig, toggleMinimapOverlay,
     jumpToBlock, parseGoto, centerOnTile, getViewCenterTile, gotoText,
     selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight, setSelectionOverlay, setGhost, getGhostCells, getGhostStats, getHighlightPoints, setSymmetryGuide, getSymmetryGuide,
     toggleRulers: () => {
@@ -6476,6 +6612,7 @@ const Tools = (() => {
         zl[r * MAP_WIDTH + c] = zoneId;
     });
     Canvas.render();
+    Canvas.drawMinimap();
     IO.scheduleAutoSave();
   }
 
@@ -9592,6 +9729,7 @@ const UI = (() => {
   function toggleSettlements() {
     settlementsVisible = !settlementsVisible;
     Canvas.render();
+    Canvas.drawMinimap();
   }
 
   function closeAllMenus() {

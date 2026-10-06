@@ -683,7 +683,7 @@ const ZonePainter = (() => {
     if (_refuse('zones')) return;
     if (!confirm('Clear all zone assignments? Terrain already filled is kept.')) return;
     clearZoneLayer();
-    Canvas.render();
+    Canvas.render(); Canvas.drawMinimap();
   }
 
   function _safeColor(color) {
@@ -759,7 +759,7 @@ const ZonePainter = (() => {
     removeZone(id);
     if (_selectedZoneId === id) _selectedZoneId = _zones[0]?.id || 0;
     _uiRebuildZoneList();
-    if (typeof Canvas !== 'undefined') Canvas.render();
+    if (typeof Canvas !== 'undefined') { Canvas.render(); Canvas.drawMinimap(); }
   }
 
   function _uiRenameZone(id, name) {
@@ -780,7 +780,7 @@ const ZonePainter = (() => {
     input.addEventListener('input', () => {
       if (_isLocked('zones')) return;               // the picker was opened before the lock: no write once locked
       if (zone) { zone.color = input.value; swatchEl.style.background = _safeColor(input.value); }
-      if (typeof Canvas !== 'undefined') Canvas.render();
+      if (typeof Canvas !== 'undefined') { Canvas.render(); Canvas.drawMinimap(); }
     });
     document.body.appendChild(input);
     input.style.position = 'absolute';
