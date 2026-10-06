@@ -481,13 +481,17 @@ test.describe('Import Elevation (T3.4)', () => {
       Object.defineProperty(big, 'size', { value: 200 * 1024 * 1024 });
       await run('big', big);
       await run('empty', new File([], 'e.png', { type: 'image/png' }));
-      await run('corrupt', new File([new Uint8Array(200).fill(7)], 'bad.png', { type: 'image/png' }));
+      // a PNG header that states a small size followed by garbage: the header check passes, so the decoder runs and fails
+      const png = (w: number, h: number) => { const b = new Uint8Array(200).fill(7); b.set([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52], 0); const dv = new DataView(b.buffer); dv.setUint32(16, w); dv.setUint32(20, h); return b; };
+      await run('junk', new File([new Uint8Array(200).fill(7)], 'junk.png', { type: 'image/png' }));   // no image header at all: refused before decoding (final wave A11)
+      await run('corrupt', new File([png(64, 64)], 'bad.png', { type: 'image/png' }));
       (window as any).createImageBitmap = async () => ({ width: 20000, height: 20000, close() {} });
-      await run('huge', new File(['x'], 'huge.png', { type: 'image/png' }));
+      await run('huge', new File([png(100, 100)], 'huge.png', { type: 'image/png' }));   // the post-decode check stays as a second line of defence
       (window as any).createImageBitmap = real;
       return { ...out, has: Generator.hasElevation(), name: document.getElementById('gen-elev-name')!.textContent };
     });
     expect(r.text).toBe(0); expect(r.svg).toBe(0); expect(r.big).toBe(0); expect(r.empty).toBe(0);   // rejected before decoding
+    expect(r.junk).toBe(0);                                                                          // no recognisable header: never decoded
     expect(r.corrupt).toBe(1);                                                                       // positive control: decode was attempted
     expect(r.has).toBe(true);                                                                        // the earlier good import survived every failure
     expect(r.name).toBe('good.png');
@@ -495,6 +499,7 @@ test.describe('Import Elevation (T3.4)', () => {
     expect(t).toContain('Not an image');
     expect(t).toContain('too large');
     expect(t).toContain('is empty');
+    expect(t).toContain('unrecognised header');
     expect(t).toContain('could not be decoded');
     expect(t).toContain('too many pixels');
   });

@@ -2699,7 +2699,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "cb4b3b5";
+const COMMIT  = "f52313f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -12185,7 +12185,7 @@ const Generator = (() => {
   // The luminance of the (downscaled) image is kept at its own size; it is resampled + normalised for the CURRENT map size on
   // demand (cached), so Expand/New Map at another size never leaves a wrong-sized grid. A stale grid for the same size
   // (New Map / Load) is deliberately kept: the checkbox and the file name in the modal show that it is active.
-  const ELEV_MAX_BYTES = 25 * 1024 * 1024, ELEV_MAX_DIM = 2048, ELEV_MAX_PIXELS = 64e6;
+  const ELEV_MAX_BYTES = 25 * 1024 * 1024, ELEV_MAX_DIM = 2048, ELEV_MAX_PIXELS = 64e6, ELEV_MAX_SIDE = 16384;
   const ELEV_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/bmp', 'image/gif'];
   let _elevSrc = null;                 // { lum: Float32Array, sw, sh, name, flat }
   let _elevGrid = null, _elevOut = null, _elevTok = 0;
@@ -12228,6 +12228,17 @@ const Generator = (() => {
       if (!typeOk) return fail('Not an image file (PNG, JPEG, WebP, BMP or GIF expected): ' + nm);
       if (file.size > ELEV_MAX_BYTES) return fail('the file is too large (' + (file.size / 1048576).toFixed(1) + ' MB, limit ' + (ELEV_MAX_BYTES / 1048576) + ' MB)');
       if (file.size === 0) return fail('the file is empty: ' + nm);
+      // The pixel size is read from the file header BEFORE the browser decodes anything (a 30000 x 30000 PNG is a few KB
+      // and would allocate gigabytes when decoded). A header that does not state the size is refused, never decoded blind.
+      let head;
+      try { head = new Uint8Array(await file.slice(0, 65536).arrayBuffer()); }
+      catch (e) { return fail('the file could not be read: ' + nm); }
+      const kind = ImageHeader.kind(head);
+      if (!kind) return fail('the file is not a PNG, JPEG, WebP, BMP or GIF image (unrecognised header): ' + nm);
+      const dims = ImageHeader.dims(head, kind);
+      if (!dims || !dims[0] || !dims[1]) return fail('the image size could not be read from the file header, so the file is refused: ' + nm);
+      if (dims[0] > ELEV_MAX_SIDE || dims[1] > ELEV_MAX_SIDE) return fail('the image is too large (' + dims[0] + ' x ' + dims[1] + ', limit ' + ELEV_MAX_SIDE + ' pixels per side)');
+      if (dims[0] * dims[1] > ELEV_MAX_PIXELS) return fail('the image has too many pixels (' + dims[0] + ' x ' + dims[1] + ', limit ' + (ELEV_MAX_PIXELS / 1e6) + ' million)');
       let bmp;
       try { bmp = await createImageBitmap(file); }
       catch (e) { return fail('the image could not be decoded (corrupt or unsupported): ' + nm); }

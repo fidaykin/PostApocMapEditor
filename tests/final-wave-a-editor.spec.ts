@@ -180,3 +180,62 @@ test.describe('A10: autosave and load data safety', () => {
     expect(await fileLabel(page)).toBe('good');
   });
 });
+
+// ── A11: the pixel cap is enforced from the header, before anything is decoded ────────────────────────────────────
+test.describe('A11: heightmap import reads the size from the header first', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+
+  test('a tiny PNG claiming 30000x30000 (and a 20000x2 strip) is refused without a decode; a real PNG still imports', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      let decodes = 0;
+      const real = window.createImageBitmap.bind(window);
+      (window as any).createImageBitmap = (...a: any[]) => { decodes++; return (real as any)(...a); };
+      const png = (w: number, h: number) => { const b = new Uint8Array(64).fill(0); b.set([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52], 0); const dv = new DataView(b.buffer); dv.setUint32(16, w); dv.setUint32(20, h); return b; };
+      const toastsNow = () => [...document.querySelectorAll('#toast-container .toast')].map(t => t.textContent || '').join(' | ');
+      const out: any = {};
+      await Generator.importElevation(new File([png(30000, 30000)], 'bomb.png', { type: 'image/png' }));
+      out.bombDecodes = decodes; out.afterBomb = toastsNow();
+      await Generator.importElevation(new File([png(20000, 2)], 'strip.png', { type: 'image/png' }));
+      out.stripDecodes = decodes; out.afterStrip = toastsNow();
+      await Generator.importElevation(new File([png(0, 0)], 'zero.png', { type: 'image/png' }));
+      out.zeroDecodes = decodes;
+      // unknown size: a JPEG whose SOF lies beyond the first 64 KB
+      const seg = (marker: number, n: number) => { const a = new Uint8Array(n + 4); a[0] = 0xFF; a[1] = marker; a[2] = ((n + 2) >> 8) & 255; a[3] = (n + 2) & 255; return a; };
+      const parts = [Uint8Array.from([0xFF, 0xD8]), seg(0xE0, 60000), seg(0xE1, 60000), Uint8Array.from([0xFF, 0xC0, 0, 17, 8, 0, 16, 0, 16, 3, 1, 0x22, 0, 2, 0x11, 1, 3, 0x11, 1]), new Uint8Array(40)];
+      await Generator.importElevation(new File(parts as any, 'late.jpg', { type: 'image/jpeg' }));
+      out.lateDecodes = decodes; out.afterLate = toastsNow();
+      out.has = Generator.hasElevation();
+      // positive control: a real small image passes the header check and IS decoded
+      const cv = document.createElement('canvas'); cv.width = 16; cv.height = 16;
+      const g = cv.getContext('2d')!; const gr = g.createLinearGradient(0, 0, 16, 0); gr.addColorStop(0, '#000'); gr.addColorStop(1, '#fff'); g.fillStyle = gr; g.fillRect(0, 0, 16, 16);
+      const blob: Blob = await new Promise(res => cv.toBlob(b => res(b!), 'image/png'));
+      await Generator.importElevation(new File([blob], 'ok.png', { type: 'image/png' }));
+      out.okDecodes = decodes; out.hasAfter = Generator.hasElevation();
+      return out;
+    });
+    expect(r.bombDecodes).toBe(0);
+    expect(r.afterBomb).toContain('too large');
+    expect(r.stripDecodes).toBe(0);
+    expect(r.afterStrip).toContain('per side');
+    expect(r.zeroDecodes).toBe(0);
+    expect(r.lateDecodes).toBe(0);
+    expect(r.afterLate).toContain('could not be read from the file header');
+    expect(r.has).toBe(false);
+    expect(r.okDecodes).toBe(1);
+    expect(r.hasAfter).toBe(true);
+  });
+
+  test('area over 64 Mpx with every side within 16384 is refused before decoding', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      let decodes = 0;
+      const real = window.createImageBitmap.bind(window);
+      (window as any).createImageBitmap = (...a: any[]) => { decodes++; return (real as any)(...a); };
+      const b = new Uint8Array(64); b.set([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0, 0, 0, 13, 0x49, 0x48, 0x44, 0x52], 0);
+      const dv = new DataView(b.buffer); dv.setUint32(16, 10000); dv.setUint32(20, 10000);   // 100 Mpx
+      await Generator.importElevation(new File([b], 'wide.png', { type: 'image/png' }));
+      return { decodes, toast: [...document.querySelectorAll('#toast-container .toast')].map(t => t.textContent || '').join(' | ') };
+    });
+    expect(r.decodes).toBe(0);
+    expect(r.toast).toContain('too many pixels');
+  });
+});
