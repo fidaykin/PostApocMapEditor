@@ -113,5 +113,72 @@ const GenUtils = (() => {
     return [{ q: center.q, r: center.r, s: center.s }].concat(_shuffled(ring, rng).slice(0, size - 1));
   }
 
-  return { luminanceGrid, resampleToMap, fitWithin, normalize, applySeaLevel, spreadPick, poissonPick, oreCluster };
+  // ── Tile classes ─────────────────────────────────────────────
+  // role -> preferred id and HexDB `type` (the class used when the preferred id is missing).
+  const ROLE_SPEC = {
+    WATER_DARK:   { id: 'Water_Dirty_1',  cls: 'Water' },
+    WATER_LIGHT:  { id: 'Water_1',        cls: 'Water' },
+    WATER_ROCK:   { id: 'Water_Rock_1',   cls: 'Water' },
+    RUBBLE_1:     { id: 'Rubble_1',       cls: 'Rubble' },
+    RUBBLE_2:     { id: 'Rubble_2',       cls: 'Rubble' },
+    RUBBLE_3:     { id: 'Rubble_3',       cls: 'Rubble' },
+    PLAIN_1:      { id: 'Plain_1',        cls: 'Plains' },
+    PLAIN_2:      { id: 'Plain_2',        cls: 'Plains' },
+    BROKEN_PLAIN: { id: 'BrokenPlane_1',  cls: null, like: 'PLAIN_2' },
+    FOREST_1:     { id: 'Forest_1',       cls: 'Forests' },
+    FOREST_2:     { id: 'Forest_2',       cls: 'Forests' },
+    FOREST_3:     { id: 'Forest_3',       cls: 'Forests' },
+    HILLS:        { id: 'Hills_1',        cls: 'Hills/Mountains' },
+    MOUNTAIN:     { id: 'Mountain_1',     cls: 'Hills/Mountains' },
+    GOLD:         { id: 'GoldVein_1',     cls: 'Resources' },
+    OIL:          { id: 'Oil_1',          cls: 'Resources' },
+    BARREN:       { id: 'Barren_1',       cls: 'Barren/Desert' },
+    DESERT:       { id: 'Desert_1',       cls: 'Barren/Desert' },
+    SWAMP:        { id: 'Swamp_1',        cls: 'Swamp' },
+    LAVA:         { id: 'Lava_Plain_1',   cls: 'Volcanic/Rift' },
+    LAVA_RIFT:    { id: 'Lava_Rift_1',    cls: 'Volcanic/Rift' },
+    RIFT:         { id: 'Rift_1',         cls: 'Volcanic/Rift' },
+  };
+  const _EXCLUDE = /_test|kaiju|chicken|settlement/i;
+  const _sid = h => !!h && typeof h.id === 'string' && h.id !== '';
+  function _plainEntry(h) {
+    return _sid(h) && !(Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length) && !h.isLayered &&
+           !(Array.isArray(h.edgeFaces) && h.edgeFaces.length) && !_EXCLUDE.test(h.id);
+  }
+  function _idCmp(a, b) {
+    const la = a.toLowerCase(), lb = b.toLowerCase();
+    return la < lb ? -1 : la > lb ? 1 : a < b ? -1 : a > b ? 1 : 0;
+  }
+
+  // Resolve every role to a tile id of `entries` (HexDB entries: id, type, occupiedOffsets, isLayered, edgeFaces).
+  // Order: the exact preferred id (case-insensitive); else a plain tile of the role's class (candidates sorted by id,
+  // preferring ids no other role holds, cycling when the class has fewer tiles than roles); else the role's `like`
+  // role; else the raw preferred id (it renders as the fallback colour, see missingRoles). Pure and deterministic.
+  function resolveRoles(entries) {
+    entries = (Array.isArray(entries) ? entries : []).filter(_sid);
+    const byLower = new Map();
+    for (const h of entries) { const lo = h.id.toLowerCase(); if (!byLower.has(lo)) byLower.set(lo, h.id); }
+    const out = {};
+    for (const [role, spec] of Object.entries(ROLE_SPEC))
+      if (byLower.has(spec.id.toLowerCase())) out[role] = byLower.get(spec.id.toLowerCase());
+    for (const [role, spec] of Object.entries(ROLE_SPEC)) {
+      if (out[role] || !spec.cls) continue;
+      const pool = [...new Set(entries.filter(h => h.type === spec.cls && _plainEntry(h)).map(h => h.id))].sort(_idCmp);
+      if (!pool.length) continue;
+      const taken = new Set(Object.values(out));
+      out[role] = pool.find(id => !taken.has(id)) || pool[0];
+    }
+    const res = {};
+    for (const [role, spec] of Object.entries(ROLE_SPEC))
+      res[role] = out[role] || (spec.like && out[spec.like]) || spec.id;
+    return res;
+  }
+
+  // Roles whose resolved id is not a tile of `entries` at all (nothing of the class was left to stand in).
+  function missingRoles(entries, table) {
+    const have = new Set((Array.isArray(entries) ? entries : []).filter(_sid).map(h => h.id.toLowerCase()));
+    return Object.keys(ROLE_SPEC).filter(r => !table || typeof table[r] !== 'string' || !have.has(table[r].toLowerCase()));
+  }
+
+  return { ROLE_SPEC, resolveRoles, missingRoles, luminanceGrid, resampleToMap, fitWithin, normalize, applySeaLevel, spreadPick, poissonPick, oreCluster };
 })();

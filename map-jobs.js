@@ -5,7 +5,7 @@
   'use strict';
   const MapJobs = {};
   // Bump when the job protocol/algorithms change; the page sends its expected value and the worker refuses on mismatch.
-  MapJobs.VERSION = 5;
+  MapJobs.VERSION = 6;   // 6: job.T is the HexDB tile-class role table (GenUtils.resolveRoles), 22 roles for generate and satellite
 
 // ── Satellite classification (moved verbatim from MapEditorPro.html, then parameterised) ──
   function _rgbToHsl(r, g, b) {
