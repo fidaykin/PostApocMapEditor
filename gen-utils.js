@@ -34,6 +34,14 @@ const GenUtils = (() => {
     return out;
   }
 
+  // Largest size that fits `max` on both sides, aspect kept, never below 1 px. Used to bound the per-pixel work of an
+  // import: the image is scaled down by the browser BEFORE any pixel is read.
+  function fitWithin(w, h, max) {
+    if (w <= max && h <= max) return { w, h };
+    const k = max / Math.max(w, h);
+    return { w: Math.max(1, Math.round(w * k)), h: Math.max(1, Math.round(h * k)) };
+  }
+
   function normalize(grid) {
     let min = Infinity, max = -Infinity;
     for (let i = 0; i < grid.length; i++) { const v = grid[i]; if (v < min) min = v; if (v > max) max = v; }
@@ -50,5 +58,5 @@ const GenUtils = (() => {
     return out;
   }
 
-  return { luminanceGrid, resampleToMap, normalize, applySeaLevel };
+  return { luminanceGrid, resampleToMap, fitWithin, normalize, applySeaLevel };
 })();

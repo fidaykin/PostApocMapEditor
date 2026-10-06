@@ -5,7 +5,7 @@
   'use strict';
   const MapJobs = {};
   // Bump when the job protocol/algorithms change; the page sends its expected value and the worker refuses on mismatch.
-  MapJobs.VERSION = 3;
+  MapJobs.VERSION = 4;
 
 // ── Satellite classification (moved verbatim from MapEditorPro.html, then parameterised) ──
   function _rgbToHsl(r, g, b) {
@@ -246,6 +246,9 @@
     const infR   = Math.min(W, H) * 0.08;
     const win    = !!opts.window;   // window mode (generate into a region): no centre flatten, no ocean falloff, no city exclusion
     const TARGET_E = 0.46, TARGET_M = 0.50, TARGET_B = 0.55;
+    // Imported elevation (T3.4): a W*H grid in 0..1 replaces the elevation noise and the ocean falloff (the image has its own
+    // coastline); the centre flatten stays so the city area is land. A grid of the wrong size is ignored (never read out of range).
+    const eo = (p.elevOverride && p.elevOverride.length === W * H) ? p.elevOverride : null;
 
     // Continent/coastline mask: elevation falls off toward open ocean far from
     // the map center. Landmass radius is perturbed per-angle by a small seeded
@@ -264,7 +267,7 @@
         const dist = Math.sqrt(dx * dx + dy * dy);
         const t    = win ? 0 : Math.max(0, 1.0 - dist / infR);
         const inf  = t * t * (3 - 2 * t);
-        let e = eNoise(col, row)                           * (1-inf) + TARGET_E * inf;
+        let e = (eo ? eo[row * W + col] : eNoise(col, row)) * (1-inf) + TARGET_E * inf;
         const m = mNoise(col, row) * (1-inf) + TARGET_M * inf;
         const b = bNoise(col, row) * (1-inf) + TARGET_B * inf;
 
@@ -274,7 +277,7 @@
         const wobble   = coastNoise(Math.cos(angle) * 3 + 3, Math.sin(angle) * 3 + 3);
         const landR    = COAST_BASE_R * (1 + (wobble * 2 - 1) * COAST_WOBBLE);
         const coastT   = Math.max(0, Math.min(1, (dist - landR) / COAST_BAND));
-        const coastInf = win ? 0 : coastT * coastT * (3 - 2 * coastT);
+        const coastInf = (win || eo) ? 0 : coastT * coastT * (3 - 2 * coastT);
         e = e * (1 - coastInf) + TARGET_OCEAN * coastInf;
 
         elev[row * W + col] = e;

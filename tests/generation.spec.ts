@@ -401,3 +401,184 @@ test.describe('heightmap maths (T3.3)', () => {
     expect(r.reads).toBe(r.W);
   });
 });
+
+// T3.4: Import Elevation in the Generator (modal only). File contents are untrusted: validation before reading, DOM APIs only.
+test.describe('Import Elevation (T3.4)', () => {
+  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+
+  // dark west -> bright east gradient PNG, made in the page; returns a data URL
+  const gradientPng = (page: any, w = 64, h = 64) => page.evaluate(({ w, h }: any) => {
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const g = cv.getContext('2d')!;
+    const grad = g.createLinearGradient(0, 0, w, 0);
+    grad.addColorStop(0, '#000'); grad.addColorStop(1, '#fff');
+    g.fillStyle = grad; g.fillRect(0, 0, w, h);
+    return cv.toDataURL('image/png');
+  }, { w, h });
+
+  const importDataUrl = (page: any, url: string, name = 'h.png') => page.evaluate(async ({ url, name }: any) => {
+    const blob = await (await fetch(url)).blob();
+    await Generator.importElevation(new File([blob], name, { type: 'image/png' }));
+  }, { url, name });
+
+  const toasts = (page: any): Promise<string[]> => page.evaluate(() => [...document.querySelectorAll('#toast-container .toast')].map(t => t.textContent || ''));
+
+  test('imported elevation is east-bright by world geometry and the sea level moves the coastline', async ({ page }) => {
+    await importDataUrl(page, await gradientPng(page));
+    const r = await page.evaluate(() => {
+      const W = MAP_WIDTH, H = MAP_HEIGHT;
+      const eo = Generator._buildJob().p.elevOverride;
+      let sE = 0, nE = 0, sW = 0, nW = 0, minX = Infinity, maxX = -Infinity;
+      for (let i = 0; i < W * H; i++) { const x = Canvas.hexCenterWorld(i % W, Math.floor(i / W)).x; if (x < minX) minX = x; if (x > maxX) maxX = x; }
+      const mid = (minX + maxX) / 2;
+      for (let i = 0; i < W * H; i++) { const x = Canvas.hexCenterWorld(i % W, Math.floor(i / W)).x; if (x > mid) { sE += eo[i]; nE++; } else { sW += eo[i]; nW++; } }
+      const water = (sea: number) => {
+        (document.getElementById('gen-sea') as HTMLInputElement).value = String(sea);
+        const job = Generator._buildJob({ skipExpensive: true }); job.p.rivers = 0;
+        const res = MapJobs.generate(job);
+        let w = 0;
+        for (let i = 0; i < res.grid.length; i++) { const e = Terrain.byHexId(res.names[res.grid[i]]); if (e && e.type === 'Water') w++; }
+        return w / res.grid.length;
+      };
+      return { has: Generator.hasElevation(), len: eo.length, east: sE / nE, west: sW / nW, low: water(-0.3), mid: water(0), high: water(0.3) };
+    });
+    expect(r.has).toBe(true);
+    expect(r.len).toBe(450 * 450);
+    expect(r.east).toBeGreaterThan(r.west + 0.4);
+    expect(r.low).toBeLessThan(r.mid);          // positive control: sea level really changes the water share, both directions
+    expect(r.mid).toBeLessThan(r.high);
+    expect(r.high - r.low).toBeGreaterThan(0.2);
+  });
+
+  test('the worker honours elevOverride and agrees with the main-thread job; default output carries no override', async ({ page }) => {
+    const none = await page.evaluate(() => Generator._buildJob().p.elevOverride ?? null);
+    expect(none).toBeNull();
+    await importDataUrl(page, await gradientPng(page));
+    const r = await page.evaluate(async () => {
+      const job = Generator._buildJob({ skipExpensive: true });
+      const viaWorker = await WorkerJobs.run('generate', job);
+      const direct = MapJobs.generate(Generator._buildJob({ skipExpensive: true }));
+      let diff = 0; for (let i = 0; i < direct.grid.length; i++) if (viaWorker.names[viaWorker.grid[i]] !== direct.names[direct.grid[i]]) diff++;
+      const plain = MapJobs.generate({ ...Generator._buildJob({ skipExpensive: true }), p: { ...job.p, elevOverride: undefined } });
+      let vsPlain = 0; for (let i = 0; i < direct.grid.length; i++) if (plain.names[plain.grid[i]] !== direct.names[direct.grid[i]]) vsPlain++;
+      return { diff, vsPlain, usedWorker: WorkerJobs.lastUsedWorker ?? null };
+    });
+    expect(r.diff).toBe(0);
+    expect(r.vsPlain).toBeGreaterThan(1000);     // positive control: the override really changes the map
+  });
+
+  test('validation: type, size (before any read), empty, corrupt, too many pixels; state untouched, toasts say why', async ({ page }) => {
+    await importDataUrl(page, await gradientPng(page), 'good.png');
+    const r = await page.evaluate(async () => {
+      let decodes = 0;
+      const real = window.createImageBitmap.bind(window);
+      (window as any).createImageBitmap = (...a: any[]) => { decodes++; return (real as any)(...a); };
+      const out: any = {};
+      const run = async (k: string, f: File) => { const d0 = decodes; await Generator.importElevation(f); out[k] = decodes - d0; };
+      await run('text', new File(['hello'], 'a.txt', { type: 'text/plain' }));
+      await run('svg', new File(['<svg xmlns="http://www.w3.org/2000/svg"/>'], 'a.svg', { type: 'image/svg+xml' }));
+      const big = new File(['x'], 'big.png', { type: 'image/png' });
+      Object.defineProperty(big, 'size', { value: 200 * 1024 * 1024 });
+      await run('big', big);
+      await run('empty', new File([], 'e.png', { type: 'image/png' }));
+      await run('corrupt', new File([new Uint8Array(200).fill(7)], 'bad.png', { type: 'image/png' }));
+      (window as any).createImageBitmap = async () => ({ width: 20000, height: 20000, close() {} });
+      await run('huge', new File(['x'], 'huge.png', { type: 'image/png' }));
+      (window as any).createImageBitmap = real;
+      return { ...out, has: Generator.hasElevation(), name: document.getElementById('gen-elev-name')!.textContent };
+    });
+    expect(r.text).toBe(0); expect(r.svg).toBe(0); expect(r.big).toBe(0); expect(r.empty).toBe(0);   // rejected before decoding
+    expect(r.corrupt).toBe(1);                                                                       // positive control: decode was attempted
+    expect(r.has).toBe(true);                                                                        // the earlier good import survived every failure
+    expect(r.name).toBe('good.png');
+    const t = (await toasts(page)).join(' | ');
+    expect(t).toContain('Not an image');
+    expect(t).toContain('too large');
+    expect(t).toContain('is empty');
+    expect(t).toContain('could not be decoded');
+    expect(t).toContain('too many pixels');
+  });
+
+  test('a flat image warns and gives a flat 0.5 grid', async ({ page }) => {
+    await page.evaluate(async () => {
+      const cv = document.createElement('canvas'); cv.width = 8; cv.height = 8;
+      const g = cv.getContext('2d')!; g.fillStyle = '#808080'; g.fillRect(0, 0, 8, 8);
+      const blob: Blob = await new Promise(res => cv.toBlob(b => res(b!), 'image/png'));
+      await Generator.importElevation(new File([blob], 'flat.png', { type: 'image/png' }));
+    });
+    expect(await toasts(page)).toContain('Warning: the image has no usable elevation variation');
+    expect(await page.evaluate(() => Generator._buildJob().p.elevOverride[12345])).toBe(0.5);
+  });
+
+  test('a huge image is downscaled before any per-pixel work (work counter, no wall clock)', async ({ page }) => {
+    const r = await page.evaluate(async () => {
+      const cv = document.createElement('canvas'); cv.width = 5000; cv.height = 3000;
+      const g = cv.getContext('2d')!;
+      const grad = g.createLinearGradient(0, 0, 5000, 0); grad.addColorStop(0, '#000'); grad.addColorStop(1, '#fff');
+      g.fillStyle = grad; g.fillRect(0, 0, 5000, 3000);
+      const blob: Blob = await new Promise(res => cv.toBlob(b => res(b!), 'image/png'));
+      const real = GenUtils.luminanceGrid; const seen: number[] = [];
+      GenUtils.luminanceGrid = (px: any, w: number, h: number) => { seen.push(w * h); return real(px, w, h); };
+      try { await Generator.importElevation(new File([blob], 'big.png', { type: 'image/png' })); } finally { GenUtils.luminanceGrid = real; }
+      const eo = Generator._buildJob().p.elevOverride;
+      return { seen, has: Generator.hasElevation(), fit: GenUtils.fitWithin(5000, 3000, 2048), first: eo[0], last: eo[eo.length - 1] };
+    });
+    expect(r.has).toBe(true);
+    expect(r.fit).toEqual({ w: 2048, h: 1229 });
+    expect(r.seen).toEqual([2048 * 1229]);       // exactly one luminance pass, over the downscaled pixels (15 Mpx source never walked)
+    expect(r.seen[0]).toBeLessThan(5000 * 3000 / 5);
+  });
+
+  test('fitWithin keeps small images, scales large ones keeping aspect, never returns 0', async ({ page }) => {
+    const r = await page.evaluate(() => [GenUtils.fitWithin(100, 50, 2048), GenUtils.fitWithin(4096, 1024, 2048), GenUtils.fitWithin(1000000, 1, 2048), GenUtils.fitWithin(2048, 2048, 2048)]);
+    expect(r).toEqual([{ w: 100, h: 50 }, { w: 2048, h: 512 }, { w: 2048, h: 1 }, { w: 2048, h: 2048 }]);
+  });
+
+  test('the modal controls work through the real file input; the file name is shown as text only', async ({ page }) => {
+    const url = await gradientPng(page);
+    const buffer = Buffer.from(url.split(',')[1], 'base64');
+    await page.evaluate(() => Generator.open());
+    expect(await page.locator('#gen-modal #gen-elev-file, #gen-modal #gen-sea, #gen-modal #gen-use-elev').count()).toBe(3);
+    expect(await page.locator('.toolbar #gen-elev-file, #toolbar #gen-elev-file').count()).toBe(0);
+    expect(await page.locator('#gen-use-elev').isDisabled()).toBe(true);
+    const evil = '<img src=x onerror="window.__xss=1">.png';
+    await page.setInputFiles('#gen-elev-file', { name: evil, mimeType: 'image/png', buffer });
+    await expect(page.locator('#gen-elev-name')).toHaveText(evil);
+    expect(await page.locator('#gen-elev-name *').count()).toBe(0);
+    expect(await page.evaluate(() => (window as any).__xss ?? null)).toBeNull();
+    expect(await page.locator('#gen-use-elev').isChecked()).toBe(true);
+    // unticking stops the override, the slider shifts it
+    const a = await page.evaluate(() => Generator._buildJob().p.elevOverride[225 * 450 + 225]);
+    await page.evaluate(() => { const s = document.getElementById('gen-sea') as HTMLInputElement; s.value = '0.2'; s.dispatchEvent(new Event('input')); });
+    const b = await page.evaluate(() => Generator._buildJob().p.elevOverride[225 * 450 + 225]);
+    expect(b).toBeCloseTo(Math.max(0, a - 0.2), 4);
+    await page.locator('#gen-use-elev').uncheck();
+    expect(await page.evaluate(() => Generator._buildJob().p.elevOverride ?? null)).toBeNull();
+    await page.locator('#gen-use-elev').check();
+    await page.evaluate(() => Generator.clearElevation());
+    expect(await page.evaluate(() => [Generator.hasElevation(), Generator._buildJob().p.elevOverride ?? null])).toEqual([false, null]);
+    await expect(page.locator('#gen-elev-name')).toHaveText('none');
+  });
+
+  test('the last import wins when two overlap', async ({ page }) => {
+    const url = await gradientPng(page);
+    const name = await page.evaluate(async (url: string) => {
+      const blob = await (await fetch(url)).blob();
+      const p1 = Generator.importElevation(new File([blob], 'first.png', { type: 'image/png' }));
+      const p2 = Generator.importElevation(new File([blob], 'second.png', { type: 'image/png' }));
+      await Promise.all([p1, p2]);
+      return document.getElementById('gen-elev-name')!.textContent;
+    }, url);
+    expect(name).toBe('second.png');
+  });
+
+  test('the imported elevation survives a map size change (re-resampled for the new size)', async ({ page }) => {
+    await importDataUrl(page, await gradientPng(page));
+    const r = await page.evaluate(() => {
+      MAP_WIDTH = 60; MAP_HEIGHT = 40;
+      const eo = Generator._buildJob().p.elevOverride;
+      return { has: Generator.hasElevation(), len: eo ? eo.length : -1 };
+    });
+    expect(r).toEqual({ has: true, len: 60 * 40 });
+  });
+});

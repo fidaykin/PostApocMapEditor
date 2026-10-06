@@ -1236,9 +1236,9 @@ body.mode-common #map-io    { display: none; }
 
 </style>
 <script src="hex-utils.js?v=2"></script>
-<script src="gen-utils.js?v=1"></script>
+<script src="gen-utils.js?v=2"></script>
 <script src="zone-painter.js?v=17"></script>
-<script src="map-jobs.js?v=3"></script>
+<script src="map-jobs.js?v=4"></script>
 </head>
 <body class="mode-map">
 
@@ -2267,6 +2267,22 @@ body.mode-common #map-io    { display: none; }
           <input id="gen-blend" type="range" min="0" max="12" step="1" value="4" oninput="Generator.schedule()">
           <span id="gen-blend-v" class="gen-val">4</span>
         </div>
+        <!-- Imported elevation (heightmap image) -->
+        <div class="gen-section">Elevation image</div>
+        <input id="gen-elev-file" type="file" accept="image/png,image/jpeg,image/webp,image/bmp,image/gif" style="display:none" onchange="Generator.onElevFile(event)">
+        <div class="gen-presets">
+          <button class="gen-preset-btn" title="Use a grayscale image (bright = high) as the elevation; north-up, west-left" onclick="document.getElementById('gen-elev-file').click()">Import elevation…</button>
+        </div>
+        <div class="gen-check-row">
+          <input id="gen-use-elev" type="checkbox" disabled onchange="Generator.schedule()">
+          <label for="gen-use-elev">Use imported elevation: <span id="gen-elev-name">none</span></label>
+          <button class="gen-rnd-btn" title="Forget the imported image" onclick="Generator.clearElevation()">✕</button>
+        </div>
+        <div class="gen-row">
+          <label>Sea level</label>
+          <input id="gen-sea" type="range" min="-0.3" max="0.3" step="0.01" value="0" oninput="Generator.schedule()">
+          <span id="gen-sea-v" class="gen-val">0.00</span>
+        </div>
         <!-- Presets -->
         <div class="gen-section">Presets</div>
         <div class="gen-presets">
@@ -2459,7 +2475,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.06";
-const COMMIT  = "0cd1d0f";
+const COMMIT  = "c4a1978";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10717,7 +10733,7 @@ const IO = (() => {
 // One worker per job run, terminated on completion/cancel, so owners (satellite, generator…) cannot disturb each other.
 // Must equal MapJobs.VERSION in map-jobs.js (and the ?v= on its URLs). A stale cached map-jobs.js/map-worker.js is
 // refused instead of silently producing different output.
-const MAP_JOBS_VERSION = 3;
+const MAP_JOBS_VERSION = 4;
 const WorkerJobs = (() => {
   let _broken = false, _forceSync = false, _lastWorker = false, _seq = 0;
   const _jobs = new Set();      // live entries: { id, owner, w, timer, resolve, reject, onProgress, type, job }
@@ -10760,7 +10776,7 @@ const WorkerJobs = (() => {
       _jobs.add(en);
       let w = null;
       if (!_broken && !_forceSync && typeof Worker !== 'undefined') {
-        try { w = new Worker('map-worker.js?v=3'); } catch (e) { _broken = true; }
+        try { w = new Worker('map-worker.js?v=4'); } catch (e) { _broken = true; }
       }
       if (!w) { _jobs.delete(en); _lastWorker = false; _runSync(type, job, onProgress).then(resolve, reject); return; }
       en.w = w;
@@ -10859,13 +10875,92 @@ const Generator = (() => {
       oil:        document.getElementById('gen-oil').checked,
       oilCount:   parseInt(document.getElementById('gen-oilCount').value),
       debug:      document.getElementById('gen-debug').checked,
+      elevOverride: _currentElev(),
     };
+  }
+
+  // ── Imported elevation (T3.4) ────────────────────────────────
+  // The luminance of the (downscaled) image is kept at its own size; it is resampled + normalised for the CURRENT map size on
+  // demand (cached), so Expand/New Map at another size never leaves a wrong-sized grid. A stale grid for the same size
+  // (New Map / Load) is deliberately kept: the checkbox and the file name in the modal show that it is active.
+  const ELEV_MAX_BYTES = 25 * 1024 * 1024, ELEV_MAX_DIM = 2048, ELEV_MAX_PIXELS = 64e6;
+  const ELEV_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/bmp', 'image/gif'];
+  let _elevSrc = null;                 // { lum: Float32Array, sw, sh, name, flat }
+  let _elevGrid = null, _elevOut = null, _elevTok = 0;
+
+  function hasElevation() { return !!_elevSrc; }
+
+  function _elevNormFor(W, H) {
+    if (!_elevGrid || _elevGrid.src !== _elevSrc || _elevGrid.W !== W || _elevGrid.H !== H)
+      _elevGrid = { src: _elevSrc, W, H, grid: GenUtils.normalize(GenUtils.resampleToMap(_elevSrc.lum, _elevSrc.sw, _elevSrc.sh, W, H)).grid };
+    return _elevGrid.grid;
+  }
+
+  function _currentElev() {
+    const use = document.getElementById('gen-use-elev');
+    if (!_elevSrc || !use || !use.checked) return null;
+    const base = _elevNormFor(MAP_WIDTH, MAP_HEIGHT);
+    const sea = parseFloat(document.getElementById('gen-sea').value) || 0;
+    if (!_elevOut || _elevOut.base !== base || _elevOut.sea !== sea) _elevOut = { base, sea, grid: GenUtils.applySeaLevel(base, sea) };
+    return _elevOut.grid;
+  }
+
+  function _refreshElevUI() {
+    const use = document.getElementById('gen-use-elev');
+    if (use) { use.disabled = !_elevSrc; use.checked = !!_elevSrc; }
+    const nm = document.getElementById('gen-elev-name');
+    if (nm) nm.textContent = _elevSrc ? _elevSrc.name : 'none';   // textContent: the file name is untrusted
+  }
+
+  function clearElevation() { _elevSrc = null; _elevGrid = null; _elevOut = null; _elevTok++; _refreshElevUI(); schedule(); }
+
+  // Validates BEFORE reading (type, size), decodes, downscales to <= ELEV_MAX_DIM per side before any pixel is read,
+  // and only replaces the current import after every step succeeded. Failures toast and change nothing.
+  async function importElevation(file) {
+    const tok = ++_elevTok;
+    const fail = msg => UI.toast('Elevation import failed: ' + msg, { ms: 4000 });
+    const nm = file && file.name ? String(file.name).slice(0, 80) : 'file';
+    try {
+      if (!file) return fail('no file given');
+      const typeOk = ELEV_TYPES.includes(file.type) || (!file.type && /\.(png|jpe?g|webp|bmp|gif)$/i.test(file.name || ''));
+      if (!typeOk) return fail('Not an image file (PNG, JPEG, WebP, BMP or GIF expected): ' + nm);
+      if (file.size > ELEV_MAX_BYTES) return fail('the file is too large (' + (file.size / 1048576).toFixed(1) + ' MB, limit ' + (ELEV_MAX_BYTES / 1048576) + ' MB)');
+      if (file.size === 0) return fail('the file is empty: ' + nm);
+      let bmp;
+      try { bmp = await createImageBitmap(file); }
+      catch (e) { return fail('the image could not be decoded (corrupt or unsupported): ' + nm); }
+      try {
+        if (bmp.width * bmp.height > ELEV_MAX_PIXELS) return fail('the image has too many pixels (' + bmp.width + ' x ' + bmp.height + ', limit ' + (ELEV_MAX_PIXELS / 1e6) + ' million)');
+        const fit = GenUtils.fitWithin(bmp.width, bmp.height, ELEV_MAX_DIM);
+        const cv = document.createElement('canvas');
+        cv.width = fit.w; cv.height = fit.h;
+        const cx = cv.getContext('2d', { willReadFrequently: true });
+        cx.imageSmoothingEnabled = true; cx.imageSmoothingQuality = 'high';
+        cx.drawImage(bmp, 0, 0, fit.w, fit.h);                      // the browser scales; no per-pixel work on the full-size image
+        const lum = GenUtils.luminanceGrid(cx.getImageData(0, 0, fit.w, fit.h).data, fit.w, fit.h);
+        const flat = GenUtils.normalize(GenUtils.resampleToMap(lum, fit.w, fit.h, MAP_WIDTH, MAP_HEIGHT)).flat;
+        if (tok !== _elevTok) return;                                 // a newer import (or Clear) superseded this one
+        _elevSrc = { lum, sw: fit.w, sh: fit.h, name: nm, flat };
+        _elevGrid = null; _elevOut = null;
+        _refreshElevUI();
+        if (flat) UI.toast('Warning: the image has no usable elevation variation', { ms: 4000 });
+        schedule();
+      } finally { if (bmp.close) bmp.close(); }
+    } catch (err) {
+      fail(err && err.message ? err.message : 'unexpected error');
+    }
+  }
+
+  function onElevFile(ev) {
+    const f = ev.target.files && ev.target.files[0];
+    ev.target.value = '';
+    if (f) importElevation(f);
   }
 
   function _updateLabels() {
     [['gen-elevScale',3],['gen-moistScale',3],['gen-biomeScale',3],
      ['gen-mountain',2],['gen-hill',2],['gen-water',2],
-     ['gen-coastR',2],['gen-coastWobble',2],['gen-coastBand',2]].forEach(([id, dp]) => {
+     ['gen-coastR',2],['gen-coastWobble',2],['gen-coastBand',2],['gen-sea',2]].forEach(([id, dp]) => {
       const v = document.getElementById(id + '-v');
       if (v) v.textContent = parseFloat(document.getElementById(id).value).toFixed(dp);
     });
@@ -11098,7 +11193,7 @@ const Generator = (() => {
     }
   }
 
-  return { open, close, apply, applyPreset, schedule, applyToRegion, _buildJob: (opts) => _buildJob(_getParams(), opts || {}) };
+  return { open, close, apply, applyPreset, schedule, applyToRegion, importElevation, hasElevation, clearElevation, onElevFile, _buildJob: (opts) => _buildJob(_getParams(), opts || {}) };
 })();
 
 // ════════════════════════════════════════════════════════════
