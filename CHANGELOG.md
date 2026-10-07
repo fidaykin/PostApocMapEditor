@@ -5,6 +5,9 @@ Format: `## [version] — [date]`
 
 ## Unreleased
 
+### UI
+- The left palette is usable again: the terrain and building picker takes all the remaining height (at least 320 px) and scrolls by itself, and the selected tile is one compact row under it instead of a large preview. Every other left-palette panel (Zones, Go to, Minimap, Bookmarks, Stamps, Layers, Validate map, Export image, History, Map design, Help) is a collapsible section with a button header, closed by default; one section is open at a time, a long section scrolls inside itself, and the open section is remembered in this browser. Closed headers show a short summary: hidden/locked layers, the number of bookmarks and stamps, the last validation result (marked "(old)" after a change) and the number of history steps. Enter or Space toggles a focused header and the arrow keys move between headers. The canvas size and the toolbar are unchanged.
+
 ### Documentation
 - The content packages PDF guide is not shipped: the Help menu and the PACKAGES tab no longer link to it. The PACKAGES section of the English and Ukrainian user guides covers the essentials.
 

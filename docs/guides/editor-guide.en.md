@@ -12,6 +12,8 @@ The editor is a single page. The row of tabs under the menu bar switches the sec
 
 Everything you need while editing a map is in the **left palette**; the minimap, brush size and the selected tile are in the **right panel**. The right panel can be collapsed with the `»` button at its top. On windows narrower than 1920 px it starts collapsed as a thin rail and opens over the map as a drawer; the choice is remembered in this browser.
 
+The left palette has the tool buttons and the Symmetry selector at the top, then the terrain and building picker, which takes all the remaining height and scrolls by itself; the selected tile is shown in one compact row under it. Below the picker every other panel is a collapsible section: Zones, Go to, Minimap, Bookmarks, Stamps, Layers, Validate map, Export image, History, Map design and Help. All of them start closed. Click a section header (or focus it and press Enter or Space) to open it; opening one closes the one that was open, and a long section scrolls inside itself so the picker keeps its room. The arrow keys move between the headers. The open section is remembered in this browser. A header shows a short summary while it is closed: Layers says how many layers are hidden or locked, Bookmarks and Stamps show how many you have, Validate map shows the last result (marked "(old)" after the map changed) and History the number of steps. The `+` next to Zones adds a zone even while the section is closed. On a short window the whole palette scrolls.
+
 The Help menu opens this guide (English and Ukrainian) and the content packages guide, and lists every keyboard shortcut.
 
 ## 2. The map and the coordinates
@@ -83,7 +85,7 @@ All these tools have buttons in the left palette.
 
 ## 7. Layers and locks
 
-The **Layers** panel (left palette) lists Terrain, Buildings and bridges, Roads, Settlements and Zone overlay.
+The **Layers** section (left palette; while it is closed its header shows how many layers are hidden or locked, and the status bar names them) lists Terrain, Buildings and bridges, Roads, Settlements and Zone overlay.
 
 - The eye button hides a layer on the map. Hidden terrain shows a flat dark tile. Hiding is a view setting only: it is not an undo step and does not change the map. The Zone overlay switch is the same as the zone overlay button of the Zone Painter.
 - The lock button protects a layer. A locked layer is left alone by every tool and command that would write to it: a refused action shows one message and leaves no undo step. Cut, delete, move, paste and the Eraser still edit the layers that are not locked.
