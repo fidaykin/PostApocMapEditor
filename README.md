@@ -77,6 +77,29 @@ The tests use the system Chrome (`channel: 'chrome'`), start their own static se
 - **Development preview**: a push to `dev` that touches `MapEditorPro.html` or one of the root scripts runs `.github/workflows/deploy-dev.yml`. It injects `<base href="../">` so data, sprites and docs resolve from the site root, rewrites the root script tags and the worker URL to point into `dev/`, and copies only `MapEditorPro.html` and the root scripts into `dev/` on `gh-pages`. Docs, databases and sprites are not copied: the dev page reads the production copies, so a new guide appears on both pages only after the next production deploy.
 - A new root script must be added to the workflow (trigger paths, rewrite, `?v=` check, copy) and to the deploy lint in `tests/perf-workers.spec.ts` in the same commit.
 
+## Production deploy: what gets published
+
+The agents (and CI) never deploy production. The maintainer runs `bash deploy.sh` by hand.
+
+**How it publishes.** `deploy.sh` checks out `gh-pages`, merges the WHOLE current branch into it (`git merge <branch>`), stamps `MapEditorPro.html` and pushes. There is no file list: everything tracked in the branch is published, so everything below goes live together.
+
+**What the app really needs at the site root** (read from the `<script src>` tags, the worker URL and the fetches in `MapEditorPro.html`):
+
+| Needed by | Files |
+|---|---|
+| Page and scripts (load order) | `MapEditorPro.html`, `hex-utils.js?v=2`, `gen-utils.js?v=5`, `map-format.js?v=2`, `brush.js?v=1`, `zone-painter.js?v=21`, `map-jobs.js?v=6` |
+| Web Worker | `map-worker.js?v=6` (created by `new Worker('map-worker.js?v=6')`; it runs `importScripts('map-jobs.js?v=6')`, so `map-jobs.js` must sit next to it) |
+| Help menu | `docs/guides/editor-guide.en.html`, `docs/guides/editor-guide.uk.html` |
+| Sprites and content | `sprites/`, `packages/` (`registry.json`, `packages/postapoc/` with `hex_database.json`, `building_database.json`, `package.json`, `sprites/`), `hex_database.json`, `building_database.json`, `upgrade_database.json`, `localization.json` |
+| Maps | `maps/` including `maps/map_list.json` |
+| Convenience | `index.html` (redirect), `favicon.png`, `SatelliteColorGuide.html` (linked from the satellite import dialog) |
+
+Any production path other than `deploy.sh` must include every file above. The `?v=` values are the cache-busters in the tags (the numbers above are the current ones): bump a script's `?v=` with every change to it; the `map-jobs.js` and `map-worker.js` values must equal `MapJobs.VERSION`, and `.github/workflows/deploy-dev.yml` checks the same numbers with `grep -q`, so a bump touches the HTML, the worker's `importScripts`, `MapJobs.VERSION`, the workflow and the lint in `tests/perf-workers.spec.ts` together (`zone-painter.js` only has to keep some `?v=`).
+
+**Dev workflow.** A push to `dev` that touches `MapEditorPro.html` or one of `map-jobs.js`, `map-worker.js`, `hex-utils.js`, `gen-utils.js`, `map-format.js`, `brush.js`, `zone-painter.js` runs `deploy-dev.yml`. It publishes only those eight files into `dev/` on `gh-pages`, rewrites the script tags and the worker URL to `dev/...`, and fails if a `?v=` tie above no longer matches. Everything else (databases, sprites, maps, docs) is read from the site root, i.e. from the last production deploy.
+
+**Help guides on dev.** The Help-menu guide links (`docs/guides/editor-guide.en.html`, `editor-guide.uk.html`) resolve against the site root (`<base href="../">`), and the dev workflow does not copy `docs/`. They 404 on `dev/` until the docs reach `gh-pages` through `deploy.sh`.
+
 ## Data safety
 
 - Startup merges the saved content with the shipped defaults instead of replacing it, and publishing shows a diff and refuses unsafe writes.
