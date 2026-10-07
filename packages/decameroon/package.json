@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.8",
+  "version": "1.0.10",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -11,6 +11,16 @@
       "version": "1.0.8",
       "date": "2026-10-07",
       "note": "add new buildings  remove duplicates from Hex and Buildings DB"
+    },
+    {
+      "version": "1.0.9",
+      "date": "2026-10-07",
+      "note": "remove duplicates Buildings BD"
+    },
+    {
+      "version": "1.0.10",
+      "date": "2026-10-07",
+      "note": "fix Artefact settings  delete Copy"
     }
   ]
 }

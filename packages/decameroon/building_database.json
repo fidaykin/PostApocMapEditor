@@ -770,7 +770,7 @@
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
-      "type": "Ground Building",
+      "type": "Artefact",
       "buildingCategory": "Standard",
       "biome": "Decameron",
       "filter": "FilterBuilding",
