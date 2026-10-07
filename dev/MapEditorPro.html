@@ -2816,7 +2816,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "c09ebaf";
+const COMMIT  = "4a50b4f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5970,8 +5970,11 @@ const Clipboard = (() => {
       if (layers.zones !== false && zonesOk && zl && e.z) zl[it.idx] = e.z;
     });
     invalidateSatelliteMap();
+    // Paste / move / stamp placement are hand tools: with Tools.AUTO_WATER_EDGES off (owner decision) the cells are
+    // written exactly as copied and nothing around them is re-resolved. With it on (old behaviour):
     // Identity paste: re-resolve edges around the BORDER only (interior cells keep the tiles that were copied). A
     // transformed paste re-resolves every pasted cell (see below).
+    if (layers.terrain === false || !Tools.AUTO_WATER_EDGES) return items.length;
     const inP = written, offs = [0, 1].map(p => HexUtils.CUBE_DIRS.map(d => {
       const c0 = 100, r0 = 100 + p, cube = HexUtils.toCube(c0, r0, W, H), n = HexUtils.fromCube({ q: cube.q + d.q, r: cube.r + d.r, s: cube.s + d.s }, W, H);
       return [n.col - c0, n.row - r0];
@@ -5988,7 +5991,7 @@ const Clipboard = (() => {
         if (!inP.has(nr * W + nc)) { touched.push({ col: it.col, row: it.row, prev: prevs[n] }); break; }
       }
     });
-    if (layers.terrain !== false) Tools.autoResolveEdgesAround(touched);   // edges depend on terrain only
+    Tools.manualEdgesAround(touched);   // edges depend on terrain only
     return items.length;
   }
 
@@ -6759,6 +6762,16 @@ const Tools = (() => {
     return out;
   }
 
+  // ── Automatic water-body logic switch (owner decision 2026-10-07) ──
+  // The hand tools (Paint incl. brush and symmetry, Fill, Rectangle, Line, Circle, Polygon, Scatter, Replace, Eraser, paste,
+  // move, stamp placement) no longer re-resolve river / lake pieces, shores or rock / dirty / light water: each writes
+  // EXACTLY the chosen tile into exactly the intended cells and changes no neighbouring cell. Every manual call site goes
+  // through _manualEdgesAround, so this ONE constant turns the old behaviour back on. The map generator keeps its logic:
+  // Generator.apply (worker) and generate-into-selection (Generator.applyToRegion) call _autoResolveEdgesAround /
+  // Tools.autoResolveEdgesAround directly; zone filling (ZonePainter, procedural terrain) keeps it too.
+  const AUTO_WATER_EDGES = false;
+  function _manualEdgesAround(cellsPainted) { if (AUTO_WATER_EDGES) _autoResolveEdgesAround(cellsPainted); }
+
   // cellsPainted: [{col,row,prev?}] where prev is the id the cell held BEFORE the edit.
   // A directional tile written here re-resolves itself and its water/river neighbours (original rule).
   // A water/river cell appearing or disappearing here re-resolves its directional neighbours, so erasing or
@@ -6858,7 +6871,7 @@ const Tools = (() => {
       if (bi >= 0) bridgesData.splice(bi, 1);
     }
     if (footprints) invalidateSatelliteMap();      // single-tile writes cannot change a footprint: no O(W*H) rebuild per stroke move
-    _autoResolveEdgesAround(touched);
+    _manualEdgesAround(touched);                   // off (AUTO_WATER_EDGES): the chosen tile is written as-is
     return touched;
   }
 
@@ -6974,7 +6987,7 @@ const Tools = (() => {
         const b = bridgesData[i];
         if (b.col >= 0 && b.col < W && b.row >= 0 && b.row < H && visited[b.row * W + b.col] && md[b.row * W + b.col] === fillId) bridgesData.splice(i, 1);
       }
-      _autoResolveEdgesAround(cells);
+      _manualEdgesAround(cells);                  // off (AUTO_WATER_EDGES): no edge pass after a fill
       Canvas.render();
       Canvas.drawMinimap();
       IO.scheduleAutoSave();
@@ -7168,7 +7181,7 @@ const Tools = (() => {
       for (let k = bridgesData.length - 1; k >= 0; k--) if (gone.has(bridgesData[k].row * W + bridgesData[k].col)) bridgesData.splice(k, 1);
     }
     invalidateSatelliteMap();
-    _autoResolveEdgesAround(touched);
+    _manualEdgesAround(touched);                  // off (AUTO_WATER_EDGES): the replacement is written as-is
     return touched.length;
   }
 
@@ -7261,7 +7274,7 @@ const Tools = (() => {
     for (let i = bridgesData.length - 1; i >= 0 && !lk.objects; i--)
       if (erased.has(bridgesData[i].row * MAP_WIDTH + bridgesData[i].col)) bridgesData.splice(i, 1);
     if (footprints) invalidateSatelliteMap();
-    _autoResolveEdgesAround(touched);
+    _manualEdgesAround(touched);                  // off (AUTO_WATER_EDGES): erased cells never re-resolve their neighbours
     return touched.length;
   }
 
@@ -7318,7 +7331,7 @@ const Tools = (() => {
   // cell takes one of the chosen variants (HexUtils.scatterPick). The cells are the brush disc expanded by the active
   // symmetry mode (so the area is mirrored) but every cell rolls on its own: mirrored copies are NOT identical.
   // Writes go through _writeTerrain in ONE pass with per-cell ids (noSymmetry: the area is already expanded), so
-  // edge re-resolution, bridge removal and footprint skips are Paint's and the footprint map is rebuilt at most once. A stroke shares one seeded RNG and one
+  // bridge removal and footprint skips are Paint's (no edge re-resolution: Tools.AUTO_WATER_EDGES is off) and the footprint map is rebuilt at most once. A stroke shares one seeded RNG and one
   // visited set: a cell reached by several stamps is rolled once (dragging does not re-roll or flicker). A stroke
   // reuses the eraser's stroke state (_eraseStroke/_eraseToken/_eraseMd): the History step is pushed lazily, right
   // before the first write, so a stroke that places nothing leaves no step.
@@ -7331,15 +7344,22 @@ const Tools = (() => {
 
   // The variants of an id: same package, same HexDB type and same first '_' segment, no multi-tile entries (their footprint cannot
   // be scattered), no directional river/lake pieces (edgeFaces), no test/kaiju/chicken placeholders. Falls back to the id itself when it is not in HexDB.
+  // The family is the first '_' segment of the id AFTER the package's id prefix (Decameroon_Rift_1 -> 'rift'): with the
+  // prefix every same-type tile of a package was a "variant" (the rift scattered lava). Suffixes (_copy, _2x) never matter.
+  function _scatterFamily(id, pkg) {
+    const pre = typeof Packages !== 'undefined' ? Packages.idPrefix(pkg).toLowerCase() : '';
+    const lo = String(id).toLowerCase();
+    return (pre && lo.startsWith(pre) ? lo.slice(pre.length) : lo).split('_')[0];
+  }
   function _scatterVariants(hexId) {
     const base = Terrain.byHexId(hexId);
     if (!base) return typeof hexId === 'string' && hexId ? [hexId] : [];
-    const prefix = hexId.split('_')[0].toLowerCase();
     const pkg = base.package || 'postapoc';   // a group never mixes packages (art styles): variants come from the clicked tile's package only
+    const prefix = _scatterFamily(hexId, pkg);
     return HexDB.getAll()
-      .filter(h => h.id && (h.package || 'postapoc') === pkg && h.type === base.type && h.id.split('_')[0].toLowerCase() === prefix &&
+      .filter(h => h.id && (h.package || 'postapoc') === pkg && h.type === base.type && _scatterFamily(h.id, pkg) === prefix &&
                    !(Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length) &&
-                   !_isDirectional(h) &&               // river/lake direction pieces: edge re-resolution overrides the pick
+                   !_isDirectional(h) &&               // river/lake direction pieces point one way: never scattered at random
                    !/_test|kaiju|chicken/i.test(h.id))
       .map(h => h.id);
   }
@@ -8416,7 +8436,7 @@ const Tools = (() => {
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
   return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
-           _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
+           _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround, manualEdgesAround: _manualEdgesAround, AUTO_WATER_EDGES,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
 })();
@@ -10070,7 +10090,7 @@ const UI = (() => {
     const selImg = document.getElementById('palette-sel-img');
     const spr = Terrain.getSprite(hexId);
     if (spr) selImg.src = spr.src;
-    else if (t.spriteName) selImg.src = `packages/postapoc/sprites/hex/${t.spriteName}.png`;
+    else if (t.spriteName) selImg.src = typeof Packages !== 'undefined' ? Packages.spriteSrc(t, 'hex') : `packages/postapoc/sprites/hex/${t.spriteName}.png`;
     document.getElementById('palette-selected-name').textContent = t.name || hexId;
     document.getElementById('palette-selected-id').textContent   = hexId;
 
@@ -16697,7 +16717,8 @@ const BiomeManager = (() => {
     const hexSel = document.querySelector('select.hexdb-select[data-field="biome"]');
     if (hexSel) {
       const cur = hexSel.value;
-      hexSel.innerHTML = names.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
+      const list = cur && !names.includes(cur) ? [cur, ...names] : names;     // keep a biome that is not in the list (see _selectInput)
+      hexSel.innerHTML = list.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
     }
     ['bld-f-biome', 'stt-f-biome'].forEach(id => {
       const el = document.getElementById(id);
@@ -17030,8 +17051,11 @@ const HexDB = (() => {
   <label>${labelText}</label>
 </div>`;
   }
+  // A current value missing from the list (e.g. a package biome such as 'Decameron') is kept as its own first option:
+  // otherwise the select shows the first list entry and the next field edit (_readRecord) silently writes that instead.
   function _selectInput(field, options, curVal) {
-    const opts = options.map(o => `<option${o===curVal?' selected':''}>${o}</option>`).join('');
+    const list = (curVal != null && curVal !== '' && !options.includes(curVal)) ? [curVal, ...options] : options;
+    const opts = list.map(o => `<option${o===curVal?' selected':''}>${_esc(o)}</option>`).join('');
     return `<select class="hexdb-select" data-field="${field}">${opts}</select>`;
   }
 
@@ -17800,6 +17824,7 @@ const HexDB = (() => {
     h.package = pkg;
     _data.hexes.push(h);
     _autoSave();
+    _loadNewEntrySprite(h);
     _applyFilter();
     _buildList();
     const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
@@ -17837,6 +17862,13 @@ const HexDB = (() => {
     });
   }
 
+  // A new entry (Paste, Reskin+) is paintable at once: its sprite (keyed by the new id) is loaded and the palette rebuilt,
+  // as a field edit does. Without this the copy had no palette button and drew as an empty dark hex until a reload.
+  function _loadNewEntrySprite(h) {
+    Terrain.applyHexDbOverrides([h]).then(() => { UI.buildPalette(); Canvas.render(); });
+    UI.buildPalette();
+  }
+
   function copy() {
     if (_selFilt < 0 || _selFilt >= _filtered.length) return;
     _clipboard = structuredClone(_data.hexes[_filtered[_selFilt]]);
@@ -17849,6 +17881,7 @@ const HexDB = (() => {
     h.id = h.id + '_copy';
     _data.hexes.push(h);
     _autoSave();
+    _loadNewEntrySprite(h);
     _applyFilter(); _buildList();
     const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
     _selectIdx(filtIdx >= 0 ? filtIdx : _filtered.length - 1);
