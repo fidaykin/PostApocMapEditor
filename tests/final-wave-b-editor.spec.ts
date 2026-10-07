@@ -45,7 +45,7 @@ test.describe('B3 validator', () => {
 });
 
 // ---- B4: layout ----
-import { openEditor } from './helpers';
+import { openEditor, openSection } from './helpers';
 
 test.describe('B4 layout', () => {
   async function start(page: Page, w: number, h: number) {
@@ -114,6 +114,7 @@ test.describe('B4 layout', () => {
     const collapsed = await info();
     for (const [dis, title] of collapsed) { expect(dis).toBe(true); expect(title).toBe('Expand the right panel to see the minimap'); }
     const before = await page.evaluate(() => Canvas.isMinimapBig());
+    await openSection(page, 'minimap');                                                    // the Minimap section is collapsed by default
     await page.locator('#mm-size-btn').click({ force: true });                             // a disabled button changes nothing
     expect(await page.evaluate(() => Canvas.isMinimapBig())).toBe(before);
     await page.evaluate(() => RightPanel.toggle());                                       // expanded (drawer on this narrow window)
@@ -270,6 +271,7 @@ test.describe('B6 zone rename', () => {
   test('clicking inside the name while renaming keeps the editor, the typed text and the caret; Enter commits what was typed', async ({ page }) => {
     await freshEditor(page);
     await page.evaluate(() => { const id = ZonePainter.addZone('Original'); ZonePainter.setSelectedZoneId(id); ZonePainter._uiRebuildZoneList(); });
+    await openSection(page, 'zones');
     const name = page.locator('#zone-list .zone-name').first();
     await name.dblclick();
     await expect(name).toHaveAttribute('contenteditable', 'true');

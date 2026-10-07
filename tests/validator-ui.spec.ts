@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { freshEditor, cellPoint, clickCell, idAt } from './editor-helpers';
+import { openSection } from './helpers';
 
 // T4.6 validator panel (left palette): explicit Run, severity filter, click an issue = centre + highlight (view only),
 // textContent-only rendering, stale results flagged instead of cleared. freshEditor = blank 450x450, city at 225,224.
@@ -12,7 +13,7 @@ function worldOf(col: number, row: number) {
 
 const rows = (page: Page) => page.locator('#val-list .val-row');
 const summary = (page: Page) => page.locator('#val-summary');
-async function openPanel(page: Page) { await page.evaluate(() => { (document.getElementById('validator-panel') as HTMLDetailsElement).open = true; }); }
+async function openPanel(page: Page) { await openSection(page, 'validator'); }
 // A map with 2 errors (unknown tile id x2 cells, unknown object) and 2 warnings (orphan road, unreachable settlement).
 async function brokenMap(page: Page) {
   await page.evaluate(() => {
@@ -31,11 +32,12 @@ test('the panel is a collapsed section of the LEFT palette; the canvas keeps its
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.evaluate(() => window.dispatchEvent(new Event('resize')));
   const info = await page.evaluate(() => {
-    const p = document.getElementById('validator-panel') as HTMLDetailsElement, c = document.getElementById('map-canvas') as HTMLCanvasElement;
-    return { inLeft: document.getElementById('palette-panel')!.contains(p), tag: p.tagName, open: p.open, w: c.width, h: c.height,
+    const p = document.getElementById('validator-panel')!, c = document.getElementById('map-canvas') as HTMLCanvasElement;
+    const hd = document.querySelector('.pal-acc-btn[aria-controls="validator-panel"]')!;
+    return { inLeft: document.getElementById('palette-panel')!.contains(p), tag: hd.tagName, open: !p.hidden || hd.getAttribute('aria-expanded') === 'true', w: c.width, h: c.height,
       inToolbar: !!document.getElementById('toolbar')?.contains(p) };
   });
-  expect(info).toMatchObject({ inLeft: true, tag: 'DETAILS', open: false, w: 1491, h: 808, inToolbar: false });
+  expect(info).toMatchObject({ inLeft: true, tag: 'BUTTON', open: false, w: 1491, h: 808, inToolbar: false });
   await expect(summary(page)).toContainText('Not run');
   await expect(rows(page)).toHaveCount(0);
 });

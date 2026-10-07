@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { freshEditorAuto } from './editor-helpers';
+import { openSection } from './helpers';
 
 // B7 (final wave): the Phase 4 flows (go to, bookmarks, validator jump, History panel) in the DEFAULT layout (`auto`, 1400x900: right
 // panel collapsed to a rail, canvas 1152 px wide). The older specs seed the classic layout on purpose (perf hashes); a user gets this one.
@@ -20,7 +21,6 @@ const inViewport = (page: Page, sel: string) => page.evaluate(s => {
   const r = document.querySelector(s)!.getBoundingClientRect();
   return r.width > 0 && r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight;
 }, sel);
-const open = (page: Page, id: string) => page.evaluate(i => { (document.getElementById(i) as HTMLDetailsElement).open = true; }, id);
 
 test.describe('Phase 4 flows in the default (auto) layout at 1400x900', () => {
   test.beforeEach(async ({ page }) => { await freshEditorAuto(page); });
@@ -32,6 +32,7 @@ test.describe('Phase 4 flows in the default (auto) layout at 1400x900', () => {
   });
 
   test('go to: typing a tile jumps and centres it in the narrower canvas; a bad input is flagged and the view stays', async ({ page }) => {
+    await openSection(page, 'goto');
     expect(await inViewport(page, '#goto-input')).toBe(true);
     await page.fill('#goto-input', '240, 210');
     await page.press('#goto-input', 'Enter');
@@ -44,6 +45,7 @@ test.describe('Phase 4 flows in the default (auto) layout at 1400x900', () => {
   });
 
   test('bookmarks: add, move away, jump back restores zoom and centre; the controls are inside the viewport', async ({ page }) => {
+    await openSection(page, 'bookmarks');
     expect(await inViewport(page, '#bm-add-btn')).toBe(true);
     await page.evaluate(() => { Canvas.setZoom(50); Canvas.centerOnTile(120, 200); });
     await page.fill('#bm-name', 'north');
@@ -56,7 +58,7 @@ test.describe('Phase 4 flows in the default (auto) layout at 1400x900', () => {
 
   test('validator: Run lists the issue and clicking it centres the first cell and marks it', async ({ page }) => {
     await page.evaluate(() => { mapData[200 * MAP_WIDTH + 130] = 'Nope_1'; });          // col 130, row 200: one unknown id
-    await open(page, 'validator-panel');
+    await openSection(page, 'validator');
     await expect(page.locator('#val-run')).toBeVisible();                              // the palette scrolls: Playwright's click scrolls it into reach
     await page.click('#val-run');
     const row = page.locator('#val-list .val-row').first();
@@ -68,7 +70,7 @@ test.describe('Phase 4 flows in the default (auto) layout at 1400x900', () => {
   });
 
   test('History panel: rows jump back and forward through labelled steps', async ({ page }) => {
-    await open(page, 'history-panel');
+    await openSection(page, 'history');
     await page.evaluate(() => { History.clear(); History.push('Open map'); History.push('Paint'); mapData[0] = 'Rubble_1'; History.push('Fill'); mapData[0] = 'Water_1'; });   // push BEFORE the write, like the tools
     const rows = page.locator('#history-list .hist-row');
     await expect(rows).toHaveText(['Fill', 'Paint', 'Open map']);

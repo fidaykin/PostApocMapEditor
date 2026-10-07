@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { openEditor, reloadEditor } from './helpers';
+import { openEditor, reloadEditor, openSection } from './helpers';
 import { freshEditor } from './editor-helpers';
 
 // T4.3: bigger minimap (opt-in, persisted) with cached zone / settlement overlays.
@@ -42,7 +42,7 @@ const addZoneBlock = (page: Page, color = '#ff0000') => page.evaluate((col) => {
 }, color);
 
 test.describe('minimap size', () => {
-  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+  test.beforeEach(async ({ page }) => { await freshEditor(page); await openSection(page, 'minimap'); });
 
   test('default is 220; the toggle switches 220 <-> 340, persists and survives a reload', async ({ page }) => {
     expect(await page.evaluate(() => [Canvas.isMinimapBig(), (document.getElementById('minimap') as HTMLCanvasElement).width])).toEqual([false, 220]);
@@ -72,7 +72,7 @@ test.describe('minimap size', () => {
 });
 
 test.describe('overlays', () => {
-  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+  test.beforeEach(async ({ page }) => { await freshEditor(page); await openSection(page, 'minimap'); });
 
   for (const big of [false, true]) {
     test(`${big ? '340' : '220'} px: non-city settlement dot, zone tint, and both toggles`, async ({ page }) => {

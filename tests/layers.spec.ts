@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { openEditor } from './helpers';
+import { openEditor, openSection } from './helpers';
 import { freshEditor, clickCell, dragCells, cellPoint } from './editor-helpers';
 
 /** Every layer, in panel order (terrain, objects, roads, settlements, zones). Declared up here, before the specs that use it. */
@@ -23,6 +23,7 @@ async function prep(page: any) {
   // sprites are loaded asynchronously: wait until every road/bridge image is complete so renders are stable
   await page.waitForFunction(() => UI._bridgeSprites.every((i: any) => i.complete));
   await page.evaluate(() => { Canvas.centerOnCity(); });
+  await openSection(page, 'layers');               // the Layers section is collapsed by default
 }
 
 test.describe('layers: visibility (T2.17)', () => {
@@ -232,6 +233,7 @@ test.describe('layers: visibility (T2.17)', () => {
 test.describe('layers: persistence (T2.17)', () => {
   test('panel eye buttons toggle layers and the state survives a reload', async ({ page }) => {
     await freshEditor(page);
+    await openSection(page, 'layers');
     await page.click('.layer-row[data-layer="objects"] .layer-eye');
     expect(await page.evaluate(() => Layers.isVisible('objects'))).toBe(false);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem('layer_state_v1')!).objects.visible)).toBe(false);
@@ -245,6 +247,7 @@ test.describe('layers: persistence (T2.17)', () => {
 
   test('lock state is stored too (enforcement belongs to T2.18)', async ({ page }) => {
     await freshEditor(page);
+    await openSection(page, 'layers');
     await page.click('.layer-row[data-layer="roads"] .layer-lock');
     expect(await page.evaluate(() => Layers.isLocked('roads'))).toBe(true);
     await expect(page.locator('.layer-row[data-layer="roads"] .layer-lock')).toHaveAttribute('aria-pressed', 'true');
@@ -293,6 +296,7 @@ test.describe('layers: persistence (T2.17)', () => {
     page.on('pageerror', e => errors.push(String(e)));
     await openEditor(page);
     expect(await page.evaluate(() => Layers.NAMES.map((n: string) => Layers.isVisible(n)))).toEqual([true, true, true, true, true]);
+    await openSection(page, 'layers');
     await page.click('.layer-row[data-layer="roads"] .layer-eye');
     expect(await page.evaluate(() => Layers.isVisible('roads'))).toBe(false);   // works in memory for this session
     expect(errors).toEqual([]);
@@ -444,8 +448,10 @@ test.describe('layers: the palette stays reachable (T2.17)', () => {
     test(`at ${vp.width}x${vp.height} every palette control can be scrolled into view and the canvas keeps its size`, async ({ page }) => {
       await page.setViewportSize(vp);
       await openEditor(page);
+      const SECTION: Record<string, 'stamps' | 'layers'> = { '#stamp-save-btn': 'stamps', '#stamp-export-btn': 'stamps', '#stamp-import-btn': 'stamps' };
       for (const sel of ['#btn-add-zone', '#stamp-save-btn', '#stamp-export-btn', '#stamp-import-btn', '#layers-panel .layer-row[data-layer="terrain"] .layer-eye',
                          '#layers-panel .layer-row[data-layer="zones"] .layer-lock']) {
+        if (sel !== '#btn-add-zone') await openSection(page, SECTION[sel] || 'layers');   // collapsed sections: opened first (the zone + is in its header)
         await page.locator(sel).scrollIntoViewIfNeeded();
         const ok = await page.evaluate((s) => {
           const e = document.querySelector(s)!.getBoundingClientRect(), p = document.getElementById('palette-panel')!.getBoundingClientRect();
@@ -797,6 +803,7 @@ test.describe('layers: locks on eraser, selection commands, paste and replace (T
     expect(await page.evaluate(() => Clipboard.get().cells[0].t)).toBe('Water_1');
     expect(await lockedToasts(page)).toEqual([]);
     const before = await snap(page), s0 = await steps(page);
+    await openSection(page, 'stamps');
     await page.locator('.stamp-row .stamp-place').first().click();
     await clickCell(page, D_.col, D_.row);
     expect(await snap(page)).toBe(before);
@@ -1792,6 +1799,7 @@ test.describe('layers: zones, fills and polygons under locks (cleanup A5)', () =
   test('inline rename: double-click refuses while locked; Esc cancels without a write or a lock toast, even when the lock came on mid-edit', async ({ page }) => {
     await zoneSeed2(page, 'forest_edge');
     await page.evaluate(() => ZonePainter._uiRebuildZoneList());
+    await openSection(page, 'zones');
     const span = '#zone-list .zone-name';
     const editable = () => page.evaluate((q) => (document.querySelector(q) as HTMLElement).contentEditable, span);
     const dbl = () => page.evaluate((q) => document.querySelector(q)!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })), span);
@@ -1820,6 +1828,7 @@ test.describe('layers: zones, fills and polygons under locks (cleanup A5)', () =
   test('inline rename with real typing: Esc cancels after several keys (not only as the first key); Enter commits without a line break', async ({ page }) => {
     await zoneSeed2(page, 'forest_edge');
     await page.evaluate(() => ZonePainter._uiRebuildZoneList());
+    await openSection(page, 'zones');
     const span = '#zone-list .zone-name';
     const dbl = () => page.evaluate((q) => document.querySelector(q)!.dispatchEvent(new MouseEvent('dblclick', { bubbles: true })), span);
     const text = () => page.evaluate((q) => document.querySelector(q)!.textContent, span);

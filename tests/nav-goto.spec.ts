@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { freshEditor } from './editor-helpers';
+import { openSection } from './helpers';
 
 // T4.1 go-to coordinates. freshEditor = blank 450x450 map (classic layout, 1600x1000 viewport).
 // Independent reference: the Unity-axis hex geometry written out here from the documented pitches (HEX_SIZE 40,
@@ -16,7 +17,7 @@ const cam = (page: Page) => page.evaluate(() => Canvas.getCamera());
 const canvasSize = (page: Page) => page.evaluate(() => { const c = document.getElementById('map-canvas') as HTMLCanvasElement; return { w: c.width, h: c.height }; });
 const gotoType = async (page: Page, text: string) => { await page.fill('#goto-input', text); await page.press('#goto-input', 'Enter'); };
 
-test.beforeEach(async ({ page }) => { await freshEditor(page); });
+test.beforeEach(async ({ page }) => { await freshEditor(page); await openSection(page, 'goto'); });   // the Go to section is collapsed by default
 
 test('parseGoto: tile, app and block addresses; junk and out-of-bounds are null', async ({ page }) => {
   const r = await page.evaluate(() => ({

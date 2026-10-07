@@ -1,7 +1,7 @@
 // Ambient declarations for the editor's global lexical bindings (not type-checked by Playwright; for editors only).
 declare const HexUtils: any, GenUtils: any, Tools: any, Brush: any, History: any, Canvas: any, Terrain: any;
 declare const Roads: any, EdgeTiling: any, IO: any, UI: any, Generator: any, HexDB: any, BldDB: any, SttDB: any;
-declare const ZonePainter: any, Selection: any, Clipboard: any, Stamps: any, Layers: any, Placement: any, DistanceBands: any;
+declare const ZonePainter: any, Selection: any, Clipboard: any, Stamps: any, Layers: any, Placement: any, DistanceBands: any, PaletteAccordion: any;
 declare let MAP_WIDTH: number, MAP_HEIGHT: number;
 declare let mapData: string[];
 declare let objectsData: Record<string, string>, roadsData: Record<string, any>, tileExtras: Record<string, any>;

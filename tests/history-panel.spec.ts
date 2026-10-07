@@ -1,12 +1,13 @@
 import { test, expect, Page } from '@playwright/test';
 import { freshEditor, clickCell, dragCells } from './editor-helpers';
+import { openSection } from './helpers';
 
 // T4.10 History panel (left palette, collapsible). History is EXTENDED, not replaced: the token return, rollback,
 // fill/stroke gating, structural row sharing and the Ctrl+Z/Y behaviour stay as they were (perf-history and
 // phase1-cleanup specs cover those); this file covers labels, entries, jump, the meta lockstep and the panel.
 const rows = (page: Page) => page.locator('#history-list .hist-row');
 const labels = (page: Page) => rows(page).allTextContents();
-async function openPanel(page: Page) { await page.evaluate(() => { (document.getElementById('history-panel') as HTMLDetailsElement).open = true; }); }
+async function openPanel(page: Page) { await openSection(page, 'history'); }
 const cell = (page: Page, i = 0) => page.evaluate(i => mapData[i], i);
 
 test.beforeEach(async ({ page }) => { await freshEditor(page); await openPanel(page); });
@@ -14,13 +15,14 @@ test.beforeEach(async ({ page }) => { await freshEditor(page); await openPanel(p
 test('the panel is a collapsed section of the LEFT palette and the canvas keeps its size', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await page.evaluate(() => window.dispatchEvent(new Event('resize')));
+  await page.locator('.pal-acc-btn[data-acc="history"]').click();      // the beforeEach opened it: the header closes it again
   const info = await page.evaluate(() => {
-    const p = document.getElementById('history-panel') as HTMLDetailsElement, c = document.getElementById('map-canvas') as HTMLCanvasElement;
-    p.open = false;
-    return { inLeft: document.getElementById('palette-panel')!.contains(p), tag: p.tagName, w: c.width, h: c.height,
+    const p = document.getElementById('history-panel')!, c = document.getElementById('map-canvas') as HTMLCanvasElement;
+    const h = document.querySelector('.pal-acc-btn[aria-controls="history-panel"]')!;
+    return { inLeft: document.getElementById('palette-panel')!.contains(p), collapsed: p.hidden && h.getAttribute('aria-expanded') === 'false', header: h.tagName, w: c.width, h: c.height,
       inToolbar: !!document.getElementById('toolbar')?.contains(p) };
   });
-  expect(info).toMatchObject({ inLeft: true, tag: 'DETAILS', w: 1491, h: 808, inToolbar: false });
+  expect(info).toMatchObject({ inLeft: true, collapsed: true, header: 'BUTTON', w: 1491, h: 808, inToolbar: false });
 });
 
 test('lists labelled steps newest first, marks the current one and jumps through them', async ({ page }) => {
