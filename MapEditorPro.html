@@ -115,6 +115,14 @@ html, body {
 }
 .tool-btn:hover .tooltip { display: block; }
 
+/* ── Keyboard focus and scrollbars (UI structure task): one visible ring for every control of the palette, the toolbar and the
+   right panel; thin dark scrollbars on every scrolling box of the map screen ── */
+.tool-btn:focus-visible, .brush-btn:focus-visible, .hexdb-tool-btn:focus-visible, .pkg-chip:focus-visible, .mode-tab:focus-visible,
+.tb-input:focus-visible, #palette-panel select:focus-visible, #palette-panel input:focus-visible, #right-panel button:focus-visible,
+#right-panel input:focus-visible, #right-panel select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#palette-panel, #palette-scroll, .pal-acc-body, #right-scroll-body, #toolbar, #bookmarks-list, #stamp-list, #history-list, #val-list,
+#scatter-variants { scrollbar-width: thin; scrollbar-color: #4a4a4a transparent; }
+
 /* ── Main area (palette | canvas | rightpanel) ────────────── */
 #main {
   display: grid;
@@ -199,6 +207,8 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
 }
 .brush-btn:hover { background: var(--hover); }
 .brush-btn.active { border-color: var(--accent); background: rgba(79,195,247,0.12); }
+.brush-btn[data-brush="0"] { font-size: 14px; }
+#shape-tools .tool-btn.active { box-shadow: inset 0 0 0 1px var(--accent); }
 #brush-size-range { flex: 1; min-width: 0; height: 16px; margin: 0; cursor: pointer; accent-color: var(--accent); }
 #brush-size-label { flex: 0 0 auto; font-size: 10px; color: var(--muted); white-space: nowrap; }
 #symmetry-row { flex: 1 1 auto; min-width: 0; display: flex; }
@@ -252,6 +262,10 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
 /* the open section is capped (JS sets --acc-body-max from the palette height) and scrolls inside itself */
 .pal-acc-body { padding: 6px 8px 8px; overflow-y: auto; overflow-x: hidden; max-height: var(--acc-body-max, 300px); }
 .pal-acc-body[hidden] { display: none !important; }
+/* section content: compact 24 px controls everywhere (buttons, inputs, selects, the Move City tool) */
+.pal-acc-body .hexdb-tool-btn { height: 24px; padding: 0 8px; font-size: 11px; }
+.pal-acc-body .hexdb-input { height: 24px; }
+.pal-acc-body .tool-btn { width: 24px; height: 24px; font-size: 13px; border-radius: 3px; }
 
 .cat-header {
   background: var(--bg); border: none;
@@ -372,16 +386,13 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 
 /* Stamps panel (T2.13): lives in the scrollable LEFT palette (moved there in T2.13 fix round 1), so it never changes the canvas width */
 #stamp-panel .stamp-bar { display: flex; gap: 4px; margin-bottom: 6px; }
-#stamp-panel .stamp-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #goto-panel .goto-bar { display: flex; gap: 4px; }
-#goto-panel .goto-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #goto-input { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; font-family: monospace; }
 #goto-input.invalid { border-color: var(--danger) !important; }
 #minimap-panel .mm-bar { display: flex; gap: 4px; }
-#minimap-panel .mm-bar .hexdb-tool-btn { flex: 1; height: 26px; padding: 0 4px; font-size: 11px; }
+#minimap-panel .mm-bar .hexdb-tool-btn { flex: 1; padding: 0 4px; }
 #minimap-panel .mm-bar .hexdb-tool-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 #bookmarks-panel .bm-bar { display: flex; gap: 4px; margin-bottom: 6px; }
-#bookmarks-panel .bm-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #bm-name { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; }
 #bookmarks-list { max-height: 130px; overflow-y: auto; overflow-x: hidden; }
 .bm-empty { font-size: 11px; color: var(--muted); padding: 4px 0; }
@@ -402,7 +413,6 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .hist-row.undone { color: var(--muted); font-style: italic; }
 #validator-panel .val-bar, #png-export-panel .val-bar { display: flex; gap: 4px; margin-top: 2px; }
 #map-design { font-size: 11px; color: var(--muted); }
-#validator-panel .val-bar .hexdb-tool-btn, #png-export-panel .val-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #val-filter { flex: 1; min-width: 0; font-size: 11px; padding: 2px 4px; }
 #val-summary { font-size: 11px; color: var(--text); padding: 6px 0 4px; }
 #val-summary.stale, #val-list.stale { color: var(--warn, #e0a030); }
@@ -417,7 +427,7 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .val-ic { flex-shrink: 0; }
 .val-msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .val-n { flex-shrink: 0; font-size: 10px; color: var(--muted); font-family: monospace; }
-#shortcuts-panel .hexdb-tool-btn { width: 100%; height: 26px; padding: 0 8px; font-size: 11px; }
+#shortcuts-panel .hexdb-tool-btn { width: 100%; }
 .shortcut-help-body { max-height: 70vh; overflow-y: auto; }
 .shortcut-help-body h4 { margin: 10px 0 4px; font-size: 12px; color: var(--accent); }
 .shortcut-help { border-collapse: collapse; font-size: 12px; width: 100%; }
@@ -2805,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "811b3e7";
+const COMMIT  = "1b3ce6d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
