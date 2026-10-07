@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "f22f9b9";
+const COMMIT  = "4ad22db";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3190,15 +3190,21 @@ const Roads = (() => {
 const EdgeTiling = (() => {
   const FACE_NAMES = ['SE', 'NE', 'N', 'NW', 'SW', 'S']; // same bit order as Roads' _DIR_BITS
 
-  const _tableCache = new Map(); // "familyTypes,sorted,joined" -> { [mask]: [ids] }
+  const _tableCache = new Map(); // "familyTypes,sorted,joined|package" -> { [mask]: [ids] }
+  let _tableRev = null;          // HexDB revision the cached tables were built from (a loaded package adds pieces)
 
-  function _buildEdgeMaskTable(familyTypes) {
-    const key = familyTypes.slice().sort().join(',');
+  // `pkg` (optional) limits the table to one package's pieces ('postapoc' = entries without a package field):
+  // a cell is re-resolved with pieces of its OWN package, never with another package's art.
+  function _buildEdgeMaskTable(familyTypes, pkg) {
+    const rev = typeof HexDB !== 'undefined' && HexDB.getRev ? HexDB.getRev() : null;
+    if (rev !== _tableRev) { _tableCache.clear(); _tableRev = rev; }
+    const key = familyTypes.slice().sort().join(',') + (pkg ? '|' + pkg : '');
     if (_tableCache.has(key)) return _tableCache.get(key);
     const table = {};
     if (typeof HexDB !== 'undefined') {
       for (const h of HexDB.getAll()) {
         if (!familyTypes.includes(h.type)) continue;
+        if (pkg && (h.package || 'postapoc') !== pkg) continue;
         const faces = Array.isArray(h.edgeFaces) ? h.edgeFaces : [];
         if (faces.length === 0) continue;
         let mask = 0;
@@ -3223,8 +3229,9 @@ const EdgeTiling = (() => {
   }
 
   // Keep in sync: tests/edge-drift.spec.ts (map-jobs.js _resolveEdgeTile is a port used by the Generator worker).
-  function resolveEdgeTile(col, row, W, H, dataArr, familyTypes, rng, fallbackIds) {
-    const table = _buildEdgeMaskTable(familyTypes);
+  // `pkg` (optional, editor only): resolve with that package's pieces only (see _buildEdgeMaskTable).
+  function resolveEdgeTile(col, row, W, H, dataArr, familyTypes, rng, fallbackIds, pkg) {
+    const table = _buildEdgeMaskTable(familyTypes, pkg);
     const neighbors = _neighborCoords(col, row, W, H);
     let mask = 0;
     neighbors.forEach(({ col: nc, row: nr }, i) => {
@@ -6780,13 +6787,44 @@ const Tools = (() => {
       for (const o of hexOffs[r & 1]) visit(c + o[0], r + o[1]);
       for (const o of EdgeTiling.legacyOffsets(r, H)) visit(c + o[0], r + o[1]);
     }
-    // flat-water fallbacks come from the tile-class roles (a renamed / replaced water tile is followed), never from fixed ids
+    // Package-aware: every cell is re-resolved with pieces of the package of the tile it holds (a Decameroon lake
+    // never gets a base river piece). Base cells: the base pieces and the flat-water fallbacks from the tile-class
+    // roles (a renamed / replaced water tile is followed), exactly as before for the shipped base DB. Cells of another
+    // package: no random base dark/light/rock water; see _packageWaterFallback.
     const roles = HexDB.getRoles();
     const fallbackIds = [roles.WATER_DARK, roles.WATER_LIGHT, roles.WATER_ROCK];
     for (const idx of toResolve) {
       const rr = Math.floor(idx / MAP_WIDTH), rc = idx % MAP_WIDTH;
-      mapData[idx] = EdgeTiling.resolveEdgeTile(rc, rr, MAP_WIDTH, MAP_HEIGHT, mapData, familyTypes, Math.random, fallbackIds);
+      const cur = Terrain.byHexId(mapData[idx]);
+      const pkg = (cur && cur.package) || 'postapoc';
+      const fb = pkg === 'postapoc' ? fallbackIds : _packageWaterFallback(idx, cur, pkg, hexOffs, fallbackIds);
+      mapData[idx] = EdgeTiling.resolveEdgeTile(rc, rr, MAP_WIDTH, MAP_HEIGHT, mapData, familyTypes, Math.random, fb, pkg);
     }
+  }
+
+  // The flat tile a cell of a non-default package takes when no directional piece of its package matches its
+  // neighbourhood (e.g. a lake piece that is now inside the water): the cell's own id when it already is flat water,
+  // else the flat water/lake tile of the same package most of its true neighbours hold, else the package's first flat
+  // Water tile (HexDB order), else the base role fallbacks. One id, so the one rng draw per cell is kept.
+  function _packageWaterFallback(idx, cur, pkg, hexOffs, baseFallback) {
+    if (cur && _inEdgeFamily(cur) && !_isDirectional(cur)) return [mapData[idx]];
+    const W = MAP_WIDTH, H = MAP_HEIGHT, r = Math.floor(idx / W), c = idx % W;
+    const count = new Map();
+    let best = null, bestN = 0;
+    for (const o of hexOffs[r & 1]) {
+      const nc = c + o[0], nr = r + o[1];
+      if (nc < 0 || nc >= W || nr < 0 || nr >= H) continue;
+      const id = mapData[nr * W + nc];
+      const e = Terrain.byHexId(id);
+      if (!e || (e.package || 'postapoc') !== pkg || !_inEdgeFamily(e) || _isDirectional(e)) continue;
+      const n = (count.get(id) || 0) + 1;
+      count.set(id, n);
+      if (n > bestN) { best = id; bestN = n; }
+    }
+    if (best) return [best];
+    const plain = HexDB.getAll().find(h => h.id && (h.package || 'postapoc') === pkg && h.type === 'Water' && !_isDirectional(h) &&
+      !(Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length) && !/_test|kaiju|chicken/i.test(h.id));
+    return plain ? [plain.id] : baseFallback;
   }
 
   // Single entry point for the synchronous terrain-writing tools (Paint, Rectangle). Returns every cell it
@@ -12543,6 +12581,11 @@ const Generator = (() => {
 
   // Tables the worker needs to resolve river/lake edge tiles identically to EdgeTiling (plain, structured-clone-able
   // data built on the page from the same sources the old synchronous code read; the worker never sees HexDB).
+  function _rolePackage() {
+    const id = HexDB.getRoles().WATER_LIGHT;
+    const e = typeof id === 'string' ? Terrain.byHexId(id) : null;
+    return (e && e.package) || 'postapoc';
+  }
   function _edgeContext() {
     const typeByLowerId = new Map();
     for (const h of HexDB.getAll()) {
@@ -12552,7 +12595,9 @@ const Generator = (() => {
     }
     return {
       typeByLowerId,
-      table: EdgeTiling.getMaskTable(['Water', 'Rivers']),
+      // the generator writes the role tiles (base package for the shipped DB): its river pieces come from the same
+      // package, never from a loaded content package (identical table for the base DB alone)
+      table: EdgeTiling.getMaskTable(['Water', 'Rivers'], _rolePackage()),
       dirsEven: _DIRS_EVEN, dirsOdd: _DIRS_ODD,
       faceNames: EdgeTiling.FACE_NAMES,
     };
