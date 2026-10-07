@@ -473,3 +473,20 @@ export async function quiesceAfterDialog(page: Page) {
     await fetch('zone-painter.js', { cache: 'no-store' }).then(r => r.text());
   });
 }
+
+/** Keys of the left-palette accordion sections, top to bottom (the tile picker above them is always open). */
+export const PALETTE_SECTIONS = ['zones', 'goto', 'minimap', 'bookmarks', 'stamps', 'layers', 'validator', 'export', 'history', 'design', 'help'] as const;
+export type PaletteSection = typeof PALETTE_SECTIONS[number];
+
+/**
+ * Opens a left-palette accordion section (idempotent: an open section stays open; the single-open accordion closes the
+ * one that was open before) and waits until its content is visible. The sections are collapsed by default, so a spec
+ * that clicks, fills or measures section content calls this first.
+ */
+export async function openSection(page: Page, key: PaletteSection) {
+  const btn = page.locator(`.pal-acc-btn[data-acc="${key}"]`);
+  if ((await btn.getAttribute('aria-expanded')) !== 'true') await page.evaluate(k => PaletteAccordion.open(k), key);
+  await expect(btn).toHaveAttribute('aria-expanded', 'true');
+  const id = await btn.getAttribute('aria-controls');
+  await expect(page.locator('#' + id)).toBeVisible();
+}
