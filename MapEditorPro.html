@@ -918,6 +918,7 @@ body.mode-devtools #devtools-panel { display: block; }
 #map-io      { display: flex; align-items: center; gap: 4px; }
 /* map toolbar groups (File | View): a divider, a small caption, compact 28 px controls */
 .tb-group { align-self: center; height: 28px; padding-left: 8px; margin-left: 4px; border-left: 1px solid #4a4a4a; }
+.mode-tabs + .tb-group { border-left: none; margin-left: 0; padding-left: 0; }   /* the mode tabs already end with a divider */
 .tb-label { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); margin-right: 4px; user-select: none; }
 .tb-group .hexdb-tool-btn { height: 28px; padding: 0 10px; font-size: 12px; }
 .tb-group .tool-btn { width: 28px; height: 28px; font-size: 14px; }
@@ -927,7 +928,7 @@ body.mode-devtools #devtools-panel { display: block; }
 .tb-field-label { font-size: 11px; color: var(--muted); }
 /* classic layout (perf / canvas-size contract): the toolbar row used to force a 1931.3125 px page at 1400x900 (canvas 1491x808).
    The tools moved to the palette, so the View group keeps that width explicitly; ui-structure.spec.ts asserts it. */
-body.layout-classic #map-tools { min-width: 1142.421875px; }   /* + mode tabs + File group = 1931.3125 px */
+body.layout-classic #map-tools { min-width: 1155.421875px; }   /* + mode tabs + File group = 1931.3125 px */
 #hexdb-tools { display: none; align-items: center; gap: 6px; }
 #bld-tools   { display: none; align-items: center; gap: 6px; }
 #upg-tools   { display: none; align-items: center; gap: 6px; }
@@ -2825,7 +2826,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "39194cd";
+const COMMIT  = "55f9dbc";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks

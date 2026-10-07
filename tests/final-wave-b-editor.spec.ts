@@ -84,7 +84,8 @@ test.describe('B4 layout', () => {
   test('scrolling the toolbar closes the open MORE dropdown and re-places the hovered tooltip', async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 700 });
     await openEditor(page, { storage: { rightPanelMode: 'auto' } });
-    expect(await page.evaluate(() => { const t = document.getElementById('toolbar')!; return t.scrollWidth > t.clientWidth + 100; })).toBe(true);   // there is something to scroll
+    // there is something to scroll (about 90 px at 1100 px since the tools moved to the palette; it was 100+ before)
+    expect(await page.evaluate(() => { const t = document.getElementById('toolbar')!; return t.scrollWidth > t.clientWidth + 40; })).toBe(true);
     // MORE dropdown
     await page.locator('#tab-more').scrollIntoViewIfNeeded();
     await page.locator('#tab-more').click();
