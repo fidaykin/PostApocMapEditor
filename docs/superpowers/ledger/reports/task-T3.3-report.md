@@ -1,0 +1,8 @@
+# T3.3 report
+Heightmap maths in new root `gen-utils.js` (`GenUtils.luminanceGrid/resampleToMap/normalize/applySeaLevel`), script tag after hex-utils (`?v=1`).
+- Preceding small commit: hex-utils.js `?v=1` -> 2 (HTML + deploy-dev.yml grep; lint ties them).
+- Orientation: stretch over the hex grid's bounding box using the real screen geometry: x from xi=H-1-row (centre 1.5*xi, extent +/-1 circumradius), y from W-1-col with the stagger (odd worldX = xi - floor(H/2) sits half a pitch up). Deviation from the brief's index formula: that one ignored the stagger (half-cell error). Nearest neighbour, exactly W*H source reads.
+- Deploy (same commit): deploy-dev.yml paths, rewrite into dev/, `?v=1` grep, cp, git add; perf-workers lint: file list, rewrite/tag checks, `?v=` agreement for gen-utils.
+- Tests (tests/generation.spec.ts, 5 new): half-bright images split exactly at the world midline (west-left, north-top; references from `Canvas.hexCenterWorld`, both halves populated), single-pixel quadrant centroids vs world bbox, fine ramp images vs exact world position within 1 image px (catches stagger/parity), luminance weights/normalize/flat/sea clamp, work counter (Proxy read count == W*H for an 8000x6000 source).
+- RED: first run 4/4 failed (GenUtils undefined). Mutations: stagger removed -> ramp test fails; parity from row instead of xi -> ramp test fails (both restored, cmp). Note: the first versions of the half-image tests did not catch the stagger mutations; the ramp test was added for that.
+- Focused runs: generation + perf-workers + perf-equivalence + perf-baseline-guard + hex-utils: 87 passed, 1 skipped (pre-existing fixme).
