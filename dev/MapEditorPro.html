@@ -160,12 +160,45 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
   background: var(--panel);
   border-right: 1px solid var(--border);
   display: flex; flex-direction: column;
-  overflow-x: hidden; overflow-y: auto;   /* short windows: the whole palette scrolls so the Stamps panel stays reachable */
+  overflow-x: hidden; overflow-y: auto;   /* last resort on short windows: the whole palette scrolls */
 }
 
-#palette-scroll {
-  flex: 1 0 160px; overflow-y: auto; padding: 8px;
+/* The terrain / tile picker takes every pixel the tools and the collapsed accordion headers leave, never less than its
+   minimum; it scrolls inside itself. */
+#palette-tiles {
+  flex: 1 1 auto; min-height: 320px;
+  display: flex; flex-direction: column;
 }
+#palette-scroll {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px;
+}
+
+/* ── Palette accordion (PaletteAccordion): secondary panels, collapsed by default, one open at a time ── */
+#palette-acc { flex: 0 0 auto; border-top: 1px solid var(--border); }
+.pal-acc + .pal-acc { border-top: 1px solid var(--border); }
+.pal-acc-h { display: flex; align-items: stretch; }
+.pal-acc-btn {
+  flex: 1; min-width: 0; height: 22px; display: flex; align-items: center; gap: 6px;
+  padding: 0 8px; background: transparent; border: none; color: var(--muted); cursor: pointer;
+  font: inherit; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; text-align: left;
+}
+.pal-acc-btn:hover { background: var(--hover); color: var(--text); }
+.pal-acc-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+.pal-acc-btn[aria-expanded="true"] { color: var(--text); background: var(--bg); }
+.pal-acc-chev { flex-shrink: 0; width: 9px; font-size: 9px; transition: transform 0.15s; }
+.pal-acc-chev::before { content: '\25B6'; }
+.pal-acc-btn[aria-expanded="true"] .pal-acc-chev { transform: rotate(90deg); }
+.pal-acc-label { flex-shrink: 0; }
+.pal-acc-badge { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 10px; letter-spacing: 0; text-transform: none; color: var(--accent); }
+.pal-acc-badge:empty { display: none; }
+.pal-acc-badge.stale { color: var(--warn, #e0a030); }
+.pal-acc-add { flex: 0 0 auto; width: 28px; background: transparent; border: none; border-left: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
+.pal-acc-add:hover { background: var(--hover); }
+.pal-acc-add:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
+/* the open section is capped (JS sets --acc-body-max from the palette height) and scrolls inside itself */
+.pal-acc-body { padding: 6px 8px 8px; overflow-y: auto; overflow-x: hidden; max-height: var(--acc-body-max, 300px); }
+.pal-acc-body[hidden] { display: none !important; }
 
 .cat-header {
   background: var(--bg); border: none;
@@ -190,22 +223,6 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
 .pkg-body.collapsed { display: none; }
 
 /* ── Zone palette ─────────────────────────────────────────── */
-#zone-panel {
-  border-top: 1px solid var(--border);
-  padding: 6px;
-  min-height: 80px;
-  max-height: 220px;
-  overflow-y: auto;
-}
-.zone-panel-header {
-  display: flex; justify-content: space-between; align-items: center;
-  font-size: 11px; color: #888; text-transform: uppercase;
-  margin-bottom: 6px; letter-spacing: 0.5px;
-}
-.zone-panel-header button {
-  background: #333; border: none; color: #ccc; cursor: pointer;
-  border-radius: 3px; padding: 1px 7px; font-size: 14px; line-height: 1.4;
-}
 .zone-item {
   display: flex; align-items: center; gap: 6px;
   padding: 4px 6px; border-radius: 4px; cursor: pointer;
@@ -252,18 +269,19 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
 }
 .tile-btn:hover .tile-tooltip { display: block; }
 
+/* active terrain: one compact row under the picker */
 #palette-selected {
-  padding: 10px 8px; border-top: 1px solid var(--border);
-  display: flex; align-items: center; gap: 10px;
+  padding: 3px 8px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; gap: 8px;
   background: var(--bg); flex-shrink: 0;
 }
 #palette-selected img {
-  width: 80px; height: 80px; image-rendering: pixelated; flex-shrink: 0;
+  width: 22px; height: 22px; image-rendering: pixelated; flex-shrink: 0;
   clip-path: polygon(100% 50%, 75% 6.7%, 25% 6.7%, 0% 50%, 25% 93.3%, 75% 93.3%);
 }
-#palette-selected-info { display: flex; flex-direction: column; gap: 3px; }
-#palette-selected-name { font-size: 13px; font-weight: bold; }
-#palette-selected-id   { font-size: 11px; color: var(--muted); }
+#palette-selected-info { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+#palette-selected-name { font-size: 12px; font-weight: bold; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#palette-selected-id   { font-size: 10px; color: var(--muted); flex-shrink: 0; }
 
 /* ── Canvas ───────────────────────────────────────────────── */
 #canvas-container {
@@ -310,23 +328,15 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .brush-btn.active { border-color: var(--accent); background: rgba(79,195,247,0.12); }
 
 /* Stamps panel (T2.13): lives in the scrollable LEFT palette (moved there in T2.13 fix round 1), so it never changes the canvas width */
-#stamp-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
-#stamp-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #stamp-panel .stamp-bar { display: flex; gap: 4px; margin-bottom: 6px; }
 #stamp-panel .stamp-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
-#goto-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
-#goto-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #goto-panel .goto-bar { display: flex; gap: 4px; }
 #goto-panel .goto-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #goto-input { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; font-family: monospace; }
 #goto-input.invalid { border-color: var(--danger) !important; }
-#minimap-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
-#minimap-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #minimap-panel .mm-bar { display: flex; gap: 4px; }
 #minimap-panel .mm-bar .hexdb-tool-btn { flex: 1; height: 26px; padding: 0 4px; font-size: 11px; }
 #minimap-panel .mm-bar .hexdb-tool-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
-#bookmarks-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
-#bookmarks-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #bookmarks-panel .bm-bar { display: flex; gap: 4px; margin-bottom: 6px; }
 #bookmarks-panel .bm-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #bm-name { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; }
@@ -342,19 +352,14 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .bm-ren:hover { color: var(--accent); }
 .bm-del:hover { color: var(--danger); }
 .bm-go:focus-visible, .bm-ren:focus-visible, .bm-del:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
-#history-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
-#history-panel > summary { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; cursor: pointer; user-select: none; }
 #history-list { max-height: 160px; overflow-y: auto; margin-top: 6px; }
 .hist-row { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--border); color: var(--text); font-size: 11px; padding: 2px 4px; cursor: pointer; font-family: inherit; }
 .hist-row:hover, .hist-row:focus-visible { background: var(--hover, rgba(255,255,255,0.08)); }
 .hist-row.current { color: var(--accent); font-weight: bold; }
 .hist-row.undone { color: var(--muted); font-style: italic; }
-#validator-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
-#validator-panel > summary { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; cursor: pointer; user-select: none; }
-#validator-panel .val-bar, #png-export-panel .val-bar { display: flex; gap: 4px; margin-top: 8px; }
+#validator-panel .val-bar, #png-export-panel .val-bar { display: flex; gap: 4px; margin-top: 2px; }
+#map-design { font-size: 11px; color: var(--muted); }
 #validator-panel .val-bar .hexdb-tool-btn, #png-export-panel .val-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
-#png-export-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
-#png-export-panel > summary { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; cursor: pointer; user-select: none; }
 #val-filter { flex: 1; min-width: 0; font-size: 11px; padding: 2px 4px; }
 #val-summary { font-size: 11px; color: var(--text); padding: 6px 0 4px; }
 #val-summary.stale, #val-list.stale { color: var(--warn, #e0a030); }
@@ -369,8 +374,6 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .val-ic { flex-shrink: 0; }
 .val-msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .val-n { flex-shrink: 0; font-size: 10px; color: var(--muted); font-family: monospace; }
-#shortcuts-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
-#shortcuts-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 #shortcuts-panel .hexdb-tool-btn { width: 100%; height: 26px; padding: 0 8px; font-size: 11px; }
 .shortcut-help-body { max-height: 70vh; overflow-y: auto; }
 .shortcut-help-body h4 { margin: 10px 0 4px; font-size: 12px; color: var(--accent); }
@@ -379,8 +382,6 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .shortcut-help td:first-child { white-space: nowrap; }
 .shortcut-help kbd { background: var(--hover); border: 1px solid var(--border); border-radius: 3px; padding: 0 5px; font-family: monospace; }
 .shortcut-help-note { margin: 12px 0 0; font-size: 11px; color: var(--muted); line-height: 1.4; }
-#layers-panel { padding: 8px; border-top: 1px solid var(--border); flex-shrink: 0; }
-#layers-panel .section-title { font-size: 11px; color: var(--muted); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
 .layer-row { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
 .layer-name { flex: 1; font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .layer-eye, .layer-lock { background: none; border: 1px solid transparent; border-radius: 3px; color: var(--text); cursor: pointer; font-size: 13px; line-height: 1; padding: 2px 4px; }
@@ -1630,120 +1631,146 @@ body.mode-common #map-io    { display: none; }
           <option value="rot6">6-fold rotation</option>
         </select>
       </div>
-      <details id="map-design" style="padding:6px 8px 0;font-size:11px;color:var(--muted)">
-        <summary style="cursor:pointer;user-select:none">Map design</summary>
-        <div style="display:flex;align-items:center;gap:6px;padding-top:4px">
-          <button class="tool-btn" data-tool="city" onclick="Tools.setActive('city')" title="Move City - click a cell to put the city there (one undo step). Distance rings, slot bands and the generator's flatten / ore exclusion circle follow the city. A settlement on that cell is replaced. Refused while the Settlements layer is locked">🏙</button>
-          <span>Move city: click the map</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;padding-top:4px">
-          <label for="ring-bounds" title="Difficulty band limits in tiles from the city (comma list, up to 10, e.g. 10,20,35,60). Empty = a band every N tiles (the interval box in the toolbar). Saved in the map; Enter applies, Esc undoes the typing">Bands</label>
-          <input id="ring-bounds" type="text" placeholder="10,20,35..." autocomplete="off" spellcheck="false"
-                 style="flex:1;min-width:0;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px"
-                 onchange="DistanceBands.commit(this.value)"
-                 onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){event.stopPropagation();DistanceBands.syncInput();this.blur()}">
-        </div>
-        <div style="padding-top:8px" title="Scatters bunkers, mega cities, artifacts and ore clusters over free land, beyond the minimum distance from the city. One undo step. Needs the Terrain / Buildings / Settlements layers unlocked for what it writes. Same seed on the same map gives the same result; empty seed = random">Placement helper</div>
-        <div id="pl-form" style="display:grid;grid-template-columns:1fr 64px;gap:3px 6px;align-items:center;padding-top:4px"></div>
-        <div style="display:flex;gap:6px;padding:6px 0 4px">
-          <button class="hexdb-tool-btn" id="pl-apply" type="button" onclick="Placement.apply()" title="Place everything above (one undo step)">Place</button>
-        </div>
-      </details>
-      <div class="pkg-filter-row" id="pkg-filter-terrain"></div>
-      <div id="palette-scroll"></div>
-      <div id="palette-selected">
-        <img id="palette-sel-img" src="" alt="">
-        <div id="palette-selected-info">
-          <div id="palette-selected-name">Plain_1</div>
-          <div id="palette-selected-id">ID: 12</div>
+      <!-- Terrain / tile picker: takes all the remaining height (min 320 px) and scrolls inside itself -->
+      <div id="palette-tiles">
+        <div class="pkg-filter-row" id="pkg-filter-terrain"></div>
+        <div id="palette-scroll"></div>
+        <div id="palette-selected" title="Active terrain">
+          <img id="palette-sel-img" src="" alt="">
+          <div id="palette-selected-info">
+            <div id="palette-selected-name">Plain_1</div>
+            <div id="palette-selected-id">ID: 12</div>
+          </div>
         </div>
       </div>
-      <!-- Zone palette -->
-      <div id="zone-panel">
-        <div class="zone-panel-header">
-          <span>🗺️ ZONES</span>
-          <button id="btn-add-zone" onclick="ZonePainter._uiAddZone()" title="Add zone">+</button>
-        </div>
-        <div id="zone-list"></div>
-      </div>
-      <!-- Go to (T4.1): in the LEFT palette (the toolbar row is not allowed to grow) -->
-      <div id="goto-panel">
-        <div class="section-title">Go to</div>
-        <div class="goto-bar">
-          <input id="goto-input" class="hexdb-input" type="text" autocomplete="off" spellcheck="false" placeholder="col,row" aria-label="Go to coordinates" aria-invalid="false"
-                 title='Tile "col,row", Unity "app:x,y" or a block such as "B:4", then Enter'>
-          <button id="goto-btn" class="hexdb-tool-btn" type="button" title="Centre the view on these coordinates">Go</button>
-        </div>
-      </div>
-      <!-- Minimap options (T4.3): in the LEFT palette; the minimap itself lives in the right panel -->
-      <div id="minimap-panel">
-        <div class="section-title">Minimap</div>
-        <div class="mm-bar">
-          <button id="mm-size-btn" class="hexdb-tool-btn" type="button" aria-pressed="false" title="Enlarge the minimap (remembered in this browser)">Bigger</button>
-          <button id="mm-zones-btn" class="hexdb-tool-btn" type="button" aria-pressed="true" title="Show zones on the minimap (follows the Zone overlay layer)">Zones</button>
-          <button id="mm-settle-btn" class="hexdb-tool-btn" type="button" aria-pressed="true" title="Show settlements as yellow dots on the minimap (follows the Settlements layer)">Towns</button>
-        </div>
-      </div>
-      <!-- Bookmarks (T4.2): in the LEFT palette; saved in this browser, never in the map -->
-      <div id="bookmarks-panel">
-        <div class="section-title">Bookmarks</div>
-        <div class="bm-bar">
-          <input id="bm-name" class="hexdb-input" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="Name (optional)" aria-label="Bookmark name" title="Name for the new bookmark (Enter adds it)">
-          <button id="bm-add-btn" class="hexdb-tool-btn" type="button" title="Bookmark the middle of the current view">Add</button>
-        </div>
-        <div id="bookmarks-list" role="list"></div>
-      </div>
-      <!-- Stamps (T2.13): in the LEFT palette, the only side panel that is on screen on common window widths -->
-      <div id="stamp-panel">
-        <div class="section-title">Stamps</div>
-        <div class="stamp-bar">
-          <input id="stamp-name" class="hexdb-input" type="text" maxlength="80" placeholder="Stamp name" aria-label="Stamp name" title="Name for the new stamp (Enter saves it)">
-          <button id="stamp-save-btn" class="hexdb-tool-btn" type="button" onclick="Stamps.saveSelection()" title="Save the current selection (M, drag) as a stamp">Save</button>
-        </div>
-        <div class="stamp-bar">
-          <button id="stamp-export-btn" class="hexdb-tool-btn" type="button" onclick="Stamps.exportFile()" title="Download all stamps as a JSON file">Export</button>
-          <button id="stamp-import-btn" class="hexdb-tool-btn" type="button" onclick="document.getElementById('stamp-import-file').click()" title="Add the stamps of an exported JSON file">Import</button>
-          <input id="stamp-import-file" type="file" accept="application/json,.json" style="display:none" aria-label="Import stamps file" onchange="Stamps.importFile(event)">
-        </div>
-        <div id="stamp-list"></div>
-      </div>
-      <!-- Layers (T2.17): visibility now, locks (T2.18); in the LEFT palette like Stamps -->
-      <div id="layers-panel">
-        <div class="section-title">Layers</div>
-        <div id="layers-list"></div>
-      </div>
-      <!-- Map validator (T4.6): collapsible, LEFT palette; nothing runs until Run is pressed -->
-      <details id="validator-panel">
-        <summary>Validate map</summary>
-        <div class="val-bar">
-          <button id="val-run" class="hexdb-tool-btn" type="button" title="Check the map now (it is never checked automatically)">Run</button>
-          <select id="val-filter" class="hexdb-input" aria-label="Show issues of severity" title="Which issues to list">
-            <option value="all">All</option><option value="error">Errors</option><option value="warning">Warnings</option>
-          </select>
-          <button id="val-clear" class="hexdb-tool-btn" type="button" title="Remove the red marks from the map">Clear marks</button>
-        </div>
-        <div id="val-summary" role="status" aria-live="polite">Not run yet. Press Run to check the map.</div>
-        <div id="val-list" role="list"></div>
-      </details>
-      <!-- PNG export (T4.8): whole map into an offscreen canvas; hidden layers are not exported; no shortcut -->
-      <details id="png-export-panel">
-        <summary>Export image</summary>
-        <div class="val-bar">
-          <select id="png-scale" class="hexdb-input" aria-label="PNG scale" title="Pixels per world pixel. Larger maps are scaled down to fit 8192 px per side and 36 megapixels.">
-            <option value="0.05">5 %</option><option value="0.1" selected>10 %</option><option value="0.2">20 %</option><option value="0.5">50 %</option><option value="1">100 %</option><option value="max">Largest allowed</option>
-          </select>
-          <button id="png-export-btn" class="hexdb-tool-btn" type="button" onclick="IO.exportPNG()" title="Download the whole map as a PNG (hidden layers are not included)">Export PNG</button>
-        </div>
-      </details>
-      <!-- History (T4.10): collapsible, LEFT palette; rows are real buttons, newest first, click = jump -->
-      <details id="history-panel">
-        <summary>History</summary>
-        <div id="history-list" role="list" aria-label="History steps, newest first"></div>
-      </details>
-      <!-- Keyboard shortcuts (T4.4): the list is generated from the Shortcuts registry; LEFT palette, no key opens it -->
-      <div id="shortcuts-panel">
-        <div class="section-title">Help</div>
-        <button id="btn-shortcut-help" class="hexdb-tool-btn" type="button" onclick="Shortcuts.showHelp()" title="List every keyboard shortcut">Keyboard shortcuts</button>
+      <!-- Secondary panels: one accordion (PaletteAccordion), collapsed by default, one section open at a time; the content ids are kept -->
+      <div id="palette-acc">
+        <!-- Zone palette; the + adds a zone even while the section is collapsed (and opens it) -->
+        <section class="pal-acc" data-acc="zones">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-zones" data-acc="zones" aria-expanded="false" aria-controls="zone-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Zones</span><span class="pal-acc-badge"></span></button><button id="btn-add-zone" class="pal-acc-add" type="button" onclick="PaletteAccordion.open('zones'); ZonePainter._uiAddZone()" title="Add zone" aria-label="Add zone">+</button></div>
+          <div id="zone-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-zones" hidden>
+            <div id="zone-list"></div>
+          </div>
+        </section>
+        <!-- Go to (T4.1): in the LEFT palette (the toolbar row is not allowed to grow) -->
+        <section class="pal-acc" data-acc="goto">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-goto" data-acc="goto" aria-expanded="false" aria-controls="goto-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Go to</span><span class="pal-acc-badge"></span></button></div>
+          <div id="goto-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-goto" hidden>
+            <div class="goto-bar">
+              <input id="goto-input" class="hexdb-input" type="text" autocomplete="off" spellcheck="false" placeholder="col,row" aria-label="Go to coordinates" aria-invalid="false"
+                     title='Tile "col,row", Unity "app:x,y" or a block such as "B:4", then Enter'>
+              <button id="goto-btn" class="hexdb-tool-btn" type="button" title="Centre the view on these coordinates">Go</button>
+            </div>
+          </div>
+        </section>
+        <!-- Minimap options (T4.3): the minimap itself lives in the right panel -->
+        <section class="pal-acc" data-acc="minimap">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-minimap" data-acc="minimap" aria-expanded="false" aria-controls="minimap-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Minimap</span><span class="pal-acc-badge"></span></button></div>
+          <div id="minimap-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-minimap" hidden>
+            <div class="mm-bar">
+              <button id="mm-size-btn" class="hexdb-tool-btn" type="button" aria-pressed="false" title="Enlarge the minimap (remembered in this browser)">Bigger</button>
+              <button id="mm-zones-btn" class="hexdb-tool-btn" type="button" aria-pressed="true" title="Show zones on the minimap (follows the Zone overlay layer)">Zones</button>
+              <button id="mm-settle-btn" class="hexdb-tool-btn" type="button" aria-pressed="true" title="Show settlements as yellow dots on the minimap (follows the Settlements layer)">Towns</button>
+            </div>
+          </div>
+        </section>
+        <!-- Bookmarks (T4.2): saved in this browser, never in the map -->
+        <section class="pal-acc" data-acc="bookmarks">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-bookmarks" data-acc="bookmarks" aria-expanded="false" aria-controls="bookmarks-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Bookmarks</span><span class="pal-acc-badge"></span></button></div>
+          <div id="bookmarks-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-bookmarks" hidden>
+            <div class="bm-bar">
+              <input id="bm-name" class="hexdb-input" type="text" maxlength="40" autocomplete="off" spellcheck="false" placeholder="Name (optional)" aria-label="Bookmark name" title="Name for the new bookmark (Enter adds it)">
+              <button id="bm-add-btn" class="hexdb-tool-btn" type="button" title="Bookmark the middle of the current view">Add</button>
+            </div>
+            <div id="bookmarks-list" role="list"></div>
+          </div>
+        </section>
+        <!-- Stamps (T2.13) -->
+        <section class="pal-acc" data-acc="stamps">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-stamps" data-acc="stamps" aria-expanded="false" aria-controls="stamp-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Stamps</span><span class="pal-acc-badge"></span></button></div>
+          <div id="stamp-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-stamps" hidden>
+            <div class="stamp-bar">
+              <input id="stamp-name" class="hexdb-input" type="text" maxlength="80" placeholder="Stamp name" aria-label="Stamp name" title="Name for the new stamp (Enter saves it)">
+              <button id="stamp-save-btn" class="hexdb-tool-btn" type="button" onclick="Stamps.saveSelection()" title="Save the current selection (M, drag) as a stamp">Save</button>
+            </div>
+            <div class="stamp-bar">
+              <button id="stamp-export-btn" class="hexdb-tool-btn" type="button" onclick="Stamps.exportFile()" title="Download all stamps as a JSON file">Export</button>
+              <button id="stamp-import-btn" class="hexdb-tool-btn" type="button" onclick="document.getElementById('stamp-import-file').click()" title="Add the stamps of an exported JSON file">Import</button>
+              <input id="stamp-import-file" type="file" accept="application/json,.json" style="display:none" aria-label="Import stamps file" onchange="Stamps.importFile(event)">
+            </div>
+            <div id="stamp-list"></div>
+          </div>
+        </section>
+        <!-- Layers (T2.17): visibility and locks (T2.18); the status bar #st-layers keeps the summary -->
+        <section class="pal-acc" data-acc="layers">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-layers" data-acc="layers" aria-expanded="false" aria-controls="layers-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Layers</span><span class="pal-acc-badge"></span></button></div>
+          <div id="layers-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-layers" hidden>
+            <div id="layers-list"></div>
+          </div>
+        </section>
+        <!-- Map validator (T4.6): nothing runs until Run is pressed -->
+        <section class="pal-acc" data-acc="validator">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-validator" data-acc="validator" aria-expanded="false" aria-controls="validator-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Validate map</span><span class="pal-acc-badge"></span></button></div>
+          <div id="validator-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-validator" hidden>
+            <div class="val-bar">
+              <button id="val-run" class="hexdb-tool-btn" type="button" title="Check the map now (it is never checked automatically)">Run</button>
+              <select id="val-filter" class="hexdb-input" aria-label="Show issues of severity" title="Which issues to list">
+                <option value="all">All</option><option value="error">Errors</option><option value="warning">Warnings</option>
+              </select>
+              <button id="val-clear" class="hexdb-tool-btn" type="button" title="Remove the red marks from the map">Clear marks</button>
+            </div>
+            <div id="val-summary" role="status" aria-live="polite">Not run yet. Press Run to check the map.</div>
+            <div id="val-list" role="list"></div>
+          </div>
+        </section>
+        <!-- PNG export (T4.8): whole map into an offscreen canvas; hidden layers are not exported; no shortcut -->
+        <section class="pal-acc" data-acc="export">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-export" data-acc="export" aria-expanded="false" aria-controls="png-export-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Export image</span><span class="pal-acc-badge"></span></button></div>
+          <div id="png-export-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-export" hidden>
+            <div class="val-bar">
+              <select id="png-scale" class="hexdb-input" aria-label="PNG scale" title="Pixels per world pixel. Larger maps are scaled down to fit 8192 px per side and 36 megapixels.">
+                <option value="0.05">5 %</option><option value="0.1" selected>10 %</option><option value="0.2">20 %</option><option value="0.5">50 %</option><option value="1">100 %</option><option value="max">Largest allowed</option>
+              </select>
+              <button id="png-export-btn" class="hexdb-tool-btn" type="button" onclick="IO.exportPNG()" title="Download the whole map as a PNG (hidden layers are not included)">Export PNG</button>
+            </div>
+          </div>
+        </section>
+        <!-- History (T4.10): rows are real buttons, newest first, click = jump -->
+        <section class="pal-acc" data-acc="history">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-history" data-acc="history" aria-expanded="false" aria-controls="history-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">History</span><span class="pal-acc-badge"></span></button></div>
+          <div id="history-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-history" hidden>
+            <div id="history-list" role="list" aria-label="History steps, newest first"></div>
+          </div>
+        </section>
+        <!-- Map design: move city, distance bands, placement helper -->
+        <section class="pal-acc" data-acc="design">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-design" data-acc="design" aria-expanded="false" aria-controls="map-design"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Map design</span><span class="pal-acc-badge"></span></button></div>
+          <div id="map-design" class="pal-acc-body" role="region" aria-labelledby="acc-btn-design" hidden>
+            <div style="display:flex;align-items:center;gap:6px;padding-top:4px">
+              <button class="tool-btn" data-tool="city" onclick="Tools.setActive('city')" title="Move City - click a cell to put the city there (one undo step). Distance rings, slot bands and the generator's flatten / ore exclusion circle follow the city. A settlement on that cell is replaced. Refused while the Settlements layer is locked">🏙</button>
+              <span>Move city: click the map</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding-top:4px">
+              <label for="ring-bounds" title="Difficulty band limits in tiles from the city (comma list, up to 10, e.g. 10,20,35,60). Empty = a band every N tiles (the interval box in the toolbar). Saved in the map; Enter applies, Esc undoes the typing">Bands</label>
+              <input id="ring-bounds" type="text" placeholder="10,20,35..." autocomplete="off" spellcheck="false"
+                     style="flex:1;min-width:0;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px"
+                     onchange="DistanceBands.commit(this.value)"
+                     onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){event.stopPropagation();DistanceBands.syncInput();this.blur()}">
+            </div>
+            <div style="padding-top:8px" title="Scatters bunkers, mega cities, artifacts and ore clusters over free land, beyond the minimum distance from the city. One undo step. Needs the Terrain / Buildings / Settlements layers unlocked for what it writes. Same seed on the same map gives the same result; empty seed = random">Placement helper</div>
+            <div id="pl-form" style="display:grid;grid-template-columns:1fr 64px;gap:3px 6px;align-items:center;padding-top:4px"></div>
+            <div style="display:flex;gap:6px;padding:6px 0 4px">
+              <button class="hexdb-tool-btn" id="pl-apply" type="button" onclick="Placement.apply()" title="Place everything above (one undo step)">Place</button>
+            </div>
+          </div>
+        </section>
+        <!-- Keyboard shortcuts (T4.4): the list is generated from the Shortcuts registry; no key opens it -->
+        <section class="pal-acc" data-acc="help">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-help" data-acc="help" aria-expanded="false" aria-controls="shortcuts-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Help</span><span class="pal-acc-badge"></span></button></div>
+          <div id="shortcuts-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-help" hidden>
+            <button id="btn-shortcut-help" class="hexdb-tool-btn" type="button" onclick="Shortcuts.showHelp()" title="List every keyboard shortcut">Keyboard shortcuts</button>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -2700,7 +2727,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "a98ff78";
+const COMMIT  = "d9d9675";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3337,6 +3364,11 @@ const Layers = (() => {
       const tip = txt ? txt + ' (Layers panel, left palette)' : 'Layers that are hidden or locked (Layers panel, left palette)';
       if (st.textContent !== txt) st.textContent = txt;      // an unchanged summary is not rewritten (it is a live region)
       if (st.title !== tip) st.title = tip;
+    }
+    // the same counts on the collapsed Layers header: '1 hidden · 2 locked'
+    if (typeof PaletteAccordion !== 'undefined') {
+      const nh = NAMES.filter(n => !isVisible(n)).length, nl = NAMES.filter(isLocked).length;
+      PaletteAccordion.setBadge('layers', [nh ? nh + ' hidden' : '', nl ? nl + ' locked' : ''].filter(Boolean).join(' \u00B7 '));
     }
   }
   // Re-reads the zone overlay switch (called by the Zone Painter whenever it changes it), stores and refreshes the panel.
@@ -5448,6 +5480,7 @@ const Bookmarks = (() => {
     if (!box) return;
     _sig = MAP_WIDTH + 'x' + MAP_HEIGHT;
     box.textContent = '';
+    if (typeof PaletteAccordion !== 'undefined') PaletteAccordion.setBadge('bookmarks', _items.length ? String(_items.length) : '');
     if (!_items.length) {
       const d = document.createElement('div'); d.className = 'bm-empty';
       d.textContent = 'No bookmarks yet. Move the view, type a name and press Add.';
@@ -6195,6 +6228,7 @@ const Stamps = (() => {
   function _renderList() {
     const box = _$('stamp-list');
     if (!box) return;
+    if (typeof PaletteAccordion !== 'undefined') PaletteAccordion.setBadge('stamps', _recs.length ? String(_recs.length) : '');
     const top = box.scrollTop;
     if (_io) _io.disconnect();
     box.textContent = '';
@@ -8446,7 +8480,7 @@ const History = (() => {
 
   function onChange(fn) { if (typeof fn === 'function') _listeners.push(fn); }
 
-  // ── History panel (left palette, <details id="history-panel">) ──
+  // ── History panel (left palette accordion section, body #history-panel) ──
   const PANEL_CAP = 50;   // rows shown (the undo stack alone is MAX = 50)
   function _renderPanel() {
     const list = document.getElementById('history-list');
@@ -8471,6 +8505,7 @@ const History = (() => {
     // _undo[0] is the freshly opened map, which the 'Open map' row already is.
     if (_evictedCount > 0 && done.length && nd === done.length) add({ label: 'Earlier state (before ' + done[0].label + ')', t: done[0].t }, ' earlier', -done.length, false);
     list.replaceChildren(frag);
+    if (typeof PaletteAccordion !== 'undefined') PaletteAccordion.setBadge('history', done.length ? String(done.length) : '', { title: 'Steps in the history' });
     if (hadFocus) { const c = list.querySelector('.hist-row.current') || list.querySelector('.hist-row'); if (c) c.focus(); }   // keyboard users keep their place
   }
 
@@ -15695,6 +15730,11 @@ const MapValidator = (() => {
     list.textContent = '';
     sum.classList.toggle('stale', !!(_report && _stale));
     list.classList.toggle('stale', !!(_report && _stale));
+    if (typeof PaletteAccordion !== 'undefined') {           // last result on the collapsed header: '2 issues', 'OK', '(old)' once the map changed
+      const k = _report ? _report.issues.length : 0;
+      PaletteAccordion.setBadge('validator', !_report ? '' : (k ? `${k} issue${k === 1 ? '' : 's'}` : 'OK') + (_stale ? ' (old)' : ''),
+        { stale: !!(_report && _stale), title: !_report ? '' : _stale ? 'Results outdated: the map changed since the last run' : 'Result of the last run' });
+    }
     if (!_report) { sum.textContent = 'Not run yet. Press Run to check the map.'; return; }
     const n = (k, w) => `${k} ${w}${k === 1 ? '' : 's'}`;
     let text = _report.issues.length ? `${n(_report.errors, 'error')}, ${n(_report.warnings, 'warning')}` : '✓ No problems found';
@@ -15789,8 +15829,7 @@ const MapValidator = (() => {
   }
   // Opens the panel with an already computed report (no second run) and jumps to its first error.
   function showIssues(report) {
-    const d = _el('validator-panel');
-    if (d) d.open = true;
+    if (typeof PaletteAccordion !== 'undefined') PaletteAccordion.open('validator', { reveal: true });
     runPanel(report);
     const first = report.issues.find(i => i.severity === 'error') || report.issues[0];
     if (first) jumpTo(first.key);
@@ -15798,7 +15837,7 @@ const MapValidator = (() => {
   function getReport() { return _report ? { stale: _stale, selected: _selKey, report: _report } : null; }
 
   function initPanel() {
-    const run_ = _el('val-run'), clr = _el('val-clear'), flt = _el('val-filter'), sm = document.querySelector('#validator-panel > summary');
+    const run_ = _el('val-run'), clr = _el('val-clear'), flt = _el('val-filter');
     if (!run_) return;
     run_.addEventListener('click', e => { runPanel(); if (e.detail > 0) run_.blur(); });
     clr.addEventListener('click', e => { clearMarks(true); if (e.detail > 0) clr.blur(); });
@@ -15807,10 +15846,6 @@ const MapValidator = (() => {
     flt.addEventListener('keydown', e => { e.stopPropagation(); byPointer = false; });                              // typing in the select is never a map shortcut
     flt.addEventListener('change', () => { _filter = flt.value; _renderPanel(); if (byPointer) { flt.blur(); byPointer = false; } });
     [run_, clr].forEach(b => b.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); }));
-    if (sm) {
-      sm.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });
-      sm.addEventListener('click', e => { if (e.detail > 0) sm.blur(); });
-    }
     _renderPanel();
   }
 
@@ -20897,6 +20932,108 @@ function autoPlaceSettlements() {
   UI.toast(`Auto-placed ${totalPlaced} settlements`);
 }
 
+// ── Left palette accordion ─────────────────────────────────────
+// The tile picker (#palette-tiles) is always open and takes the remaining height; every secondary panel below it is a
+// section with a real <button> header (aria-expanded / aria-controls) whose body keeps the panel's old id. One section is
+// open at a time, none by default; the open one is remembered in localStorage `paletteOpenSection` (try/catch: with storage
+// blocked it is kept for the session only). The open body is capped (--acc-body-max, 45 % of the palette) and scrolls inside
+// itself; the picker keeps its 320 px minimum, so on a window too short for both the palette itself scrolls. Badges are set by the panels' renderers.
+const PaletteAccordion = (() => {
+  const KEY = 'paletteOpenSection', BODY_SHARE = 0.45;
+  let _open = '';
+  const _btns = () => [...document.querySelectorAll('#palette-acc .pal-acc-btn')];
+  const _btn = key => document.querySelector(`#palette-acc .pal-acc-btn[data-acc="${key}"]`);
+  const _body = b => b && document.getElementById(b.getAttribute('aria-controls'));
+
+  function _save() { try { localStorage.setItem(KEY, _open); } catch (e) { /* session only */ } }
+
+  // Cap for the open body: 45 % of the palette height. The picker keeps its CSS min-height (320 px); when the tools, the
+  // headers, the picker and the open body do not fit, the palette scrolls (last resort on short windows).
+  function fit() {
+    const pal = document.getElementById('palette-panel');
+    if (!pal) return;
+    const H = pal.clientHeight;
+    if (!H) return;                                        // palette not shown (another mode)
+    const v = Math.round(H * BODY_SHARE) + 'px';
+    if (pal.style.getPropertyValue('--acc-body-max') !== v) pal.style.setProperty('--acc-body-max', v);
+  }
+
+  // Scrolls only the palette (never scrollIntoView: that would also shift the overflow:hidden app containers).
+  function _reveal(sec) {
+    const pal = document.getElementById('palette-panel');
+    if (!pal || !sec) return;
+    const p = pal.getBoundingClientRect(), r = sec.getBoundingClientRect();
+    if (r.bottom > p.bottom) pal.scrollTop += Math.min(r.bottom - p.bottom, r.top - p.top);
+    else if (r.top < p.top) pal.scrollTop -= p.top - r.top;
+  }
+
+  function _apply(key) {
+    _btns().forEach(b => {
+      const on = b.dataset.acc === key, body = _body(b);
+      if (!on && body && !body.hidden && body.contains(document.activeElement)) document.activeElement.blur();
+      b.setAttribute('aria-expanded', String(on));
+      if (body) body.hidden = !on;
+    });
+    _open = key;
+    fit();
+  }
+  // open(key) -> true when the section exists. Idempotent; the section that was open closes.
+  function open(key, opts) {
+    const b = _btn(key);
+    if (!b) return false;
+    _apply(key); _save();
+    if (opts && opts.reveal) _reveal(b.closest('.pal-acc'));
+    return true;
+  }
+  function close() { _apply(''); _save(); }
+  function toggle(key, opts) { if (_open === key) close(); else open(key, opts); }
+  const getOpen = () => _open;
+
+  // Short text on the right of a header ('' hides it). opts.stale marks an outdated result.
+  function setBadge(key, text, opts) {
+    const b = _btn(key), el = b && b.querySelector('.pal-acc-badge');
+    if (!el) return;
+    const t = text == null ? '' : String(text);
+    if (el.textContent !== t) el.textContent = t;
+    el.classList.toggle('stale', !!(opts && opts.stale));
+    if (opts && opts.title != null) el.title = opts.title;
+  }
+
+  function init() {
+    const list = _btns();
+    list.forEach((b, i) => {
+      b.addEventListener('click', e => { toggle(b.dataset.acc, { reveal: true }); if (e.detail > 0) b.blur(); });   // pointer click: back to the map shortcuts (Space pans)
+      b.addEventListener('keydown', e => {
+        if (e.code === 'Enter' || e.code === 'Space') { e.stopPropagation(); return; }   // the button's own keys, not Space-pan / Enter-lift
+        let j = -1;
+        if (e.key === 'ArrowDown') j = (i + 1) % list.length;
+        else if (e.key === 'ArrowUp') j = (i - 1 + list.length) % list.length;
+        else if (e.key === 'Home') j = 0;
+        else if (e.key === 'End') j = list.length - 1;
+        if (j < 0) return;
+        e.preventDefault(); e.stopPropagation();           // arrows move between headers here, they do not pan the map
+        list[j].focus();
+      });
+    });
+    const add = document.getElementById('btn-add-zone');
+    if (add) {
+      add.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });
+      add.addEventListener('click', e => { if (e.detail > 0) add.blur(); });
+    }
+    let saved = '';
+    try { saved = localStorage.getItem(KEY) || ''; } catch (e) { /* storage blocked: none open */ }
+    _apply(_btn(saved) ? saved : '');
+    window.addEventListener('resize', fit);
+    if (typeof ResizeObserver !== 'undefined') {
+      const ro = new ResizeObserver(() => fit());
+      const pal = document.getElementById('palette-panel');
+      if (pal) ro.observe(pal);
+    }
+  }
+
+  return { init, open, close, toggle, getOpen, setBadge, fit };
+})();
+
 // ── Right panel layout (T4.11) ─────────────────────────────────
 // Mode (localStorage `rightPanelMode`): 'auto' (default: inline panel at >= NARROW_BELOW px, collapsed rail below),
 // 'collapsed', 'expanded' (inline on wide windows, overlay drawer on narrow ones), 'classic' (the old fixed layout, no toggle).
@@ -20982,6 +21119,8 @@ window.addEventListener('load', async () => {
   const _mapRestored = await IO.tryRestoreAutosave();
   if (!_mapRestored) IO.newMap(true);
   RightPanel.init();                           // before Canvas.init so the canvas is measured in its final layout
+  try { PaletteAccordion.init(); }             // the left palette sections; a failure here must not stop the startup steps below
+  catch (e) { console.error('Palette sections failed to start', e); }
   Canvas.init();
   UI.init();
   Tools.init();
