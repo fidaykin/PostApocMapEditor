@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "4a50b4f";
+const COMMIT  = "2014a5d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5440,7 +5440,7 @@ const Canvas = (() => {
   return {
     init, render, drawMinimap, forceRedraw, getStats,
     _test: { /* TEST ONLY — do not call from app code */ /* calling minimapLayer advances the cache and overwrites _stats.minimapRecolored */ minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, overviewLayer() { return _overviewLayer(MAP_HEIGHT, MAP_WIDTH); }, setCamera(x, y) { cameraX = x; cameraY = y; }, selBitmap() { return _selOverlay ? _selOverlay.bitmap : null; }, setFullScan(v) { _fullScan = !!v; }, setLod(v) { _lodOverride = (v === false) ? 0 : (v === 0 || v === 1 || v === 2 ? v : null); } },
-    hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
+    hexCenterWorld, hexScreenPos, hexClipPath, screenToHex, terrainFallbackColor: _terrainTypeFallbackColor,
     clampCamera, minZoom, reclampZoom, resize, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot, toggleMinimapSize, isMinimapBig, toggleMinimapOverlay,
@@ -9953,14 +9953,9 @@ const UI = (() => {
         btn.className = 'tile-btn';
         btn.dataset.hexId = h.id;
 
-        // Layered tiles have transparent-bg sprites — tint button with terrain colour
-        if (Terrain.isLayeredHex(h) && h.type) {
-          const t = h.type.toLowerCase();
-          btn.style.backgroundColor =
-            t === 'water'              ? '#2a6fad' :
-            t === 'forests' || t === 'forest' ? '#2d6a2d' :
-            t === 'plains'  || t === 'plain'  ? '#7a9a4a' : '#555';
-        }
+        // Layered tiles have transparent-bg sprites: tint the button with the colour the map draws under them when the type
+        // has no base sprite (one table, Canvas.terrainFallbackColor; it used to differ for Special and Swamp: tile icon audit)
+        if (Terrain.isLayeredHex(h) && h.type) btn.style.backgroundColor = Canvas.terrainFallbackColor(h.type);
 
         const img = document.createElement('img');
         const spr = Terrain.getSprite(h.id);
