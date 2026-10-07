@@ -36,6 +36,7 @@ Nothing in this repository shows which loader the game uses for `maps/*.json`, w
 3. `bunker` and `megacity` settlement type ids: the placement tool uses assumed ids kept in one CONFIG object.
 4. Artifacts: placed as objects (`Artefact_Test_1`) or as settlements?
 5. Ore tile ids: `CopperVein_1` and `Uranium_1` are not in `hex_database.json` (copper and uranium are skipped); are there real ids? Cluster counts and sizes are assumed (gold 10x4, copper 10x4, gems 6x3, uranium 4x3).
+6. Package reskins (no decision here): the editor's Reskin+ now defaults to a prefixed copy (`Medieval_Plain_1`); the optional same-id mode relies on the game letting an entry of the active package replace the base tile with the same id at runtime (the SP5 slot-override semantic). Does the game do that, and does its loader tolerate an extra optional field such as `basedOn` (the editor does not write one today)?
 
 ## Options
 | Option | Meaning | Editor work |
