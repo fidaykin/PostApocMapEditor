@@ -116,6 +116,14 @@ html, body {
 }
 .tool-btn:hover .tooltip { display: block; }
 
+/* ── Keyboard focus and scrollbars (UI structure task): one visible ring for every control of the palette, the toolbar and the
+   right panel; thin dark scrollbars on every scrolling box of the map screen ── */
+.tool-btn:focus-visible, .brush-btn:focus-visible, .hexdb-tool-btn:focus-visible, .pkg-chip:focus-visible, .mode-tab:focus-visible,
+.tb-input:focus-visible, #palette-panel select:focus-visible, #palette-panel input:focus-visible, #right-panel button:focus-visible,
+#right-panel input:focus-visible, #right-panel select:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+#palette-panel, #palette-scroll, .pal-acc-body, #right-scroll-body, #toolbar, #bookmarks-list, #stamp-list, #history-list, #val-list,
+#scatter-variants { scrollbar-width: thin; scrollbar-color: #4a4a4a transparent; }
+
 /* ── Main area (palette | canvas | rightpanel) ────────────── */
 #main {
   display: grid;
@@ -173,32 +181,92 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
   flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 8px;
 }
 
+/* ── Left palette groups: Tools (Draw / Select / Place rows) · Tool options · Tiles · Panels (View / Edit / Check & share).
+   Spacing scale 4 / 8 / 12; compact controls 24 px, standard 28 px; captions 10 px uppercase muted. The vertical budget is
+   tight: at 1400x900 the tools, the options, the 320 px picker and the collapsed headers fit without a palette scroll. ── */
+.pal-group { flex: 0 0 auto; }
+#palette-tools { padding: 6px 8px 4px; }
+#shape-tools { display: flex; flex-direction: column; gap: 3px; }
+.tool-row { display: flex; align-items: flex-start; gap: 3px; }
+.tool-row-label, .pal-caption {
+  font-size: 10px; letter-spacing: .5px; text-transform: uppercase; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none;
+}
+.tool-row-label { flex: 0 0 40px; height: 24px; line-height: 24px; font-size: 11px; letter-spacing: 0; text-transform: none; }
+.tool-row-btns { flex: 1; min-width: 0; display: flex; flex-wrap: wrap; gap: 3px; }
+#shape-tools .tool-btn { width: 24px; height: 24px; font-size: 13px; line-height: 1; padding: 0; border-radius: 3px; }
+#obj-building-label { padding-left: 43px; }
+#tool-options { padding: 6px 8px; border-top: 1px solid var(--border); }
+#tool-options .opt-row { display: flex; align-items: center; gap: 6px; }
+#tool-options .opt-row-2 { margin-top: 4px; }
+#brush-sizes { display: flex; gap: 3px; flex: 0 0 auto; }
+.brush-btn {
+  width: 28px; height: 24px; padding: 0;
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: 3px; cursor: pointer; font-size: 10px;
+  color: var(--text); transition: border-color 0.1s, background 0.1s;
+}
+.brush-btn:hover { background: var(--hover); }
+.brush-btn.active { border-color: var(--accent); background: rgba(79,195,247,0.12); }
+.brush-btn[data-brush="0"] { font-size: 14px; }
+#shape-tools .tool-btn.active { box-shadow: inset 0 0 0 1px var(--accent); }
+#brush-size-range { flex: 1; min-width: 0; height: 16px; margin: 0; cursor: pointer; accent-color: var(--accent); }
+#brush-size-label { flex: 0 0 auto; font-size: 10px; color: var(--muted); white-space: nowrap; }
+#symmetry-row { flex: 1 1 auto; min-width: 0; display: flex; }
+#symmetry-select { width: 100%; min-width: 0; height: 22px; font-size: 11px; padding: 0 2px; }
+/* options a tool does not use stay in place (no layout jump) but are dimmed, with a hint in the tooltip */
+#brush-panel[data-relevant="false"], #brush-size-label[data-relevant="false"], #symmetry-row[data-relevant="false"] { opacity: .45; }
+#brush-panel[data-relevant="false"]:focus-within, #symmetry-row[data-relevant="false"]:focus-within { opacity: .85; }
+.tiles-head { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-top: 1px solid var(--border); min-height: 28px; }
+.tiles-head .pal-caption { flex: 0 0 auto; }
+#pkg-filter-terrain { flex: 1 1 auto; min-width: 0; padding: 0; gap: 0; flex-wrap: nowrap; }
+#pkg-filter-terrain .pkg-chip {
+  flex: 0 1 auto; min-width: 0; height: 20px; padding: 0 8px; margin-left: -1px; border-radius: 0;
+  font-size: 10px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  background: var(--bg); border-color: var(--border); color: var(--muted);
+}
+#pkg-filter-terrain .pkg-chip:first-child { margin-left: 0; border-radius: 3px 0 0 3px; }
+#pkg-filter-terrain .pkg-chip:last-child { border-radius: 0 3px 3px 0; }
+#pkg-filter-terrain .pkg-chip:only-child { border-radius: 3px; }
+#pkg-filter-terrain .pkg-chip:hover { color: var(--text); background: var(--hover); }
+#pkg-filter-terrain .pkg-chip.active { background: rgba(166,227,161,0.16); color: #a6e3a1; border-color: #5f8a5b; position: relative; }
+
 /* ── Palette accordion (PaletteAccordion): secondary panels, collapsed by default, one open at a time ── */
 #palette-acc { flex: 0 0 auto; border-top: 1px solid var(--border); }
+.pal-acc-group + .pal-acc-group { border-top: 1px solid var(--border); }
+.pal-acc-group-h {
+  height: 16px; line-height: 16px; padding: 0 8px; background: var(--bg);
+  font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: var(--muted);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; user-select: none;
+}
 .pal-acc + .pal-acc { border-top: 1px solid var(--border); }
 .pal-acc-h { display: flex; align-items: stretch; }
 .pal-acc-btn {
-  flex: 1; min-width: 0; height: 22px; display: flex; align-items: center; gap: 6px;
-  padding: 0 8px; background: transparent; border: none; color: var(--muted); cursor: pointer;
-  font: inherit; font-size: 11px; letter-spacing: 1px; text-transform: uppercase; text-align: left;
+  flex: 1; min-width: 0; height: 20px; display: flex; align-items: center; gap: 6px;
+  padding: 0 8px; background: transparent; border: none; color: #c8c8c8; cursor: pointer;
+  font: inherit; font-size: 12px; text-align: left;
 }
 .pal-acc-btn:hover { background: var(--hover); color: var(--text); }
 .pal-acc-btn:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 .pal-acc-btn[aria-expanded="true"] { color: var(--text); background: var(--bg); }
-.pal-acc-chev { flex-shrink: 0; width: 9px; font-size: 9px; transition: transform 0.15s; }
+.pal-acc-chev { flex-shrink: 0; width: 9px; font-size: 8px; color: var(--muted); transition: transform 0.15s; }
 .pal-acc-chev::before { content: '\25B6'; }
 .pal-acc-btn[aria-expanded="true"] .pal-acc-chev { transform: rotate(90deg); }
-.pal-acc-label { flex-shrink: 0; }
+.pal-acc-label { flex-shrink: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pal-acc-badge { margin-left: auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: 10px; letter-spacing: 0; text-transform: none; color: var(--accent); }
 .pal-acc-badge:empty { display: none; }
 .pal-acc-badge.stale { color: var(--warn, #e0a030); }
-.pal-acc-add { flex: 0 0 auto; width: 28px; background: transparent; border: none; border-left: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
+.pal-acc-add { flex: 0 0 auto; width: 24px; background: transparent; border: none; border-left: 1px solid var(--border); color: var(--text); cursor: pointer; font-size: 14px; line-height: 1; padding: 0; }
 .pal-acc-add:hover { background: var(--hover); }
 .pal-acc-add:focus-visible { outline: 1px solid var(--accent); outline-offset: -1px; }
 /* the open section is capped (JS sets --acc-body-max from the palette height) and scrolls inside itself */
 .pal-acc-body { padding: 6px 8px 8px; overflow-y: auto; overflow-x: hidden; max-height: var(--acc-body-max, 300px); }
 .pal-acc-body[hidden] { display: none !important; }
+/* section content: compact 24 px controls everywhere (buttons, inputs, selects, the Move City tool) */
+.pal-acc-body .hexdb-tool-btn { height: 24px; padding: 0 8px; font-size: 11px; }
+.pal-acc-body .hexdb-input { height: 24px; }
+.pal-acc-body .tool-btn { width: 24px; height: 24px; font-size: 13px; border-radius: 3px; }
 
 .cat-header {
   background: var(--bg); border: none;
@@ -223,6 +291,11 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
 .pkg-body.collapsed { display: none; }
 
 /* ── Zone palette ─────────────────────────────────────────── */
+.zone-actions { display: flex; flex-direction: column; gap: 4px; padding-bottom: 8px; margin-bottom: 4px; border-bottom: 1px solid var(--border); }
+.zone-act-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.zone-act-row .hexdb-tool-btn { height: 24px; padding: 0 6px; font-size: 11px; flex: 1 0 auto; }
+#btn-zone-randomize { flex: 0 0 auto; }
+#rnd-zone-scale { flex: 1; min-width: 0; height: 16px; margin: 0; cursor: pointer; accent-color: var(--accent); }
 .zone-item {
   display: flex; align-items: center; gap: 6px;
   padding: 4px 6px; border-radius: 4px; cursor: pointer;
@@ -311,34 +384,16 @@ body.layout-classic.minimap-big #main { grid-template-columns: 220px 1fr 340px; 
 body.minimap-big:not(.rp-collapsed):not(.rp-drawer) #main { --rp-col: 340px; }
 body.rp-drawer.minimap-big #right-panel { width: 340px; }
 
-#brush-panel { padding: 10px; border-bottom: 1px solid var(--border); }
-#brush-panel .section-title {
-  font-size: 11px; color: var(--muted); letter-spacing: 1px;
-  text-transform: uppercase; margin-bottom: 8px;
-}
-#brush-sizes { display: flex; gap: 6px; }
-
-.brush-btn {
-  flex: 1; height: 32px;
-  background: var(--bg); border: 1px solid var(--border);
-  border-radius: 4px; cursor: pointer; font-size: 11px;
-  color: var(--text); transition: border-color 0.1s, background 0.1s;
-}
-.brush-btn:hover { background: var(--hover); }
-.brush-btn.active { border-color: var(--accent); background: rgba(79,195,247,0.12); }
 
 /* Stamps panel (T2.13): lives in the scrollable LEFT palette (moved there in T2.13 fix round 1), so it never changes the canvas width */
 #stamp-panel .stamp-bar { display: flex; gap: 4px; margin-bottom: 6px; }
-#stamp-panel .stamp-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #goto-panel .goto-bar { display: flex; gap: 4px; }
-#goto-panel .goto-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #goto-input { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; font-family: monospace; }
 #goto-input.invalid { border-color: var(--danger) !important; }
 #minimap-panel .mm-bar { display: flex; gap: 4px; }
-#minimap-panel .mm-bar .hexdb-tool-btn { flex: 1; height: 26px; padding: 0 4px; font-size: 11px; }
+#minimap-panel .mm-bar .hexdb-tool-btn { flex: 1; padding: 0 4px; }
 #minimap-panel .mm-bar .hexdb-tool-btn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 #bookmarks-panel .bm-bar { display: flex; gap: 4px; margin-bottom: 6px; }
-#bookmarks-panel .bm-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #bm-name { flex: 1; min-width: 0; font-size: 11px; padding: 3px 6px; }
 #bookmarks-list { max-height: 130px; overflow-y: auto; overflow-x: hidden; }
 .bm-empty { font-size: 11px; color: var(--muted); padding: 4px 0; }
@@ -359,7 +414,6 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .hist-row.undone { color: var(--muted); font-style: italic; }
 #validator-panel .val-bar, #png-export-panel .val-bar { display: flex; gap: 4px; margin-top: 2px; }
 #map-design { font-size: 11px; color: var(--muted); }
-#validator-panel .val-bar .hexdb-tool-btn, #png-export-panel .val-bar .hexdb-tool-btn { height: 26px; padding: 0 8px; font-size: 11px; }
 #val-filter { flex: 1; min-width: 0; font-size: 11px; padding: 2px 4px; }
 #val-summary { font-size: 11px; color: var(--text); padding: 6px 0 4px; }
 #val-summary.stale, #val-list.stale { color: var(--warn, #e0a030); }
@@ -374,7 +428,7 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .val-ic { flex-shrink: 0; }
 .val-msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .val-n { flex-shrink: 0; font-size: 10px; color: var(--muted); font-family: monospace; }
-#shortcuts-panel .hexdb-tool-btn { width: 100%; height: 26px; padding: 0 8px; font-size: 11px; }
+#shortcuts-panel .hexdb-tool-btn { width: 100%; }
 .shortcut-help-body { max-height: 70vh; overflow-y: auto; }
 .shortcut-help-body h4 { margin: 10px 0 4px; font-size: 12px; color: var(--accent); }
 .shortcut-help { border-collapse: collapse; font-size: 12px; width: 100%; }
@@ -401,28 +455,17 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .stamp-del:hover { color: var(--danger); }
 #stamp-more { width: 100%; margin-top: 4px; }
 
-#right-active-terrain {
-  padding: 10px; border-bottom: 1px solid var(--border);
-}
-#right-active-terrain .section-title {
-  font-size: 11px; color: var(--muted); letter-spacing: 1px;
-  text-transform: uppercase; margin-bottom: 8px;
-}
-.right-terrain-display { display: flex; align-items: center; gap: 10px; }
-#right-terrain-img {
-  width: 64px; height: 64px; image-rendering: pixelated; flex-shrink: 0;
-  clip-path: polygon(100% 50%, 75% 6.7%, 25% 6.7%, 0% 50%, 25% 93.3%, 75% 93.3%);
-}
-#right-terrain-name { font-size: 12px; font-weight: bold; }
-#right-terrain-id   { font-size: 11px; color: var(--muted); }
-
+/* Right panel below the minimap: the contextual inspectors (Selected Tile, Zone Config) and the Settlements block. Section
+   titles share the palette caption style (10 px uppercase muted). */
+#right-panel .section-title { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
 #settlement-count {
-  padding: 10px; font-size: 12px; color: var(--muted);
-  margin-top: auto; border-top: 1px solid var(--border);
+  padding: 8px; font-size: 12px; color: var(--text);
+  border-bottom: 1px solid var(--border);
 }
 
-#slot-panel { padding: 8px; border-top: 1px solid var(--border); }
-#slot-panel .section-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+#slot-panel { padding: 8px; border-bottom: 1px solid var(--border); }
+#slot-panel .section-title { margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+#slot-panel.collapsed .section-title { margin-bottom: 0; }
 /* Slot card */
 .slot-row { background: rgba(0,0,0,0.22); border: 1px solid var(--border); border-radius: 5px; padding: 6px; margin-bottom: 6px; }
 /* Header: type selector + remove */
@@ -872,7 +915,20 @@ body.mode-devtools #devtools-panel { display: block; }
 
 /* Toolbar sections */
 #map-tools   { display: flex; align-items: center; gap: 4px; }
-#map-io      { display: flex; align-items: center; gap: 6px; margin-right: 4px; }
+#map-io      { display: flex; align-items: center; gap: 4px; }
+/* map toolbar groups (File | View): a divider, a small caption, compact 28 px controls */
+.tb-group { align-self: center; height: 28px; padding-left: 8px; margin-left: 4px; border-left: 1px solid #4a4a4a; }
+.mode-tabs + .tb-group { border-left: none; margin-left: 0; padding-left: 0; }   /* the mode tabs already end with a divider */
+.tb-label { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; color: var(--muted); margin-right: 4px; user-select: none; }
+.tb-group .hexdb-tool-btn { height: 28px; padding: 0 10px; font-size: 12px; }
+.tb-group .tool-btn { width: 28px; height: 28px; font-size: 14px; }
+.tb-input { width: 42px; height: 24px; background: #111; border: 1px solid #444; color: var(--accent); font-size: 11px; padding: 2px 4px; border-radius: 3px; text-align: center; }
+.tb-mono { font-family: monospace; width: 44px; }
+.tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 4px; }
+.tb-field-label { font-size: 11px; color: var(--muted); }
+/* classic layout (perf / canvas-size contract): the toolbar row used to force a 1931.3125 px page at 1400x900 (canvas 1491x808).
+   The tools moved to the palette, so the View group keeps that width explicitly; ui-structure.spec.ts asserts it. */
+body.layout-classic #map-tools { min-width: 1155.421875px; }   /* + mode tabs + File group = 1931.3125 px */
 #hexdb-tools { display: none; align-items: center; gap: 6px; }
 #bld-tools   { display: none; align-items: center; gap: 6px; }
 #upg-tools   { display: none; align-items: center; gap: 6px; }
@@ -1496,34 +1552,21 @@ body.mode-common #map-io    { display: none; }
         </div>
       </div>
     </div>
-    <div id="map-io">
-      <button class="hexdb-tool-btn" onclick="IO.openMap()">📂 Open</button>
-      <button class="hexdb-tool-btn" onclick="IO.saveMap()">💾 Save</button>
+    <!-- Map toolbar: File and View groups only (every tool button is in the left palette) -->
+    <div id="map-io" class="tb-group" data-tb-group="file" role="group" aria-label="File">
+      <span class="tb-label" aria-hidden="true">File</span>
+      <button class="hexdb-tool-btn" onclick="IO.openMap()" title="Open a map file (Ctrl+O)">📂 Open</button>
+      <button class="hexdb-tool-btn" onclick="IO.saveMap()" title="Save the map (Ctrl+S)">💾 Save</button>
     </div>
-    <div id="map-tools">
-      <button class="tool-btn active" data-tool="paint" onclick="Tools.setActive('paint')">✏️<span class="tooltip">Paint (P)</span></button>
-      <button class="tool-btn" data-tool="fill"  onclick="Tools.setActive('fill')">🪣<span class="tooltip">Fill (F)</span></button>
-      <button class="tool-btn" data-tool="rect"  onclick="Tools.setActive('rect')">▭<span class="tooltip">Rectangle (R)</span></button>
-      <button class="tool-btn" data-tool="eye"   onclick="Tools.setActive('eye')">💧<span class="tooltip">Eyedropper (E)</span></button>
-      <button class="tool-btn" data-tool="select" onclick="Tools.setActive('select')">🔍<span class="tooltip">Select Tile (S)</span></button>
-      <button class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')">📍<span class="tooltip">Place Settlement (T)</span></button>
-      <button class="tool-btn" data-tool="erase" onclick="Tools.setActive('erase')">✕<span class="tooltip">Erase Settlement (D)</span></button>
-      <button class="tool-btn" id="btn-zones" onclick="Canvas.toggleZones()">◎<span class="tooltip">Toggle Distance Rings</span></button>
-      <input id="ring-interval" type="number" min="5" max="100" step="5" value="10"
-             title="Ring interval in tiles (default 10)"
-             style="width:42px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center;vertical-align:middle"
+    <div id="map-tools" class="tb-group" data-tb-group="view" role="group" aria-label="View">
+      <span class="tb-label" aria-hidden="true">View</span>
+      <button class="tool-btn" id="btn-zones" onclick="Canvas.toggleZones()" aria-label="Distance rings">◎<span class="tooltip">Toggle Distance Rings</span></button>
+      <input id="ring-interval" class="tb-input" type="number" min="5" max="100" step="5" value="10"
+             title="Ring interval in tiles (default 10)" aria-label="Ring interval in tiles"
              oninput="Canvas.render()">
-      <button class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')">🗺️<span class="tooltip">Zone Painter (Z)</span></button>
-      <button class="hexdb-tool-btn" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize & Fill</button>
-      <input id="rnd-zone-scale" type="range" min="0.01" max="0.12" step="0.005" value="0.04"
-             title="Patch size — left=large, right=small"
-             style="width:64px;vertical-align:middle;cursor:pointer">
-      <button class="hexdb-tool-btn" onclick="ZonePainter._fillAllZones()" title="Fill all zones with biome terrain">▶ Fill Zones</button>
-      <button id="btn-zone-overlay" class="hexdb-tool-btn" onclick="ZonePainter._toggleOverlayUI()" title="Toggle zone color overlay">👁 Overlay</button>
-      <button class="hexdb-tool-btn" onclick="ZonePainter._clearZonesUI()" title="Clear zone assignments">🗑 Clear Zones</button>
-      <span style="color:#888;font-size:11px;margin-left:8px">Block:</span>
-      <input id="block-nav-input" type="text" value="A:1"
-        style="width:40px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;font-family:monospace;text-align:center"
+      <span class="tb-sep" aria-hidden="true"></span>
+      <label class="tb-field-label" for="block-nav-input">Block:</label>
+      <input id="block-nav-input" class="tb-input tb-mono" type="text" value="A:1"
         title="Type block address (e.g. B:4) and press Enter">
       <button id="btn-toggle-rulers" class="hexdb-tool-btn" onclick="Canvas.toggleRulers()" title="Show/hide block rulers and grid">⊞ Rulers</button>
       <button id="btn-toggle-coastline" class="hexdb-tool-btn" onclick="Canvas.toggleCoastline()" title="Show/hide coastline preview along water/land borders">🌊 Coastline</button>
@@ -1586,34 +1629,88 @@ body.mode-common #map-io    { display: none; }
 
     <!-- Left palette -->
     <div id="palette-panel">
-      <div id="shape-tools" style="display:flex;flex-wrap:wrap;gap:4px;padding:6px 8px 0">
-          <button class="tool-btn" data-tool="line" onclick="Tools.setActive('line')" title="Line (L) - drag, thickness = brush size">╱</button>
-          <button class="tool-btn" data-tool="circle" onclick="Tools.setActive('circle')" title="Circle (O) - drag from centre, Shift = filled">◯</button>
-          <button class="tool-btn" data-tool="polygon" onclick="Tools.setActive('polygon')" title="Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline">⬠</button>
-          <button class="tool-btn" data-tool="eraser" onclick="Tools.setActive('eraser')" title="Eraser (X) - drag to reset tiles to Plain_1 and remove buildings, roads, bridges and under-terrain. Brush size applies, symmetry mirrors it like Paint, Esc cancels the stroke. Zones and settlements are not touched">⌫</button>
-          <button class="tool-btn" data-tool="marquee" onclick="Tools.setActive('marquee')" title="Select Region (M) - drag a rectangle of cells; Shift adds, Alt subtracts, Esc clears, Ctrl+A selects all, Ctrl+D deselects">⛶</button>
-          <button class="tool-btn" data-tool="scatter" onclick="Tools.setActive('scatter')" title="Scatter (A) - drag to sprinkle random variants of the selected terrain inside the brush, at the density below. Directional river/lake pieces are not scattered. Same seed gives the same result for the same drag; symmetry mirrors the area (each cell rolls on its own), Esc cancels the stroke">⁘</button>
-          <button class="tool-btn" data-tool="replace" onclick="Tools.setActive('replace')" title="Replace (H) - click a tile to replace every tile of that id with the active terrain (inside the selection when there is one; the whole map otherwise). Edit > Replace Tile... picks both ids. One undo step">⇄</button>
-          <button class="tool-btn" data-tool="object" onclick="Tools.setActive('object')" title="Place Building (B) - click or drag to place the building picked in the picker; replaces a building already there. Buildings that spawn satellites (e.g. Farm_Test_1 with Grain_1) get them on the free neighbouring cells. Esc cancels the stroke">🏗</button>
-          <button class="tool-btn" data-tool="erase-object" onclick="Tools.setActive('erase-object')" title="Erase Building - click or drag to remove buildings (and the satellites they spawned). Esc cancels the stroke">🗑</button>
-          <button class="tool-btn" data-tool="road" onclick="Tools.setActive('road')" title="Draw Road (W) - click a tile next to an existing road, the city or a settlement to add a road tile (one tap per tile; a drag draws only the tile under the press). One undo step per click, Esc cancels">🛣</button>
-          <button class="tool-btn" data-tool="road-connect" onclick="Tools.setActive('road-connect')" title="Connect Road (C) - click a start tile, then a destination: the shortest path between them becomes road (one undo step). The destination becomes the next start, Esc or switching tool clears the start">🔗</button>
-          <button class="tool-btn" data-tool="erase-road" onclick="Tools.setActive('erase-road')" title="Erase Road (Q) - click a road tile to remove only the road (terrain, buildings and zones stay). One undo step per click, Esc cancels">🚫</button>
-          <button class="tool-btn" data-tool="bridge" onclick="Tools.setActive('bridge')" title="Place Bridge (U) - click a river tile to build the bridge picked in the picker (replaces a building already there); the same bridge again removes it. Other tiles refuse. One undo step per click, Esc cancels">🌉</button>
-          <span id="obj-building-label" style="display:none;flex:1 0 100%;font-size:11px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      <!-- Tools: every map tool button, in labelled Draw / Select / Place rows (the top toolbar holds no tool buttons) -->
+      <div id="palette-tools" class="pal-group" data-pal-group="tools" role="group" aria-label="Tools">
+      <div id="shape-tools">
+        <div class="tool-row" data-row="draw" role="group" aria-labelledby="tool-row-draw">
+          <span class="tool-row-label" id="tool-row-draw">Draw</span>
+          <div class="tool-row-btns">
+            <button type="button" class="tool-btn active" data-tool="paint" onclick="Tools.setActive('paint')" title="Paint (P)" aria-label="Paint">✏️</button>
+            <button type="button" class="tool-btn" data-tool="fill" onclick="Tools.setActive('fill')" title="Fill (F)" aria-label="Fill">🪣</button>
+            <button type="button" class="tool-btn" data-tool="rect" onclick="Tools.setActive('rect')" title="Rectangle (R)" aria-label="Rectangle">▭</button>
+            <button type="button" class="tool-btn" aria-label="Line" data-tool="line" onclick="Tools.setActive('line')" title="Line (L) - drag, thickness = brush size">╱</button>
+            <button type="button" class="tool-btn" aria-label="Circle" data-tool="circle" onclick="Tools.setActive('circle')" title="Circle (O) - drag from centre, Shift = filled">◯</button>
+            <button type="button" class="tool-btn" aria-label="Polygon" data-tool="polygon" onclick="Tools.setActive('polygon')" title="Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline">⬠</button>
+            <button type="button" class="tool-btn" aria-label="Eraser" data-tool="eraser" onclick="Tools.setActive('eraser')" title="Eraser (X) - drag to reset tiles to Plain_1 and remove buildings, roads, bridges and under-terrain. Brush size applies, symmetry mirrors it like Paint, Esc cancels the stroke. Zones and settlements are not touched">⌫</button>
+            <button type="button" class="tool-btn" aria-label="Scatter" data-tool="scatter" onclick="Tools.setActive('scatter')" title="Scatter (A) - drag to sprinkle random variants of the selected terrain inside the brush, at the density below. Directional river/lake pieces are not scattered. Same seed gives the same result for the same drag; symmetry mirrors the area (each cell rolls on its own), Esc cancels the stroke">⁘</button>
+            <button type="button" class="tool-btn" aria-label="Replace tile" data-tool="replace" onclick="Tools.setActive('replace')" title="Replace (H) - click a tile to replace every tile of that id with the active terrain (inside the selection when there is one; the whole map otherwise). Edit > Replace Tile... picks both ids. One undo step">⇄</button>
+            <button type="button" class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')" title="Zone Painter (Z)" aria-label="Zone painter">🗺️</button>
+          </div>
         </div>
-      <div id="selection-row" style="display:none;align-items:center;gap:6px;padding:6px 8px 0;font-size:11px;color:var(--muted)">
+        <div class="tool-row" data-row="select" role="group" aria-labelledby="tool-row-select">
+          <span class="tool-row-label" id="tool-row-select">Select</span>
+          <div class="tool-row-btns">
+            <button type="button" class="tool-btn" aria-label="Select region" data-tool="marquee" onclick="Tools.setActive('marquee')" title="Select Region (M) - drag a rectangle of cells; Shift adds, Alt subtracts, Esc clears, Ctrl+A selects all, Ctrl+D deselects">⛶</button>
+            <button type="button" class="tool-btn" data-tool="select" onclick="Tools.setActive('select')" title="Select Tile (S)" aria-label="Select tile">🔍</button>
+            <button type="button" class="tool-btn" data-tool="eye" onclick="Tools.setActive('eye')" title="Eyedropper (E)" aria-label="Eyedropper">💧</button>
+          </div>
+        </div>
+        <div class="tool-row" data-row="place" role="group" aria-labelledby="tool-row-place">
+          <span class="tool-row-label" id="tool-row-place">Place</span>
+          <div class="tool-row-btns">
+            <button type="button" class="tool-btn" aria-label="Place building" data-tool="object" onclick="Tools.setActive('object')" title="Place Building (B) - click or drag to place the building picked in the picker; replaces a building already there. Buildings that spawn satellites (e.g. Farm_Test_1 with Grain_1) get them on the free neighbouring cells. Esc cancels the stroke">🏗</button>
+            <button type="button" class="tool-btn" aria-label="Erase building" data-tool="erase-object" onclick="Tools.setActive('erase-object')" title="Erase Building - click or drag to remove buildings (and the satellites they spawned). Esc cancels the stroke">🗑</button>
+            <button type="button" class="tool-btn" aria-label="Draw road" data-tool="road" onclick="Tools.setActive('road')" title="Draw Road (W) - click a tile next to an existing road, the city or a settlement to add a road tile (one tap per tile; a drag draws only the tile under the press). One undo step per click, Esc cancels">🛣</button>
+            <button type="button" class="tool-btn" aria-label="Connect road" data-tool="road-connect" onclick="Tools.setActive('road-connect')" title="Connect Road (C) - click a start tile, then a destination: the shortest path between them becomes road (one undo step). The destination becomes the next start, Esc or switching tool clears the start">🔗</button>
+            <button type="button" class="tool-btn" aria-label="Erase road" data-tool="erase-road" onclick="Tools.setActive('erase-road')" title="Erase Road (Q) - click a road tile to remove only the road (terrain, buildings and zones stay). One undo step per click, Esc cancels">🚫</button>
+            <button type="button" class="tool-btn" aria-label="Place bridge" data-tool="bridge" onclick="Tools.setActive('bridge')" title="Place Bridge (U) - click a river tile to build the bridge picked in the picker (replaces a building already there); the same bridge again removes it. Other tiles refuse. One undo step per click, Esc cancels">🌉</button>
+            <button type="button" class="tool-btn" data-tool="settlement" onclick="Tools.setActive('settlement')" title="Place Settlement (T)" aria-label="Place settlement">📍</button>
+            <button type="button" class="tool-btn" data-tool="erase" onclick="Tools.setActive('erase')" title="Erase Settlement (D)" aria-label="Erase settlement">✕</button>
+          </div>
+        </div>
+        <span id="obj-building-label" style="display:none;flex:1 0 100%;font-size:11px;color:var(--accent);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"></span>
+      </div>
+      </div>
+      <!-- Tool options: brush size (moved from the right panel) and symmetry, dimmed for tools that do not use them; contextual rows below -->
+      <div id="tool-options" class="pal-group" data-pal-group="options" role="group" aria-label="Tool options">
+      <div id="brush-panel" data-relevant="true" aria-label="Brush size">
+        <div class="opt-row">
+          <div id="brush-sizes">
+            <button type="button" class="brush-btn active" data-brush="0" onclick="Brush.setSize(0)" title="Brush: 1 tile" aria-label="Brush 1 tile">•</button>
+            <button type="button" class="brush-btn" data-brush="1" onclick="Brush.setSize(1)" title="Brush: ~7 tiles" aria-label="Brush 7 tiles">3×3</button>
+            <button type="button" class="brush-btn" data-brush="2" onclick="Brush.setSize(2)" title="Brush: ~19 tiles" aria-label="Brush 19 tiles">5×5</button>
+            <button type="button" class="brush-btn" data-brush="3" onclick="Brush.setSize(3)" title="Brush: ~37 tiles" aria-label="Brush 37 tiles">○7</button>
+          </div>
+          <input id="brush-size-range" type="range" min="0" max="12" step="1" value="0" aria-label="Brush radius"
+                 oninput="Brush.setSize(this.value)" onchange="this.blur()" title="Brush radius ([ and ] keys)">
+        </div>
+      </div>
+      <div class="opt-row opt-row-2">
+        <div id="brush-size-label" title="Brush radius ([ and ] keys)">Radius 0 (1 tile)</div>
+        <div id="symmetry-row" data-relevant="true">
+          <select id="symmetry-select" class="hexdb-input" aria-label="Symmetry" onchange="Tools.setSymmetry(this.value); this.blur()"
+                  title="Symmetry (Y cycles): Paint, Rectangle, Line, Circle and Polygon also write the mirrored / rotated copies about the map-centre tile. Not used for Fill, bridges or multi-tile terrain. On even-height maps the mirror centre is the centre CELL, so the outermost column/row copies fall off the map and are not mirrored">
+            <option value="none">Symmetry: off</option>
+            <option value="h">Mirror left / right</option>
+            <option value="v">Mirror top / bottom</option>
+            <option value="hv">Both mirrors</option>
+            <option value="rot3">3-fold rotation</option>
+            <option value="rot6">6-fold rotation</option>
+          </select>
+        </div>
+      </div>
+      <div id="selection-row" style="display:none;align-items:center;gap:6px;padding:4px 0 0;font-size:11px;color:var(--muted)">
         <span id="selection-info" style="flex:1;min-width:0;color:#f5c518"></span>
         <button id="selection-clear" class="tool-btn" style="width:auto;padding:0 6px" onclick="Selection.clear()" title="Deselect (Esc / Ctrl+D)">Clear</button>
         <button id="selection-move" class="tool-btn" style="width:auto;padding:0 6px" onclick="Tools.beginMove()" title="Move the selection (Enter): the content follows the cursor, click drops it (one undo step), Esc cancels; , . rotate, / ; mirror">Move</button>
       </div>
-      <div id="paste-tools" style="display:none;align-items:center;gap:4px;padding:6px 8px 0">
+      <div id="paste-tools" style="display:none;align-items:center;gap:4px;padding:4px 0 0">
         <button class="tool-btn" data-act="ccw" onclick="Tools.rotateFloat(-1)" title="Rotate counter-clockwise (,)">⟲</button>
         <button class="tool-btn" data-act="cw" onclick="Tools.rotateFloat(1)" title="Rotate clockwise (.)">⟳</button>
         <button class="tool-btn" data-act="mh" onclick="Tools.mirrorFloat('h')" title="Mirror left/right (/)">⇋</button>
         <button class="tool-btn" data-act="mv" onclick="Tools.mirrorFloat('v')" title="Mirror top/bottom (;)">⇅</button>
       </div>
-      <div id="scatter-row" style="display:none;padding:6px 8px 0;font-size:11px;color:var(--muted)">
+      <div id="scatter-row" style="display:none;padding:4px 0 0;font-size:11px;color:var(--muted)">
         <div style="display:flex;align-items:center;gap:6px">
           <label title="Chance in percent that each brushed cell receives a variant">Density
             <input id="scatter-density" type="number" min="0" max="100" step="5" value="40" onkeydown="if(event.key==='Enter')this.blur()"
@@ -1624,20 +1721,10 @@ body.mode-common #map-io    { display: none; }
         </div>
         <div id="scatter-variants" style="display:flex;flex-wrap:wrap;gap:2px 8px;margin-top:4px;max-height:64px;overflow-y:auto"></div>
       </div>
-      <div id="symmetry-row" style="display:flex;align-items:center;gap:4px;padding:6px 8px 0">
-        <select id="symmetry-select" class="hexdb-input" style="flex:1;min-width:0;font-size:11px" onchange="Tools.setSymmetry(this.value); this.blur()"
-                title="Symmetry (Y cycles): Paint, Rectangle, Line, Circle and Polygon also write the mirrored / rotated copies about the map-centre tile. Not used for Fill, bridges or multi-tile terrain. On even-height maps the mirror centre is the centre CELL, so the outermost column/row copies fall off the map and are not mirrored">
-          <option value="none">Symmetry: off</option>
-          <option value="h">Mirror left / right</option>
-          <option value="v">Mirror top / bottom</option>
-          <option value="hv">Both mirrors</option>
-          <option value="rot3">3-fold rotation</option>
-          <option value="rot6">6-fold rotation</option>
-        </select>
       </div>
       <!-- Terrain / tile picker: takes all the remaining height (min 320 px) and scrolls inside itself -->
-      <div id="palette-tiles">
-        <div class="pkg-filter-row" id="pkg-filter-terrain"></div>
+      <div id="palette-tiles" class="pal-group" data-pal-group="tiles" role="group" aria-label="Tiles">
+        <div class="tiles-head"><span class="pal-caption">Tiles</span><div class="pkg-filter-row" id="pkg-filter-terrain" aria-label="Show tiles of package"></div></div>
         <div id="palette-scroll"></div>
         <div id="palette-selected" title="Active terrain">
           <img id="palette-sel-img" src="" alt="">
@@ -1647,13 +1734,19 @@ body.mode-common #map-io    { display: none; }
           </div>
         </div>
       </div>
-      <!-- Secondary panels: one accordion (PaletteAccordion), collapsed by default, one section open at a time; the content ids are kept -->
-      <div id="palette-acc">
-        <!-- Zone palette; the + adds a zone even while the section is collapsed (and opens it) -->
-        <section class="pal-acc" data-acc="zones">
-          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-zones" data-acc="zones" aria-expanded="false" aria-controls="zone-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Zones</span><span class="pal-acc-badge"></span></button><button id="btn-add-zone" class="pal-acc-add" type="button" onclick="PaletteAccordion.open('zones'); ZonePainter._uiAddZone()" title="Add zone" aria-label="Add zone">+</button></div>
-          <div id="zone-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-zones" hidden>
-            <div id="zone-list"></div>
+      <!-- Secondary panels: one accordion (PaletteAccordion) in three groups (View / Edit / Check & share), collapsed by default, one section open at a time; the content ids are kept -->
+      <div id="palette-acc" class="pal-group" data-pal-group="sections" role="group" aria-label="Panels">
+        <div class="pal-acc-group" data-group="view" role="group" aria-labelledby="acc-group-view">
+        <div class="pal-acc-group-h" id="acc-group-view">View</div>
+        <!-- Minimap options (T4.3): the minimap itself lives in the right panel -->
+        <section class="pal-acc" data-acc="minimap">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-minimap" data-acc="minimap" aria-expanded="false" aria-controls="minimap-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Minimap</span><span class="pal-acc-badge"></span></button></div>
+          <div id="minimap-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-minimap" hidden>
+            <div class="mm-bar">
+              <button id="mm-size-btn" class="hexdb-tool-btn" type="button" aria-pressed="false" title="Enlarge the minimap (remembered in this browser)">Bigger</button>
+              <button id="mm-zones-btn" class="hexdb-tool-btn" type="button" aria-pressed="true" title="Show zones on the minimap (follows the Zone overlay layer)">Zones</button>
+              <button id="mm-settle-btn" class="hexdb-tool-btn" type="button" aria-pressed="true" title="Show settlements as yellow dots on the minimap (follows the Settlements layer)">Towns</button>
+            </div>
           </div>
         </section>
         <!-- Go to (T4.1): in the LEFT palette (the toolbar row is not allowed to grow) -->
@@ -1667,17 +1760,6 @@ body.mode-common #map-io    { display: none; }
             </div>
           </div>
         </section>
-        <!-- Minimap options (T4.3): the minimap itself lives in the right panel -->
-        <section class="pal-acc" data-acc="minimap">
-          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-minimap" data-acc="minimap" aria-expanded="false" aria-controls="minimap-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Minimap</span><span class="pal-acc-badge"></span></button></div>
-          <div id="minimap-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-minimap" hidden>
-            <div class="mm-bar">
-              <button id="mm-size-btn" class="hexdb-tool-btn" type="button" aria-pressed="false" title="Enlarge the minimap (remembered in this browser)">Bigger</button>
-              <button id="mm-zones-btn" class="hexdb-tool-btn" type="button" aria-pressed="true" title="Show zones on the minimap (follows the Zone overlay layer)">Zones</button>
-              <button id="mm-settle-btn" class="hexdb-tool-btn" type="button" aria-pressed="true" title="Show settlements as yellow dots on the minimap (follows the Settlements layer)">Towns</button>
-            </div>
-          </div>
-        </section>
         <!-- Bookmarks (T4.2): saved in this browser, never in the map -->
         <section class="pal-acc" data-acc="bookmarks">
           <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-bookmarks" data-acc="bookmarks" aria-expanded="false" aria-controls="bookmarks-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Bookmarks</span><span class="pal-acc-badge"></span></button></div>
@@ -1687,6 +1769,29 @@ body.mode-common #map-io    { display: none; }
               <button id="bm-add-btn" class="hexdb-tool-btn" type="button" title="Bookmark the middle of the current view">Add</button>
             </div>
             <div id="bookmarks-list" role="list"></div>
+          </div>
+        </section>
+        </div>
+        <div class="pal-acc-group" data-group="edit" role="group" aria-labelledby="acc-group-edit">
+        <div class="pal-acc-group-h" id="acc-group-edit">Edit</div>
+        <!-- Zone palette; the + adds a zone even while the section is collapsed (and opens it) -->
+        <section class="pal-acc" data-acc="zones">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-zones" data-acc="zones" aria-expanded="false" aria-controls="zone-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Zones</span><span class="pal-acc-badge"></span></button><button id="btn-add-zone" class="pal-acc-add" type="button" onclick="PaletteAccordion.open('zones'); ZonePainter._uiAddZone()" title="Add zone" aria-label="Add zone">+</button></div>
+          <div id="zone-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-zones" hidden>
+            <!-- zone painter actions (moved from the top toolbar; ids and handlers kept) -->
+            <div class="zone-actions">
+              <div class="zone-act-row">
+                <button id="btn-zone-randomize" class="hexdb-tool-btn" type="button" onclick="ZonePainter._randomizeFillUI()" title="Randomly distribute zones across the map, then fill terrain">🎲 Randomize &amp; Fill</button>
+                <input id="rnd-zone-scale" type="range" min="0.01" max="0.12" step="0.005" value="0.04" aria-label="Patch size for Randomize"
+                       title="Patch size — left=large, right=small">
+              </div>
+              <div class="zone-act-row">
+                <button id="btn-zone-fill" class="hexdb-tool-btn" type="button" onclick="ZonePainter._fillAllZones()" title="Fill all zones with biome terrain">▶ Fill Zones</button>
+                <button id="btn-zone-overlay" class="hexdb-tool-btn" type="button" onclick="ZonePainter._toggleOverlayUI()" title="Toggle zone color overlay (same as the Zone overlay layer)">👁 Overlay</button>
+                <button id="btn-zone-clear" class="hexdb-tool-btn" type="button" onclick="ZonePainter._clearZonesUI()" title="Clear zone assignments">🗑 Clear Zones</button>
+              </div>
+            </div>
+            <div id="zone-list"></div>
           </div>
         </section>
         <!-- Stamps (T2.13) -->
@@ -1712,6 +1817,16 @@ body.mode-common #map-io    { display: none; }
             <div id="layers-list"></div>
           </div>
         </section>
+        <!-- History (T4.10): rows are real buttons, newest first, click = jump -->
+        <section class="pal-acc" data-acc="history">
+          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-history" data-acc="history" aria-expanded="false" aria-controls="history-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">History</span><span class="pal-acc-badge"></span></button></div>
+          <div id="history-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-history" hidden>
+            <div id="history-list" role="list" aria-label="History steps, newest first"></div>
+          </div>
+        </section>
+        </div>
+        <div class="pal-acc-group" data-group="check" role="group" aria-labelledby="acc-group-check">
+        <div class="pal-acc-group-h" id="acc-group-check">Check &amp; share</div>
         <!-- Map validator (T4.6): nothing runs until Run is pressed -->
         <section class="pal-acc" data-acc="validator">
           <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-validator" data-acc="validator" aria-expanded="false" aria-controls="validator-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">Validate map</span><span class="pal-acc-badge"></span></button></div>
@@ -1737,13 +1852,6 @@ body.mode-common #map-io    { display: none; }
               </select>
               <button id="png-export-btn" class="hexdb-tool-btn" type="button" onclick="IO.exportPNG()" title="Download the whole map as a PNG (hidden layers are not included)">Export PNG</button>
             </div>
-          </div>
-        </section>
-        <!-- History (T4.10): rows are real buttons, newest first, click = jump -->
-        <section class="pal-acc" data-acc="history">
-          <div class="pal-acc-h"><button type="button" class="pal-acc-btn" id="acc-btn-history" data-acc="history" aria-expanded="false" aria-controls="history-panel"><span class="pal-acc-chev" aria-hidden="true"></span><span class="pal-acc-label">History</span><span class="pal-acc-badge"></span></button></div>
-          <div id="history-panel" class="pal-acc-body" role="region" aria-labelledby="acc-btn-history" hidden>
-            <div id="history-list" role="list" aria-label="History steps, newest first"></div>
           </div>
         </section>
         <!-- Map design: move city, distance bands, placement helper -->
@@ -1775,6 +1883,7 @@ body.mode-common #map-io    { display: none; }
             <button id="btn-shortcut-help" class="hexdb-tool-btn" type="button" onclick="Shortcuts.showHelp()" title="List every keyboard shortcut">Keyboard shortcuts</button>
           </div>
         </section>
+        </div>
       </div>
     </div>
 
@@ -1786,37 +1895,13 @@ body.mode-common #map-io    { display: none; }
     <!-- Right panel -->
     <div id="right-panel">
       <div id="right-panel-head">
-        <button type="button" id="right-panel-toggle" aria-expanded="true" aria-controls="right-panel" title="Hide the side panel (minimap, brush, active terrain)">»</button>
+        <button type="button" id="right-panel-toggle" aria-expanded="true" aria-controls="right-panel" title="Hide the side panel (minimap, settlements)">»</button>
       </div>
       <div id="minimap-container">
         <canvas id="minimap" width="220" height="220"></canvas>
       </div>
       <div id="right-scroll-body" style="flex:1;overflow-y:auto;min-height:0">
-      <div id="brush-panel">
-        <div class="section-title">Brush Size</div>
-        <div id="brush-sizes">
-          <button class="brush-btn active" data-brush="0" onclick="Brush.setSize(0)" title="1 tile">•</button>
-          <button class="brush-btn" data-brush="1" onclick="Brush.setSize(1)" title="~7 tiles">3×3</button>
-          <button class="brush-btn" data-brush="2" onclick="Brush.setSize(2)" title="~19 tiles">5×5</button>
-          <button class="brush-btn" data-brush="3" onclick="Brush.setSize(3)" title="~37 tiles">○7</button>
-        </div>
-        <div style="display:flex;align-items:center;gap:6px;margin-top:6px">
-          <input id="brush-size-range" type="range" min="0" max="12" step="1" value="0"
-                 style="flex:1" oninput="Brush.setSize(this.value)" onchange="this.blur()" title="Brush radius ([ and ] keys)">
-        </div>
-        <div id="brush-size-label" style="font-size:10px;color:var(--muted);margin-top:2px">Radius 0 (1 tile)</div>
-      </div>
-      <div id="right-active-terrain">
-        <div class="section-title">Active Terrain</div>
-        <div class="right-terrain-display">
-          <img id="right-terrain-img" src="" alt="">
-          <div>
-            <div id="right-terrain-name">Plain_1</div>
-            <div id="right-terrain-id">ID: 12</div>
-          </div>
-        </div>
-      </div>
-      <div id="tile-inspector" style="display:none;border-top:1px solid var(--border);padding:8px 10px">
+      <div id="tile-inspector" style="display:none;border-bottom:1px solid var(--border);padding:8px">
         <div class="section-title" style="margin-bottom:6px">Selected Tile</div>
         <div id="tile-insp-pos" style="font-size:11px;color:var(--muted);margin-bottom:2px"></div>
         <div id="tile-insp-id"  style="font-size:12px;font-weight:bold;margin-bottom:8px;word-break:break-all"></div>
@@ -2731,7 +2816,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "bf4109c";
+const COMMIT  = "1ac4606";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6509,6 +6594,7 @@ const Tools = (() => {
     document.querySelectorAll('.tool-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.tool === name);
     });
+    _markOptionRelevance(name);
     UI.updateStatusTool(TOOL_NAMES[name] || name);
     if (name !== 'select') Canvas.clearSelection();
     // Settlement tools require settlements to be visible
@@ -6530,6 +6616,26 @@ const Tools = (() => {
       if (picker) picker.style.display = 'none';
       if (label)  label.style.display  = 'none';
     }
+  }
+
+  // Tool-options strip: the brush radius and the symmetry select stay in place for every tool, but are dimmed (data-relevant
+  // = "false", with a hint in the tooltip) for the tools that do not use them. Nothing is disabled: a size set now applies
+  // to the next brush tool.
+  const BRUSH_TOOLS = ['paint', 'eraser', 'scatter', 'line', 'circle', 'zone'];
+  const SYM_TOOLS = ['paint', 'rect', 'line', 'circle', 'polygon', 'eraser', 'scatter'];
+  function _markOptionRelevance(name) {
+    const label = TOOL_NAMES[name] || name;
+    const set = (el, on, tip) => {
+      if (!el) return;
+      el.dataset.relevant = String(on);
+      el.title = on ? '' : tip;
+    };
+    const bTip = 'Brush size: not used by ' + label + ' (it applies to Paint, Eraser, Scatter, Line, Circle and Zone Painter)';
+    set(document.getElementById('brush-panel'), BRUSH_TOOLS.includes(name), bTip);
+    const bl = document.getElementById('brush-size-label');
+    if (bl) bl.dataset.relevant = String(BRUSH_TOOLS.includes(name));
+    set(document.getElementById('symmetry-row'), SYM_TOOLS.includes(name),
+      'Symmetry: not used by ' + label + ' (it applies to Paint, Rectangle, Line, Circle, Polygon, Eraser and Scatter)');
   }
 
   function _bldSpriteUrl(b) { return Packages.spriteSrc(b, 'bld'); }
@@ -9854,13 +9960,6 @@ const UI = (() => {
     else if (t.spriteName) selImg.src = `packages/postapoc/sprites/hex/${t.spriteName}.png`;
     document.getElementById('palette-selected-name').textContent = t.name || hexId;
     document.getElementById('palette-selected-id').textContent   = hexId;
-
-    // Right panel active terrain
-    const rtImg = document.getElementById('right-terrain-img');
-    if (spr) rtImg.src = spr.src;
-    else if (t.spriteName) rtImg.src = `packages/postapoc/sprites/hex/${t.spriteName}.png`;
-    document.getElementById('right-terrain-name').textContent = t.name || hexId;
-    document.getElementById('right-terrain-id').textContent   = hexId;
 
     // Status bar
     document.getElementById('st-terrain').textContent = hexId;
@@ -14575,6 +14674,14 @@ const Packages = (() => {
         `<button class="pkg-chip ${_hiddenPkgs.has(p.id) ? '' : 'active'}"
                  data-pkg-id="${_esc(p.id)}" onclick="Packages.togglePkgFilter(this.dataset.pkgId)">${_esc(p.name)}</button>`
       ).join('');
+      // full name as a tooltip (the compact filter row truncates long names); aria-pressed carries the on/off state
+      el.querySelectorAll('.pkg-chip').forEach((c, i) => {
+        const p = _registry[i];
+        if (!p) return;
+        c.type = 'button';
+        c.title = (_hiddenPkgs.has(p.id) ? 'Show tiles of ' : 'Hide tiles of ') + p.name;
+        c.setAttribute('aria-pressed', String(!_hiddenPkgs.has(p.id)));
+      });
     });
   }
 
@@ -21079,6 +21186,19 @@ const PaletteAccordion = (() => {
       add.addEventListener('keydown', e => { if (e.code === 'Enter' || e.code === 'Space') e.stopPropagation(); });
       add.addEventListener('click', e => { if (e.detail > 0) add.blur(); });
     }
+    // Tool, brush, chip and zone-action buttons of the palette: Enter/Space on a focused button reach the button only (not
+    // Space-pan / Enter-lift); a pointer click does not keep focus there (Space pans the map again, letters stay tool keys).
+    const pal = document.getElementById('palette-panel');
+    const PAL_BTNS = '#palette-tools button, #tool-options button, .tiles-head button, .zone-act-row button';
+    if (pal) {
+      pal.addEventListener('keydown', e => {
+        if ((e.code === 'Enter' || e.code === 'Space') && e.target.matches && e.target.matches(PAL_BTNS)) e.stopPropagation();
+      });
+      pal.addEventListener('click', e => {
+        const b = e.target.closest && e.target.closest(PAL_BTNS);
+        if (b && e.detail > 0) b.blur();
+      });
+    }
     let saved = '';
     try { saved = localStorage.getItem(KEY) || ''; } catch (e) { /* storage blocked: none open */ }
     _apply(_btn(saved) ? saved : '');
@@ -21124,7 +21244,7 @@ const RightPanel = (() => {
     if (t) {
       t.setAttribute('aria-expanded', String(open));
       t.textContent = open ? '»' : '«';
-      t.title = open ? 'Hide the side panel (minimap, brush, active terrain)' : 'Show the side panel (minimap, brush, active terrain)';
+      t.title = open ? 'Hide the side panel (minimap, settlements)' : 'Show the side panel (minimap, settlements)';
     }
     // The minimap lives in the right panel: with only the rail showing, its option buttons would change nothing visible.
     ['mm-size-btn', 'mm-zones-btn', 'mm-settle-btn'].forEach(id => {
