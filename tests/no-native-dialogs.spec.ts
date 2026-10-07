@@ -78,7 +78,7 @@ test('hex reskin picker is a searchable modal of postapoc ids and adds the reski
   await expect(page.locator('#reskin-search')).toBeVisible();
   await page.locator('#reskin-search').fill('Plain_2');
   await page.locator('.reskin-item[data-id="Plain_2"]').click();
-  await expect.poll(() => page.evaluate(() => HexDB.getAll().some(h => h.id === 'Plain_2' && h.package === 'rk'))).toBe(true);
+  await expect.poll(() => page.evaluate(() => HexDB.getAll().some(h => h.id === 'Rk_Plain_2' && h.package === 'rk'))).toBe(true);
   expect(nativeDialogs).toEqual([]);
 });
 
@@ -100,7 +100,7 @@ test('building reskin picker is a searchable modal of postapoc ids and adds the 
   await expect(page.locator('#reskin-search')).toBeVisible();
   await page.locator('#reskin-search').fill(id);
   await page.locator('.reskin-item').filter({ has: page.locator('.reskin-id', { hasText: id }) }).first().click();
-  await expect.poll(() => page.evaluate((i) => BldDB.getAll().some(b => b.id === i && b.package === 'rk'), id)).toBe(true);
+  await expect.poll(() => page.evaluate((i) => BldDB.getAll().some(b => b.id === 'Rk_' + i && b.package === 'rk'), id)).toBe(true);
   expect(nativeDialogs).toEqual([]);
 });
 

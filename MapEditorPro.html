@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.10.07.2d784c1</title>
+<title>Post Apo Map Editor 2026.10.07.c1258cf</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -557,6 +557,10 @@ body:not(.mode-map) #statusbar { display: none; }
 .modal-actions { display: flex; gap: 10px; justify-content: flex-end; }
 .reskin-body { display: flex; flex-direction: column; gap: 6px; min-width: min(560px, 80vw); }
 .reskin-hint { margin: 0; font-size: 11px; color: var(--muted); }
+.reskin-hint.reskin-warn { color: #e0a030; }
+.reskin-modes { display: flex; gap: 6px; flex-wrap: wrap; }
+.reskin-mode { display: flex; flex-direction: column; gap: 2px; text-align: left; flex: 1 1 240px; background: var(--hover); border: 1px solid var(--border); border-radius: 4px; color: inherit; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+.reskin-mode[aria-checked="true"] { outline: 2px solid var(--accent); }
 #reskin-search { width: 100%; box-sizing: border-box; padding: 6px 8px; background: var(--bg, #252525); border: 1px solid var(--border); border-radius: 4px; color: var(--text, inherit); }
 .reskin-count { font-size: 11px; color: var(--muted); }
 .reskin-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; max-height: 320px; overflow-y: auto; }
@@ -2726,7 +2730,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "fd75e16";
+const COMMIT  = "fff499f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -12961,14 +12965,47 @@ const Packages = (() => {
   // created only for rendered entries. Entries the active package already reskinned are shown disabled.
   const RESKIN_CAP = 60;
 
+  // The id a Reskin+ copy gets. mode 'prefix' (default): the active package's PascalCase prefix + baseId (not added twice);
+  // mode 'same': the base id unchanged, a runtime override of the base slot.
+  function reskinTargetId(baseId, mode) {
+    if (mode === 'same') return baseId;
+    const prefix = idPrefix(getActive());
+    return prefix && !String(baseId).startsWith(prefix) ? prefix + baseId : baseId;
+  }
+
   function openReskinPicker({ kind, entries, onPick }) {
     const active = getActive();
     const base = (entries || []).filter(e => (e.package || 'postapoc') === 'postapoc');
-    const taken = new Set((entries || []).filter(e => (e.package || 'postapoc') === active).map(e => e.id));
+    const ownIds = new Set((entries || []).filter(e => (e.package || 'postapoc') === active).map(e => e.id));
+    let mode = 'prefix';
+    const isTaken = id => ownIds.has(reskinTargetId(id, mode));
     const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
 
     const body = el('div', 'reskin-body');
-    body.appendChild(el('p', 'reskin-hint', 'The new entry keeps the same id, so it overrides that ' + (kind === 'bld' ? 'building' : 'tile') + ' at runtime.'));
+    const noun = kind === 'bld' ? 'building' : 'tile';
+    const group = el('div', 'reskin-modes'); group.setAttribute('role', 'radiogroup'); group.setAttribute('aria-label', 'Reskin mode');
+    const MODES = [
+      { key: 'prefix', label: 'Copy with package prefix', note: () => `Creates a copy whose id is the package prefix plus the base id (for example ${reskinTargetId('Plain_1', 'prefix')}); the base ${noun} stays untouched.` },
+      { key: 'same', label: 'Override the same id (runtime reskin)', note: () => `Warning: creates an entry with the SAME id as the base ${noun}; the game will use it instead of the base ${noun} when this package is active; the list will show both.` },
+    ];
+    const radios = MODES.map(m => {
+      const r = el('button', 'reskin-mode'); r.type = 'button'; r.dataset.mode = m.key; r.setAttribute('role', 'radio');
+      r.append(el('strong', null, m.label), el('span', 'reskin-hint' + (m.key === 'same' ? ' reskin-warn' : ''), m.note()));
+      return r;
+    });
+    const syncModes = () => radios.forEach(r => { const on = r.dataset.mode === mode; r.setAttribute('aria-checked', on ? 'true' : 'false'); r.tabIndex = on ? 0 : -1; });
+    const setMode = (k, focus) => { mode = k; syncModes(); if (focus) radios.find(r => r.dataset.mode === k).focus(); render(); };
+    radios.forEach((r, i) => {
+      r.addEventListener('click', () => setMode(r.dataset.mode, false));
+      r.addEventListener('keydown', e => {
+        const d = (e.key === 'ArrowRight' || e.key === 'ArrowDown') ? 1 : (e.key === 'ArrowLeft' || e.key === 'ArrowUp') ? -1 : 0;
+        if (!d) return;
+        e.preventDefault(); e.stopPropagation();
+        setMode(MODES[(i + d + MODES.length) % MODES.length].key, true);
+      });
+    });
+    group.append(...radios);
+    body.append(group);
     const input = el('input'); input.id = 'reskin-search'; input.type = 'text'; input.placeholder = 'Search ids…';
     input.autocomplete = 'off'; input.setAttribute('role', 'searchbox'); input.setAttribute('aria-label', 'Search ids'); input.setAttribute('aria-controls', 'reskin-list');
     const count = el('div', 'reskin-count'); count.id = 'reskin-count'; count.setAttribute('aria-live', 'polite');
@@ -12988,7 +13025,7 @@ const Packages = (() => {
       closed = true;
       const id = b.dataset.id;
       modal.close('close');
-      onPick(id);
+      onPick(id, mode);
     };
     const render = () => {
       const q = input.value.trim().toLowerCase();
@@ -12997,7 +13034,7 @@ const Packages = (() => {
       hits.slice(0, RESKIN_CAP).forEach((e, i) => {
         const b = el('button', 'reskin-item'); b.type = 'button'; b.id = 'reskin-item-' + i;
         b.dataset.id = e.id; b.setAttribute('role', 'option'); b.tabIndex = -1;
-        if (taken.has(e.id)) { b.disabled = true; b.title = 'Already reskinned in this package'; }
+        if (isTaken(e.id)) { b.disabled = true; b.title = mode === 'same' ? 'This package already has an entry with this id' : `Already exists in this package as ${reskinTargetId(e.id, mode)}`; }
         else b.title = String(e.id);
         const img = el('img'); img.alt = ''; img.loading = 'lazy'; img.decoding = 'async';
         img.addEventListener('error', () => b.classList.add('no-sprite'));
@@ -13027,6 +13064,7 @@ const Packages = (() => {
     });
     list.addEventListener('click', e => { const b = e.target.closest && e.target.closest('.reskin-item'); if (b && list.contains(b)) pick(b); });
 
+    syncModes();
     modal = UI.showModal({
       id: 'reskin-picker',
       title: `Reskin which postapoc ${kind === 'bld' ? 'building' : 'hex'}?`,
@@ -15235,7 +15273,7 @@ const Packages = (() => {
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
-           spriteSrc, openReskinPicker, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
+           spriteSrc, openReskinPicker, reskinTargetId, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
@@ -17501,18 +17539,28 @@ const HexDB = (() => {
     document.getElementById('hexdb-list').scrollTop = 999999;
   }
 
-  // Creates a new entry for the active package that reuses an existing hex's id — a
-  // reskin. Deliberately does NOT go through idPrefix(): the whole point is to keep the
-  // id identical so it overrides the same TileRenderer/RuntimeDatabaseSync slot at
-  // runtime (see SP5 plan). Only sensible for a non-default active package.
-  function addReskin(baseId) {
+  // Reskin+ for the active (non-default) package. mode 'prefix' (default): a copy whose id is the package prefix +
+  // baseId (Plain_1 -> Medieval_Plain_1). mode 'same': an entry with the identical id, which overrides the base
+  // TileRenderer/RuntimeDatabaseSync slot at runtime (SP5). Either way an existing id+package entry is never duplicated.
+  function addReskin(baseId, mode) {
+    mode = mode === 'same' ? 'same' : 'prefix';
     const base = _data.hexes.find(h => h.id === baseId && (h.package || 'postapoc') === 'postapoc');
     if (!base) { UI.toast(`⚠ No postapoc hex found with id "${baseId}"`); return; }
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
+    const pkg = Packages.getActive();
+    const newId = Packages.reskinTargetId(baseId, mode);
+    const exIdx = _data.hexes.findIndex(h => h.id === newId && (h.package || 'postapoc') === pkg);
+    if (exIdx >= 0) {
+      UI.toast(`${newId} already exists in package "${pkg}"`);
+      const fi = _filtered.indexOf(exIdx);
+      if (fi >= 0) _selectIdx(fi);
+      return;
+    }
     const h = structuredClone(base);
-    h.package = Packages.getActive();
+    h.id = newId;
+    h.package = pkg;
     _data.hexes.push(h);
     _autoSave();
     _applyFilter();
@@ -17520,7 +17568,9 @@ const HexDB = (() => {
     const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
     _selectIdx(filtIdx >= 0 ? filtIdx : _filtered.length - 1);
     document.getElementById('hexdb-list').scrollTop = 999999;
-    UI.toast(`Reskinning "${baseId}" for package "${h.package}" — id kept identical, edit spriteName next.`);
+    UI.toast(mode === 'same'
+      ? `Created "${newId}" as a same-id override of "${baseId}" for package "${pkg}" — edit spriteName next.`
+      : `Created "${newId}" as a prefixed copy of "${baseId}" for package "${pkg}" — edit spriteName next.`);
   }
 
   function promptReskin() {
@@ -17528,7 +17578,7 @@ const HexDB = (() => {
       UI.toast('⚠ Select a non-default package first'); return;
     }
     if (!_data.hexes.some(h => (h.package || 'postapoc') === 'postapoc')) { UI.toast('⚠ No postapoc hex tiles to reskin'); return; }
-    Packages.openReskinPicker({ kind: 'hex', entries: _data.hexes, onPick: addReskin });
+    Packages.openReskinPicker({ kind: 'hex', entries: _data.hexes, onPick: (id, mode) => addReskin(id, mode) });
   }
 
   // Call this from wherever the panel already re-renders on package switch (the same
@@ -19040,25 +19090,34 @@ const BldDB = (() => {
     _selectIdx(_filtered.indexOf(_data.buildings.length - 1));
   }
 
-  // Creates a new entry for the active package that reuses an existing building's id — a
-  // reskin. Deliberately does NOT go through idPrefix(): the whole point is to keep the
-  // id identical so it overrides the same slot at runtime (see SP5 plan; see
-  // HexDB.addReskin — same rationale, for buildings). Only sensible for a non-default
-  // active package.
-  function addReskin(baseId) {
+  // Reskin+ for buildings; same two modes and collision rule as HexDB.addReskin.
+  function addReskin(baseId, mode) {
+    mode = mode === 'same' ? 'same' : 'prefix';
     const base = _data.buildings.find(b => b.id === baseId && (b.package || 'postapoc') === 'postapoc');
     if (!base) { UI.toast(`⚠ No postapoc building found with id "${baseId}"`); return; }
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
+    const pkg = Packages.getActive();
+    const newId = Packages.reskinTargetId(baseId, mode);
+    const exIdx = _data.buildings.findIndex(x => x.id === newId && (x.package || 'postapoc') === pkg);
+    if (exIdx >= 0) {
+      UI.toast(`${newId} already exists in package "${pkg}"`);
+      const fi = _filtered.indexOf(exIdx);
+      if (fi >= 0) _selectIdx(fi);
+      return;
+    }
     const b = structuredClone(base);
-    b.package = Packages.getActive();
+    b.id = newId;
+    b.package = pkg;
     _data.buildings.push(b);
     _autoSave();
     _applyFilter();
     _buildList();
     _selectIdx(_filtered.indexOf(_data.buildings.length - 1));
-    UI.toast(`Reskinning "${baseId}" for package "${b.package}" — id kept identical, edit spriteName next.`);
+    UI.toast(mode === 'same'
+      ? `Created "${newId}" as a same-id override of "${baseId}" for package "${pkg}" — edit spriteName next.`
+      : `Created "${newId}" as a prefixed copy of "${baseId}" for package "${pkg}" — edit spriteName next.`);
   }
 
   function promptReskin() {
@@ -19066,7 +19125,7 @@ const BldDB = (() => {
       UI.toast('⚠ Select a non-default package first'); return;
     }
     if (!_data.buildings.some(b => (b.package || 'postapoc') === 'postapoc')) { UI.toast('⚠ No postapoc buildings to reskin'); return; }
-    Packages.openReskinPicker({ kind: 'bld', entries: _data.buildings, onPick: addReskin });
+    Packages.openReskinPicker({ kind: 'bld', entries: _data.buildings, onPick: (id, mode) => addReskin(id, mode) });
   }
 
   // Call this from wherever the panel already re-renders on package switch (the same
