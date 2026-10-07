@@ -32,6 +32,7 @@ Format: `## [version] — [date]`
 - Undo history uses less memory.
 
 ### Editing tools
+- Hand-painting tools no longer re-pick river/lake pieces, shores or rock water; place the exact tile you choose. The map generator is unchanged. (Paint, brush and symmetry, Fill, Rectangle, Line, Circle, Polygon, Scatter, Replace, Eraser, paste, move and stamps write exactly the chosen or copied tiles and change no neighbouring cell; generate into selection still fits river pieces at its border.)
 - Rectangle and Fill now re-resolve river and water edge tiles like Paint.
 - The brush can be any radius from 0 to 12 (slider in the Brush panel, or [ and ] keys) and is a true hex disc on maps of any height, including odd-sized maps. The 3×3, 5×5 and ○7 buttons are radius 1, 2 and 3.
 - Fill uses true hex adjacency (previously two diagonal directions were wrong on some map heights), so a fill may select different tiles than before.
