@@ -1174,28 +1174,38 @@ test.describe('clipboard (T2.9)', () => {
     expect(r).toEqual({ satCount: 3, free: true, overlapSkipped: true, cornerSkipped: true, cornerSkipped2: true, underFootprint: true, orphans: 0 });
   });
 
-  test('edge re-resolution is limited to the pasted region border (interior cells keep their copied tiles)', async ({ page }) => {
+  // Owner decision 2026-10-07 (Tools.AUTO_WATER_EDGES = false): was 'edge re-resolution is limited to the pasted region
+  // border'. A paste is a hand tool: no cell (border or interior) is handed to the re-resolution any more and every placed
+  // cell holds exactly the copied tile.
+  test('a paste writes the copied tiles exactly and hands no cell to edge re-resolution (border included)', async ({ page }) => {
     const r = await page.evaluate(() => {
+      const W = MAP_WIDTH;
+      const river = HexDB.getAll().find((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0).id;
+      for (let c = 220; c <= 226; c++) for (let rr = 220; rr <= 226; rr++) mapData[rr * W + c] = (c + rr) % 2 ? river : 'Water_1';
+      for (let c = 95; c <= 110; c++) for (let rr = 95; rr <= 110; rr++) mapData[rr * W + c] = river;    // river pieces all around the target
       Selection.setCells(Tools._rectCells(220, 220, 226, 226)); Tools.copySelection();
       const calls: any[] = [];
-      const orig = Tools.autoResolveEdgesAround;
-      Tools.autoResolveEdgesAround = (cells: any[]) => { calls.push(cells.map(c => c.col + ',' + c.row)); };
-      Tools.beginPaste(Clipboard.get()); Tools.dropFloat(100, 100);
-      Tools.autoResolveEdgesAround = orig;
-      const placed = new Set(Selection.getCells().map((c: any) => c.col + ',' + c.row));
-      const border = new Set<string>();
-      for (const k of placed) {
-        const [c, rr] = k.split(',').map(Number);
-        if (HexUtils.neighbors(c, rr, MAP_WIDTH, MAP_HEIGHT).some((n: any) => !placed.has(n.col + ',' + n.row))) border.add(k);
-      }
-      const got = new Set(calls[0] || []);
-      return { n: calls.length, hasAllBorder: [...border].every(k => got.has(k)), noInterior: [...got].every(k => placed.has(k)), smaller: got.size < placed.size, interior: placed.size - border.size };
+      const orig = Tools.autoResolveEdgesAround, origR = EdgeTiling.resolveEdgeTile;
+      let resolves = 0;
+      Tools.autoResolveEdgesAround = (cells: any[]) => { calls.push(cells.length); };
+      EdgeTiling.resolveEdgeTile = (...a: any[]) => { resolves++; return (origR as any)(...a); };
+      const before = mapData.slice();
+      try { Tools.beginPaste(Clipboard.get()); Tools.dropFloat(100, 100); }
+      finally { Tools.autoResolveEdgesAround = orig; EdgeTiling.resolveEdgeTile = origR; }
+      const placed = new Set(Selection.getCells().map((c: any) => c.row * W + c.col));
+      let outside = 0;
+      for (let i = 0; i < mapData.length; i++) if (!placed.has(i) && mapData[i] !== before[i]) outside++;
+      // every buffer cell lands at cube(target) + its cube offset (HexUtils), holding the copied id
+      const a = HexUtils.toCube(100, 100, W, MAP_HEIGHT);
+      let same = 0;
+      for (const e of Clipboard.get().cells) { const c = HexUtils.fromCube({ q: a.q + e.dq, r: a.r + e.dr, s: a.s - e.dq - e.dr }, W, MAP_HEIGHT); if (mapData[c.row * W + c.col] === e.t) same++; }
+      return { calls: calls.length, resolves, outside, placed: placed.size, same };
     });
-    expect(r.n).toBe(1);
-    expect(r.hasAllBorder).toBe(true);
-    expect(r.noInterior).toBe(true);
-    expect(r.smaller).toBe(true);
-    expect(r.interior).toBeGreaterThan(5);
+    expect(r.calls).toBe(0);
+    expect(r.resolves).toBe(0);
+    expect(r.outside).toBe(0);
+    expect(r.placed).toBe(49);
+    expect(r.same).toBe(49);
   });
 
   test('new objects keys are appended (insertion order) and existing ones keep their order', async ({ page }) => {
@@ -1290,7 +1300,8 @@ test.describe('clipboard (T2.9)', () => {
       Tools.autoResolveEdgesAround = orig;
       return { same: mapData.join('|') === snap, steps: History.undoSize() - steps, calls, sel: Selection.size() };
     });
-    expect(r).toEqual({ same: true, steps: 1, calls: 1, sel: 450 * 450 });
+    // calls was 1 (one border re-resolution pass); a paste no longer re-resolves edges (owner decision 2026-10-07)
+    expect(r).toEqual({ same: true, steps: 1, calls: 0, sel: 450 * 450 });
   });
 
   test('Ctrl+V while a paste is active keeps one float; tool switch (P) cancels it and hides the ghost', async ({ page }) => {
@@ -2020,44 +2031,38 @@ test.describe('transform and move (T2.10)', () => {
 
 
   // ---------- directional water ---------------------------------------------------------------
-  test('a transformed paste re-resolves EVERY water / river cell of the region (masks equal resolveEdgeTile on the final map)', async ({ page }) => {
+  // Owner decision 2026-10-07 (Tools.AUTO_WATER_EDGES = false): was 'a transformed paste re-resolves EVERY water / river
+  // cell of the region (masks equal resolveEdgeTile on the final map)'. A paste is a hand tool: rotated or not, it writes
+  // the copied ids as they are (a rotated river piece keeps its id; the user picks another piece by hand if wanted) and
+  // calls no resolver.
+  test('a transformed paste writes the copied ids as they are (no resolver call), whatever the rotation', async ({ page }) => {
     const r = await page.evaluate(() => {
-      const W = MAP_WIDTH, H = MAP_HEIGHT;
+      const W = MAP_WIDTH;
       const rivers = HexDB.getAll().filter((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0);
-      const faces = (id: string) => { const e = Terrain.byHexId(id); return e && Array.isArray(e.edgeFaces) ? e.edgeFaces.slice().sort().join('') : ''; };
-      const fallback = HexDB.getAll().find((h: any) => h.id === 'Water_1').id;
-      const origRandom = Math.random; Math.random = () => 0.5;
+      mapData.fill('Plain_1');
+      for (let row = 218; row <= 232; row++) mapData[row * W + 225] = rivers[row % 3].id;      // a one-cell-wide river of mixed pieces
+      Selection.setCells(Tools._rectCells(222, 215, 228, 235)); Tools.copySelection();
+      const srcIds = Clipboard.get().cells.map((e: any) => e.t).sort().join('|');
+      let resolves = 0; const origR = EdgeTiling.resolveEdgeTile;
+      EdgeTiling.resolveEdgeTile = (...a: any[]) => { resolves++; return (origR as any)(...a); };
+      const out: any = {};
       try {
-        mapData.fill('Plain_1');
-        const band: any[] = [];
-        for (let row = 218; row <= 232; row++) band.push({ col: 225, row });                  // a one-cell-wide river: every river cell is INTERIOR to the copied rectangle
-        for (const b of band) mapData[b.row * W + b.col] = rivers[0].id;
-        Tools.autoResolveEdgesAround(band);
-        Selection.setCells(Tools._rectCells(222, 215, 228, 235)); Tools.copySelection();
-        const out: any = {};
         for (const [name, rot] of [['identity', 0], ['rot1', 1], ['rot2', 2]] as [string, number][]) {
+          const before = mapData.slice();
           Tools.beginPaste(Clipboard.get()); Tools.rotateFloat(rot); Tools.dropFloat(100, 100);
           const placed = Selection.getCells();
-          const cells = new Map<string, any>();
-          for (const p of placed) { cells.set(p.col + ',' + p.row, p); for (const n of HexUtils.neighbors(p.col, p.row, W, H)) cells.set(n.col + ',' + n.row, n); }
-          let checked = 0, bad = 0, dir = 0;
-          for (const c of cells.values()) {
-            const id = mapData[c.row * W + c.col], e = Terrain.byHexId(id);
-            if (!e || !['Water', 'Rivers'].includes(e.type)) continue;                          // every water / river cell
-            checked++; if (faces(id) !== '') dir++;
-            if (faces(id) !== faces(EdgeTiling.resolveEdgeTile(c.col, c.row, W, H, mapData, ['Water', 'Rivers'], () => 0, [fallback]))) bad++;
-          }
-          out[name] = { checked, bad, dir, n: placed.length };
+          const placedKeys = new Set(placed.map((p: any) => p.row * W + p.col));
+          let outside = 0;
+          for (let i = 0; i < mapData.length; i++) if (!placedKeys.has(i) && mapData[i] !== before[i]) outside++;
+          out[name] = { n: placed.length, ids: placed.map((p: any) => mapData[p.row * W + p.col]).sort().join('|') === srcIds, outside };
           Tools.setActive('paint'); History.undo();
           Selection.setCells(Tools._rectCells(222, 215, 228, 235));
         }
-        return out;
-      } finally { Math.random = origRandom; }
+      } finally { EdgeTiling.resolveEdgeTile = origR; }
+      return { out, resolves };
     });
-    expect(r.rot1.checked).toBeGreaterThan(10); expect(r.rot1.dir).toBeGreaterThanOrEqual(8); expect(r.rot1.bad).toBe(0);
-    expect(r.rot2.checked).toBeGreaterThan(10); expect(r.rot2.dir).toBeGreaterThanOrEqual(8); expect(r.rot2.bad).toBe(0);
-    expect([r.identity.n, r.rot1.n, r.rot2.n]).toEqual([147, 147, 147]);   // 7 x 21 cells land each time
-    expect(r.identity.checked).toBeGreaterThan(10); expect(r.identity.dir).toBeGreaterThanOrEqual(8);   // (an identity paste keeps copied interiors as before; at another row parity they may differ from a fresh resolve under K1, which is not this task's concern)
+    expect(r.resolves).toBe(0);
+    for (const k of ['identity', 'rot1', 'rot2']) expect(r.out[k]).toEqual({ n: 147, ids: true, outside: 0 });   // 7 x 21 cells land each time
   });
 
   // ---------- multi-tile footprints -----------------------------------------------------------
@@ -3146,12 +3151,13 @@ test.describe('replace (T2.11)', () => {
   });
 
   // ---- edges ----
-  test('water/river edges are re-resolved after a replace: only the cells next to the replaced ones (these neighbours lie OUTSIDE the replaced cell list and ARE rewritten), and they match resolveEdgeTile on the final map', async ({ page }) => {
+  // Owner decision 2026-10-07 (Tools.AUTO_WATER_EDGES = false): was 'water/river edges are re-resolved after a replace: only
+  // the cells next to the replaced ones ... ARE rewritten'. Replace is a hand tool: the band cells next to the replaced ones
+  // (outside the replaced list) now keep their river piece, exactly like the rest of the band, and no resolver is called.
+  test('a replace changes only the replaced cells: the river pieces next to them (outside the list) keep their ids, no resolver call', async ({ page }) => {
     const r = await page.evaluate(() => {
       const W = MAP_WIDTH, H = MAP_HEIGHT;
       const rivers = HexDB.getAll().filter((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0);
-      const faces = (id: string) => { const e = Terrain.byHexId(id); return e && Array.isArray(e.edgeFaces) ? e.edgeFaces.slice().sort().join('') : ''; };
-      const fallback = HexDB.getAll().find((h: any) => h.id === 'Water_1').id;
       const R = rivers[0].id, origRandom = Math.random; Math.random = () => 0.5;
       const out: any = {};
       try {
@@ -3166,31 +3172,32 @@ test.describe('replace (T2.11)', () => {
           const near = HexUtils.neighbors(m.col, m.row, W, H).concat(EdgeTiling.legacyOffsets(m.row, H).map((o: number[]) => ({ col: m.col + o[0], row: m.row + o[1] })));
           for (const q of near) { const k = q.col + ',' + q.row; if (!midKeys.has(k) && band.some(b => b.col === q.col && b.row === q.row)) adj.set(k, q); }
         }
-        out.n = Tools.replaceTerrain(R, 'Plain_1', mid);
-        out.mid = mid.length; out.adj = adj.size;
-        let bad = 0, changed = 0, untouchedOk = 0, untouched = 0;
+        let resolves = 0; const origR = EdgeTiling.resolveEdgeTile;
+        EdgeTiling.resolveEdgeTile = (...a: any[]) => { resolves++; return (origR as any)(...a); };
+        try { out.n = Tools.replaceTerrain(R, 'Plain_1', mid); } finally { EdgeTiling.resolveEdgeTile = origR; }
+        out.mid = mid.length; out.adj = adj.size; out.resolves = resolves;
+        let adjKept = 0, untouchedOk = 0, untouched = 0, midPlain = 0;
         for (const b of band) {
           const k = b.col + ',' + b.row, id = mapData[b.row * W + b.col];
-          if (midKeys.has(k)) continue;
-          if (adj.has(k)) {
-            const want = faces(EdgeTiling.resolveEdgeTile(b.col, b.row, W, H, mapData, ['Water', 'Rivers'], () => 0, [fallback]));
-            if (faces(id) !== want) bad++;
-            if (faces(id) !== faces(R)) changed++;
-          } else { untouched++; if (id === R) untouchedOk++; }
+          if (midKeys.has(k)) { if (id === 'Plain_1') midPlain++; continue; }
+          if (adj.has(k)) { if (id === R) adjKept++; }
+          else { untouched++; if (id === R) untouchedOk++; }
         }
-        Object.assign(out, { bad, changed, untouched, untouchedOk });
+        Object.assign(out, { adjKept, untouched, untouchedOk, midPlain });
       } finally { Math.random = origRandom; }
       return out;
     });
     expect(r.n).toBe(r.mid);
+    expect(r.midPlain).toBe(r.mid);
     expect(r.adj).toBeGreaterThan(2);
-    expect(r.changed).toBeGreaterThan(0);
-    expect(r.bad).toBe(0);
+    expect(r.adjKept).toBe(r.adj);
+    expect(r.resolves).toBe(0);
     expect(r.untouched).toBeGreaterThan(5);
     expect(r.untouchedOk).toBe(r.untouched);
   });
 
-  test('replacing land with a directional river tile re-resolves it and its river neighbours', async ({ page }) => {
+  // Owner decision 2026-10-07: was 'replacing land with a directional river tile re-resolves it and its river neighbours'.
+  test('replacing land with a directional river tile writes that tile as-is and leaves its river neighbours alone', async ({ page }) => {
     const r = await page.evaluate(() => {
       const W = MAP_WIDTH, H = MAP_HEIGHT;
       const river = HexDB.getAll().find((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0).id;
@@ -3202,10 +3209,11 @@ test.describe('replace (T2.11)', () => {
       const orig = EdgeTiling.resolveEdgeTile;
       EdgeTiling.resolveEdgeTile = (col: number, row: number, ...rest: any[]) => { seen.push(col + ',' + row); return orig(col, row, ...rest); };
       try { Tools.replaceTerrain('Rubble_2', river, null); } finally { EdgeTiling.resolveEdgeTile = orig; }
-      return { seen, c: c.col + ',' + c.row, nb: nb.col + ',' + nb.row };
+      return { seen, cNow: mapData[c.row * W + c.col], nbNow: mapData[nb.row * W + nb.col], river };
     });
-    expect(r.seen).toContain(r.c);
-    expect(r.seen).toContain(r.nb);
+    expect(r.seen).toEqual([]);
+    expect(r.cNow).toBe(r.river);
+    expect(r.nbNow).toBe(r.river);
   });
 
   // ---- large maps: one O(map) pass, counted ----
@@ -3229,7 +3237,8 @@ test.describe('replace (T2.11)', () => {
     expect(r.steps).toBe(1);
   });
 
-  test('a big water replace re-resolves only the cells next to the replaced river pieces (work bounded by the touched cells)', async ({ page }) => {
+  // (title was 'a big water replace re-resolves only the cells next to the replaced river pieces'; replace no longer re-resolves at all)
+  test('a big water replace does no edge work (owner decision: hand tools never re-resolve)', async ({ page }) => {
     const r = await page.evaluate(() => {
       const W = MAP_WIDTH;
       mapData.fill('Water_1');
@@ -3240,7 +3249,7 @@ test.describe('replace (T2.11)', () => {
       return { n, resolves, total: W * MAP_HEIGHT };
     });
     expect(r.n).toBe(r.total);
-    expect(r.resolves).toBe(0);                // nothing directional anywhere: nothing to re-resolve
+    expect(r.resolves).toBe(0);                // a hand tool never re-resolves
   });
 
   // ---- multi-tile X and multi-tile Y: the plan must leave a consistent satellite map (fix round 1) ----

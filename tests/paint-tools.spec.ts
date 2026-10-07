@@ -3,22 +3,29 @@ import { freshEditor, clickCell, dragCells, cellPoint } from './editor-helpers';
 
 const CITY = { col: 225, row: 224 };
 
+// Owner decision 2026-10-07 (Tools.AUTO_WATER_EDGES = false): the hand tools no longer re-resolve river / lake pieces.
+// The two first tests asserted that they DID (a resolver call after Rectangle, neighbours re-resolved after Paint); they
+// now assert the opposite: the chosen piece is written as-is and the resolver is never called. The resolver itself is
+// still covered below through Tools.autoResolveEdgesAround (the generate-into-selection path) and in edge-drift.spec.ts.
 test.describe('terrain apply and edge re-resolution (T2.2)', () => {
   test.beforeEach(async ({ page }) => { await freshEditor(page); });
 
-  test('Rectangle re-resolves directional river tiles', async ({ page }) => {
-    await page.evaluate(() => {
+  test('Rectangle writes the chosen directional river piece as-is (no edge re-resolution)', async ({ page }) => {
+    const river = await page.evaluate(() => {
       const river = HexDB.getAll().find((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0);
       UI.selectTerrain(river.id); Tools.setActive('rect');
       (window as any).__resolveCalls = 0;
       const orig = EdgeTiling.resolveEdgeTile;
       EdgeTiling.resolveEdgeTile = (...a: any[]) => { (window as any).__resolveCalls++; return orig(...a); };
+      return river.id;
     });
     await dragCells(page, { col: 224, row: 222 }, { col: 226, row: 226 });
-    expect(await page.evaluate(() => (window as any).__resolveCalls)).toBeGreaterThan(0);
+    expect(await page.evaluate(() => (window as any).__resolveCalls)).toBe(0);
+    const ids = await page.evaluate(() => { const out: string[] = []; for (let c = 224; c <= 226; c++) for (let r = 222; r <= 226; r++) out.push(mapData[r * MAP_WIDTH + c]); return out; });
+    expect(ids).toEqual(new Array(15).fill(river));
   });
 
-  test('painting land over a river re-resolves its directional neighbours', async ({ page }) => {
+  test('painting land over a river leaves its directional neighbours untouched', async ({ page }) => {
     const r = await page.evaluate(() => {
       const W = MAP_WIDTH;
       const river = HexDB.getAll().find((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0).id;
@@ -31,9 +38,10 @@ test.describe('terrain apply and edge re-resolution (T2.2)', () => {
       EdgeTiling.resolveEdgeTile = (col: number, row: number, ...rest: any[]) => { seen.push(col + ',' + row); return orig(col, row, ...rest); };
       Tools.applyTerrainCells([c], 'Plain_1');
       EdgeTiling.resolveEdgeTile = orig;
-      return { seen, nb: nb.col + ',' + nb.row };
+      return { seen, nbNow: mapData[nb.row * W + nb.col], river };
     });
-    expect(r.seen).toContain(r.nb);
+    expect(r.seen).toEqual([]);
+    expect(r.nbNow).toBe(r.river);
   });
 
   // Rectangle resolves each neighbour once, per-cell Paint many times, so the RNG is consumed in a different
@@ -81,9 +89,11 @@ test.describe('terrain apply and edge re-resolution (T2.2)', () => {
   }
 
   // K1: EdgeTiling's mask reads the legacy _DIRS tables, which differ from true hex adjacency on some heights.
-  // Every cell whose mask reads a written cell must be re-resolved, under both kinds of map height.
+  // Every cell whose mask reads a written cell must be re-resolved, under both kinds of map height. The hand tools no
+  // longer re-resolve (owner decision), so the written cell is handed to Tools.autoResolveEdgesAround directly: the
+  // path generate-into-selection (Generator.applyToRegion) still uses.
   for (const H of [450, 452]) {
-    test(`edge re-resolution reaches every cell whose mask reads the painted cell (H=${H})`, async ({ page }) => {
+    test(`edge re-resolution (generator path) reaches every cell whose mask reads the written cell (H=${H})`, async ({ page }) => {
       const r = await page.evaluate((H: number) => {
         const oldH = MAP_HEIGHT, oldData = mapData, W = MAP_WIDTH;
         const rivers = HexDB.getAll().filter((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0);
@@ -100,7 +110,8 @@ test.describe('terrain apply and edge re-resolution (T2.2)', () => {
             for (const X of cands.values()) {
               mapData.fill('Plain_1');
               mapData[X.row * W + X.col] = fallback;                 // a stale flat tile that should become directional
-              Tools.applyTerrainCells([P], rivers[0].id);
+              mapData[P.row * W + P.col] = rivers[0].id;
+              Tools.autoResolveEdgesAround([{ col: P.col, row: P.row, prev: 'Plain_1' }]);
               const got = faces(mapData[X.row * W + X.col]);
               const want = faces(EdgeTiling.resolveEdgeTile(X.col, X.row, W, H, mapData, ['Water', 'Rivers'], () => 0, [fallback]));
               if (got !== want) bad.push(`P=${P.col},${P.row} X=${X.col},${X.row} got "${got}" want "${want}"`);
@@ -1089,7 +1100,9 @@ test.describe('symmetry (T2.5)', () => {
     expect(r).toEqual([2, 2, 1]);
   });
 
-  test('a far copy has its neighbours re-resolved (directional river tiles), together with the near one', async ({ page }) => {
+  // Owner decision 2026-10-07: was 'a far copy has its neighbours re-resolved'; the hand tools no longer re-resolve, so
+  // neither copy's river neighbours are touched (and both copies are painted).
+  test('symmetry: neither the far copy nor the near one re-resolves its river neighbours', async ({ page }) => {
     const r = await page.evaluate((H) => {
       const h = eval(H as string);
       const W = MAP_WIDTH;
@@ -1105,11 +1118,13 @@ test.describe('symmetry (T2.5)', () => {
       Tools.applyTerrainCells([c], 'Plain_1');
       Tools.setSymmetry('none');
       EdgeTiling.resolveEdgeTile = orig;
-      return { seen, nb: nb.col + ',' + nb.row, nbFar: nbFar.col + ',' + nbFar.row, farPainted: mapData[far.row * W + far.col] };
+      return { seen, nbNow: mapData[nb.row * W + nb.col], nbFarNow: mapData[nbFar.row * W + nbFar.col], river, farPainted: mapData[far.row * W + far.col], nearPainted: mapData[c.row * W + c.col] };
     }, SYM_HELPERS);
     expect(r.farPainted).toBe('Plain_1');
-    expect(r.seen).toContain(r.nb);
-    expect(r.seen).toContain(r.nbFar);
+    expect(r.nearPainted).toBe('Plain_1');
+    expect(r.seen).toEqual([]);
+    expect(r.nbNow).toBe(r.river);
+    expect(r.nbFarNow).toBe(r.river);
   });
 
   test('hover preview draws every copy in one path; the guide only exists while a mode is active', async ({ page }) => {
@@ -1387,12 +1402,12 @@ test.describe('eraser (T2.6)', () => {
     expect(r.both).toBe(1 + r.sats); expect(r.bothAnchor).toBe('Plain_1'); expect(r.bothSats).toBe(true);
   });
 
-  test('edge re-resolution: river tiles next to an erased cell match resolveEdgeTile on the final map (and do change)', async ({ page }) => {
+  // Owner decision 2026-10-07: was 'river tiles next to an erased cell match resolveEdgeTile on the final map (and do
+  // change)'. The Eraser no longer re-resolves: the river pieces next to the erased cell keep exactly their ids.
+  test('no edge re-resolution: river tiles next to an erased cell keep their ids and the resolver is not called', async ({ page }) => {
     const r = await page.evaluate(() => {
       const W = MAP_WIDTH, H = MAP_HEIGHT;
       const rivers = HexDB.getAll().filter((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0);
-      const faces = (id: string) => { const e = Terrain.byHexId(id); return e && Array.isArray(e.edgeFaces) ? e.edgeFaces.slice().sort().join('') : ''; };
-      const fallback = HexDB.getAll().find((h: any) => h.id === 'Water_1').id;
       const origRandom = Math.random; Math.random = () => 0.5;
       const out: any[] = [];
       try {
@@ -1405,23 +1420,23 @@ test.describe('eraser (T2.6)', () => {
           const cands = new Map<string, any>();
           for (const n of HexUtils.neighbors(P.col, P.row, W, H)) cands.set(n.col + ',' + n.row, n);
           for (const o of EdgeTiling.legacyOffsets(P.row, H)) cands.set((P.col + o[0]) + ',' + (P.row + o[1]), { col: P.col + o[0], row: P.row + o[1] });
-          const before = new Map([...cands].map(([k, c]) => [k, faces(mapData[c.row * W + c.col])]));
-          Tools.eraseCells([P]);
-          let changed = 0, bad = 0, checked = 0;
+          const before = new Map([...cands].map(([k, c]) => [k, mapData[c.row * W + c.col]]));
+          let calls = 0; const orig = EdgeTiling.resolveEdgeTile;
+          EdgeTiling.resolveEdgeTile = (...a: any[]) => { calls++; return (orig as any)(...a); };
+          try { Tools.eraseCells([P]); } finally { EdgeTiling.resolveEdgeTile = orig; }
+          let changed = 0, checked = 0;
           for (const [k, c] of cands) {
             const id = mapData[c.row * W + c.col];
             if (id === 'Plain_1') continue;                      // not a water/river tile
             checked++;
-            const want = faces(EdgeTiling.resolveEdgeTile(c.col, c.row, W, H, mapData, ['Water', 'Rivers'], () => 0, [fallback]));
-            if (faces(id) !== want) bad++;
-            if (faces(id) !== before.get(k)) changed++;
+            if (id !== before.get(k)) changed++;
           }
-          out.push({ P: P.col + ',' + P.row, checked, changed, bad });
+          out.push({ P: P.col + ',' + P.row, checked, changed, calls, erased: mapData[P.row * W + P.col] });
         }
       } finally { Math.random = origRandom; }
       return out;
     });
-    for (const x of r) { expect(x.checked, JSON.stringify(x)).toBeGreaterThan(0); expect(x.changed, JSON.stringify(x)).toBeGreaterThan(0); expect(x.bad, JSON.stringify(x)).toBe(0); }
+    for (const x of r) { expect(x.checked, JSON.stringify(x)).toBeGreaterThan(0); expect(x.changed, JSON.stringify(x)).toBe(0); expect(x.calls, JSON.stringify(x)).toBe(0); expect(x.erased).toBe('Plain_1'); }
   });
 
   test('symmetry: the eraser mirrors like Paint (pixel-reference mirror, one undo step) and opts.noSymmetry bypasses it', async ({ page }) => {
@@ -2201,7 +2216,9 @@ test.describe('scatter (T2.7)', () => {
     expect(r.n).toBe(r.want); expect(r.written).toBe(r.want); expect(r.want).toBeLessThan(37);
   });
 
-  test('multi-tile footprints are never written and never chosen as variants; bridges on written cells go; edges next to scattered water re-resolve', async ({ page }) => {
+  // Owner decision 2026-10-07: the last part was 'edges next to scattered water re-resolve'; Scatter no longer re-resolves,
+  // so the river cell next to the scattered water keeps its id and the resolver is not called.
+  test('multi-tile footprints are never written and never chosen as variants; bridges on written cells go; a river next to scattered water is left as it is', async ({ page }) => {
     const r = await page.evaluate(([mk]) => {
       Tools.setScatterRng(eval(mk as string)(3));
       const multi = HexDB.getAll().find((h: any) => Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length > 0);
@@ -2219,7 +2236,7 @@ test.describe('scatter (T2.7)', () => {
       const variantsHaveMulti = ['Forest_1', 'Water_1', 'Plain_1'].some(id => Tools.scatterVariants(id).some((v: string) => { const e = HexDB.getAll().find((h: any) => h.id === v); return e && e.occupiedOffsets && e.occupiedOffsets.length; }));
       // a multi-tile id selected: its group never contains multi-tile members
       const groupOfMulti = Tools.scatterVariants(multi.id);
-      // edge re-resolution: a river cell next to a scattered water cell is re-resolved
+      // no edge re-resolution: a river cell next to a scattered water cell keeps its id
       const river = HexDB.getAll().find((h: any) => h.type === 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length > 0).id;
       const t = { col: 225, row: 210 }, nb = HexUtils.neighbors(t.col, t.row, MAP_WIDTH, MAP_HEIGHT)[0];
       mapData[nb.row * MAP_WIDTH + nb.col] = river;
@@ -2228,7 +2245,7 @@ test.describe('scatter (T2.7)', () => {
       const w = Tools.scatterCells([t], 'Water_1', 100);
       EdgeTiling.resolveEdgeTile = orig;
       Tools.setScatterRng(null);
-      return { multiId: multi.id, groupOfMulti, n, sats: sats.length, expected: cells.length - sats.length, anchorNow: mapData[A.row * MAP_WIDTH + A.col], protectedOk, variantsHaveMulti, groupOfMulti, bridge: bridgesData.length, w, seen, nb: nb.col + ',' + nb.row, inDisc: inDisc(sats[0]) };
+      return { multiId: multi.id, groupOfMulti, n, sats: sats.length, expected: cells.length - sats.length, anchorNow: mapData[A.row * MAP_WIDTH + A.col], protectedOk, variantsHaveMulti, groupOfMulti, bridge: bridgesData.length, w, seen, nbNow: mapData[nb.row * MAP_WIDTH + nb.col], river, inDisc: inDisc(sats[0]) };
     }, [SEEDED]);
     expect(r.sats).toBeGreaterThan(0);
     expect(r.inDisc).toBe(true);
@@ -2239,7 +2256,8 @@ test.describe('scatter (T2.7)', () => {
     expect(r.groupOfMulti).not.toContain(r.multiId);
     expect(r.bridge).toBe(0);
     expect(r.w).toBe(1);
-    expect(r.seen).toContain(r.nb);
+    expect(r.seen).toEqual([]);
+    expect(r.nbNow).toBe(r.river);
   });
 
   test('a multi-tile entry of the same family is not a variant (fabricated Forest_9 with a footprint)', async ({ page }) => {

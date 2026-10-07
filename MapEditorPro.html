@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "c09ebaf";
+const COMMIT  = "a0e83fa";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5968,8 +5968,11 @@ const Clipboard = (() => {
       if (layers.zones !== false && zonesOk && zl && e.z) zl[it.idx] = e.z;
     });
     invalidateSatelliteMap();
+    // Paste / move / stamp placement are hand tools: with Tools.AUTO_WATER_EDGES off (owner decision) the cells are
+    // written exactly as copied and nothing around them is re-resolved. With it on (old behaviour):
     // Identity paste: re-resolve edges around the BORDER only (interior cells keep the tiles that were copied). A
     // transformed paste re-resolves every pasted cell (see below).
+    if (layers.terrain === false || !Tools.AUTO_WATER_EDGES) return items.length;
     const inP = written, offs = [0, 1].map(p => HexUtils.CUBE_DIRS.map(d => {
       const c0 = 100, r0 = 100 + p, cube = HexUtils.toCube(c0, r0, W, H), n = HexUtils.fromCube({ q: cube.q + d.q, r: cube.r + d.r, s: cube.s + d.s }, W, H);
       return [n.col - c0, n.row - r0];
@@ -5986,7 +5989,7 @@ const Clipboard = (() => {
         if (!inP.has(nr * W + nc)) { touched.push({ col: it.col, row: it.row, prev: prevs[n] }); break; }
       }
     });
-    if (layers.terrain !== false) Tools.autoResolveEdgesAround(touched);   // edges depend on terrain only
+    Tools.manualEdgesAround(touched);   // edges depend on terrain only
     return items.length;
   }
 
@@ -6757,6 +6760,16 @@ const Tools = (() => {
     return out;
   }
 
+  // ── Automatic water-body logic switch (owner decision 2026-10-07) ──
+  // The hand tools (Paint incl. brush and symmetry, Fill, Rectangle, Line, Circle, Polygon, Scatter, Replace, Eraser, paste,
+  // move, stamp placement) no longer re-resolve river / lake pieces, shores or rock / dirty / light water: each writes
+  // EXACTLY the chosen tile into exactly the intended cells and changes no neighbouring cell. Every manual call site goes
+  // through _manualEdgesAround, so this ONE constant turns the old behaviour back on. The map generator keeps its logic:
+  // Generator.apply (worker) and generate-into-selection (Generator.applyToRegion) call _autoResolveEdgesAround /
+  // Tools.autoResolveEdgesAround directly; zone filling (ZonePainter, procedural terrain) keeps it too.
+  const AUTO_WATER_EDGES = false;
+  function _manualEdgesAround(cellsPainted) { if (AUTO_WATER_EDGES) _autoResolveEdgesAround(cellsPainted); }
+
   // cellsPainted: [{col,row,prev?}] where prev is the id the cell held BEFORE the edit.
   // A directional tile written here re-resolves itself and its water/river neighbours (original rule).
   // A water/river cell appearing or disappearing here re-resolves its directional neighbours, so erasing or
@@ -6856,7 +6869,7 @@ const Tools = (() => {
       if (bi >= 0) bridgesData.splice(bi, 1);
     }
     if (footprints) invalidateSatelliteMap();      // single-tile writes cannot change a footprint: no O(W*H) rebuild per stroke move
-    _autoResolveEdgesAround(touched);
+    _manualEdgesAround(touched);                   // off (AUTO_WATER_EDGES): the chosen tile is written as-is
     return touched;
   }
 
@@ -6972,7 +6985,7 @@ const Tools = (() => {
         const b = bridgesData[i];
         if (b.col >= 0 && b.col < W && b.row >= 0 && b.row < H && visited[b.row * W + b.col] && md[b.row * W + b.col] === fillId) bridgesData.splice(i, 1);
       }
-      _autoResolveEdgesAround(cells);
+      _manualEdgesAround(cells);                  // off (AUTO_WATER_EDGES): no edge pass after a fill
       Canvas.render();
       Canvas.drawMinimap();
       IO.scheduleAutoSave();
@@ -7166,7 +7179,7 @@ const Tools = (() => {
       for (let k = bridgesData.length - 1; k >= 0; k--) if (gone.has(bridgesData[k].row * W + bridgesData[k].col)) bridgesData.splice(k, 1);
     }
     invalidateSatelliteMap();
-    _autoResolveEdgesAround(touched);
+    _manualEdgesAround(touched);                  // off (AUTO_WATER_EDGES): the replacement is written as-is
     return touched.length;
   }
 
@@ -7259,7 +7272,7 @@ const Tools = (() => {
     for (let i = bridgesData.length - 1; i >= 0 && !lk.objects; i--)
       if (erased.has(bridgesData[i].row * MAP_WIDTH + bridgesData[i].col)) bridgesData.splice(i, 1);
     if (footprints) invalidateSatelliteMap();
-    _autoResolveEdgesAround(touched);
+    _manualEdgesAround(touched);                  // off (AUTO_WATER_EDGES): erased cells never re-resolve their neighbours
     return touched.length;
   }
 
@@ -8414,7 +8427,7 @@ const Tools = (() => {
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
   return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
-           _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
+           _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround, manualEdgesAround: _manualEdgesAround, AUTO_WATER_EDGES,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
 })();

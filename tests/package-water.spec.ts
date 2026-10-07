@@ -82,59 +82,80 @@ async function audit(page: Page) {
   }, DEC);
 }
 
-test.describe('water edits in a content package stay in that package (owner report D1)', () => {
-  test.beforeEach(async ({ page }) => { await decEditor(page); await seedLake(page); });
+// Owner decision 2026-10-07 (Tools.AUTO_WATER_EDGES = false): the hand tools no longer re-resolve river / lake pieces in
+// ANY package. These tests used to assert a per-package re-resolution after Paint / Rectangle / Fill / Replace / Scatter
+// (the interior became flat Decameroon water, shore pieces were re-picked from Decameroon pieces). They now assert that
+// nothing is re-resolved: a whole-map diff against the snapshot taken before the edit shows only the edited cells, each
+// holding the chosen tile (Scatter: a Decameroon variant of it), and the resolver is never called. The package-aware
+// re-resolution itself is still used by generate-into-selection (Tools.autoResolveEdgesAround), tested at the end.
+test.describe('water edits in a content package: no re-resolution in any package (owner decision)', () => {
+  test.beforeEach(async ({ page }) => {
+    await decEditor(page); await seedLake(page);
+    await page.evaluate(() => {
+      (window as any).__before = mapData.slice();
+      (window as any).__resolves = 0;
+      const orig = EdgeTiling.resolveEdgeTile;
+      EdgeTiling.resolveEdgeTile = (...a: any[]) => { (window as any).__resolves++; return (orig as any)(...a); };
+    });
+  });
+  /** 'col,row=id' of every cell that differs from the snapshot, sorted; plus the resolver call count. */
+  const changes = (page: Page) => page.evaluate(() => {
+    const b = (window as any).__before as string[], W = MAP_WIDTH, out: string[] = [];
+    for (let i = 0; i < mapData.length; i++) if (mapData[i] !== b[i]) out.push((i % W) + ',' + Math.floor(i / W) + '=' + mapData[i]);
+    return { cells: out.sort(), resolves: (window as any).__resolves as number };
+  });
+  const rect = (c1: number, r1: number, c2: number, r2: number, id: string) => {
+    const out: string[] = [];
+    for (let c = c1; c <= c2; c++) for (let r = r1; r <= r2; r++) out.push(c + ',' + r + '=' + id);
+    return out.sort();
+  };
 
-  test('Paint: a Decameroon lake piece painted inside Decameroon water leaves only flat Decameroon water inside', async ({ page }) => {
+  test('Paint: a Decameroon lake piece painted inside Decameroon water is placed as-is, nothing else changes', async ({ page }) => {
     await page.evaluate(() => UI.selectTerrain('Decameroon_Lake_3'));
     await clickCell(page, 20, 20);
-    const a = await audit(page);
-    expect(a.foreign).toEqual([]);
-    expect(a.badInterior).toEqual([]);
+    expect(await changes(page)).toEqual({ cells: ['20,20=Decameroon_Lake_3'], resolves: 0 });
   });
 
-  test('Paint: plain Decameroon water next to an authored Decameroon shore piece re-resolves it with Decameroon pieces only', async ({ page }) => {
+  test('Paint: plain Decameroon water next to an authored Decameroon shore piece leaves the shore piece as it is', async ({ page }) => {
     await clickCell(page, 20, 12);
-    expect(await page.evaluate(() => mapData[12 * MAP_WIDTH + 20])).toBe('Decameroon_Water_1');   // the click painted
-    const a = await audit(page);
-    expect(a.foreign).toEqual([]);
-    // the shore piece now has water on three sides: it is the Decameroon piece with exactly those faces
-    const faces = await page.evaluate(() => { const e = Terrain.byHexId(mapData[13 * MAP_WIDTH + 20]); return { id: e.id, package: e.package, n: e.edgeFaces.length }; });
-    expect(faces.package).toBe('decameroon');
+    expect(await changes(page)).toEqual({ cells: ['20,12=Decameroon_Water_1'], resolves: 0 });
+    expect(await page.evaluate(() => mapData[13 * MAP_WIDTH + 20])).toBe('Decameroon_Lake_3');
   });
 
-  test('Rectangle, Fill, Replace and Scatter keep the package and leave the interior flat', async ({ page }) => {
-    // Rectangle of lake pieces across the middle of the block
+  test('Rectangle, Fill, Replace and Scatter write only their own cells, in the package, with no re-resolution', async ({ page }) => {
     await page.evaluate(() => { UI.selectTerrain('Decameroon_Lake_1'); Tools.setActive('rect'); });
     await dragCells(page, { col: 18, row: 19 }, { col: 22, row: 21 });
-    let a = await audit(page);
-    expect(a.foreign, 'after Rectangle').toEqual([]);
-    expect(a.badInterior, 'after Rectangle').toEqual([]);
-    // Fill the whole water body with a directional piece, then back with flat water
-    await page.evaluate(() => { UI.selectTerrain('Decameroon_Lake_5'); Tools.setActive('fill'); });
-    await clickCell(page, 20, 20);
+    expect(await changes(page), 'after Rectangle').toEqual({ cells: rect(18, 19, 22, 21, 'Decameroon_Lake_1'), resolves: 0 });
+    // Fill the whole water body (the flat water around the rectangle) with a directional piece: only those cells change
+    await page.evaluate(() => { (window as any).__before = mapData.slice(); UI.selectTerrain('Decameroon_Lake_5'); Tools.setActive('fill'); });
+    await clickCell(page, 15, 15);
     await page.evaluate(() => Tools.whenIdle());
-    a = await audit(page);
-    expect(a.foreign, 'after Fill').toEqual([]);
-    expect(a.badInterior, 'after Fill').toEqual([]);
-    // Replace every flat Decameroon water with a lake piece inside the block
+    const block = rect(14, 14, 26, 26, 'Decameroon_Lake_5').filter(k => !rect(18, 19, 22, 21, 'Decameroon_Lake_5').includes(k));
+    expect(await changes(page), 'after Fill').toEqual({ cells: block, resolves: 0 });
+    // Replace the filled piece by flat Decameroon water inside the block: exactly the replaced cells
     await page.evaluate(() => {
+      (window as any).__before = mapData.slice();
       const cells: any[] = [];
       for (let r = 14; r <= 26; r++) for (let c = 14; c <= 26; c++) cells.push({ col: c, row: r });
-      Tools.replaceTerrain(mapData[20 * MAP_WIDTH + 20], 'Decameroon_Lake_2', cells);
+      Tools.replaceTerrain('Decameroon_Lake_5', 'Decameroon_Water_1', cells);
     });
-    a = await audit(page);
-    expect(a.foreign, 'after Replace').toEqual([]);
-    expect(a.badInterior, 'after Replace').toEqual([]);
-    // Scatter flat-water variants over the block
+    expect(await changes(page), 'after Replace').toEqual({ cells: block.map(k => k.replace('Decameroon_Lake_5', 'Decameroon_Water_1')), resolves: 0 });
+    // Scatter flat-water variants over the block: only block cells change, each to a flat Decameroon water variant
     await page.evaluate(() => {
+      (window as any).__before = mapData.slice();
       const cells: any[] = [];
       for (let r = 14; r <= 26; r++) for (let c = 14; c <= 26; c++) cells.push({ col: c, row: r });
-      Tools.scatterCells(cells, 'Decameroon_Water_1', 100);
+      Tools.scatterCells(cells, 'Decameroon_Water_1', 100, { seed: 5 });
     });
-    a = await audit(page);
-    expect(a.foreign, 'after Scatter').toEqual([]);
-    expect(a.badInterior, 'after Scatter').toEqual([]);
+    const sc = await changes(page);
+    expect(sc.resolves, 'after Scatter').toBe(0);
+    expect(sc.cells.length).toBeGreaterThan(0);
+    const flat = new Set(DEC.filter(h => h.type === 'Water' && !h.edgeFaces.length).map(h => h.id));
+    for (const k of sc.cells) {
+      const [cr, id] = k.split('='), [c, r] = cr.split(',').map(Number);
+      expect(c >= 14 && c <= 26 && r >= 14 && r <= 26, k).toBe(true);
+      expect(flat.has(id), k).toBe(true);
+    }
   });
 
   test('a mixed-package water boundary is water to the resolver and to the Coastline overlay, a land boundary is a coast', async ({ page }) => {
@@ -153,6 +174,25 @@ test.describe('water edits in a content package stay in that package (owner repo
     expect(r.edgesMixed).toBe(0);              // Decameroon water next to base water: no coast
     expect(r.edgesTop).toBeGreaterThan(0);     // next to land: coast
   });
+});
+
+// Generate-into-selection keeps the package-aware re-resolution (c09ebaf): through Tools.autoResolveEdgesAround a
+// Decameroon cell is re-resolved with Decameroon pieces only and never gets base dark / light / rock water.
+test('generator path: Tools.autoResolveEdgesAround re-resolves a Decameroon shore with Decameroon pieces only', async ({ page }) => {
+  await decEditor(page); await seedLake(page);
+  const r = await page.evaluate(() => {
+    const W = MAP_WIDTH;
+    mapData[12 * W + 20] = 'Decameroon_Water_1';              // water above the authored shore piece at (20,13)
+    const before = mapData[13 * W + 20];
+    Tools.autoResolveEdgesAround([{ col: 20, row: 12, prev: 'Decameroon_Plain_1' }]);
+    const e = Terrain.byHexId(mapData[13 * W + 20]);
+    let foreign = 0; for (const id of mapData) if (!String(id).startsWith('Decameroon_')) foreign++;
+    return { before, after: e.id, pkg: e.package, foreign };
+  });
+  expect(r.before).toBe('Decameroon_Lake_3');
+  expect(r.after).not.toBe('Decameroon_Lake_3');              // it WAS re-resolved (the generator path still does that)
+  expect(r.pkg).toBe('decameroon');
+  expect(r.foreign).toBe(0);
 });
 
 test('the generator ignores a loaded content package: seed 42 output is byte-identical to the base-DB baseline', async ({ page }) => {
