@@ -22,8 +22,9 @@ const LONG_RUN = !!(process.env.FULL_EQUIV || process.env.MEASURE_HARNESS || pro
 
 export default defineConfig({
   testDir: './tests',
-  // *.measure.spec.ts are opt-in measurement harnesses (e.g. MEASURE_HARNESS=1), not part of the default run.
-  testIgnore: process.env.MEASURE_HARNESS ? [] : ['**/*.measure.spec.ts'],
+  // *.measure.spec.ts are opt-in measurement harnesses (e.g. MEASURE_HARNESS=1), not part of the default run; *.live.spec.ts
+  // read live GitHub Pages data (AUDIT_LIVE=1, e.g. the tile icon audit of the live packages).
+  testIgnore: [...(process.env.MEASURE_HARNESS ? [] : ['**/*.measure.spec.ts']), ...(process.env.AUDIT_LIVE ? [] : ['**/*.live.spec.ts'])],
   fullyParallel: true,
   retries: 0,
   // > 2 x helpers.STARTUP_CAP_MS (20 s per startup attempt, one retry) so a startup failure reports its own diagnostic

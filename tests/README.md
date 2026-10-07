@@ -25,6 +25,8 @@ checkout path, so the main checkout and every worktree get their own server and 
 | `FULL_EQUIV=1` | exhaustive perf-culling equivalence sweeps (long) |
 | `UPDATE_BASELINE=1` | rewrite `perf-baseline.json` (pre-change code only; see `perf-scene.ts`) |
 | `MEASURE_UNDO=1`, `MEASURE_HARNESS=1` | opt-in measurement specs (`perf-undo-measure`, `*.measure.spec.ts`) |
+| `AUDIT_LIVE=1` (+ `AUDIT_LIVE_DIR=<dir>`) | opt-in `*.live.spec.ts`: the tile icon audit of the LIVE packages (`tile-icon-audit.live.spec.ts` downloads the live registry, Decameroon DB and sprites from GitHub Pages into the dir, default `$TMPDIR/tile-icon-audit-live`, and writes results, tables and the compared images there) |
+| `AUDIT_DUMP=1` | `tile-icon-audit.spec.ts` keeps the two compared images of every base tile next to its `audit-results.json` in `test-results/` |
 
 `globalTimeout` stops a run after 45 min (a runaway guard; a healthy full run of ~1500 tests takes ~9-10 min). It is turned off when `FULL_EQUIV`,
 `MEASURE_HARNESS`, `MEASURE_UNDO` or `UPDATE_BASELINE` is set.
