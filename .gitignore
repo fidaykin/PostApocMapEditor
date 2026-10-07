@@ -19,3 +19,5 @@ node_modules/
 
 # Isolated git worktrees for in-progress plan execution
 .worktrees/
+test-results/
+playwright-report/

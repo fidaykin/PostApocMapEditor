@@ -1,0 +1,414 @@
+{
+  "_meta": {
+    "thresholds": {
+      "totalMB": 64,
+      "p95PushMs": 8
+    },
+    "steps": 50,
+    "reps": 3,
+    "map": "450x450",
+    "recorded": "2026-10-02",
+    "chrome": "154.0.8037.97",
+    "os": "darwin 25.6.0 arm64",
+    "cpu": "Apple M4 Pro x14",
+    "node": "v26.10.0",
+    "slotBytes": 4,
+    "pointerCompression": true
+  },
+  "results": {
+    "before": {
+      "verdict": "T1.7 VERDICT [before; scenarios: scene, rich, worst; median of 3]: JUSTIFIED (total=143.0 MB, p95=20.50 ms)",
+      "scenarios": {
+        "scene": {
+          "counts": {
+            "roads": 51,
+            "objects": 7,
+            "tileExtras": 0,
+            "settlements": 1,
+            "bridges": 1,
+            "zones": 0,
+            "zoneTiles": 0,
+            "generatorChangedTiles": 0
+          },
+          "heapDeltaMB": {
+            "median": 48.44,
+            "min": 48.44,
+            "max": 48.52,
+            "runs": [
+              48.52,
+              48.44,
+              48.44
+            ]
+          },
+          "perSnapshotMB": {
+            "median": 0.97,
+            "min": 0.97,
+            "max": 0.97,
+            "runs": [
+              0.97,
+              0.97,
+              0.97
+            ]
+          },
+          "structuralEstimateTotalMB": 87.21,
+          "pushP50Ms": {
+            "median": 0.1,
+            "min": 0.1,
+            "max": 0.2,
+            "runs": [
+              0.2,
+              0.1,
+              0.1
+            ]
+          },
+          "pushP95Ms": {
+            "median": 0.2,
+            "min": 0.2,
+            "max": 2.7,
+            "runs": [
+              2.7,
+              0.2,
+              0.2
+            ]
+          },
+          "pushMaxMs": {
+            "median": 5.7,
+            "min": 3.9,
+            "max": 6.3,
+            "runs": [
+              3.9,
+              5.7,
+              6.3
+            ]
+          },
+          "debugRowCount": null
+        },
+        "rich": {
+          "counts": {
+            "roads": 5051,
+            "objects": 1507,
+            "tileExtras": 2000,
+            "settlements": 31,
+            "bridges": 31,
+            "zones": 8,
+            "zoneTiles": 40500,
+            "generatorChangedTiles": 0
+          },
+          "heapDeltaMB": {
+            "median": 59.68,
+            "min": 59.68,
+            "max": 59.69,
+            "runs": [
+              59.69,
+              59.68,
+              59.68
+            ]
+          },
+          "perSnapshotMB": {
+            "median": 1.19,
+            "min": 1.19,
+            "max": 1.19,
+            "runs": [
+              1.19,
+              1.19,
+              1.19
+            ]
+          },
+          "structuralEstimateTotalMB": 116.62,
+          "pushP50Ms": {
+            "median": 1.3,
+            "min": 1.3,
+            "max": 1.4,
+            "runs": [
+              1.4,
+              1.3,
+              1.3
+            ]
+          },
+          "pushP95Ms": {
+            "median": 1.6,
+            "min": 1.5,
+            "max": 2.7,
+            "runs": [
+              2.7,
+              1.5,
+              1.6
+            ]
+          },
+          "pushMaxMs": {
+            "median": 6.9,
+            "min": 6.7,
+            "max": 7,
+            "runs": [
+              6.7,
+              7,
+              6.9
+            ]
+          },
+          "debugRowCount": null
+        },
+        "worst": {
+          "counts": {
+            "roads": 30049,
+            "objects": 15007,
+            "tileExtras": 20000,
+            "settlements": 201,
+            "bridges": 201,
+            "zones": 40,
+            "zoneTiles": 202500,
+            "generatorChangedTiles": 185228
+          },
+          "heapDeltaMB": {
+            "median": 142.99,
+            "min": 142.99,
+            "max": 143,
+            "runs": [
+              143,
+              142.99,
+              142.99
+            ]
+          },
+          "perSnapshotMB": {
+            "median": 2.86,
+            "min": 2.86,
+            "max": 2.86,
+            "runs": [
+              2.86,
+              2.86,
+              2.86
+            ]
+          },
+          "structuralEstimateTotalMB": 342.39,
+          "pushP50Ms": {
+            "median": 12.8,
+            "min": 12.8,
+            "max": 13.4,
+            "runs": [
+              13.4,
+              12.8,
+              12.8
+            ]
+          },
+          "pushP95Ms": {
+            "median": 20.5,
+            "min": 19.9,
+            "max": 20.6,
+            "runs": [
+              20.6,
+              19.9,
+              20.5
+            ]
+          },
+          "pushMaxMs": {
+            "median": 21.4,
+            "min": 21.1,
+            "max": 22,
+            "runs": [
+              22,
+              21.4,
+              21.1
+            ]
+          },
+          "debugRowCount": null
+        }
+      }
+    },
+    "after": {
+      "verdict": "T1.7 VERDICT [after; scenarios: scene, rich, worst; median of 3]: JUSTIFIED (total=77.3 MB, p95=16.30 ms)",
+      "scenarios": {
+        "scene": {
+          "counts": {
+            "roads": 51,
+            "objects": 7,
+            "tileExtras": 0,
+            "settlements": 1,
+            "bridges": 1,
+            "zones": 0,
+            "zoneTiles": 0,
+            "generatorChangedTiles": 0
+          },
+          "heapDeltaMB": {
+            "median": 1.43,
+            "min": 1.43,
+            "max": 1.5,
+            "runs": [
+              1.5,
+              1.43,
+              1.43
+            ]
+          },
+          "perSnapshotMB": {
+            "median": 0.03,
+            "min": 0.03,
+            "max": 0.03,
+            "runs": [
+              0.03,
+              0.03,
+              0.03
+            ]
+          },
+          "structuralEstimateTotalMB": 87.21,
+          "pushP50Ms": {
+            "median": 1.1,
+            "min": 1,
+            "max": 1.1,
+            "runs": [
+              1.1,
+              1,
+              1.1
+            ]
+          },
+          "pushP95Ms": {
+            "median": 1.4,
+            "min": 1.4,
+            "max": 2.7,
+            "runs": [
+              2.7,
+              1.4,
+              1.4
+            ]
+          },
+          "pushMaxMs": {
+            "median": 5.3,
+            "min": 4.2,
+            "max": 5.3,
+            "runs": [
+              5.3,
+              5.3,
+              4.2
+            ]
+          },
+          "debugRowCount": 941
+        },
+        "rich": {
+          "counts": {
+            "roads": 5051,
+            "objects": 1507,
+            "tileExtras": 2000,
+            "settlements": 31,
+            "bridges": 31,
+            "zones": 8,
+            "zoneTiles": 40500,
+            "generatorChangedTiles": 0
+          },
+          "heapDeltaMB": {
+            "median": 10.8,
+            "min": 10.8,
+            "max": 10.81,
+            "runs": [
+              10.81,
+              10.8,
+              10.8
+            ]
+          },
+          "perSnapshotMB": {
+            "median": 0.22,
+            "min": 0.22,
+            "max": 0.22,
+            "runs": [
+              0.22,
+              0.22,
+              0.22
+            ]
+          },
+          "structuralEstimateTotalMB": 116.62,
+          "pushP50Ms": {
+            "median": 2,
+            "min": 2,
+            "max": 2.1,
+            "runs": [
+              2,
+              2.1,
+              2
+            ]
+          },
+          "pushP95Ms": {
+            "median": 3.8,
+            "min": 2.9,
+            "max": 4.1,
+            "runs": [
+              4.1,
+              2.9,
+              3.8
+            ]
+          },
+          "pushMaxMs": {
+            "median": 5.3,
+            "min": 5.1,
+            "max": 7,
+            "runs": [
+              7,
+              5.1,
+              5.3
+            ]
+          },
+          "debugRowCount": 941
+        },
+        "worst": {
+          "counts": {
+            "roads": 30049,
+            "objects": 15007,
+            "tileExtras": 20000,
+            "settlements": 201,
+            "bridges": 201,
+            "zones": 40,
+            "zoneTiles": 202500,
+            "generatorChangedTiles": 185228
+          },
+          "heapDeltaMB": {
+            "median": 77.29,
+            "min": 77.29,
+            "max": 77.3,
+            "runs": [
+              77.3,
+              77.29,
+              77.29
+            ]
+          },
+          "perSnapshotMB": {
+            "median": 1.55,
+            "min": 1.55,
+            "max": 1.55,
+            "runs": [
+              1.55,
+              1.55,
+              1.55
+            ]
+          },
+          "structuralEstimateTotalMB": 342.39,
+          "pushP50Ms": {
+            "median": 11.1,
+            "min": 11.1,
+            "max": 11.2,
+            "runs": [
+              11.2,
+              11.1,
+              11.1
+            ]
+          },
+          "pushP95Ms": {
+            "median": 16.3,
+            "min": 15.8,
+            "max": 18.3,
+            "runs": [
+              18.3,
+              16.3,
+              15.8
+            ]
+          },
+          "pushMaxMs": {
+            "median": 17.6,
+            "min": 16.3,
+            "max": 21.9,
+            "runs": [
+              21.9,
+              17.6,
+              16.3
+            ]
+          },
+          "debugRowCount": 942
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,6 @@
+# T0.10 report
+Implemented IO.analyzeMap + _formatMapIssues (above _loadFromJSON), called at end of load try, exported analyzeMap.
+Hardening beyond brief: analysis is pure (no mutation, tested); runs in its own try/catch so a failure never undoes/blocks the load and surfaces a sticky toast with detail; empty registry / empty HexDB+BldDB throws into that path (no fail-open "all clean"); non-string truthy tile ids reported (JSON label); falsy cells ignored (loader maps to Plain_1); non-array packages/objects/rows tolerated; missing packages deduped case-insensitively, non-string package entries reported; null objects tolerated; details list shows "...and N more" when truncated at 30; "tiles discarded" text only when the size shrank.
+Tests: tests/map-load-warnings.spec.ts, 7 tests (brief's 4 + malformed input, failing analysis toast, legacy sample map). RED: 7 failed before impl (impl reverted); GREEN: 7 passed; full suite 72 passed.
+Deviation: brief's clean-map assertions used `#dialog-modal` not.toHaveClass(open), which fails because the element is created lazily; changed to `#dialog-modal.open` toHaveCount(0).
+Concerns: at startup the registry may be the cached/stale one, so packages new on the server could be flagged until registry refresh.

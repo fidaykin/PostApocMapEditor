@@ -1,0 +1,15 @@
+# T4.5 report: Map validator core
+
+Where: MapEditorPro.html, new `MapValidator` module above `// ── App: mode switching` (inline: no new root script, so no deploy-dev.yml / perf-workers lint / `?v=` change). tests/validator-core.spec.ts (new).
+- `validate(state, stats?) -> issues[]` (pure; input never mutated), `collectState()`, `run() -> {issues, errors, warnings, pendingSprites, stats}`, `IMPASSABLE`. Issue = `{id (rule), key, severity, message, cells[] (first 200), total}`.
+- Rules: unknown-id / unknown-object (errors, per distinct id, top 50 ids + one merged "more" issue), missing-city (error, suppresses reachability), unreachable-settlement, orphan-road, missing-sprite (warnings). NO city-off-center.
+- Unknown ids: no second implementation. `IO.analyzeMap` got an optional `ctx.onUnknown(label,col,row,kind)` hook (behaviour of the load dialog unchanged: map-load-warnings 3/3 still pass); the validator calls analyzeMap on a row-sliced snapshot and merges into its single issue list. Packages/clamp findings are load-file concerns (a live map's packages are derived), not part of the live report.
+- Adjacency: `HexUtils.neighbors` (via `state.neighbors`), never the legacy tables. Tests: synthetic 4-neighbour grid for the logic; a live-map test derives the six neighbours independently from `Canvas.hexCenterWorld` distances and checks 5 walled = reachable, 6 = unreachable.
+- IMPASSABLE: one list in the validator (types water/rivers case-insensitive + mountain_1, lava_plain_1, lava_rift_1, rift_1; bridge cell passable). ZonePainter `_IMPASSABLE` (includes Hills_1 and the water ids) and the satellite city-clearing set are different rules and were left alone: owner may want to unify (would change zone/sat output).
+- Missing-sprite semantics: new `Terrain.spriteState(id)` ('loaded'|'pending'|'failed'|'unknown') and `Terrain.pendingSprites()`, tracked inside `applyHexDbOverrides`. Only 'failed' is an issue; pending/unknown (e.g. right after startup) are not, and `run().pendingSprites` reports how many are still loading. Only HexDB tiles with a spriteName are checked (building sprites have no tracked load path).
+- Cost: stats counters (`cellsScanned`, `spriteScanCells`, `bfsPops`, `neighborCalls`) are asserted: one cell pass, the second (sprite) pass only when some sprite failed, BFS <= once per cell and stops when every settlement is found (300 settlements on 450x450: pops < 5000), zero DOM mutations.
+- Decisions on A19: bunker/megacity settlements on islands will each be reported as unreachable (grouped into ONE issue with up to 200 cells).
+
+RED: all 16 tests failed (`MapValidator is not defined`) before the implementation. GREEN: validator-core 16/16 + map-load-warnings 3/3 = 23 passed.
+Sanity mutations (cumulative, each caught: 4, 5 then 6 failures): BFS ignores impassable; road-like ignores settlements; sprite rule `!== 'loaded'`. Restored by inverse edit (my cmp backup path was bad; restored text verified with git diff, and the full spec re-run green).
+Not done: no UI (T4.6); no CHANGELOG (not user-visible until T4.6).

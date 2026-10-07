@@ -1,0 +1,12 @@
+# T4.11 report: collapsible right panel / narrow layout
+
+Implemented in MapEditorPro.html: CSS block "Collapsible right panel", `#right-panel-head` + `#right-panel-toggle` (real button, aria-expanded/aria-controls, Enter/Space, Space does not start a pan, blurs after a pointer click), `RightPanel` module (init before `Canvas.init`), new `Canvas.resize()` (the window resize handler now uses it; called once per state change).
+- Storage key `rightPanelMode`: auto (default) | collapsed | expanded | classic; every read/write in try/catch (blocked storage: default auto, toggle works for the session).
+- `classic`: body.layout-classic, old CSS untouched (toolbar widens page, panel inline, no toggle). tests/helpers.ts `openEditor` seeds it by default (all perf specs and `freshEditor` go through it; opts.storage overrides); comment in perf-scene.ts.
+- Non-classic: `#app` column minmax(0,1fr); toolbar `overflow-x:auto; nowrap`; tooltips and the MORE dropdown become position:fixed (placed by JS) so the scrolling toolbar does not clip them. >= 1920 auto: inline panel; below: 28 px rail; expanded below 1920: absolute drawer, the canvas keeps its rail-width size (no reflow, hit-testing unchanged).
+- Recorded from unchanged HEAD: canvas 1491 at every width 1100..1930 (page forced to 1931.3 px, panel at x=1711, off-screen); 2400x1200 canvas 1960x1108.
+- Deviation (owner FYI): at 1920..1930 the old layout was 1931 px wide (11 px clipped, canvas 1491). New auto layout at 1920x1080 gives canvas 1480 with the panel fully visible (the brief's "identical at 1920" cannot hold together with "no horizontal overflow"); widths >= 1931 are identical to before. Also pre-existing: the 220 px minimap is clipped 1 px by the panel's border (test allows 1.5 px).
+
+RED: before implementing, 19 of 22 tests in tests/layout-narrow.spec.ts failed (the 3 passing were controls: 2400 wide, classic, MORE dropdown). GREEN: 22/22.
+Focused run (perf-*.spec.ts, stamps, layers, shortcut-layouts, modal, dialogs, no-native-dialogs, layout-narrow): 435 passed, 4 skipped (opt-in), 0 failed, startup retries 0, 2.6 min. Plus city/object-tools/paint-tools 1491 asserts: 17 passed. tests/perf-baseline.json untouched. Sanity mutation: removing the classic seed makes the 1491/hash specs fail (3 failed), restored (cmp clean). No full suite run (per directive).
+Not done: Stamps panel stays in the left palette (optional owner decision). Tab mode-switch while the shared (non-modal) dialog is open is untouched.

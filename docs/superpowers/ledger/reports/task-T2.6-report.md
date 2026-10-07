@@ -1,0 +1,35 @@
+# T2.6 report: Real eraser
+Status: DONE
+
+## Implemented (MapEditorPro.html)
+- `DEFAULT_TILE_ID = 'Plain_1'`; tool `eraser` (key X by e.code, shift/alt/ctrl/typing/modal guarded; no collision with P F R E S T D Z L O G Y [ ]). Button in the LEFT palette row `#shape-tools` (canvas width 1491 at 1400x900 verified).
+- `Tools.eraseCells(cells, {noSymmetry}) -> n`: resets to DEFAULT_TILE_ID, removes building (+ spawned satellites via `_removeSatellites`), road, bridge, tileExtras; edge re-resolution through `_autoResolveEdgesAround`; refuses while a fill runs.
+- DECISIONS: (1) Symmetry: the brief's code expands by symmetry and the tool does not pass noSymmetry, so the eraser BEHAVES LIKE PAINT (mirrored copies); tooltip and CHANGELOG say so. (2) Zones and the settlements list (incl. city marker) are never modified; terrain under a settlement/city IS reset (like Paint overwriting it). (3) Footprints: a satellite cell is skipped unless its anchor is erased in the same call (then the whole footprint goes); erasing an anchor alone resets it, the footprint disappears, satellite cells keep their underlying terrain.
+- Roads: bitmasks are computed live at draw time (`Roads.calcBitmask`), so no explicit neighbour refresh is needed; verified by test (mask and pixels).
+- Input: left button only, one `History.push` before first write, stroke state `_eraseStroke`; mouseleave ends the stroke (like Paint), window mouseup/blur end it, lost mouseup handled by existing buttons===0 path, tool switch resets stroke and hover, map replacement stops with toast "Eraser stopped — the map changed", isFillBusy gates. Escape mid-stroke ROLLS BACK the stroke via new `History.rollback()` (pops the step without a redo entry); caveat: if the 50-step history was full, the evicted oldest step is not recovered.
+- Hover: `Canvas.setHighlight('eraser', ...)` red, brush disc plus symmetric copies, cached by cell/radius/mode/map size, refreshed on [ ] and symmetry change, cleared on mouseleave/tool switch/blur; default single-cell cursor suppressed for the eraser. Old `erase`, `erase-object`, `erase-road` code untouched.
+- CHANGELOG bullet added. perf-baseline.json untouched.
+
+## Tests (tests/paint-tools.spec.ts, 'eraser (T2.6)', 23)
+Brief test 1 and 2 variants; neighbours keep overlays; disc vs pixel reference (radii 0..4, corner/centre/opposite corner on 450x450, 451x451, 450x451); one undo restores terrain, building, road, bridge, extras; drag = one step; settlements/city/zones untouched; footprint cases; edge masks vs resolveEdgeTile (checked>0, changed>0); symmetry pixel mirror + noSymmetry; overlay caches (canvas equals pristine state, rebuild counted, undo restores); road neighbour bitmask+pixels; X key and shortcut non-collision; button placement and canvas width; middle/right/side buttons, tool switch mid-stroke; lost mouseup, mouseup outside, blur; Escape rollback; map replaced mid-stroke; fill busy gate; hover layer counts, exit paths, LOD 2 marks; old Erase Settlement unchanged.
+RED: against HEAD's HTML 22 of 23 failed (only the old-Erase-Settlement regression test passed, as intended). GREEN: 23 passed.
+Mutation checks (each restored, byte-compared): footprint anchor check, road delete, edge resolve, symmetry, Escape rollback, hover clear on tool switch, stale check, bridge removal each fail >=1 test. First run of "tool switch keeps _isDown" survived (vacuous: paint terrain equalled the map's); test fixed (paint with Water_1, assert 0 Water), mutant now killed.
+
+## Full default suite (once)
+399 passed, 5 skipped, 0 failed; wall 2.5 min (151 s); no `startup retries` line in output; uptime before 6.16 6.49 5.61, after 9.40 7.73 6.25. No background runs left.
+
+## Concerns
+- "City protection" interpreted as marker protection (settlements list), terrain under it resets; change if the owner wants terrain under city/settlements protected.
+- No test for satellite-building removal (no BldDB entry spawns satellites in defaults checked); `_removeSatellites` is the existing code.
+- Eraser mouseleave ends the stroke (same as Paint).
+
+## Fix round 1
+- IMPORTANT 1: `History.push()` now returns a token `{snap, evicted, redo}`; `History.rollback(token)` acts only if its snap is still on top (else no-op, returns false), restores the evicted oldest step and the saved redo stack, sets `_last`. The eraser keeps `_eraseToken`. `History.undo/redo` are ignored while `Tools.isStroking()` (an eraser stroke; chose the simple gate on the stroke, not every `_isDown`, so a stuck drag elsewhere can never block undo).
+- IMPORTANT 2: `_restore` ends with `invalidateSatelliteMap()` (fixes undo/redo/rollback).
+- MINOR 1 CHANGELOG: "under the same brush stamp". MINOR 2: `IO.scheduleAutoSave()` on blur (only if a stroke or hover existed), lost-mouseup and Escape rollback. MINOR 6: blur renders only if a stroke/hover existed. MINOR 5: `invalidateSatelliteMap()` only when an erased cell's previous terrain has occupiedOffsets.
+- MINOR 4: window-mouseup branch for the eraser was dead (leaving the canvas always fires mouseleave first, which ends the stroke), so I removed `|| _eraseStroke` from the window listener and renamed the test to mouseleave; hover test now compares the highlight to an independent pixel reference (DISC_REF disc, mirrored in x and y about the centre cell's pixel) and a new test counts `Brush.getAffectedTiles` calls (0 across same-cell jitter, +1 per cell change); Escape test extended to bridges, tileExtras, zones.
+- MINOR 3: satellite-building test with fabricated BldDB entries (T_A/T_S, objectsData set directly): erasing the anchor removes the ring, keeps Grain_1 in the ring and a far T_S; erasing a ring cell keeps the anchor. NOTE: pre-existing bug, not fixed (T2.14): `_spawnSatellites` references an undeclared `hexData` and throws ReferenceError for any building that spawns satellites.
+- New tests (8 added, 31 eraser tests total): undo ignored mid-stroke then Escape keeps the previous step; rollback(token) no-op when undone/overtaken/null; full history Escape restores oldest step and redo survives; Escape after erasing an anchor restores the footprint map (Paint writes 0 cells under it); undo/redo refresh the footprint map; satellite buildings; hover cache count; no footprint-map rebuild for plain-terrain strokes (radius 12, rot6) and exactly 1 for an anchor.
+- Mutation checks (each fails >=1 test, file restored and byte-compared): rollback without top check (1), no evicted restore (1), no redo restore (1), undo not gated (1), `_restore` without invalidate (2), always invalidate (1), never invalidate (3), hover cache off (1), satellite ring removal off (1).
+- Mid-round incident: a first edit put a `//` comment before `});` on one line and broke the whole script (all tests timed out); fixed, and a stale webServer on port 4476 from a killed run was killed.
+- Full default suite (once): 407 passed, 5 skipped, 0 failed; wall 2.5 min (153 s); no `startup retries` line; uptime before 6.44 4.69 4.62, after 7.15 5.57 4.97. No background runs left. perf-baseline.json untouched.
