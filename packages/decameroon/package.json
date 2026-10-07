@@ -2,5 +2,15 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.7"
+  "version": "1.0.8",
+  "description": "",
+  "dependencies": [],
+  "preview": "preview.png",
+  "changelog": [
+    {
+      "version": "1.0.8",
+      "date": "2026-10-07",
+      "note": "add new buildings  remove duplicates from Hex and Buildings DB"
+    }
+  ]
 }
