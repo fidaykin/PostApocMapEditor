@@ -5,6 +5,9 @@ Format: `## [version] — [date]`
 
 ## Unreleased
 
+### Documentation
+- The content packages PDF guide is not shipped: the Help menu and the PACKAGES tab no longer link to it. The PACKAGES section of the English and Ukrainian user guides covers the essentials.
+
 ### Data safety
 - Startup merges the saved content with the shipped defaults instead of replacing it, so local edits are no longer lost when defaults change.
 - Publishing shows a diff of what will change and refuses unsafe publishes (guards).
@@ -78,7 +81,7 @@ Format: `## [version] — [date]`
 - Validator: mountains are told apart from hills by the id prefix `mountain_` (Mountain_Kaiju_1 and _2 now block like Mountain_1; Hills_1 stays passable) and lava / rift tiles by their HexDB type; a shown report becomes 'outdated' after an edit in the Hex DB or Buildings DB. Known difference: the orphan-road check uses true hex adjacency while road drawing still uses the legacy neighbour tables (K1), so a road the editor drew can be reported as connecting to nothing (or the reverse) on some rows until K1 is decided.
 
 ### Packages
-- The PACKAGES tab explains itself (what a package is, link to the packages guide, counts of hex tiles and buildings per package, active marker, notices) and has an active-package selector in the HEX DB and BUILDINGS toolbars.
+- The PACKAGES tab explains itself (what a package is, counts of hex tiles and buildings per package, active marker, notices) and has an active-package selector in the HEX DB and BUILDINGS toolbars.
 - Sprites are stored per package (the default package keeps its keys; older flat sprites are migrated safely at startup). Uploads are checked (4 MB, PNG, JPEG or WebP; JPEG and WebP are converted; SVG and unreadable files are rejected) and an existing name asks Replace, Keep both or Cancel. Reskinning a tile uses a searchable picker.
 - Publish shows the diff first, then a dialog with missing sprites, a version bump (patch, minor, major) and a changelog note; it writes the databases, sprites, preview, registry and package.json in that order and stops without writing when the version is not valid. Export builds the ZIP from the local state (works offline) and warns about unpublished changes.
 - Import validates the ZIP before it touches anything (size and entry limits, unsafe paths, hostile keys, sprite checks) and is all-or-nothing with rollback; an existing id asks Replace, Merge or Cancel.
@@ -94,7 +97,7 @@ Format: `## [version] — [date]`
 - Deploy: `zone-painter.js` is now published to `dev/` together with `hex-utils.js`; dev serves its own zone-painter.js (with the lock gates) after the next dev deploy.
 - The `Brush` module moved to its own file, `brush.js`, and `MapFormat` lives in `map-format.js`; both are published to `dev/` by the dev workflow and covered by the deploy lint. Other root scripts: `hex-utils.js`, `gen-utils.js`, `map-jobs.js`, `map-worker.js`, `zone-painter.js`.
 - The Playwright suite now includes unit-style specs in `tests/unit/` (pure logic, brush, map format), a harness that keeps the Mac awake and caps editor startup, characterization tests for id prefixing, edge autotiling and legacy map migration, and tests that every Markdown link in the README and the guides points to a file.
-- New user guides in English and Ukrainian (`docs/guides/editor-guide.en.md`, `editor-guide.uk.md`, rendered to HTML by `scripts/build-guides.js`) and a Help menu that opens them, the content packages guide (PDF) and the shortcut list. README rewritten.
+- New user guides in English and Ukrainian (`docs/guides/editor-guide.en.md`, `editor-guide.uk.md`, rendered to HTML by `scripts/build-guides.js`) and a Help menu that opens them and the shortcut list. README rewritten.
 
 
 ---

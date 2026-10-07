@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { openEditor, FakeGitHub, hexRec, bldRec, seedHexes, seedBuildings } from './helpers';
 
-const GUIDE = 'docs/guides/content-packages-editor-guide.pdf';
 
 async function openTab(page: any, opts: { pat?: boolean; registry?: any[] } = {}) {
   const gh = new FakeGitHub();
@@ -13,16 +12,14 @@ async function openTab(page: any, opts: { pat?: boolean; registry?: any[] } = {}
   return gh;
 }
 
-test('empty state, help text, game notice and a guide link that resolves', async ({ page, request }) => {
+test('empty state, help text and game notice; the packages PDF guide is not linked', async ({ page }) => {
   await openTab(page);
   await expect(page.locator('#pkg-help')).toContainText('content package');
   await expect(page.locator('#pkg-empty')).toContainText('No custom packages yet');
   await expect(page.locator('#pkg-game-notice')).toContainText('does not load non-default packages yet');
-  const href = await page.locator('#pkg-guide-link').getAttribute('href');
-  expect(href).toBe(GUIDE);
-  const res = await request.get('/' + href!);
-  expect(res.status()).toBe(200);
-  expect((await res.body()).subarray(0, 4).toString()).toBe('%PDF');
+  await expect(page.locator('#pkg-guide-link')).toHaveCount(0);
+  await expect(page.locator('#pkg-help a')).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.innerHTML.includes('content-packages-editor-guide'))).toBe(false);
 });
 
 test('token warning shows without a token and is gone with one', async ({ page }) => {

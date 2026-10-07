@@ -8,7 +8,6 @@ import { openEditor } from './helpers';
 const LINKS = [
   { id: 'help-guide-en', href: 'docs/guides/editor-guide.en.html', type: /text\/html/, heading: 'Map Editor Pro: user guide' },
   { id: 'help-guide-uk', href: 'docs/guides/editor-guide.uk.html', type: /text\/html/, heading: 'Map Editor Pro: посібник користувача' },
-  { id: 'help-guide-pkg', href: 'docs/guides/content-packages-editor-guide.pdf', type: /application\/pdf/, heading: null },
 ];
 
 test('the Help menu lists the guides as safe new-tab links and the shortcut list', async ({ page }) => {
@@ -31,6 +30,7 @@ test('the Help menu lists the guides as safe new-tab links and the shortcut list
     expect(l.text!.trim().length, l.id).toBeGreaterThan(5);
   }
   expect(info.buttons).toEqual(['Keyboard Shortcuts…']);
+  expect(info.links.some(l => /\.pdf$/i.test(l.href || ''))).toBe(false);   // the packages PDF guide is not shipped
   expect(nativeDialogs).toEqual([]);
 });
 
@@ -43,8 +43,7 @@ test('every Help link resolves (200, right content type) against the served page
     expect(r.headers()['content-type'], url).toMatch(l.type);
     const body = await r.body();
     expect(body.length, url).toBeGreaterThan(1000);
-    if (l.heading) expect(body.toString('utf8'), url).toContain(`<h1>${l.heading}</h1>`);
-    else expect(body.subarray(0, 4).toString('latin1'), url).toBe('%PDF');
+    expect(body.toString('utf8'), url).toContain(`<h1>${l.heading}</h1>`);
   }
 });
 

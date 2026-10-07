@@ -1424,7 +1424,6 @@ body.mode-common #map-io    { display: none; }
       <div class="menu-dropdown">
         <a class="menu-link" id="help-guide-en" href="docs/guides/editor-guide.en.html" target="_blank" rel="noopener">User guide (English)</a>
         <a class="menu-link" id="help-guide-uk" href="docs/guides/editor-guide.uk.html" target="_blank" rel="noopener">Посібник користувача (українською)</a>
-        <a class="menu-link" id="help-guide-pkg" href="docs/guides/content-packages-editor-guide.pdf" target="_blank" rel="noopener">Content packages guide (PDF)</a>
         <div class="separator"></div>
         <button id="help-shortcuts" onclick="Shortcuts.showHelp()">Keyboard Shortcuts…</button>
       </div>
@@ -2700,7 +2699,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "9f0136f";
+const COMMIT  = "cf9d458";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -12767,7 +12766,6 @@ const Packages = (() => {
   const LS_REGISTRY = 'pkg_registry_cache';
   const LS_TRASH    = 'pkg_trash';
   const GAME_LOADS_NON_DEFAULT = false;   // flip to true once the game ships runtime package loading
-  const GUIDE_URL = 'docs/guides/content-packages-editor-guide.pdf';
 
   let _registry = [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }];
   let _active   = 'postapoc';
@@ -13175,8 +13173,7 @@ const Packages = (() => {
     const kids = [];
     kids.push(_el('h3', { style: 'color:#cdd6f4;margin:0 0 8px', text: 'Content Packages' }));
     kids.push(_el('p', { id: 'pkg-help', class: 'pkg-help' },
-      'A content package bundles hex tiles, buildings and their sprites so they can be published separately from the base game (postapoc). Pick an active package: every new hex or building you add is tagged to it, and Publish uploads only that package’s entries. ',
-      _el('a', { id: 'pkg-guide-link', href: GUIDE_URL, target: '_blank', rel: 'noopener', text: 'Packages guide (PDF)' })));
+      'A content package bundles hex tiles, buildings and their sprites so they can be published separately from the base game (postapoc). Pick an active package: every new hex or building you add is tagged to it, and Publish uploads only that package’s entries.'));
     if (!GitHubSync.isPATConfigured()) {
       kids.push(_el('div', { id: 'pkg-pat-warn', class: 'pkg-notice warn' },
         'Without a GitHub token you can create, edit, import and export packages locally (they stay in this browser); publishing needs a GitHub token. ',

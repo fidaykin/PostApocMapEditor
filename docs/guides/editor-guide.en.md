@@ -1,6 +1,6 @@
 # Map Editor Pro: user guide
 
-[Українською](editor-guide.uk.md) | [Content packages guide (PDF)](content-packages-editor-guide.pdf)
+[Українською](editor-guide.uk.md)
 
 This guide describes what the editor does today. It replaces the older HTML guides in `docs/` (written for v0.4.6) for everything on the MAP tab; those files are kept for the HEX DB, BUILDINGS and SETTLEMENTS forms, which this guide only mentions.
 
@@ -126,7 +126,7 @@ The **Map design** section (left palette, closed by default):
 
 ## 11. Content packages
 
-The PACKAGES tab manages content packages: bundles of hex tiles, buildings and sprites that can be published separately from the base game (`postapoc`). The detailed walkthrough is in the [content packages guide (PDF)](content-packages-editor-guide.pdf); the essentials:
+The PACKAGES tab manages content packages: bundles of hex tiles, buildings and sprites that can be published separately from the base game (`postapoc`). The essentials:
 
 - The panel lists each package with its entry counts and an `active` marker. Set active makes a package the target for new entries; the selector also appears in the HEX DB and BUILDINGS toolbars. The palette groups tiles and buildings by package when more than one package has entries.
 - **New Package** creates an empty package. **Details** edits its description, dependencies (`id`, `id@1.2.3` or `id@^1.2.0`) and a 512 by 512 preview image. **Export** downloads a ZIP of the local version (works offline). **Import Package** validates the ZIP first, and if it fails it rolls back. When the id already exists you choose Replace, Merge or Cancel. **Publish** shows what will change, lets you bump the version and add a changelog note, and warns about missing sprites. **Delete** is reversible from "Recently deleted".

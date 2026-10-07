@@ -18,7 +18,6 @@ Opening the HTML file straight from disk also works for painting, but the GitHub
 ## Documentation
 
 - User guide: [English](docs/guides/editor-guide.en.md) | [Українською](docs/guides/editor-guide.uk.md). They are also opened from the editor's Help menu as `docs/guides/editor-guide.en.html` and `editor-guide.uk.html`. After editing a `.md` guide run `node scripts/build-guides.js`; a test fails when the `.html` is out of date.
-- [Content packages guide (PDF)](docs/guides/content-packages-editor-guide.pdf).
 - [CHANGELOG.md](CHANGELOG.md): user-visible changes, newest first.
 - [tests/README.md](tests/README.md): the test harness and the standing rules for tests.
 - `docs/superpowers/`: design plans and decision records. The older `docs/guide_*.html` guides describe v0.4.6.
