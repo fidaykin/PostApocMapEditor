@@ -223,7 +223,7 @@ test.describe('top toolbar', () => {
 });
 
 test.describe('right panel', () => {
-  test.fixme('the right panel holds the minimap and the settlements; brush and the large active terrain are gone from it', async ({ page }) => {
+  test('the right panel holds the minimap and the settlements; brush and the large active terrain are gone from it', async ({ page }) => {
     await freshEditorAuto(page);
     await page.locator('#right-panel-toggle').click();
     const r = await page.evaluate(() => {

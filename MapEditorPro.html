@@ -444,28 +444,17 @@ body.rp-drawer.minimap-big #right-panel { width: 340px; }
 .stamp-del:hover { color: var(--danger); }
 #stamp-more { width: 100%; margin-top: 4px; }
 
-#right-active-terrain {
-  padding: 10px; border-bottom: 1px solid var(--border);
-}
-#right-active-terrain .section-title {
-  font-size: 11px; color: var(--muted); letter-spacing: 1px;
-  text-transform: uppercase; margin-bottom: 8px;
-}
-.right-terrain-display { display: flex; align-items: center; gap: 10px; }
-#right-terrain-img {
-  width: 64px; height: 64px; image-rendering: pixelated; flex-shrink: 0;
-  clip-path: polygon(100% 50%, 75% 6.7%, 25% 6.7%, 0% 50%, 25% 93.3%, 75% 93.3%);
-}
-#right-terrain-name { font-size: 12px; font-weight: bold; }
-#right-terrain-id   { font-size: 11px; color: var(--muted); }
-
+/* Right panel below the minimap: the contextual inspectors (Selected Tile, Zone Config) and the Settlements block. Section
+   titles share the palette caption style (10 px uppercase muted). */
+#right-panel .section-title { font-size: 10px; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); }
 #settlement-count {
-  padding: 10px; font-size: 12px; color: var(--muted);
-  margin-top: auto; border-top: 1px solid var(--border);
+  padding: 8px; font-size: 12px; color: var(--text);
+  border-bottom: 1px solid var(--border);
 }
 
-#slot-panel { padding: 8px; border-top: 1px solid var(--border); }
-#slot-panel .section-title { font-size: 11px; color: var(--muted); margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+#slot-panel { padding: 8px; border-bottom: 1px solid var(--border); }
+#slot-panel .section-title { margin-bottom: 6px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+#slot-panel.collapsed .section-title { margin-bottom: 0; }
 /* Slot card */
 .slot-row { background: rgba(0,0,0,0.22); border: 1px solid var(--border); border-radius: 5px; padding: 6px; margin-bottom: 6px; }
 /* Header: type selector + remove */
@@ -1895,23 +1884,13 @@ body.mode-common #map-io    { display: none; }
     <!-- Right panel -->
     <div id="right-panel">
       <div id="right-panel-head">
-        <button type="button" id="right-panel-toggle" aria-expanded="true" aria-controls="right-panel" title="Hide the side panel (minimap, brush, active terrain)">»</button>
+        <button type="button" id="right-panel-toggle" aria-expanded="true" aria-controls="right-panel" title="Hide the side panel (minimap, settlements)">»</button>
       </div>
       <div id="minimap-container">
         <canvas id="minimap" width="220" height="220"></canvas>
       </div>
       <div id="right-scroll-body" style="flex:1;overflow-y:auto;min-height:0">
-      <div id="right-active-terrain">
-        <div class="section-title">Active Terrain</div>
-        <div class="right-terrain-display">
-          <img id="right-terrain-img" src="" alt="">
-          <div>
-            <div id="right-terrain-name">Plain_1</div>
-            <div id="right-terrain-id">ID: 12</div>
-          </div>
-        </div>
-      </div>
-      <div id="tile-inspector" style="display:none;border-top:1px solid var(--border);padding:8px 10px">
+      <div id="tile-inspector" style="display:none;border-bottom:1px solid var(--border);padding:8px">
         <div class="section-title" style="margin-bottom:6px">Selected Tile</div>
         <div id="tile-insp-pos" style="font-size:11px;color:var(--muted);margin-bottom:2px"></div>
         <div id="tile-insp-id"  style="font-size:12px;font-weight:bold;margin-bottom:8px;word-break:break-all"></div>
@@ -2826,7 +2805,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "55f9dbc";
+const COMMIT  = "811b3e7";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9969,13 +9948,6 @@ const UI = (() => {
     else if (t.spriteName) selImg.src = `packages/postapoc/sprites/hex/${t.spriteName}.png`;
     document.getElementById('palette-selected-name').textContent = t.name || hexId;
     document.getElementById('palette-selected-id').textContent   = hexId;
-
-    // Right panel active terrain
-    const rtImg = document.getElementById('right-terrain-img');
-    if (spr) rtImg.src = spr.src;
-    else if (t.spriteName) rtImg.src = `packages/postapoc/sprites/hex/${t.spriteName}.png`;
-    document.getElementById('right-terrain-name').textContent = t.name || hexId;
-    document.getElementById('right-terrain-id').textContent   = hexId;
 
     // Status bar
     document.getElementById('st-terrain').textContent = hexId;
@@ -21260,7 +21232,7 @@ const RightPanel = (() => {
     if (t) {
       t.setAttribute('aria-expanded', String(open));
       t.textContent = open ? '»' : '«';
-      t.title = open ? 'Hide the side panel (minimap, brush, active terrain)' : 'Show the side panel (minimap, brush, active terrain)';
+      t.title = open ? 'Hide the side panel (minimap, settlements)' : 'Show the side panel (minimap, settlements)';
     }
     // The minimap lives in the right panel: with only the rail showing, its option buttons would change nothing visible.
     ['mm-size-btn', 'mm-zones-btn', 'mm-settle-btn'].forEach(id => {

@@ -48,7 +48,7 @@ test('1920x1080 auto: expanded inline, right panel fully on screen (the old layo
   expect(cw).toBe(1920 - 2 * PALETTE);   // 1480: the page no longer widens past the viewport (old: 1491)
   expect(await box(page, '#right-panel').then(b => [b.l, b.w])).toEqual([1920 - PALETTE, PALETTE]);
   await expect(page.locator('#right-panel-toggle')).toHaveAttribute('aria-expanded', 'true');
-  for (const s of ['#minimap', '#slot-panel', '#right-active-terrain']) expect(await inside(page, s)).toBe(true);
+  for (const s of ['#minimap', '#settlement-count', '#slot-panel']) expect(await inside(page, s)).toBe(true);
 });
 
 test('wide viewport 2400x1200 keeps the old canvas size (inline panel, width - 440)', async ({ page }) => {
@@ -71,7 +71,7 @@ for (const [w, h] of VIEWPORTS.slice(0, 3)) {
 }
 
 for (const [w, h] of VIEWPORTS) {
-  test(`${w}x${h}: minimap, brush panel and active terrain are reachable with the toggle (real clicks)`, async ({ page }) => {
+  test(`${w}x${h}: minimap and settlements are reachable with the toggle; the brush (left palette) works with it open (real clicks)`, async ({ page }) => {
     await start(page, w, h);
     const narrow = w < NARROW_BELOW;
     const before = await canvasSize(page);
@@ -81,7 +81,7 @@ for (const [w, h] of VIEWPORTS) {
       await expect(tg).toHaveAttribute('aria-expanded', 'true');
       expect(await canvasSize(page)).toEqual(before);   // overlay drawer: no reflow
     }
-    for (const s of ['#minimap', '#slot-panel', '#right-active-terrain']) {
+    for (const s of ['#minimap', '#settlement-count', '#slot-panel']) {
       await expect(page.locator(s)).toBeVisible();
       expect(await inside(page, s), s).toBe(true);
     }
@@ -158,7 +158,7 @@ test('hit-testing: a real click paints exactly the cell under the cursor, collap
   await clickCell(page, 222, 226);
   expect(await diff(base)).toEqual([226 * W + 222]);
   // a click inside the drawer does not reach the map
-  const m = await box(page, '#right-active-terrain');
+  const m = await box(page, '#settlement-count');
   base = await snapshot(page);
   await page.mouse.click(m.l + 10, m.t + 10);
   expect(await diff(base)).toEqual([]);
