@@ -48,7 +48,7 @@ test('1920x1080 auto: expanded inline, right panel fully on screen (the old layo
   expect(cw).toBe(1920 - 2 * PALETTE);   // 1480: the page no longer widens past the viewport (old: 1491)
   expect(await box(page, '#right-panel').then(b => [b.l, b.w])).toEqual([1920 - PALETTE, PALETTE]);
   await expect(page.locator('#right-panel-toggle')).toHaveAttribute('aria-expanded', 'true');
-  for (const s of ['#minimap', '#brush-panel', '#right-active-terrain']) expect(await inside(page, s)).toBe(true);
+  for (const s of ['#minimap', '#slot-panel', '#right-active-terrain']) expect(await inside(page, s)).toBe(true);
 });
 
 test('wide viewport 2400x1200 keeps the old canvas size (inline panel, width - 440)', async ({ page }) => {
@@ -81,7 +81,7 @@ for (const [w, h] of VIEWPORTS) {
       await expect(tg).toHaveAttribute('aria-expanded', 'true');
       expect(await canvasSize(page)).toEqual(before);   // overlay drawer: no reflow
     }
-    for (const s of ['#minimap', '#brush-panel', '#right-active-terrain']) {
+    for (const s of ['#minimap', '#slot-panel', '#right-active-terrain']) {
       await expect(page.locator(s)).toBeVisible();
       expect(await inside(page, s), s).toBe(true);
     }

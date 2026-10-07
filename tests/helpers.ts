@@ -475,7 +475,8 @@ export async function quiesceAfterDialog(page: Page) {
 }
 
 /** Keys of the left-palette accordion sections, top to bottom (the tile picker above them is always open). */
-export const PALETTE_SECTIONS = ['zones', 'goto', 'minimap', 'bookmarks', 'stamps', 'layers', 'validator', 'export', 'history', 'design', 'help'] as const;
+// Document order (UI structure task): View (minimap, goto, bookmarks) · Edit (zones, stamps, layers, history) · Check & share (validator, export, design, help).
+export const PALETTE_SECTIONS = ['minimap', 'goto', 'bookmarks', 'zones', 'stamps', 'layers', 'history', 'validator', 'export', 'design', 'help'] as const;
 export type PaletteSection = typeof PALETTE_SECTIONS[number];
 
 /**

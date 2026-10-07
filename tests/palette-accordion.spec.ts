@@ -5,10 +5,10 @@ import { openEditor, reloadEditor, openSection, PALETTE_SECTIONS } from './helpe
 // (single-open, collapsed by default, last open section remembered in this browser).
 declare const Bookmarks: any, MapValidator: any;
 
-const SECTIONS: [string, string, string][] = [   // key, body id (kept from before), header label
-  ['zones', 'zone-panel', 'Zones'], ['goto', 'goto-panel', 'Go to'], ['minimap', 'minimap-panel', 'Minimap'],
-  ['bookmarks', 'bookmarks-panel', 'Bookmarks'], ['stamps', 'stamp-panel', 'Stamps'], ['layers', 'layers-panel', 'Layers'],
-  ['validator', 'validator-panel', 'Validate map'], ['export', 'png-export-panel', 'Export image'], ['history', 'history-panel', 'History'],
+const SECTIONS: [string, string, string][] = [   // key, body id (kept from before), header label; grouped View / Edit / Check & share
+  ['minimap', 'minimap-panel', 'Minimap'], ['goto', 'goto-panel', 'Go to'], ['bookmarks', 'bookmarks-panel', 'Bookmarks'],
+  ['zones', 'zone-panel', 'Zones'], ['stamps', 'stamp-panel', 'Stamps'], ['layers', 'layers-panel', 'Layers'], ['history', 'history-panel', 'History'],
+  ['validator', 'validator-panel', 'Validate map'], ['export', 'png-export-panel', 'Export image'],
   ['design', 'map-design', 'Map design'], ['help', 'shortcuts-panel', 'Help'],
 ];
 const TILES_MIN = 320;   // owner: the picker keeps at least ~320 px
@@ -145,7 +145,8 @@ test('keyboard: Enter and Space toggle the focused header and keep focus on it; 
   expect(await page.evaluate(() => (document.activeElement as HTMLElement).dataset.acc)).toBe('layers');
   await page.keyboard.press('ArrowUp');
   await page.keyboard.press('ArrowUp');
-  expect(await page.evaluate(() => (document.activeElement as HTMLElement).dataset.acc)).toBe('bookmarks');
+  await page.keyboard.press('ArrowUp');
+  expect(await page.evaluate(() => (document.activeElement as HTMLElement).dataset.acc)).toBe('bookmarks');   // across the View / Edit group heading
   expect(await openKeys(page)).toEqual([]);                            // arrows only move focus
   // pointer click: opens, and the header does not keep focus (Space goes back to panning the map)
   await header(page, 'history').click();
@@ -183,7 +184,7 @@ test('collapsed content is not focusable; Tab from a text field never lands in a
   expect(opened.bookmarks[0]).toBeGreaterThan(2);
   expect(opened.bookmarks[1]).toBe(opened.bookmarks[0]);
   // Tab from the go-to field (a text field: native Tab) reaches its Go button; Shift+Tab goes back to its own header,
-  // never into the collapsed Zones section before it
+  // never into the collapsed Minimap section before it
   await openSection(page, 'goto');
   await page.locator('#goto-input').focus();
   await page.keyboard.press('Tab');
@@ -250,7 +251,7 @@ test('badges: Layers shows the hidden/locked count (the status-bar summary stays
   await expect(badge('validator')).toHaveText(before + ' (old)');
 });
 
-test('the top toolbar and the canvas size are unchanged (classic 1491x808 at 1400x900, palette 220 px)', async ({ page }) => {
+test('the canvas size is unchanged (classic 1491x808 at 1400x900, palette 220 px); no accordion header in the toolbar', async ({ page }) => {
   await page.setViewportSize({ width: 1400, height: 900 });
   await openEditor(page);                                               // classic layout (seeded by the helper)
   const r = await page.evaluate(() => ({
@@ -259,7 +260,9 @@ test('the top toolbar and the canvas size are unchanged (classic 1491x808 at 140
     toolbarControls: document.querySelectorAll('#toolbar button, #toolbar select, #toolbar input').length,
     accInToolbar: document.querySelectorAll('#toolbar .pal-acc-btn').length,
   }));
-  expect(r).toEqual({ canvas: [1491, 808], palette: 220, toolbarControls: 57, accInToolbar: 0 });
+  // 57 toolbar controls before the UI-structure task; 44 after it: the 8 tool buttons moved to the palette tool rows and the
+  // 5 zone-painter controls (Randomize & Fill, its patch slider, Fill Zones, Overlay, Clear Zones) moved to the Zones section.
+  expect(r).toEqual({ canvas: [1491, 808], palette: 220, toolbarControls: 44, accInToolbar: 0 });
   await openSection(page, 'stamps');
   expect(await page.evaluate(() => [(document.getElementById('map-canvas') as HTMLCanvasElement).width, (document.getElementById('map-canvas') as HTMLCanvasElement).height])).toEqual([1491, 808]);
 });

@@ -411,6 +411,7 @@ test.describe('layers: zone overlay stays in sync with the Zone Painter control 
   });
 
   test('the Zone Painter overlay button drives the panel row and the persisted state', async ({ page }) => {
+    await openSection(page, 'zones');                // the Overlay button lives in the Zones section (UI structure task)
     await page.click('#btn-zone-overlay');
     expect(await page.evaluate(() => Layers.isVisible('zones'))).toBe(false);
     await expect(page.locator('.layer-row[data-layer="zones"] .layer-eye')).toHaveAttribute('aria-pressed', 'false');
