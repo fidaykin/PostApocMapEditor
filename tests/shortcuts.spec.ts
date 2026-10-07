@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { freshEditor } from './editor-helpers';
+import { openSection } from './helpers';
 
 // T4.4: one shortcut registry drives the new keys AND the help panel; the table must equal the real handlers.
 // Every expectation below is hand-written (not derived from the registry).
@@ -41,6 +42,7 @@ test.describe('registry keys', () => {
 
   test('never while typing, with a modal open, with Ctrl / Alt / Meta, and a held 1 toggles once', async ({ page }) => {
     await page.evaluate(() => Canvas.setZoom(100));
+    await openSection(page, 'goto');
     await page.focus('#goto-input');
     await page.keyboard.type('1+-0');                           // typed into the box
     expect(await ringsOn(page)).toBe(false);
@@ -198,6 +200,7 @@ test.describe('help panel', () => {
   test.beforeEach(async ({ page }) => { await freshEditor(page); });
 
   test('the left-palette button opens it; it lists every registered shortcut (generated from the registry); Escape closes it', async ({ page }) => {
+    await openSection(page, 'help');
     await page.click('#btn-shortcut-help');
     const help = page.locator('.shortcut-help-body');
     await expect(help).toBeVisible();

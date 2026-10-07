@@ -93,7 +93,8 @@ test.describe('file exports', () => {
     await expect(modal(page)).toBeVisible();
     await modal(page).getByRole('button', { name: 'Show issues' }).click();
     await expect(modal(page)).toHaveCount(0);
-    await expect(page.locator('#validator-panel')).toHaveJSProperty('open', true);
+    await expect(page.locator('.pal-acc-btn[aria-controls="validator-panel"]')).toHaveAttribute('aria-expanded', 'true');
+    await expect(page.locator('#validator-panel')).toBeVisible();
     await expect(page.locator('#val-list .val-row')).toHaveCount(1);
     await expect(page.locator('#val-list .val-row.sel')).toHaveCount(1);
     expect(await page.evaluate(() => Canvas.hasHighlight('validator'))).toBe(true);
@@ -164,14 +165,14 @@ test.describe('publish', () => {
     await expect(page.locator('#dialog-modal.open')).toBeVisible();
     expect(await runs(page)).toBe(0);                // prompt first, no validation yet
     await page.fill('#dialog-input', 'gated');
-    await page.getByRole('button', { name: 'OK' }).click();
+    await page.getByRole('button', { name: 'OK', exact: true }).click();
     await expect(modal(page)).toBeVisible();
     await modal(page).getByRole('button', { name: 'Cancel' }).click();
     await publishDone(page);
     expect(gh.putPaths().filter(p => p.startsWith('maps/'))).toEqual([]);
     await page.evaluate(() => { GitHubSync.publishMap(); });
     await page.fill('#dialog-input', 'gated');
-    await page.getByRole('button', { name: 'OK' }).click();
+    await page.getByRole('button', { name: 'OK', exact: true }).click();
     await modal(page).getByRole('button', { name: 'Export anyway' }).click();
     await expect.poll(() => gh.putPaths()).toContain('maps/gated.json');
   });
@@ -188,7 +189,7 @@ test.describe('publish', () => {
     const gh = await setup(page);
     await startPublish(page);
     await page.fill('#dialog-input', 'esc');
-    await page.getByRole('button', { name: 'OK' }).click();
+    await page.getByRole('button', { name: 'OK', exact: true }).click();
     await expect(modal(page)).toBeVisible();
     await page.keyboard.press('Escape');
     await publishDone(page);

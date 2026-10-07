@@ -1,5 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { freshEditor, clickCell, cellPoint } from './editor-helpers';
+import { openSection } from './helpers';
 
 // Phase 2 fix wave 1. W1-1: the derived footprint (satellite) map must never go stale. Every scenario here changes the
 // map WITHOUT calling invalidateSatelliteMap() by hand (earlier tests hid the bug by doing exactly that).
@@ -684,6 +685,7 @@ test.describe('W1-5 integrity', () => {
       ] }));
       await Stamps.refresh();
     });
+    await openSection(page, 'stamps');
     const place = async (name: string) => {
       await page.evaluate(() => { (window as any).__toasts.length = 0; });
       await page.locator('.stamp-row', { hasText: name }).locator('.stamp-name').click();

@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { freshEditor, cellPoint } from './editor-helpers';
+import { openSection } from './helpers';
 
 // T3.8: placement helper (bunkers, mega cities, artifacts, ore clusters). A bulk writer driven from the LEFT palette
 // 'Map design' section. Plan = pure read of the map; place = guard + ONE History step + write.
@@ -249,7 +250,7 @@ test.describe('placement helper (T3.8)', () => {
       const ids = ['pl-seed', 'pl-bunkers', 'pl-megaCities', 'pl-artifacts', 'pl-apply'];
       const els = ids.map(i => document.getElementById(i));
       return { present: els.every(Boolean), inSection: els.every(e => !!e && !!e.closest('#map-design') && !!e.closest('#palette-panel') && !e.closest('#toolbar') && !e.closest('#right-panel')),
-        open: (document.getElementById('map-design') as HTMLDetailsElement).open, cw: (document.getElementById('map-canvas') as HTMLCanvasElement).width, ch: (document.getElementById('map-canvas') as HTMLCanvasElement).height,
+        open: !document.getElementById('map-design')!.hidden, cw: (document.getElementById('map-canvas') as HTMLCanvasElement).width, ch: (document.getElementById('map-canvas') as HTMLCanvasElement).height,
         ores: document.querySelectorAll('#map-design [id^="pl-ore-"]').length };
     });
     expect(layout.present).toBe(true);
@@ -257,7 +258,7 @@ test.describe('placement helper (T3.8)', () => {
     expect(layout.open).toBe(false);
     expect([layout.cw, layout.ch]).toEqual([1491, 808]);
     expect(layout.ores).toBe(4);
-    await page.evaluate(() => { (document.getElementById('map-design') as HTMLDetailsElement).open = true; });
+    await openSection(page, 'design');
     const set = (id: string, v: string) => page.fill('#' + id, v);
     // invalid input: toast naming the field, no step, no change, no native dialog
     for (const [id, v] of [['pl-bunkers', '12x'], ['pl-bunkers', '-1'], ['pl-bunkers', '1.5'], ['pl-bunkers', ''], ['pl-bunkers', '99999'], ['pl-megaCities', '1e3'], ['pl-seed', 'abc'], ['pl-seed', '-4'], ['pl-seed', '4294967296'], ['pl-ore-gold', '101']]) {

@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import fs from 'fs';
-import { openEditor } from './helpers';
+import { openEditor, openSection } from './helpers';
 import { freshEditor, clickCell } from './editor-helpers';
 
 // T4.8: File > Export PNG / left-palette button render the WHOLE map (flat colour hexagons, markers for the visible layers)
@@ -145,7 +145,7 @@ test.describe('30x30 map at scale 1', () => {
   });
 
   test('the palette button uses the selected scale', async ({ page }) => {
-    await page.evaluate(() => { (document.getElementById('png-export-panel') as HTMLDetailsElement).open = true; });
+    await openSection(page, 'export');
     await page.selectOption('#png-scale', '0.2');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#png-export-btn')]);
     const buf = fs.readFileSync((await dl.path())!);

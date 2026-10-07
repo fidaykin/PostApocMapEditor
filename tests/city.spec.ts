@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { freshEditor, clickCell } from './editor-helpers';
+import { openSection } from './helpers';
 
 // T3.5: configurable city position. The city is the settlement with type 'city'; getCityCol/getCityRow, the distance
 // readouts, the rings, the slot labels and the generator's flatten/exclusion centre all follow it.
@@ -115,7 +116,7 @@ test.describe('configurable city (T3.5)', () => {
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
     const r = await page.evaluate(() => {
-      const d = document.getElementById('map-design') as HTMLDetailsElement | null;
+      const d = document.getElementById('map-design');
       const b = document.querySelector('.tool-btn[data-tool="city"]') as HTMLElement | null;
       return { sec: !!d, inPalette: !!d && !!d.closest('#palette-panel') && !d.closest('#toolbar') && !d.closest('#map-tools'),
                btnIn: !!b && !!b.closest('#map-design'), cw: (document.getElementById('map-canvas') as HTMLCanvasElement).width,
@@ -126,7 +127,8 @@ test.describe('configurable city (T3.5)', () => {
     expect(r.btnIn).toBe(true);
     expect(r.layer).toBe('settlements');
     expect(r.cw).toBe(1491);
-    await page.evaluate(() => { (document.getElementById('map-design') as HTMLDetailsElement).open = true; Canvas.centerOnCity(); });
+    await openSection(page, 'design');
+    await page.evaluate(() => Canvas.centerOnCity());
     await page.click('.tool-btn[data-tool="city"]');
     expect(await page.evaluate(() => Tools.getActive())).toBe('city');
     const s0 = await steps(page);
@@ -398,7 +400,7 @@ test.describe('distance bands (T3.6)', () => {
   test.beforeEach(async ({ page }) => { await freshEditor(page); await page.evaluate(SPY); });
   const bounds = (page: any) => page.evaluate(() => DistanceBands.getBounds());
   const commit = async (page: any, text: string) => {
-    await page.evaluate(() => { (document.getElementById('map-design') as HTMLDetailsElement).open = true; });
+    await openSection(page, 'design');
     const input = page.locator('#ring-bounds');
     await input.fill(text);
     await input.press('Enter');

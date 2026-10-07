@@ -109,7 +109,7 @@ test('Publish Map asks for the file name in a dialog', async ({ page }) => {
   const { nativeDialogs } = await openEditor(page, { gh, pat: true });
   await page.evaluate(() => { GitHubSync.publishMap(); });
   await page.fill('#dialog-input', 'my_map');
-  await page.getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
   await expect.poll(() => gh.putPaths()).toContain('maps/my_map.json');
   expect(nativeDialogs).toEqual([]);
 });
@@ -128,7 +128,7 @@ test('Save preset asks for the name in a dialog and confirms with a toast', asyn
   const { nativeDialogs } = await openEditor(page);
   await page.evaluate(() => { ZonePainter._uiSavePreset(); });
   await page.fill('#dialog-input', 'My Test Preset');
-  await page.getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
   await expect(page.locator('.toast', { hasText: 'Preset "My Test Preset" saved' })).toBeVisible();
   expect(nativeDialogs).toEqual([]);
 });

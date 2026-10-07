@@ -1,6 +1,7 @@
 import { test, expect, Page } from '@playwright/test';
 import { freshEditor, clickCell, cellPoint } from './editor-helpers';
 import * as fs from 'fs';
+import { openSection } from './helpers';
 
 // Region used by the plain tests: two cells next to the city.
 async function seedPond(page: Page) {
@@ -672,7 +673,7 @@ async function importMany(page: Page, n: number) {
 
 test.describe('stamps panel (T2.13)', () => {
   test('save the selection, place it with a click, delete it (cancel keeps it, only that stamp goes)', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await seedPond(page);
     await saveNamed(page, '  pond  ');
     await expect(page.locator('.stamp-row')).toHaveCount(1);
@@ -711,7 +712,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('the panel lives in the left palette, adds nothing to the toolbar and keeps the canvas size (1491x808 at 1400x900)', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await page.setViewportSize({ width: 1400, height: 900 });
     await page.evaluate(() => window.dispatchEvent(new Event('resize')));
     const r = await page.evaluate(() => {
@@ -727,7 +728,7 @@ test.describe('stamps panel (T2.13)', () => {
   // minimap / brush / active terrain). The Stamps panel is in the left palette, which is always on screen.
   for (const [w, h] of [[1400, 900], [1100, 700]]) {
     test(`usable at ${w}x${h}: the panel and its save button are inside the window (palette scrolled to it) and a row takes a real mouse click`, async ({ page }) => {
-      await freshEditor(page);
+      await freshEditor(page); await openSection(page, 'stamps');
       await page.setViewportSize({ width: w, height: h });
       await page.evaluate(() => window.dispatchEvent(new Event('resize')));
       await importMany(page, 12);
@@ -755,7 +756,7 @@ test.describe('stamps panel (T2.13)', () => {
   }
 
   test('after a mouse click on a stamp row the button does not keep focus: Space still pans, rotation and the paste session survive', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await seedPond(page);
     await saveNamed(page, 'pond');
     await page.click('.stamp-row .stamp-name');
@@ -783,7 +784,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('names render as text only (markup, 80 characters) and never run script or widen the panel', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await seedPond(page);
     const evil = '<img src=x onerror="window.__xss=1"><b>bold</b>';
     await saveNamed(page, evil);
@@ -807,7 +808,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('save refuses with a clear toast: empty selection, stale map (selection dropped), a running fill', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await page.fill('#stamp-name', 'keepme');
     await page.click('#stamp-save-btn');
     expect(await lastToast(page)).toMatch(/select a region/i);
@@ -845,7 +846,7 @@ test.describe('stamps panel (T2.13)', () => {
       IDBFactory.prototype.open = function (name: string, ...a: any[]) { if (name === 'MapEditorStamps' && (window as any).__stampFail) throw new Error('boom: blocked'); return (open as any).call(this, name, ...a); };
       (window as any).__stampFail = true;
     });
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await expect(page.locator('#stamp-list')).toContainText(/unavailable/i);
     await seedPond(page);
     await page.fill('#stamp-name', 'typed');
@@ -859,7 +860,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('typing a name never triggers a shortcut; Enter saves once and does not lift the selection', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await seedPond(page);
     await page.locator('#stamp-name').focus();
     await page.keyboard.type('Spare maps');
@@ -894,7 +895,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('a focused row place button starts the paste with Enter or Space (no lift, no pan), Esc cancels', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await seedPond(page);
     await saveNamed(page, 'pond');
     await page.locator('.stamp-row .stamp-place').focus();
@@ -913,7 +914,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('a row refuses while a move is lifted and the buffer is built once per paste session', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await seedPond(page);
     await saveNamed(page, 'pond');
     const r = await page.evaluate(() => {
@@ -938,7 +939,7 @@ test.describe('stamps panel (T2.13)', () => {
   const NOT_LOADED = /not loaded/;
 
   test('pasting a stamp with ids that are not loaded toasts the count and still pastes', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await spyToasts(page);
     await page.evaluate(async () => {
       await Stamps.importJson(JSON.stringify({ format: 'mapeditor-stamps', version: 1, stamps: [{ name: 'alien', cells: [{ dq: 0, dr: 0, t: 'Forest_1' }, { dq: 1, dr: 0, t: 'NoSuchPkg_Tile' }, { dq: 0, dr: 1, t: 'Other_Missing' }] }] }));
@@ -956,7 +957,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('the unknown-tile warning returns when a Ctrl+V clipboard paste replaced the stamp float (same stamp id, different buffer)', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await spyToasts(page);
     await page.evaluate(async () => {
       await Stamps.importJson(JSON.stringify({ format: 'mapeditor-stamps', version: 1, stamps: [{ name: 'alien', cells: [{ dq: 0, dr: 0, t: 'Forest_1' }, { dq: 1, dr: 0, t: 'NoSuchPkg_Tile' }] }] }));
@@ -977,7 +978,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('export downloads stamps-YYYY-MM-DD.json holding exactly the stored stamps; empty library toasts', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await page.click('#stamp-export-btn');
     await expect.poll(() => toasts(page)).toContain('No stamps to export');
     await seedPond(page);
@@ -991,7 +992,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('import: a valid file adds stamps and a count toast, the same file again works (input reset), bad files add nothing', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await seedPond(page);
     await saveNamed(page, 'pond');
     const [dl] = await Promise.all([page.waitForEvent('download'), page.click('#stamp-export-btn')]);
@@ -1014,7 +1015,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('more than 100 stamps: a page of rows with Show more, newest first, thumbnails only for rows near the viewport', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await page.evaluate(() => { (window as any).__thumbCanvases = 0; const o = HTMLCanvasElement.prototype.toDataURL; HTMLCanvasElement.prototype.toDataURL = function (...a: any[]) { (window as any).__thumbCanvases++; return (o as any).apply(this, a); }; });
     await importMany(page, 250);
     await expect(page.locator('.stamp-row')).toHaveCount(100);
@@ -1039,7 +1040,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('stamps survive a real reload and the panel shows them without any click', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await seedPond(page);
     await saveNamed(page, 'persisted');
     await page.reload();
@@ -1051,7 +1052,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('the panel never touches the map: saving, importing and deleting leave map data, history and autosave alone', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await seedPond(page);
     const snap = () => page.evaluate(() => ({ same: (window as any).__m === undefined ? ((window as any).__m = mapData.join('|'), true) : (window as any).__m === mapData.join('|'), u: History.undoSize(), sel: Selection.size() }));
     const a = await snap();
@@ -1066,7 +1067,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('Esc in the name field blurs it (shortcuts work again) and keeps the typed text', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await page.locator('#stamp-name').focus();
     await page.keyboard.type('abc');
     await page.keyboard.press('Escape');
@@ -1076,7 +1077,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('a selection above the store limit is refused before it is captured (same message, name kept)', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await spyToasts(page);
     await seedPond(page);
     await page.fill('#stamp-name', 'huge');
@@ -1094,7 +1095,7 @@ test.describe('stamps panel (T2.13)', () => {
   });
 
   test('export reads the library once', async ({ page }) => {
-    await freshEditor(page);
+    await freshEditor(page); await openSection(page, 'stamps');
     await seedPond(page);
     await saveNamed(page, 'one');
     const reads = await page.evaluate(async () => {

@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import { freshEditor } from './editor-helpers';
-import { reloadEditor } from './helpers';
+import { reloadEditor, openSection } from './helpers';
 
 // T4.2 bookmarks: editor-only view positions in localStorage (never in the map). freshEditor = blank 450x450 map.
 // Independent reference for the camera: Unity-axis hex geometry written out here (pitches 60 and 40*sqrt(3); odd worldX up).
@@ -25,7 +25,7 @@ const addAt = async (page: Page, col: number, row: number, zoom = 100, name = ''
   await page.click('#bm-add-btn');
 };
 
-test.beforeEach(async ({ page }) => { await freshEditor(page); });
+test.beforeEach(async ({ page }) => { await freshEditor(page); await openSection(page, 'bookmarks'); });   // collapsed by default; the open section is remembered across reloads
 
 test('add stores the view centre and zoom, default name is the cell; the list is in the left palette', async ({ page }) => {
   await addAt(page, 120, 200, 50);

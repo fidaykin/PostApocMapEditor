@@ -23,7 +23,7 @@ test('showDialog resolves with the clicked button and the input value', async ({
 test('UI.prompt returns null on Escape and the select value for options', async ({ page }) => {
   await page.evaluate(() => { (window as any).__p = UI.prompt('Reskin', 'Pick', 'b', ['a', 'b', 'c']); });
   await page.locator('#dialog-input').selectOption('c');
-  await page.getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
   expect(await page.evaluate(() => (window as any).__p)).toBe('c');
 
   await page.evaluate(() => { (window as any).__p2 = UI.prompt('Name', 'Type', 'x'); });
@@ -39,7 +39,7 @@ test('UI.confirm resolves true only for OK; UI.alert resolves on OK', async ({ p
   await page.getByRole('button', { name: 'Cancel' }).click();
   expect(await page.evaluate(() => (window as any).__c)).toBe(false);
   await page.evaluate(() => { (window as any).__a = UI.alert('Oops', 'It broke', 'stack'); });
-  await page.getByRole('button', { name: 'OK' }).click();
+  await page.getByRole('button', { name: 'OK', exact: true }).click();
   await page.evaluate(() => (window as any).__a);
 });
 
