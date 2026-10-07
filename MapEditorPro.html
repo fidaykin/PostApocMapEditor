@@ -1642,7 +1642,7 @@ body.mode-common #map-io    { display: none; }
             <button type="button" class="tool-btn" aria-label="Polygon" data-tool="polygon" onclick="Tools.setActive('polygon')" title="Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline">⬠</button>
             <button type="button" class="tool-btn" aria-label="Eraser" data-tool="eraser" onclick="Tools.setActive('eraser')" title="Eraser (X) - drag to reset tiles to Plain_1 and remove buildings, roads, bridges and under-terrain. Brush size applies, symmetry mirrors it like Paint, Esc cancels the stroke. Zones and settlements are not touched">⌫</button>
             <button type="button" class="tool-btn" aria-label="Scatter" data-tool="scatter" onclick="Tools.setActive('scatter')" title="Scatter (A) - drag to sprinkle random variants of the selected terrain inside the brush, at the density below. Directional river/lake pieces are not scattered. Same seed gives the same result for the same drag; symmetry mirrors the area (each cell rolls on its own), Esc cancels the stroke">⁘</button>
-            <button type="button" class="tool-btn" aria-label="Replace" data-tool="replace" onclick="Tools.setActive('replace')" title="Replace (H) - click a tile to replace every tile of that id with the active terrain (inside the selection when there is one; the whole map otherwise). Edit > Replace Tile... picks both ids. One undo step">⇄</button>
+            <button type="button" class="tool-btn" aria-label="Replace tile" data-tool="replace" onclick="Tools.setActive('replace')" title="Replace (H) - click a tile to replace every tile of that id with the active terrain (inside the selection when there is one; the whole map otherwise). Edit > Replace Tile... picks both ids. One undo step">⇄</button>
             <button type="button" class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')" title="Zone Painter (Z)" aria-label="Zone painter">🗺️</button>
           </div>
         </div>
@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "472a0ac";
+const COMMIT  = "1ac4606";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
