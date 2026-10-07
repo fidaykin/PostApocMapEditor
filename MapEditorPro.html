@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.07";
-const COMMIT  = "1ac4606";
+const COMMIT  = "f22f9b9";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8864,7 +8864,62 @@ const SyncMerge = (() => {
     try { localStorage.removeItem(_baseKey(kind)); } catch (e) { console.warn('[sync] could not clear merge base:', e.message); }
   }
 
-  return { same, keyOf, merge3, diff, loadBase, saveBase, clearBase };
+  // One copy per package+id (entries without an id are passed through). Which copy stays: one that differs from the
+  // stored sync base of its package (a local edit is never discarded; the last such copy), else the last copy (the
+  // package's own merge and addEntries append, so the last copy is the package DB's one). The kept copy takes the
+  // position of the first occurrence. Returns { list, merged } (merged = copies removed).
+  function dedupe(list, kind) {
+    const groups = new Map();
+    (list || []).forEach((e, i) => {
+      if (!e || !e.id) return;
+      const k = keyOf(e);
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push(i);
+    });
+    let merged = 0;
+    const drop = new Set(), put = new Map();
+    let bases = null;
+    for (const [k, idx] of groups) {
+      if (idx.length < 2) continue;
+      if (!bases) {
+        bases = new Map();
+        const all = kind ? loadBase(kind) : {};
+        for (const entries of Object.values(all)) for (const b of (Array.isArray(entries) ? entries : [])) if (b && b.id) bases.set(keyOf(b), b);
+      }
+      const b = bases.get(k);
+      const edited = b ? idx.filter(i => !same(list[i], b)) : [];
+      const keep = edited.length ? edited[edited.length - 1] : idx[idx.length - 1];
+      put.set(idx[0], list[keep]);
+      idx.slice(1).forEach(i => drop.add(i));
+      merged += idx.length - 1;
+    }
+    if (!merged) return { list, merged: 0 };
+    const out = [];
+    list.forEach((e, i) => { if (!drop.has(i)) out.push(put.has(i) ? put.get(i) : e); });
+    return { list: out, merged };
+  }
+
+  // Splits a published file's entries into the package's own (package field absent = the file's package) and
+  // entries tagged with ANOTHER package (a polluted base file: those belong in packages/<id>/, never merged as this
+  // package's list).
+  function splitForeign(entries, pkgId) {
+    const own = [], foreign = [];
+    for (const e of entries || []) {
+      if (e && e.package && e.package !== pkgId) foreign.push(e);
+      else own.push(e);
+    }
+    return { own, foreign };
+  }
+
+  // The user is told how many copies were merged (DOM-safe toast text), once per call site and count.
+  function noteDuplicates(label, n) {
+    if (!n) return;
+    console.info(`[sync] ${label}: ${n} duplicate entr${n === 1 ? 'y' : 'ies'} merged (same package and id)`);
+    if (typeof UI !== 'undefined' && UI.toast)
+      UI.toast(`${label}: ${n} duplicate entr${n === 1 ? 'y' : 'ies'} merged (same package and id; a locally edited copy is kept)`, { ms: 6000 });
+  }
+
+  return { same, keyOf, merge3, diff, loadBase, saveBase, clearBase, dedupe, splitForeign, noteDuplicates };
 })();
 
 
@@ -9215,10 +9270,21 @@ const GitHubSync = (() => {
     }
   }
 
+  // The base DB files (root copy and packages/postapoc) hold the default package ONLY, whichever package is active:
+  // other packages' entries are published with their package (PACKAGES > Publish) into packages/<id>/. Writing them
+  // here too put every package entry in two server files, and the startup merge then loaded each one twice.
+  const _isBaseEntry = e => !!e && (e.package || 'postapoc') === 'postapoc';
+  function _baseOnlyNote(skipped) {
+    return skipped ? ` (${skipped} entr${skipped === 1 ? 'y' : 'ies'} of other packages not included: use Publish Package for those)` : '';
+  }
+
   async function publishHexDbOnly() {
     await _withPublishBtn('Publish HexDB', async () => {
       UI.progress(10, 'Publishing hex_database.json…');
-      const data = HexDB.getData();
+      const all = HexDB.getData();
+      const hexes = (all.hexes || []).filter(_isBaseEntry);
+      const skipped = (all.hexes || []).length - hexes.length;
+      const data = { ...all, hexes };
       const pkgData = Object.assign({ version: data.version ?? 1, package: 'postapoc' },
         Object.fromEntries(Object.entries(data).filter(([k]) => k !== 'version')));
       const json    = JSON.stringify(data, null, 2);
@@ -9228,7 +9294,7 @@ const GitHubSync = (() => {
       UI.progress(70, 'Writing root hex_database.json (compat)…');
       await _putText('hex_database.json', json, 'publish: hex_database.json');
       UI.progressDone('✅ HexDB published');
-      UI.toast('✅ hex_database.json published');
+      UI.toast(`✅ hex_database.json published: ${hexes.length} base tiles${_baseOnlyNote(skipped)}`, skipped ? { ms: 6000 } : undefined);
     });
   }
 
@@ -9281,15 +9347,18 @@ const GitHubSync = (() => {
   async function publishBuildingsDb() {
     await _withPublishBtn('Publish Buildings DB', async () => {
       UI.progress(10, 'Publishing building_database.json…');
-      const rawData = JSON.parse(BldDB.getJson());
+      const allData = JSON.parse(BldDB.getJson());
+      const buildings = (allData.buildings || []).filter(_isBaseEntry);
+      const skipped = (allData.buildings || []).length - buildings.length;
+      const rawData = { ...allData, buildings };
       const pkgData = { version: rawData.version ?? 1, package: 'postapoc',
         ...Object.fromEntries(Object.entries(rawData).filter(([k]) => !['version','package'].includes(k))) };
       UI.progress(30, 'Writing packages/postapoc/building_database.json…');
       await _putText('packages/postapoc/building_database.json', JSON.stringify(pkgData, null, 2), 'publish: building_database.json');
       UI.progress(70, 'Writing root building_database.json (compat)…');
-      await _putText('building_database.json', BldDB.getJson(), 'publish: building_database.json');
+      await _putText('building_database.json', JSON.stringify(rawData, null, 2), 'publish: building_database.json');
       UI.progressDone('✅ Buildings DB published');
-      UI.toast('✅ building_database.json published');
+      UI.toast(`✅ building_database.json published: ${buildings.length} base buildings${_baseOnlyNote(skipped)}`, skipped ? { ms: 6000 } : undefined);
     });
   }
 
@@ -9453,7 +9522,8 @@ const GitHubSync = (() => {
   // Startup sync: merge every registry package's hex + building files into the local DBs.
   // Local edits win; nothing is replaced wholesale (see SyncMerge.merge3).
   async function syncContentFromServer() {
-    const summary = { packages: [], conflicts: [], failed: [] };
+    const summary = { packages: [], conflicts: [], failed: [], adopted: 0 };
+    const foreignHex = [], foreignBld = [];   // entries of other packages found inside a package's file (polluted base DBs)
     let ids = ['postapoc'];
     try {
       const reg = await _fetchPublishedJson('packages/registry.json');
@@ -9469,6 +9539,7 @@ const GitHubSync = (() => {
         if (usableHex) {
           const r = HexDB.mergeFromServer(id, hexData);
           summary.conflicts.push(...r.conflicts.map(k => `hex ${k}`));
+          if (r.foreign) foreignHex.push(...r.foreign);
         } else if (id === 'postapoc') {
           summary.failed.push(hexData ? 'postapoc/hex_database.json: empty or invalid hex list, skipped' : 'postapoc/hex_database.json: not found');
         } else if (hexData) {
@@ -9481,10 +9552,14 @@ const GitHubSync = (() => {
         if (usable) {
           const r = BldDB.mergeFromServer(id, bldData);
           summary.conflicts.push(...r.conflicts.map(k => `bld ${k}`));
+          if (r.foreign) foreignBld.push(...r.foreign);
         }
       } catch (e) { summary.failed.push(`${id}/building_database.json: ${e.message}`); }
       summary.packages.push(id);
     }
+    // After every package's own file: a polluted copy only fills a gap (the package's own copy always wins).
+    try { summary.adopted += HexDB.adoptForeign(foreignHex) + BldDB.adoptForeign(foreignBld); }
+    catch (e) { summary.failed.push(`entries of other packages in the base files: ${e.message}`); }
     return summary;
   }
 
@@ -16732,9 +16807,14 @@ const HexDB = (() => {
       // Fresh file entries win for any ID that already exists in the file;
       // user-created IDs that aren't in the file are appended.
       // Bridge-sprite entries are excluded — bridges are handled by the hardcoded palette section.
-      const fileIds  = new Set(parsed.hexes.map(h => (h.id || '').toLowerCase()));
-      const userOnly = _data.hexes.filter(h => h.id && !fileIds.has(h.id.toLowerCase()) && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || ''));
-      _data = { ...parsed, hexes: [...parsed.hexes, ...userOnly] };
+      // The file is the base package only: entries tagged with another package (a polluted copy) are left out, their
+      // package's own file brings them in the startup sync. Matching is by package+id, so a package's same-id reskin
+      // is not mistaken for the base tile.
+      const fileHexes = parsed.hexes.filter(h => h && (h.package || 'postapoc') === 'postapoc');
+      const lowKey = h => (h.package || 'postapoc') + '::' + (h.id || '').toLowerCase();
+      const fileKeys = new Set(fileHexes.map(lowKey));
+      const userOnly = _data.hexes.filter(h => h.id && !fileKeys.has(lowKey(h)) && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || ''));
+      _data = { ...parsed, hexes: [...fileHexes, ...userOnly] };
       if (!_data.common) _data.common = { goldPerTap: 10 };
       _data.dbVersion = _DB_VERSION;
 
@@ -17529,6 +17609,7 @@ const HexDB = (() => {
           _migrateIncomeFields(_data.hexes);
           _migrateSpecialFields(_data.hexes);
           _migrateCategoryFromType();
+          _dedupeHexes();     // a session polluted by the old base-DB publish holds some package+id twice
           _syncCommonUI();
           _autoSave();
           // Re-apply terrain overrides from autosaved HexDB after page load
@@ -17551,8 +17632,10 @@ const HexDB = (() => {
       const savedVersion  = _data.dbVersion || 0;
       const staticVersion = static_.dbVersion || 0;
       if (staticVersion <= savedVersion && _data.hexes.length >= static_.hexes.length) return;
-      const existingIds = new Set(_data.hexes.map(h => h.id));
-      const newTiles = static_.hexes.filter(h => h.id && !existingIds.has(h.id));
+      // the bundled file is the base package only: entries tagged with another package (a polluted copy) are skipped,
+      // their package's own file brings them in the startup sync
+      const existingKeys = new Set(_data.hexes.map(SyncMerge.keyOf));
+      const newTiles = static_.hexes.filter(h => h && h.id && (h.package || 'postapoc') === 'postapoc' && !existingKeys.has(SyncMerge.keyOf(h)));
       if (!newTiles.length && staticVersion <= savedVersion) return;
       newTiles.forEach(h => _data.hexes.push(h));
       _data.dbVersion = Math.max(savedVersion, staticVersion);
@@ -17835,6 +17918,7 @@ const HexDB = (() => {
     _migrateIncomeFields(_data.hexes);
     _migrateSpecialFields(_data.hexes);
     _migrateCategoryFromType();
+    _dedupeHexes();
     _autoSave();
     _selFilt = -1;
     _filter = { search: '', biome: '', type: '' };
@@ -17859,6 +17943,7 @@ const HexDB = (() => {
       _migrateIncomeFields(_data.hexes);
       _migrateSpecialFields(_data.hexes);
       _migrateCategoryFromType();
+      _dedupeHexes();
       _autoSave();
       _selFilt = -1;
       _filter = { search: '', biome: '', type: '' };
@@ -17929,15 +18014,19 @@ const HexDB = (() => {
   // (3-way by package+id against the copy stored at the previous sync, see SyncMerge.merge3).
   function mergeFromServer(pkgId, serverData) {
     if (!serverData || !Array.isArray(serverData.hexes)) throw new Error('hex_database.json has no hexes array');
-    const incoming = structuredClone(serverData.hexes)
-      .filter(h => !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || ''));
+    // Entries tagged with ANOTHER package (a base file polluted by the old base-DB publish) are not this package's:
+    // they are returned as `foreign` (see adoptForeign) instead of being merged here as a second copy.
+    const { own: incoming, foreign } = SyncMerge.splitForeign(structuredClone(serverData.hexes)
+      .filter(h => h && !/^River_bridge_/i.test(h.spriteName || '') && !/^River_bridge_/i.test(h.id || '')), pkgId);
     if (pkgId !== 'postapoc') incoming.forEach(h => { if (!h.package) h.package = pkgId; });
     _migrateAll(incoming);
+    _migrateAll(foreign);
     const inPkg = h => (h.package || 'postapoc') === pkgId;
     const base = SyncMerge.loadBase('hex')[pkgId] || null;
     const res = SyncMerge.merge3(_data.hexes.filter(inPkg), incoming, base);
     const others = _data.hexes.filter(h => !inPkg(h));
     _data.hexes = pkgId === 'postapoc' ? [...res.merged, ...others] : [...others, ...res.merged];
+    _dedupeHexes();
     if (pkgId === 'postapoc') {
       if (serverData.common && SyncMerge.same(_data.common, { goldPerTap: 10 })) _data.common = serverData.common;
       _data.dbVersion = Math.max(_data.dbVersion || 0, serverData.dbVersion || 0);
@@ -17952,7 +18041,41 @@ const HexDB = (() => {
       UI.buildPalette();
       Canvas.render();
     });
-    return { pkgId, conflicts: res.conflicts, fromServer: res.fromServer, kept: res.kept, dropped: res.dropped };
+    return { pkgId, conflicts: res.conflicts, fromServer: res.fromServer, kept: res.kept, dropped: res.dropped, foreign };
+  }
+
+  // One copy per package+id in the local list (SyncMerge.dedupe: a locally edited copy wins). Toasts the count.
+  function _dedupeHexes() {
+    const r = SyncMerge.dedupe(_data.hexes, 'hex');
+    if (r.merged) { _data.hexes = r.list; SyncMerge.noteDuplicates('Hex DB', r.merged); }
+    return r.merged;
+  }
+
+  // Entries found tagged with another package inside a published file of the wrong package (mergeFromServer's
+  // `foreign`), offered after every package of the startup sync was merged: an entry whose package+id is already
+  // local is dropped (the package's own copy wins); one the sync base of its package lists is not re-added (deleted
+  // locally on purpose); anything else exists only in the polluted file and is kept, attributed to its package.
+  function adoptForeign(entries) {
+    const have = new Set(_data.hexes.map(SyncMerge.keyOf));
+    const bases = SyncMerge.loadBase('hex');
+    const add = [];
+    for (const e of structuredClone(entries || [])) {
+      if (!e || !e.id) continue;
+      const k = SyncMerge.keyOf(e);
+      if (have.has(k)) continue;
+      const b = bases[e.package];
+      if (Array.isArray(b) && b.some(x => x && SyncMerge.keyOf(x) === k)) continue;
+      have.add(k); add.push(e);
+    }
+    if (!add.length) return 0;
+    _migrateAll(add);
+    _data.hexes.push(...add);
+    _autoSave();
+    _selFilt = -1;
+    _applyFilter(); _buildList();
+    Terrain.applyHexDbOverrides(add).then(() => { UI.buildPalette(); Canvas.render(); })
+      .catch(e => console.warn('[HexDB] adoptForeign: sprite refresh failed:', e));
+    return add.length;
   }
 
   // Migrated deep copy of foreign entries (e.g. the published file), so they compare equal to
@@ -17970,6 +18093,7 @@ const HexDB = (() => {
     _migrateAll(incoming);
     const keys = new Set(incoming.map(keyOf));
     _data.hexes = [..._data.hexes.filter(h => !keys.has(keyOf(h))), ...incoming];
+    _dedupeHexes();     // the incoming list itself may repeat a package+id
     _autoSave();
     _selFilt = -1;
     _applyFilter(); _buildList();
@@ -17984,6 +18108,7 @@ const HexDB = (() => {
   function snapshotEntries() { return structuredClone(_data.hexes); }
   function restoreEntries(list) {
     _data.hexes = structuredClone(list);
+    _dedupeHexes();
     _autoSave();
     _selFilt = -1;
     _applyFilter(); _buildList();
@@ -18214,7 +18339,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
 })();
 
 window.HexDB = HexDB;
@@ -19318,6 +19443,7 @@ const BldDB = (() => {
       if (!parsed.buildings || !Array.isArray(parsed.buildings)) throw new Error('No "buildings" array');
       parsed.buildings.forEach(_migrate);
       _data = parsed;
+      _dedupeBlds();
       _autoSave();
       _selFilt = -1;
       _applyFilter();
@@ -19354,6 +19480,7 @@ const BldDB = (() => {
           parsed.buildings.forEach(_migrate);
           _data = parsed;
           restored = true;
+          if (_dedupeBlds()) _autoSave();   // a session polluted by the old base-DB publish holds some package+id twice
         }
       }
     } catch(e) {}
@@ -19456,6 +19583,7 @@ const BldDB = (() => {
     incoming.forEach(_migrate);
     const keys = new Set(incoming.map(keyOf));
     _data.buildings = [..._data.buildings.filter(b => !keys.has(keyOf(b))), ...incoming];
+    _dedupeBlds();      // the incoming list itself may repeat a package+id
     _autoSave();
     _selFilt = -1;
     _applyFilter(); _buildList();
@@ -19466,6 +19594,7 @@ const BldDB = (() => {
   function snapshotEntries() { return structuredClone(_data.buildings); }
   function restoreEntries(list) {
     _data.buildings = structuredClone(list);
+    _dedupeBlds();
     _autoSave();
     _selFilt = -1;
     _applyFilter(); _buildList();
@@ -19502,23 +19631,56 @@ const BldDB = (() => {
 
   function mergeFromServer(pkgId, serverData) {
     if (!serverData || !Array.isArray(serverData.buildings)) throw new Error('building_database.json has no buildings array');
-    const incoming = structuredClone(serverData.buildings);
-    if (pkgId !== 'postapoc') incoming.forEach(b => { if (!b.package) b.package = pkgId; });
+    // Entries tagged with ANOTHER package (a base file polluted by the old base-DB publish) are returned as `foreign`
+    // (see adoptForeign), never merged as a second copy of the package's entries.
+    const { own: incoming, foreign } = SyncMerge.splitForeign(structuredClone(serverData.buildings), pkgId);
+    if (pkgId !== 'postapoc') incoming.forEach(b => { if (b && !b.package) b.package = pkgId; });
     incoming.forEach(_migrate);
+    foreign.forEach(_migrate);
     const inPkg = b => (b.package || 'postapoc') === pkgId;
     const base = SyncMerge.loadBase('bld')[pkgId] || null;
     const res = SyncMerge.merge3(_data.buildings.filter(inPkg), incoming, base);
     const others = _data.buildings.filter(b => !inPkg(b));
     _data.buildings = pkgId === 'postapoc' ? [...res.merged, ...others] : [...others, ...res.merged];
+    _dedupeBlds();
     if (_autoSave()) SyncMerge.saveBase('bld', pkgId, incoming);  // base only after the local copy is stored
     _selFilt = -1;
     _applyFilter(); _buildList();
     UI.buildPalette();
-    return { pkgId, conflicts: res.conflicts, fromServer: res.fromServer, kept: res.kept, dropped: res.dropped };
+    return { pkgId, conflicts: res.conflicts, fromServer: res.fromServer, kept: res.kept, dropped: res.dropped, foreign };
+  }
+
+  function _dedupeBlds() {
+    const r = SyncMerge.dedupe(_data.buildings, 'bld');
+    if (r.merged) { _data.buildings = r.list; SyncMerge.noteDuplicates('Buildings DB', r.merged); }
+    return r.merged;
+  }
+
+  // Same rule as HexDB.adoptForeign: keep only the polluted-file entries no local copy and no sync base accounts for.
+  function adoptForeign(entries) {
+    const have = new Set(_data.buildings.map(SyncMerge.keyOf));
+    const bases = SyncMerge.loadBase('bld');
+    const add = [];
+    for (const e of structuredClone(entries || [])) {
+      if (!e || !e.id) continue;
+      const k = SyncMerge.keyOf(e);
+      if (have.has(k)) continue;
+      const b = bases[e.package];
+      if (Array.isArray(b) && b.some(x => x && SyncMerge.keyOf(x) === k)) continue;
+      have.add(k); add.push(e);
+    }
+    if (!add.length) return 0;
+    add.forEach(_migrate);
+    _data.buildings.push(...add);
+    _autoSave();
+    _selFilt = -1;
+    _applyFilter(); _buildList();
+    UI.buildPalette();
+    return add.length;
   }
 
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
-           mergeFromServer, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage,
+           mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage,
            pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
