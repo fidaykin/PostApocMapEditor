@@ -1427,7 +1427,7 @@ body.mode-common #map-io    { display: none; }
 <script src="gen-utils.js?v=5"></script>
 <script src="map-format.js?v=2"></script>
 <script src="brush.js?v=1"></script>
-<script src="zone-painter.js?v=21"></script>
+<script src="zone-painter.js?v=22"></script>
 <script src="map-jobs.js?v=6"></script>
 </head>
 <body class="mode-map">
@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.08";
-const COMMIT  = "f027b30";
+const COMMIT  = "62d1fb2";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6860,7 +6860,8 @@ const Tools = (() => {
   // EXACTLY the chosen tile into exactly the intended cells and changes no neighbouring cell. Every manual call site goes
   // through _manualEdgesAround, so this ONE constant turns the old behaviour back on. The map generator keeps its logic:
   // Generator.apply (worker) and generate-into-selection (Generator.applyToRegion) call _autoResolveEdgesAround /
-  // Tools.autoResolveEdgesAround directly; zone filling (ZonePainter, procedural terrain) keeps it too.
+  // Tools.autoResolveEdgesAround directly. Zone filling (Fill Zones, Fill This Zone, Randomize & Fill) is a hand tool too
+  // and goes through manualEdgesAround (owner decision, same day).
   const AUTO_WATER_EDGES = false;
   function _manualEdgesAround(cellsPainted) { if (AUTO_WATER_EDGES) _autoResolveEdgesAround(cellsPainted); }
 

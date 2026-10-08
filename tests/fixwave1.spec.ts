@@ -336,7 +336,7 @@ test.describe('W1-2 zone painter bulk writers', () => {
     });
   }
 
-  test('Fill Zones: bridges on repainted cells are dropped, edges are re-resolved over the written cells, footprints are kept', async ({ page }) => {
+  test('Fill Zones: bridges on repainted cells are dropped, the edge pass is asked about the written cells (a no-op: zone fills do not re-pick river pieces), footprints are kept', async ({ page }) => {
     await zoneSeed(page);
     const r = await page.evaluate(() => {
       bridgesData.push({ col: 220, row: 220, axis: 1 }, { col: 100, row: 100, axis: 1 });
@@ -348,9 +348,11 @@ test.describe('W1-2 zone painter bulk writers', () => {
         if (inside.length) pick = { c, rw, inside };
       }
       mapData[pick.rw * MAP_WIDTH + pick.c] = 'Rabbit_Flat_1'; bumpMapWrite();
-      const calls: number[] = []; const orig = Tools.autoResolveEdgesAround;
-      Tools.autoResolveEdgesAround = (t: any[]) => { calls.push(t.length); return orig(t); };
-      try { ZonePainter._fillAllZones(); } finally { Tools.autoResolveEdgesAround = orig; }
+      // Zone fills follow the hand-tool contract (owner decision): the finish goes through Tools.manualEdgesAround, which does
+      // nothing while Tools.AUTO_WATER_EDGES is off, so no river / shore piece is re-picked (tests/zone-fill-no-water-logic.spec.ts).
+      const calls: number[] = []; const orig = Tools.manualEdgesAround;
+      Tools.manualEdgesAround = (t: any[]) => { calls.push(t.length); return orig(t); };
+      try { ZonePainter._fillAllZones(); } finally { Tools.manualEdgesAround = orig; }
       return { pick, calls, bridges: bridgesData.map((b: any) => b.col + ',' + b.row), anchor: mapData[pick.rw * MAP_WIDTH + pick.c],
                fpTerrain: pick.inside.map((f: any) => mapData[f.row * MAP_WIDTH + f.col]), written: 400 - pick.inside.length };
     });
