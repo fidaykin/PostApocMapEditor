@@ -515,7 +515,8 @@ const ZonePainter = (() => {
     Tools.clearRoadStart(false);
   }
   // After terrain was written in place: footprints are stale, bridges on repainted cells go (unless the objects layer is
-  // locked) and the edge tiles around the written cells are re-resolved (the same finish as the Fill tool).
+  // locked). Like every hand tool (owner decision) zone fills place exactly the preset's tiles: the river / lake / shore pieces
+  // around the written cells are NOT re-picked (Tools.manualEdgesAround is a no-op while Tools.AUTO_WATER_EDGES is off).
   function _finishTerrainWrite(touched) {
     if (!touched.length) return;
     bumpMapWrite();
@@ -523,7 +524,7 @@ const ZonePainter = (() => {
       const gone = new Set(touched.map(t => t.row * MAP_WIDTH + t.col));
       for (let k = bridgesData.length - 1; k >= 0; k--) if (gone.has(bridgesData[k].row * MAP_WIDTH + bridgesData[k].col)) bridgesData.splice(k, 1);
     }
-    if (typeof Tools !== 'undefined' && Tools.autoResolveEdgesAround) Tools.autoResolveEdgesAround(touched);
+    if (typeof Tools !== 'undefined' && Tools.manualEdgesAround) Tools.manualEdgesAround(touched);   // off: no edge pass after a zone fill
   }
 
   // Fills the given zones as ONE History step. With terrain free the step is always taken (terrain is written). With terrain
