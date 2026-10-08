@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.10.07.a0e83fa</title>
+<title>Post Apo Map Editor 2026.10.08.957b33f</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1427,7 +1427,7 @@ body.mode-common #map-io    { display: none; }
 <script src="gen-utils.js?v=5"></script>
 <script src="map-format.js?v=2"></script>
 <script src="brush.js?v=1"></script>
-<script src="zone-painter.js?v=21"></script>
+<script src="zone-painter.js?v=22"></script>
 <script src="map-jobs.js?v=6"></script>
 </head>
 <body class="mode-map">
@@ -2814,8 +2814,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.07";
-const COMMIT  = "78df231";
+const VERSION = "2026.10.08";
+const COMMIT  = "b2515cd";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2957,10 +2957,95 @@ const Terrain = (() => {
     return _LAYERED_TYPES.has((hexEntry.type || '').toLowerCase());
   }
 
+  // ── Fallback colours (minimap / flat overview) ──────────────────────────────
+  // An id with an explicit COLORS entry keeps that colour (unchanged). Any other id used to be green. Now it takes
+  //   (1) the dominant opaque colour of its sprite once the sprite has loaded (computed ONCE per sprite, see _noteSprite), else
+  //   (2) a colour for its HexDB `type` (_TYPE_COLORS), else the old green.
+  // Opt-out: Terrain.SPRITE_FALLBACK_COLORS = false (or localStorage `spriteFallbackColors` = 'off', read at startup) restores
+  // the old all-green fallback exactly; the perf specs seed it so their pinned pixel hashes stay valid.
+  const _GREEN = [120,155,85];
+  const _TYPE_COLORS = [   // first substring match on the lower-cased type wins
+    ['river',  [45,85,140]], ['lake', [45,85,140]], ['water', [42,70,110]],
+    ['mountain', [125,120,110]], ['hill', [125,120,110]],
+    ['forest', [50,115,50]], ['plain', _GREEN],
+    ['desert', [190,165,110]], ['barren', [190,165,110]],
+    ['rubble', [90,75,55]], ['waste', [90,75,55]],
+    ['lava', [170,70,20]], ['volcan', [170,70,20]], ['rift', [130,35,15]],
+    ['swamp', [75,90,50]], ['wetland', [75,90,50]], ['marsh', [75,90,50]],
+    ['resource', [200,170,25]], ['special', [200,170,25]],
+  ];
+  function _typeColor(type) {
+    if (typeof type !== 'string') return null;
+    const lo = type.toLowerCase();
+    for (const [k, c] of _TYPE_COLORS) if (lo.includes(k)) return c;
+    return null;
+  }
+  const _spriteColor = new Map();     // lower-case id → [r,g,b] (the sprites dict is keyed by id too)
+  const _spriteColorSrc = new Map();  // lower-case id → the src the colour was computed from (a re-load of the same file costs nothing)
+  const _colorStats = { computed: 0, probes: 0, flushes: 0 };
+  const _colorDirty = new Set();
+  const _colorListeners = [];
+  function onColorsChanged(fn) { if (typeof fn === 'function') _colorListeners.push(fn); }
+  function spriteColorStats() { return { ..._colorStats }; }
+
+  // Mean of the fully opaque pixels of the image on a 16x16 canvas (null when there are none or the pixels cannot be read).
+  function _meanOpaque(img) {
+    const N = 16, cv = document.createElement('canvas');
+    cv.width = cv.height = N;
+    const g = cv.getContext('2d', { willReadFrequently: true });
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(img, 0, 0, N, N);
+    const d = g.getImageData(0, 0, N, N).data;     // throws a SecurityError for a cross-origin image without CORS
+    let r = 0, gr = 0, b = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] === 255) { r += d[i]; gr += d[i + 1]; b += d[i + 2]; n++; }
+    return n ? [Math.round(r / n), Math.round(gr / n), Math.round(b / n)] : null;
+  }
+  function _setSpriteColor(key, rgb, src) {
+    _colorStats.computed++;
+    _spriteColorSrc.set(key, src);
+    if (!rgb) return;
+    const before = color(key);
+    _spriteColor.set(key, rgb);
+    if (before[0] !== rgb[0] || before[1] !== rgb[1] || before[2] !== rgb[2]) _colorDirty.add(key);
+  }
+  // Called when a sprite has loaded. Explicit-table ids are skipped. A cross-origin package sprite taints the canvas, so
+  // its pixels are read from a second, CORS-enabled request for the same URL (Pages answers with Access-Control-Allow-Origin: *).
+  function _noteSprite(key, img) {
+    if (!api.SPRITE_FALLBACK_COLORS || COLORS[key] || !byHexId(key)) return;   // terrain tiles only (building sprites share this loader)
+    const src = img.currentSrc || img.src;
+    if (_spriteColorSrc.get(key) === src) return;
+    try { _setSpriteColor(key, _meanOpaque(img), src); return; } catch (e) { /* tainted: probe below */ }
+    if (src.startsWith('data:')) return;
+    _colorStats.probes++;
+    _spriteColorSrc.set(key, src);   // one probe per file
+    _pendingProbes++;
+    const probe = new Image();
+    probe.crossOrigin = 'anonymous';
+    const done = () => { _pendingProbes--; if (!_pendingProbes) _flushColors(); };
+    probe.onload = () => { try { _setSpriteColor(key, _meanOpaque(probe), src); } catch (e) { /* unreadable: the type colour stays */ } done(); };
+    probe.onerror = done;
+    probe.src = src;
+  }
+  let _pendingProbes = 0;
+  // One notification per batch of newly known colours (end of an applyHexDbOverrides call, or the last probe).
+  function _flushColors() {
+    if (_pendingProbes || !_colorDirty.size) return;
+    _colorDirty.clear();
+    _colorStats.flushes++;
+    for (const fn of _colorListeners) { try { fn(); } catch (e) { console.error(e); } }
+  }
+
   // Case-insensitive color lookup by hex ID string.
   function color(id) {
     if (typeof id !== 'string') return [120,155,85];
-    return COLORS[id.toLowerCase()] || [120,155,85];
+    const lo = id.toLowerCase();
+    const c = COLORS[lo];
+    if (c) return c;
+    if (!api.SPRITE_FALLBACK_COLORS) return [120,155,85];
+    const sc = _spriteColor.get(lo);
+    if (sc) return sc;
+    const e = byHexId(id);
+    return (e && _typeColor(e.type)) || [120,155,85];
   }
 
   // Case-insensitive HexDB lookup by hex ID string.
@@ -3010,12 +3095,13 @@ const Terrain = (() => {
       jobs.push(new Promise(resolve => {
         const img = new Image();
         const settle = () => { const n = (_spritePending.get(key) || 1) - 1; if (n > 0) _spritePending.set(key, n); else _spritePending.delete(key); resolve(); };
-        img.onload  = () => { sprites[key] = img; _spriteFailed.delete(key); settle(); };
+        img.onload  = () => { sprites[key] = img; _spriteFailed.delete(key); _noteSprite(key, img); settle(); };
         img.onerror = () => { _spriteFailed.add(key); settle(); };
         img.src = src;
       }));
     }
     await Promise.all(jobs);
+    _flushColors();
   }
 
   // Sprite load state (T4.5): getSprite() is null both while an image is still decoding and after it failed, so the
@@ -3042,9 +3128,11 @@ const Terrain = (() => {
   }
   function unregisterUploadedUrls(keys) { for (const k of keys) delete _uploadedUrls[k]; }
 
-  return { applyHexDbOverrides, getSprite, spriteState, pendingSprites, getCitySprite, getSettlementSprite,
+  const api = { applyHexDbOverrides, getSprite, spriteState, pendingSprites, getCitySprite, getSettlementSprite,
            color, byId, byHexId, getAll, registerUploadedUrls, unregisterUploadedUrls, getUploadedUrl,
-           getTerrainSpriteForType, isLayeredHex };
+           getTerrainSpriteForType, isLayeredHex, onColorsChanged, spriteColorStats,
+           SPRITE_FALLBACK_COLORS: (() => { try { return localStorage.getItem('spriteFallbackColors') !== 'off'; } catch (e) { return true; } })() };
+  return api;
 })();
 // ════════════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════
@@ -4451,6 +4539,10 @@ const Canvas = (() => {
   // Terrain.color reads the static COLORS table only (independent of HexDB / packages), so memoising is safe.
   const _UNSET = {};
   const _colorMemo = new Map();
+  // A sprite's dominant colour becomes known after it loads (Terrain fallback colours). Terrain announces each batch once:
+  // drop the memo and make every cached colour layer repaint all its pixels at its next update, then redraw.
+  let _colorEpoch = 0;
+  Terrain.onColorsChanged(() => { _colorMemo.clear(); _colorEpoch++; render(); drawMinimap(); });
   function _colorOf(id) {
     let c = _colorMemo.get(id);
     if (c === undefined) { c = Terrain.color(id); _colorMemo.set(id, c); }
@@ -4463,9 +4555,10 @@ const Canvas = (() => {
   // is exact for every way mapData changes (in-place writes, undo/redo, Generator, load, expand), so no
   // write hook is needed.
   function _makeColorLayer(statKey) {
-    let cv = null, cx = null, img = null, lastIds = null, srcIdx = null, key = '';
+    let cv = null, cx = null, img = null, lastIds = null, srcIdx = null, key = '', epoch = _colorEpoch;
     return function update(pw, ph) {
       const k = pw + 'x' + ph + ':' + MAP_WIDTH + 'x' + MAP_HEIGHT;
+      if (epoch !== _colorEpoch) { epoch = _colorEpoch; if (lastIds) lastIds.fill(_UNSET); }   // colours changed: every pixel is dirty once
       if (k !== key) {
         key = k;
         cv = document.createElement('canvas'); cv.width = pw; cv.height = ph;
@@ -5440,7 +5533,7 @@ const Canvas = (() => {
   return {
     init, render, drawMinimap, forceRedraw, getStats,
     _test: { /* TEST ONLY — do not call from app code */ /* calling minimapLayer advances the cache and overwrites _stats.minimapRecolored */ minimapLayer(pw, ph) { return _minimapLayer(pw, ph); }, overviewLayer() { return _overviewLayer(MAP_HEIGHT, MAP_WIDTH); }, setCamera(x, y) { cameraX = x; cameraY = y; }, selBitmap() { return _selOverlay ? _selOverlay.bitmap : null; }, setFullScan(v) { _fullScan = !!v; }, setLod(v) { _lodOverride = (v === false) ? 0 : (v === 0 || v === 1 || v === 2 ? v : null); } },
-    hexCenterWorld, hexScreenPos, hexClipPath, screenToHex,
+    hexCenterWorld, hexScreenPos, hexClipPath, screenToHex, terrainFallbackColor: _terrainTypeFallbackColor,
     clampCamera, minZoom, reclampZoom, resize, setZoom, zoomIn, zoomOut, centerOnCity, fitToScreen,
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot, toggleMinimapSize, isMinimapBig, toggleMinimapOverlay,
@@ -5968,8 +6061,11 @@ const Clipboard = (() => {
       if (layers.zones !== false && zonesOk && zl && e.z) zl[it.idx] = e.z;
     });
     invalidateSatelliteMap();
+    // Paste / move / stamp placement are hand tools: with Tools.AUTO_WATER_EDGES off (owner decision) the cells are
+    // written exactly as copied and nothing around them is re-resolved. With it on (old behaviour):
     // Identity paste: re-resolve edges around the BORDER only (interior cells keep the tiles that were copied). A
     // transformed paste re-resolves every pasted cell (see below).
+    if (layers.terrain === false || !Tools.AUTO_WATER_EDGES) return items.length;
     const inP = written, offs = [0, 1].map(p => HexUtils.CUBE_DIRS.map(d => {
       const c0 = 100, r0 = 100 + p, cube = HexUtils.toCube(c0, r0, W, H), n = HexUtils.fromCube({ q: cube.q + d.q, r: cube.r + d.r, s: cube.s + d.s }, W, H);
       return [n.col - c0, n.row - r0];
@@ -5986,7 +6082,7 @@ const Clipboard = (() => {
         if (!inP.has(nr * W + nc)) { touched.push({ col: it.col, row: it.row, prev: prevs[n] }); break; }
       }
     });
-    if (layers.terrain !== false) Tools.autoResolveEdgesAround(touched);   // edges depend on terrain only
+    Tools.manualEdgesAround(touched);   // edges depend on terrain only
     return items.length;
   }
 
@@ -6077,6 +6173,7 @@ const Stamps = (() => {
   const BAD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
   let _dbp = null, _lastCreated = 0, _seq = 0;
   const _thumbs = new Map(), THUMB_CACHE_MAX = 256;
+  Terrain.onColorsChanged(() => _thumbs.clear());   // thumbnails are filled with Terrain.color
 
   // ── connection ──────────────────────────────────────────
   function _unavailable(e) {
@@ -6757,6 +6854,17 @@ const Tools = (() => {
     return out;
   }
 
+  // ── Automatic water-body logic switch (owner decision 2026-10-07) ──
+  // The hand tools (Paint incl. brush and symmetry, Fill, Rectangle, Line, Circle, Polygon, Scatter, Replace, Eraser, paste,
+  // move, stamp placement) no longer re-resolve river / lake pieces, shores or rock / dirty / light water: each writes
+  // EXACTLY the chosen tile into exactly the intended cells and changes no neighbouring cell. Every manual call site goes
+  // through _manualEdgesAround, so this ONE constant turns the old behaviour back on. The map generator keeps its logic:
+  // Generator.apply (worker) and generate-into-selection (Generator.applyToRegion) call _autoResolveEdgesAround /
+  // Tools.autoResolveEdgesAround directly. Zone filling (Fill Zones, Fill This Zone, Randomize & Fill) is a hand tool too
+  // and goes through manualEdgesAround (owner decision, same day).
+  const AUTO_WATER_EDGES = false;
+  function _manualEdgesAround(cellsPainted) { if (AUTO_WATER_EDGES) _autoResolveEdgesAround(cellsPainted); }
+
   // cellsPainted: [{col,row,prev?}] where prev is the id the cell held BEFORE the edit.
   // A directional tile written here re-resolves itself and its water/river neighbours (original rule).
   // A water/river cell appearing or disappearing here re-resolves its directional neighbours, so erasing or
@@ -6856,7 +6964,7 @@ const Tools = (() => {
       if (bi >= 0) bridgesData.splice(bi, 1);
     }
     if (footprints) invalidateSatelliteMap();      // single-tile writes cannot change a footprint: no O(W*H) rebuild per stroke move
-    _autoResolveEdgesAround(touched);
+    _manualEdgesAround(touched);                   // off (AUTO_WATER_EDGES): the chosen tile is written as-is
     return touched;
   }
 
@@ -6972,7 +7080,7 @@ const Tools = (() => {
         const b = bridgesData[i];
         if (b.col >= 0 && b.col < W && b.row >= 0 && b.row < H && visited[b.row * W + b.col] && md[b.row * W + b.col] === fillId) bridgesData.splice(i, 1);
       }
-      _autoResolveEdgesAround(cells);
+      _manualEdgesAround(cells);                  // off (AUTO_WATER_EDGES): no edge pass after a fill
       Canvas.render();
       Canvas.drawMinimap();
       IO.scheduleAutoSave();
@@ -7166,7 +7274,7 @@ const Tools = (() => {
       for (let k = bridgesData.length - 1; k >= 0; k--) if (gone.has(bridgesData[k].row * W + bridgesData[k].col)) bridgesData.splice(k, 1);
     }
     invalidateSatelliteMap();
-    _autoResolveEdgesAround(touched);
+    _manualEdgesAround(touched);                  // off (AUTO_WATER_EDGES): the replacement is written as-is
     return touched.length;
   }
 
@@ -7259,7 +7367,7 @@ const Tools = (() => {
     for (let i = bridgesData.length - 1; i >= 0 && !lk.objects; i--)
       if (erased.has(bridgesData[i].row * MAP_WIDTH + bridgesData[i].col)) bridgesData.splice(i, 1);
     if (footprints) invalidateSatelliteMap();
-    _autoResolveEdgesAround(touched);
+    _manualEdgesAround(touched);                  // off (AUTO_WATER_EDGES): erased cells never re-resolve their neighbours
     return touched.length;
   }
 
@@ -7316,7 +7424,7 @@ const Tools = (() => {
   // cell takes one of the chosen variants (HexUtils.scatterPick). The cells are the brush disc expanded by the active
   // symmetry mode (so the area is mirrored) but every cell rolls on its own: mirrored copies are NOT identical.
   // Writes go through _writeTerrain in ONE pass with per-cell ids (noSymmetry: the area is already expanded), so
-  // edge re-resolution, bridge removal and footprint skips are Paint's and the footprint map is rebuilt at most once. A stroke shares one seeded RNG and one
+  // bridge removal and footprint skips are Paint's (no edge re-resolution: Tools.AUTO_WATER_EDGES is off) and the footprint map is rebuilt at most once. A stroke shares one seeded RNG and one
   // visited set: a cell reached by several stamps is rolled once (dragging does not re-roll or flicker). A stroke
   // reuses the eraser's stroke state (_eraseStroke/_eraseToken/_eraseMd): the History step is pushed lazily, right
   // before the first write, so a stroke that places nothing leaves no step.
@@ -7329,15 +7437,22 @@ const Tools = (() => {
 
   // The variants of an id: same package, same HexDB type and same first '_' segment, no multi-tile entries (their footprint cannot
   // be scattered), no directional river/lake pieces (edgeFaces), no test/kaiju/chicken placeholders. Falls back to the id itself when it is not in HexDB.
+  // The family is the first '_' segment of the id AFTER the package's id prefix (Decameroon_Rift_1 -> 'rift'): with the
+  // prefix every same-type tile of a package was a "variant" (the rift scattered lava). Suffixes (_copy, _2x) never matter.
+  function _scatterFamily(id, pkg) {
+    const pre = typeof Packages !== 'undefined' ? Packages.idPrefix(pkg).toLowerCase() : '';
+    const lo = String(id).toLowerCase();
+    return (pre && lo.startsWith(pre) ? lo.slice(pre.length) : lo).split('_')[0];
+  }
   function _scatterVariants(hexId) {
     const base = Terrain.byHexId(hexId);
     if (!base) return typeof hexId === 'string' && hexId ? [hexId] : [];
-    const prefix = hexId.split('_')[0].toLowerCase();
     const pkg = base.package || 'postapoc';   // a group never mixes packages (art styles): variants come from the clicked tile's package only
+    const prefix = _scatterFamily(hexId, pkg);
     return HexDB.getAll()
-      .filter(h => h.id && (h.package || 'postapoc') === pkg && h.type === base.type && h.id.split('_')[0].toLowerCase() === prefix &&
+      .filter(h => h.id && (h.package || 'postapoc') === pkg && h.type === base.type && _scatterFamily(h.id, pkg) === prefix &&
                    !(Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length) &&
-                   !_isDirectional(h) &&               // river/lake direction pieces: edge re-resolution overrides the pick
+                   !_isDirectional(h) &&               // river/lake direction pieces point one way: never scattered at random
                    !/_test|kaiju|chicken/i.test(h.id))
       .map(h => h.id);
   }
@@ -8414,7 +8529,7 @@ const Tools = (() => {
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
   return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
-           _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround,
+           _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround, manualEdgesAround: _manualEdgesAround, AUTO_WATER_EDGES,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
 })();
@@ -9933,14 +10048,9 @@ const UI = (() => {
         btn.className = 'tile-btn';
         btn.dataset.hexId = h.id;
 
-        // Layered tiles have transparent-bg sprites — tint button with terrain colour
-        if (Terrain.isLayeredHex(h) && h.type) {
-          const t = h.type.toLowerCase();
-          btn.style.backgroundColor =
-            t === 'water'              ? '#2a6fad' :
-            t === 'forests' || t === 'forest' ? '#2d6a2d' :
-            t === 'plains'  || t === 'plain'  ? '#7a9a4a' : '#555';
-        }
+        // Layered tiles have transparent-bg sprites: tint the button with the colour the map draws under them when the type
+        // has no base sprite (one table, Canvas.terrainFallbackColor; it used to differ for Special and Swamp: tile icon audit)
+        if (Terrain.isLayeredHex(h) && h.type) btn.style.backgroundColor = Canvas.terrainFallbackColor(h.type);
 
         const img = document.createElement('img');
         const spr = Terrain.getSprite(h.id);
@@ -10068,7 +10178,7 @@ const UI = (() => {
     const selImg = document.getElementById('palette-sel-img');
     const spr = Terrain.getSprite(hexId);
     if (spr) selImg.src = spr.src;
-    else if (t.spriteName) selImg.src = `packages/postapoc/sprites/hex/${t.spriteName}.png`;
+    else if (t.spriteName) selImg.src = typeof Packages !== 'undefined' ? Packages.spriteSrc(t, 'hex') : `packages/postapoc/sprites/hex/${t.spriteName}.png`;
     document.getElementById('palette-selected-name').textContent = t.name || hexId;
     document.getElementById('palette-selected-id').textContent   = hexId;
 
@@ -16695,7 +16805,8 @@ const BiomeManager = (() => {
     const hexSel = document.querySelector('select.hexdb-select[data-field="biome"]');
     if (hexSel) {
       const cur = hexSel.value;
-      hexSel.innerHTML = names.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
+      const list = cur && !names.includes(cur) ? [cur, ...names] : names;     // keep a biome that is not in the list (see _selectInput)
+      hexSel.innerHTML = list.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
     }
     ['bld-f-biome', 'stt-f-biome'].forEach(id => {
       const el = document.getElementById(id);
@@ -17028,8 +17139,11 @@ const HexDB = (() => {
   <label>${labelText}</label>
 </div>`;
   }
+  // A current value missing from the list (e.g. a package biome such as 'Decameron') is kept as its own first option:
+  // otherwise the select shows the first list entry and the next field edit (_readRecord) silently writes that instead.
   function _selectInput(field, options, curVal) {
-    const opts = options.map(o => `<option${o===curVal?' selected':''}>${o}</option>`).join('');
+    const list = (curVal != null && curVal !== '' && !options.includes(curVal)) ? [curVal, ...options] : options;
+    const opts = list.map(o => `<option${o===curVal?' selected':''}>${_esc(o)}</option>`).join('');
     return `<select class="hexdb-select" data-field="${field}">${opts}</select>`;
   }
 
@@ -17798,6 +17912,7 @@ const HexDB = (() => {
     h.package = pkg;
     _data.hexes.push(h);
     _autoSave();
+    _loadNewEntrySprite(h);
     _applyFilter();
     _buildList();
     const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
@@ -17835,6 +17950,13 @@ const HexDB = (() => {
     });
   }
 
+  // A new entry (Paste, Reskin+) is paintable at once: its sprite (keyed by the new id) is loaded and the palette rebuilt,
+  // as a field edit does. Without this the copy had no palette button and drew as an empty dark hex until a reload.
+  function _loadNewEntrySprite(h) {
+    Terrain.applyHexDbOverrides([h]).then(() => { UI.buildPalette(); Canvas.render(); });
+    UI.buildPalette();
+  }
+
   function copy() {
     if (_selFilt < 0 || _selFilt >= _filtered.length) return;
     _clipboard = structuredClone(_data.hexes[_filtered[_selFilt]]);
@@ -17847,6 +17969,7 @@ const HexDB = (() => {
     h.id = h.id + '_copy';
     _data.hexes.push(h);
     _autoSave();
+    _loadNewEntrySprite(h);
     _applyFilter(); _buildList();
     const filtIdx = _filtered.lastIndexOf(_data.hexes.length - 1);
     _selectIdx(filtIdx >= 0 ? filtIdx : _filtered.length - 1);
