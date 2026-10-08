@@ -2814,8 +2814,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.07";
-const COMMIT  = "9ec9433";
+const VERSION = "2026.10.08";
+const COMMIT  = "f027b30";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -2957,10 +2957,95 @@ const Terrain = (() => {
     return _LAYERED_TYPES.has((hexEntry.type || '').toLowerCase());
   }
 
+  // ── Fallback colours (minimap / flat overview) ──────────────────────────────
+  // An id with an explicit COLORS entry keeps that colour (unchanged). Any other id used to be green. Now it takes
+  //   (1) the dominant opaque colour of its sprite once the sprite has loaded (computed ONCE per sprite, see _noteSprite), else
+  //   (2) a colour for its HexDB `type` (_TYPE_COLORS), else the old green.
+  // Opt-out: Terrain.SPRITE_FALLBACK_COLORS = false (or localStorage `spriteFallbackColors` = 'off', read at startup) restores
+  // the old all-green fallback exactly; the perf specs seed it so their pinned pixel hashes stay valid.
+  const _GREEN = [120,155,85];
+  const _TYPE_COLORS = [   // first substring match on the lower-cased type wins
+    ['river',  [45,85,140]], ['lake', [45,85,140]], ['water', [42,70,110]],
+    ['mountain', [125,120,110]], ['hill', [125,120,110]],
+    ['forest', [50,115,50]], ['plain', _GREEN],
+    ['desert', [190,165,110]], ['barren', [190,165,110]],
+    ['rubble', [90,75,55]], ['waste', [90,75,55]],
+    ['lava', [170,70,20]], ['volcan', [170,70,20]], ['rift', [130,35,15]],
+    ['swamp', [75,90,50]], ['wetland', [75,90,50]], ['marsh', [75,90,50]],
+    ['resource', [200,170,25]], ['special', [200,170,25]],
+  ];
+  function _typeColor(type) {
+    if (typeof type !== 'string') return null;
+    const lo = type.toLowerCase();
+    for (const [k, c] of _TYPE_COLORS) if (lo.includes(k)) return c;
+    return null;
+  }
+  const _spriteColor = new Map();     // lower-case id → [r,g,b] (the sprites dict is keyed by id too)
+  const _spriteColorSrc = new Map();  // lower-case id → the src the colour was computed from (a re-load of the same file costs nothing)
+  const _colorStats = { computed: 0, probes: 0, flushes: 0 };
+  const _colorDirty = new Set();
+  const _colorListeners = [];
+  function onColorsChanged(fn) { if (typeof fn === 'function') _colorListeners.push(fn); }
+  function spriteColorStats() { return { ..._colorStats }; }
+
+  // Mean of the fully opaque pixels of the image on a 16x16 canvas (null when there are none or the pixels cannot be read).
+  function _meanOpaque(img) {
+    const N = 16, cv = document.createElement('canvas');
+    cv.width = cv.height = N;
+    const g = cv.getContext('2d', { willReadFrequently: true });
+    g.imageSmoothingQuality = 'high';
+    g.drawImage(img, 0, 0, N, N);
+    const d = g.getImageData(0, 0, N, N).data;     // throws a SecurityError for a cross-origin image without CORS
+    let r = 0, gr = 0, b = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4) if (d[i + 3] === 255) { r += d[i]; gr += d[i + 1]; b += d[i + 2]; n++; }
+    return n ? [Math.round(r / n), Math.round(gr / n), Math.round(b / n)] : null;
+  }
+  function _setSpriteColor(key, rgb, src) {
+    _colorStats.computed++;
+    _spriteColorSrc.set(key, src);
+    if (!rgb) return;
+    const before = color(key);
+    _spriteColor.set(key, rgb);
+    if (before[0] !== rgb[0] || before[1] !== rgb[1] || before[2] !== rgb[2]) _colorDirty.add(key);
+  }
+  // Called when a sprite has loaded. Explicit-table ids are skipped. A cross-origin package sprite taints the canvas, so
+  // its pixels are read from a second, CORS-enabled request for the same URL (Pages answers with Access-Control-Allow-Origin: *).
+  function _noteSprite(key, img) {
+    if (!api.SPRITE_FALLBACK_COLORS || COLORS[key] || !byHexId(key)) return;   // terrain tiles only (building sprites share this loader)
+    const src = img.currentSrc || img.src;
+    if (_spriteColorSrc.get(key) === src) return;
+    try { _setSpriteColor(key, _meanOpaque(img), src); return; } catch (e) { /* tainted: probe below */ }
+    if (src.startsWith('data:')) return;
+    _colorStats.probes++;
+    _spriteColorSrc.set(key, src);   // one probe per file
+    _pendingProbes++;
+    const probe = new Image();
+    probe.crossOrigin = 'anonymous';
+    const done = () => { _pendingProbes--; if (!_pendingProbes) _flushColors(); };
+    probe.onload = () => { try { _setSpriteColor(key, _meanOpaque(probe), src); } catch (e) { /* unreadable: the type colour stays */ } done(); };
+    probe.onerror = done;
+    probe.src = src;
+  }
+  let _pendingProbes = 0;
+  // One notification per batch of newly known colours (end of an applyHexDbOverrides call, or the last probe).
+  function _flushColors() {
+    if (_pendingProbes || !_colorDirty.size) return;
+    _colorDirty.clear();
+    _colorStats.flushes++;
+    for (const fn of _colorListeners) { try { fn(); } catch (e) { console.error(e); } }
+  }
+
   // Case-insensitive color lookup by hex ID string.
   function color(id) {
     if (typeof id !== 'string') return [120,155,85];
-    return COLORS[id.toLowerCase()] || [120,155,85];
+    const lo = id.toLowerCase();
+    const c = COLORS[lo];
+    if (c) return c;
+    if (!api.SPRITE_FALLBACK_COLORS) return [120,155,85];
+    const sc = _spriteColor.get(lo);
+    if (sc) return sc;
+    const e = byHexId(id);
+    return (e && _typeColor(e.type)) || [120,155,85];
   }
 
   // Case-insensitive HexDB lookup by hex ID string.
@@ -3010,12 +3095,13 @@ const Terrain = (() => {
       jobs.push(new Promise(resolve => {
         const img = new Image();
         const settle = () => { const n = (_spritePending.get(key) || 1) - 1; if (n > 0) _spritePending.set(key, n); else _spritePending.delete(key); resolve(); };
-        img.onload  = () => { sprites[key] = img; _spriteFailed.delete(key); settle(); };
+        img.onload  = () => { sprites[key] = img; _spriteFailed.delete(key); _noteSprite(key, img); settle(); };
         img.onerror = () => { _spriteFailed.add(key); settle(); };
         img.src = src;
       }));
     }
     await Promise.all(jobs);
+    _flushColors();
   }
 
   // Sprite load state (T4.5): getSprite() is null both while an image is still decoding and after it failed, so the
@@ -3042,9 +3128,11 @@ const Terrain = (() => {
   }
   function unregisterUploadedUrls(keys) { for (const k of keys) delete _uploadedUrls[k]; }
 
-  return { applyHexDbOverrides, getSprite, spriteState, pendingSprites, getCitySprite, getSettlementSprite,
+  const api = { applyHexDbOverrides, getSprite, spriteState, pendingSprites, getCitySprite, getSettlementSprite,
            color, byId, byHexId, getAll, registerUploadedUrls, unregisterUploadedUrls, getUploadedUrl,
-           getTerrainSpriteForType, isLayeredHex };
+           getTerrainSpriteForType, isLayeredHex, onColorsChanged, spriteColorStats,
+           SPRITE_FALLBACK_COLORS: (() => { try { return localStorage.getItem('spriteFallbackColors') !== 'off'; } catch (e) { return true; } })() };
+  return api;
 })();
 // ════════════════════════════════════════════════════════════
 // ════════════════════════════════════════════════════════════
@@ -4451,6 +4539,10 @@ const Canvas = (() => {
   // Terrain.color reads the static COLORS table only (independent of HexDB / packages), so memoising is safe.
   const _UNSET = {};
   const _colorMemo = new Map();
+  // A sprite's dominant colour becomes known after it loads (Terrain fallback colours). Terrain announces each batch once:
+  // drop the memo and make every cached colour layer repaint all its pixels at its next update, then redraw.
+  let _colorEpoch = 0;
+  Terrain.onColorsChanged(() => { _colorMemo.clear(); _colorEpoch++; render(); drawMinimap(); });
   function _colorOf(id) {
     let c = _colorMemo.get(id);
     if (c === undefined) { c = Terrain.color(id); _colorMemo.set(id, c); }
@@ -4463,9 +4555,10 @@ const Canvas = (() => {
   // is exact for every way mapData changes (in-place writes, undo/redo, Generator, load, expand), so no
   // write hook is needed.
   function _makeColorLayer(statKey) {
-    let cv = null, cx = null, img = null, lastIds = null, srcIdx = null, key = '';
+    let cv = null, cx = null, img = null, lastIds = null, srcIdx = null, key = '', epoch = _colorEpoch;
     return function update(pw, ph) {
       const k = pw + 'x' + ph + ':' + MAP_WIDTH + 'x' + MAP_HEIGHT;
+      if (epoch !== _colorEpoch) { epoch = _colorEpoch; if (lastIds) lastIds.fill(_UNSET); }   // colours changed: every pixel is dirty once
       if (k !== key) {
         key = k;
         cv = document.createElement('canvas'); cv.width = pw; cv.height = ph;
@@ -6080,6 +6173,7 @@ const Stamps = (() => {
   const BAD_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
   let _dbp = null, _lastCreated = 0, _seq = 0;
   const _thumbs = new Map(), THUMB_CACHE_MAX = 256;
+  Terrain.onColorsChanged(() => _thumbs.clear());   // thumbnails are filled with Terrain.color
 
   // ── connection ──────────────────────────────────────────
   function _unavailable(e) {

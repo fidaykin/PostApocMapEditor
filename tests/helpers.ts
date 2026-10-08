@@ -400,7 +400,12 @@ export async function openEditor(page: Page, opts: OpenOptions = {}) {
   // `rightPanelMode: 'classic'` keeps the old fixed layout (canvas 1491x808 at 1400x900, panel inline, page widened by the
   // toolbar) so the perf hashes and every pre-existing canvas-size assertion stay valid. A spec that tests the responsive
   // layout passes its own value in `storage`.
-  const seed = { rightPanelMode: 'classic', ...(opts.pat ? { gh_sync_pat: 'test-token' } : {}), ...(opts.storage ?? {}) };
+  // Perf specs pin pixel hashes recorded when every colour-table-less tile was green (Water_1 / Water_Dirty_1 of the perf scene are
+  // such tiles): they run with the sprite/type fallback colours switched off (localStorage `spriteFallbackColors` = 'off', read by
+  // Terrain at startup). Real users and every other spec get the default (on).
+  let perfSpec = false;
+  try { perfSpec = /(^|[\\/])perf-[^\\/]*\.spec\.ts$/.test(test.info().file); } catch (_) { /* outside a test */ }
+  const seed = { rightPanelMode: 'classic', ...(perfSpec ? { spriteFallbackColors: 'off' } : {}), ...(opts.pat ? { gh_sync_pat: 'test-token' } : {}), ...(opts.storage ?? {}) };
   // Seed localStorage once per browser context so reloads keep whatever the test changed.
   await page.addInitScript((s: Record<string, string>) => {
     if (localStorage.getItem('__seeded')) return;
