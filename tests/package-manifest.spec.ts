@@ -364,7 +364,7 @@ test.describe('C1: every writer of a covered file leaves a matching manifest', (
     await page.locator('#pkg-import-conflict-modal').getByRole('button', { name: 'Replace' }).click();
     await waitForLastWrite(gh, 'packages/registry.json');
     const m = verifyManifest(gh, 'old');
-    expect(m.version).toBe('2.0.0');
+    expect(m.version).toBe('2.0.0');                           // the ZIP's 2.0.0 is above everything the server has: kept
     expect(m.files.map((f: any) => f.path)).not.toContain('sprites/hex/Gone.png');
     const e = gh.json('packages/registry.json').packages.find((p: any) => p.id === 'old');
     expect(e.version).toBe('2.0.0');
@@ -559,7 +559,7 @@ test.describe('I4/I5/M5: consistency and failures', () => {
     expect(err).toContain('registry.json changed');
     expect(gh.putPaths()).toEqual([]);
   });
-  test('package publish aborts before the manifest when the registry changed meanwhile', async ({ page }) => {
+  test('package publish: the manifest is written even when the registry moved meanwhile; only the registry PUT fails, the retry converges', async ({ page }) => {
     const gh = new FakeGitHub();
     gh.setRegistry([{ id: 'rc', name: 'R', version: '1.0.0' }]);
     gh.setJson('packages/rc/package.json', { id: 'rc', name: 'R', version: '1.0.0', isDefault: false });
@@ -569,9 +569,16 @@ test.describe('I4/I5/M5: consistency and failures', () => {
     await seedHexes(page, [{ id: 'Rc_A', package: 'rc', type: 'Plains', spriteName: 'Rc_A' }]);
     const r = await page.evaluate(() => Packages.publishPackage('rc', { bump: 'patch' }));
     expect(r.ok).toBe(false);
-    expect(gh.putPaths()).not.toContain('packages/rc/manifest.json');
+    expect(r.error).toContain('409');
     expect(gh.putPaths()).not.toContain('packages/registry.json');
     expect(gh.putPaths()).not.toContain('packages/rc/package.json');
+    const m = verifyManifest(gh, 'rc');                       // the manifest already matches the files that were written
+    expect(m.version).toBe('1.0.1');
+    const r2 = await page.evaluate(() => Packages.publishPackage('rc', { bump: 'patch' }));
+    expect(r2.ok).toBe(true);
+    expect(r2.version).toBe('1.0.1');                         // package.json was never written: same version again
+    expect(verifyManifest(gh, 'rc').version).toBe('1.0.1');
+    expect(gh.json('packages/registry.json').packages.find((p: any) => p.id === 'rc').version).toBe('1.0.1');
   });
   test('a version already used by a manifest is never reused (failed earlier run, manifest ahead of the registry)', async ({ page }) => {
     const gh = new FakeGitHub(); seedBase(gh);
@@ -666,4 +673,66 @@ test('contract (Unity-strict): every rule of PackageManifest.Parse holds for an 
   }
   for (const d of m.dependencies) expect(d.replace(/[<>=^~].*$/, '')).toMatch(TOKEN);
   expect(m.dependencies).not.toContain(m.id);
+});
+
+test.describe('import versions and missing-sprite note', () => {
+  const importOver = async (page: Page, gh: FakeGitHub, zipVersion: string, id = 'old') => {
+    await openEditor(page, { gh, pat: true });
+    await page.evaluate(() => (window as any).__startupSyncDone);
+    const zip = await packageZip(id, 'Old Pack', { version: zipVersion, hexes: [hexRec(`${id[0].toUpperCase()}${id.slice(1)}_Tile`, id, { spriteName: 'S1' })], sprites: { 'hex/S1.png': TINY_PNG } });
+    await page.setInputFiles('#pkg-import-input', { name: 'p.zip', mimeType: 'application/zip', buffer: zip });
+    await page.fill('#pkg-import-id', id);
+    await page.locator('#pkg-import-modal').getByRole('button', { name: 'Import' }).click();
+  };
+  const seedOld = (gh: FakeGitHub, version = '1.0.0', manifestVersion?: string) => {
+    seedServerPackage(gh, 'old', { name: 'Old Pack', version, hexes: [hexRec('Old_Tile', 'old', { spriteName: 'S1' })], sprites: { 'hex/S1.png': TINY_PNG } });
+    if (manifestVersion) gh.setJson('packages/old/manifest.json', { schemaVersion: 1, id: 'old', version: manifestVersion, files: [] });
+  };
+  const replace = (page: Page) => page.locator('#pkg-import-conflict-modal').getByRole('button', { name: 'Replace' }).click();
+
+  test('importing over a published package with the SAME version publishes a higher one everywhere', async ({ page }) => {
+    const gh = new FakeGitHub(); seedOld(gh, '1.0.0');
+    await importOver(page, gh, '1.0.0'); await replace(page);
+    await waitForLastWrite(gh, 'packages/registry.json');
+    expect(verifyManifest(gh, 'old').version).toBe('1.0.1');
+    expect(gh.json('packages/old/package.json').version).toBe('1.0.1');
+    expect(gh.json('packages/registry.json').packages.find((p: any) => p.id === 'old').version).toBe('1.0.1');
+    await expect(page.locator('#toast-container')).toContainText('as v1.0.1');
+  });
+  test('a LOWER zip version, or a server manifest ahead of everything, ends above the server', async ({ page }) => {
+    const gh = new FakeGitHub(); seedOld(gh, '2.0.0', '2.0.4');
+    await importOver(page, gh, '0.5.0'); await replace(page);
+    await waitForLastWrite(gh, 'packages/registry.json');
+    expect(verifyManifest(gh, 'old').version).toBe('2.0.5');
+    expect(gh.json('packages/registry.json').packages.find((p: any) => p.id === 'old').version).toBe('2.0.5');
+  });
+  test('a fresh package keeps the ZIP version', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await importOver(page, gh, '3.2.1', 'brandnew');
+    await waitForLastWrite(gh, 'packages/registry.json');
+    expect(verifyManifest(gh, 'brandnew').version).toBe('3.2.1');
+  });
+  test('a failed Replace restores the old files AND the old manifest.json', async ({ page }) => {
+    const gh = new FakeGitHub(); seedOld(gh, '1.0.0', '1.0.0');
+    const oldManifest = gh.read('packages/old/manifest.json')!.toString();
+    const oldReg = gh.read('packages/registry.json')!.toString();
+    await importOver(page, gh, '1.0.0');
+    gh.failPut = p => p === 'packages/registry.json';
+    await replace(page);
+    await expect.poll(() => page.evaluate(() => (Packages as any).getImportResult()?.status)).toBe('failed');
+    expect(gh.putPaths()).toContain('packages/old/manifest.json');          // it was written, then compensated
+    expect(gh.read('packages/old/manifest.json')!.toString()).toBe(oldManifest);
+    expect(gh.read('packages/registry.json')!.toString()).toBe(oldReg);
+    expect(gh.json('packages/old/package.json').version).toBe('1.0.0');
+  });
+  test('referenced sprites that are not on the server are named in the base-refresh toast (first 5)', async ({ page }) => {
+    const gh = new FakeGitHub();
+    seedBase(gh, ['m1', 'm2', 'm3', 'm4', 'm5', 'm6'].map(n => ({ id: n, spriteName: n })));
+    await openEditor(page, { gh, pat: true });
+    const r = await page.evaluate(() => GitHubSync.refreshBaseManifestSafely());
+    expect(r.version).toBe('1.0.1');
+    await expect(page.locator('#toast-container .toast.sticky').first()).toContainText('6 referenced sprite(s) are not on the server: m1, m2, m3, m4, m5');
+    const names = await page.evaluate(() => { let w: string[] = []; return GitHubSync.buildManifest('postapoc', '9.9.9', { onWarn: (m: string[]) => { w = m; } }).then(() => w); });
+    expect(names).toHaveLength(6);
+  });
 });

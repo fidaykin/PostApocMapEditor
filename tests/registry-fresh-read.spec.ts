@@ -101,7 +101,7 @@ test('a registry changed on the server between read and write aborts the publish
   expect(registryIds(gh)).toContain('other');
   expect(gh.json('packages/registry.json').packages.find((p: any) => p.id === 'pp').version).toBe('1.0.0');
   expect(gh.json('packages/pp/package.json').version).toBe('1.0.0');
-  await expect(page.locator('#toast-container')).toContainText(/409|changed on the server since it was read/);   // caught before the manifest write now, or by the registry's own conditional write
+  await expect(page.locator('#toast-container')).toContainText('409');
 });
 
 test('New Package refuses with no write when the live registry cannot be read', async ({ page }) => {

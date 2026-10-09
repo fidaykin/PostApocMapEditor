@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.09";
-const COMMIT  = "bf0195f";
+const COMMIT  = "dadaa80";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9496,6 +9496,7 @@ const GitHubSync = (() => {
       if (!found) missing.push(ref);
     }
     if (missing.length) console.warn(`[GitHubSync] manifest ${id}: ${missing.length} referenced sprite(s) are not on the server and are not listed:`, missing);
+    if (opts.onWarn) opts.onWarn(missing);                       // side channel: the manifest object itself carries no warnings
 
     const rels = [...dbs.map(d => d.rel), ...sprites];
     const bad = rels.map(r => [r, _manifestPathProblem(r)]).filter(x => x[1]);
@@ -9531,7 +9532,8 @@ const GitHubSync = (() => {
 
   // Writes packages/<id>/manifest.json. The old file's sha is taken BEFORE the build (no parsing: a corrupt old manifest is simply
   // replaced) and the write is conditional on it, so a concurrent writer makes this fail instead of being overwritten.
-  // opts.registrySha: the registry.json sha the caller read; if the registry changed since, nothing is written.
+  // opts.registrySha (base refresh only, where the version derives from the registry): the registry.json sha the caller read;
+  // if the registry changed since, nothing is written. Package publishes do not pass it: their manifest must follow their files.
   async function publishManifest(id, version, opts = {}) {
     const path = `packages/${id}/manifest.json`;
     const prevSha = await _fileSha(path);                                   // null = no manifest yet
@@ -9571,7 +9573,7 @@ const GitHubSync = (() => {
       if (_semParse(v) && _semCmp(v, top) > 0) top = v;
     const version = _bumpPatch(top);
 
-    const m = await publishManifest(id, version, { registrySha: regFile.sha, onProgress: opts.onProgress });
+    const m = await publishManifest(id, version, { registrySha: regFile.sha, onProgress: opts.onProgress, onWarn: opts.onWarn });
     Object.assign(entry, { version }, manifestRegistryFields(m));
     await _putText('packages/registry.json', JSON.stringify(reg, null, 2), `registry: ${id} ${version} (manifest)`, regFile.sha);
 
@@ -9580,13 +9582,17 @@ const GitHubSync = (() => {
     return { version };
   }
 
+  const _missingNote = list => list.length ? `⚠ ${list.length} referenced sprite(s) are not on the server: ${list.slice(0, 5).join(', ')}${list.length > 5 ? ', …' : ''}` : '';
+
   // Called at the end of a base publish: the publish already succeeded, so a manifest problem is a warning, not a failure.
   // finish: also close the progress bar (when no publish function is going to).
   async function refreshBaseManifestSafely(finish = false) {
     UI.progress(90, 'Updating package manifest…');
     try {
-      const r = await refreshBaseManifest('postapoc', { onProgress: (d, t) => UI.progress(90 + Math.round(9 * d / Math.max(t, 1)), 'Hashing sprites…') });
+      let missing = [];
+      const r = await refreshBaseManifest('postapoc', { onProgress: (d, t) => UI.progress(90 + Math.round(9 * d / Math.max(t, 1)), 'Hashing sprites…'), onWarn: w => { missing = w; } });
       if (finish === true) UI.progressDone('✅ Package manifest updated');
+      if (missing.length) UI.toast(_missingNote(missing), { sticky: true, detail: missing.join('\n') });
       return r;
     } catch (e) {
       console.error('[GitHubSync] manifest refresh failed:', e);
@@ -10122,7 +10128,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    sha256Hex, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem,
+    sha256Hex, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
     _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
@@ -14893,9 +14899,12 @@ const Packages = (() => {
         await GitHubSync._putBinary(`packages/${id}/preview.png`, await (await fetch(previewUrl)).blob(), `publish ${id}: preview.png`);
       }
 
+      // Written whatever the registry did meanwhile: its version comes from this package's package.json, and the DBs/sprites
+      // are already on the server, so the old manifest no longer matches them. Only the registry's own conditional PUT may fail.
+      let manifestMissing = [];
       UIprogress(79, `Writing ${id}/manifest.json…`);
       const manifest = await GitHubSync.publishManifest(id, newVersion, {
-        dependencies: det.dependencies, registrySha: regSha,
+        dependencies: det.dependencies, onWarn: w => { manifestMissing = w; },
         onProgress: (d, t) => UIprogress(79, `Hashing ${id} files ${d}/${t}…`),
       });
 
@@ -14935,6 +14944,8 @@ const Packages = (() => {
       UI.progressDone(`✅ Package "${entry.name}" v${newVersion} published${spriteNote}`);
       if (spriteResult.missing.length) {
         UI.toast(`⚠ ${entry.name} v${newVersion} published, but ${spriteResult.missing.length} sprite(s) missing`, { sticky: true, detail: spriteResult.missing.join(', ') });
+      } else if (manifestMissing.length) {
+        UI.toast(`${entry.name} v${newVersion} published. ${GitHubSync._missingNote(manifestMissing)}`, { sticky: true, detail: manifestMissing.join('\n') });
       } else {
         UI.toast(`✅ ${entry.name} v${newVersion} published${spriteNote}`);
       }
@@ -15724,10 +15735,11 @@ const Packages = (() => {
     const putText = (path, text, message) => put(path, GitHubSync._encodeText(text), message);
     const putBlob = async (path, blob, message) => put(path, await GitHubSync._encodeBlob(blob), message);
     let keepServer = false;
+    let serverReg = null;
     try {
       UI.progress(0, 'Starting import…');
       if (!localMode) {
-        await _readRegistry();   // fail closed before anything is written
+        serverReg = await _readRegistry();   // fail closed before anything is written
         // Every file the import will write is read BEFORE the first write: a file the Contents API cannot return
         // (over 1 MB) refuses the import with zero writes, and the snapshot shas make every write conditional.
         for (const path of [pkgJsonPath, hexPath, bldPath, manifestPath, ...spriteJobs.filter(j => !j.keep).map(j => j.serverPath), ...(plan.preview ? [previewPath] : [])])
@@ -15742,8 +15754,25 @@ const Packages = (() => {
           ...listTrash().filter(t => t.id !== newId)]);
         if (!kept.ok) throw new Error('Could not save a restore copy of the existing package');
       }
-      // The ZIP's version is kept; the server's changelog (Replace/Merge over a published package) is preserved.
-      const version = plan.pkg.version || '1.0.0';
+      // A package that is not on the server keeps the ZIP's version. One that is already published gets a version ABOVE every
+      // version the server knows (registry, package.json, manifest.json): the ZIP's own if that already is, else one patch above the highest: a number is never reused with different
+      // content (clients fetch with ?v=<version> and Pages caches that ~10 min). The server's changelog is preserved.
+      let version = plan.pkg.version || '1.0.0';
+      if (!localMode) {
+        const snapJsonVersion = snap => { try { return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(snap.content), c => c.charCodeAt(0)))).version; } catch (e) { return null; } };
+        const regEntryOld = serverReg && serverReg.regData.packages.find(p => p.id === newId);
+        const seen = [regEntryOld && regEntryOld.version, snaps.get(pkgJsonPath) && snapJsonVersion(snaps.get(pkgJsonPath)), snaps.get(manifestPath) && snapJsonVersion(snaps.get(manifestPath))];
+        if (regEntryOld || snaps.get(pkgJsonPath)) {
+          const zipOk = !!GitHubSync._semParse(version);
+          let top = zipOk ? version : '0.0.0';
+          let serverTop = null;
+          for (const v of seen) if (GitHubSync._semParse(v) && (serverTop === null || GitHubSync._semCmp(v, serverTop) > 0)) serverTop = v;
+          if (serverTop !== null && GitHubSync._semCmp(serverTop, top) > 0) top = serverTop;
+          // A ZIP version strictly above everything the server knows is a number nobody used yet: it is kept.
+          if (!(zipOk && (serverTop === null || GitHubSync._semCmp(version, serverTop) > 0))) version = GitHubSync._bumpPatch(top);
+        }
+      }
+      const publishedVersion = version;
       let changelog = [];
       const prevPkg = snaps.get(pkgJsonPath);
       if (prevPkg) {
@@ -15856,7 +15885,7 @@ const Packages = (() => {
       Terrain.registerUploadedUrls(localSprites);
       UI.progressDone(`✅ Package '${name}' imported`);
       const verb = mode === 'replace' ? 'replaced' : mode === 'merge' ? 'merged' : 'imported';
-      UI.toast(`✅ Package '${name}' ${verb} (${hexes.length} hex tiles, ${buildings.length} buildings)` + (skipped.length ? `; ${skipped.length} sprite(s) skipped: already stored for this package (not overwritten here or on the server)` : ''),
+      UI.toast(`✅ Package '${name}' ${verb} as v${publishedVersion} (${hexes.length} hex tiles, ${buildings.length} buildings)` + (skipped.length ? `; ${skipped.length} sprite(s) skipped: already stored for this package (not overwritten here or on the server)` : ''),
                skipped.length ? { ms: 8000, detail: skipped.map(n => `skipped: ${n}`).join('\n') } : undefined);
       _importResult = { status: 'ok', remaining: [] };
       renderPanel();

@@ -171,7 +171,7 @@ test('a registry changed meanwhile (409) fails the attempt; the retry re-reads t
     return false;
   };
   await page.getByRole('button', { name: 'Publish anyway' }).click();
-  await expect(page.locator('#pub-error')).toContainText(/409|changed on the server since it was read/);   // caught before the manifest write now, or by the registry's own conditional write
+  await expect(page.locator('#pub-error')).toContainText('409');
   gh.failPut = () => false;
   await page.getByRole('button', { name: 'Publish anyway' }).click();
   await waitForLastWrite(gh, PKG);
