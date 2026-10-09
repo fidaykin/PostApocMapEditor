@@ -157,3 +157,62 @@ test('sprite names the editor itself publishes (spaces, + and &) are listed, not
   const f = m.files.find((x: any) => x.path === 'sprites/hex/a b+c&d.png');
   expect(f.sha256).toBe(sha(PNG));
 });
+
+test('refreshBaseManifest bumps the patch once and keeps manifest, registry and package.json consistent', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.write('packages/registry.json', JSON.stringify({ version: 1, packages: [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }] }));
+  gh.setJson('packages/postapoc/package.json', { id: 'postapoc', name: 'Post-Apocalypse', version: '1.0.0', isDefault: true });
+  gh.write('packages/postapoc/hex_database.json', '{"version":1,"package":"postapoc","hexes":[]}');
+  gh.write('packages/postapoc/building_database.json', '{"version":2,"package":"postapoc","buildings":[]}');
+  await openEditor(page, { gh, pat: true });
+
+  const r = await page.evaluate(() => GitHubSync.refreshBaseManifest());
+  expect(r.version).toBe('1.0.1');
+  expect(gh.json('packages/postapoc/manifest.json').version).toBe('1.0.1');
+  expect(gh.json('packages/registry.json').packages[0].version).toBe('1.0.1');
+  expect(gh.json('packages/registry.json').packages[0].manifestUrl).toBe('packages/postapoc/manifest.json');
+  expect(gh.json('packages/postapoc/package.json').version).toBe('1.0.1');
+
+  const r2 = await page.evaluate(() => GitHubSync.refreshBaseManifest());
+  expect(r2.version).toBe('1.0.2');
+});
+
+test('Publish HexDB also refreshes the postapoc manifest; a manifest failure only warns', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.write('packages/registry.json', JSON.stringify({ version: 1, packages: [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }] }));
+  await openEditor(page, { gh, pat: true });
+  await page.evaluate(() => GitHubSync.publishHexDbOnly());
+  expect(gh.putPaths()).toContain('packages/postapoc/hex_database.json');
+  expect(gh.putPaths()).toContain('packages/postapoc/manifest.json');
+
+  const gh2 = new FakeGitHub();
+  gh2.write('packages/registry.json', JSON.stringify({ version: 1, packages: [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }] }));
+  gh2.failPut = p => p === 'packages/postapoc/manifest.json';
+  const page2 = await page.context().newPage();
+  await openEditor(page2, { gh: gh2, pat: true });
+  await page2.evaluate(() => GitHubSync.publishHexDbOnly());           // must not throw
+  expect(gh2.putPaths()).toContain('hex_database.json');                // the publish itself still succeeded
+  expect(gh2.json('packages/registry.json').packages[0].version).toBe('1.0.0');
+});
+
+test('Publish Buildings DB refreshes the postapoc manifest', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.write('packages/registry.json', JSON.stringify({ version: 1, packages: [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }] }));
+  await openEditor(page, { gh, pat: true });
+  await page.evaluate(() => GitHubSync.publishBuildingsDb());
+  expect(gh.putPaths()).toContain('packages/postapoc/building_database.json');
+  expect(gh.putPaths()).toContain('packages/postapoc/manifest.json');
+});
+
+test('Publish Sprites also refreshes the postapoc manifest', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.write('packages/registry.json', JSON.stringify({ version: 1, packages: [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }] }));
+  await openEditor(page, { gh, pat: true });
+  await page.evaluate(async () => {
+    const png = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+    await SpriteStore.save('ManifestProbe', png, 'hex', 'postapoc');
+    await GitHubSync.publishAllSprites();
+  });
+  expect(gh.putPaths()).toContain('packages/postapoc/sprites/hex/ManifestProbe.png');
+  expect(gh.putPaths()).toContain('packages/postapoc/manifest.json');
+});

@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.09";
-const COMMIT  = "15d48d8";
+const COMMIT  = "cb90300";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9479,6 +9479,42 @@ const GitHubSync = (() => {
     return m;
   }
 
+  function _bumpPatch(v) {
+    const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(v || ''));
+    return m ? `${m[1]}.${m[2]}.${+m[3] + 1}` : '1.0.1';
+  }
+
+  // Release step for the base package: new patch version -> manifest -> registry entry -> package.json.
+  // Order matches a package publish: the manifest exists before anything advertises it.
+  async function refreshBaseManifest(id = 'postapoc') {
+    const regFile = await readRepoFile('packages/registry.json');
+    if (!regFile || !regFile.json || !Array.isArray(regFile.json.packages)) throw new Error('registry.json missing or invalid');
+    const reg = regFile.json;
+    const entry = reg.packages.find(p => p.id === id);
+    if (!entry) throw new Error(`Package "${id}" is not in the registry`);
+    const version = _bumpPatch(entry.version);
+
+    const m = await publishManifest(id, version);
+    Object.assign(entry, { version }, manifestRegistryFields(m));
+    await _putText('packages/registry.json', JSON.stringify(reg, null, 2), `registry: ${id} ${version} (manifest)`, regFile.sha);
+
+    const pkgFile = await readRepoFile(`packages/${id}/package.json`);
+    if (pkgFile && pkgFile.json)
+      await _putText(`packages/${id}/package.json`, JSON.stringify({ ...pkgFile.json, version }, null, 2), `publish ${id}: package.json`, pkgFile.sha);
+    return { version };
+  }
+
+  // Called at the end of a base publish: the publish already succeeded, so a manifest problem is a warning, not a failure.
+  async function _refreshBaseManifestSafely() {
+    UI.progress(90, 'Updating package manifest…');
+    try { return await refreshBaseManifest('postapoc'); }
+    catch (e) {
+      console.error('[GitHubSync] manifest refresh failed:', e);
+      UI.toast('⚠ Published, but the package manifest was NOT updated: ' + e.message, { sticky: true });
+      return null;
+    }
+  }
+
   // ── PAT validation ────────────────────────────────────────────
   async function validatePAT(pat) {
     try {
@@ -9571,6 +9607,7 @@ const GitHubSync = (() => {
       await _putText('packages/postapoc/hex_database.json', pkgJson, 'publish: hex_database.json');
       UI.progress(70, 'Writing root hex_database.json (compat)…');
       await _putText('hex_database.json', json, 'publish: hex_database.json');
+      await _refreshBaseManifestSafely();
       UI.progressDone('✅ HexDB published');
       UI.toast(`✅ hex_database.json published: ${hexes.length} base tiles${_baseOnlyNote(skipped)}`, skipped ? { ms: 6000 } : undefined);
     });
@@ -9589,6 +9626,7 @@ const GitHubSync = (() => {
         done++;
         UI.progress(Math.round((done / all.length) * 90) + 10, `${done}/${all.length} sprites…`);
       }
+      await _refreshBaseManifestSafely();
       UI.progressDone(`✅ ${all.length} sprites published`);
       UI.toast(`✅ ${all.length} sprites published`);
     });
@@ -9635,6 +9673,7 @@ const GitHubSync = (() => {
       await _putText('packages/postapoc/building_database.json', JSON.stringify(pkgData, null, 2), 'publish: building_database.json');
       UI.progress(70, 'Writing root building_database.json (compat)…');
       await _putText('building_database.json', JSON.stringify(rawData, null, 2), 'publish: building_database.json');
+      await _refreshBaseManifestSafely();
       UI.progressDone('✅ Buildings DB published');
       UI.toast(`✅ building_database.json published: ${buildings.length} base buildings${_baseOnlyNote(skipped)}`, skipped ? { ms: 6000 } : undefined);
     });
@@ -9997,7 +10036,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    sha256Hex, buildManifest, manifestRegistryFields, publishManifest,
+    sha256Hex, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest,
     _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
