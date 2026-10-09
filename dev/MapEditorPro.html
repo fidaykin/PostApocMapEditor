@@ -2815,8 +2815,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.08";
-const COMMIT  = "94cc846";
+const VERSION = "2026.10.09";
+const COMMIT  = "957b33f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -17502,6 +17502,21 @@ const HexDB = (() => {
         });
       }
     });
+
+    // ── Wire Type select → WATER EXITS block follows the type ─
+    // Registered after the generic _readRecord listeners above, so the typed values are already saved.
+    const typeEl = document.querySelector('#hexdb-right [data-field="type"]');
+    if (typeEl) {
+      typeEl.addEventListener('change', () => {
+        if (_selFilt < 0) return;
+        const h = _data.hexes[_filtered[_selFilt]];
+        if (h.type !== 'Rivers' && Array.isArray(h.edgeFaces) && h.edgeFaces.length) {
+          h.edgeFaces = [];
+          _autoSave();
+        }
+        _renderRecord(h);
+      });
+    }
 
     // ── Wire Can Destroy toggle → re-render ──────────────────
     const canDesEl = document.querySelector('#hexdb-right [data-field="canDestroy"]');
