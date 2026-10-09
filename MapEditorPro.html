@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.09";
-const COMMIT  = "c994c2b";
+const COMMIT  = "5144db1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9404,6 +9404,71 @@ const GitHubSync = (() => {
     return _putContents(path, await _encodeBlob(blob), message);
   }
 
+  // ── Package manifest (spec 4.2) ───────────────────────────────
+  // Read the server's bytes through the Contents API (never the Pages CDN, which lags commits) and hash exactly those.
+  async function sha256Hex(bytes) {
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  const _MANIFEST_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+
+  // Bytes of one repo file, or null on 404. Files over 1 MB come back from the Contents API without inline content:
+  // ask for the raw media type then.
+  async function _readRepoBytes(path) {
+    const url = `${GH_API}/${_ghPath(path)}?ref=${BRANCH}`;
+    const headers = { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' };
+    const res = await fetch(url, { cache: 'no-store', headers });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`GitHub GET ${path}: ${res.status}`);
+    const j = await res.json();
+    if (j && (!j.encoding || j.encoding === 'base64') && typeof j.content === 'string' && j.content.length) {   // the real API always says 'base64'; the harness omits it
+      const bin = atob(j.content.replace(/\n/g, ''));
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+    const raw = await fetch(url, { cache: 'no-store', headers: { ...headers, 'Accept': 'application/vnd.github.raw+json' } });
+    if (!raw.ok) throw new Error(`GitHub GET (raw) ${path}: ${raw.status}`);
+    return new Uint8Array(await raw.arrayBuffer());
+  }
+
+  async function buildManifest(id, version, opts = {}) {
+    if (!_MANIFEST_NAME_RE.test(String(id)) || !_MANIFEST_NAME_RE.test(String(version)))
+      throw new Error(`Refusing unsafe package id/version "${id}" / "${version}"`);
+    const rels = ['hex_database.json', 'building_database.json'];
+    for (const cat of ['hex', 'buildings']) {
+      const items = await _listFolder(`packages/${id}/sprites/${cat}`);
+      for (const it of items) {
+        if (it.type === 'dir' || !/\.png$/i.test(it.name)) continue;      // skips the legacy sprites/hex/manifest.json array too
+        if (!_MANIFEST_NAME_RE.test(it.name)) throw new Error(`Refusing unsafe sprite file name "${it.name}"`);
+        rels.push(`sprites/${cat}/${it.name}`);
+      }
+    }
+    const files = [];
+    let done = 0;
+    for (const rel of rels) {
+      const bytes = await _readRepoBytes(`packages/${id}/${rel}`);
+      if (bytes) files.push({ path: rel, sha256: await sha256Hex(bytes), size: bytes.length });
+      if (opts.onProgress) opts.onProgress(++done, rels.length);
+    }
+    files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+    return {
+      schemaVersion: 1,
+      id, version,
+      minAppVersion: '0.0.0',
+      generatedAt: new Date().toISOString(),
+      totalBytes: files.reduce((n, f) => n + f.size, 0),
+      dependencies: opts.dependencies || [],
+      files,
+    };
+  }
+
+  function manifestRegistryFields(m) {
+    return { manifestUrl: `packages/${m.id}/manifest.json`, totalBytes: m.totalBytes,
+             minAppVersion: m.minAppVersion, schemaVersion: m.schemaVersion };
+  }
+
   // ── PAT validation ────────────────────────────────────────────
   async function validatePAT(pat) {
     try {
@@ -9922,6 +9987,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
+    sha256Hex, buildManifest, manifestRegistryFields,
     _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
