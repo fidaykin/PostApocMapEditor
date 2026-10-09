@@ -1208,7 +1208,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "isLayered": true
     },
     {
       "id": "Decameroon_BrokenShip_1",
@@ -1264,7 +1265,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "isLayered": true
     },
     {
       "id": "Decameroon_Fish_1",
@@ -1312,7 +1314,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "isLayered": true
     },
     {
       "id": "Decameroon_Lake_1",
