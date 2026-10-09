@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.09";
-const COMMIT  = "c77f18e";
+const COMMIT  = "c994c2b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3128,7 +3128,25 @@ const Terrain = (() => {
   }
   function unregisterUploadedUrls(keys) { for (const k of keys) delete _uploadedUrls[k]; }
 
-  const api = { applyHexDbOverrides, getSprite, spriteState, pendingSprites, getCitySprite, getSettlementSprite,
+  // Underlay terrain for a building placed straight into a map cell (Boat, FishTrap, SmallShipyard ...): the building PNG is
+  // transparent, so without a terrain beneath it the canvas shows black. Rule: the per-tile override (tileExtras underTerrainId),
+  // else the building's own underTerrainId, else the first availableTiles entry that is a Water/Rivers hex. null = no underlay.
+  function buildingUnderlayId(bld, tileExtraUnder) {
+    const known = id => typeof id === 'string' && id !== '' && !!(getSprite(id) || byHexId(id));
+    if (known(tileExtraUnder)) return tileExtraUnder;
+    if (!bld) return null;
+    if (known(bld.underTerrainId)) return bld.underTerrainId;
+    if (Array.isArray(bld.availableTiles)) {
+      for (const id of bld.availableTiles) {
+        if (typeof id !== 'string') continue;
+        const e = byHexId(id), t = (e && e.type || '').toLowerCase();
+        if (e && (t === 'water' || t === 'rivers')) return id;
+      }
+    }
+    return null;
+  }
+
+  const api = { applyHexDbOverrides, getSprite, buildingUnderlayId, spriteState, pendingSprites, getCitySprite, getSettlementSprite,
            color, byId, byHexId, getAll, registerUploadedUrls, unregisterUploadedUrls, getUploadedUrl,
            getTerrainSpriteForType, isLayeredHex, onColorsChanged, spriteColorStats,
            SPRITE_FALLBACK_COLORS: (() => { try { return localStorage.getItem('spriteFallbackColors') !== 'off'; } catch (e) { return true; } })() };
@@ -3772,7 +3790,7 @@ const Canvas = (() => {
         _stats.tilesDrawn++;
         const _hid = mapData[row * MAP_WIDTH + col];
         if (!_lyTerrain) { hexClipPath(s.x, s.y, radius); ctx.fillStyle = '#1b1b1b'; ctx.fill(); continue; }   // terrain hidden: flat tile, no sprite / cluster / coastline
-        if (lod === 1) { _drawHexTileSimple(s.x, s.y, radius, _hid); continue; }
+        if (lod === 1) { _drawHexTileSimple(s.x, s.y, radius, _hid, col, row); continue; }
         _drawHexTile(s.x, s.y, radius, _hid, col, row);
         const _he = Terrain.byHexId(_hid);
         if (Array.isArray(_he?.occupiedOffsets) && _he.occupiedOffsets.length > 0)
@@ -4024,6 +4042,30 @@ const Canvas = (() => {
     return v;
   }
 
+  // A map cell may hold a BUILDING id (not a HexDB tile). Returns its underlay hex id (see Terrain.buildingUnderlayId) or null.
+  function _buildingCellUnderlayId(hexId, col, row) {
+    if (typeof BldDB === 'undefined' || typeof hexId !== 'string' || Terrain.byHexId(hexId) || _isBridgeId(hexId)) return null;
+    const lo = hexId.toLowerCase();
+    const bld = BldDB.getAll().find(b => b.id && b.id.toLowerCase() === lo);
+    if (!bld) return null;
+    const extra = (col != null && row != null) ? tileExtras[col + ',' + row]?.underTerrainId : null;
+    return Terrain.buildingUnderlayId(bld, extra);
+  }
+  // Draws the underlay hex like the bridge/layered branches do (inside the caller's clip); flat water colour while the sprite loads.
+  function _drawUnderlayHex(cx, cy, radius, underId) {
+    const ok = im => im && im.complete && im.naturalWidth > 0;
+    const ue = Terrain.byHexId(underId);
+    const layered = !!(ue && Terrain.isLayeredHex(ue));
+    if (layered) {
+      const bg = Terrain.getTerrainSpriteForType(ue.type);
+      if (ok(bg)) ctx.drawImage(bg, cx - radius, cy - radius, radius * 2, radius * 2);
+      else { ctx.fillStyle = _terrainTypeFallbackColor(ue.type); ctx.fill(); }
+    }
+    const us = Terrain.getSprite(underId);
+    if (ok(us)) ctx.drawImage(us, cx - radius, cy - radius, radius * 2, radius * 2);
+    else if (!layered) { ctx.fillStyle = '#2a6fad'; ctx.fill(); }
+  }
+
   function _drawHexTile(cx, cy, radius, hexId, col, row) {
     const hexEntry = Terrain.byHexId(hexId);
     const sprite   = Terrain.getSprite(hexId);
@@ -4077,6 +4119,10 @@ const Canvas = (() => {
       if (sprite && sprite.complete && sprite.naturalWidth > 0)
         ctx.drawImage(sprite, cx - radius, cy - radius, radius * 2, radius * 2);
     } else if (sprite && sprite.complete && sprite.naturalWidth > 0) {
+      if (!hexEntry) {   // a building id in the cell: terrain underneath, the (transparent) building sprite on top
+        const underId = _buildingCellUnderlayId(hexId, col, row);
+        if (underId) _drawUnderlayHex(cx, cy, radius, underId);
+      }
       ctx.drawImage(sprite, cx - radius, cy - radius, radius * 2, radius * 2);
     } else {
       ctx.fillStyle = '#444'; ctx.fill();
@@ -4633,7 +4679,7 @@ const Canvas = (() => {
 
   // Level 1: plain sprite blit, no clip / outline. Multi-tile anchors and bridges show their base terrain only
   // (the cluster sprite and coastline passes are dropped on purpose), layered tiles keep base + top sprite.
-  function _drawHexTileSimple(cx, cy, radius, hexId) {
+  function _drawHexTileSimple(cx, cy, radius, hexId, col, row) {
     const e = Terrain.byHexId(hexId);
     let spr = Terrain.getSprite(hexId), base = null;
     if (_isBridgeId(hexId)) { base = Terrain.getTerrainSpriteForType('Water'); spr = null; }
@@ -4642,6 +4688,10 @@ const Canvas = (() => {
       if (Array.isArray(e.occupiedOffsets) && e.occupiedOffsets.length > 0) spr = null;
     }
     const ok = im => im && im.complete && im.naturalWidth > 0;
+    if (!e && !base && ok(spr)) {   // a building id in the cell: its underlay terrain (e.g. water) under the transparent sprite
+      const underId = _buildingCellUnderlayId(hexId, col, row);
+      if (underId) base = Terrain.getSprite(underId) || Terrain.getTerrainSpriteForType('Water');
+    }
     if (base || spr) {
       if (ok(base)) ctx.drawImage(base, cx - radius, cy - radius, radius * 2, radius * 2);
       if (ok(spr))  ctx.drawImage(spr,  cx - radius, cy - radius, radius * 2, radius * 2);
