@@ -216,3 +216,22 @@ test('Publish Sprites also refreshes the postapoc manifest', async ({ page }) =>
   expect(gh.putPaths()).toContain('packages/postapoc/sprites/hex/ManifestProbe.png');
   expect(gh.putPaths()).toContain('packages/postapoc/manifest.json');
 });
+
+test('contract: a built manifest satisfies every documented rule', async ({ page }) => {
+  const gh = new FakeGitHub();
+  seedPackage(gh, 'cpkg');
+  await openEditor(page, { gh, pat: true });
+  const m = await page.evaluate(() => GitHubSync.buildManifest('cpkg', '2.0.0', { dependencies: ['postapoc'] }));
+  const SAFE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+  expect(Object.keys(m).sort()).toEqual(['dependencies', 'files', 'generatedAt', 'id', 'minAppVersion', 'schemaVersion', 'totalBytes', 'version']);
+  expect(m.id).toMatch(SAFE);
+  expect(m.version).toMatch(SAFE);
+  const paths = m.files.map((f: any) => f.path);
+  expect(new Set(paths).size).toBe(paths.length);
+  expect([...paths].sort()).toEqual(paths);
+  for (const f of m.files) {
+    expect(f.path.split('/').every((s: string) => s && s !== '.' && s !== '..')).toBe(true);
+    expect(f.sha256).toMatch(/^[0-9a-f]{64}$/);
+    expect(Number.isInteger(f.size) && f.size >= 0).toBe(true);
+  }
+});
