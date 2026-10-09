@@ -94,3 +94,66 @@ test('manifestRegistryFields maps a manifest to the optional registry fields', a
     GitHubSync.manifestRegistryFields({ id: 'p', schemaVersion: 1, minAppVersion: '0.0.0', totalBytes: 42, files: [] }));
   expect(f).toEqual({ manifestUrl: 'packages/p/manifest.json', totalBytes: 42, minAppVersion: '0.0.0', schemaVersion: 1 });
 });
+
+import { seedHexes } from './helpers';
+
+test('publishManifest writes packages/<id>/manifest.json and rewriting it is conditional on the stored sha', async ({ page }) => {
+  const gh = new FakeGitHub();
+  seedPackage(gh, 'mp');
+  await openEditor(page, { gh, pat: true });
+  await page.evaluate(() => GitHubSync.publishManifest('mp', '1.0.1'));
+  const m1 = gh.json('packages/mp/manifest.json');
+  expect(m1.version).toBe('1.0.1');
+  await page.evaluate(() => GitHubSync.publishManifest('mp', '1.0.2'));     // second write must carry the first file's sha
+  expect(gh.json('packages/mp/manifest.json').version).toBe('1.0.2');
+  expect(gh.puts.filter(p => p.path === 'packages/mp/manifest.json')).toHaveLength(2);
+});
+
+test('a package publish writes the manifest BEFORE the registry and advertises it there', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.setRegistry([{ id: 'wpkg', name: 'W Pkg', version: '1.0.0' }]);
+  gh.setJson('packages/wpkg/package.json', { id: 'wpkg', name: 'W Pkg', version: '1.0.0', isDefault: false });
+  await openEditor(page, { gh, pat: true });
+  await seedHexes(page, [{ id: 'Wpkg_Hex_1', package: 'wpkg', type: 'Plains', spriteName: 'Wpkg_Hex_1' }]);
+  await page.evaluate(() => Packages.publishPackage('wpkg', { bump: 'patch' }));
+
+  const order = gh.writeLog.map(w => w.path);
+  const iManifest = order.indexOf('packages/wpkg/manifest.json');
+  const iRegistry = order.indexOf('packages/registry.json');
+  const iPkgJson  = order.indexOf('packages/wpkg/package.json');
+  expect(iManifest).toBeGreaterThan(-1);
+  expect(iManifest).toBeLessThan(iRegistry);
+  expect(iRegistry).toBeLessThan(iPkgJson);
+
+  const manifest = gh.json('packages/wpkg/manifest.json');
+  const entry = gh.json('packages/registry.json').packages.find((p: any) => p.id === 'wpkg');
+  expect(manifest.version).toBe('1.0.1');
+  expect(entry.version).toBe('1.0.1');
+  expect(entry.manifestUrl).toBe('packages/wpkg/manifest.json');
+  expect(entry.totalBytes).toBe(manifest.totalBytes);
+  expect(entry.schemaVersion).toBe(1);
+  expect(manifest.files.map((f: any) => f.path)).toContain('hex_database.json');
+});
+
+test('if the manifest cannot be written the registry is not touched', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.setRegistry([{ id: 'fpkg', name: 'F Pkg', version: '1.0.0' }]);
+  gh.setJson('packages/fpkg/package.json', { id: 'fpkg', name: 'F Pkg', version: '1.0.0', isDefault: false });
+  gh.failPut = p => p === 'packages/fpkg/manifest.json';
+  await openEditor(page, { gh, pat: true });
+  await seedHexes(page, [{ id: 'Fpkg_Hex_1', package: 'fpkg', type: 'Plains', spriteName: 'Fpkg_Hex_1' }]);
+  const r = await page.evaluate(() => Packages.publishPackage('fpkg', { bump: 'patch' }).catch((e: any) => ({ error: String(e && e.message || e) })));
+  expect(gh.json('packages/registry.json').packages.find((p: any) => p.id === 'fpkg').version).toBe('1.0.0');
+  expect(gh.putPaths()).not.toContain('packages/registry.json');
+  void r;
+});
+
+test('sprite names the editor itself publishes (spaces, + and &) are listed, not refused', async ({ page }) => {
+  const gh = new FakeGitHub();
+  seedPackage(gh, 'odd');
+  gh.write('packages/odd/sprites/hex/a b+c&d.png', PNG);
+  await openEditor(page, { gh, pat: true });
+  const m = await page.evaluate(() => GitHubSync.buildManifest('odd', '1.0.0'));
+  const f = m.files.find((x: any) => x.path === 'sprites/hex/a b+c&d.png');
+  expect(f.sha256).toBe(sha(PNG));
+});

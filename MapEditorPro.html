@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.09";
-const COMMIT  = "5144db1";
+const COMMIT  = "15d48d8";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9412,6 +9412,7 @@ const GitHubSync = (() => {
   }
 
   const _MANIFEST_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+  const _MANIFEST_SPRITE_FILE_RE = /^[^./\\\u0000-\u001f\u007f][^/\\\u0000-\u001f\u007f]{0,254}$/;   // no separators, no leading dot, no control chars
 
   // Bytes of one repo file, or null on 404. Files over 1 MB come back from the Contents API without inline content:
   // ask for the raw media type then.
@@ -9441,7 +9442,8 @@ const GitHubSync = (() => {
       const items = await _listFolder(`packages/${id}/sprites/${cat}`);
       for (const it of items) {
         if (it.type === 'dir' || !/\.png$/i.test(it.name)) continue;      // skips the legacy sprites/hex/manifest.json array too
-        if (!_MANIFEST_NAME_RE.test(it.name)) throw new Error(`Refusing unsafe sprite file name "${it.name}"`);
+        // The editor itself publishes sprite names with spaces and + & (sanitizeSpriteName), so only path-like names are refused.
+        if (!_MANIFEST_SPRITE_FILE_RE.test(it.name)) throw new Error(`Refusing unsafe sprite file name "${it.name}"`);
         rels.push(`sprites/${cat}/${it.name}`);
       }
     }
@@ -9467,6 +9469,14 @@ const GitHubSync = (() => {
   function manifestRegistryFields(m) {
     return { manifestUrl: `packages/${m.id}/manifest.json`, totalBytes: m.totalBytes,
              minAppVersion: m.minAppVersion, schemaVersion: m.schemaVersion };
+  }
+
+  async function publishManifest(id, version, opts = {}) {
+    const m = await buildManifest(id, version, opts);
+    const path = `packages/${id}/manifest.json`;
+    const prev = await readRepoFile(path);                                  // null = no manifest yet
+    await _putText(path, JSON.stringify(m, null, 2), `manifest: ${id} ${version}`, prev ? prev.sha : null);
+    return m;
   }
 
   // ── PAT validation ────────────────────────────────────────────
@@ -9987,7 +9997,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    sha256Hex, buildManifest, manifestRegistryFields,
+    sha256Hex, buildManifest, manifestRegistryFields, publishManifest,
     _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
@@ -14754,9 +14764,12 @@ const Packages = (() => {
         await GitHubSync._putBinary(`packages/${id}/preview.png`, await (await fetch(previewUrl)).blob(), `publish ${id}: preview.png`);
       }
 
+      UIprogress(79, `Writing ${id}/manifest.json…`);
+      const manifest = await GitHubSync.publishManifest(id, newVersion, { dependencies: det.dependencies });
+
       UIprogress(80, 'Updating registry.json…');
       const regEntry = base => {
-        const out = { ...base, version: newVersion };
+        const out = { ...base, version: newVersion, ...GitHubSync.manifestRegistryFields(manifest) };
         delete out.description; delete out.dependencies;
         if (det.description) out.description = det.description;
         if (det.dependencies.length) out.dependencies = det.dependencies;
