@@ -16,7 +16,7 @@ test('empty state, help text and game notice; the packages PDF guide is not link
   await openTab(page);
   await expect(page.locator('#pkg-help')).toContainText('content package');
   await expect(page.locator('#pkg-empty')).toContainText('No custom packages yet');
-  await expect(page.locator('#pkg-game-notice')).toContainText('does not load non-default packages yet');
+  await expect(page.locator('#pkg-game-notice')).toContainText('only after they are unlocked');
   await expect(page.locator('#pkg-guide-link')).toHaveCount(0);
   await expect(page.locator('#pkg-help a')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.innerHTML.includes('content-packages-editor-guide'))).toBe(false);

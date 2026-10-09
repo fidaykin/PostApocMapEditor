@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.09";
-const COMMIT  = "957b33f";
+const COMMIT  = "c77f18e";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -13133,7 +13133,7 @@ const Packages = (() => {
   const LS_ACTIVE   = 'pkg_active';
   const LS_REGISTRY = 'pkg_registry_cache';
   const LS_TRASH    = 'pkg_trash';
-  const GAME_LOADS_NON_DEFAULT = false;   // flip to true once the game ships runtime package loading
+  const GAME_LOADS_NON_DEFAULT = false;   // flip to true once a normal release build can unlock non-default packages (today only the debug panel of development builds does)
 
   let _registry = [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }];
   let _active   = 'postapoc';
@@ -13583,7 +13583,7 @@ const Packages = (() => {
     }
     if (!GAME_LOADS_NON_DEFAULT) {
       kids.push(_el('div', { id: 'pkg-game-notice', class: 'pkg-notice',
-        text: 'The game does not load non-default packages yet. Published packages are stored on the server, but only postapoc content appears in the game today.' }));
+        text: 'Non-default packages are loaded by the game only after they are unlocked, and today that is possible only from the debug panel of development builds. A normal release build shows only postapoc content. Published packages are stored on the server either way.' }));
     }
     if (_registry.some(p => p.localOnly)) {
       kids.push(_el('div', { id: 'pkg-local-notice', class: 'pkg-notice warn',
