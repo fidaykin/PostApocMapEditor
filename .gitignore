@@ -16,3 +16,8 @@ node_modules/
 
 # Subagent-driven-development scratch workspace (ledgers, briefs, review packages)
 .superpowers/
+
+# Isolated git worktrees for in-progress plan execution
+.worktrees/
+test-results/
+playwright-report/

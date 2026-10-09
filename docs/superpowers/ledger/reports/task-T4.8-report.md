@@ -1,0 +1,14 @@
+# T4.8 report: PNG export
+
+Where: MapEditorPro.html (`IO.exportPNG`, `_renderMapImage`, File menu item, left-palette `<details id="png-export-panel">` with `#png-scale` + `#png-export-btn`, CSS), CHANGELOG, tests/export-png.spec.ts (new, 11 tests).
+- Renders into an offscreen canvas only: no Canvas.render, no camera/zoom/LOD/resize. One flat hexagon per tile (`Terrain.color`), then visible layers: zone tint (35 %), roads, buildings + bridges, settlements. Own renderer, not the brief's code (adapted: brief anchors/openEditor 30x30 assumption stale); it does not reuse `Canvas._overviewLayer` because that is a 1px-per-tile live-canvas texture, not an exportable image.
+- Layers: hidden layers are not drawn (terrain hidden = background only); the success toast lists them ("Hidden layers are not included: ...") and CHANGELOG says so.
+- Size cap: 8192 px per side AND 36 megapixels (single canvas ~144 MB max). A larger request is scaled down (toast "Scale reduced to fit the size limit"), NOT tiled. A 450x450 map at 100 % exports at ~0.19 scale (~6000x6000). Decision for the owner if bigger images are wanted (would need tiling + a streaming PNG encoder).
+- Scale choices: 5/10/20/50/100 %/Largest allowed (palette select; File menu uses the selection). Only "whole map" mode; the brief's "current view" mode (live-canvas copy) was dropped as the requirement asks for offscreen rendering.
+- Download: Blob + anchor `map-YYYY-MM-DD.png` (local date), `revokeObjectURL` after 100 ms. Busy state: button disabled "Rendering...", progress bar, second request ignored, always re-enabled (finally). Fill running: refused with toast, no wait. Encoding failure: toast "PNG export failed: ...", nothing downloaded. No shortcut added. Canvas stays 1491x808 at 1400x900 (tested).
+- Render is synchronous after a 2-timeout paint yield, so the image is a consistent snapshot; not cancellable.
+
+Tests: pixel references are hand-written (hex pitch 60 / 40*sqrt(3), `Canvas.hexCenterWorld` for cell centres, literal colour values) and PNG pixels are decoded by the browser's `createImageBitmap`, not by the exporter. Also IHDR size, layers on/off, live canvas dataURL/camera/zoom/canvas count/History unchanged, dated name with `page.clock.setFixedTime` (local 31 Dec 23:59), URL revoked once, busy/disabled state, toBlob failure, fill refusal, cap clamp (450x450), no map.
+RED: 11/11 failed (`IO.exportPNG is not a function` / missing controls). The first GREEN run caught a real bug: the clamped size was 36,003,900 px (rounding past the cap); fixed with a 0.999 factor.
+Sanity mutations (restored, cmp clean): roads layer check removed -> layers test fails; pixel width +1 -> size test fails.
+Focused: export-png 11 + validator-gate 14 + validator-ui + layers + layout-narrow + no-native-dialogs + shortcuts + shortcut-layouts + modal = 310 passed (1.9 min). perf canvas specs not run: no render code touched. No new root script (no deploy change).
