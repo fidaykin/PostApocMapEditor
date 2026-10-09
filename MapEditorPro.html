@@ -2815,7 +2815,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.09";
-const COMMIT  = "c994c2b";
+const COMMIT  = "dadaa80";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9339,6 +9339,8 @@ const GitHubSync = (() => {
           ok++;
         } catch(e) { fail++; console.error(e); }
       }
+      // The uploads changed manifest-covered files (packages/postapoc/sprites/...): ONE refresh for the whole batch.
+      if (ok) await refreshBaseManifestSafely(true);
       UI.toast(fail ? `⚠ ${ok} uploaded, ${fail} failed` : `✅ ${ok} sprite(s) uploaded`);
       openContentManager();
     };
@@ -9352,6 +9354,7 @@ const GitHubSync = (() => {
     input.onchange = async () => {
       const file = input.files[0]; if (!file) return;
       try {
+        // ghPath is one of _CM_DB_FILES, all at the repo ROOT: none of them is covered by a package manifest.
         await _putText(ghPath, await file.text(), `upload: ${ghPath}`);
         UI.toast(`✅ Uploaded ${ghPath}`);
         openContentManager();
@@ -9402,6 +9405,201 @@ const GitHubSync = (() => {
 
   async function _putBinary(path, blob, message) {
     return _putContents(path, await _encodeBlob(blob), message);
+  }
+
+  // ── Package manifest (spec 4.2) ───────────────────────────────
+  // Read the server's bytes through the Contents API (never the Pages CDN, which lags commits) and hash exactly those.
+  async function sha256Hex(bytes) {
+    const digest = await crypto.subtle.digest('SHA-256', bytes);
+    return [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  const _MANIFEST_NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
+  // Why a manifest path would be rejected by the game (Unity PackageManifest.IsSafeRelativePath): ':' '\' a leading '/', an empty,
+  // '.' or '..' segment. Sprite file names also may not start with a dot. Spaces + & % # ? and non-ASCII are fine (the client
+  // escapes each segment). Windows-only rules are not applied: the clients are Android/iOS. '' = fine.
+  function _manifestPathProblem(path) {
+    if (typeof path !== 'string' || !path) return 'empty path';
+    if (path[0] === '/') return 'leading "/"';
+    if (path.includes('\\')) return 'contains "\\"';
+    if (path.includes(':')) return 'contains ":"';
+    for (const seg of path.split('/')) {
+      if (!seg) return 'empty segment';
+      if (seg === '.' || seg === '..') return `"${seg}" segment`;
+    }
+    const file = path.slice(path.lastIndexOf('/') + 1);
+    if (file[0] === '.') return 'file name starts with "."';
+    return '';
+  }
+
+  // Bytes of one repo file, or null on 404. Files over 1 MB come back from the Contents API without inline content:
+  // ask for the raw media type then.
+  async function _readRepoBytes(path) {
+    const url = `${GH_API}/${_ghPath(path)}?ref=${BRANCH}`;
+    const headers = { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' };
+    const res = await fetch(url, { cache: 'no-store', headers });
+    if (res.status === 404) return null;
+    if (!res.ok) throw new Error(`GitHub GET ${path}: ${res.status}`);
+    const j = await res.json();
+    if (Array.isArray(j) || (j && j.type && j.type !== 'file')) throw new Error(`GitHub GET ${path}: unexpected answer (not a file)`);
+    if (j && (!j.encoding || j.encoding === 'base64') && typeof j.content === 'string' && j.content.length) {   // the real API always says 'base64'; the harness omits it
+      const bin = atob(j.content.replace(/\n/g, ''));
+      const out = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+      return out;
+    }
+    const raw = await fetch(url, { cache: 'no-store', headers: { ...headers, 'Accept': 'application/vnd.github.raw+json' } });
+    if (!raw.ok) throw new Error(`GitHub GET (raw) ${path}: ${raw.status}`);
+    return new Uint8Array(await raw.arrayBuffer());
+  }
+
+  // Directory listing for the manifest: authenticated (own rate limit) and uncached (the unauthenticated _listFolder answer
+  // may be up to a minute old, which would drop a sprite uploaded just before). 404 = no such folder; anything else aborts.
+  async function _listDirFresh(path) {
+    const res = await fetch(`${GH_API}/${_ghPath(path)}?ref=${BRANCH}`, {
+      cache: 'no-store', headers: { 'Authorization': `Bearer ${getPAT()}`, 'Accept': 'application/vnd.github+json' },
+    });
+    if (res.status === 404) return [];
+    if (!res.ok) throw new Error(`GitHub LIST ${path}: ${res.status}`);
+    const j = await res.json();
+    if (!Array.isArray(j)) throw new Error(`GitHub LIST ${path}: unexpected answer (not a directory)`);
+    return j;
+  }
+
+  // The manifest lists what the package NEEDS: its two databases plus the sprite files its entries reference by spriteName
+  // (looked up in sprites/hex AND sprites/buildings: a Bridge building's sprite lives in the hex folder). Unreferenced files
+  // in the sprite folders are not listed and so never become mandatory downloads.
+  async function buildManifest(id, version, opts = {}) {
+    if (!_MANIFEST_NAME_RE.test(String(id)) || !_MANIFEST_NAME_RE.test(String(version)))
+      throw new Error(`Refusing unsafe package id/version "${id}" / "${version}"`);
+    const dbs = [];            // { rel, bytes }
+    const refs = new Set();
+    for (const rel of ['hex_database.json', 'building_database.json']) {
+      const bytes = await _readRepoBytes(`packages/${id}/${rel}`);
+      if (!bytes) continue;
+      let data;
+      try { data = JSON.parse(new TextDecoder().decode(bytes)); }
+      catch (e) { throw new Error(`packages/${id}/${rel} is not valid JSON (${e.message}); no manifest was built`); }
+      for (const list of [data && data.hexes, data && data.buildings])
+        if (Array.isArray(list)) for (const e of list) if (e && typeof e.spriteName === 'string' && e.spriteName) refs.add(e.spriteName);
+      dbs.push({ rel, bytes });
+    }
+    const onServer = {};       // category -> Set of file names
+    for (const cat of ['hex', 'buildings'])
+      onServer[cat] = new Set((await _listDirFresh(`packages/${id}/sprites/${cat}`)).filter(it => it && it.type !== 'dir' && typeof it.name === 'string').map(it => it.name));
+    const sprites = [];        // rel paths
+    const missing = [];
+    for (const ref of [...refs].sort()) {
+      let found = false;
+      for (const cat of ['hex', 'buildings'])
+        if (onServer[cat].has(`${ref}.png`)) { sprites.push(`sprites/${cat}/${ref}.png`); found = true; }
+      if (!found) missing.push(ref);
+    }
+    if (missing.length) console.warn(`[GitHubSync] manifest ${id}: ${missing.length} referenced sprite(s) are not on the server and are not listed:`, missing);
+    if (opts.onWarn) opts.onWarn(missing);                       // side channel: the manifest object itself carries no warnings
+
+    const rels = [...dbs.map(d => d.rel), ...sprites];
+    const bad = rels.map(r => [r, _manifestPathProblem(r)]).filter(x => x[1]);
+    const seenLower = new Map();
+    for (const r of rels) { const k = r.toLowerCase(); if (seenLower.has(k) && seenLower.get(k) !== r) bad.push([r, `differs only by case from ${seenLower.get(k)}`]); else seenLower.set(k, r); }
+    if (bad.length)
+      throw new Error(`Refusing unsafe file name(s) in the manifest of "${id}" (the game would reject the whole package): ` + bad.map(([r, why]) => `${r} (${why})`).join(', '));
+
+    const files = [];
+    let done = 0;
+    for (const rel of rels) {
+      const db = dbs.find(d => d.rel === rel);
+      const bytes = db ? db.bytes : await _readRepoBytes(`packages/${id}/${rel}`);
+      if (bytes) files.push({ path: rel, sha256: await sha256Hex(bytes), size: bytes.length });
+      if (opts.onProgress) opts.onProgress(++done, rels.length);
+    }
+    files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+    return {
+      schemaVersion: 1,
+      id, version,
+      minAppVersion: '0.0.0',
+      generatedAt: new Date().toISOString(),
+      totalBytes: files.reduce((n, f) => n + f.size, 0),
+      dependencies: opts.dependencies || [],
+      files,
+    };
+  }
+
+  function manifestRegistryFields(m) {
+    return { manifestUrl: `packages/${m.id}/manifest.json`, totalBytes: m.totalBytes,
+             minAppVersion: m.minAppVersion, schemaVersion: m.schemaVersion };
+  }
+
+  // Writes packages/<id>/manifest.json. The old file's sha is taken BEFORE the build (no parsing: a corrupt old manifest is simply
+  // replaced) and the write is conditional on it, so a concurrent writer makes this fail instead of being overwritten.
+  // opts.registrySha (base refresh only, where the version derives from the registry): the registry.json sha the caller read;
+  // if the registry changed since, nothing is written. Package publishes do not pass it: their manifest must follow their files.
+  async function publishManifest(id, version, opts = {}) {
+    const path = `packages/${id}/manifest.json`;
+    const prevSha = await _fileSha(path);                                   // null = no manifest yet
+    const m = await buildManifest(id, version, opts);
+    if (opts.registrySha !== undefined && await _fileSha('packages/registry.json') !== opts.registrySha)
+      throw new Error('packages/registry.json changed on the server since it was read (another publisher?); the manifest was not written, try again');
+    await _putText(path, JSON.stringify(m, null, 2), `manifest: ${id} ${version}`, prevSha);
+    return m;
+  }
+
+  const _semParse = v => { const m = /^(\d+)\.(\d+)\.(\d+)$/.exec(String(v || '')); return m ? [+m[1], +m[2], +m[3]] : null; };
+  function _semCmp(a, b) { const x = _semParse(a), y = _semParse(b); for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] < y[i] ? -1 : 1; return 0; }
+  function _bumpPatch(v) {
+    const m = _semParse(v);
+    if (!m) throw new Error(`version ${JSON.stringify(v)} is not x.y.z`);
+    return `${m[0]}.${m[1]}.${m[2] + 1}`;
+  }
+  async function _versionInManifest(path) {            // a missing or unreadable manifest has no version to protect
+    try { const b = await _readRepoBytes(path); const v = b && JSON.parse(new TextDecoder().decode(b)).version; return _semParse(v) ? v : null; }
+    catch (e) { return null; }
+  }
+
+  // Release step for the base package: new patch version -> manifest -> registry entry -> package.json.
+  // The new version is above the registry's, the existing manifest's and package.json's: a number a failed earlier run already
+  // put on the server (with other content) is never reused. Order matches a package publish: the manifest exists before
+  // anything advertises it.
+  async function refreshBaseManifest(id = 'postapoc', opts = {}) {
+    const regFile = await readRepoFile('packages/registry.json');
+    if (!regFile || !regFile.json || !Array.isArray(regFile.json.packages)) throw new Error('registry.json missing or invalid');
+    const reg = regFile.json;
+    const entry = reg.packages.find(p => p.id === id);
+    if (!entry) throw new Error(`Package "${id}" is not in the registry`);
+    if (!_semParse(entry.version)) throw new Error(`Package "${id}" has the version ${JSON.stringify(entry.version)} in the registry, which is not x.y.z`);
+    const pkgFile = await readRepoFile(`packages/${id}/package.json`);
+    let top = entry.version;
+    for (const v of [await _versionInManifest(`packages/${id}/manifest.json`), pkgFile && pkgFile.json && pkgFile.json.version])
+      if (_semParse(v) && _semCmp(v, top) > 0) top = v;
+    const version = _bumpPatch(top);
+
+    const m = await publishManifest(id, version, { registrySha: regFile.sha, onProgress: opts.onProgress, onWarn: opts.onWarn });
+    Object.assign(entry, { version }, manifestRegistryFields(m));
+    await _putText('packages/registry.json', JSON.stringify(reg, null, 2), `registry: ${id} ${version} (manifest)`, regFile.sha);
+
+    if (pkgFile && pkgFile.json)
+      await _putText(`packages/${id}/package.json`, JSON.stringify({ ...pkgFile.json, version }, null, 2), `publish ${id}: package.json`, pkgFile.sha);
+    return { version };
+  }
+
+  const _missingNote = list => list.length ? `⚠ ${list.length} referenced sprite(s) are not on the server: ${list.slice(0, 5).join(', ')}${list.length > 5 ? ', …' : ''}` : '';
+
+  // Called at the end of a base publish: the publish already succeeded, so a manifest problem is a warning, not a failure.
+  // finish: also close the progress bar (when no publish function is going to).
+  async function refreshBaseManifestSafely(finish = false) {
+    UI.progress(90, 'Updating package manifest…');
+    try {
+      let missing = [];
+      const r = await refreshBaseManifest('postapoc', { onProgress: (d, t) => UI.progress(90 + Math.round(9 * d / Math.max(t, 1)), 'Hashing sprites…'), onWarn: w => { missing = w; } });
+      if (finish === true) UI.progressDone('✅ Package manifest updated');
+      if (missing.length) UI.toast(_missingNote(missing), { sticky: true, detail: missing.join('\n') });
+      return r;
+    } catch (e) {
+      console.error('[GitHubSync] manifest refresh failed:', e);
+      if (finish === true) UI.progressDone('⚠ Package manifest not updated');
+      UI.toast('⚠ Published, but the package manifest was NOT updated: ' + e.message, { sticky: true });
+      return null;
+    }
   }
 
   // ── PAT validation ────────────────────────────────────────────
@@ -9457,17 +9655,19 @@ const GitHubSync = (() => {
   async function _withPublishBtn(label, fn) {
     if (!isPATConfigured()) {
       UI.toast('⚠ Open your access link first (or use ⚙ GitHub to enter token)');
-      return;
+      return false;
     }
     _closeDropdown();
     const btn = document.getElementById('btn-publish-all');
     if (btn) btn.disabled = true;
     try {
       await fn();
+      return true;
     } catch(e) {
       UI.progressDone('❌ Failed');
       UI.toast(`❌ ${label} failed: ${e.message}`);
       console.error(`[GitHubSync] ${label}:`, e);
+      return false;
     } finally {
       if (btn) btn.disabled = false;
     }
@@ -9481,8 +9681,9 @@ const GitHubSync = (() => {
     return skipped ? ` (${skipped} entr${skipped === 1 ? 'y' : 'ies'} of other packages not included: use Publish Package for those)` : '';
   }
 
-  async function publishHexDbOnly() {
-    await _withPublishBtn('Publish HexDB', async () => {
+  // opts.skipManifest: the caller runs several publishes and does ONE refreshBaseManifestSafely() at the end.
+  async function publishHexDbOnly(opts) {
+    return _withPublishBtn('Publish HexDB', async () => {
       UI.progress(10, 'Publishing hex_database.json…');
       const all = HexDB.getData();
       const hexes = (all.hexes || []).filter(_isBaseEntry);
@@ -9496,13 +9697,14 @@ const GitHubSync = (() => {
       await _putText('packages/postapoc/hex_database.json', pkgJson, 'publish: hex_database.json');
       UI.progress(70, 'Writing root hex_database.json (compat)…');
       await _putText('hex_database.json', json, 'publish: hex_database.json');
+      if (!(opts && opts.skipManifest === true)) await refreshBaseManifestSafely();
       UI.progressDone('✅ HexDB published');
       UI.toast(`✅ hex_database.json published: ${hexes.length} base tiles${_baseOnlyNote(skipped)}`, skipped ? { ms: 6000 } : undefined);
     });
   }
 
-  async function publishAllSprites() {
-    await _withPublishBtn('Publish Sprites', async () => {
+  async function publishAllSprites(opts) {
+    return _withPublishBtn('Publish Sprites', async () => {
       const all = await SpriteStore.loadForPackage('postapoc');   // the shared pool only: package sprites go out with their package
       if (!all.length) { UI.toast('No sprites in local store'); return; }
       UI.progress(10, `Uploading ${all.length} sprites…`);
@@ -9514,6 +9716,7 @@ const GitHubSync = (() => {
         done++;
         UI.progress(Math.round((done / all.length) * 90) + 10, `${done}/${all.length} sprites…`);
       }
+      if (!(opts && opts.skipManifest === true)) await refreshBaseManifestSafely();
       UI.progressDone(`✅ ${all.length} sprites published`);
       UI.toast(`✅ ${all.length} sprites published`);
     });
@@ -9547,8 +9750,8 @@ const GitHubSync = (() => {
     });
   }
 
-  async function publishBuildingsDb() {
-    await _withPublishBtn('Publish Buildings DB', async () => {
+  async function publishBuildingsDb(opts) {
+    return _withPublishBtn('Publish Buildings DB', async () => {
       UI.progress(10, 'Publishing building_database.json…');
       const allData = JSON.parse(BldDB.getJson());
       const buildings = (allData.buildings || []).filter(_isBaseEntry);
@@ -9560,6 +9763,7 @@ const GitHubSync = (() => {
       await _putText('packages/postapoc/building_database.json', JSON.stringify(pkgData, null, 2), 'publish: building_database.json');
       UI.progress(70, 'Writing root building_database.json (compat)…');
       await _putText('building_database.json', JSON.stringify(rawData, null, 2), 'publish: building_database.json');
+      if (!(opts && opts.skipManifest === true)) await refreshBaseManifestSafely();
       UI.progressDone('✅ Buildings DB published');
       UI.toast(`✅ building_database.json published: ${buildings.length} base buildings${_baseOnlyNote(skipped)}`, skipped ? { ms: 6000 } : undefined);
     });
@@ -9603,13 +9807,15 @@ const GitHubSync = (() => {
   }
 
   async function pushSprite(name, blob, category = 'hex') {
-    if (!isPATConfigured()) return;
+    if (!isPATConfigured()) return false;
     try {
       const fname = name.endsWith('.png') ? name : `${name}.png`;
       await _putBinary(`packages/postapoc/sprites/${category}/${fname}`, blob, `sprite: ${fname}`);
       await _putBinary(`sprites/${category}/${fname}`, blob, `sprite: ${fname} (compat)`);
+      return true;
     } catch(e) {
       console.warn('[GitHubSync] pushSprite failed:', e.message);
+      return false;
     }
   }
 
@@ -9922,6 +10128,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
+    sha256Hex, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
     _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
@@ -10960,6 +11167,7 @@ const UI = (() => {
     const pkg = (typeof Packages !== 'undefined') ? Packages.getActive() : 'postapoc';
     const uploadCategory = (_spritePickerOpts.folder || '').includes('buildings') ? 'buildings' : 'hex';
     let ok = 0, skipped = 0;
+    const pushes = [];   // server pushes to the shared pool; ONE manifest refresh once they all finished
     for (const rawFile of files) {
       try {
         const prep = await prepareSpriteUpload(rawFile, pkg, uploadCategory);
@@ -10976,7 +11184,7 @@ const UI = (() => {
         ok++;
         toast(`Uploaded "${prep.name}"` + (pkg !== 'postapoc' ? ` to package "${pkg}"` : ''));
         // Only the default package's sprites go to the shared server pool; other packages ship them on publish.
-        if (pkg === 'postapoc') GitHubSync.pushSprite(prep.name, optimizedFile, uploadCategory);
+        if (pkg === 'postapoc') pushes.push(GitHubSync.pushSprite(prep.name, optimizedFile, uploadCategory));
       } catch (e) {
         console.error(e);
         skipped++;
@@ -10987,6 +11195,8 @@ const UI = (() => {
     if (document.getElementById('sprite-picker-modal').classList.contains('open')) {
       showSpritePicker(_spritePickerCallback, _spritePickerOpts);
     }
+    // The pushed sprites changed manifest-covered files: refresh the base manifest once, after the last push.
+    if (pushes.length && (await Promise.all(pushes)).some(Boolean)) await GitHubSync.refreshBaseManifestSafely(true);
   }
 
   function toast(msg, opts = {}) {
@@ -14457,8 +14667,9 @@ const Packages = (() => {
     if (isDefault(id)) {
       // postapoc: use existing publish functions
       UI.showConfirm('Publish postapoc', 'Publish hex_database.json and building_database.json?', async () => {
-        await GitHubSync.publishHexDbOnly();
-        await GitHubSync.publishBuildingsDb();
+        const a = await GitHubSync.publishHexDbOnly({ skipManifest: true });
+        const b = await GitHubSync.publishBuildingsDb({ skipManifest: true });
+        if (a || b) await GitHubSync.refreshBaseManifestSafely(true);   // one refresh (one version bump) for both publishes
       });
       return;
     }
@@ -14688,9 +14899,18 @@ const Packages = (() => {
         await GitHubSync._putBinary(`packages/${id}/preview.png`, await (await fetch(previewUrl)).blob(), `publish ${id}: preview.png`);
       }
 
+      // Written whatever the registry did meanwhile: its version comes from this package's package.json, and the DBs/sprites
+      // are already on the server, so the old manifest no longer matches them. Only the registry's own conditional PUT may fail.
+      let manifestMissing = [];
+      UIprogress(79, `Writing ${id}/manifest.json…`);
+      const manifest = await GitHubSync.publishManifest(id, newVersion, {
+        dependencies: det.dependencies, onWarn: w => { manifestMissing = w; },
+        onProgress: (d, t) => UIprogress(79, `Hashing ${id} files ${d}/${t}…`),
+      });
+
       UIprogress(80, 'Updating registry.json…');
       const regEntry = base => {
-        const out = { ...base, version: newVersion };
+        const out = { ...base, version: newVersion, ...GitHubSync.manifestRegistryFields(manifest) };
         delete out.description; delete out.dependencies;
         if (det.description) out.description = det.description;
         if (det.dependencies.length) out.dependencies = det.dependencies;
@@ -14724,6 +14944,8 @@ const Packages = (() => {
       UI.progressDone(`✅ Package "${entry.name}" v${newVersion} published${spriteNote}`);
       if (spriteResult.missing.length) {
         UI.toast(`⚠ ${entry.name} v${newVersion} published, but ${spriteResult.missing.length} sprite(s) missing`, { sticky: true, detail: spriteResult.missing.join(', ') });
+      } else if (manifestMissing.length) {
+        UI.toast(`${entry.name} v${newVersion} published. ${GitHubSync._missingNote(manifestMissing)}`, { sticky: true, detail: manifestMissing.join('\n') });
       } else {
         UI.toast(`✅ ${entry.name} v${newVersion} published${spriteNote}`);
       }
@@ -15496,7 +15718,7 @@ const Packages = (() => {
 
     // Server layout: every written path is built from the ZIP's validated, canonical (lowercase folder, .png) parts.
     const pkgJsonPath = `packages/${newId}/package.json`, hexPath = `packages/${newId}/hex_database.json`, bldPath = `packages/${newId}/building_database.json`;
-    const previewPath = `packages/${newId}/preview.png`;
+    const previewPath = `packages/${newId}/preview.png`, manifestPath = `packages/${newId}/manifest.json`;
     // A kept local sprite (anything already stored for this package, except in Replace) is never pushed to the server
     // either: the server DB then points at the sprite the user keeps, and the summary says so.
     const spriteJobs = plan.sprites.map(sp => ({ ...sp, serverPath: `packages/${newId}/sprites/${sp.category}/${sp.name}.png`, keep: mode !== 'replace' && stored.has(sp.name) }));
@@ -15513,13 +15735,14 @@ const Packages = (() => {
     const putText = (path, text, message) => put(path, GitHubSync._encodeText(text), message);
     const putBlob = async (path, blob, message) => put(path, await GitHubSync._encodeBlob(blob), message);
     let keepServer = false;
+    let serverReg = null;
     try {
       UI.progress(0, 'Starting import…');
       if (!localMode) {
-        await _readRegistry();   // fail closed before anything is written
+        serverReg = await _readRegistry();   // fail closed before anything is written
         // Every file the import will write is read BEFORE the first write: a file the Contents API cannot return
         // (over 1 MB) refuses the import with zero writes, and the snapshot shas make every write conditional.
-        for (const path of [pkgJsonPath, hexPath, bldPath, ...spriteJobs.filter(j => !j.keep).map(j => j.serverPath), ...(plan.preview ? [previewPath] : [])])
+        for (const path of [pkgJsonPath, hexPath, bldPath, manifestPath, ...spriteJobs.filter(j => !j.keep).map(j => j.serverPath), ...(plan.preview ? [previewPath] : [])])
           snaps.set(path, await GitHubSync._snapshotFile(path));
         if (mode === 'new' && [pkgJsonPath, hexPath, bldPath].some(x => snaps.get(x)))
           throw new Error(`the package id "${newId}" was taken on the server by someone else while the import started`);
@@ -15531,8 +15754,25 @@ const Packages = (() => {
           ...listTrash().filter(t => t.id !== newId)]);
         if (!kept.ok) throw new Error('Could not save a restore copy of the existing package');
       }
-      // The ZIP's version is kept; the server's changelog (Replace/Merge over a published package) is preserved.
-      const version = plan.pkg.version || '1.0.0';
+      // A package that is not on the server keeps the ZIP's version. One that is already published gets a version ABOVE every
+      // version the server knows (registry, package.json, manifest.json): the ZIP's own if that already is, else one patch above the highest: a number is never reused with different
+      // content (clients fetch with ?v=<version> and Pages caches that ~10 min). The server's changelog is preserved.
+      let version = plan.pkg.version || '1.0.0';
+      if (!localMode) {
+        const snapJsonVersion = snap => { try { return JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(snap.content), c => c.charCodeAt(0)))).version; } catch (e) { return null; } };
+        const regEntryOld = serverReg && serverReg.regData.packages.find(p => p.id === newId);
+        const seen = [regEntryOld && regEntryOld.version, snaps.get(pkgJsonPath) && snapJsonVersion(snaps.get(pkgJsonPath)), snaps.get(manifestPath) && snapJsonVersion(snaps.get(manifestPath))];
+        if (regEntryOld || snaps.get(pkgJsonPath)) {
+          const zipOk = !!GitHubSync._semParse(version);
+          let top = zipOk ? version : '0.0.0';
+          let serverTop = null;
+          for (const v of seen) if (GitHubSync._semParse(v) && (serverTop === null || GitHubSync._semCmp(v, serverTop) > 0)) serverTop = v;
+          if (serverTop !== null && GitHubSync._semCmp(serverTop, top) > 0) top = serverTop;
+          // A ZIP version strictly above everything the server knows is a number nobody used yet: it is kept.
+          if (!(zipOk && (serverTop === null || GitHubSync._semCmp(version, serverTop) > 0))) version = GitHubSync._bumpPatch(top);
+        }
+      }
+      const publishedVersion = version;
       let changelog = [];
       const prevPkg = snaps.get(pkgJsonPath);
       if (prevPkg) {
@@ -15576,6 +15816,15 @@ const Packages = (() => {
         previewUrl = await _blobToDataUrl(blob);
       }
 
+      // Manifest of what is now on the server (its files were just written by this import): written like every other import
+      // file, so a failure later is compensated (a replaced package gets its old manifest back). Before the registry.
+      let manifest = null;
+      if (!localMode) {
+        UI.progress(93, 'Writing manifest.json…');
+        manifest = await GitHubSync.buildManifest(newId, version, { dependencies: det.dependencies });
+        await putText(manifestPath, JSON.stringify(manifest, null, 2), `import ${newId}: manifest.json`);
+      }
+
       // Local state, before the registry so a local failure never touches it.
       localTouched = true;
       _reloadDetails()[newId] = { description: det.description, dependencies: det.dependencies.slice() };
@@ -15611,7 +15860,7 @@ const Packages = (() => {
       const { regData, sha: regSha } = await _readRegistry();
       const at = regData.packages.findIndex(p => p.id === newId);
       const withDetails = base => {
-        const out = { ...base };
+        const out = { ...base, ...GitHubSync.manifestRegistryFields(manifest) };
         delete out.description; delete out.dependencies;
         if (det.description) out.description = det.description;
         if (det.dependencies.length) out.dependencies = det.dependencies;
@@ -15636,7 +15885,7 @@ const Packages = (() => {
       Terrain.registerUploadedUrls(localSprites);
       UI.progressDone(`✅ Package '${name}' imported`);
       const verb = mode === 'replace' ? 'replaced' : mode === 'merge' ? 'merged' : 'imported';
-      UI.toast(`✅ Package '${name}' ${verb} (${hexes.length} hex tiles, ${buildings.length} buildings)` + (skipped.length ? `; ${skipped.length} sprite(s) skipped: already stored for this package (not overwritten here or on the server)` : ''),
+      UI.toast(`✅ Package '${name}' ${verb} as v${publishedVersion} (${hexes.length} hex tiles, ${buildings.length} buildings)` + (skipped.length ? `; ${skipped.length} sprite(s) skipped: already stored for this package (not overwritten here or on the server)` : ''),
                skipped.length ? { ms: 8000, detail: skipped.map(n => `skipped: ${n}`).join('\n') } : undefined);
       _importResult = { status: 'ok', remaining: [] };
       renderPanel();
@@ -18516,7 +18765,8 @@ const HexDB = (() => {
               } else {
                 await SpriteStore.save(newBld.spriteName, spriteDataUrl, 'buildings', hexPkg);
                 // Push to GitHub buildings folder (fire-and-forget); other packages ship their sprites on publish
-                if (hexPkg === 'postapoc') GitHubSync.pushSprite(newBld.spriteName, spriteBlob, 'buildings')
+                // Awaited: the manifest refresh below hashes what is on the server, so the push must have landed.
+                if (hexPkg === 'postapoc') await GitHubSync.pushSprite(newBld.spriteName, spriteBlob, 'buildings')
                   .catch(e => console.warn('[migrate] pushSprite buildings failed:', e.message));
               }
             } else {
@@ -18548,8 +18798,10 @@ const HexDB = (() => {
 
         // Auto-publish updated databases
         if (GitHubSync.isPATConfigured()) {
-          try { await GitHubSync.publishHexDbOnly(); } catch(e) { console.warn('[migrate] publishHexDb failed:', e.message); }
-          try { await GitHubSync.publishBuildingsDb(); } catch(e) { console.warn('[migrate] publishBuildingsDb failed:', e.message); }
+          let published = false;
+          try { published = (await GitHubSync.publishHexDbOnly({ skipManifest: true })) || published; } catch(e) { console.warn('[migrate] publishHexDb failed:', e.message); }
+          try { published = (await GitHubSync.publishBuildingsDb({ skipManifest: true })) || published; } catch(e) { console.warn('[migrate] publishBuildingsDb failed:', e.message); }
+          if (published) await GitHubSync.refreshBaseManifestSafely(true);   // one refresh for both publishes
         }
       }
     );
