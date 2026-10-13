@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.12",
+  "version": "1.0.13",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -21,6 +21,11 @@
       "version": "1.0.10",
       "date": "2026-10-07",
       "note": "fix Artefact settings  delete Copy"
+    },
+    {
+      "version": "1.0.13",
+      "date": "2026-10-13",
+      "note": "Change Settings Ship and Shipyard"
     }
   ]
 }
