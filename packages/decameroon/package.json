@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -26,6 +26,11 @@
       "version": "1.0.13",
       "date": "2026-10-13",
       "note": "Change Settings Ship and Shipyard"
+    },
+    {
+      "version": "1.0.14",
+      "date": "2026-10-13",
+      "note": "test settings for Buildings"
     }
   ]
 }
