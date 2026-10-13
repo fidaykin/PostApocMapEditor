@@ -199,7 +199,7 @@
       "price": [
         {
           "type": "Gold",
-          "amount": 20000
+          "amount": 2000
         },
         {
           "type": "Stone",
@@ -469,11 +469,11 @@
       "price": [
         {
           "type": "Gold",
-          "amount": 10000
+          "amount": 1000
         },
         {
           "type": "Lumber",
-          "amount": 5000
+          "amount": 500
         }
       ],
       "premiumPrice": 0,
@@ -552,8 +552,7 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
@@ -1030,7 +1029,7 @@
       "price": [
         {
           "type": "Gold",
-          "amount": 8000
+          "amount": 800
         }
       ],
       "premiumPrice": 0,
@@ -1172,12 +1171,16 @@
       "minLevel": 1,
       "price": [
         {
-          "type": "Steel",
-          "amount": 5000
+          "type": "Lumber",
+          "amount": 500
         },
         {
-          "type": "Chips",
+          "type": "Stone",
           "amount": 700
+        },
+        {
+          "type": "Gold",
+          "amount": 1000
         }
       ],
       "premiumPrice": 0,
@@ -1253,11 +1256,11 @@
       "price": [
         {
           "type": "Gold",
-          "amount": 10000
+          "amount": 1000
         },
         {
           "type": "Lumber",
-          "amount": 20000
+          "amount": 2000
         }
       ],
       "premiumPrice": 0,
@@ -1335,22 +1338,21 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
         {
           "type": "Gold",
-          "amount": 10000
+          "amount": 1000
         },
         {
           "type": "Lumber",
-          "amount": 15000
+          "amount": 1500
         },
         {
           "type": "Stone",
-          "amount": 5000
+          "amount": 500
         }
       ],
       "premiumPrice": 0,
@@ -1533,11 +1535,11 @@
       "price": [
         {
           "type": "Lumber",
-          "amount": 20000
+          "amount": 200
         },
         {
           "type": "Stone",
-          "amount": 10000
+          "amount": 100
         }
       ],
       "premiumPrice": 0,
@@ -1613,14 +1615,13 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
         {
           "type": "Gold",
-          "amount": 3000
+          "amount": 300
         },
         {
           "type": "Lumber",
@@ -1864,8 +1865,7 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
@@ -1950,7 +1950,7 @@
       "availableTiles": [
         "Decameroon_Plain_1",
         "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Mountain_2"
       ],
       "minLevel": 1,
       "price": [
@@ -2034,8 +2034,7 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
@@ -2122,7 +2121,8 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "Decameroon_Water_1"
+        "Decameroon_Water_1",
+        "Decameroon_Plain_1"
       ],
       "minLevel": 1,
       "price": [
@@ -2162,156 +2162,6 @@
       "productionFacilities": [],
       "canStore": false,
       "stores": [],
-      "storageCapacity": [],
-      "storageUpgradeId": "",
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "footprint": [],
-      "package": "decameroon",
-      "underTerrainId": ""
-    },
-    {
-      "id": "Decameroon_Boat_2000",
-      "textId": "",
-      "descIdleId": "",
-      "descBuildId": "",
-      "type": "Water Building",
-      "buildingCategory": "Ship",
-      "biome": "Decameron",
-      "filter": "FilterBuilding",
-      "spriteName": "Decameroon_SmallShip_1",
-      "baseCostTaps": 1,
-      "canDestroy": true,
-      "destroyTransformToMode": "Parents",
-      "destroyTransformTo": "",
-      "destroySources": [],
-      "moveToStorageOnDestroy": true,
-      "resourceAwardedOnDestroy": false,
-      "destroyIncome": [],
-      "canBuild": true,
-      "needRoad": false,
-      "isRoad": false,
-      "availableTiles": [
-        "Decameroon_Water_1"
-      ],
-      "minLevel": 1,
-      "price": [
-        {
-          "type": "Gold",
-          "amount": 100
-        },
-        {
-          "type": "Lumber",
-          "amount": 1000
-        }
-      ],
-      "premiumPrice": 0,
-      "additionalBuildCondition": false,
-      "tilesTypeMode": "Parents",
-      "tilesTypeValue": "",
-      "radius": 0,
-      "hexEarnsOnTap": false,
-      "destroyableByTap": false,
-      "incomeTransformToMode": "Parents",
-      "incomeTransformTo": "",
-      "capacity": 0,
-      "getPerTap": [],
-      "incomePerTurn": [],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "buildingRadius": 0,
-      "canProduceEnabled": false,
-      "canProduce": [],
-      "availableTilesForProduce": [],
-      "canProductionFacilities": false,
-      "facilityBonusType": "",
-      "facilityBonusSize": 0,
-      "facilityBonusTarget": "Income Per Turn",
-      "facilityBonusResources": [],
-      "facilityBonusInfluenceType": "Add",
-      "productionFacilities": [],
-      "canStore": false,
-      "stores": [],
-      "storageCapacity": [],
-      "storageUpgradeId": "",
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "footprint": [],
-      "package": "decameroon",
-      "underTerrainId": ""
-    },
-    {
-      "id": "Decameroon_Artefact_1000",
-      "textId": "",
-      "descIdleId": "",
-      "descBuildId": "",
-      "type": "Artefact",
-      "buildingCategory": "Standard",
-      "biome": "Decameron",
-      "filter": "FilterBuilding",
-      "spriteName": "Decameroon_Artefact_1",
-      "baseCostTaps": 1,
-      "canDestroy": true,
-      "destroyTransformToMode": "Parents",
-      "destroyTransformTo": "",
-      "destroySources": [],
-      "moveToStorageOnDestroy": true,
-      "resourceAwardedOnDestroy": false,
-      "destroyIncome": [],
-      "canBuild": true,
-      "needRoad": false,
-      "isRoad": false,
-      "availableTiles": [],
-      "minLevel": 1,
-      "price": [
-        {
-          "type": "Gold",
-          "amount": 1
-        }
-      ],
-      "premiumPrice": 0,
-      "additionalBuildCondition": false,
-      "tilesTypeMode": "Parents",
-      "tilesTypeValue": "",
-      "radius": 0,
-      "hexEarnsOnTap": false,
-      "destroyableByTap": false,
-      "incomeTransformToMode": "Parents",
-      "incomeTransformTo": "",
-      "capacity": 0,
-      "getPerTap": [],
-      "incomePerTurn": [
-        {
-          "type": "Gold",
-          "amount": 100
-        }
-      ],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "buildingRadius": 0,
-      "canProduceEnabled": false,
-      "canProduce": [],
-      "availableTilesForProduce": [],
-      "canProductionFacilities": false,
-      "facilityBonusType": "",
-      "facilityBonusSize": 0,
-      "facilityBonusTarget": "Income Per Turn",
-      "facilityBonusResources": [],
-      "facilityBonusInfluenceType": "Add",
-      "productionFacilities": [],
-      "canStore": true,
-      "stores": [
-        {
-          "type": "Stone",
-          "amount": 1000
-        }
-      ],
       "storageCapacity": [],
       "storageUpgradeId": "",
       "bonusDrop": false,
