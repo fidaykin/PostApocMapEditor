@@ -868,7 +868,9 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "Decameroon_Water_1"
+        "Decameroon_Water_1",
+        "Decameroon_Fish_1",
+        "Decameroon_DirtyWater_1"
       ],
       "minLevel": 1,
       "price": [
@@ -1708,7 +1710,8 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Water_1",
-        "Decameroon_DirtyWater_1"
+        "Decameroon_DirtyWater_1",
+        "Decameroon_Fish_1"
       ],
       "minLevel": 1,
       "price": [
