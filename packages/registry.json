@@ -12,6 +12,12 @@
       "name": "Decameroon",
       "isDefault": false,
       "version": "1.0.13"
+    },
+    {
+      "id": "test",
+      "name": "Test",
+      "isDefault": false,
+      "version": "1.0.0"
     }
   ]
 }
