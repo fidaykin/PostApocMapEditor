@@ -2815,8 +2815,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.09";
-const COMMIT  = "dadaa80";
+const VERSION = "2026.10.14";
+const COMMIT  = "d97aa35";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3089,7 +3089,7 @@ const Terrain = (() => {
       const key = h.id.toLowerCase();
       const pkg = h.package || 'postapoc';
       const seg = encodeURIComponent(String(h.spriteName));   // one path segment: names are untrusted
-      const src = getUploadedUrl(h.spriteName, pkg) ||
+      const src = getUploadedUrl(h.spriteName, pkg, _dirCategory(spriteDir)) ||
         (pkg === 'postapoc' ? spriteDir + seg + '.png'
                             : `${GitHubSync.BASE_URL}/${spriteDir.replace(/^packages\/postapoc\//, 'packages/' + encodeURIComponent(pkg) + '/')}${seg}.png`);
       _spritePending.set(key, (_spritePending.get(key) || 0) + 1);
@@ -3121,13 +3121,23 @@ const Terrain = (() => {
   // Called at startup with { name → dataUrl } from IndexedDB so that
   // applyHexDbOverrides can resolve user-uploaded sprites on reload.
   const _uploadedUrls = Object.create(null);   // no inherited keys: a sprite called 'constructor' or 'toString' is harmless
-  function registerUploadedUrls(map) { Object.assign(_uploadedUrls, map); }
-  // Package-qualified entry first, then the bare (default package) name: a package without its own copy falls back.
-  function getUploadedUrl(name, pkg) {
-    if (pkg && pkg !== 'postapoc' && _uploadedUrls[pkg + '/' + name]) return _uploadedUrls[pkg + '/' + name];
-    return _uploadedUrls[name] || null;
+  const _uploadedCats = Object.create(null);   // store key -> category of the local record ('hex' | 'buildings' ...), when known
+  // cats (optional): { key: category }. A key registered without a category is usable by every consumer, as before.
+  function registerUploadedUrls(map, cats) {
+    Object.assign(_uploadedUrls, map);
+    for (const k of Object.keys(map)) { if (cats && typeof cats[k] === 'string') _uploadedCats[k] = cats[k]; else delete _uploadedCats[k]; }
   }
-  function unregisterUploadedUrls(keys) { for (const k of keys) delete _uploadedUrls[k]; }
+  // Package-qualified entry first, then the bare (default package) name: a package without its own copy falls back.
+  // category (optional): the folder the consumer reads ('hex' | 'buildings'). A local record of ANOTHER category is a
+  // different file that merely shares the name (the server keeps a hex and a buildings copy apart), so it is ignored.
+  function getUploadedUrl(name, pkg, category) {
+    const ok = k => _uploadedUrls[k] && (!category || !_uploadedCats[k] || _uploadedCats[k] === category);
+    if (pkg && pkg !== 'postapoc' && ok(pkg + '/' + name)) return _uploadedUrls[pkg + '/' + name];
+    return ok(name) ? _uploadedUrls[name] : null;
+  }
+  function unregisterUploadedUrls(keys) { for (const k of keys) { delete _uploadedUrls[k]; delete _uploadedCats[k]; } }
+  // Folder name implied by a sprite directory ('.../sprites/hex/' -> 'hex'); other folders (roads...) filter nothing.
+  function _dirCategory(dir) { const m = /\/sprites\/(hex|buildings)\/?$/.exec(String(dir || '')); return m ? m[1] : undefined; }
 
   // Underlay terrain for a building placed straight into a map cell (Boat, FishTrap, SmallShipyard ...): the building PNG is
   // transparent, so without a terrain beneath it the canvas shows black. Rule: the per-tile override (tileExtras underTerrainId),
@@ -9337,7 +9347,7 @@ const GitHubSync = (() => {
             r.readAsDataURL(file);
           });
           await SpriteStore.save(prep.name, dataUrl, category, 'postapoc');
-          Terrain.registerUploadedUrls({ [SpriteStore.keyFor('postapoc', prep.name)]: dataUrl });
+          Terrain.registerUploadedUrls({ [SpriteStore.keyFor('postapoc', prep.name)]: dataUrl }, { [SpriteStore.keyFor('postapoc', prep.name)]: category });
           ok++;
         } catch(e) { fail++; console.error(e); }
       }
@@ -9475,15 +9485,21 @@ const GitHubSync = (() => {
     if (!_MANIFEST_NAME_RE.test(String(id)) || !_MANIFEST_NAME_RE.test(String(version)))
       throw new Error(`Refusing unsafe package id/version "${id}" / "${version}"`);
     const dbs = [];            // { rel, bytes }
-    const refs = new Set();
+    const refs = new Map();    // sprite name -> folder its referencing DB implies ('hex' for hex DB entries, 'buildings' for building entries)
     for (const rel of ['hex_database.json', 'building_database.json']) {
       const bytes = await _readRepoBytes(`packages/${id}/${rel}`);
       if (!bytes) continue;
       let data;
       try { data = JSON.parse(new TextDecoder().decode(bytes)); }
       catch (e) { throw new Error(`packages/${id}/${rel} is not valid JSON (${e.message}); no manifest was built`); }
-      for (const list of [data && data.hexes, data && data.buildings])
-        if (Array.isArray(list)) for (const e of list) if (e && typeof e.spriteName === 'string' && e.spriteName) refs.add(e.spriteName);
+      // Unity loads a building's sprite from sprites/buildings and a hex tile's from sprites/hex. A Bridge building is drawn
+      // from the hex folder by the editor, so it keeps listing the hex copy.
+      for (const [list, dflt] of [[data && data.hexes, 'hex'], [data && data.buildings, 'buildings']])
+        if (Array.isArray(list)) for (const e of list) if (e && typeof e.spriteName === 'string' && e.spriteName) {
+          const cat = dflt === 'buildings' && e.buildingCategory === 'Bridge' ? 'hex' : dflt;
+          if (!refs.has(e.spriteName)) refs.set(e.spriteName, new Set());
+          refs.get(e.spriteName).add(cat);
+        }
       dbs.push({ rel, bytes });
     }
     const onServer = {};       // category -> Set of file names
@@ -9491,14 +9507,25 @@ const GitHubSync = (() => {
       onServer[cat] = new Set((await _listDirFresh(`packages/${id}/sprites/${cat}`)).filter(it => it && it.type !== 'dir' && typeof it.name === 'string').map(it => it.name));
     const sprites = [];        // rel paths
     const missing = [];
-    for (const ref of [...refs].sort()) {
+    const differing = [];
+    for (const ref of [...refs.keys()].sort()) {
       let found = false;
       for (const cat of ['hex', 'buildings'])
-        if (onServer[cat].has(`${ref}.png`)) { sprites.push(`sprites/${cat}/${ref}.png`); found = true; }
+        if (refs.get(ref).has(cat) && onServer[cat].has(`${ref}.png`)) { sprites.push(`sprites/${cat}/${ref}.png`); found = true; }
       if (!found) missing.push(ref);
+      // A same-named file in the folder nothing references for this name: not listed. Say so when it is a different picture.
+      const other = ['hex', 'buildings'].filter(cat => !refs.get(ref).has(cat) && onServer[cat].has(`${ref}.png`));
+      for (const cat of other) {
+        const mine = [...refs.get(ref)].find(c => onServer[c].has(`${ref}.png`));
+        if (!mine) continue;
+        const [a, b] = await Promise.all([_readRepoBytes(`packages/${id}/sprites/${mine}/${ref}.png`), _readRepoBytes(`packages/${id}/sprites/${cat}/${ref}.png`)]);
+        if (a && b && (a.length !== b.length || await sha256Hex(a) !== await sha256Hex(b))) differing.push(ref);
+      }
     }
+    const differMsgs = differing.map(ref => `same-named sprite differs between sprites/hex and sprites/buildings: ${ref}`);
+    for (const m of differMsgs) console.warn(`[GitHubSync] manifest ${id}: ${m}`);
     if (missing.length) console.warn(`[GitHubSync] manifest ${id}: ${missing.length} referenced sprite(s) are not on the server and are not listed:`, missing);
-    if (opts.onWarn) opts.onWarn(missing);                       // side channel: the manifest object itself carries no warnings
+    if (opts.onWarn) opts.onWarn(missing, differMsgs);                       // side channel: the manifest object itself carries no warnings
 
     const rels = [...dbs.map(d => d.rel), ...sprites];
     const bad = rels.map(r => [r, _manifestPathProblem(r)]).filter(x => x[1]);
@@ -9591,9 +9618,10 @@ const GitHubSync = (() => {
   async function refreshBaseManifestSafely(finish = false) {
     UI.progress(90, 'Updating package manifest…');
     try {
-      let missing = [];
-      const r = await refreshBaseManifest('postapoc', { onProgress: (d, t) => UI.progress(90 + Math.round(9 * d / Math.max(t, 1)), 'Hashing sprites…'), onWarn: w => { missing = w; } });
+      let missing = [], differ = [];
+      const r = await refreshBaseManifest('postapoc', { onProgress: (d, t) => UI.progress(90 + Math.round(9 * d / Math.max(t, 1)), 'Hashing sprites…'), onWarn: (w, d) => { missing = w; differ = d || []; } });
       if (finish === true) UI.progressDone('✅ Package manifest updated');
+      if (differ.length) UI.toast('⚠ ' + differ[0] + (differ.length > 1 ? ` (+${differ.length - 1} more)` : ''), { sticky: true, detail: differ.join('\n') });
       if (missing.length) UI.toast(_missingNote(missing), { sticky: true, detail: missing.join('\n') });
       return r;
     } catch (e) {
@@ -10130,7 +10158,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    sha256Hex, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
+    sha256Hex, _readRepoBytes, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
     _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
@@ -11062,11 +11090,10 @@ const UI = (() => {
           shown.add(name);
           const thumb = _makeThumb(name, `${GitHubSync.BASE_URL}/packages/postapoc/sprites/${category}/${name}.png`, false, null);
           const img   = thumb.querySelector('img');
+          // Display only: a server listing is never copied into the local store (a stored copy would outlive the server
+          // file and be served for every same-named sprite of another folder). Only explicit uploads are persisted.
           GitHubSync.fetchSpriteDataUrl(url).then(dataUrl => {
-            if (dataUrl) {
-              img.src = dataUrl;
-              SpriteStore.save(name, dataUrl, category).catch(() => {});
-            }
+            if (dataUrl) img.src = dataUrl;
           }).catch(() => {});
           grid.appendChild(thumb);
         });
@@ -11182,7 +11209,7 @@ const UI = (() => {
           reader.readAsDataURL(optimizedFile);
         });
         await SpriteStore.save(prep.name, dataUrl, uploadCategory, pkg);
-        Terrain.registerUploadedUrls({ [SpriteStore.keyFor(pkg, prep.name)]: dataUrl });
+        Terrain.registerUploadedUrls({ [SpriteStore.keyFor(pkg, prep.name)]: dataUrl }, { [SpriteStore.keyFor(pkg, prep.name)]: uploadCategory });
         ok++;
         toast(`Uploaded "${prep.name}"` + (pkg !== 'postapoc' ? ` to package "${pkg}"` : ''));
         // Only the default package's sprites go to the shared server pool; other packages ship them on publish.
@@ -13458,9 +13485,9 @@ const Packages = (() => {
   function spriteSrc(rec, kind) {
     if (!rec || !rec.spriteName) return '';
     const pkg = rec.package || 'postapoc';
-    const uploaded = Terrain.getUploadedUrl(rec.spriteName, pkg);
-    if (uploaded) return uploaded;
     const dir = kind === 'bld' ? (rec.buildingCategory === 'Bridge' ? 'hex' : rec.isRoad ? 'terrain/roads' : 'buildings') : 'hex';
+    const uploaded = Terrain.getUploadedUrl(rec.spriteName, pkg, dir === 'hex' || dir === 'buildings' ? dir : undefined);
+    if (uploaded) return uploaded;
     const rel = `packages/${pkg === 'postapoc' ? pkg : encodeURIComponent(pkg)}/sprites/${dir}/${encodeURIComponent(String(rec.spriteName))}.png`;
     return pkg === 'postapoc' ? rel : `${BASE_URL}/${rel}`;
   }
@@ -13688,7 +13715,7 @@ const Packages = (() => {
       try {
         for (const p of pk) {
           const ex = have.get(SpriteStore.keyFor(p, e.name));
-          if (!ex) { await SpriteStore.save(e.name, e.dataUrl, e.category || 'hex', p); Terrain.registerUploadedUrls({ [SpriteStore.keyFor(p, e.name)]: e.dataUrl }); }
+          if (!ex) { await SpriteStore.save(e.name, e.dataUrl, e.category || 'hex', p); Terrain.registerUploadedUrls({ [SpriteStore.keyFor(p, e.name)]: e.dataUrl }, { [SpriteStore.keyFor(p, e.name)]: e.category || 'hex' }); }
           else if (ex.dataUrl !== e.dataUrl) safe = false;             // a different package copy exists: keep the flat one too
         }
         if (!safe) { res.kept++; continue; }
@@ -14591,7 +14618,7 @@ const Packages = (() => {
 
   async function publishPackageSprites(id, onProgress) {
     const refs = await _packageSpriteRefs(id);
-    if (!refs.size) return { total: 0, pushed: 0, missing: [] };
+    if (!refs.size) return { total: 0, pushed: 0, missing: [], differs: [], categoryMismatch: [] };
     const unsafe = [...refs.keys()].filter(n => !isSafeSpriteName(n));
     if (unsafe.length) throw new Error(_unsafeNamesMessage(unsafe));   // never build a repo path from such a name
 
@@ -14601,10 +14628,13 @@ const Packages = (() => {
     const localByName = new Map([...baseLocal, ...pkgLocal].map(e => [e.name, e]));   // the package's own copy wins
 
     let pushed = 0, done = 0;
-    const missing = [];
+    const missing = [], differs = [], categoryMismatch = [];
     for (const [name, fallbackCategory] of refs) {
       const localEntry = localByName.get(name);
-      const category = _spriteDir(localEntry?.category, fallbackCategory);
+      // The folder follows the entry that REFERENCES the sprite (building DB -> buildings, hex DB -> hex; Bridge -> hex): that
+      // is the folder the game reads for it. A local record of another category is only a source of bytes.
+      const category = fallbackCategory;
+      if (localEntry && localEntry.category && localEntry.category !== fallbackCategory) categoryMismatch.push(name);
       let blob = null;
       if (localEntry) {
         try { blob = await (await fetch(localEntry.dataUrl)).blob(); } catch(e) {}
@@ -14618,10 +14648,20 @@ const Packages = (() => {
       done++;
       if (onProgress) onProgress(done, refs.size, name);
       if (!blob) { missing.push(name); continue; }
-      await GitHubSync._putBinary(`packages/${id}/sprites/${_spriteDir(category, fallbackCategory)}/${name}.png`, blob, `publish ${id}: sprite ${name}.png`);
+      const target = `packages/${id}/sprites/${category}/${name}.png`;
+      if (localEntry) {   // the local copy is about to replace a server file: tell the caller when they are different files
+        try {
+          const srv = await GitHubSync._readRepoBytes(target);
+          if (srv) {
+            const loc = new Uint8Array(await blob.arrayBuffer());
+            if (srv.length !== loc.length || await GitHubSync.sha256Hex(srv) !== await GitHubSync.sha256Hex(loc)) differs.push(name);
+          }
+        } catch(e) { console.warn('[Packages] could not compare', target, 'with the server:', e && e.message); }
+      }
+      await GitHubSync._putBinary(target, blob, `publish ${id}: sprite ${name}.png`);
       pushed++;
     }
-    return { total: refs.size, pushed, missing };
+    return { total: refs.size, pushed, missing, differs, categoryMismatch };
   }
 
   // ── Publish Package ────────────────────────────────────────────
@@ -14903,10 +14943,10 @@ const Packages = (() => {
 
       // Written whatever the registry did meanwhile: its version comes from this package's package.json, and the DBs/sprites
       // are already on the server, so the old manifest no longer matches them. Only the registry's own conditional PUT may fail.
-      let manifestMissing = [];
+      let manifestMissing = [], manifestDiffer = [];
       UIprogress(79, `Writing ${id}/manifest.json…`);
       const manifest = await GitHubSync.publishManifest(id, newVersion, {
-        dependencies: det.dependencies, onWarn: w => { manifestMissing = w; },
+        dependencies: det.dependencies, onWarn: (w, d) => { manifestMissing = w; manifestDiffer = d || []; },
         onProgress: (d, t) => UIprogress(79, `Hashing ${id} files ${d}/${t}…`),
       });
 
@@ -14944,6 +14984,13 @@ const Packages = (() => {
         ? `, ${spriteResult.pushed}/${spriteResult.total} sprites`
         : '';
       UI.progressDone(`✅ Package "${entry.name}" v${newVersion} published${spriteNote}`);
+      const _list5 = a => a.slice(0, 5).join(', ') + (a.length > 5 ? ', ...' : '');
+      const spriteWarn = [
+        spriteResult.differs.length ? `⚠ ${spriteResult.differs.length} sprite(s) overwritten with a different local copy: ${_list5(spriteResult.differs)}` : '',
+        spriteResult.categoryMismatch.length ? `⚠ ${spriteResult.categoryMismatch.length} sprite(s) published to the referencing folder, not the local record's: ${_list5(spriteResult.categoryMismatch)}` : '',
+      ].filter(Boolean).join('\n');
+      if (manifestDiffer.length) UI.toast('⚠ ' + manifestDiffer[0] + (manifestDiffer.length > 1 ? ` (+${manifestDiffer.length - 1} more)` : ''), { sticky: true, detail: manifestDiffer.join('\n') });
+      if (spriteWarn) UI.toast(spriteWarn, { sticky: true, detail: [...spriteResult.differs, ...spriteResult.categoryMismatch].join('\n') });
       if (spriteResult.missing.length) {
         UI.toast(`⚠ ${entry.name} v${newVersion} published, but ${spriteResult.missing.length} sprite(s) missing`, { sticky: true, detail: spriteResult.missing.join(', ') });
       } else if (manifestMissing.length) {
@@ -15835,10 +15882,11 @@ const Packages = (() => {
       if (mode === 'replace') { HexDB.removeByPackage(newId); BldDB.removeByPackage(newId); }
       HexDB.addEntries(hexes);
       BldDB.addEntries(buildings);
-      const localSprites = {};
+      const localSprites = {}, localSpriteCats = {};
       for (const sp of sprites) {
         await SpriteStore.save(sp.name, sp.dataUrl, sp.category, newId);
         localSprites[SpriteStore.keyFor(newId, sp.name)] = sp.dataUrl;
+        if (sp.category) localSpriteCats[SpriteStore.keyFor(newId, sp.name)] = sp.category;
       }
 
       if (localMode) {   // local registry record instead of the server registry
@@ -15847,7 +15895,7 @@ const Packages = (() => {
         if (!cur) _saveLocal([..._localRegistry(), rec]);
         else if (cur.localOnly) _updateLocalRecord(newId, { name, description: det.description, dependencies: det.dependencies.slice() });
         _registry = _mergeLocal(_registry);
-        Terrain.registerUploadedUrls(localSprites);
+        Terrain.registerUploadedUrls(localSprites, localSpriteCats);
         UI.progressDone(`✅ Package '${name}' imported locally`);
         UI.toast(`✅ Package '${name}' imported locally (${hexes.length} hex tiles, ${buildings.length} buildings). It is not on the server, and its id could not be verified; publish it later with a token.`, { ms: 8000 });
         _importResult = { status: 'ok', remaining: [] };
@@ -15884,7 +15932,7 @@ const Packages = (() => {
       _removeLocalRecord(newId);   // the server registry lists the id now: it is no longer a local-only package (badge gone, publish works)
       _registry = _mergeLocal(regData.packages);
       _cacheRegistry();
-      Terrain.registerUploadedUrls(localSprites);
+      Terrain.registerUploadedUrls(localSprites, localSpriteCats);
       UI.progressDone(`✅ Package '${name}' imported`);
       const verb = mode === 'replace' ? 'replaced' : mode === 'merge' ? 'merged' : 'imported';
       UI.toast(`✅ Package '${name}' ${verb} as v${publishedVersion} (${hexes.length} hex tiles, ${buildings.length} buildings)` + (skipped.length ? `; ${skipped.length} sprite(s) skipped: already stored for this package (not overwritten here or on the server)` : ''),
@@ -18760,7 +18808,8 @@ const HexDB = (() => {
 
             if (spriteBlob && spriteDataUrl) {
               // Register in local cache so canvas still resolves this sprite ID
-              Terrain.registerUploadedUrls({ [SpriteStore.keyFor(hexPkg, newBld.spriteName)]: spriteDataUrl });
+              const _migCat = newBld.buildingCategory === 'Bridge' ? 'hex' : 'buildings';
+              Terrain.registerUploadedUrls({ [SpriteStore.keyFor(hexPkg, newBld.spriteName)]: spriteDataUrl }, { [SpriteStore.keyFor(hexPkg, newBld.spriteName)]: _migCat });
               if (newBld.buildingCategory === 'Bridge') {
                 // Bridge sprites live in sprites/hex/ — no copy to buildings folder needed
                 await SpriteStore.save(newBld.spriteName, spriteDataUrl, 'hex', hexPkg);
@@ -21971,9 +22020,9 @@ window.addEventListener('load', async () => {
   // can resolve them when it runs inside HexDB.init().
   try {
     const uploaded = await SpriteStore.loadAll();
-    const urlMap = {};
-    uploaded.forEach(({ name, dataUrl }) => { urlMap[name] = dataUrl; });
-    Terrain.registerUploadedUrls(urlMap);
+    const urlMap = {}, catMap = {};
+    uploaded.forEach(({ name, dataUrl, category }) => { urlMap[name] = dataUrl; if (category) catMap[name] = category; });
+    Terrain.registerUploadedUrls(urlMap, catMap);
   } catch(e) { /* IndexedDB unavailable — skip */ }
 
   // HexDB is now the single source of truth for all terrain types.
