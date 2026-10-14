@@ -69,7 +69,7 @@ test('import writes package.json, DBs, sprites and the registry LAST; ids and re
   await pick(page, await importZip(), NEW);
   await clickImport(page);
   await waitForLastWrite(gh, REG);
-  expect(gh.writeLog.map(w => w.path)).toEqual([`${P}/package.json`, `${P}/hex_database.json`, `${P}/building_database.json`, `${P}/sprites/hex/S1.png`, `${P}/sprites/buildings/S2.png`, REG]);
+  expect(gh.writeLog.map(w => w.path)).toEqual([`${P}/package.json`, `${P}/hex_database.json`, `${P}/building_database.json`, `${P}/sprites/hex/S1.png`, `${P}/sprites/buildings/S2.png`, `${P}/manifest.json`, REG]);
   const hex = gh.json(`${P}/hex_database.json`).hexes;
   expect(hex.map((h: any) => h.id)).toEqual(['NewPack_Tile', 'NewPack_Other', 'Plain_1']);
   expect(hex[1]).toMatchObject({ destroyTransformTo: 'NewPack_Tile', incomeTransformTo: '__parent__', destroySource: ['NewPack_Tile', 'Plain_1'] });
@@ -88,7 +88,7 @@ test('import writes package.json, DBs, sprites and the registry LAST; ids and re
 
 const STEPS: [string, string][] = [
   ['package.json', `${P}/package.json`], ['hex database', `${P}/hex_database.json`], ['building database', `${P}/building_database.json`],
-  ['first sprite', `${P}/sprites/hex/S1.png`], ['last sprite', `${P}/sprites/buildings/S2.png`], ['registry', REG],
+  ['first sprite', `${P}/sprites/hex/S1.png`], ['last sprite', `${P}/sprites/buildings/S2.png`], ['manifest', `${P}/manifest.json`], ['registry', REG],
 ];
 for (const [label, failPath] of STEPS) {
   test(`a failed ${label} write leaves no trace (local state identical, server compensated), and a retry succeeds`, async ({ page }) => {
@@ -211,7 +211,7 @@ test('conflict: Replace that fails restores local entries, trash and the overwri
   expect((await status(page)).remaining).toEqual([]);
   expect(await snap(page)).toEqual(before);
   for (const [f, b64] of files) expect([f, gh.read(`packages/old/${f}`)?.toString('base64') ?? null]).toEqual([f, b64]);
-  expect(gh.deletes.filter(p => p.startsWith('packages/old/'))).toEqual([`packages/old/sprites/buildings/S2.png`]);
+  expect(gh.deletes.filter(p => p.startsWith('packages/old/')).sort()).toEqual([`packages/old/manifest.json`, `packages/old/sprites/buildings/S2.png`].sort());   // the manifest the import created is removed again too
 });
 
 test('conflict: Merge keeps local entries that differ, adds the new ones and writes the merged set', async ({ page }) => {
