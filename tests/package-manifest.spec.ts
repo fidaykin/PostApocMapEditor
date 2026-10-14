@@ -489,7 +489,7 @@ test.describe('I2/I3/M3: listing and what the manifest lists', () => {
   test('unreferenced sprites are not listed; a building sprite living in the hex folder is; a missing referenced file is not fatal', async ({ page }) => {
     const gh = new FakeGitHub();
     gh.write('packages/lst/hex_database.json', JSON.stringify({ version: 1, hexes: [{ id: 'A', spriteName: 'In_Hex' }, { id: 'M', spriteName: 'Missing_One' }] }));
-    gh.write('packages/lst/building_database.json', JSON.stringify({ version: 1, buildings: [{ id: 'Br', spriteName: 'Bridge_S' }, { id: 'N', spriteName: '' }, { id: 'U' }] }));
+    gh.write('packages/lst/building_database.json', JSON.stringify({ version: 1, buildings: [{ id: 'Br', spriteName: 'Bridge_S', buildingCategory: 'Bridge' }, { id: 'N', spriteName: '' }, { id: 'U' }] }));
     gh.write('packages/lst/sprites/hex/In_Hex.png', PNG);
     gh.write('packages/lst/sprites/hex/Bridge_S.png', PNG);        // a Bridge building's sprite lives in the hex folder
     gh.write('packages/lst/sprites/hex/Unref.png', PNG);
@@ -498,14 +498,14 @@ test.describe('I2/I3/M3: listing and what the manifest lists', () => {
     const m = await page.evaluate(() => GitHubSync.buildManifest('lst', '1.0.0'));
     expect(m.files.map((f: any) => f.path)).toEqual(['building_database.json', 'hex_database.json', 'sprites/hex/Bridge_S.png', 'sprites/hex/In_Hex.png']);
   });
-  test('a name present in BOTH folders lists both files', async ({ page }) => {
+  test('a name present in BOTH folders lists only the copy of the folder its referencing database implies', async ({ page }) => {
     const gh = new FakeGitHub();
     gh.write('packages/both/hex_database.json', JSON.stringify({ version: 1, hexes: [{ id: 'A', spriteName: 'Dual' }] }));
     gh.write('packages/both/sprites/hex/Dual.png', PNG);
     gh.write('packages/both/sprites/buildings/Dual.png', PNG);
     await openEditor(page, { gh, pat: true });
     const m = await page.evaluate(() => GitHubSync.buildManifest('both', '1.0.0'));
-    expect(m.files.map((f: any) => f.path)).toEqual(['hex_database.json', 'sprites/buildings/Dual.png', 'sprites/hex/Dual.png']);
+    expect(m.files.map((f: any) => f.path)).toEqual(['hex_database.json', 'sprites/hex/Dual.png']);   // a hex entry: the game reads sprites/hex
   });
   test('an unparseable database makes buildManifest throw', async ({ page }) => {
     const gh = new FakeGitHub();
