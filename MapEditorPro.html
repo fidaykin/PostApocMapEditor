@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.10.14.53e71a6</title>
+<title>Post Apo Map Editor 2026.07.16.717ca1c</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2814,7 +2814,7 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.14";
+const VERSION = "2026.10.15";
 const COMMIT  = "53e71a6";
 
 // ════════════════════════════════════════════════════════════
@@ -13436,7 +13436,7 @@ const Packages = (() => {
   // every registry fetch replaces `_registry` wholesale. `localOnly` is an in-memory flag derived from that list; it is never
   // sent to the server (publish/export write clean entries) and is cleared only after a fully successful publish.
   const LS_LOCAL = 'pkg_local_registry';
-  const _LOCAL_FIELDS = ['id', 'name', 'version', 'description', 'dependencies', 'preview', 'serverClaimed'];
+  const _LOCAL_FIELDS = ['id', 'name', 'version', 'description', 'dependencies', 'preview', 'serverClaimed', 'autoUnlock'];
   function _localRegistry() {
     let a = [];
     try { a = JSON.parse(localStorage.getItem(LS_LOCAL) || '[]'); } catch (e) { a = []; }
@@ -13892,6 +13892,7 @@ const Packages = (() => {
         : _btn('Set active', 'Make this the active package', () => setActive(p.id), { class: 'hexdb-tool-btn pkg-set-active' });
       const idCell = _el('td', {}, _el('code', { text: p.id }));
       if (p.isDefault) idCell.append(' ', _el('span', { class: 'pkg-badge', title: 'Built-in content that ships with the game; it cannot be deleted', text: 'default' }));
+      if (!p.isDefault && getDetails(p.id).autoUnlock) idCell.append(' ', _el('span', { class: 'pkg-badge pkg-auto-badge', title: 'Installed by default: the game unlocks and downloads it at launch', text: 'auto' }));
       if (p.localOnly) idCell.append(' ', _el('span', { class: 'pkg-badge pkg-local-badge', title: 'Exists only in this browser until you publish it', text: 'local only' }));
       const actions = _el('td', {},
         _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
@@ -14024,6 +14025,7 @@ const Packages = (() => {
       }
       out.dependencies = deps;
     }
+    if (typeof d.autoUnlock === 'boolean') out.autoUnlock = d.autoUnlock;   // registry-level flag the game client reads
     return out;
   }
 
@@ -14052,9 +14054,10 @@ const Packages = (() => {
     return {
       description: loc.description !== undefined ? loc.description : (base.description || ''),
       dependencies: (loc.dependencies !== undefined ? loc.dependencies : (base.dependencies || [])).slice(),
+      autoUnlock: loc.autoUnlock !== undefined ? loc.autoUnlock : base.autoUnlock === true,
     };
   }
-  function getDetails(id) { const e = getEntry(id); return e ? _effective(e) : { description: '', dependencies: [] }; }
+  function getDetails(id) { const e = getEntry(id); return e ? _effective(e) : { description: '', dependencies: [], autoUnlock: false }; }
   function getDependencies(id) { return getDetails(id).dependencies; }
   const _depId = s => { const p = parseDependency(s); return p ? p.id : null; };
 
@@ -14129,7 +14132,11 @@ const Packages = (() => {
 
   function _validate(id, d, list, serverOnly) {
     const errors = [], warnings = [];
-    const out = { ok: false, errors, warnings, description: undefined, dependencies: undefined };
+    const out = { ok: false, errors, warnings, description: undefined, dependencies: undefined, autoUnlock: undefined };
+    if (d && d.autoUnlock !== undefined) {
+      if (typeof d.autoUnlock !== 'boolean') errors.push('Install by default must be true or false.');
+      else out.autoUnlock = d.autoUnlock;
+    }
     if (d && d.description !== undefined) {
       if (typeof d.description !== 'string') errors.push('The description must be text.');
       else if (d.description.length > DESC_MAX) errors.push(`The description is too long (${d.description.length} characters, limit ${DESC_MAX}).`);
@@ -14185,9 +14192,10 @@ const Packages = (() => {
     const next = { ...cur };
     if (r.description !== undefined) next.description = r.description;
     if (r.dependencies !== undefined) next.dependencies = r.dependencies;
+    if (r.autoUnlock !== undefined) next.autoUnlock = r.autoUnlock;
     _details[id] = next;
     _saveDetails();
-    if (e.localOnly) _updateLocalRecord(id, { ...(next.description !== undefined ? { description: next.description } : {}), ...(next.dependencies !== undefined ? { dependencies: next.dependencies.slice() } : {}) });
+    if (e.localOnly) _updateLocalRecord(id, { ...(next.description !== undefined ? { description: next.description } : {}), ...(next.dependencies !== undefined ? { dependencies: next.dependencies.slice() } : {}), ...(next.autoUnlock !== undefined ? { autoUnlock: next.autoUnlock } : {}) });
     renderPanel();
     return true;
   }
@@ -14262,6 +14270,12 @@ const Packages = (() => {
     descLabel.appendChild(desc);
     root.appendChild(descLabel);
 
+    const autoLabel = T('label', null, { className: 'pkg-det-auto' });
+    const autoCb = T('input', null, { type: 'checkbox', id: 'pkg-det-autounlock', checked: !!d.autoUnlock });
+    autoLabel.append(autoCb, ' Install by default (auto-unlock at game launch)');
+    root.appendChild(autoLabel);
+    root.appendChild(T('div', 'When on, the game unlocks and downloads this package automatically at launch, like the base game. Takes effect for players after you publish.', { className: 'pkg-det-hint', style: 'font-size:11px;opacity:.7;margin:0 0 8px' }));
+
     root.appendChild(T('label', 'Depends on (other packages; optional version, x.y.z or ^x.y.z)'));
     const parsed = d.dependencies.map(parseDependency).filter(Boolean);
     const known = _registry.filter(p => !p.isDefault && p.id !== id && typeof p.id === 'string');
@@ -14323,7 +14337,7 @@ const Packages = (() => {
           deps.push(range ? `${cb.value}@${range}` : cb.value);
         });
         extra.value.split(/[\s,]+/).filter(Boolean).forEach(s => deps.push(s));
-        const r = validateDetails(id, { description: desc.value, dependencies: deps });
+        const r = validateDetails(id, { description: desc.value, dependencies: deps, autoUnlock: autoCb.checked });
         if (!r.ok) { err.textContent = r.errors.join('\n'); return; }
         // All or nothing: the preview goes first (it can fail on storage), then the details; when the details then fail the
         // previous preview is put back, so a failure never leaves half of the edit behind.
@@ -14332,7 +14346,7 @@ const Packages = (() => {
           if (pending) await SpriteStore.save(PREVIEW_NAME, pending, 'preview', id);
           else if (removed) await SpriteStore.remove(PREVIEW_NAME, id);
         } catch (e2) { err.textContent = `The preview could not be stored (${e2 && e2.message ? e2.message : e2}). Nothing was saved.`; return; }
-        if (!updateDetails(id, { description: desc.value, dependencies: deps })) {
+        if (!updateDetails(id, { description: desc.value, dependencies: deps, autoUnlock: autoCb.checked })) {
           if (pending || removed) {
             try { if (prevPreview) await SpriteStore.save(PREVIEW_NAME, prevPreview, 'preview', id); else await removePreview(id); }
             catch (e3) { console.warn('[Packages] preview rollback failed:', e3 && e3.message); }
@@ -14410,7 +14424,7 @@ const Packages = (() => {
       const JSZip = await _loadJSZip();
       const zip = new JSZip();
       const version = (serverPkg && serverPkg.version) || entry.version || '1.0.0';
-      const { localOnly, serverClaimed, ...cleanEntry } = entry;
+      const { localOnly, serverClaimed, autoUnlock: _au, ...cleanEntry } = entry;   // autoUnlock is registry-only
       const det = _mergedDetails(id, entry, serverPkg);   // local description/dependencies win
       const previewUrl = await getPreview(id);
       let previewBlob = null;
@@ -14954,6 +14968,9 @@ const Packages = (() => {
         delete out.description; delete out.dependencies;
         if (det.description) out.description = det.description;
         if (det.dependencies.length) out.dependencies = det.dependencies;
+        // autoUnlock lives only in the registry: keep the live entry's value unless the owner set it here; write true only.
+        const locAuto = (_loadDetails()[id] || {}).autoUnlock;
+        if (typeof locAuto === 'boolean') { delete out.autoUnlock; if (locAuto) out.autoUnlock = true; }
         return out;
       };
       if (regData.packages.some(p => p.id === id))
@@ -14964,7 +14981,7 @@ const Packages = (() => {
       if (entry.localOnly) _updateLocalRecord(id, { serverClaimed: true });   // the id is ours now; a retry after a failure must not call it taken
 
       UIprogress(92, `Updating ${id}/package.json…`);
-      const { localOnly: _lo, serverClaimed: _sc, ...cleanEntry } = entry;
+      const { localOnly: _lo, serverClaimed: _sc, autoUnlock: _au, ...cleanEntry } = entry;   // autoUnlock is registry-only
       const pkgJson = JSON.stringify({
         ...(serverPkg || {}), ...cleanEntry,
         version: newVersion,
@@ -15096,7 +15113,7 @@ const Packages = (() => {
     if (item.entry && item.entry.localOnly) {   // it only ever existed in this browser: restore it there, no network
       if (getEntry(id)) return UI.toast(`⚠ Package "${id}" already exists; discard or rename it before restoring`);
       const rec = { id, name: item.entry.name || id, version: item.entry.version || '1.0.0' };
-      for (const k of ['description', 'dependencies', 'preview']) if (item.entry[k] !== undefined) rec[k] = item.entry[k];
+      for (const k of ['description', 'dependencies', 'preview', 'autoUnlock']) if (item.entry[k] !== undefined) rec[k] = item.entry[k];
       _saveLocal([..._localRegistry(), rec]);
       _registry = _mergeLocal(_registry);
       const haveH = new Set(HexDB.getAll().map(x => `${x.package || 'postapoc'}::${x.id}`));
