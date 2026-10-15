@@ -37,6 +37,8 @@ Everything is read from the server through the authenticated Contents API with `
 
 In the package's entry in `packages/registry.json`: `manifestUrl` (`packages/<id>/manifest.json`), `totalBytes`, `minAppVersion` (`"0.0.0"`), `schemaVersion` (`1`).
 
+Also optional and registry-only: `autoUnlock` (boolean). When `true` the game unlocks and downloads the package automatically at launch (installed by default, like `postapoc`). The editor writes it only as `true` (absent means `false`, so older clients are unaffected), sets it from the package Details dialog, and keeps the live entry's value whenever it rewrites the entry (publish, version bump, import over an existing package, base refresh, delete/restore). It is never written to `package.json` and is not available for `postapoc`.
+
 ## Write order
 
 Package publish: databases -> sprites -> preview -> **manifest** -> registry -> `package.json`. The manifest exists before anything advertises it. A manifest failure (including an unsafe name, a failed read, or a registry that changed since it was read) aborts the publish before the registry is written. Note that a failed package publish has already written the databases, sprites and preview: those files then no longer match the previous manifest until the next successful publish (retrying converges; the next version is derived from `package.json`, which is written last).
