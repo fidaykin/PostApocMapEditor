@@ -9994,6 +9994,8 @@ const GitHubSync = (() => {
       } catch (e) { summary.failed.push(`${id}/building_database.json: ${e.message}`); }
       summary.packages.push(id);
     }
+    // The Building DB (road/bridge types) is complete now: re-derive roadAllowed of the records read before it was.
+    try { HexDB.refreshDerived(); } catch (e) { summary.failed.push(`roads: ${e.message}`); }
     // After every package's own file: a polluted copy only fills a gap (the package's own copy always wins).
     try { summary.adopted += HexDB.adoptForeign(foreignHex) + BldDB.adoptForeign(foreignBld); }
     catch (e) { summary.failed.push(`entries of other packages in the base files: ${e.message}`); }
@@ -17330,7 +17332,7 @@ const RoadPerms = (() => {
   }
 
   // Convenience getter for live code (the only place that reads BldDB).
-  function currentTypes() { return typesFrom(typeof BldDB !== 'undefined' ? BldDB.getAll() : []); }
+  function currentTypes() { try { return typesFrom(BldDB.getAll()); } catch (e) { return typesFrom([]); } }
 
   return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
 })();
@@ -17379,7 +17381,7 @@ const HexDB = (() => {
       id:'', textId:'', type:'Special', biome:'Summer',
       filterCategory:'FilterTerrain', spriteName:'',
       category:'', terrainTypeId:-1, fallback:false,
-      roadAllowed:false,
+      roadAllowed:false, allowedRoads:[],
       descriptionIdleId:'', descriptionBuildId:'', baseCostTaps:0,
       canDestroy:false, destroyTransformTo:'Plains_1',
       destroySource:[], canStored:false,
@@ -18564,6 +18566,11 @@ const HexDB = (() => {
   function _migrateSpecialFields(hexes) {
     hexes.forEach(h => {
       if (typeof h.roadAllowed !== 'boolean') h.roadAllowed = false;
+      // Roads V1: a list is normalised and the legacy flag follows it; anything that is not a list is removed (record stays
+      // "not backfilled", never silently turned into []).
+      const _ar = RoadPerms.normalize(h.allowedRoads);
+      if (_ar) { h.allowedRoads = _ar; h.roadAllowed = RoadPerms.deriveRoadAllowed(_ar, RoadPerms.currentTypes()); }
+      else delete h.allowedRoads;
       if (typeof h.bonusDrop !== 'boolean') {
         h.bonusDrop = !!h.bonusDrop;
       }
@@ -18716,6 +18723,46 @@ const HexDB = (() => {
       Canvas.render();
     });
     return { pkgId, conflicts: res.conflicts, fromServer: res.fromServer, kept: res.kept, dropped: res.dropped, foreign };
+  }
+
+  // ── Roads V1: allowedRoads mutators ──────────────────────
+  // target: a record of getAll(), an index into getAll(), or 'package::id' (a bare id means the base package).
+  function _resolveHex(target) {
+    if (target && typeof target === 'object') return _data.hexes.includes(target) ? target : null;
+    if (typeof target === 'number') return _data.hexes[target] || null;
+    if (typeof target === 'string') {
+      const key = target.includes('::') ? target : 'postapoc::' + target;
+      return _data.hexes.find(h => (h.package || 'postapoc') + '::' + h.id === key) || null;
+    }
+    return null;
+  }
+  // Sets the list (Building DB order, no duplicates), re-derives roadAllowed, one autosave. Returns false for an unknown target.
+  function setAllowedRoads(target, list) {
+    const h = _resolveHex(target);
+    const n = RoadPerms.normalize(list);
+    if (!h || !n) return false;
+    const types = RoadPerms.currentTypes();
+    h.allowedRoads = RoadPerms.sortLike(n, types);
+    h.roadAllowed = RoadPerms.deriveRoadAllowed(h.allowedRoads, types);
+    _autoSave();
+    return true;
+  }
+  // A copy of the list, or null when the record has none ("not backfilled") or does not exist.
+  function getAllowedRoads(target) {
+    const h = _resolveHex(target);
+    return h && Array.isArray(h.allowedRoads) ? h.allowedRoads.slice() : null;
+  }
+  // Re-derives roadAllowed of every record that has a list (after the Building DB changed or finished loading). Returns the count changed.
+  function refreshDerived() {
+    const types = RoadPerms.currentTypes();
+    let n = 0;
+    _data.hexes.forEach(h => {
+      if (!Array.isArray(h.allowedRoads)) return;
+      const d = RoadPerms.deriveRoadAllowed(h.allowedRoads, types);
+      if (h.roadAllowed !== d) { h.roadAllowed = d; n++; }
+    });
+    if (n) _autoSave();
+    return n;
   }
 
   // One copy per package+id in the local list (SyncMerge.dedupe: a locally edited copy wins). Toasts the count.
@@ -19017,7 +19064,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived };
 })();
 
 window.HexDB = HexDB;
