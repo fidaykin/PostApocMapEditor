@@ -1584,6 +1584,10 @@ body.mode-common #map-io    { display: none; }
               style="display:none" title="Create an entry that reuses an existing postapoc id">+ Reskin</button>
       <button class="hexdb-tool-btn" onclick="HexDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="HexDB.save()">💾 Save DB</button>
+      <label style="font-size:11px;color:#aaa;margin-left:10px" for="roads-write-mode" title="What Publish writes for road permissions. Legacy only = exactly what the editor wrote before Roads V1.">Roads data</label>
+      <select id="roads-write-mode" class="hexdb-select" style="flex:none;width:auto;font-size:11px;padding:2px 4px" onchange="HexDB.setRoadsMode(this.value)">
+        <option value="off">Legacy only</option><option value="stage">Stage (both fields)</option><option value="active">Active (new schema)</option>
+      </select>
       <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
       <label style="font-size:11px;color:#aaa;margin-left:4px" title="Gold cost per physical tap (applies to all tiles)">💰/tap</label>
       <input id="common-gold-per-tap" type="number" min="1" max="10000" step="1" value="10"
@@ -9736,9 +9740,9 @@ const GitHubSync = (() => {
       const all = HexDB.getData();
       const hexes = (all.hexes || []).filter(_isBaseEntry);
       const skipped = (all.hexes || []).length - hexes.length;
-      const data = { ...all, hexes };
-      const pkgData = Object.assign({ version: data.version ?? 1, package: 'postapoc' },
-        Object.fromEntries(Object.entries(data).filter(([k]) => k !== 'version')));
+      const data = HexDB.exportFor({ pkg: 'postapoc', mode: RoadPerms.writeMode(), hexes });   // Roads V1: mode off = the pre-roads bytes
+      const pkgData = Object.assign({ version: data.version ?? 1 }, 'roadsSchema' in data ? { roadsSchema: data.roadsSchema } : {}, { package: 'postapoc' },
+        Object.fromEntries(Object.entries(data).filter(([k]) => k !== 'version' && k !== 'roadsSchema')));
       const json    = JSON.stringify(data, null, 2);
       const pkgJson = JSON.stringify(pkgData, null, 2);
       UI.progress(30, 'Writing packages/postapoc/hex_database.json…');
@@ -14463,7 +14467,7 @@ const Packages = (() => {
         description: det.description, dependencies: det.dependencies,
         ...(previewBlob ? { preview: 'preview.png' } : {}),
       }, null, 2);
-      const hexText = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
+      const hexText = JSON.stringify(HexDB.exportFor({ pkg: id, mode: RoadPerms.writeMode(), hexes }), null, 2);
       const bldText = JSON.stringify({ version: 1, package: id, buildings }, null, 2);
       for (const t of [pkgText, hexText, bldText])
         if (t.length > IMPORT_MAX_JSON_BYTES) throw new Error('a database file is too large to export');
@@ -14964,7 +14968,7 @@ const Packages = (() => {
       const previewUrl = await getPreview(id);
 
       UIprogress(5, `Publishing ${id}/hex_database.json…`);
-      const hexPayload = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
+      const hexPayload = JSON.stringify(HexDB.exportFor({ pkg: id, mode: RoadPerms.writeMode(), hexes }), null, 2);
       await GitHubSync._putText(`packages/${id}/hex_database.json`, hexPayload, `publish ${id}: hex_database.json`);
 
       UIprogress(20, `Publishing ${id}/building_database.json…`);
@@ -17400,10 +17404,17 @@ const RoadPerms = (() => {
     return `Road permissions: ${n} problem${n === 1 ? '' : 's'} block the publish. ` + g.errors.slice(0, 3).map(e => e.message).join('; ') + (n > 3 ? `; and ${n - 3} more` : '');
   }
 
+  // Counts of records that have a list: { total, set, unset }. Mode active needs unset == 0 for every file it publishes.
+  function coverage(hexes) {
+    const list = Array.isArray(hexes) ? hexes : [];
+    const set = list.filter(h => Array.isArray(h && h.allowedRoads)).length;
+    return { total: list.length, set, unset: list.length - set };
+  }
+
   // Convenience getter for live code (the only place that reads BldDB).
   function currentTypes() { try { return typesFrom(BldDB.getAll()); } catch (e) { return typesFrom([]); } }
 
-  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, writeMode, setWriteMode, gate, gateMessage, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
+  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, writeMode, setWriteMode, gate, gateMessage, coverage, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
 })();
 
 window.RoadPerms = RoadPerms;
@@ -18426,6 +18437,7 @@ const HexDB = (() => {
   // ── Public API ────────────────────────────────────────────
   function init() {
     _loadSecState();
+    _syncRoadsModeUI();
     let restored = false;
     try {
       const saved = localStorage.getItem('hexdb_autosave');
@@ -18809,7 +18821,8 @@ const HexDB = (() => {
   }
 
   function save() {
-    const json = JSON.stringify(_data, null, 2);
+    // a full local snapshot: lists are kept in every mode (round trip through Load DB), roadsSchema follows the mode
+    const json = JSON.stringify(exportFor({ pkg: 'postapoc', mode: RoadPerms.writeMode(), hexes: _data.hexes, local: true }), null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -18917,6 +18930,66 @@ const HexDB = (() => {
     const h = _resolveHex(target);
     return h && Array.isArray(h.allowedRoads) ? h.allowedRoads.slice() : null;
   }
+  // The object a hex_database.json is serialised from; never mutates _data. pkg 'postapoc' = the base file (root form, the
+  // caller derives the packages/postapoc form from it), any other id = {version:1, package:id, hexes}.
+  //   off    : no allowedRoads on records, no roadsSchema, no common.roadDefaults (byte-identical to the pre-roads output)
+  //   stage  : allowedRoads (Building DB order, no duplicates) + derived roadAllowed; no roadsSchema
+  //   active : stage + roadsSchema 1 right after version
+  // A record without a list (not backfilled) never gets a synthetic []. local: a full local snapshot (Save DB), lists are
+  // kept in every mode. hexes: the records to write (default: all records of pkg).
+  function exportFor({ pkg, mode, hexes, local } = {}) {
+    const m = mode || RoadPerms.writeMode();
+    const id = pkg || 'postapoc';
+    const types = RoadPerms.currentTypes();
+    const src = hexes || _data.hexes.filter(h => (h.package || 'postapoc') === id);
+    const recs = src.map(h => {
+      const c = structuredClone(h);
+      if (m === 'off' && !local) delete c.allowedRoads;
+      else if (Array.isArray(c.allowedRoads)) {
+        c.allowedRoads = RoadPerms.sortLike(RoadPerms.normalize(c.allowedRoads) || [], types);
+        c.roadAllowed = RoadPerms.deriveRoadAllowed(c.allowedRoads, types);
+      }
+      return c;
+    });
+    // `hexes` stays in the head at its own position: overwriting it below keeps the key order of the pre-roads output
+    const head = id === 'postapoc' ? { ..._data } : { version: 1, package: id };
+    delete head.roadsSchema;
+    if (id === 'postapoc' && head.common && typeof head.common === 'object' && m !== 'active' && 'roadDefaults' in head.common) {
+      head.common = { ...head.common }; delete head.common.roadDefaults;   // F1 presets are written in mode active only
+    }
+    const out = {};
+    if (m === 'active') {
+      let placed = false;
+      for (const k of Object.keys(head)) {
+        out[k] = head[k];
+        if (k === 'version') { out.roadsSchema = 1; placed = true; }
+      }
+      if (!placed) { const rest = { ...out }; for (const k of Object.keys(out)) delete out[k]; out.roadsSchema = 1; Object.assign(out, rest); }
+    } else Object.assign(out, head);
+    out.hexes = recs;
+    return out;
+  }
+
+  // Roads write mode selector. Anything above off needs a confirmation; active also needs a list on every record.
+  function _syncRoadsModeUI() {
+    const el = document.getElementById('roads-write-mode');
+    if (el) el.value = RoadPerms.writeMode();
+  }
+  async function setRoadsMode(m) {
+    const cur = RoadPerms.writeMode();
+    if (m === cur) { _syncRoadsModeUI(); return; }
+    if (m !== 'off') {
+      if (m === 'active') {
+        const c = RoadPerms.coverage(_data.hexes);
+        if (c.unset > 0) { UI.toast(`⚠ ${c.unset} tile${c.unset === 1 ? ' has' : 's have'} no road list yet: Run Backfill roads first`, { ms: 6000 }); _syncRoadsModeUI(); return; }
+      }
+      const ok = await UI.confirm('Roads data', 'Old game builds read roadAllowed; publishing allowedRoads needs the Unity build with the new parser, otherwise its CI fails. Continue?', '', 'Continue');
+      if (!ok) { _syncRoadsModeUI(); return; }
+    }
+    if (!RoadPerms.setWriteMode(m)) UI.toast('⚠ Could not store the Roads data mode (browser storage unavailable)');
+    _syncRoadsModeUI();
+  }
+
   // Removes duplicate ids from the lists of one package's records (lossless). Returns the number of records fixed.
   function fixRoadDuplicates(pkg) {
     let n = 0;
@@ -19238,7 +19311,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode };
 })();
 
 window.HexDB = HexDB;
