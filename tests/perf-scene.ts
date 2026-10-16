@@ -61,6 +61,8 @@ export async function setupScene(page: Page) {
   await page.evaluate(async () => {
     const ids = ['Plain_1', 'Plain_2', 'Forest_1', 'Water_1', 'Hills_1', 'Rubble_1', 'Mountain_1', 'Water_Dirty_1'];
     IO.newMap(true);
+    // The coastline preview is off in the editor now; the recorded pixel baselines include it, so the scene turns it on.
+    Canvas.setCoastlinePreview(true);
     for (let r = 0; r < MAP_HEIGHT; r++)
       for (let c = 0; c < MAP_WIDTH; c++)
         mapData[r * MAP_WIDTH + c] = ids[(c * 31 + r * 17 + ((c >> 3) ^ (r >> 3))) % ids.length];

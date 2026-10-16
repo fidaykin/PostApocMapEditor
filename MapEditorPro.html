@@ -1570,7 +1570,7 @@ body.mode-common #map-io    { display: none; }
       <input id="block-nav-input" class="tb-input tb-mono" type="text" value="A:1"
         title="Type block address (e.g. B:4) and press Enter">
       <button id="btn-toggle-rulers" class="hexdb-tool-btn" onclick="Canvas.toggleRulers()" title="Show/hide block rulers and grid">⊞ Rulers</button>
-      <button id="btn-toggle-coastline" class="hexdb-tool-btn" onclick="Canvas.toggleCoastline()" title="Show/hide coastline preview along water/land borders">🌊 Coastline</button>
+      <button id="btn-toggle-coastline" class="hexdb-tool-btn" onclick="Canvas.toggleCoastline()" disabled style="opacity:0.4" title="The coastline preview is turned off in the editor">🌊 Coastline</button>
     </div>
     <div id="hexdb-tools">
       <select class="pkg-active-select" aria-label="Active package" title="Active package: new entries are tagged to it" onchange="Packages.setActive(this.value)"></select>
@@ -3657,7 +3657,7 @@ const Canvas = (() => {
   let _onMouseUpCb   = null;
   let _cursorCol = -1, _cursorRow = -1;  // hover tile for brush preview
   let _showZones = false;
-  let _showCoastline = true;
+  let _showCoastline = false;   // the coastline preview is turned off in the editor (Unity draws its own shores); never switched on
   let _selectedSlotIdx = -1;
   // Cheap counters for tests and profiling (render counters reset every frame).
   const _stats = { tilesVisited: 0, tilesDrawn: 0, overlayRebuilds: 0, minimapRecolored: 0, minimapOverlayRebuilds: 0, overviewRecolored: 0, lod: 0, selCellsTested: 0, selCellsDrawn: 0, selMode: '' };
@@ -5608,12 +5608,10 @@ const Canvas = (() => {
       reclampZoom();
       render();
     },
-    toggleCoastline: () => {
-      _showCoastline = !_showCoastline;
-      const btn = document.getElementById('btn-toggle-coastline');
-      if (btn) btn.style.opacity = _showCoastline ? '1' : '0.4';
-      render();
-    }
+    // The coastline preview is turned off: the button is disabled and the 3 key / this call change nothing.
+    toggleCoastline: () => {},
+    // Developer/test switch only (no UI uses it): the perf suite's pixel baselines were recorded with the preview drawn.
+    setCoastlinePreview: (on) => { _showCoastline = !!on; render(); }
   };
 })();
 // ════════════════════════════════════════════════════════════
