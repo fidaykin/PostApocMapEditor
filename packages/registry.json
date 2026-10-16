@@ -5,7 +5,7 @@
       "id": "postapoc",
       "name": "Post-Apocalypse",
       "isDefault": true,
-      "version": "1.0.3",
+      "version": "1.0.4",
       "manifestUrl": "packages/postapoc/manifest.json",
       "totalBytes": 37771908,
       "minAppVersion": "0.0.0",
