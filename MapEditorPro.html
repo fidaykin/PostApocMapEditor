@@ -19394,6 +19394,17 @@ const BldDB = (() => {
     return `<span style="color:#4caf50">✓</span>${enText}`;
   }
 
+  // Roads V1: a road or a bridge is global; where it can be built is set in the Hex DB (Roads / Bridges block).
+  function _isRoadLike(bld) { return !!bld && (!!bld.isRoad || bld.buildingCategory === 'Bridge'); }
+  function _roadsMsgHTML(bld) {
+    const v = RoadPerms.validate({ hexes: [], buildings: [bld] });
+    const items = v.errors.concat(v.warnings);
+    if (!items.length) return '';
+    const lines = items.map(x => `<div style="color:${x.rule === 'tiles-not-empty' ? '#d97706' : '#e55'}">! ${_esc(x.message)}` +
+      (x.fix === 'clear-tiles' ? ' <button type="button" id="bld-roads-clear" class="hexdb-tool-btn">Clear (permissions are set in Hex DB)</button>' : '') + '</div>').join('');
+    return `<div class="hexdb-row bld-roads-msg" style="font-size:12px"><span class="hexdb-label"></span><div style="flex:1">${lines}</div></div>`;
+  }
+
   function _tagsHTML(fieldName, values, disabled) {
     const dis = disabled ? ' disabled' : '';
     const tags = (values || []).map(v =>
@@ -19505,6 +19516,7 @@ const BldDB = (() => {
           </select></div>
         <div class="hexdb-row"><span class="hexdb-label">Is Road <span class="hexdb-info" title="When true: placing this building sets HasRoad=true on the tile. The game auto-tiles the road sprite via 6-bit bitmask (SE·NE·N·NW·SW·S). No per-direction variants needed — one entry per road type is enough.">ⓘ</span></span>
           <input id="bld-f-isRoad" type="checkbox"${bld.isRoad ? ' checked' : ''}></div>
+        ${_roadsMsgHTML(bld)}
         <div class="hexdb-row"><span class="hexdb-label">Biome <span class="hexdb-info" title="Season/biome context">ⓘ</span></span>
           <select class="hexdb-select" id="bld-f-biome">${BiomeManager.getNames().map(b =>
             `<option${bld.biome === b ? ' selected' : ''}>${b}</option>`).join('')}</select></div>
@@ -19569,8 +19581,9 @@ const BldDB = (() => {
           <input id="bld-f-canBuild" type="checkbox"${canBld ? ' checked' : ''}></div>
         <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Need Road <span class="hexdb-info" title="Ground: Roads required. Water: sea adjacency check.">ⓘ</span></span>
           <input id="bld-f-needRoad" type="checkbox"${bld.needRoad ? ' checked' : ''}></div>
-        <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Available Tiles <span class="hexdb-info" title="Tile Type IDs where building can be placed">ⓘ</span></span>
-          ${_tagsHTML('availableTiles', bld.availableTiles, !canBld)}</div>
+        <div class="hexdb-row"${!canBld || _isRoadLike(bld) ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Available Tiles <span class="hexdb-info" title="Tile Type IDs where building can be placed">ⓘ</span></span>
+          ${_tagsHTML('availableTiles', bld.availableTiles, !canBld || _isRoadLike(bld))}</div>
+        ${_isRoadLike(bld) ? '<div class="hexdb-row bld-roads-lock-hint" style="font-size:11px;color:var(--muted)"><span class="hexdb-label"></span><span>Set in Hex DB &gt; Roads/Bridges (Available Tiles is ignored for roads and bridges)</span></div>' : ''}
         <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Min Level <span class="hexdb-info" title="Min Settlement level. Integer ≥ 1.">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-minLevel" type="number" step="1" min="1"
             value="${Math.max(1, bld.minLevel ?? 1)}" style="width:110px"></div>
@@ -19923,6 +19936,7 @@ const BldDB = (() => {
       'bld-f-canProduceEnabled', 'bld-f-canProductionFacilities',
       'bld-f-facilityBonusType', 'bld-f-canStore',
       'bld-f-bonusDrop',
+      'bld-f-isRoad', 'bld-f-buildingCategory',   // Roads V1: the Available Tiles lock and the roads messages follow them
     ];
     reRenderIds.forEach(id => {
       const el = g(id);
@@ -19932,6 +19946,15 @@ const BldDB = (() => {
         _readRecord();
         _renderRecord(_data.buildings[_filtered[_selFilt]]);
       });
+    });
+
+    const clearTiles = g('bld-roads-clear');
+    if (clearTiles) clearTiles.addEventListener('click', () => {
+      if (_selFilt < 0) return;
+      const bldObj = _data.buildings[_filtered[_selFilt]];
+      bldObj.availableTiles = [];
+      _autoSave();
+      _renderRecord(bldObj);
     });
 
     // ── Wire tags (destroySources, availableTiles, canProduce, etc.) ──
@@ -20158,6 +20181,7 @@ const BldDB = (() => {
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
+    if (_isRoadLike(base)) { UI.toast(`⚠ "${baseId}" is a road or bridge: roads are global (base package only), no reskin`); return; }
     const pkg = Packages.getActive();
     const newId = Packages.reskinTargetId(baseId, mode);
     const exIdx = _data.buildings.findIndex(x => x.id === newId && (x.package || 'postapoc') === pkg);
@@ -20256,6 +20280,9 @@ const BldDB = (() => {
 
   function paste() {
     if (!_clipboard) return;
+    if (_isRoadLike(_clipboard) && typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc') {
+      UI.toast('⚠ Roads and bridges are global (base package only): switch to the base package to paste this'); return;
+    }
     const clone = structuredClone(_clipboard);
     clone.id += '_copy';
     _data.buildings.push(clone);
