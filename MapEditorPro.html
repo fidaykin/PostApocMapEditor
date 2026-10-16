@@ -17434,6 +17434,22 @@ const RoadPerms = (() => {
     return Array.isArray(d[group]) ? d[group].slice() : [];
   }
 
+  // ── Backfill (spec 6 step 3): today's effective rule, for the records that have no list yet ──
+  // road: the id is one of the legacy enum ids (case-insensitive), or roadAllowed is true and the Unity TerrainType value is
+  // unknown yet (< 0) or 9..13; bridge: type Rivers; otherwise []. Existing lists are never touched. Returns [{ hex, list }].
+  function backfillPlan(hexes) {
+    const enumIds = LEGACY_ROAD_ENUM_IDS.map(x => x.toLowerCase());
+    return (Array.isArray(hexes) ? hexes : []).reduce((out, h) => {
+      if (!h || Array.isArray(h.allowedRoads)) return out;
+      const t = typeof h.terrainTypeId === 'number' ? h.terrainTypeId : -1;
+      const list = [];
+      if (enumIds.includes(String(h.id).toLowerCase()) || (h.roadAllowed === true && (t < 0 || LEGACY_ROAD_TERRAIN_IDS.includes(t)))) list.push('road');
+      if (h.type === 'Rivers') list.push('bridge');
+      out.push({ hex: h, list });
+      return out;
+    }, []);
+  }
+
   // ── Bulk planners (pure): each returns [{ hex, list }] for the records that would change; nothing is mutated. ──
   // Unset records: Allow / defaults / copy / add-where-Y fill them (the user asked), Remove and add-where leave them alone.
   const _has = h => Array.isArray(h && h.allowedRoads);
@@ -17474,7 +17490,7 @@ const RoadPerms = (() => {
   // Convenience getter for live code (the only place that reads BldDB).
   function currentTypes() { try { return typesFrom(BldDB.getAll()); } catch (e) { return typesFrom([]); } }
 
-  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, writeMode, setWriteMode, gate, gateMessage, coverage, defaultsFor, INITIAL_DEFAULTS, planAllow, planRemove, planApplyDefaults, planAddWhere, planCopyFrom, planSetExact, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
+  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, writeMode, setWriteMode, gate, gateMessage, coverage, defaultsFor, INITIAL_DEFAULTS, backfillPlan, planAllow, planRemove, planApplyDefaults, planAddWhere, planCopyFrom, planSetExact, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
 })();
 
 window.RoadPerms = RoadPerms;
@@ -18107,6 +18123,54 @@ const HexDB = (() => {
     return todo.length;
   }
 
+  // ── Roads V1 F4: Backfill roads. Explicit only (a button / this call); never at load, never in any write mode. ──
+  const _backfillScope = pkg => _data.hexes.filter(h => pkg === '*' || (h.package || 'postapoc') === (pkg || 'postapoc'));
+  function _backfillSummary(plan) {
+    return { unset: plan.length, road: plan.filter(c => c.list.includes('road')).length, bridge: plan.filter(c => c.list.includes('bridge')).length, none: plan.filter(c => !c.list.length).length,
+             roadTiles: plan.filter(c => c.list.includes('road')).map(c => c.hex.id) };
+  }
+  function backfillPreview(opts) { return _backfillSummary(RoadPerms.backfillPlan(_backfillScope(opts && opts.pkg))); }
+  function backfillRoads(opts) {
+    const plan = RoadPerms.backfillPlan(_backfillScope(opts && opts.pkg));
+    const sum = _backfillSummary(plan);
+    const changed = applyRoadChanges('Backfill roads', plan);
+    return { changed, road: sum.road, bridge: sum.bridge, none: sum.none };
+  }
+  // The preview dialog: scope, counts per type, the tiles that get road. Apply = one RoadsHistory step.
+  function openBackfill(ctx) {
+    const wrap = document.createElement('div');
+    const pkgs = [...new Set(_data.hexes.map(h => h.package || 'postapoc'))];
+    const lab = document.createElement('label'); lab.textContent = 'Scope ';
+    const scope = document.createElement('select'); scope.id = 'rb-scope'; scope.className = 'hexdb-select'; scope.style.cssText = 'flex:none;width:auto';
+    pkgs.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p === 'postapoc' ? 'postapoc (base)' : p; scope.appendChild(o); });
+    const want = ctx && ctx.scopePkg && ctx.scopePkg();
+    scope.value = want && pkgs.includes(want) ? want : 'postapoc';
+    lab.appendChild(scope);
+    const sum = document.createElement('p'); sum.id = 'rb-summary';
+    const note = document.createElement('p'); note.style.cssText = 'font-size:12px;color:var(--muted)';
+    note.textContent = 'Fills only the tiles that have no road list yet, by today\'s effective rule. Existing lists are never changed. Nothing is published.';
+    const roadList = document.createElement('pre'); roadList.id = 'rb-road-list'; roadList.style.cssText = 'max-height:180px;overflow:auto;font-size:12px';
+    wrap.append(lab, sum, roadList, note);
+    const upd = () => {
+      const p = backfillPreview({ pkg: scope.value });
+      sum.textContent = `${p.unset} tile${p.unset === 1 ? '' : 's'} without a list: road on ${p.road}, bridge on ${p.bridge}, nothing on ${p.none}.`;
+      roadList.textContent = p.road ? 'Tiles getting road:\n' + p.roadTiles.join('\n') : 'No tile gets road.';
+    };
+    scope.addEventListener('change', upd); upd();
+    UI.showModal({
+      id: 'roads-backfill', title: 'Backfill roads', body: wrap,
+      actions: [
+        { label: 'Backfill', primary: true, onClick: close => {
+          const r = backfillRoads({ pkg: scope.value });
+          close();
+          if (ctx && ctx.refresh) ctx.refresh();
+          UI.toast(`Backfill roads: ${r.changed} tile${r.changed === 1 ? '' : 's'} filled (road ${r.road}, bridge ${r.bridge})`);
+        } },
+        { label: 'Cancel', onClick: close => close() },
+      ],
+    });
+  }
+
   // ── Roads V1 F1: defaults by tile type (common.roadDefaults), applied only on request ──
   const _sameList = (a, b) => { const x = new Set(a), y = new Set(b); return x.size === y.size && [...x].every(v => y.has(v)); };
   function getRoadDefaults() {
@@ -18443,6 +18507,7 @@ const HexDB = (() => {
       _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planCopyFrom(target, src.allowedRoads)));
     }));
     bar.appendChild(cf);
+    bar.appendChild(btn('rm-backfill', 'Backfill roads', 'Fill the tiles that have no road list yet by today\'s effective rule (preview first)', () => openBackfill(ctx)));
   }
 
   function _renderRecord(hex) {
@@ -19824,7 +19889,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
 })();
 
 window.HexDB = HexDB;
