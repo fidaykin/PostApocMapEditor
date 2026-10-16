@@ -4002,6 +4002,53 @@
         "SE"
       ],
       "edgeFaces": []
+    },
+    {
+      "id": "Mountain_2",
+      "textId": "",
+      "type": "Hills/Mountains",
+      "biome": "Summer",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Mountain_Kaiju_1",
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 10,
+      "canDestroy": true,
+      "destroyTransformTo": "Plains_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Clay",
+          "amount": 12
+        }
+      ],
+      "canBuild": false,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 1,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "roadAllowed": false,
+      "category": "⛰️ ROCKY/MOUNTAIN",
+      "terrainTypeId": 19,
+      "isLayered": false,
+      "edgeFaces": []
     }
   ],
   "dbVersion": 5,
