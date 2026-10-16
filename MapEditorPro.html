@@ -17347,6 +17347,11 @@ const RoadPerms = (() => {
       const pkg = _pkgOf(h);
       if (!Array.isArray(h.allowedRoads)) {
         if (sc.requireField) add(errors, 'unset', h.id, pkg, `${h.id}: no road permissions yet (run Backfill roads)`);
+        // a same-id override created before the backfill, while the base tile has a list: it would silently allow nothing
+        if (pkg !== BASE_PKG) {
+          const b = baseById.get(h.id);
+          if (b && Array.isArray(b.allowedRoads)) add(warnings, 'override-differs', h.id, pkg, `${h.id}: road list differs from the base tile (this one has none yet)`, 'take-base');
+        }
         return;
       }
       const seen = new Set();
@@ -18009,7 +18014,7 @@ const HexDB = (() => {
       row('Roads', 'hexdb-roads-roads', types.roads),
       row('Bridges', 'hexdb-roads-bridges', types.bridges),
       ...unknown.map(id => `<div class="hexdb-row"><span class="hexdb-label"></span><div class="hexdb-roads-unknown">unknown id "${_esc(id)}" <button type="button" data-road-remove="${_esc(id)}" title="Remove this id">✕</button></div></div>`),
-      ...warns.map(w => `<div class="hexdb-row"><span class="hexdb-label"></span><div class="hexdb-roads-warn">! ${_esc(w.message)}</div></div>`),
+      ...warns.map(w => `<div class="hexdb-row"><span class="hexdb-label"></span><div class="hexdb-roads-warn">! ${_esc(w.message)}${w.fix === 'take-base' ? ' <button type="button" class="hexdb-tool-btn" data-road-takebase="1">Take from base</button>' : ''}</div></div>`),
       `<div class="hexdb-row"><span class="hexdb-label">Copy from tile</span>
   <input class="hexdb-input" id="hexdb-roads-copy-from" list="hexdb-id-list" placeholder="tile id (any package)">
   <button type="button" class="hexdb-tool-btn" id="hexdb-roads-copy-btn">Copy list</button>
@@ -18060,6 +18065,13 @@ const HexDB = (() => {
       const h = _selectedHex(); if (!h) return;
       const id = btn.dataset.roadRemove;
       setAllowedRoads(h, h.allowedRoads.filter(x => x !== id));
+      _renderRoadsBlock();
+    }));
+    box.querySelectorAll('button[data-road-takebase]').forEach(btn => btn.addEventListener('click', () => {
+      const h = _selectedHex(); if (!h) return;
+      const base = _data.hexes.find(x => x.id === h.id && (x.package || 'postapoc') === 'postapoc');
+      if (!base || !Array.isArray(base.allowedRoads)) { UI.toast(`The base tile ${h.id} has no road permissions yet`); return; }
+      setAllowedRoads(h, base.allowedRoads);
       _renderRoadsBlock();
     }));
     const defBtn = box.querySelector('#hexdb-roads-defaults-btn');
