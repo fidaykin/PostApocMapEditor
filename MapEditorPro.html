@@ -601,6 +601,8 @@ body:not(.mode-map) #statusbar { display: none; }
 .reskin-body { display: flex; flex-direction: column; gap: 6px; min-width: min(560px, 80vw); }
 .reskin-hint { margin: 0; font-size: 11px; color: var(--muted); }
 .reskin-hint.reskin-warn { color: #e0a030; }
+.reskin-source-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+.reskin-source-row select { flex: 1; min-width: 0; }
 .reskin-modes { display: flex; gap: 6px; flex-wrap: wrap; }
 .reskin-mode { display: flex; flex-direction: column; gap: 2px; text-align: left; flex: 1 1 240px; background: var(--hover); border: 1px solid var(--border); border-radius: 4px; color: inherit; padding: 4px 8px; font-size: 12px; cursor: pointer; }
 .reskin-mode[aria-checked="true"] { outline: 2px solid var(--accent); }
@@ -1140,6 +1142,27 @@ body.mode-common #map-io    { display: none; }
 .hexdb-input.error { border-color: #e55 !important; }
 .hexdb-checkbox-row { display: flex; align-items: center; gap: 8px; }
 .hexdb-checkbox-row label { font-size: 12px; color: var(--muted); }
+.hexdb-roads { display: flex; flex-direction: column; gap: 6px; }
+.hexdb-roads-list { display: flex; flex-wrap: wrap; gap: 4px 14px; flex: 1; }
+.hexdb-roads-list label { font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.hexdb-roads-unset { background: #5a4a10; color: #ffe08a; border-radius: 3px; padding: 4px 8px; font-size: 12px; }
+.hexdb-roads-unknown { display: flex; align-items: center; gap: 6px; color: #e55; font-size: 12px; }
+.hexdb-roads-unknown button { background: none; border: none; color: #e55; cursor: pointer; }
+.hexdb-roads-warn { color: #d97706; font-size: 12px; }
+.roads-matrix-table { border-collapse: collapse; font-size: 12px; }
+.roads-matrix-table th, .roads-matrix-table td { border: 1px solid var(--border, #444); padding: 3px 8px; text-align: center; }
+.roads-matrix-table td:first-child, .roads-matrix-table th:first-child { text-align: left; }
+.roads-matrix { display: flex; flex-direction: column; gap: 8px; min-width: 560px; }
+.rm-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
+.rm-scroll { max-height: 55vh; overflow: auto; }
+.roads-matrix-table thead th { position: sticky; top: 0; background: var(--panel, #222); z-index: 1; }
+.roads-matrix-table td:nth-child(2) { text-align: left; white-space: nowrap; }
+.rm-badge { margin-left: 6px; color: var(--muted); font-size: 10px; }
+.rm-warn { margin-left: 6px; color: #d97706; font-weight: bold; cursor: help; }
+.rm-unset { border: 1px dashed var(--muted, #888); background: none; color: var(--muted, #888); border-radius: 3px; cursor: pointer; min-width: 22px; }
+.rm-colacts { display: flex; gap: 2px; justify-content: center; margin-top: 2px; }
+.rm-group { display: inline-flex; align-items: center; gap: 4px; }
+.rm-colact { font-size: 11px; line-height: 1; padding: 1px 5px; cursor: pointer; }
 .hexdb-actions {
   display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;
 }
@@ -1568,15 +1591,21 @@ body.mode-common #map-io    { display: none; }
       <input id="block-nav-input" class="tb-input tb-mono" type="text" value="A:1"
         title="Type block address (e.g. B:4) and press Enter">
       <button id="btn-toggle-rulers" class="hexdb-tool-btn" onclick="Canvas.toggleRulers()" title="Show/hide block rulers and grid">⊞ Rulers</button>
-      <button id="btn-toggle-coastline" class="hexdb-tool-btn" onclick="Canvas.toggleCoastline()" title="Show/hide coastline preview along water/land borders">🌊 Coastline</button>
+      <button id="btn-toggle-coastline" class="hexdb-tool-btn" onclick="Canvas.toggleCoastline()" disabled style="opacity:0.4" title="The coastline preview is turned off in the editor">🌊 Coastline</button>
     </div>
     <div id="hexdb-tools">
       <select class="pkg-active-select" aria-label="Active package" title="Active package: new entries are tagged to it" onchange="Packages.setActive(this.value)"></select>
       <button class="hexdb-tool-btn" onclick="HexDB.add()">+ Add Hex</button>
       <button class="hexdb-tool-btn" id="hexdb-add-reskin-btn" onclick="HexDB.promptReskin()"
-              style="display:none" title="Create an entry that reuses an existing postapoc id">+ Reskin</button>
+              style="display:none" title="Create an entry in this package from an existing tile or building of another package (postapoc by default)">+ Reskin</button>
       <button class="hexdb-tool-btn" onclick="HexDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="HexDB.save()">💾 Save DB</button>
+      <button class="hexdb-tool-btn" id="hexdb-roads-matrix-btn" onclick="HexDB.openRoadsMatrix()" title="Tiles x road/bridge types: view and edit permissions in bulk">Roads matrix</button>
+      <button class="hexdb-tool-btn" id="hexdb-road-defaults-btn" onclick="HexDB.openRoadDefaults()" title="Road and bridge presets by tile type">Road defaults</button>
+      <label style="font-size:11px;color:#aaa;margin-left:10px" for="roads-write-mode" title="What Publish writes for road permissions. Legacy only = exactly what the editor wrote before Roads V1.">Roads data</label>
+      <select id="roads-write-mode" class="hexdb-select" style="flex:none;width:auto;font-size:11px;padding:2px 4px" onchange="HexDB.setRoadsMode(this.value)">
+        <option value="off">Legacy only</option><option value="stage">Stage (both fields)</option><option value="active">Active (new schema)</option>
+      </select>
       <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
       <label style="font-size:11px;color:#aaa;margin-left:4px" title="Gold cost per physical tap (applies to all tiles)">💰/tap</label>
       <input id="common-gold-per-tap" type="number" min="1" max="10000" step="1" value="10"
@@ -1588,7 +1617,7 @@ body.mode-common #map-io    { display: none; }
       <select class="pkg-active-select" aria-label="Active package" title="Active package: new entries are tagged to it" onchange="Packages.setActive(this.value)"></select>
       <button class="hexdb-tool-btn" onclick="BldDB.add()">+ Add Building</button>
       <button class="hexdb-tool-btn" id="bld-add-reskin-btn" onclick="BldDB.promptReskin()"
-              style="display:none" title="Create an entry that reuses an existing postapoc id">+ Reskin</button>
+              style="display:none" title="Create an entry in this package from an existing tile or building of another package (postapoc by default)">+ Reskin</button>
       <button class="hexdb-tool-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="BldDB.save()">💾 Save DB</button>
       <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
@@ -3655,7 +3684,7 @@ const Canvas = (() => {
   let _onMouseUpCb   = null;
   let _cursorCol = -1, _cursorRow = -1;  // hover tile for brush preview
   let _showZones = false;
-  let _showCoastline = true;
+  let _showCoastline = false;   // the coastline preview is turned off in the editor (Unity draws its own shores); never switched on
   let _selectedSlotIdx = -1;
   // Cheap counters for tests and profiling (render counters reset every frame).
   const _stats = { tilesVisited: 0, tilesDrawn: 0, overlayRebuilds: 0, minimapRecolored: 0, minimapOverlayRebuilds: 0, overviewRecolored: 0, lod: 0, selCellsTested: 0, selCellsDrawn: 0, selMode: '' };
@@ -5606,12 +5635,10 @@ const Canvas = (() => {
       reclampZoom();
       render();
     },
-    toggleCoastline: () => {
-      _showCoastline = !_showCoastline;
-      const btn = document.getElementById('btn-toggle-coastline');
-      if (btn) btn.style.opacity = _showCoastline ? '1' : '0.4';
-      render();
-    }
+    // The coastline preview is turned off: the button is disabled and the 3 key / this call change nothing.
+    toggleCoastline: () => {},
+    // Developer/test switch only (no UI uses it): the perf suite's pixel baselines were recorded with the preview drawn.
+    setCoastlinePreview: (on) => { _showCoastline = !!on; render(); }
   };
 })();
 // ════════════════════════════════════════════════════════════
@@ -7629,6 +7656,18 @@ const Tools = (() => {
   // Bridge tool: a bridge is a Road_Bridge_* building and may only stand on a river tile (_isRiverTile; its K1-family limits
   // apply: it reads the cell's hex type only). A press acts on the pressed tile alone (no drag). Same bridge again removes it,
   // another bridge (or any building) replaces it, in one step. Returns true when objectsData changed.
+  // null = no list to consult (record unset / unknown, or the bridge is not a Building DB bridge); else { allowed, tileId }.
+  function _bridgePermission(col, row, bridgeId) {
+    if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return null;
+    if (!_bridgeBuildings().some(b => b.id === bridgeId)) return null;
+    const id = mapData[row * MAP_WIDTH + col];
+    if (typeof id !== 'string') return null;
+    const recs = HexDB.getAll().filter(h => h.id === id);
+    const rec = recs.find(h => (h.package || 'postapoc') === 'postapoc') || recs[0];
+    if (!rec || !Array.isArray(rec.allowedRoads)) return null;
+    return { allowed: rec.allowedRoads.includes(bridgeId), tileId: id };
+  }
+
   function _placeBridge(col, row) {
     const bridgeId = _selectedBridgeId;
     if (!bridgeId) return false;
@@ -7636,7 +7675,11 @@ const Tools = (() => {
     const old = objectsData[key];
     // removing the same bridge can never break the river rule, so it works wherever the bridge stands (even on land / a footprint)
     if (old !== bridgeId) {
-      if (!_isRiverTile(col, row)) return _objRefuse('Bridges can only be built on river tiles');
+      // Roads V1: when the base Hex DB record of the tile has a road list, that list decides; an unset record (not backfilled)
+      // or a bridge without a Building DB record keeps today's rule (river tiles only).
+      const perm = _bridgePermission(col, row, bridgeId);
+      if (perm && !perm.allowed) return _objRefuse(`${bridgeId} is not allowed on ${perm.tileId} (Hex DB > Roads/Bridges)`);
+      if (!perm && !_isRiverTile(col, row)) return _objRefuse('Bridges can only be built on river tiles');
       if (getSatelliteAnchor(col, row)) return _objRefuse('Cannot place a building on a multi-tile terrain footprint');
     }
     _pushOnce();
@@ -9710,15 +9753,28 @@ const GitHubSync = (() => {
   }
 
   // opts.skipManifest: the caller runs several publishes and does ONE refreshBaseManifestSafely() at the end.
+  // Roads V1 gate: throws (so _withPublishBtn reports it) BEFORE the first write. Only auto-fixable problems (duplicate ids)
+  // offer "Fix and continue". Mode off never blocks. Returns the warnings.
+  async function roadsGate(pkg) {
+    let g = RoadPerms.gate({ pkg });
+    if (g.errors.length && g.errors.every(e => e.fix === 'dedupe')) {
+      const ok = await UI.confirm('Road permissions', `${g.errors.length} tile(s) list the same road id twice.`, g.errors.slice(0, 10).map(e => e.message).join('\n'), 'Fix and continue');
+      if (ok) { HexDB.fixRoadDuplicates(pkg); g = RoadPerms.gate({ pkg }); }
+    }
+    if (!g.ok) throw new Error(RoadPerms.gateMessage(g));
+    return g.warnings;
+  }
+
   async function publishHexDbOnly(opts) {
     return _withPublishBtn('Publish HexDB', async () => {
+      await roadsGate('postapoc');
       UI.progress(10, 'Publishing hex_database.json…');
       const all = HexDB.getData();
       const hexes = (all.hexes || []).filter(_isBaseEntry);
       const skipped = (all.hexes || []).length - hexes.length;
-      const data = { ...all, hexes };
-      const pkgData = Object.assign({ version: data.version ?? 1, package: 'postapoc' },
-        Object.fromEntries(Object.entries(data).filter(([k]) => k !== 'version')));
+      const data = HexDB.exportFor({ pkg: 'postapoc', mode: RoadPerms.writeMode(), hexes });   // Roads V1: mode off = the pre-roads bytes
+      const pkgData = Object.assign({ version: data.version ?? 1 }, 'roadsSchema' in data ? { roadsSchema: data.roadsSchema } : {}, { package: 'postapoc' },
+        Object.fromEntries(Object.entries(data).filter(([k]) => k !== 'version' && k !== 'roadsSchema')));
       const json    = JSON.stringify(data, null, 2);
       const pkgJson = JSON.stringify(pkgData, null, 2);
       UI.progress(30, 'Writing packages/postapoc/hex_database.json…');
@@ -9994,6 +10050,8 @@ const GitHubSync = (() => {
       } catch (e) { summary.failed.push(`${id}/building_database.json: ${e.message}`); }
       summary.packages.push(id);
     }
+    // The Building DB (road/bridge types) is complete now: re-derive roadAllowed of the records read before it was.
+    try { HexDB.refreshDerived(); } catch (e) { summary.failed.push(`roads: ${e.message}`); }
     // After every package's own file: a polluted copy only fills a gap (the package's own copy always wins).
     try { summary.adopted += HexDB.adoptForeign(foreignHex) + BldDB.adoptForeign(foreignBld); }
     catch (e) { summary.failed.push(`entries of other packages in the base files: ${e.message}`); }
@@ -10157,7 +10215,7 @@ const GitHubSync = (() => {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
     sha256Hex, _readRepoBytes, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
-    _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
+    _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, roadsGate, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
@@ -13582,17 +13640,63 @@ const Packages = (() => {
   const RESKIN_CAP = 60;
 
   // The id a Reskin+ copy gets. mode 'prefix' (default): the active package's PascalCase prefix + baseId (not added twice);
-  // mode 'same': the base id unchanged, a runtime override of the base slot.
+  // mode 'same': the source id unchanged, a runtime override of the source slot. The source can be ANY package (default
+  // postapoc); the id rule does not depend on it.
   function reskinTargetId(baseId, mode) {
     if (mode === 'same') return baseId;
     const prefix = idPrefix(getActive());
     return prefix && !String(baseId).startsWith(prefix) ? prefix + baseId : baseId;
   }
 
+  // Packages (other than the active one) that have at least one of `entries`, postapoc first. Used by the picker's select
+  // and by the "nothing to reskin" guards of HexDB/BldDB.
+  function reskinSourcePackages(entries) {
+    const active = getActive(), seen = new Set();
+    for (const e of entries || []) { const p = e.package || 'postapoc'; if (p !== active) seen.add(p); }
+    return [...seen].sort((a, b) => (a === 'postapoc' ? -1 : b === 'postapoc' ? 1 : a < b ? -1 : a > b ? 1 : 0));
+  }
+
+  // Same-id reskin from a non-base package: the game applies the package that loads later, so the source must load first.
+  // Adds it to the active package's dependencies through the T5.10 helpers (shape, duplicates, cycles). Returns true when
+  // the entry may be created (nothing to add, already a dependency, or added); false (after a toast) when refused.
+  function ensureReskinDependency(sourcePkg) {
+    if (!sourcePkg || sourcePkg === 'postapoc') return true;
+    const active = getActive();
+    const cur = getDependencies(active);
+    if (cur.some(s => _depId(s) === sourcePkg)) return true;
+    const r = validateDetails(active, { dependencies: [...cur, sourcePkg] });
+    if (!r.ok) {
+      UI.toast(`⚠ Cannot reskin from "${sourcePkg}" with the same id: ${r.errors[0]} Nothing was created. Use the prefixed copy instead.`, { ms: 8000 });
+      return false;
+    }
+    if (!updateDetails(active, { dependencies: r.dependencies })) return false;
+    UI.toast(`"${sourcePkg}" was added to the dependencies of "${active}": it must load before "${active}" so this override wins.`, { ms: 8000 });
+    return true;
+  }
+
+  // The copy keeps the SOURCE's spriteName. Until the active package has that sprite in its own folder (publish copies it
+  // there) the editor would look in packages/<active>/..., so alias the active package's key to wherever the source's
+  // sprite resolves now. In-session only; an own upload with that name is never replaced.
+  function aliasSourceSprite(copy, sourceRec, kind) {
+    if (!copy || !sourceRec || !copy.spriteName || (sourceRec.package || 'postapoc') === 'postapoc') return;
+    const dir = kind === 'bld' ? (copy.buildingCategory === 'Bridge' ? 'hex' : 'buildings') : 'hex';
+    if (Terrain.getUploadedUrl(copy.spriteName, copy.package, dir)) return;
+    const url = spriteSrc(sourceRec, kind);
+    if (!url) return;
+    const key = SpriteStore.keyFor(copy.package, copy.spriteName);
+    Terrain.registerUploadedUrls({ [key]: url }, { [key]: dir });
+  }
+
   function openReskinPicker({ kind, entries, onPick }) {
     const active = getActive();
-    const base = (entries || []).filter(e => (e.package || 'postapoc') === 'postapoc');
-    const ownIds = new Set((entries || []).filter(e => (e.package || 'postapoc') === active).map(e => e.id));
+    const sources = reskinSourcePackages(entries);
+    if (!sources.length) return null;
+    let srcPkg = sources.includes('postapoc') ? 'postapoc' : sources[0];
+    const entriesAll = entries || [];
+    const ownIds = new Set(entriesAll.filter(e => (e.package || 'postapoc') === active).map(e => e.id));
+    let base = [];
+    const loadBase = () => { base = entriesAll.filter(e => (e.package || 'postapoc') === srcPkg); };
+    loadBase();
     let mode = 'prefix';
     const isTaken = id => ownIds.has(reskinTargetId(id, mode));
     const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -13601,12 +13705,17 @@ const Packages = (() => {
     const noun = kind === 'bld' ? 'building' : 'tile';
     const group = el('div', 'reskin-modes'); group.setAttribute('role', 'radiogroup'); group.setAttribute('aria-label', 'Reskin mode');
     const MODES = [
-      { key: 'prefix', label: 'Copy with package prefix', note: () => `Creates a copy whose id is the package prefix plus the base id (for example ${reskinTargetId('Plain_1', 'prefix')}); the base ${noun} stays untouched.` },
-      { key: 'same', label: 'Override the same id (runtime reskin)', note: () => `Warning: creates an entry with the SAME id as the base ${noun}; the game will use it instead of the base ${noun} when this package is active; the list will show both.` },
+      { key: 'prefix', label: 'Copy with package prefix', note: () => `Creates a copy whose id is the package prefix plus the base id (for example ${reskinTargetId('Plain_1', 'prefix')}); the ${srcPkg} ${noun} stays untouched.` },
+      { key: 'same', label: 'Override the same id (runtime reskin)', note: () => srcPkg === 'postapoc'
+        ? `Warning: creates an entry with the SAME id as the base ${noun}; the game will use it instead of the base ${noun} when this package is active; the list will show both.`
+        : `Warning: creates an entry with the SAME id as the ${srcPkg} ${noun}; the game applies the package that loads later, so ${srcPkg} must load first: it is added to this package's dependencies automatically (refused if that would create a cycle); the list will show both.` },
     ];
+    const hints = {};
     const radios = MODES.map(m => {
       const r = el('button', 'reskin-mode'); r.type = 'button'; r.dataset.mode = m.key; r.setAttribute('role', 'radio');
-      r.append(el('strong', null, m.label), el('span', 'reskin-hint' + (m.key === 'same' ? ' reskin-warn' : ''), m.note()));
+      const hint = el('span', 'reskin-hint' + (m.key === 'same' ? ' reskin-warn' : ''), m.note());
+      hints[m.key] = () => { hint.textContent = m.note(); };
+      r.append(el('strong', null, m.label), hint);
       return r;
     });
     const syncModes = () => radios.forEach(r => { const on = r.dataset.mode === mode; r.setAttribute('aria-checked', on ? 'true' : 'false'); r.tabIndex = on ? 0 : -1; });
@@ -13621,7 +13730,18 @@ const Packages = (() => {
       });
     });
     group.append(...radios);
-    body.append(group);
+    // Source package: a native select (keyboard reachable). Ids and names are untrusted: option text only via textContent.
+    const srcRow = el('label', 'reskin-source-row', 'Source package ');
+    const srcSel = el('select'); srcSel.id = 'reskin-source'; srcSel.setAttribute('aria-label', 'Source package');
+    sources.forEach(p => {
+      const o = el('option', null, p === 'postapoc' ? 'postapoc (base)' : ((getEntry(p) && getEntry(p).name && getEntry(p).name !== p) ? `${getEntry(p).name} (${p})` : p));
+      o.value = p; if (p === srcPkg) o.selected = true; srcSel.appendChild(o);
+    });
+    srcSel.addEventListener('change', () => {
+      srcPkg = srcSel.value; loadBase(); Object.values(hints).forEach(f => f()); render();
+    });
+    srcRow.appendChild(srcSel);
+    body.append(srcRow, group);
     const input = el('input'); input.id = 'reskin-search'; input.type = 'text'; input.placeholder = 'Search ids…';
     input.autocomplete = 'off'; input.setAttribute('role', 'searchbox'); input.setAttribute('aria-label', 'Search ids'); input.setAttribute('aria-controls', 'reskin-list');
     const count = el('div', 'reskin-count'); count.id = 'reskin-count'; count.setAttribute('aria-live', 'polite');
@@ -13641,7 +13761,7 @@ const Packages = (() => {
       closed = true;
       const id = b.dataset.id;
       modal.close('close');
-      onPick(id, mode);
+      onPick(id, mode, srcPkg);
     };
     const render = () => {
       const q = input.value.trim().toLowerCase();
@@ -13683,7 +13803,7 @@ const Packages = (() => {
     syncModes();
     modal = UI.showModal({
       id: 'reskin-picker',
-      title: `Reskin which postapoc ${kind === 'bld' ? 'building' : 'hex'}?`,
+      title: `Reskin which ${kind === 'bld' ? 'building' : 'hex'} into ${active}?`,
       body,
       actions: [{ label: 'Cancel', onClick: close => close() }],
       autofocus: input,
@@ -14441,7 +14561,7 @@ const Packages = (() => {
         description: det.description, dependencies: det.dependencies,
         ...(previewBlob ? { preview: 'preview.png' } : {}),
       }, null, 2);
-      const hexText = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
+      const hexText = JSON.stringify(HexDB.exportFor({ pkg: id, mode: RoadPerms.writeMode(), hexes }), null, 2);
       const bldText = JSON.stringify({ version: 1, package: id, buildings }, null, 2);
       for (const t of [pkgText, hexText, bldText])
         if (t.length > IMPORT_MAX_JSON_BYTES) throw new Error('a database file is too large to export');
@@ -14628,8 +14748,24 @@ const Packages = (() => {
   const _spriteDir = (c, fallback) => (typeof c === 'string' && /^[a-z][a-z0-9_]*(\/[a-z][a-z0-9_]*)?$/.test(c)) ? c : fallback;
   const _zipSpriteDir = c => c === 'buildings' ? 'buildings' : 'hex';   // the only two folders the importer reads
 
+  // A Reskin+ copy keeps the spriteName of its SOURCE package, whose file lives in that package's folder (or store), not in
+  // postapoc's. name -> ids of OTHER non-default packages whose entries use the same name in the same folder category.
+  function _foreignSpriteOwners(id) {
+    const out = new Map();
+    const add = (name, cat, pkg) => {
+      if (!name || !pkg || pkg === id || pkg === 'postapoc') return;
+      const k = cat + '\u0000' + name;
+      if (!out.has(k)) out.set(k, []);
+      if (!out.get(k).includes(pkg)) out.get(k).push(pkg);
+    };
+    for (const h of (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : [])) add(h.spriteName, 'hex', h.package);
+    for (const b of (typeof BldDB !== 'undefined' ? BldDB.getAll() : [])) add(b.spriteName, b.buildingCategory === 'Bridge' ? 'hex' : 'buildings', b.package);
+    return (name, cat) => (out.get(cat + '\u0000' + name) || []).filter(p => _ID_RE.test(p) && !_FORBIDDEN_KEYS.has(p));
+  }
+
   async function publishPackageSprites(id, onProgress) {
     const refs = await _packageSpriteRefs(id);
+    const ownersOf = _foreignSpriteOwners(id);
     if (!refs.size) return { total: 0, pushed: 0, missing: [], differs: [], categoryMismatch: [] };
     const unsafe = [...refs.keys()].filter(n => !isSafeSpriteName(n));
     if (unsafe.length) throw new Error(_unsafeNamesMessage(unsafe));   // never build a repo path from such a name
@@ -14638,10 +14774,17 @@ const Packages = (() => {
     try { [baseLocal, pkgLocal] = await Promise.all([SpriteStore.loadForPackage('postapoc'), SpriteStore.loadForPackage(id)]); }
     catch(e) { console.warn('[Packages] local sprite store unavailable, using the server copies:', e && e.message); }
     const localByName = new Map([...baseLocal, ...pkgLocal].map(e => [e.name, e]));   // the package's own copy wins
+    // Reskin copies from another package: that package's local record is a source of bytes too (after base and own ones).
+    const foreignLocal = new Map();
+    try {
+      const owners = new Set(); for (const [n, c] of refs) ownersOf(n, c).forEach(o => owners.add(o));
+      for (const o of owners) for (const e of await SpriteStore.loadForPackage(o)) foreignLocal.set(o + '\u0000' + e.name, e);
+    } catch(e) { console.warn('[Packages] local sprite store unavailable for source packages:', e && e.message); }
 
     let pushed = 0, done = 0;
     const missing = [], differs = [], categoryMismatch = [];
     for (const [name, fallbackCategory] of refs) {
+      const owners = ownersOf(name, fallbackCategory);
       const localEntry = localByName.get(name);
       // The folder follows the entry that REFERENCES the sprite (building DB -> buildings, hex DB -> hex; Bridge -> hex): that
       // is the folder the game reads for it. A local record of another category is only a source of bytes.
@@ -14654,6 +14797,16 @@ const Packages = (() => {
       if (!blob) {
         try {
           const res = await fetch(`${BASE_URL}/packages/postapoc/sprites/${encodeURIComponent(category)}/${encodeURIComponent(name)}.png?_=${Date.now()}`);
+          if (res.ok) blob = await res.blob();
+        } catch(e) {}
+      }
+      for (const o of owners) {   // a Reskin+ copy of another package's entry: that package's local record, then its folder
+        if (blob) break;
+        const fl = foreignLocal.get(o + '\u0000' + name);
+        if (fl) { try { blob = await (await fetch(fl.dataUrl)).blob(); } catch(e) {} }
+        if (blob) break;
+        try {
+          const res = await fetch(`${BASE_URL}/packages/${encodeURIComponent(o)}/sprites/${encodeURIComponent(category)}/${encodeURIComponent(name)}.png?_=${Date.now()}`);
           if (res.ok) blob = await res.blob();
         } catch(e) {}
       }
@@ -14717,6 +14870,14 @@ const Packages = (() => {
       ...rows('hex', d.hex), ...rows('bld', d.bld), ...unkeyed('hex', d.hex), ...unkeyed('bld', d.bld)].join('\n');
   }
 
+  // Road warnings (bridge on land, road on water, ...) listed under the publish diff; never blocking.
+  function _roadWarningsText(id) {
+    try {
+      const w = RoadPerms.gate({ pkg: id }).warnings;
+      return w.length ? '\n\nRoad warnings (' + w.length + '):\n' + w.slice(0, 10).map(x => '! ' + x.message).join('\n') + (w.length > 10 ? '\n...' : '') : '';
+    } catch (e) { return ''; }
+  }
+
   async function openPublishConfirm(id) {
     if (isDefault(id)) {
       // postapoc: use existing publish functions
@@ -14736,7 +14897,7 @@ const Packages = (() => {
     const head = d.firstPublish ? 'First publish of this package.' : `Server version: ${d.version}.`;
     const ok = await UI.confirm('Publish Package',
       `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; sprites and the version number are still updated.' : ''}`,
-      _formatDiff(d), 'Publish');
+      _formatDiff(d) + _roadWarningsText(id), 'Publish');
     if (ok) openPublishDialog(id);
   }
 
@@ -14775,10 +14936,13 @@ const Packages = (() => {
   // package's or the shared local store, and not on the server (package folder or the postapoc pool).
   async function findMissingSprites(id) {
     const refs = await _packageSpriteRefs(id);
-    let have = new Set();
+    const ownersOf = _foreignSpriteOwners(id);
+    let have = new Set(), haveForeign = new Set();
     try {
       const [pkgLocal, baseLocal] = await Promise.all([SpriteStore.loadForPackage(id), SpriteStore.loadForPackage('postapoc')]);
       have = new Set([...baseLocal, ...pkgLocal].map(e => e.name));
+      const owners = new Set(); for (const [n, c] of refs) ownersOf(n, c).forEach(o => owners.add(o));
+      for (const o of owners) for (const e of await SpriteStore.loadForPackage(o)) haveForeign.add(o + '\u0000' + e.name);
     } catch(e) { console.warn('[Packages] local sprite store unavailable:', e && e.message); }
     const exists = async url => { try { return (await fetch(url, { method: 'HEAD' })).ok; } catch(e) { return false; } };
     const missing = [];
@@ -14787,6 +14951,11 @@ const Packages = (() => {
       const seg = `${category}/${encodeURIComponent(name)}.png`;
       if (await exists(`${BASE_URL}/packages/${encodeURIComponent(id)}/sprites/${seg}?_=${Date.now()}`)) continue;
       if (await exists(`${BASE_URL}/packages/postapoc/sprites/${seg}?_=${Date.now()}`)) continue;
+      const owners = ownersOf(name, category);
+      if (owners.some(o => haveForeign.has(o + '\u0000' + name))) continue;
+      let found = false;
+      for (const o of owners) if (await exists(`${BASE_URL}/packages/${encodeURIComponent(o)}/sprites/${seg}?_=${Date.now()}`)) { found = true; break; }
+      if (found) continue;
       missing.push({ name, category });
     }
     return missing;
@@ -14901,6 +15070,7 @@ const Packages = (() => {
       // Defence in depth: names that came from the server or from older data are checked again before any path is built.
       const unsafeNames = [...hexes, ...buildings].map(e => e.spriteName).filter(n => n !== undefined && n !== '' && !isSafeSpriteName(n));
       if (unsafeNames.length) throw new Error(_unsafeNamesMessage(unsafeNames));
+      await GitHubSync.roadsGate(id);   // Roads V1: no write while the road permissions are invalid (mode stage/active)
       // A local-only package must not land on an id somebody else published meanwhile (never overwritten, nothing written).
       if (entry.localOnly && !entry.serverClaimed) {
         const clash = await _serverIdProblem(id);
@@ -14933,7 +15103,7 @@ const Packages = (() => {
       const previewUrl = await getPreview(id);
 
       UIprogress(5, `Publishing ${id}/hex_database.json…`);
-      const hexPayload = JSON.stringify({ version: 1, package: id, hexes }, null, 2);
+      const hexPayload = JSON.stringify(HexDB.exportFor({ pkg: id, mode: RoadPerms.writeMode(), hexes }), null, 2);
       await GitHubSync._putText(`packages/${id}/hex_database.json`, hexPayload, `publish ${id}: hex_database.json`);
 
       UIprogress(20, `Publishing ${id}/building_database.json…`);
@@ -15418,6 +15588,8 @@ const Packages = (() => {
         // '' means "no sprite" (no path is ever built from it); anything else must already be canonical, because it
         // becomes part of a repository path on publish.
         if (typeof e.spriteName === 'string' && e.spriteName !== '' && !isSafeSpriteName(e.spriteName)) return bad(`${at} ("${e.id}") has an unsafe spriteName: ${JSON.stringify(e.spriteName.slice(0, 60))}.`);
+        // Roads V1: roads and bridges are global base content; a package cannot define them (any write mode).
+        if (kind === 'building' && (e.isRoad === true || e.buildingCategory === 'Bridge')) return bad(`${at} ("${e.id}") is a road or bridge: roads and bridges are global (base package only), a package cannot define them.`);
         if (seen.has(e.id)) return bad(`Duplicate entry id "${e.id}"`);
         seen.add(e.id);
       }));
@@ -15491,6 +15663,14 @@ const Packages = (() => {
     if (getEntry(pid) || ch.same + ch.changed + cb.same + cb.changed > 0) {
       plan.conflict = { packageId: pid, hex: ch, bld: cb };
       warnings.push(`A package with the id "${pid}" already exists here (hex tiles: ${ch.new} new, ${ch.changed} changed, ${ch.same} unchanged; buildings: ${cb.new} new, ${cb.changed} changed, ${cb.same} unchanged). Pick another id to import it as a separate package.`);
+    }
+    // Roads V1: a tile listing road/bridge ids this editor's base Building DB does not know is imported as is, with a warning.
+    const roadTypes = RoadPerms.currentTypes();
+    if (roadTypes.order.length) {
+      const known = new Set(roadTypes.order), unknownIds = new Set();
+      let tiles = 0;
+      hexes.forEach(h => { const bad = Array.isArray(h.allowedRoads) ? h.allowedRoads.filter(id => typeof id === 'string' && !known.has(id)) : []; if (bad.length) { tiles++; bad.forEach(id => unknownIds.add(id)); } });
+      if (tiles) warnings.push(`${tiles} tiles list road ids unknown here (${[...unknownIds].slice(0, 5).join(', ')}); they are kept and shown in red in the Hex DB.`);
     }
     plan.hexes = hexes; plan.buildings = buildings;
     plan.summary.hexCount = hexes.length; plan.summary.bldCount = buildings.length;
@@ -15974,7 +16154,7 @@ const Packages = (() => {
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
-           spriteSrc, openReskinPicker, reskinTargetId, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
+           spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
@@ -16256,7 +16436,7 @@ const Shortcuts = (() => {
 // cells: [{col,row}] (first CELL_CAP only), total (true number of affected cells) }.
 // Rules: unknown-id / unknown-object (error; per distinct id, found by IO.analyzeMap's own id check via its onUnknown
 // hook, so there is ONE implementation of "unknown id"), missing-city (error), unreachable-settlement, orphan-road,
-// missing-sprite (warnings). There is deliberately no 'city-off-center' rule: the city is configurable (T3.5).
+// road-not-allowed (Roads V1: bridge/road on a tile whose Hex DB list does not allow it), missing-sprite (warnings). There is deliberately no 'city-off-center' rule: the city is configurable (T3.5).
 // Missing sprite = the load was attempted and FAILED (Terrain.spriteState === 'failed'); 'pending' (still decoding)
 // and 'unknown' (never requested) are not problems, and the count of pending sprites is returned by run().
 // Cost: one pass over the cells inside analyzeMap (+ one more only when some sprite failed), one BFS over at most
@@ -16274,7 +16454,7 @@ const MapValidator = (() => {
     ids:      new Set(['lava_plain_1', 'lava_rift_1', 'rift_1']),
   });
   const CELL_CAP = 200, MAX_ID_ISSUES = 50;
-  const RULE_ORDER = ['unknown-id', 'unknown-object', 'missing-city', 'unreachable-settlement', 'orphan-road', 'missing-sprite'];
+  const RULE_ORDER = ['unknown-id', 'unknown-object', 'missing-city', 'unreachable-settlement', 'orphan-road', 'road-not-allowed', 'missing-sprite'];
   const _lc = s => String(s).toLowerCase();
   const _byRowCol = (a, b) => a.row - b.row || a.col - b.col;
   const _isCell = (c, r, W, H) => Number.isInteger(c) && Number.isInteger(r) && c >= 0 && c < W && r >= 0 && r < H;
@@ -16406,6 +16586,38 @@ const MapValidator = (() => {
                                       : `${orphans.length} road tiles connect to nothing (first at ${orphans[0].col},${orphans[0].row})` });
     }
 
+    // 4b. Road permissions (Roads V1): a bridge object on a tile whose list is set and lacks it, a road cell on a tile whose list
+    // is set and holds no road type. Tiles without a list (not backfilled) are skipped. The map stores no road type, so
+    // "any road type" is all that can be checked; a road cell that carries a bridge object is covered by that bridge.
+    if (st.roadHex && st.roadTypes) {
+      const bad = { bridge: [], road: [] };
+      const recAt = idx => { const id = data[idx]; return typeof id === 'string' ? st.roadHex.get(_lc(id)) : null; };
+      const objKeys = st.objects || {};
+      Object.keys(objKeys).forEach(k => {
+        const bid = objKeys[k];
+        if (typeof bid !== 'string' || !st.roadTypes.bridges.has(bid)) return;
+        const [c, r] = k.split(',').map(Number);
+        if (!_isCell(c, r, W, H)) return;
+        const rec = recAt(r * W + c);
+        if (rec && Array.isArray(rec.allowedRoads) && !rec.allowedRoads.includes(bid)) bad.bridge.push({ col: c, row: r });
+      });
+      Object.keys(st.roads || {}).forEach(k => {
+        const [c, r] = k.split(',').map(Number);
+        if (!_isCell(c, r, W, H)) return;
+        if (typeof objKeys[k] === 'string' && st.roadTypes.bridges.has(objKeys[k])) return;
+        const rec = recAt(r * W + c);
+        if (rec && Array.isArray(rec.allowedRoads) && !rec.allowedRoads.some(id => st.roadTypes.roads.has(id))) bad.road.push({ col: c, row: r });
+      });
+      [['bridge', 'bridge object', 'bridge objects'], ['road', 'road tile', 'road tiles']].forEach(([kind, one, many]) => {
+        const list = bad[kind];
+        if (!list.length) return;
+        list.sort(_byRowCol);
+        issues.push({ id: 'road-not-allowed', key: 'road-not-allowed:' + kind, severity: 'warning', total: list.length, cells: list.slice(0, CELL_CAP),
+          message: list.length === 1 ? `${one[0].toUpperCase() + one.slice(1)} at ${list[0].col},${list[0].row} stands on a tile that does not allow it (Hex DB > Roads/Bridges)`
+                                     : `${list.length} ${many} stand on tiles that do not allow them (first at ${list[0].col},${list[0].row}; Hex DB > Roads/Bridges)` });
+      });
+    }
+
     // 5. Missing sprites: ids whose load FAILED. The cell pass only runs when there is such an id.
     const failed = new Map();       // lower-case id -> display id
     st.hexById.forEach((e, lcId) => { if (e && typeof e.spriteName === 'string' && e.spriteName && st.spriteState(e.id) === 'failed') failed.set(lcId, e.id); });
@@ -16426,10 +16638,26 @@ const MapValidator = (() => {
     return issues.sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || RULE_ORDER.indexOf(a.id) - RULE_ORDER.indexOf(b.id));
   }
 
+  // Road permissions for the rule above: lower-case tile id -> Hex DB record (the base package's record wins over a same-id override).
+  function _roadHexLookup(hexes) {
+    const m = new Map();
+    hexes.forEach(h => {
+      if (!h || typeof h.id !== 'string' || !h.id) return;
+      const k = _lc(h.id), cur = m.get(k);
+      if (!cur || ((cur.package || 'postapoc') !== 'postapoc' && (h.package || 'postapoc') === 'postapoc')) m.set(k, h);
+    });
+    return m;
+  }
+  function _roadTypeSets(blds) {
+    const t = RoadPerms.typesFrom(blds);
+    return { roads: new Set(t.roads.map(b => b.id)), bridges: new Set(t.bridges.map(b => b.id)) };
+  }
+
   // Snapshot of the live editor state. mapData etc. are passed by reference and only read.
   function collectState() {
     const hexById = new Map(), bldById = new Map();
-    HexDB.getAll().forEach(h => { if (h && typeof h.id === 'string' && h.id) hexById.set(_lc(h.id), h); });
+    const allHexes = HexDB.getAll();      // read once per run (the validator-gate specs count the reads)
+    allHexes.forEach(h => { if (h && typeof h.id === 'string' && h.id) hexById.set(_lc(h.id), h); });
     const blds = BldDB.getAll();
     blds.forEach(b => { if (b && typeof b.id === 'string' && b.id) bldById.set(_lc(b.id), b); });
     return {
@@ -16437,6 +16665,7 @@ const MapValidator = (() => {
       settlements, roads: roadsData, objects: objectsData, bridges: bridgesData,
       hexById, bldById,
       needRoad: new Set(blds.filter(b => b && b.needRoad && typeof b.id === 'string').map(b => _lc(b.id))),
+      roadHex: _roadHexLookup(allHexes), roadTypes: _roadTypeSets(blds),
       cityCol: getCityCol(), cityRow: getCityRow(),
       spriteState: id => Terrain.spriteState(id),
       neighbors: (c, r) => HexUtils.neighbors(c, r, MAP_WIDTH, MAP_HEIGHT),
@@ -17210,6 +17439,287 @@ const BiomeManager = (() => {
   return { getNames, getColor, add, remove, updateColor, refreshAllDropdowns, openManager, closeManager };
 })();
 
+// ── RoadPerms Module (Roads/Bridges V1: pure helpers, no DOM, no HexDB/BldDB state except currentTypes) ─────
+// Hex records list the ids of road/bridge buildings (base Building DB) allowed on the tile: `allowedRoads: string[]`.
+// Missing / null / [] = nothing allowed. `roadAllowed` stays as the derived legacy flag (any listed id is a road).
+const RoadPerms = (() => {
+  const BASE_PKG = 'postapoc';
+  const LEGACY_ROAD_ENUM_IDS = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
+  const LEGACY_ROAD_TERRAIN_IDS = [9, 10, 11, 12, 13];
+
+  const _pkgOf = o => (o && o.package) || BASE_PKG;
+
+  // Road/bridge types of the BASE package in Building DB order. An entry that is both is listed under roads only.
+  function typesFrom(buildings) {
+    const roads = [], bridges = [], order = [];
+    (Array.isArray(buildings) ? buildings : []).forEach(b => {
+      if (!b || !b.id || _pkgOf(b) !== BASE_PKG) return;
+      if (b.isRoad) { roads.push(b); order.push(b.id); }
+      else if (b.buildingCategory === 'Bridge') { bridges.push(b); order.push(b.id); }
+    });
+    return { roads, bridges, order };
+  }
+
+  // Unique non-empty trimmed strings in their original order; anything that is not an array means "not set" (null).
+  function normalize(list) {
+    if (!Array.isArray(list)) return null;
+    const seen = new Set(), out = [];
+    list.forEach(v => {
+      if (typeof v !== 'string') return;
+      const s = v.trim();
+      if (s && !seen.has(s)) { seen.add(s); out.push(s); }
+    });
+    return out;
+  }
+
+  // Building DB order; ids the Building DB does not know go last in their original order.
+  function sortLike(list, types) {
+    const order = (types && types.order) || [];
+    const rank = id => { const i = order.indexOf(id); return i < 0 ? Infinity : i; };
+    return list.map((id, i) => ({ id, i })).sort((a, b) => (rank(a.id) - rank(b.id)) || (a.i - b.i)).map(x => x.id);
+  }
+
+  // Legacy flag: true iff a listed id is a road (spec 4.5). While the Building DB is still empty (startup order) any id counts;
+  // HexDB.refreshDerived() re-runs the derivation once it has loaded.
+  function deriveRoadAllowed(list, types) {
+    if (!Array.isArray(list) || !list.length) return false;
+    if (!types || !types.order.length) return true;
+    const roadIds = new Set(types.roads.map(b => b.id));
+    return list.some(id => roadIds.has(id));
+  }
+
+  const isWaterLike = hex => !!hex && (hex.type === 'Rivers' || hex.type === 'Water');
+
+  function stateOf(hex) {
+    if (!hex || !Array.isArray(hex.allowedRoads)) return 'unset';
+    return hex.allowedRoads.length ? 'some' : 'none';
+  }
+
+  // Problems of a data set. scope: { pkg?, requireField? }. Items: { rule, hexId, pkg, message, fix? } (hexId is the
+  // building id for building rules). Bridge on land / road on water are warnings by decision (the tile list is the rule).
+  function validate({ hexes, buildings, scope }) {
+    const sc = scope || {};
+    const errors = [], warnings = [];
+    const types = typesFrom(buildings);
+    const roadIds = new Set(types.roads.map(b => b.id));
+    const bridgeIds = new Set(types.bridges.map(b => b.id));
+    const bldById = new Map(types.roads.concat(types.bridges).map(b => [b.id, b]));
+    const add = (arr, rule, id, pkg, message, fix) => arr.push(fix ? { rule, hexId: id, pkg, message, fix } : { rule, hexId: id, pkg, message });
+    const inScope = o => !sc.pkg || _pkgOf(o) === sc.pkg;
+    const allHexes = Array.isArray(hexes) ? hexes : [];
+    const baseById = new Map();
+    allHexes.forEach(h => { if (h && _pkgOf(h) === BASE_PKG && h.id) baseById.set(h.id, h); });
+
+    allHexes.forEach(h => {
+      if (!h || !inScope(h)) return;
+      const pkg = _pkgOf(h);
+      if (!Array.isArray(h.allowedRoads)) {
+        if (sc.requireField) add(errors, 'unset', h.id, pkg, `${h.id}: no road permissions yet (run Backfill roads)`);
+        // a same-id override created before the backfill, while the base tile has a list: it would silently allow nothing
+        if (pkg !== BASE_PKG) {
+          const b = baseById.get(h.id);
+          if (b && Array.isArray(b.allowedRoads)) add(warnings, 'override-differs', h.id, pkg, `${h.id}: road list differs from the base tile (this one has none yet)`, 'take-base');
+        }
+        return;
+      }
+      const seen = new Set();
+      let dup = false;
+      h.allowedRoads.forEach(id => {
+        if (typeof id !== 'string') return;
+        if (seen.has(id)) { dup = true; return; }
+        seen.add(id);
+        if (!roadIds.has(id) && !bridgeIds.has(id)) {
+          add(errors, 'unknown-id', h.id, pkg, `${h.id}: "${id}" is not a road or bridge of the base Building DB`);
+          return;
+        }
+        if (bridgeIds.has(id) && !isWaterLike(h))
+          add(warnings, 'bridge-on-land', h.id, pkg, `${h.id}: bridge "${id}" on a ${h.type} tile`);
+        if (roadIds.has(id) && isWaterLike(h))
+          add(warnings, 'road-on-water', h.id, pkg, `${h.id}: road "${id}" on a ${h.type} tile (a bridge?)`);
+        if (bridgeIds.has(id) && h.type === 'Water' && !(bldById.get(id).underTerrainId))
+          add(warnings, 'water-bridge-no-under', h.id, pkg, `${h.id}: bridge "${id}" on water has no Under Terrain`);
+      });
+      if (dup) add(errors, 'duplicate', h.id, pkg, `${h.id}: duplicate ids in the road list`, 'dedupe');
+      if (pkg !== BASE_PKG) {
+        const b = baseById.get(h.id);
+        if (b && Array.isArray(b.allowedRoads)) {
+          const a = new Set(h.allowedRoads), c = new Set(b.allowedRoads);
+          if (a.size !== c.size || [...a].some(x => !c.has(x)))
+            add(warnings, 'override-differs', h.id, pkg, `${h.id}: road list differs from the base tile`, 'take-base');
+        }
+      }
+    });
+
+    (Array.isArray(buildings) ? buildings : []).forEach(b => {
+      if (!b || !b.id || !inScope(b)) return;
+      const pkg = _pkgOf(b);
+      const road = !!b.isRoad, bridge = b.buildingCategory === 'Bridge';
+      if (road && bridge) add(errors, 'both-flags', b.id, pkg, `${b.id}: Is Road and Category Bridge at once`);
+      if ((road || bridge) && pkg !== BASE_PKG)
+        add(errors, 'road-in-package-bld', b.id, pkg, `${b.id}: roads and bridges are global (base package only)`);
+      if ((road || bridge) && Array.isArray(b.availableTiles) && b.availableTiles.length)
+        add(warnings, 'tiles-not-empty', b.id, pkg, `${b.id}: Available Tiles is ignored for roads and bridges (set it in Hex DB)`, 'clear-tiles');
+    });
+    return { errors, warnings };
+  }
+
+  // ── Roads write mode (per browser; the owner switches it, publishing never does) ──
+  // off: output byte-identical to the editor before Roads V1. stage: allowedRoads + derived roadAllowed. active: stage + roadsSchema 1.
+  const WRITE_MODES = ['off', 'stage', 'active'];
+  function writeMode() {
+    try { const v = localStorage.getItem('roadsWriteMode'); return WRITE_MODES.includes(v) ? v : 'off'; } catch (e) { return 'off'; }
+  }
+  function setWriteMode(m) {
+    if (!WRITE_MODES.includes(m)) return false;
+    try { if (m === 'off') localStorage.removeItem('roadsWriteMode'); else localStorage.setItem('roadsWriteMode', m); } catch (e) { return false; }
+    return true;
+  }
+
+  // The check run before any publish write. pkg: 'postapoc' (base files) or a package id. In mode off nothing blocks
+  // (the editor then writes exactly what it wrote before); in stage/active every error blocks and unset records are errors.
+  function gate({ pkg, mode, hexes, buildings }) {
+    const m = mode || writeMode();
+    const v = validate({
+      hexes: hexes || (typeof HexDB !== 'undefined' ? HexDB.getAll() : []),
+      buildings: buildings || (typeof BldDB !== 'undefined' ? BldDB.getAll() : []),
+      scope: { pkg, requireField: m !== 'off' },
+    });
+    if (m === 'off') return { ok: true, mode: m, errors: [], warnings: v.warnings };
+    return { ok: v.errors.length === 0, mode: m, errors: v.errors, warnings: v.warnings };
+  }
+  // One line naming the count and the first three offenders.
+  function gateMessage(g) {
+    const n = g.errors.length;
+    return `Road permissions: ${n} problem${n === 1 ? '' : 's'} block the publish. ` + g.errors.slice(0, 3).map(e => e.message).join('; ') + (n > 3 ? `; and ${n - 3} more` : '');
+  }
+
+  // Counts of records that have a list: { total, set, unset }. Mode active needs unset == 0 for every file it publishes.
+  function coverage(hexes) {
+    const list = Array.isArray(hexes) ? hexes : [];
+    const set = list.filter(h => Array.isArray(h && h.allowedRoads)).length;
+    return { total: list.length, set, unset: list.length - set };
+  }
+
+  // Defaults by tile type group (spec 3.3): initial presets; a group missing from the presets means nothing. Applied only on request.
+  const INITIAL_DEFAULTS = { Plains: ['road'], Rubble: ['road'], Rivers: ['bridge'] };
+  function defaultsFor(group, defaults) {
+    const d = (defaults && typeof defaults === 'object') ? defaults : INITIAL_DEFAULTS;
+    return Array.isArray(d[group]) ? d[group].slice() : [];
+  }
+
+  // ── Backfill (spec 6 step 3): today's effective rule, for the records that have no list yet ──
+  // road: the id is one of the legacy enum ids (case-insensitive), or roadAllowed is true and the Unity TerrainType value is
+  // unknown yet (< 0) or 9..13; bridge: type Rivers; otherwise []. Existing lists are never touched. Returns [{ hex, list }].
+  function backfillPlan(hexes) {
+    const enumIds = LEGACY_ROAD_ENUM_IDS.map(x => x.toLowerCase());
+    return (Array.isArray(hexes) ? hexes : []).reduce((out, h) => {
+      if (!h || Array.isArray(h.allowedRoads)) return out;
+      const t = typeof h.terrainTypeId === 'number' ? h.terrainTypeId : -1;
+      const list = [];
+      if (enumIds.includes(String(h.id).toLowerCase()) || (h.roadAllowed === true && (t < 0 || LEGACY_ROAD_TERRAIN_IDS.includes(t)))) list.push('road');
+      if (h.type === 'Rivers') list.push('bridge');
+      out.push({ hex: h, list });
+      return out;
+    }, []);
+  }
+
+  // ── Bulk planners (pure): each returns [{ hex, list }] for the records that would change; nothing is mutated. ──
+  // Unset records: Allow / defaults / copy / add-where-Y fill them (the user asked), Remove and add-where leave them alone.
+  const _has = h => Array.isArray(h && h.allowedRoads);
+  const _eqSet = (a, b) => { const x = new Set(a), y = new Set(b); return x.size === y.size && [...x].every(v => y.has(v)); };
+  const _plan = (hexes, next) => (Array.isArray(hexes) ? hexes : []).reduce((out, h) => {
+    const l = next(h);
+    if (l && !(_has(h) && _eqSet(h.allowedRoads, l))) out.push({ hex: h, list: l });
+    return out;
+  }, []);
+  const planAllow = (hexes, typeId) => _plan(hexes, h => !_has(h) ? [typeId] : h.allowedRoads.includes(typeId) ? null : h.allowedRoads.concat(typeId));
+  const planRemove = (hexes, typeId) => _plan(hexes, h => !_has(h) || !h.allowedRoads.includes(typeId) ? null : h.allowedRoads.filter(x => x !== typeId));
+  const planApplyDefaults = (hexes, defaults) => _plan(hexes, h => defaultsFor(h.type, defaults));
+  const planAddWhere = (hexes, typeId, whereTypeId) => _plan(hexes, h => _has(h) && h.allowedRoads.includes(whereTypeId) && !h.allowedRoads.includes(typeId) ? h.allowedRoads.concat(typeId) : null);
+  const planCopyFrom = (hexes, srcList) => Array.isArray(srcList) ? _plan(hexes, () => srcList.slice()) : [];
+  // The tiles named in ids hold typeId, every other tile of the scope does not (an unset tile that is not named becomes an
+  // explicit []). A token is a tile id or "package::id". unknown: tokens matching no record; outside: tokens matching only
+  // records outside the scope (others = all records not in hexes). Both are skipped.
+  function planSetExact(hexes, typeId, ids, others) {
+    const scope = Array.isArray(hexes) ? hexes : [];
+    const key = h => _pkgOf(h) + '::' + h.id;
+    const inScope = new Set(), outside = [], unknown = [];
+    const outsideSet = new Set((Array.isArray(others) ? others : []).flatMap(h => [h.id, key(h)]));
+    (ids || []).forEach(t => {
+      const hit = scope.filter(h => h.id === t || key(h) === t);
+      if (hit.length) hit.forEach(h => inScope.add(h));
+      else if (outsideSet.has(t)) { if (!outside.includes(t)) outside.push(t); }
+      else if (!unknown.includes(t)) unknown.push(t);
+    });
+    const changes = _plan(scope, h => {
+      const want = inScope.has(h);
+      if (!_has(h)) return want ? [typeId] : [];
+      const has = h.allowedRoads.includes(typeId);
+      return want === has ? null : want ? h.allowedRoads.concat(typeId) : h.allowedRoads.filter(x => x !== typeId);
+    });
+    return { changes, unknown, outside };
+  }
+
+  // Convenience getter for live code (the only place that reads BldDB).
+  function currentTypes() { try { return typesFrom(BldDB.getAll()); } catch (e) { return typesFrom([]); } }
+
+  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, writeMode, setWriteMode, gate, gateMessage, coverage, defaultsFor, INITIAL_DEFAULTS, backfillPlan, planAllow, planRemove, planApplyDefaults, planAddWhere, planCopyFrom, planSetExact, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
+})();
+
+window.RoadPerms = RoadPerms;
+
+// ── RoadsHistory (Roads V1): the matrix modal's own undo stack ───────────────────────────────────────────
+// The Hex DB has no undo and the map History is map-only, so a bulk action on road permissions gets its own small stack:
+// one step per action (begin -> change -> commit), restored through HexDB.restoreRoads in a single batch (one autosave).
+// Independent of History (map). Cleared when the matrix modal closes; at most 50 steps.
+const RoadsHistory = (() => {
+  const MAX = 50;
+  let _undo = [], _redo = [], _open = null;
+  const _subs = [];
+  const _emit = () => _subs.forEach(f => { try { f(); } catch (e) { console.error(e); } });
+  // Captures the state of the given records (before an action changes them).
+  function begin(label, hexes) {
+    _open = { label: String(label || ''), before: HexDB.snapshotRoads(hexes) };
+    return _open.before.length;
+  }
+  // Captures the state after the action; pushes one step when anything changed. Returns whether a step was pushed.
+  function commit() {
+    const o = _open; _open = null;
+    if (!o) return false;
+    const after = HexDB.snapshotRoads(o.before.map(x => x.key));
+    const changed = o.before.some((b, i) => JSON.stringify(b) !== JSON.stringify(after[i]));
+    if (!changed) return false;
+    _undo.push({ label: o.label, before: o.before, after });
+    if (_undo.length > MAX) _undo.shift();
+    _redo = [];
+    _emit();
+    return true;
+  }
+  function undo() {
+    const st = _undo.pop();
+    if (!st) return false;
+    HexDB.restoreRoads(st.before);
+    _redo.push(st);
+    _emit();
+    return true;
+  }
+  function redo() {
+    const st = _redo.pop();
+    if (!st) return false;
+    HexDB.restoreRoads(st.after);
+    _undo.push(st);
+    _emit();
+    return true;
+  }
+  function clear() { _undo = []; _redo = []; _open = null; _emit(); }
+  const depth = () => _undo.length;
+  const redoDepth = () => _redo.length;
+  const labels = () => _undo.map(x => x.label);
+  function onChange(fn) { _subs.push(fn); return () => { const i = _subs.indexOf(fn); if (i >= 0) _subs.splice(i, 1); }; }
+  return { begin, commit, undo, redo, clear, depth, redoDepth, labels, onChange, MAX };
+})();
+window.RoadsHistory = RoadsHistory;
+
 // ── HexDB Module ───────────────────────────────────────────
 const HexDB = (() => {
   const FILTER_CATS = ['FilterTerrain','FilterResource','FilterWater','FilterSettlement','FilterHazard'];
@@ -17252,7 +17762,7 @@ const HexDB = (() => {
       id:'', textId:'', type:'Special', biome:'Summer',
       filterCategory:'FilterTerrain', spriteName:'',
       category:'', terrainTypeId:-1, fallback:false,
-      roadAllowed:false,
+      roadAllowed:false, allowedRoads:[],
       descriptionIdleId:'', descriptionBuildId:'', baseCostTaps:0,
       canDestroy:false, destroyTransformTo:'Plains_1',
       destroySource:[], canStored:false,
@@ -17640,6 +18150,546 @@ const HexDB = (() => {
     _data.version = hasMultiTile ? 2 : 1;
   }
 
+  // ── ROADS / BRIDGES block (Roads V1) ─────────────────────
+  // Its controls carry data-road-id / data-road-remove, never data-field: _readRecord writes every [data-field] checkbox
+  // into the record, which would put a property named after the id on it.
+  const _roadsMemory = new Map();   // per session: 'package::id' -> list before the master was unticked
+  const _hexKey = h => (h.package || 'postapoc') + '::' + h.id;
+
+  function _priceText(b) {
+    return (Array.isArray(b.price) ? b.price : []).map(p => `${p.type || p.resource || ''} ${p.amount ?? ''}`.trim()).join(', ');
+  }
+  function _roadLabel(b) {
+    const price = _priceText(b);
+    return `${_esc(b.id)} (${_esc(b.textId || b.id)}${price ? ', ' + _esc(price) : ''})`;
+  }
+  function _roadsBlockHTML(hex) {
+    const types = RoadPerms.currentTypes();
+    const state = RoadPerms.stateOf(hex);
+    const list = Array.isArray(hex.allowedRoads) ? hex.allowedRoads : [];
+    const known = new Set(types.order);
+    const unknown = [...new Set(list.filter(id => typeof id === 'string' && !known.has(id)))];
+    const row = (label, cls, items) => `<div class="hexdb-row"><span class="hexdb-label">${label}</span><div class="hexdb-roads-list ${cls}">` +
+      (items.length ? items.map(b => `<label><input type="checkbox" data-road-id="${_esc(b.id)}"${list.includes(b.id) ? ' checked' : ''}>${_roadLabel(b)}</label>`).join('') : '<span style="color:var(--muted);font-size:12px">none defined in the Building DB</span>') +
+      '</div></div>';
+    const v = RoadPerms.validate({ hexes: _data.hexes, buildings: BldDB.getAll(), scope: { pkg: hex.package || 'postapoc' } });
+    const warns = v.errors.concat(v.warnings).filter(x => x.hexId === hex.id && x.rule !== 'unknown-id' && x.rule !== 'unset');
+    return [
+      state === 'unset' ? '<div class="hexdb-row"><span class="hexdb-label"></span><div class="hexdb-roads-unset">No road permissions yet - run Backfill roads</div></div>' : '',
+      `<div class="hexdb-row hexdb-checkbox-row"><span class="hexdb-label">ROADS / BRIDGES</span>
+  <input type="checkbox" id="hexdb-roads-master"${state === 'some' ? ' checked' : ''}>
+  <label for="hexdb-roads-master">Roads/Bridges allowed on this tile</label></div>`,
+      row('Roads', 'hexdb-roads-roads', types.roads),
+      row('Bridges', 'hexdb-roads-bridges', types.bridges),
+      ...unknown.map(id => `<div class="hexdb-row"><span class="hexdb-label"></span><div class="hexdb-roads-unknown">unknown id "${_esc(id)}" <button type="button" data-road-remove="${_esc(id)}" title="Remove this id">✕</button></div></div>`),
+      ...warns.map(w => `<div class="hexdb-row"><span class="hexdb-label"></span><div class="hexdb-roads-warn">! ${_esc(w.message)}${w.fix === 'take-base' ? ' <button type="button" class="hexdb-tool-btn" data-road-takebase="1">Take from base</button>' : ''}</div></div>`),
+      `<div class="hexdb-row"><span class="hexdb-label">Copy from tile</span>
+  <input class="hexdb-input" id="hexdb-roads-copy-from" list="hexdb-id-list" placeholder="tile id (any package)">
+  <button type="button" class="hexdb-tool-btn" id="hexdb-roads-copy-btn">Copy list</button>
+  <button type="button" class="hexdb-tool-btn" id="hexdb-roads-defaults-btn" title="Replace the list by the road defaults of this tile type">Apply type defaults</button></div>`,
+    ].join('');
+  }
+  function _selectedHex() {
+    return (_selFilt >= 0 && _selFilt < _filtered.length) ? _data.hexes[_filtered[_selFilt]] : null;
+  }
+  function _renderRoadsBlock() {
+    const box = document.getElementById('hexdb-roads');
+    const h = _selectedHex();
+    if (!box || !h) return;
+    box.innerHTML = _roadsBlockHTML(h);
+    _wireRoads();
+  }
+  function _wireRoads() {
+    const box = document.getElementById('hexdb-roads');
+    if (!box) return;
+    // the new list from the boxes: known ids in Building DB order, plus the unknown ids the record still carries
+    const listFromBoxes = h => {
+      const checked = [...box.querySelectorAll('input[data-road-id]')].filter(e => e.checked).map(e => e.dataset.roadId);
+      const known = new Set(RoadPerms.currentTypes().order);
+      const unknown = (Array.isArray(h.allowedRoads) ? h.allowedRoads : []).filter(id => !known.has(id));
+      return checked.concat(unknown);
+    };
+    box.querySelectorAll('input[data-road-id]').forEach(el => el.addEventListener('change', () => {
+      const h = _selectedHex(); if (!h) return;
+      setAllowedRoads(h, listFromBoxes(h));
+      _renderRoadsBlock();
+    }));
+    const master = box.querySelector('#hexdb-roads-master');
+    if (master) master.addEventListener('change', () => {
+      const h = _selectedHex(); if (!h) return;
+      const key = _hexKey(h);
+      if (!master.checked) {
+        if (Array.isArray(h.allowedRoads) && h.allowedRoads.length) _roadsMemory.set(key, h.allowedRoads.slice());
+        setAllowedRoads(h, []);
+      } else {
+        // without a remembered list this becomes the tile type's default (the first road type when that default is empty)
+        const first = RoadPerms.currentTypes().roads[0];
+        const def = defaultRoadsFor(h);
+        setAllowedRoads(h, _roadsMemory.get(key) || (def.length ? def : (first ? [first.id] : [])));
+      }
+      _renderRoadsBlock();
+    });
+    box.querySelectorAll('button[data-road-remove]').forEach(btn => btn.addEventListener('click', () => {
+      const h = _selectedHex(); if (!h) return;
+      const id = btn.dataset.roadRemove;
+      setAllowedRoads(h, h.allowedRoads.filter(x => x !== id));
+      _renderRoadsBlock();
+    }));
+    box.querySelectorAll('button[data-road-takebase]').forEach(btn => btn.addEventListener('click', () => {
+      const h = _selectedHex(); if (!h) return;
+      const base = _data.hexes.find(x => x.id === h.id && (x.package || 'postapoc') === 'postapoc');
+      if (!base || !Array.isArray(base.allowedRoads)) { UI.toast(`The base tile ${h.id} has no road permissions yet`); return; }
+      setAllowedRoads(h, base.allowedRoads);
+      _renderRoadsBlock();
+    }));
+    const defBtn = box.querySelector('#hexdb-roads-defaults-btn');
+    if (defBtn) defBtn.addEventListener('click', () => {
+      const h = _selectedHex(); if (!h) return;
+      applyTypeDefaults(h);
+      _renderRoadsBlock();
+    });
+    const copyBtn = box.querySelector('#hexdb-roads-copy-btn');
+    if (copyBtn) copyBtn.addEventListener('click', () => {
+      const h = _selectedHex(); if (!h) return;
+      const q = box.querySelector('#hexdb-roads-copy-from').value.trim();
+      const src = q && (_data.hexes.find(x => _hexKey(x) === q) || _data.hexes.find(x => x !== h && x.id === q) || _data.hexes.find(x => x.id === q));
+      if (!src) { UI.toast(`No tile "${q}" in the Hex DB`); return; }
+      if (!Array.isArray(src.allowedRoads)) { UI.toast(`${src.id} has no road permissions yet`); return; }
+      setAllowedRoads(h, src.allowedRoads);
+      _renderRoadsBlock();
+    });
+  }
+
+  // ── Roads V1 F2: batch mutation + snapshots for RoadsHistory ──
+  // A snapshot keeps exactly what an action can change on a record: the list (or its absence) and the derived flag.
+  function snapshotRoads(targets) {
+    return (targets || []).map(t => {
+      const h = _resolveHex(typeof t === 'string' ? t : t);
+      if (!h) return { key: typeof t === 'string' ? t : null, missing: true };
+      const has = Array.isArray(h.allowedRoads);
+      return { key: _hexKey(h), has, list: has ? h.allowedRoads.slice() : null, ra: h.roadAllowed };
+    });
+  }
+  function restoreRoads(snaps) {
+    let n = 0;
+    (snaps || []).forEach(sn => {
+      const h = !sn.missing && sn.key ? _resolveHex(sn.key) : null;
+      if (!h) return;
+      if (sn.has) h.allowedRoads = sn.list.slice(); else delete h.allowedRoads;
+      h.roadAllowed = sn.ra;
+      n++;
+    });
+    if (n) _autoSave();
+    return n;
+  }
+  // changes: [{ hex: record|key, list }]. One RoadsHistory step and one autosave for the whole action; returns the number of
+  // tiles that really changed (0 pushes no step and no autosave).
+  function applyRoadChanges(label, changes) {
+    const types = RoadPerms.currentTypes();
+    const todo = [];
+    (changes || []).forEach(c => {
+      const h = _resolveHex(c.hex);
+      const n = RoadPerms.normalize(c.list);
+      if (!h || !n) return;
+      const next = RoadPerms.sortLike(n, types);
+      if (Array.isArray(h.allowedRoads) && h.allowedRoads.length === next.length && h.allowedRoads.every((v, i) => v === next[i])) return;
+      todo.push({ h, next });
+    });
+    if (!todo.length) return 0;
+    RoadsHistory.begin(label, todo.map(x => x.h));
+    todo.forEach(({ h, next }) => { h.allowedRoads = next; h.roadAllowed = RoadPerms.deriveRoadAllowed(next, types); });
+    _autoSave();
+    RoadsHistory.commit();
+    return todo.length;
+  }
+
+  // ── Roads V1 F4: Backfill roads. Explicit only (a button / this call); never at load, never in any write mode. ──
+  const _backfillScope = pkg => _data.hexes.filter(h => pkg === '*' || (h.package || 'postapoc') === (pkg || 'postapoc'));
+  function _backfillSummary(plan) {
+    return { unset: plan.length, road: plan.filter(c => c.list.includes('road')).length, bridge: plan.filter(c => c.list.includes('bridge')).length, none: plan.filter(c => !c.list.length).length,
+             roadTiles: plan.filter(c => c.list.includes('road')).map(c => c.hex.id) };
+  }
+  function backfillPreview(opts) { return _backfillSummary(RoadPerms.backfillPlan(_backfillScope(opts && opts.pkg))); }
+  function backfillRoads(opts) {
+    const plan = RoadPerms.backfillPlan(_backfillScope(opts && opts.pkg));
+    const sum = _backfillSummary(plan);
+    const changed = applyRoadChanges('Backfill roads', plan);
+    return { changed, road: sum.road, bridge: sum.bridge, none: sum.none };
+  }
+  // The preview dialog: scope, counts per type, the tiles that get road. Apply = one RoadsHistory step.
+  function openBackfill(ctx) {
+    const wrap = document.createElement('div');
+    const pkgs = [...new Set(_data.hexes.map(h => h.package || 'postapoc'))];
+    const lab = document.createElement('label'); lab.textContent = 'Scope ';
+    const scope = document.createElement('select'); scope.id = 'rb-scope'; scope.className = 'hexdb-select'; scope.style.cssText = 'flex:none;width:auto';
+    pkgs.forEach(p => { const o = document.createElement('option'); o.value = p; o.textContent = p === 'postapoc' ? 'postapoc (base)' : p; scope.appendChild(o); });
+    const want = ctx && ctx.scopePkg && ctx.scopePkg();
+    scope.value = want && pkgs.includes(want) ? want : 'postapoc';
+    lab.appendChild(scope);
+    const sum = document.createElement('p'); sum.id = 'rb-summary';
+    const note = document.createElement('p'); note.style.cssText = 'font-size:12px;color:var(--muted)';
+    note.textContent = 'Fills only the tiles that have no road list yet, by today\'s effective rule. Existing lists are never changed. Nothing is published.';
+    const roadList = document.createElement('pre'); roadList.id = 'rb-road-list'; roadList.style.cssText = 'max-height:180px;overflow:auto;font-size:12px';
+    wrap.append(lab, sum, roadList, note);
+    const upd = () => {
+      const p = backfillPreview({ pkg: scope.value });
+      sum.textContent = `${p.unset} tile${p.unset === 1 ? '' : 's'} without a list: road on ${p.road}, bridge on ${p.bridge}, nothing on ${p.none}.`;
+      roadList.textContent = p.road ? 'Tiles getting road:\n' + p.roadTiles.join('\n') : 'No tile gets road.';
+    };
+    scope.addEventListener('change', upd); upd();
+    UI.showModal({
+      id: 'roads-backfill', title: 'Backfill roads', body: wrap,
+      actions: [
+        { label: 'Backfill', primary: true, onClick: close => {
+          const r = backfillRoads({ pkg: scope.value });
+          close();
+          if (ctx && ctx.refresh) ctx.refresh();
+          UI.toast(`Backfill roads: ${r.changed} tile${r.changed === 1 ? '' : 's'} filled (road ${r.road}, bridge ${r.bridge})`);
+        } },
+        { label: 'Cancel', onClick: close => close() },
+      ],
+    });
+  }
+
+  // ── Roads V1 F1: defaults by tile type (common.roadDefaults), applied only on request ──
+  const _sameList = (a, b) => { const x = new Set(a), y = new Set(b); return x.size === y.size && [...x].every(v => y.has(v)); };
+  function getRoadDefaults() {
+    const d = _data.common && _data.common.roadDefaults;
+    const out = {};
+    Object.keys(TYPE_GROUPS).forEach(g => { out[g] = RoadPerms.defaultsFor(g, d && typeof d === 'object' ? d : undefined); });
+    return out;
+  }
+  function setRoadDefaults(defaults) {
+    const out = {};
+    Object.keys(TYPE_GROUPS).forEach(g => { out[g] = RoadPerms.sortLike(RoadPerms.normalize(defaults && defaults[g]) || [], RoadPerms.currentTypes()); });
+    if (!_data.common || typeof _data.common !== 'object') _data.common = { goldPerTap: 10 };
+    _data.common.roadDefaults = out;
+    _autoSave();
+  }
+  function defaultRoadsFor(h) {
+    const d = _data.common && _data.common.roadDefaults;
+    return RoadPerms.defaultsFor(h && h.type, d && typeof d === 'object' ? d : undefined);
+  }
+  // Replaces the list by the default of the tile type (also fills an unset record: the user asked for it). One autosave.
+  function applyTypeDefaults(target) {
+    const h = _resolveHex(target);
+    if (!h) return false;
+    return setAllowedRoads(h, defaultRoadsFor(h));
+  }
+  // After a Type change: a set list that is not the new type's default is offered the default; unset records are left alone.
+  function _offerTypeDefaults(h) {
+    if (!Array.isArray(h.allowedRoads)) return;
+    const def = defaultRoadsFor(h);
+    if (_sameList(h.allowedRoads, def)) return;
+    UI.showDialog({
+      title: 'Road permissions',
+      message: `${h.id} is now ${h.type}. Replace its road list (${h.allowedRoads.join(', ') || 'none'}) by the ${h.type} default (${def.join(', ') || 'none'})?`,
+      buttons: [{ label: 'Keep', value: 'keep', kind: 'cancel' }, { label: 'Apply defaults', value: 'apply', kind: 'primary' }],
+    }).then(r => {
+      if (r.button !== 'apply') return;
+      applyTypeDefaults(h);
+      if (_selectedHex() === h) _renderRoadsBlock();
+    });
+  }
+  function openRoadDefaults() {
+    const types = RoadPerms.currentTypes();
+    const cols = types.roads.concat(types.bridges);
+    const cur = getRoadDefaults();
+    const wrap = document.createElement('div');
+    const table = document.createElement('table');
+    table.className = 'roads-matrix-table';
+    const thead = table.createTHead().insertRow();
+    thead.insertCell().textContent = 'Tile type';
+    cols.forEach(b => { const th = document.createElement('th'); th.dataset.typeId = b.id; th.textContent = b.id; thead.appendChild(th); });
+    const tb = table.createTBody();
+    Object.keys(TYPE_GROUPS).forEach(g => {
+      const tr = tb.insertRow();
+      tr.dataset.group = g;
+      tr.insertCell().textContent = g;
+      cols.forEach(b => {
+        const td = tr.insertCell();
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.dataset.typeId = b.id; cb.checked = cur[g].includes(b.id);
+        td.appendChild(cb);
+      });
+    });
+    wrap.appendChild(table);
+    const note = document.createElement('p');
+    note.style.cssText = 'color:var(--muted);font-size:12px';
+    note.textContent = 'Presets only: they are applied when you ask (Apply type defaults, a Type change, the matrix). Never silently.';
+    wrap.appendChild(note);
+    UI.showModal({
+      id: 'road-defaults', title: 'Road defaults by tile type', body: wrap,
+      actions: [
+        { label: 'Save', primary: true, onClick: close => {
+          const next = {};
+          table.querySelectorAll('tbody tr[data-group]').forEach(tr => {
+            next[tr.dataset.group] = [...tr.querySelectorAll('input[data-type-id]')].filter(e => e.checked).map(e => e.dataset.typeId);
+          });
+          setRoadDefaults(next);
+          close();
+        } },
+        { label: 'Cancel', onClick: close => close() },
+      ],
+    });
+  }
+
+  // ── Roads V1 F2: the tiles x types matrix ──
+  function openRoadsMatrix(init) {
+    if (document.getElementById('roads-matrix-modal')) return;
+    const st = { pkg: '', type: '', search: '', biome: '', ...(init || {}) };
+    if (!init) { st.type = _filter.type || ''; st.search = _filter.search || ''; st.biome = _filter.biome || ''; }
+    const sel = new Set();
+    let rowsShown = [], token = 0, problems = new Map();
+    const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+    const root = el('div', 'roads-matrix');
+    const bar = el('div', 'rm-bar');
+    const mkSelect = (id, label, opts, val) => {
+      const lab = el('label', null, label + ' ');
+      const s = el('select', 'hexdb-select'); s.id = id; s.style.cssText = 'flex:none;width:auto';
+      opts.forEach(([v, t]) => { const o = el('option', null, t); o.value = v; s.appendChild(o); });
+      s.value = val; lab.appendChild(s); return [lab, s];
+    };
+    const pkgs = [...new Set(_data.hexes.map(h => h.package || 'postapoc'))];
+    const [pkgLab, pkgSel] = mkSelect('rm-pkg', 'Package', [['', 'All'], ...pkgs.map(p => [p, p])], st.pkg);
+    const [typeLab, typeSel] = mkSelect('rm-type', 'Type', [['', 'All'], ...Object.keys(TYPE_GROUPS).map(g => [g, g])], st.type);
+    const search = el('input', 'hexdb-input'); search.id = 'rm-search'; search.placeholder = 'Search by id'; search.value = st.search; search.style.cssText = 'flex:none;width:140px';
+    const count = el('span', 'rm-count'); count.id = 'rm-count';
+    const btn = (id, text, title) => { const b = el('button', 'hexdb-tool-btn', text); b.type = 'button'; b.id = id; if (title) b.title = title; return b; };
+    const undoB = btn('rm-undo', 'Undo', 'Undo the last roads action (Ctrl+Z)'), redoB = btn('rm-redo', 'Redo', 'Redo (Ctrl+Y)');
+    bar.append(pkgLab, typeLab, search, count, undoB, redoB);
+    root.appendChild(bar);
+
+    const bulk = el('div', 'rm-bar'); bulk.id = 'rm-bulk';
+    root.appendChild(bulk);
+    const scroll = el('div', 'rm-scroll');
+    const table = el('table', 'roads-matrix-table'); table.id = 'rm-table';
+    const thead = table.createTHead(); const tbody = table.createTBody();
+    scroll.appendChild(table); root.appendChild(scroll);
+
+    const types = () => { const t = RoadPerms.currentTypes(); return t.roads.concat(t.bridges); };
+    const matches = h => {
+      if (st.pkg && (h.package || 'postapoc') !== st.pkg) return false;
+      if (st.type && h.type !== st.type) return false;
+      if (st.biome && h.biome !== st.biome) return false;
+      if (st.search && !String(h.id || '').toLowerCase().includes(st.search.toLowerCase())) return false;
+      return true;
+    };
+    const computeRows = () => _data.hexes.filter(matches).sort((a, b) => String(a.id).toLowerCase().localeCompare(String(b.id).toLowerCase()));
+
+    function buildHead() {
+      thead.textContent = '';
+      const tr = thead.insertRow();
+      tr.insertCell().textContent = '';
+      tr.insertCell().textContent = 'Tile';
+      types().forEach(b => {
+        const th = el('th'); th.dataset.typeId = b.id;
+        th.appendChild(el('div', null, b.id));
+        const acts = el('div', 'rm-colacts');
+        [['allow', '+', `Allow ${b.id} on all filtered tiles`], ['remove', '\u2212', `Remove ${b.id} from all filtered tiles`], ['exact', '=', `Set ${b.id} to exactly these ids...`]].forEach(([a, t, ti]) => {
+          const bb = el('button', 'rm-colact', t); bb.type = 'button'; bb.dataset.act = a; bb.dataset.typeId = b.id; bb.title = ti; bb.setAttribute('aria-label', ti);
+          acts.appendChild(bb);
+        });
+        th.appendChild(acts); tr.appendChild(th);
+      });
+    }
+    function fillCells(tr, h) {
+      const ts = types();
+      const list = Array.isArray(h.allowedRoads) ? h.allowedRoads : null;
+      // keep the same checkbox nodes between refreshes: only create what is missing
+      ts.forEach((b, i) => {
+        let td = tr.cells[2 + i];
+        if (!td) { td = tr.insertCell(); td.dataset.typeId = b.id; }
+        if (list === null) {
+          if (!td.querySelector('button.rm-unset')) {
+            td.textContent = '';
+            const u = el('button', 'rm-unset', '-'); u.type = 'button'; u.dataset.typeId = b.id; u.title = 'No road permissions yet: click to set'; td.appendChild(u);
+          }
+        } else {
+          let cb = td.querySelector('input[type=checkbox]');
+          if (!cb) { td.textContent = ''; cb = el('input'); cb.type = 'checkbox'; cb.dataset.typeId = b.id; td.appendChild(cb); }
+          cb.checked = list.includes(b.id);
+        }
+      });
+      const mark = tr.cells[1] && tr.cells[1].querySelector('.rm-warn');
+      const probs = problems.get(tr.dataset.key);
+      if (mark) { mark.hidden = !probs; mark.title = probs ? probs.join('\n') : ''; }
+    }
+    function makeRow(h) {
+      const tr = el('tr'); tr.dataset.key = _hexKey(h);
+      const c0 = tr.insertCell(); const cb = el('input', 'rm-sel'); cb.type = 'checkbox'; cb.checked = sel.has(tr.dataset.key); cb.title = 'Select this tile (Copy from tile applies to the selected tiles)'; c0.appendChild(cb);
+      const c1 = tr.insertCell(); c1.appendChild(el('span', 'rm-id', h.id)); c1.appendChild(el('span', 'rm-badge', h.type || ''));
+      const w = el('span', 'rm-warn', '!'); w.hidden = true; c1.appendChild(w);
+      fillCells(tr, h);
+      return tr;
+    }
+    function recomputeProblems() {
+      problems = new Map();
+      const v = RoadPerms.validate({ hexes: _data.hexes, buildings: BldDB.getAll(), scope: {} });
+      v.errors.concat(v.warnings).forEach(x => {
+        if (x.rule === 'tiles-not-empty' || x.rule === 'both-flags' || x.rule === 'road-in-package-bld') return;   // building rules
+        const k = (x.pkg || 'postapoc') + '::' + x.hexId;
+        if (!problems.has(k)) problems.set(k, []);
+        problems.get(k).push(x.message);
+      });
+    }
+    function render() {
+      const my = ++token;
+      rowsShown = computeRows();
+      count.textContent = `${rowsShown.length} shown / ${_data.hexes.length}`;
+      buildHead(); tbody.textContent = '';
+      recomputeProblems();
+      let i = 0;
+      const chunk = () => {
+        if (my !== token) return;
+        const frag = document.createDocumentFragment();
+        for (const end = Math.min(i + 100, rowsShown.length); i < end; i++) frag.appendChild(makeRow(rowsShown[i]));
+        tbody.appendChild(frag);
+        if (i < rowsShown.length) requestAnimationFrame(chunk);
+      };
+      chunk();
+      syncButtons();
+    }
+    // after a data change: update the rendered rows in place
+    function refresh() {
+      recomputeProblems();
+      const byKey = new Map(rowsShown.map(h => [_hexKey(h), h]));
+      [...tbody.rows].forEach(tr => { const h = byKey.get(tr.dataset.key); if (h) fillCells(tr, h); });
+      syncButtons();
+    }
+    function syncButtons() { undoB.disabled = RoadsHistory.depth() === 0; redoB.disabled = RoadsHistory.redoDepth() === 0; }
+
+    const hexByKey = k => _resolveHex(k);
+    // ── edits ──
+    table.addEventListener('change', e => {
+      const t = e.target;
+      if (t.classList.contains('rm-sel')) { const k = t.closest('tr').dataset.key; if (t.checked) sel.add(k); else sel.delete(k); return; }
+      if (t.type !== 'checkbox' || !t.dataset.typeId) return;
+      const h = hexByKey(t.closest('tr').dataset.key); if (!h) return;
+      const cur = Array.isArray(h.allowedRoads) ? h.allowedRoads : [];
+      const next = t.checked ? cur.concat(t.dataset.typeId) : cur.filter(x => x !== t.dataset.typeId);
+      applyRoadChanges(`${t.checked ? 'Allow' : 'Remove'} ${t.dataset.typeId} on ${h.id}`, [{ hex: h, list: next }]);
+      refresh();
+    });
+    table.addEventListener('click', e => {
+      const t = e.target.closest('button'); if (!t) return;
+      if (t.classList.contains('rm-unset')) {
+        const h = hexByKey(t.closest('tr').dataset.key); if (!h) return;
+        applyRoadChanges(`Set ${t.dataset.typeId} on ${h.id}`, [{ hex: h, list: [t.dataset.typeId] }]);
+        refresh();
+      } else if (t.classList.contains('rm-colact')) {
+        _matrixColumnAction(t.dataset.act, t.dataset.typeId, ctx());
+      }
+    });
+    pkgSel.addEventListener('change', () => { st.pkg = pkgSel.value; render(); });
+    typeSel.addEventListener('change', () => { st.type = typeSel.value; render(); });
+    search.addEventListener('input', () => { st.search = search.value; render(); });
+    undoB.addEventListener('click', () => { RoadsHistory.undo(); refresh(); });
+    redoB.addEventListener('click', () => { RoadsHistory.redo(); refresh(); });
+    const ctx = () => ({ rows: () => rowsShown.slice(), selected: () => rowsShown.filter(h => sel.has(_hexKey(h))), refresh, scopePkg: () => st.pkg, root });
+    _buildMatrixBulk(bulk, ctx());
+
+    const offHist = RoadsHistory.onChange(syncButtons);
+    const onKey = e => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const all = document.querySelectorAll('.ui-modal');
+      if (!all.length || all[all.length - 1] !== handle.el) return;          // a dialog opened over the matrix owns the keys
+      const tg = e.target;
+      if (tg && (tg.tagName === 'TEXTAREA' || (tg.tagName === 'INPUT' && !['checkbox', 'radio', 'button'].includes(tg.type)))) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) { e.preventDefault(); RoadsHistory.undo(); refresh(); }
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); RoadsHistory.redo(); refresh(); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    const handle = UI.showModal({
+      id: 'roads-matrix', title: 'Roads / Bridges matrix', body: root,
+      actions: [{ label: 'Close', primary: true, onClick: close => close() }],
+      onClose: () => { token++; document.removeEventListener('keydown', onKey, true); offHist(); RoadsHistory.clear(); },
+    });
+    render();
+    return handle;
+  }
+  // ── Roads V1 F3: bulk actions of the matrix, each one RoadsHistory step ──
+  // ctx: { rows(), selected(), refresh(), scopePkg(), root }. Every action = applyRoadChanges = one step, one autosave.
+  function _bulkDone(ctx, label, n) {
+    ctx.refresh();
+    UI.toast(`${label}: ${n} tile${n === 1 ? '' : 's'} changed`);
+  }
+  function _matrixColumnAction(act, typeId, ctx) {
+    const rows = ctx.rows();
+    if (act === 'allow') { const l = `Allow ${typeId} on filtered`; _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planAllow(rows, typeId))); }
+    else if (act === 'remove') { const l = `Remove ${typeId} from filtered`; _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planRemove(rows, typeId))); }
+    else if (act === 'exact') _openExactDialog(typeId, ctx);
+  }
+  function _openExactDialog(typeId, ctx) {
+    const wrap = document.createElement('div');
+    const p = document.createElement('p');
+    p.style.cssText = 'font-size:12px;color:var(--muted)';
+    p.textContent = `One tile id per line (or package::id). The listed filtered tiles get ${typeId}; every other filtered tile loses it. Unknown ids and ids outside the filter are skipped and reported.`;
+    const ta = document.createElement('textarea');
+    ta.rows = 12; ta.style.cssText = 'width:100%;box-sizing:border-box;font-family:monospace';
+    ta.placeholder = 'Plain_1\nPlain_2';
+    wrap.append(p, ta);
+    UI.showModal({
+      id: 'roads-exact', title: `Set ${typeId} to exactly these ids`, body: wrap, autofocus: ta,
+      actions: [
+        { label: 'Apply', primary: true, onClick: close => {
+          const ids = ta.value.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+          const rows = ctx.rows();
+          const inRows = new Set(rows);
+          const plan = RoadPerms.planSetExact(rows, typeId, ids, _data.hexes.filter(h => !inRows.has(h)));
+          const label = `Set ${typeId} to exactly ${ids.length} ids`;
+          const n = applyRoadChanges(label, plan.changes);
+          close();
+          ctx.refresh();
+          const skipped = [];
+          if (plan.unknown.length) skipped.push(`${plan.unknown.length} unknown (${plan.unknown.slice(0, 5).join(', ')}${plan.unknown.length > 5 ? ', ...' : ''})`);
+          if (plan.outside.length) skipped.push(`${plan.outside.length} outside the filter (${plan.outside.slice(0, 5).join(', ')}${plan.outside.length > 5 ? ', ...' : ''})`);
+          UI.toast(`${label}: ${n} tile${n === 1 ? '' : 's'} changed` + (skipped.length ? `; skipped ${skipped.join('; ')}` : ''), { ms: skipped.length ? 8000 : 2000 });
+        } },
+        { label: 'Cancel', onClick: close => close() },
+      ],
+    });
+  }
+  function _buildMatrixBulk(bar, ctx) {
+    const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+    const btn = (id, text, title, fn) => { const b = el('button', 'hexdb-tool-btn', text); b.type = 'button'; b.id = id; b.title = title; b.addEventListener('click', fn); return b; };
+    bar.appendChild(btn('rm-bulk-defaults', 'Apply type defaults to filtered', 'Set every filtered tile to the road defaults of its type (tiles already at the default are skipped)', () => {
+      const l = 'Apply type defaults to filtered';
+      _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planApplyDefaults(ctx.rows(), _data.common && _data.common.roadDefaults)));
+    }));
+    // Add X wherever Y is allowed
+    const ts = RoadPerms.currentTypes().roads.concat(RoadPerms.currentTypes().bridges);
+    const sel = (id, val) => { const s = el('select', 'hexdb-select'); s.id = id; s.style.cssText = 'flex:none;width:auto'; ts.forEach(b => { const o = el('option', null, b.id); o.value = b.id; s.appendChild(o); }); if (val != null && ts[val]) s.value = ts[val].id; return s; };
+    const aw = el('span', 'rm-group');
+    const x = sel('rm-aw-x', 1), y = sel('rm-aw-y', 0);
+    aw.append(el('span', null, 'Add '), x, el('span', null, ' wherever '), y, el('span', null, ' is allowed '),
+      btn('rm-bulk-addwhere', 'Add', 'Roll a new type out from an existing one', () => {
+        if (x.value === y.value) { UI.toast('Pick two different types'); return; }
+        const l = `Add ${x.value} wherever ${y.value} is allowed`;
+        _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planAddWhere(ctx.rows(), x.value, y.value)));
+      }));
+    bar.appendChild(aw);
+    // Copy from tile onto the selected rows (all filtered rows when none is selected)
+    const cf = el('span', 'rm-group');
+    const inp = el('input', 'hexdb-input'); inp.id = 'rm-copy-from'; inp.placeholder = 'tile id (any package)'; inp.style.cssText = 'flex:none;width:170px';
+    const dl = el('datalist'); dl.id = 'rm-id-list';
+    _data.hexes.forEach(h => { const o = el('option'); o.value = h.id; dl.appendChild(o); });
+    inp.setAttribute('list', 'rm-id-list');
+    cf.append(inp, dl, btn('rm-bulk-copy', 'Copy from tile', 'Copy that tile\'s list onto the selected rows (all filtered rows when none is selected)', () => {
+      const q = inp.value.trim();
+      const src = q && (_data.hexes.find(h => _hexKey(h) === q) || _data.hexes.find(h => h.id === q));
+      if (!src) { UI.toast(`No tile "${q}" in the Hex DB`); return; }
+      if (!Array.isArray(src.allowedRoads)) { UI.toast(`${src.id} has no road permissions yet`); return; }
+      const target = ctx.selected().length ? ctx.selected() : ctx.rows();
+      const l = `Copy road list from ${src.id}`;
+      _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planCopyFrom(target, src.allowedRoads)));
+    }));
+    bar.appendChild(cf);
+    bar.appendChild(btn('rm-backfill', 'Backfill roads', 'Fill the tiles that have no road list yet by today\'s effective rule (preview first)', () => openBackfill(ctx)));
+  }
+
   function _renderRecord(hex) {
     const mainBody = [
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
@@ -17670,7 +18720,7 @@ const HexDB = (() => {
            style="width:110px" data-field="baseCostTaps"
            value="${hex.baseCostTaps ?? 0}">`,
         'Taps required to unlock this tile when first revealed on the map'),
-      _checkRow('roadAllowed', hex.roadAllowed ?? false, 'roads can be built on this tile'),
+      `<div class="hexdb-roads" id="hexdb-roads">${_roadsBlockHTML(hex)}</div>`,
       ...(/bridge/i.test(hex.id || '') ? [
         _row('Under Terrain',
           `<input class="hexdb-input" data-field="underTerrainId" list="hexdb-id-list"
@@ -17853,6 +18903,7 @@ const HexDB = (() => {
       });
     });
 
+    _wireRoads();
     // Wire inputs
     document.querySelectorAll('#hexdb-right [data-field]').forEach(el => {
       el.addEventListener('input',  _readRecord);
@@ -17877,6 +18928,7 @@ const HexDB = (() => {
           _autoSave();
         }
         _renderRecord(h);
+        _offerTypeDefaults(h);
       });
     }
 
@@ -18132,6 +19184,7 @@ const HexDB = (() => {
   // ── Public API ────────────────────────────────────────────
   function init() {
     _loadSecState();
+    _syncRoadsModeUI();
     let restored = false;
     try {
       const saved = localStorage.getItem('hexdb_autosave');
@@ -18270,13 +19323,17 @@ const HexDB = (() => {
   // Reskin+ for the active (non-default) package. mode 'prefix' (default): a copy whose id is the package prefix +
   // baseId (Plain_1 -> Medieval_Plain_1). mode 'same': an entry with the identical id, which overrides the base
   // TileRenderer/RuntimeDatabaseSync slot at runtime (SP5). Either way an existing id+package entry is never duplicated.
-  function addReskin(baseId, mode) {
+  // The source can be any package (default postapoc) except the active one. NOTE: the roads branch (not merged here) adds a
+  // refusal for road/bridge entries in addReskin; re-check it when merging, nothing road-specific is handled in this one.
+  function addReskin(baseId, mode, sourcePkg) {
     mode = mode === 'same' ? 'same' : 'prefix';
-    const base = _data.hexes.find(h => h.id === baseId && (h.package || 'postapoc') === 'postapoc');
-    if (!base) { UI.toast(`⚠ No postapoc hex found with id "${baseId}"`); return; }
+    const src = sourcePkg || 'postapoc';
+    const base = _data.hexes.find(h => h.id === baseId && (h.package || 'postapoc') === src);
+    if (!base) { UI.toast(`⚠ No ${src} hex found with id "${baseId}"`); return; }
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
+    if (Packages.getActive() === src) { UI.toast('⚠ The source package must differ from the active package'); return; }
     const pkg = Packages.getActive();
     const newId = Packages.reskinTargetId(baseId, mode);
     const exIdx = _data.hexes.findIndex(h => h.id === newId && (h.package || 'postapoc') === pkg);
@@ -18286,11 +19343,13 @@ const HexDB = (() => {
       if (fi >= 0) _selectIdx(fi);
       return;
     }
+    if (mode === 'same' && !Packages.ensureReskinDependency(src)) return;
     const h = structuredClone(base);
     h.id = newId;
     h.package = pkg;
     _data.hexes.push(h);
     _autoSave();
+    Packages.aliasSourceSprite(h, base, 'hex');
     _loadNewEntrySprite(h);
     _applyFilter();
     _buildList();
@@ -18306,8 +19365,8 @@ const HexDB = (() => {
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
-    if (!_data.hexes.some(h => (h.package || 'postapoc') === 'postapoc')) { UI.toast('⚠ No postapoc hex tiles to reskin'); return; }
-    Packages.openReskinPicker({ kind: 'hex', entries: _data.hexes, onPick: (id, mode) => addReskin(id, mode) });
+    if (!Packages.reskinSourcePackages(_data.hexes).length) { UI.toast('⚠ No hex tiles in other packages to reskin'); return; }
+    Packages.openReskinPicker({ kind: 'hex', entries: _data.hexes, onPick: (id, mode, src) => addReskin(id, mode, src) });
   }
 
   // Call this from wherever the panel already re-renders on package switch (the same
@@ -18437,6 +19496,11 @@ const HexDB = (() => {
   function _migrateSpecialFields(hexes) {
     hexes.forEach(h => {
       if (typeof h.roadAllowed !== 'boolean') h.roadAllowed = false;
+      // Roads V1: a list is normalised and the legacy flag follows it; anything that is not a list is removed (record stays
+      // "not backfilled", never silently turned into []).
+      const _ar = RoadPerms.normalize(h.allowedRoads);
+      if (_ar) { h.allowedRoads = _ar; h.roadAllowed = RoadPerms.deriveRoadAllowed(_ar, RoadPerms.currentTypes()); }
+      else delete h.allowedRoads;
       if (typeof h.bonusDrop !== 'boolean') {
         h.bonusDrop = !!h.bonusDrop;
       }
@@ -18510,7 +19574,8 @@ const HexDB = (() => {
   }
 
   function save() {
-    const json = JSON.stringify(_data, null, 2);
+    // a full local snapshot: lists are kept in every mode (round trip through Load DB), roadsSchema follows the mode
+    const json = JSON.stringify(exportFor({ pkg: 'postapoc', mode: RoadPerms.writeMode(), hexes: _data.hexes, local: true }), null, 2);
     const blob = new Blob([json], { type: 'application/json' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -18575,7 +19640,18 @@ const HexDB = (() => {
     _data.hexes = pkgId === 'postapoc' ? [...res.merged, ...others] : [...others, ...res.merged];
     _dedupeHexes();
     if (pkgId === 'postapoc') {
-      if (serverData.common && SyncMerge.same(_data.common, { goldPerTap: 10 })) _data.common = serverData.common;
+      if (serverData.common) {
+        // common is merged by key: goldPerTap follows the old rule (the server's when the local one is untouched), the
+        // roadDefaults presets come from the server only while the local copy has none (local may hold unpublished edits)
+        const { roadDefaults: localRD, ...localRest } = _data.common || {};
+        const { roadDefaults: serverRD, ...serverRest } = serverData.common;
+        if (SyncMerge.same(localRest, { goldPerTap: 10 })) {
+          if (!localRD) _data.common = serverData.common;
+          else _data.common = { ...serverRest, roadDefaults: localRD };
+        } else if (!localRD && serverRD && typeof serverRD === 'object') {
+          _data.common = { ..._data.common, roadDefaults: structuredClone(serverRD) };
+        }
+      }
       _data.dbVersion = Math.max(_data.dbVersion || 0, serverData.dbVersion || 0);
       _syncCommonUI();
     }
@@ -18589,6 +19665,115 @@ const HexDB = (() => {
       Canvas.render();
     });
     return { pkgId, conflicts: res.conflicts, fromServer: res.fromServer, kept: res.kept, dropped: res.dropped, foreign };
+  }
+
+  // ── Roads V1: allowedRoads mutators ──────────────────────
+  // target: a record of getAll(), an index into getAll(), or 'package::id' (a bare id means the base package).
+  function _resolveHex(target) {
+    if (target && typeof target === 'object') return _data.hexes.includes(target) ? target : null;
+    if (typeof target === 'number') return _data.hexes[target] || null;
+    if (typeof target === 'string') {
+      const key = target.includes('::') ? target : 'postapoc::' + target;
+      return _data.hexes.find(h => (h.package || 'postapoc') + '::' + h.id === key) || null;
+    }
+    return null;
+  }
+  // Sets the list (Building DB order, no duplicates), re-derives roadAllowed, one autosave. Returns false for an unknown target.
+  function setAllowedRoads(target, list) {
+    const h = _resolveHex(target);
+    const n = RoadPerms.normalize(list);
+    if (!h || !n) return false;
+    const types = RoadPerms.currentTypes();
+    h.allowedRoads = RoadPerms.sortLike(n, types);
+    h.roadAllowed = RoadPerms.deriveRoadAllowed(h.allowedRoads, types);
+    _autoSave();
+    return true;
+  }
+  // A copy of the list, or null when the record has none ("not backfilled") or does not exist.
+  function getAllowedRoads(target) {
+    const h = _resolveHex(target);
+    return h && Array.isArray(h.allowedRoads) ? h.allowedRoads.slice() : null;
+  }
+  // The object a hex_database.json is serialised from; never mutates _data. pkg 'postapoc' = the base file (root form, the
+  // caller derives the packages/postapoc form from it), any other id = {version:1, package:id, hexes}.
+  //   off    : no allowedRoads on records, no roadsSchema, no common.roadDefaults (byte-identical to the pre-roads output)
+  //   stage  : allowedRoads (Building DB order, no duplicates) + derived roadAllowed; no roadsSchema
+  //   active : stage + roadsSchema 1 right after version
+  // A record without a list (not backfilled) never gets a synthetic []. local: a full local snapshot (Save DB), lists are
+  // kept in every mode. hexes: the records to write (default: all records of pkg).
+  function exportFor({ pkg, mode, hexes, local } = {}) {
+    const m = mode || RoadPerms.writeMode();
+    const id = pkg || 'postapoc';
+    const types = RoadPerms.currentTypes();
+    const src = hexes || _data.hexes.filter(h => (h.package || 'postapoc') === id);
+    const recs = src.map(h => {
+      const c = structuredClone(h);
+      if (m === 'off' && !local) delete c.allowedRoads;
+      else if (Array.isArray(c.allowedRoads)) {
+        c.allowedRoads = RoadPerms.sortLike(RoadPerms.normalize(c.allowedRoads) || [], types);
+        c.roadAllowed = RoadPerms.deriveRoadAllowed(c.allowedRoads, types);
+      }
+      return c;
+    });
+    // `hexes` stays in the head at its own position: overwriting it below keeps the key order of the pre-roads output
+    const head = id === 'postapoc' ? { ..._data } : { version: 1, package: id };
+    delete head.roadsSchema;
+    if (id === 'postapoc' && head.common && typeof head.common === 'object' && m !== 'active' && !local && 'roadDefaults' in head.common) {
+      head.common = { ...head.common }; delete head.common.roadDefaults;   // F1 presets are written in mode active only
+    }
+    const out = {};
+    if (m === 'active') {
+      let placed = false;
+      for (const k of Object.keys(head)) {
+        out[k] = head[k];
+        if (k === 'version') { out.roadsSchema = 1; placed = true; }
+      }
+      if (!placed) { const rest = { ...out }; for (const k of Object.keys(out)) delete out[k]; out.roadsSchema = 1; Object.assign(out, rest); }
+    } else Object.assign(out, head);
+    out.hexes = recs;
+    return out;
+  }
+
+  // Roads write mode selector. Anything above off needs a confirmation; active also needs a list on every record.
+  function _syncRoadsModeUI() {
+    const el = document.getElementById('roads-write-mode');
+    if (el) el.value = RoadPerms.writeMode();
+  }
+  async function setRoadsMode(m) {
+    const cur = RoadPerms.writeMode();
+    if (m === cur) { _syncRoadsModeUI(); return; }
+    if (m !== 'off') {
+      if (m === 'active') {
+        const c = RoadPerms.coverage(_data.hexes);
+        if (c.unset > 0) { UI.toast(`⚠ ${c.unset} tile${c.unset === 1 ? ' has' : 's have'} no road list yet: Run Backfill roads first`, { ms: 6000 }); _syncRoadsModeUI(); return; }
+      }
+      const ok = await UI.confirm('Roads data', 'Old game builds read roadAllowed; publishing allowedRoads needs the Unity build with the new parser, otherwise its CI fails. Continue?', '', 'Continue');
+      if (!ok) { _syncRoadsModeUI(); return; }
+    }
+    if (!RoadPerms.setWriteMode(m)) UI.toast('⚠ Could not store the Roads data mode (browser storage unavailable)');
+    _syncRoadsModeUI();
+  }
+
+  // Removes duplicate ids from the lists of one package's records (lossless). Returns the number of records fixed.
+  function fixRoadDuplicates(pkg) {
+    let n = 0;
+    _data.hexes.forEach(h => {
+      if ((h.package || 'postapoc') !== pkg || !Array.isArray(h.allowedRoads)) return;
+      if (new Set(h.allowedRoads).size !== h.allowedRoads.length) { setAllowedRoads(h, h.allowedRoads); n++; }
+    });
+    return n;
+  }
+  // Re-derives roadAllowed of every record that has a list (after the Building DB changed or finished loading). Returns the count changed.
+  function refreshDerived() {
+    const types = RoadPerms.currentTypes();
+    let n = 0;
+    _data.hexes.forEach(h => {
+      if (!Array.isArray(h.allowedRoads)) return;
+      const d = RoadPerms.deriveRoadAllowed(h.allowedRoads, types);
+      if (h.roadAllowed !== d) { h.roadAllowed = d; n++; }
+    });
+    if (n) _autoSave();
+    return n;
   }
 
   // One copy per package+id in the local list (SyncMerge.dedupe: a locally edited copy wins). Toasts the count.
@@ -18890,7 +20075,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
 })();
 
 window.HexDB = HexDB;
@@ -19117,6 +20302,17 @@ const BldDB = (() => {
     return `<span style="color:#4caf50">✓</span>${enText}`;
   }
 
+  // Roads V1: a road or a bridge is global; where it can be built is set in the Hex DB (Roads / Bridges block).
+  function _isRoadLike(bld) { return !!bld && (!!bld.isRoad || bld.buildingCategory === 'Bridge'); }
+  function _roadsMsgHTML(bld) {
+    const v = RoadPerms.validate({ hexes: [], buildings: [bld] });
+    const items = v.errors.concat(v.warnings);
+    if (!items.length) return '';
+    const lines = items.map(x => `<div style="color:${x.rule === 'tiles-not-empty' ? '#d97706' : '#e55'}">! ${_esc(x.message)}` +
+      (x.fix === 'clear-tiles' ? ' <button type="button" id="bld-roads-clear" class="hexdb-tool-btn">Clear (permissions are set in Hex DB)</button>' : '') + '</div>').join('');
+    return `<div class="hexdb-row bld-roads-msg" style="font-size:12px"><span class="hexdb-label"></span><div style="flex:1">${lines}</div></div>`;
+  }
+
   function _tagsHTML(fieldName, values, disabled) {
     const dis = disabled ? ' disabled' : '';
     const tags = (values || []).map(v =>
@@ -19228,6 +20424,7 @@ const BldDB = (() => {
           </select></div>
         <div class="hexdb-row"><span class="hexdb-label">Is Road <span class="hexdb-info" title="When true: placing this building sets HasRoad=true on the tile. The game auto-tiles the road sprite via 6-bit bitmask (SE·NE·N·NW·SW·S). No per-direction variants needed — one entry per road type is enough.">ⓘ</span></span>
           <input id="bld-f-isRoad" type="checkbox"${bld.isRoad ? ' checked' : ''}></div>
+        ${_roadsMsgHTML(bld)}
         <div class="hexdb-row"><span class="hexdb-label">Biome <span class="hexdb-info" title="Season/biome context">ⓘ</span></span>
           <select class="hexdb-select" id="bld-f-biome">${BiomeManager.getNames().map(b =>
             `<option${bld.biome === b ? ' selected' : ''}>${b}</option>`).join('')}</select></div>
@@ -19292,8 +20489,9 @@ const BldDB = (() => {
           <input id="bld-f-canBuild" type="checkbox"${canBld ? ' checked' : ''}></div>
         <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Need Road <span class="hexdb-info" title="Ground: Roads required. Water: sea adjacency check.">ⓘ</span></span>
           <input id="bld-f-needRoad" type="checkbox"${bld.needRoad ? ' checked' : ''}></div>
-        <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Available Tiles <span class="hexdb-info" title="Tile Type IDs where building can be placed">ⓘ</span></span>
-          ${_tagsHTML('availableTiles', bld.availableTiles, !canBld)}</div>
+        <div class="hexdb-row"${!canBld || _isRoadLike(bld) ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Available Tiles <span class="hexdb-info" title="Tile Type IDs where building can be placed">ⓘ</span></span>
+          ${_tagsHTML('availableTiles', bld.availableTiles, !canBld || _isRoadLike(bld))}</div>
+        ${_isRoadLike(bld) ? '<div class="hexdb-row bld-roads-lock-hint" style="font-size:11px;color:var(--muted)"><span class="hexdb-label"></span><span>Set in Hex DB &gt; Roads/Bridges (Available Tiles is ignored for roads and bridges)</span></div>' : ''}
         <div class="hexdb-row"${!canBld ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Min Level <span class="hexdb-info" title="Min Settlement level. Integer ≥ 1.">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-minLevel" type="number" step="1" min="1"
             value="${Math.max(1, bld.minLevel ?? 1)}" style="width:110px"></div>
@@ -19646,6 +20844,7 @@ const BldDB = (() => {
       'bld-f-canProduceEnabled', 'bld-f-canProductionFacilities',
       'bld-f-facilityBonusType', 'bld-f-canStore',
       'bld-f-bonusDrop',
+      'bld-f-isRoad', 'bld-f-buildingCategory',   // Roads V1: the Available Tiles lock and the roads messages follow them
     ];
     reRenderIds.forEach(id => {
       const el = g(id);
@@ -19655,6 +20854,15 @@ const BldDB = (() => {
         _readRecord();
         _renderRecord(_data.buildings[_filtered[_selFilt]]);
       });
+    });
+
+    const clearTiles = g('bld-roads-clear');
+    if (clearTiles) clearTiles.addEventListener('click', () => {
+      if (_selFilt < 0) return;
+      const bldObj = _data.buildings[_filtered[_selFilt]];
+      bldObj.availableTiles = [];
+      _autoSave();
+      _renderRecord(bldObj);
     });
 
     // ── Wire tags (destroySources, availableTiles, canProduce, etc.) ──
@@ -19874,13 +21082,17 @@ const BldDB = (() => {
   }
 
   // Reskin+ for buildings; same two modes and collision rule as HexDB.addReskin.
-  function addReskin(baseId, mode) {
+  // NOTE: the roads branch (not merged here) adds a refusal for road/bridge buildings in addReskin; re-check it when merging.
+  function addReskin(baseId, mode, sourcePkg) {
     mode = mode === 'same' ? 'same' : 'prefix';
-    const base = _data.buildings.find(b => b.id === baseId && (b.package || 'postapoc') === 'postapoc');
-    if (!base) { UI.toast(`⚠ No postapoc building found with id "${baseId}"`); return; }
+    const src = sourcePkg || 'postapoc';
+    const base = _data.buildings.find(b => b.id === baseId && (b.package || 'postapoc') === src);
+    if (!base) { UI.toast(`⚠ No ${src} building found with id "${baseId}"`); return; }
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
+    if (Packages.getActive() === src) { UI.toast('⚠ The source package must differ from the active package'); return; }
+    if (_isRoadLike(base)) { UI.toast(`⚠ "${baseId}" is a road or bridge: roads are global (base package only), no reskin`); return; }
     const pkg = Packages.getActive();
     const newId = Packages.reskinTargetId(baseId, mode);
     const exIdx = _data.buildings.findIndex(x => x.id === newId && (x.package || 'postapoc') === pkg);
@@ -19890,11 +21102,13 @@ const BldDB = (() => {
       if (fi >= 0) _selectIdx(fi);
       return;
     }
+    if (mode === 'same' && !Packages.ensureReskinDependency(src)) return;
     const b = structuredClone(base);
     b.id = newId;
     b.package = pkg;
     _data.buildings.push(b);
     _autoSave();
+    Packages.aliasSourceSprite(b, base, 'bld');
     _applyFilter();
     _buildList();
     _selectIdx(_filtered.indexOf(_data.buildings.length - 1));
@@ -19907,8 +21121,8 @@ const BldDB = (() => {
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
-    if (!_data.buildings.some(b => (b.package || 'postapoc') === 'postapoc')) { UI.toast('⚠ No postapoc buildings to reskin'); return; }
-    Packages.openReskinPicker({ kind: 'bld', entries: _data.buildings, onPick: (id, mode) => addReskin(id, mode) });
+    if (!Packages.reskinSourcePackages(_data.buildings).length) { UI.toast('⚠ No buildings in other packages to reskin'); return; }
+    Packages.openReskinPicker({ kind: 'bld', entries: _data.buildings, onPick: (id, mode, src) => addReskin(id, mode, src) });
   }
 
   // Call this from wherever the panel already re-renders on package switch (the same
@@ -19979,6 +21193,9 @@ const BldDB = (() => {
 
   function paste() {
     if (!_clipboard) return;
+    if (_isRoadLike(_clipboard) && typeof Packages !== 'undefined' && Packages.getActive() !== 'postapoc') {
+      UI.toast('⚠ Roads and bridges are global (base package only): switch to the base package to paste this'); return;
+    }
     const clone = structuredClone(_clipboard);
     clone.id += '_copy';
     _data.buildings.push(clone);

@@ -36,7 +36,7 @@ test.describe('registry keys', () => {
     const r0 = await opacity(page, 'btn-toggle-rulers'), c0 = await opacity(page, 'btn-toggle-coastline');
     await press(page, '2'); expect(await opacity(page, 'btn-toggle-rulers')).not.toBe(r0);
     await press(page, '2'); expect(await opacity(page, 'btn-toggle-rulers')).toBe(r0);
-    await press(page, '3'); expect(await opacity(page, 'btn-toggle-coastline')).not.toBe(c0);
+    // the coastline preview is turned off in the editor: 3 does nothing (see coastline-off.spec.ts)
     await press(page, '3'); expect(await opacity(page, 'btn-toggle-coastline')).toBe(c0);
   });
 
@@ -110,7 +110,8 @@ const PROBES: Record<string, (page: Page) => Promise<void>> = {
   'fit-map': async p => { await p.evaluate(() => Canvas.setZoom(150)); await press(p, '0'); expect(await zoom(p)).toBeLessThan(150); },
   'ov-rings': async p => { const a = await ringsOn(p); await press(p, '1'); expect(await ringsOn(p)).toBe(!a); },
   'ov-rulers': async p => { const a = await opacity(p, 'btn-toggle-rulers'); await press(p, '2'); expect(await opacity(p, 'btn-toggle-rulers')).not.toBe(a); },
-  'ov-coast': async p => { const a = await opacity(p, 'btn-toggle-coastline'); await press(p, '3'); expect(await opacity(p, 'btn-toggle-coastline')).not.toBe(a); },
+  // turned off in the editor: the key is registered but does nothing (coastline-off.spec.ts proves nothing is drawn)
+  'ov-coast': async p => { const a = await opacity(p, 'btn-toggle-coastline'); await press(p, '3'); expect(await opacity(p, 'btn-toggle-coastline')).toBe(a); },
   'brush-smaller': async p => { await p.evaluate(() => Brush.setSize(3)); await press(p, '['); expect(await p.evaluate(() => Brush.getSize())).toBe(2); },
   'brush-larger': async p => { await p.evaluate(() => Brush.setSize(3)); await press(p, ']'); expect(await p.evaluate(() => Brush.getSize())).toBe(4); },
   'tool-symmetry': async p => { const a = await p.evaluate(() => Tools.getSymmetry()); await press(p, 'y'); expect(await p.evaluate(() => Tools.getSymmetry())).not.toBe(a); },
