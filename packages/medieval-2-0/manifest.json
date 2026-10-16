@@ -1,0 +1,56 @@
+{
+  "schemaVersion": 1,
+  "id": "medieval-2-0",
+  "version": "1.0.1",
+  "minAppVersion": "0.0.0",
+  "generatedAt": "2026-10-16T11:50:09.629Z",
+  "totalBytes": 1777275,
+  "dependencies": [],
+  "files": [
+    {
+      "path": "building_database.json",
+      "sha256": "e4425282944706bbb9b6fadcbeb263095cd11a468e2185b03256c63e6f015d63",
+      "size": 66
+    },
+    {
+      "path": "hex_database.json",
+      "sha256": "323db3fcd1deda8ec6958b4ee177ad993a7330c3480b64381a3cc534f532f3c9",
+      "size": 10005
+    },
+    {
+      "path": "sprites/hex/Medieval_Forest_1.png",
+      "sha256": "5b709da8a02285f8e1dbc48c9ff44c0eaa0d7f87193a7ba663eaedb997a4fefd",
+      "size": 239972
+    },
+    {
+      "path": "sprites/hex/Medieval_Forest_2.png",
+      "sha256": "65da46c258103205a6b78d3d51947df7367f80798e6c5941e8855b29a83c08b5",
+      "size": 265619
+    },
+    {
+      "path": "sprites/hex/Medieval_Forest_3.png",
+      "sha256": "2386a7ef921e2602bd7c0005c5daa1a8adc33b33254713de2800a486ec70aca7",
+      "size": 297575
+    },
+    {
+      "path": "sprites/hex/Medieval_Hills_1.png",
+      "sha256": "8a2da9938fcd8d2a76cdaf3e00b7bf9cca276324571bc6becd456d13a9393d8a",
+      "size": 270029
+    },
+    {
+      "path": "sprites/hex/Medieval_Mountain_1.png",
+      "sha256": "e2f68c95723b26a825540ca0a45cc477fc93411767095022c7a721aa2747a8b8",
+      "size": 238709
+    },
+    {
+      "path": "sprites/hex/Medieval_Plain_1.png",
+      "sha256": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa",
+      "size": 190259
+    },
+    {
+      "path": "sprites/hex/Medieval_Plain_2.png",
+      "sha256": "92a2b3bd4a4ae7d5856f9c3d21b8bc82d126b09e3e3d1f5291fb793170c50091",
+      "size": 265041
+    }
+  ]
+}
