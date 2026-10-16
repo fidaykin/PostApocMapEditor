@@ -1140,6 +1140,13 @@ body.mode-common #map-io    { display: none; }
 .hexdb-input.error { border-color: #e55 !important; }
 .hexdb-checkbox-row { display: flex; align-items: center; gap: 8px; }
 .hexdb-checkbox-row label { font-size: 12px; color: var(--muted); }
+.hexdb-roads { display: flex; flex-direction: column; gap: 6px; }
+.hexdb-roads-list { display: flex; flex-wrap: wrap; gap: 4px 14px; flex: 1; }
+.hexdb-roads-list label { font-size: 12px; color: var(--text); display: flex; align-items: center; gap: 4px; cursor: pointer; }
+.hexdb-roads-unset { background: #5a4a10; color: #ffe08a; border-radius: 3px; padding: 4px 8px; font-size: 12px; }
+.hexdb-roads-unknown { display: flex; align-items: center; gap: 6px; color: #e55; font-size: 12px; }
+.hexdb-roads-unknown button { background: none; border: none; color: #e55; cursor: pointer; }
+.hexdb-roads-warn { color: #d97706; font-size: 12px; }
 .hexdb-actions {
   display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;
 }
@@ -17769,6 +17776,101 @@ const HexDB = (() => {
     _data.version = hasMultiTile ? 2 : 1;
   }
 
+  // ── ROADS / BRIDGES block (Roads V1) ─────────────────────
+  // Its controls carry data-road-id / data-road-remove, never data-field: _readRecord writes every [data-field] checkbox
+  // into the record, which would put a property named after the id on it.
+  const _roadsMemory = new Map();   // per session: 'package::id' -> list before the master was unticked
+  const _hexKey = h => (h.package || 'postapoc') + '::' + h.id;
+
+  function _priceText(b) {
+    return (Array.isArray(b.price) ? b.price : []).map(p => `${p.type || p.resource || ''} ${p.amount ?? ''}`.trim()).join(', ');
+  }
+  function _roadLabel(b) {
+    const price = _priceText(b);
+    return `${_esc(b.id)} (${_esc(b.textId || b.id)}${price ? ', ' + _esc(price) : ''})`;
+  }
+  function _roadsBlockHTML(hex) {
+    const types = RoadPerms.currentTypes();
+    const state = RoadPerms.stateOf(hex);
+    const list = Array.isArray(hex.allowedRoads) ? hex.allowedRoads : [];
+    const known = new Set(types.order);
+    const unknown = [...new Set(list.filter(id => typeof id === 'string' && !known.has(id)))];
+    const row = (label, cls, items) => `<div class="hexdb-row"><span class="hexdb-label">${label}</span><div class="hexdb-roads-list ${cls}">` +
+      (items.length ? items.map(b => `<label><input type="checkbox" data-road-id="${_esc(b.id)}"${list.includes(b.id) ? ' checked' : ''}>${_roadLabel(b)}</label>`).join('') : '<span style="color:var(--muted);font-size:12px">none defined in the Building DB</span>') +
+      '</div></div>';
+    const v = RoadPerms.validate({ hexes: _data.hexes, buildings: BldDB.getAll(), scope: { pkg: hex.package || 'postapoc' } });
+    const warns = v.errors.concat(v.warnings).filter(x => x.hexId === hex.id && x.rule !== 'unknown-id' && x.rule !== 'unset');
+    return [
+      state === 'unset' ? '<div class="hexdb-row"><span class="hexdb-label"></span><div class="hexdb-roads-unset">No road permissions yet - run Backfill roads</div></div>' : '',
+      `<div class="hexdb-row hexdb-checkbox-row"><span class="hexdb-label">ROADS / BRIDGES</span>
+  <input type="checkbox" id="hexdb-roads-master"${state === 'some' ? ' checked' : ''}>
+  <label for="hexdb-roads-master">Roads/Bridges allowed on this tile</label></div>`,
+      row('Roads', 'hexdb-roads-roads', types.roads),
+      row('Bridges', 'hexdb-roads-bridges', types.bridges),
+      ...unknown.map(id => `<div class="hexdb-row"><span class="hexdb-label"></span><div class="hexdb-roads-unknown">unknown id "${_esc(id)}" <button type="button" data-road-remove="${_esc(id)}" title="Remove this id">✕</button></div></div>`),
+      ...warns.map(w => `<div class="hexdb-row"><span class="hexdb-label"></span><div class="hexdb-roads-warn">! ${_esc(w.message)}</div></div>`),
+      `<div class="hexdb-row"><span class="hexdb-label">Copy from tile</span>
+  <input class="hexdb-input" id="hexdb-roads-copy-from" list="hexdb-id-list" placeholder="tile id (any package)">
+  <button type="button" class="hexdb-tool-btn" id="hexdb-roads-copy-btn">Copy list</button></div>`,
+    ].join('');
+  }
+  function _selectedHex() {
+    return (_selFilt >= 0 && _selFilt < _filtered.length) ? _data.hexes[_filtered[_selFilt]] : null;
+  }
+  function _renderRoadsBlock() {
+    const box = document.getElementById('hexdb-roads');
+    const h = _selectedHex();
+    if (!box || !h) return;
+    box.innerHTML = _roadsBlockHTML(h);
+    _wireRoads();
+  }
+  function _wireRoads() {
+    const box = document.getElementById('hexdb-roads');
+    if (!box) return;
+    // the new list from the boxes: known ids in Building DB order, plus the unknown ids the record still carries
+    const listFromBoxes = h => {
+      const checked = [...box.querySelectorAll('input[data-road-id]')].filter(e => e.checked).map(e => e.dataset.roadId);
+      const known = new Set(RoadPerms.currentTypes().order);
+      const unknown = (Array.isArray(h.allowedRoads) ? h.allowedRoads : []).filter(id => !known.has(id));
+      return checked.concat(unknown);
+    };
+    box.querySelectorAll('input[data-road-id]').forEach(el => el.addEventListener('change', () => {
+      const h = _selectedHex(); if (!h) return;
+      setAllowedRoads(h, listFromBoxes(h));
+      _renderRoadsBlock();
+    }));
+    const master = box.querySelector('#hexdb-roads-master');
+    if (master) master.addEventListener('change', () => {
+      const h = _selectedHex(); if (!h) return;
+      const key = _hexKey(h);
+      if (!master.checked) {
+        if (Array.isArray(h.allowedRoads) && h.allowedRoads.length) _roadsMemory.set(key, h.allowedRoads.slice());
+        setAllowedRoads(h, []);
+      } else {
+        // F1: without a remembered list this becomes the tile type's default; until then the first road type
+        const first = RoadPerms.currentTypes().roads[0];
+        setAllowedRoads(h, _roadsMemory.get(key) || (first ? [first.id] : []));
+      }
+      _renderRoadsBlock();
+    });
+    box.querySelectorAll('button[data-road-remove]').forEach(btn => btn.addEventListener('click', () => {
+      const h = _selectedHex(); if (!h) return;
+      const id = btn.dataset.roadRemove;
+      setAllowedRoads(h, h.allowedRoads.filter(x => x !== id));
+      _renderRoadsBlock();
+    }));
+    const copyBtn = box.querySelector('#hexdb-roads-copy-btn');
+    if (copyBtn) copyBtn.addEventListener('click', () => {
+      const h = _selectedHex(); if (!h) return;
+      const q = box.querySelector('#hexdb-roads-copy-from').value.trim();
+      const src = q && (_data.hexes.find(x => _hexKey(x) === q) || _data.hexes.find(x => x !== h && x.id === q) || _data.hexes.find(x => x.id === q));
+      if (!src) { UI.toast(`No tile "${q}" in the Hex DB`); return; }
+      if (!Array.isArray(src.allowedRoads)) { UI.toast(`${src.id} has no road permissions yet`); return; }
+      setAllowedRoads(h, src.allowedRoads);
+      _renderRoadsBlock();
+    });
+  }
+
   function _renderRecord(hex) {
     const mainBody = [
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
@@ -17799,7 +17901,7 @@ const HexDB = (() => {
            style="width:110px" data-field="baseCostTaps"
            value="${hex.baseCostTaps ?? 0}">`,
         'Taps required to unlock this tile when first revealed on the map'),
-      _checkRow('roadAllowed', hex.roadAllowed ?? false, 'roads can be built on this tile'),
+      `<div class="hexdb-roads" id="hexdb-roads">${_roadsBlockHTML(hex)}</div>`,
       ...(/bridge/i.test(hex.id || '') ? [
         _row('Under Terrain',
           `<input class="hexdb-input" data-field="underTerrainId" list="hexdb-id-list"
@@ -17982,6 +18084,7 @@ const HexDB = (() => {
       });
     });
 
+    _wireRoads();
     // Wire inputs
     document.querySelectorAll('#hexdb-right [data-field]').forEach(el => {
       el.addEventListener('input',  _readRecord);

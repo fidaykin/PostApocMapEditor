@@ -109,3 +109,151 @@ test.describe('allowedRoads data model', () => {
     expect(r.missing).toBeNull();
   });
 });
+
+// ── E3: the ROADS / BRIDGES block of the Hex DB form ─────────────────────────────────────────────────────────────
+async function selectHex(page: any, id: string) {
+  await page.evaluate(() => App.setMode('hexdb'));
+  await page.evaluate(() => { const t = document.getElementById('hexdb-search') as HTMLInputElement; t.value = ''; t.dispatchEvent(new Event('input')); });
+  await page.locator('.hexdb-list-row', { hasText: new RegExp('^' + id + '$') }).first().click();
+  await expect(page.locator('#hexdb-roads')).toBeVisible();
+}
+const ar = (page: any, id: string) => page.evaluate((id: string) => { const h = HexDB.getAll().find((h: any) => h.id === id); return { ar: h.allowedRoads, has: 'allowedRoads' in h, ra: h.roadAllowed }; }, id);
+const box = (page: any, rid: string) => page.locator(`#hexdb-roads input[data-road-id="${rid}"]`);
+
+test.describe('Hex DB form: ROADS / BRIDGES block', () => {
+  test('lists exactly the four fixture types in Building DB order, no data-field on them, old roadAllowed checkbox gone', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await selectHex(page, 'Decameroon_River_L_1');
+    const ids = await page.locator('#hexdb-roads input[data-road-id]').evaluateAll((els: any[]) => els.map(e => e.dataset.roadId));
+    expect(ids).toEqual(['road', 'road_2', 'bridge', 'bridge_2']);
+    expect(await page.locator('#hexdb-roads [data-field]').count()).toBe(0);
+    expect(await page.locator('#hexdb-right [data-field="roadAllowed"]').count()).toBe(0);
+    await expect(page.locator('#hexdb-roads .hexdb-roads-roads')).toContainText('road (building_road, Gold 50)');
+    await expect(page.locator('#hexdb-roads .hexdb-roads-bridges')).toContainText('bridge (bridge, Gold 6500)');
+  });
+
+  test('a 5th road type added to the Building DB appears after re-selecting the row, with no code change', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await page.evaluate(() => BldDB.addEntries([{ id: 'road_3', package: 'postapoc', isRoad: true, buildingCategory: 'Standard', spriteName: 'road_hex_36_NS', price: [{ type: 'Gold', amount: 120 }], availableTiles: [] }]));
+    await selectHex(page, 'Decameroon_Plain_1');
+    const ids = await page.locator('#hexdb-roads input[data-road-id]').evaluateAll((els: any[]) => els.map(e => e.dataset.roadId));
+    expect(ids).toEqual(['road', 'road_2', 'road_3', 'bridge', 'bridge_2']);
+  });
+
+  test('ticking bridge sets [bridge], roadAllowed false, exactly one autosave; ticking road makes roadAllowed true; no property named after the id', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await selectHex(page, 'Decameroon_River_L_1');
+    expect(await ar(page, 'Decameroon_River_L_1')).toEqual({ ar: undefined, has: false, ra: false });   // fixture records are not backfilled
+    const rev0 = await page.evaluate(() => HexDB.getRev());
+    await box(page, 'bridge').check();
+    expect(await ar(page, 'Decameroon_River_L_1')).toEqual({ ar: ['bridge'], has: true, ra: false });
+    expect(await page.evaluate(() => HexDB.getRev())).toBe(rev0 + 1);
+    await box(page, 'road').check();
+    expect(await ar(page, 'Decameroon_River_L_1')).toEqual({ ar: ['road', 'bridge'], has: true, ra: true });
+    expect(await page.evaluate(() => Object.keys(HexDB.getAll().find((h: any) => h.id === 'Decameroon_River_L_1')).filter(k => ['road', 'bridge'].includes(k)))).toEqual([]);
+  });
+
+  test('master: untick empties, retick restores the remembered list; master reflects the list', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await page.evaluate(() => HexDB.setAllowedRoads('decameroon::Decameroon_Plain_1', ['road', 'road_2']));
+    await selectHex(page, 'Decameroon_Plain_1');
+    const master = page.locator('#hexdb-roads-master');
+    await expect(master).toBeChecked();
+    await master.uncheck();
+    expect((await ar(page, 'Decameroon_Plain_1')).ar).toEqual([]);
+    await expect(box(page, 'road')).not.toBeChecked();
+    await master.check();
+    expect((await ar(page, 'Decameroon_Plain_1')).ar).toEqual(['road', 'road_2']);
+    await expect(box(page, 'road_2')).toBeChecked();
+  });
+
+  test('master retick with nothing remembered applies the placeholder default (first road type); F1 replaces it by the type default', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await selectHex(page, 'Decameroon_Plain_2');
+    await expect(page.locator('#hexdb-roads-master')).not.toBeChecked();
+    await page.locator('#hexdb-roads-master').check();
+    expect((await ar(page, 'Decameroon_Plain_2')).ar).toEqual(['road']);   // F1: becomes defaultsFor(type)
+  });
+
+  test('editing another field (textId) leaves allowedRoads untouched (guards the _readRecord interaction)', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await page.evaluate(() => HexDB.setAllowedRoads('decameroon::Decameroon_Plain_1', ['road']));
+    await selectHex(page, 'Decameroon_Plain_1');
+    await page.locator('#hexdb-right [data-field="textId"]').fill('plain_one');
+    await page.locator('#hexdb-right [data-field="textId"]').dispatchEvent('change');
+    const r = await page.evaluate(() => { const h = HexDB.getAll().find((h: any) => h.id === 'Decameroon_Plain_1'); return { t: h.textId, ar: h.allowedRoads, ra: h.roadAllowed }; });
+    expect(r).toEqual({ t: 'plain_one', ar: ['road'], ra: true });
+  });
+
+  test('an unset record shows the notice and enabled boxes; the first tick sets the field and removes the notice', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await page.evaluate(() => { const h = HexDB.getAll().find((h: any) => h.id === 'Decameroon_Plain_1'); delete h.allowedRoads; HexDB.refreshDerived(); });
+    await selectHex(page, 'Decameroon_Plain_1');
+    await expect(page.locator('#hexdb-roads .hexdb-roads-unset')).toContainText('Backfill roads');
+    await expect(box(page, 'road')).toBeEnabled();
+    expect((await ar(page, 'Decameroon_Plain_1')).has).toBe(false);
+    await box(page, 'road').check();
+    expect(await ar(page, 'Decameroon_Plain_1')).toEqual({ ar: ['road'], has: true, ra: true });
+    await expect(page.locator('#hexdb-roads .hexdb-roads-unset')).toHaveCount(0);
+    // positive control: a set record never shows the notice
+    await page.evaluate(() => HexDB.setAllowedRoads('decameroon::Decameroon_Plain_2', []));
+    await selectHex(page, 'Decameroon_Plain_2');
+    await expect(page.locator('#hexdb-roads .hexdb-roads-unset')).toHaveCount(0);
+  });
+
+  test('an unknown id is a red row; its remove button drops only that id', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await page.evaluate(() => { HexDB.setAllowedRoads('decameroon::Decameroon_Plain_1', ['road', 'road_old', 'gone_too']); });
+    await selectHex(page, 'Decameroon_Plain_1');
+    await expect(page.locator('#hexdb-roads .hexdb-roads-unknown')).toHaveCount(2);
+    await expect(page.locator('#hexdb-roads .hexdb-roads-unknown').first()).toContainText('road_old');
+    await page.locator('#hexdb-roads .hexdb-roads-unknown button[data-road-remove="road_old"]').click();
+    expect((await ar(page, 'Decameroon_Plain_1')).ar).toEqual(['road', 'gone_too']);
+    await expect(page.locator('#hexdb-roads .hexdb-roads-unknown')).toHaveCount(1);
+  });
+
+  test('a duplicate in the stored list is shown once and flagged; the next change dedupes it', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await page.evaluate(() => { HexDB.getAll().find((h: any) => h.id === 'Decameroon_Plain_1').allowedRoads = ['road', 'road']; });
+    await selectHex(page, 'Decameroon_Plain_1');
+    await expect(page.locator('#hexdb-roads input[data-road-id="road"]')).toHaveCount(1);
+    await expect(box(page, 'road')).toBeChecked();
+    await expect(page.locator('#hexdb-roads .hexdb-roads-warn')).toContainText('duplicate');
+    await box(page, 'road_2').check();
+    expect((await ar(page, 'Decameroon_Plain_1')).ar).toEqual(['road', 'road_2']);
+  });
+
+  test('bridge boxes are not disabled on land (D6); a bridge on land and a road on water show a hint; a clean tile shows none', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await selectHex(page, 'Decameroon_Plain_1');
+    await expect(box(page, 'bridge')).toBeEnabled();
+    await expect(page.locator('#hexdb-roads .hexdb-roads-warn')).toHaveCount(0);
+    await box(page, 'bridge').check();
+    await expect(page.locator('#hexdb-roads .hexdb-roads-warn')).toContainText('bridge');
+    await selectHex(page, 'Decameroon_River_L_1');
+    await box(page, 'road').check();
+    await expect(page.locator('#hexdb-roads .hexdb-roads-warn')).toContainText('road');
+  });
+
+  test('Copy from tile copies the list of a tile of another package', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await page.evaluate(() => { HexDB.setAllowedRoads('postapoc::Plain_1', ['road', 'road_2']); });
+    await selectHex(page, 'Decameroon_Plain_1');
+    await page.locator('#hexdb-roads-copy-from').fill('Plain_1');
+    await page.locator('#hexdb-roads-copy-btn').click();
+    expect((await ar(page, 'Decameroon_Plain_1')).ar).toEqual(['road', 'road_2']);
+    await expect(box(page, 'road_2')).toBeChecked();
+    // an unknown source id changes nothing
+    await page.locator('#hexdb-roads-copy-from').fill('Nope_9');
+    await page.locator('#hexdb-roads-copy-btn').click();
+    expect((await ar(page, 'Decameroon_Plain_1')).ar).toEqual(['road', 'road_2']);
+  });
+
+  test('ids from imported data are escaped in the block (no markup injection)', async ({ page }) => {
+    await seedRoadsWorld(page);
+    await page.evaluate(() => { HexDB.setAllowedRoads('decameroon::Decameroon_Plain_1', ['<img src=x id=pwn>']); });
+    await selectHex(page, 'Decameroon_Plain_1');
+    await expect(page.locator('#hexdb-roads .hexdb-roads-unknown')).toContainText('<img src=x id=pwn>');
+    expect(await page.locator('#pwn').count()).toBe(0);
+  });
+});
