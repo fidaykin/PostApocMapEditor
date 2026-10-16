@@ -17210,6 +17210,133 @@ const BiomeManager = (() => {
   return { getNames, getColor, add, remove, updateColor, refreshAllDropdowns, openManager, closeManager };
 })();
 
+// ── RoadPerms Module (Roads/Bridges V1: pure helpers, no DOM, no HexDB/BldDB state except currentTypes) ─────
+// Hex records list the ids of road/bridge buildings (base Building DB) allowed on the tile: `allowedRoads: string[]`.
+// Missing / null / [] = nothing allowed. `roadAllowed` stays as the derived legacy flag (any listed id is a road).
+const RoadPerms = (() => {
+  const BASE_PKG = 'postapoc';
+  const LEGACY_ROAD_ENUM_IDS = ['Plain_1', 'Plain_2', 'Rubble_1', 'Rubble_2', 'Rubble_3'];
+  const LEGACY_ROAD_TERRAIN_IDS = [9, 10, 11, 12, 13];
+
+  const _pkgOf = o => (o && o.package) || BASE_PKG;
+
+  // Road/bridge types of the BASE package in Building DB order. An entry that is both is listed under roads only.
+  function typesFrom(buildings) {
+    const roads = [], bridges = [], order = [];
+    (Array.isArray(buildings) ? buildings : []).forEach(b => {
+      if (!b || !b.id || _pkgOf(b) !== BASE_PKG) return;
+      if (b.isRoad) { roads.push(b); order.push(b.id); }
+      else if (b.buildingCategory === 'Bridge') { bridges.push(b); order.push(b.id); }
+    });
+    return { roads, bridges, order };
+  }
+
+  // Unique non-empty trimmed strings in their original order; anything that is not an array means "not set" (null).
+  function normalize(list) {
+    if (!Array.isArray(list)) return null;
+    const seen = new Set(), out = [];
+    list.forEach(v => {
+      if (typeof v !== 'string') return;
+      const s = v.trim();
+      if (s && !seen.has(s)) { seen.add(s); out.push(s); }
+    });
+    return out;
+  }
+
+  // Building DB order; ids the Building DB does not know go last in their original order.
+  function sortLike(list, types) {
+    const order = (types && types.order) || [];
+    const rank = id => { const i = order.indexOf(id); return i < 0 ? Infinity : i; };
+    return list.map((id, i) => ({ id, i })).sort((a, b) => (rank(a.id) - rank(b.id)) || (a.i - b.i)).map(x => x.id);
+  }
+
+  // Legacy flag: true iff a listed id is a road (spec 4.5). While the Building DB is still empty (startup order) any id counts;
+  // HexDB.refreshDerived() re-runs the derivation once it has loaded.
+  function deriveRoadAllowed(list, types) {
+    if (!Array.isArray(list) || !list.length) return false;
+    if (!types || !types.order.length) return true;
+    const roadIds = new Set(types.roads.map(b => b.id));
+    return list.some(id => roadIds.has(id));
+  }
+
+  const isWaterLike = hex => !!hex && (hex.type === 'Rivers' || hex.type === 'Water');
+
+  function stateOf(hex) {
+    if (!hex || !Array.isArray(hex.allowedRoads)) return 'unset';
+    return hex.allowedRoads.length ? 'some' : 'none';
+  }
+
+  // Problems of a data set. scope: { pkg?, requireField? }. Items: { rule, hexId, pkg, message, fix? } (hexId is the
+  // building id for building rules). Bridge on land / road on water are warnings by decision (the tile list is the rule).
+  function validate({ hexes, buildings, scope }) {
+    const sc = scope || {};
+    const errors = [], warnings = [];
+    const types = typesFrom(buildings);
+    const roadIds = new Set(types.roads.map(b => b.id));
+    const bridgeIds = new Set(types.bridges.map(b => b.id));
+    const bldById = new Map(types.roads.concat(types.bridges).map(b => [b.id, b]));
+    const add = (arr, rule, id, pkg, message, fix) => arr.push(fix ? { rule, hexId: id, pkg, message, fix } : { rule, hexId: id, pkg, message });
+    const inScope = o => !sc.pkg || _pkgOf(o) === sc.pkg;
+    const allHexes = Array.isArray(hexes) ? hexes : [];
+    const baseById = new Map();
+    allHexes.forEach(h => { if (h && _pkgOf(h) === BASE_PKG && h.id) baseById.set(h.id, h); });
+
+    allHexes.forEach(h => {
+      if (!h || !inScope(h)) return;
+      const pkg = _pkgOf(h);
+      if (!Array.isArray(h.allowedRoads)) {
+        if (sc.requireField) add(errors, 'unset', h.id, pkg, `${h.id}: no road permissions yet (run Backfill roads)`);
+        return;
+      }
+      const seen = new Set();
+      let dup = false;
+      h.allowedRoads.forEach(id => {
+        if (typeof id !== 'string') return;
+        if (seen.has(id)) { dup = true; return; }
+        seen.add(id);
+        if (!roadIds.has(id) && !bridgeIds.has(id)) {
+          add(errors, 'unknown-id', h.id, pkg, `${h.id}: "${id}" is not a road or bridge of the base Building DB`);
+          return;
+        }
+        if (bridgeIds.has(id) && !isWaterLike(h))
+          add(warnings, 'bridge-on-land', h.id, pkg, `${h.id}: bridge "${id}" on a ${h.type} tile`);
+        if (roadIds.has(id) && isWaterLike(h))
+          add(warnings, 'road-on-water', h.id, pkg, `${h.id}: road "${id}" on a ${h.type} tile (a bridge?)`);
+        if (bridgeIds.has(id) && h.type === 'Water' && !(bldById.get(id).underTerrainId))
+          add(warnings, 'water-bridge-no-under', h.id, pkg, `${h.id}: bridge "${id}" on water has no Under Terrain`);
+      });
+      if (dup) add(errors, 'duplicate', h.id, pkg, `${h.id}: duplicate ids in the road list`, 'dedupe');
+      if (pkg !== BASE_PKG) {
+        const b = baseById.get(h.id);
+        if (b && Array.isArray(b.allowedRoads)) {
+          const a = new Set(h.allowedRoads), c = new Set(b.allowedRoads);
+          if (a.size !== c.size || [...a].some(x => !c.has(x)))
+            add(warnings, 'override-differs', h.id, pkg, `${h.id}: road list differs from the base tile`, 'take-base');
+        }
+      }
+    });
+
+    (Array.isArray(buildings) ? buildings : []).forEach(b => {
+      if (!b || !b.id || !inScope(b)) return;
+      const pkg = _pkgOf(b);
+      const road = !!b.isRoad, bridge = b.buildingCategory === 'Bridge';
+      if (road && bridge) add(errors, 'both-flags', b.id, pkg, `${b.id}: Is Road and Category Bridge at once`);
+      if ((road || bridge) && pkg !== BASE_PKG)
+        add(errors, 'road-in-package-bld', b.id, pkg, `${b.id}: roads and bridges are global (base package only)`);
+      if ((road || bridge) && Array.isArray(b.availableTiles) && b.availableTiles.length)
+        add(warnings, 'tiles-not-empty', b.id, pkg, `${b.id}: Available Tiles is ignored for roads and bridges (set it in Hex DB)`, 'clear-tiles');
+    });
+    return { errors, warnings };
+  }
+
+  // Convenience getter for live code (the only place that reads BldDB).
+  function currentTypes() { return typesFrom(typeof BldDB !== 'undefined' ? BldDB.getAll() : []); }
+
+  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
+})();
+
+window.RoadPerms = RoadPerms;
+
 // ── HexDB Module ───────────────────────────────────────────
 const HexDB = (() => {
   const FILTER_CATS = ['FilterTerrain','FilterResource','FilterWater','FilterSettlement','FilterHazard'];
