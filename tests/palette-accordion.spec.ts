@@ -263,7 +263,7 @@ test('the canvas size is unchanged (classic 1491x808 at 1400x900, palette 220 px
   // 57 toolbar controls before the UI-structure task; 44 after it: the 8 tool buttons moved to the palette tool rows and the
   // 5 zone-painter controls (Randomize & Fill, its patch slider, Fill Zones, Overlay, Clear Zones) moved to the Zones section.
   // 45 with Roads V1: the "Roads data" write-mode select in the HEX DB tools row (#hexdb-tools, shown in HEX DB mode only).
-  // 46 with the Road defaults button in the same row (47 with the Roads matrix button, 47 is the final count).
+  // 47 with the Road defaults and Roads matrix buttons in the same row.
   expect(r).toEqual({ canvas: [1491, 808], palette: 220, toolbarControls: 47, accInToolbar: 0 });
   await openSection(page, 'stamps');
   expect(await page.evaluate(() => [(document.getElementById('map-canvas') as HTMLCanvasElement).width, (document.getElementById('map-canvas') as HTMLCanvasElement).height])).toEqual([1491, 808]);

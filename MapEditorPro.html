@@ -1159,6 +1159,7 @@ body.mode-common #map-io    { display: none; }
 .rm-warn { margin-left: 6px; color: #d97706; font-weight: bold; cursor: help; }
 .rm-unset { border: 1px dashed var(--muted, #888); background: none; color: var(--muted, #888); border-radius: 3px; cursor: pointer; min-width: 22px; }
 .rm-colacts { display: flex; gap: 2px; justify-content: center; margin-top: 2px; }
+.rm-group { display: inline-flex; align-items: center; gap: 4px; }
 .rm-colact { font-size: 11px; line-height: 1; padding: 1px 5px; cursor: pointer; }
 .hexdb-actions {
   display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;
@@ -17433,10 +17434,47 @@ const RoadPerms = (() => {
     return Array.isArray(d[group]) ? d[group].slice() : [];
   }
 
+  // ── Bulk planners (pure): each returns [{ hex, list }] for the records that would change; nothing is mutated. ──
+  // Unset records: Allow / defaults / copy / add-where-Y fill them (the user asked), Remove and add-where leave them alone.
+  const _has = h => Array.isArray(h && h.allowedRoads);
+  const _eqSet = (a, b) => { const x = new Set(a), y = new Set(b); return x.size === y.size && [...x].every(v => y.has(v)); };
+  const _plan = (hexes, next) => (Array.isArray(hexes) ? hexes : []).reduce((out, h) => {
+    const l = next(h);
+    if (l && !(_has(h) && _eqSet(h.allowedRoads, l))) out.push({ hex: h, list: l });
+    return out;
+  }, []);
+  const planAllow = (hexes, typeId) => _plan(hexes, h => !_has(h) ? [typeId] : h.allowedRoads.includes(typeId) ? null : h.allowedRoads.concat(typeId));
+  const planRemove = (hexes, typeId) => _plan(hexes, h => !_has(h) || !h.allowedRoads.includes(typeId) ? null : h.allowedRoads.filter(x => x !== typeId));
+  const planApplyDefaults = (hexes, defaults) => _plan(hexes, h => defaultsFor(h.type, defaults));
+  const planAddWhere = (hexes, typeId, whereTypeId) => _plan(hexes, h => _has(h) && h.allowedRoads.includes(whereTypeId) && !h.allowedRoads.includes(typeId) ? h.allowedRoads.concat(typeId) : null);
+  const planCopyFrom = (hexes, srcList) => Array.isArray(srcList) ? _plan(hexes, () => srcList.slice()) : [];
+  // The tiles named in ids hold typeId, every other tile of the scope does not (an unset tile that is not named becomes an
+  // explicit []). A token is a tile id or "package::id". unknown: tokens matching no record; outside: tokens matching only
+  // records outside the scope (others = all records not in hexes). Both are skipped.
+  function planSetExact(hexes, typeId, ids, others) {
+    const scope = Array.isArray(hexes) ? hexes : [];
+    const key = h => _pkgOf(h) + '::' + h.id;
+    const inScope = new Set(), outside = [], unknown = [];
+    const outsideSet = new Set((Array.isArray(others) ? others : []).flatMap(h => [h.id, key(h)]));
+    (ids || []).forEach(t => {
+      const hit = scope.filter(h => h.id === t || key(h) === t);
+      if (hit.length) hit.forEach(h => inScope.add(h));
+      else if (outsideSet.has(t)) { if (!outside.includes(t)) outside.push(t); }
+      else if (!unknown.includes(t)) unknown.push(t);
+    });
+    const changes = _plan(scope, h => {
+      const want = inScope.has(h);
+      if (!_has(h)) return want ? [typeId] : [];
+      const has = h.allowedRoads.includes(typeId);
+      return want === has ? null : want ? h.allowedRoads.concat(typeId) : h.allowedRoads.filter(x => x !== typeId);
+    });
+    return { changes, unknown, outside };
+  }
+
   // Convenience getter for live code (the only place that reads BldDB).
   function currentTypes() { try { return typesFrom(BldDB.getAll()); } catch (e) { return typesFrom([]); } }
 
-  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, writeMode, setWriteMode, gate, gateMessage, coverage, defaultsFor, INITIAL_DEFAULTS, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
+  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, writeMode, setWriteMode, gate, gateMessage, coverage, defaultsFor, INITIAL_DEFAULTS, planAllow, planRemove, planApplyDefaults, planAddWhere, planCopyFrom, planSetExact, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
 })();
 
 window.RoadPerms = RoadPerms;
@@ -18328,9 +18366,84 @@ const HexDB = (() => {
     render();
     return handle;
   }
-  // Column header actions and the bulk toolbar are added by F3.
-  function _matrixColumnAction() {}
-  function _buildMatrixBulk() {}
+  // ── Roads V1 F3: bulk actions of the matrix, each one RoadsHistory step ──
+  // ctx: { rows(), selected(), refresh(), scopePkg(), root }. Every action = applyRoadChanges = one step, one autosave.
+  function _bulkDone(ctx, label, n) {
+    ctx.refresh();
+    UI.toast(`${label}: ${n} tile${n === 1 ? '' : 's'} changed`);
+  }
+  function _matrixColumnAction(act, typeId, ctx) {
+    const rows = ctx.rows();
+    if (act === 'allow') { const l = `Allow ${typeId} on filtered`; _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planAllow(rows, typeId))); }
+    else if (act === 'remove') { const l = `Remove ${typeId} from filtered`; _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planRemove(rows, typeId))); }
+    else if (act === 'exact') _openExactDialog(typeId, ctx);
+  }
+  function _openExactDialog(typeId, ctx) {
+    const wrap = document.createElement('div');
+    const p = document.createElement('p');
+    p.style.cssText = 'font-size:12px;color:var(--muted)';
+    p.textContent = `One tile id per line (or package::id). The listed filtered tiles get ${typeId}; every other filtered tile loses it. Unknown ids and ids outside the filter are skipped and reported.`;
+    const ta = document.createElement('textarea');
+    ta.rows = 12; ta.style.cssText = 'width:100%;box-sizing:border-box;font-family:monospace';
+    ta.placeholder = 'Plain_1\nPlain_2';
+    wrap.append(p, ta);
+    UI.showModal({
+      id: 'roads-exact', title: `Set ${typeId} to exactly these ids`, body: wrap, autofocus: ta,
+      actions: [
+        { label: 'Apply', primary: true, onClick: close => {
+          const ids = ta.value.split(/[\s,;]+/).map(x => x.trim()).filter(Boolean);
+          const rows = ctx.rows();
+          const inRows = new Set(rows);
+          const plan = RoadPerms.planSetExact(rows, typeId, ids, _data.hexes.filter(h => !inRows.has(h)));
+          const label = `Set ${typeId} to exactly ${ids.length} ids`;
+          const n = applyRoadChanges(label, plan.changes);
+          close();
+          ctx.refresh();
+          const skipped = [];
+          if (plan.unknown.length) skipped.push(`${plan.unknown.length} unknown (${plan.unknown.slice(0, 5).join(', ')}${plan.unknown.length > 5 ? ', ...' : ''})`);
+          if (plan.outside.length) skipped.push(`${plan.outside.length} outside the filter (${plan.outside.slice(0, 5).join(', ')}${plan.outside.length > 5 ? ', ...' : ''})`);
+          UI.toast(`${label}: ${n} tile${n === 1 ? '' : 's'} changed` + (skipped.length ? `; skipped ${skipped.join('; ')}` : ''), { ms: skipped.length ? 8000 : 2000 });
+        } },
+        { label: 'Cancel', onClick: close => close() },
+      ],
+    });
+  }
+  function _buildMatrixBulk(bar, ctx) {
+    const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+    const btn = (id, text, title, fn) => { const b = el('button', 'hexdb-tool-btn', text); b.type = 'button'; b.id = id; b.title = title; b.addEventListener('click', fn); return b; };
+    bar.appendChild(btn('rm-bulk-defaults', 'Apply type defaults to filtered', 'Set every filtered tile to the road defaults of its type (tiles already at the default are skipped)', () => {
+      const l = 'Apply type defaults to filtered';
+      _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planApplyDefaults(ctx.rows(), _data.common && _data.common.roadDefaults)));
+    }));
+    // Add X wherever Y is allowed
+    const ts = RoadPerms.currentTypes().roads.concat(RoadPerms.currentTypes().bridges);
+    const sel = (id, val) => { const s = el('select', 'hexdb-select'); s.id = id; s.style.cssText = 'flex:none;width:auto'; ts.forEach(b => { const o = el('option', null, b.id); o.value = b.id; s.appendChild(o); }); if (val != null && ts[val]) s.value = ts[val].id; return s; };
+    const aw = el('span', 'rm-group');
+    const x = sel('rm-aw-x', 1), y = sel('rm-aw-y', 0);
+    aw.append(el('span', null, 'Add '), x, el('span', null, ' wherever '), y, el('span', null, ' is allowed '),
+      btn('rm-bulk-addwhere', 'Add', 'Roll a new type out from an existing one', () => {
+        if (x.value === y.value) { UI.toast('Pick two different types'); return; }
+        const l = `Add ${x.value} wherever ${y.value} is allowed`;
+        _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planAddWhere(ctx.rows(), x.value, y.value)));
+      }));
+    bar.appendChild(aw);
+    // Copy from tile onto the selected rows (all filtered rows when none is selected)
+    const cf = el('span', 'rm-group');
+    const inp = el('input', 'hexdb-input'); inp.id = 'rm-copy-from'; inp.placeholder = 'tile id (any package)'; inp.style.cssText = 'flex:none;width:170px';
+    const dl = el('datalist'); dl.id = 'rm-id-list';
+    _data.hexes.forEach(h => { const o = el('option'); o.value = h.id; dl.appendChild(o); });
+    inp.setAttribute('list', 'rm-id-list');
+    cf.append(inp, dl, btn('rm-bulk-copy', 'Copy from tile', 'Copy that tile\'s list onto the selected rows (all filtered rows when none is selected)', () => {
+      const q = inp.value.trim();
+      const src = q && (_data.hexes.find(h => _hexKey(h) === q) || _data.hexes.find(h => h.id === q));
+      if (!src) { UI.toast(`No tile "${q}" in the Hex DB`); return; }
+      if (!Array.isArray(src.allowedRoads)) { UI.toast(`${src.id} has no road permissions yet`); return; }
+      const target = ctx.selected().length ? ctx.selected() : ctx.rows();
+      const l = `Copy road list from ${src.id}`;
+      _bulkDone(ctx, l, applyRoadChanges(l, RoadPerms.planCopyFrom(target, src.allowedRoads)));
+    }));
+    bar.appendChild(cf);
+  }
 
   function _renderRecord(hex) {
     const mainBody = [
