@@ -16536,9 +16536,9 @@ const MapValidator = (() => {
   }
 
   // Road permissions for the rule above: lower-case tile id -> Hex DB record (the base package's record wins over a same-id override).
-  function _roadHexLookup() {
+  function _roadHexLookup(hexes) {
     const m = new Map();
-    HexDB.getAll().forEach(h => {
+    hexes.forEach(h => {
       if (!h || typeof h.id !== 'string' || !h.id) return;
       const k = _lc(h.id), cur = m.get(k);
       if (!cur || ((cur.package || 'postapoc') !== 'postapoc' && (h.package || 'postapoc') === 'postapoc')) m.set(k, h);
@@ -16553,7 +16553,8 @@ const MapValidator = (() => {
   // Snapshot of the live editor state. mapData etc. are passed by reference and only read.
   function collectState() {
     const hexById = new Map(), bldById = new Map();
-    HexDB.getAll().forEach(h => { if (h && typeof h.id === 'string' && h.id) hexById.set(_lc(h.id), h); });
+    const allHexes = HexDB.getAll();      // read once per run (the validator-gate specs count the reads)
+    allHexes.forEach(h => { if (h && typeof h.id === 'string' && h.id) hexById.set(_lc(h.id), h); });
     const blds = BldDB.getAll();
     blds.forEach(b => { if (b && typeof b.id === 'string' && b.id) bldById.set(_lc(b.id), b); });
     return {
@@ -16561,7 +16562,7 @@ const MapValidator = (() => {
       settlements, roads: roadsData, objects: objectsData, bridges: bridgesData,
       hexById, bldById,
       needRoad: new Set(blds.filter(b => b && b.needRoad && typeof b.id === 'string').map(b => _lc(b.id))),
-      roadHex: _roadHexLookup(), roadTypes: _roadTypeSets(blds),
+      roadHex: _roadHexLookup(allHexes), roadTypes: _roadTypeSets(blds),
       cityCol: getCityCol(), cityRow: getCityRow(),
       spriteState: id => Terrain.spriteState(id),
       neighbors: (c, r) => HexUtils.neighbors(c, r, MAP_WIDTH, MAP_HEIGHT),
