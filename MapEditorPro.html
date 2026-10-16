@@ -7656,6 +7656,18 @@ const Tools = (() => {
   // Bridge tool: a bridge is a Road_Bridge_* building and may only stand on a river tile (_isRiverTile; its K1-family limits
   // apply: it reads the cell's hex type only). A press acts on the pressed tile alone (no drag). Same bridge again removes it,
   // another bridge (or any building) replaces it, in one step. Returns true when objectsData changed.
+  // null = no list to consult (record unset / unknown, or the bridge is not a Building DB bridge); else { allowed, tileId }.
+  function _bridgePermission(col, row, bridgeId) {
+    if (col < 0 || col >= MAP_WIDTH || row < 0 || row >= MAP_HEIGHT) return null;
+    if (!_bridgeBuildings().some(b => b.id === bridgeId)) return null;
+    const id = mapData[row * MAP_WIDTH + col];
+    if (typeof id !== 'string') return null;
+    const recs = HexDB.getAll().filter(h => h.id === id);
+    const rec = recs.find(h => (h.package || 'postapoc') === 'postapoc') || recs[0];
+    if (!rec || !Array.isArray(rec.allowedRoads)) return null;
+    return { allowed: rec.allowedRoads.includes(bridgeId), tileId: id };
+  }
+
   function _placeBridge(col, row) {
     const bridgeId = _selectedBridgeId;
     if (!bridgeId) return false;
@@ -7663,7 +7675,11 @@ const Tools = (() => {
     const old = objectsData[key];
     // removing the same bridge can never break the river rule, so it works wherever the bridge stands (even on land / a footprint)
     if (old !== bridgeId) {
-      if (!_isRiverTile(col, row)) return _objRefuse('Bridges can only be built on river tiles');
+      // Roads V1: when the base Hex DB record of the tile has a road list, that list decides; an unset record (not backfilled)
+      // or a bridge without a Building DB record keeps today's rule (river tiles only).
+      const perm = _bridgePermission(col, row, bridgeId);
+      if (perm && !perm.allowed) return _objRefuse(`${bridgeId} is not allowed on ${perm.tileId} (Hex DB > Roads/Bridges)`);
+      if (!perm && !_isRiverTile(col, row)) return _objRefuse('Bridges can only be built on river tiles');
       if (getSatelliteAnchor(col, row)) return _objRefuse('Cannot place a building on a multi-tile terrain footprint');
     }
     _pushOnce();
@@ -16317,7 +16333,7 @@ const Shortcuts = (() => {
 // cells: [{col,row}] (first CELL_CAP only), total (true number of affected cells) }.
 // Rules: unknown-id / unknown-object (error; per distinct id, found by IO.analyzeMap's own id check via its onUnknown
 // hook, so there is ONE implementation of "unknown id"), missing-city (error), unreachable-settlement, orphan-road,
-// missing-sprite (warnings). There is deliberately no 'city-off-center' rule: the city is configurable (T3.5).
+// road-not-allowed (Roads V1: bridge/road on a tile whose Hex DB list does not allow it), missing-sprite (warnings). There is deliberately no 'city-off-center' rule: the city is configurable (T3.5).
 // Missing sprite = the load was attempted and FAILED (Terrain.spriteState === 'failed'); 'pending' (still decoding)
 // and 'unknown' (never requested) are not problems, and the count of pending sprites is returned by run().
 // Cost: one pass over the cells inside analyzeMap (+ one more only when some sprite failed), one BFS over at most
@@ -16335,7 +16351,7 @@ const MapValidator = (() => {
     ids:      new Set(['lava_plain_1', 'lava_rift_1', 'rift_1']),
   });
   const CELL_CAP = 200, MAX_ID_ISSUES = 50;
-  const RULE_ORDER = ['unknown-id', 'unknown-object', 'missing-city', 'unreachable-settlement', 'orphan-road', 'missing-sprite'];
+  const RULE_ORDER = ['unknown-id', 'unknown-object', 'missing-city', 'unreachable-settlement', 'orphan-road', 'road-not-allowed', 'missing-sprite'];
   const _lc = s => String(s).toLowerCase();
   const _byRowCol = (a, b) => a.row - b.row || a.col - b.col;
   const _isCell = (c, r, W, H) => Number.isInteger(c) && Number.isInteger(r) && c >= 0 && c < W && r >= 0 && r < H;
@@ -16467,6 +16483,38 @@ const MapValidator = (() => {
                                       : `${orphans.length} road tiles connect to nothing (first at ${orphans[0].col},${orphans[0].row})` });
     }
 
+    // 4b. Road permissions (Roads V1): a bridge object on a tile whose list is set and lacks it, a road cell on a tile whose list
+    // is set and holds no road type. Tiles without a list (not backfilled) are skipped. The map stores no road type, so
+    // "any road type" is all that can be checked; a road cell that carries a bridge object is covered by that bridge.
+    if (st.roadHex && st.roadTypes) {
+      const bad = { bridge: [], road: [] };
+      const recAt = idx => { const id = data[idx]; return typeof id === 'string' ? st.roadHex.get(_lc(id)) : null; };
+      const objKeys = st.objects || {};
+      Object.keys(objKeys).forEach(k => {
+        const bid = objKeys[k];
+        if (typeof bid !== 'string' || !st.roadTypes.bridges.has(bid)) return;
+        const [c, r] = k.split(',').map(Number);
+        if (!_isCell(c, r, W, H)) return;
+        const rec = recAt(r * W + c);
+        if (rec && Array.isArray(rec.allowedRoads) && !rec.allowedRoads.includes(bid)) bad.bridge.push({ col: c, row: r });
+      });
+      Object.keys(st.roads || {}).forEach(k => {
+        const [c, r] = k.split(',').map(Number);
+        if (!_isCell(c, r, W, H)) return;
+        if (typeof objKeys[k] === 'string' && st.roadTypes.bridges.has(objKeys[k])) return;
+        const rec = recAt(r * W + c);
+        if (rec && Array.isArray(rec.allowedRoads) && !rec.allowedRoads.some(id => st.roadTypes.roads.has(id))) bad.road.push({ col: c, row: r });
+      });
+      [['bridge', 'bridge object', 'bridge objects'], ['road', 'road tile', 'road tiles']].forEach(([kind, one, many]) => {
+        const list = bad[kind];
+        if (!list.length) return;
+        list.sort(_byRowCol);
+        issues.push({ id: 'road-not-allowed', key: 'road-not-allowed:' + kind, severity: 'warning', total: list.length, cells: list.slice(0, CELL_CAP),
+          message: list.length === 1 ? `${one[0].toUpperCase() + one.slice(1)} at ${list[0].col},${list[0].row} stands on a tile that does not allow it (Hex DB > Roads/Bridges)`
+                                     : `${list.length} ${many} stand on tiles that do not allow them (first at ${list[0].col},${list[0].row}; Hex DB > Roads/Bridges)` });
+      });
+    }
+
     // 5. Missing sprites: ids whose load FAILED. The cell pass only runs when there is such an id.
     const failed = new Map();       // lower-case id -> display id
     st.hexById.forEach((e, lcId) => { if (e && typeof e.spriteName === 'string' && e.spriteName && st.spriteState(e.id) === 'failed') failed.set(lcId, e.id); });
@@ -16487,6 +16535,21 @@ const MapValidator = (() => {
     return issues.sort((a, b) => sevRank(a.severity) - sevRank(b.severity) || RULE_ORDER.indexOf(a.id) - RULE_ORDER.indexOf(b.id));
   }
 
+  // Road permissions for the rule above: lower-case tile id -> Hex DB record (the base package's record wins over a same-id override).
+  function _roadHexLookup() {
+    const m = new Map();
+    HexDB.getAll().forEach(h => {
+      if (!h || typeof h.id !== 'string' || !h.id) return;
+      const k = _lc(h.id), cur = m.get(k);
+      if (!cur || ((cur.package || 'postapoc') !== 'postapoc' && (h.package || 'postapoc') === 'postapoc')) m.set(k, h);
+    });
+    return m;
+  }
+  function _roadTypeSets(blds) {
+    const t = RoadPerms.typesFrom(blds);
+    return { roads: new Set(t.roads.map(b => b.id)), bridges: new Set(t.bridges.map(b => b.id)) };
+  }
+
   // Snapshot of the live editor state. mapData etc. are passed by reference and only read.
   function collectState() {
     const hexById = new Map(), bldById = new Map();
@@ -16498,6 +16561,7 @@ const MapValidator = (() => {
       settlements, roads: roadsData, objects: objectsData, bridges: bridgesData,
       hexById, bldById,
       needRoad: new Set(blds.filter(b => b && b.needRoad && typeof b.id === 'string').map(b => _lc(b.id))),
+      roadHex: _roadHexLookup(), roadTypes: _roadTypeSets(blds),
       cityCol: getCityCol(), cityRow: getCityRow(),
       spriteState: id => Terrain.spriteState(id),
       neighbors: (c, r) => HexUtils.neighbors(c, r, MAP_WIDTH, MAP_HEIGHT),
