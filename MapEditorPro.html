@@ -601,6 +601,8 @@ body:not(.mode-map) #statusbar { display: none; }
 .reskin-body { display: flex; flex-direction: column; gap: 6px; min-width: min(560px, 80vw); }
 .reskin-hint { margin: 0; font-size: 11px; color: var(--muted); }
 .reskin-hint.reskin-warn { color: #e0a030; }
+.reskin-source-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-size: 12px; color: var(--muted); }
+.reskin-source-row select { flex: 1; min-width: 0; }
 .reskin-modes { display: flex; gap: 6px; flex-wrap: wrap; }
 .reskin-mode { display: flex; flex-direction: column; gap: 2px; text-align: left; flex: 1 1 240px; background: var(--hover); border: 1px solid var(--border); border-radius: 4px; color: inherit; padding: 4px 8px; font-size: 12px; cursor: pointer; }
 .reskin-mode[aria-checked="true"] { outline: 2px solid var(--accent); }
@@ -1574,7 +1576,7 @@ body.mode-common #map-io    { display: none; }
       <select class="pkg-active-select" aria-label="Active package" title="Active package: new entries are tagged to it" onchange="Packages.setActive(this.value)"></select>
       <button class="hexdb-tool-btn" onclick="HexDB.add()">+ Add Hex</button>
       <button class="hexdb-tool-btn" id="hexdb-add-reskin-btn" onclick="HexDB.promptReskin()"
-              style="display:none" title="Create an entry that reuses an existing postapoc id">+ Reskin</button>
+              style="display:none" title="Create an entry in this package from an existing tile or building of another package (postapoc by default)">+ Reskin</button>
       <button class="hexdb-tool-btn" onclick="HexDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="HexDB.save()">💾 Save DB</button>
       <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
@@ -1588,7 +1590,7 @@ body.mode-common #map-io    { display: none; }
       <select class="pkg-active-select" aria-label="Active package" title="Active package: new entries are tagged to it" onchange="Packages.setActive(this.value)"></select>
       <button class="hexdb-tool-btn" onclick="BldDB.add()">+ Add Building</button>
       <button class="hexdb-tool-btn" id="bld-add-reskin-btn" onclick="BldDB.promptReskin()"
-              style="display:none" title="Create an entry that reuses an existing postapoc id">+ Reskin</button>
+              style="display:none" title="Create an entry in this package from an existing tile or building of another package (postapoc by default)">+ Reskin</button>
       <button class="hexdb-tool-btn" onclick="BldDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="BldDB.save()">💾 Save DB</button>
       <span style="color:#888;font-size:11px;margin-left:10px">Common:</span>
@@ -13582,17 +13584,63 @@ const Packages = (() => {
   const RESKIN_CAP = 60;
 
   // The id a Reskin+ copy gets. mode 'prefix' (default): the active package's PascalCase prefix + baseId (not added twice);
-  // mode 'same': the base id unchanged, a runtime override of the base slot.
+  // mode 'same': the source id unchanged, a runtime override of the source slot. The source can be ANY package (default
+  // postapoc); the id rule does not depend on it.
   function reskinTargetId(baseId, mode) {
     if (mode === 'same') return baseId;
     const prefix = idPrefix(getActive());
     return prefix && !String(baseId).startsWith(prefix) ? prefix + baseId : baseId;
   }
 
+  // Packages (other than the active one) that have at least one of `entries`, postapoc first. Used by the picker's select
+  // and by the "nothing to reskin" guards of HexDB/BldDB.
+  function reskinSourcePackages(entries) {
+    const active = getActive(), seen = new Set();
+    for (const e of entries || []) { const p = e.package || 'postapoc'; if (p !== active) seen.add(p); }
+    return [...seen].sort((a, b) => (a === 'postapoc' ? -1 : b === 'postapoc' ? 1 : a < b ? -1 : a > b ? 1 : 0));
+  }
+
+  // Same-id reskin from a non-base package: the game applies the package that loads later, so the source must load first.
+  // Adds it to the active package's dependencies through the T5.10 helpers (shape, duplicates, cycles). Returns true when
+  // the entry may be created (nothing to add, already a dependency, or added); false (after a toast) when refused.
+  function ensureReskinDependency(sourcePkg) {
+    if (!sourcePkg || sourcePkg === 'postapoc') return true;
+    const active = getActive();
+    const cur = getDependencies(active);
+    if (cur.some(s => _depId(s) === sourcePkg)) return true;
+    const r = validateDetails(active, { dependencies: [...cur, sourcePkg] });
+    if (!r.ok) {
+      UI.toast(`⚠ Cannot reskin from "${sourcePkg}" with the same id: ${r.errors[0]} Nothing was created. Use the prefixed copy instead.`, { ms: 8000 });
+      return false;
+    }
+    if (!updateDetails(active, { dependencies: r.dependencies })) return false;
+    UI.toast(`"${sourcePkg}" was added to the dependencies of "${active}": it must load before "${active}" so this override wins.`, { ms: 8000 });
+    return true;
+  }
+
+  // The copy keeps the SOURCE's spriteName. Until the active package has that sprite in its own folder (publish copies it
+  // there) the editor would look in packages/<active>/..., so alias the active package's key to wherever the source's
+  // sprite resolves now. In-session only; an own upload with that name is never replaced.
+  function aliasSourceSprite(copy, sourceRec, kind) {
+    if (!copy || !sourceRec || !copy.spriteName || (sourceRec.package || 'postapoc') === 'postapoc') return;
+    const dir = kind === 'bld' ? (copy.buildingCategory === 'Bridge' ? 'hex' : 'buildings') : 'hex';
+    if (Terrain.getUploadedUrl(copy.spriteName, copy.package, dir)) return;
+    const url = spriteSrc(sourceRec, kind);
+    if (!url) return;
+    const key = SpriteStore.keyFor(copy.package, copy.spriteName);
+    Terrain.registerUploadedUrls({ [key]: url }, { [key]: dir });
+  }
+
   function openReskinPicker({ kind, entries, onPick }) {
     const active = getActive();
-    const base = (entries || []).filter(e => (e.package || 'postapoc') === 'postapoc');
-    const ownIds = new Set((entries || []).filter(e => (e.package || 'postapoc') === active).map(e => e.id));
+    const sources = reskinSourcePackages(entries);
+    if (!sources.length) return null;
+    let srcPkg = sources.includes('postapoc') ? 'postapoc' : sources[0];
+    const entriesAll = entries || [];
+    const ownIds = new Set(entriesAll.filter(e => (e.package || 'postapoc') === active).map(e => e.id));
+    let base = [];
+    const loadBase = () => { base = entriesAll.filter(e => (e.package || 'postapoc') === srcPkg); };
+    loadBase();
     let mode = 'prefix';
     const isTaken = id => ownIds.has(reskinTargetId(id, mode));
     const el = (tag, cls, text) => { const n = document.createElement(tag); if (cls) n.className = cls; if (text != null) n.textContent = text; return n; };
@@ -13601,12 +13649,17 @@ const Packages = (() => {
     const noun = kind === 'bld' ? 'building' : 'tile';
     const group = el('div', 'reskin-modes'); group.setAttribute('role', 'radiogroup'); group.setAttribute('aria-label', 'Reskin mode');
     const MODES = [
-      { key: 'prefix', label: 'Copy with package prefix', note: () => `Creates a copy whose id is the package prefix plus the base id (for example ${reskinTargetId('Plain_1', 'prefix')}); the base ${noun} stays untouched.` },
-      { key: 'same', label: 'Override the same id (runtime reskin)', note: () => `Warning: creates an entry with the SAME id as the base ${noun}; the game will use it instead of the base ${noun} when this package is active; the list will show both.` },
+      { key: 'prefix', label: 'Copy with package prefix', note: () => `Creates a copy whose id is the package prefix plus the base id (for example ${reskinTargetId('Plain_1', 'prefix')}); the ${srcPkg} ${noun} stays untouched.` },
+      { key: 'same', label: 'Override the same id (runtime reskin)', note: () => srcPkg === 'postapoc'
+        ? `Warning: creates an entry with the SAME id as the base ${noun}; the game will use it instead of the base ${noun} when this package is active; the list will show both.`
+        : `Warning: creates an entry with the SAME id as the ${srcPkg} ${noun}; the game applies the package that loads later, so ${srcPkg} must load first: it is added to this package's dependencies automatically (refused if that would create a cycle); the list will show both.` },
     ];
+    const hints = {};
     const radios = MODES.map(m => {
       const r = el('button', 'reskin-mode'); r.type = 'button'; r.dataset.mode = m.key; r.setAttribute('role', 'radio');
-      r.append(el('strong', null, m.label), el('span', 'reskin-hint' + (m.key === 'same' ? ' reskin-warn' : ''), m.note()));
+      const hint = el('span', 'reskin-hint' + (m.key === 'same' ? ' reskin-warn' : ''), m.note());
+      hints[m.key] = () => { hint.textContent = m.note(); };
+      r.append(el('strong', null, m.label), hint);
       return r;
     });
     const syncModes = () => radios.forEach(r => { const on = r.dataset.mode === mode; r.setAttribute('aria-checked', on ? 'true' : 'false'); r.tabIndex = on ? 0 : -1; });
@@ -13621,7 +13674,18 @@ const Packages = (() => {
       });
     });
     group.append(...radios);
-    body.append(group);
+    // Source package: a native select (keyboard reachable). Ids and names are untrusted: option text only via textContent.
+    const srcRow = el('label', 'reskin-source-row', 'Source package ');
+    const srcSel = el('select'); srcSel.id = 'reskin-source'; srcSel.setAttribute('aria-label', 'Source package');
+    sources.forEach(p => {
+      const o = el('option', null, p === 'postapoc' ? 'postapoc (base)' : ((getEntry(p) && getEntry(p).name && getEntry(p).name !== p) ? `${getEntry(p).name} (${p})` : p));
+      o.value = p; if (p === srcPkg) o.selected = true; srcSel.appendChild(o);
+    });
+    srcSel.addEventListener('change', () => {
+      srcPkg = srcSel.value; loadBase(); Object.values(hints).forEach(f => f()); render();
+    });
+    srcRow.appendChild(srcSel);
+    body.append(srcRow, group);
     const input = el('input'); input.id = 'reskin-search'; input.type = 'text'; input.placeholder = 'Search ids…';
     input.autocomplete = 'off'; input.setAttribute('role', 'searchbox'); input.setAttribute('aria-label', 'Search ids'); input.setAttribute('aria-controls', 'reskin-list');
     const count = el('div', 'reskin-count'); count.id = 'reskin-count'; count.setAttribute('aria-live', 'polite');
@@ -13641,7 +13705,7 @@ const Packages = (() => {
       closed = true;
       const id = b.dataset.id;
       modal.close('close');
-      onPick(id, mode);
+      onPick(id, mode, srcPkg);
     };
     const render = () => {
       const q = input.value.trim().toLowerCase();
@@ -13683,7 +13747,7 @@ const Packages = (() => {
     syncModes();
     modal = UI.showModal({
       id: 'reskin-picker',
-      title: `Reskin which postapoc ${kind === 'bld' ? 'building' : 'hex'}?`,
+      title: `Reskin which ${kind === 'bld' ? 'building' : 'hex'} into ${active}?`,
       body,
       actions: [{ label: 'Cancel', onClick: close => close() }],
       autofocus: input,
@@ -14628,8 +14692,24 @@ const Packages = (() => {
   const _spriteDir = (c, fallback) => (typeof c === 'string' && /^[a-z][a-z0-9_]*(\/[a-z][a-z0-9_]*)?$/.test(c)) ? c : fallback;
   const _zipSpriteDir = c => c === 'buildings' ? 'buildings' : 'hex';   // the only two folders the importer reads
 
+  // A Reskin+ copy keeps the spriteName of its SOURCE package, whose file lives in that package's folder (or store), not in
+  // postapoc's. name -> ids of OTHER non-default packages whose entries use the same name in the same folder category.
+  function _foreignSpriteOwners(id) {
+    const out = new Map();
+    const add = (name, cat, pkg) => {
+      if (!name || !pkg || pkg === id || pkg === 'postapoc') return;
+      const k = cat + '\u0000' + name;
+      if (!out.has(k)) out.set(k, []);
+      if (!out.get(k).includes(pkg)) out.get(k).push(pkg);
+    };
+    for (const h of (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : [])) add(h.spriteName, 'hex', h.package);
+    for (const b of (typeof BldDB !== 'undefined' ? BldDB.getAll() : [])) add(b.spriteName, b.buildingCategory === 'Bridge' ? 'hex' : 'buildings', b.package);
+    return (name, cat) => (out.get(cat + '\u0000' + name) || []).filter(p => _ID_RE.test(p) && !_FORBIDDEN_KEYS.has(p));
+  }
+
   async function publishPackageSprites(id, onProgress) {
     const refs = await _packageSpriteRefs(id);
+    const ownersOf = _foreignSpriteOwners(id);
     if (!refs.size) return { total: 0, pushed: 0, missing: [], differs: [], categoryMismatch: [] };
     const unsafe = [...refs.keys()].filter(n => !isSafeSpriteName(n));
     if (unsafe.length) throw new Error(_unsafeNamesMessage(unsafe));   // never build a repo path from such a name
@@ -14638,10 +14718,17 @@ const Packages = (() => {
     try { [baseLocal, pkgLocal] = await Promise.all([SpriteStore.loadForPackage('postapoc'), SpriteStore.loadForPackage(id)]); }
     catch(e) { console.warn('[Packages] local sprite store unavailable, using the server copies:', e && e.message); }
     const localByName = new Map([...baseLocal, ...pkgLocal].map(e => [e.name, e]));   // the package's own copy wins
+    // Reskin copies from another package: that package's local record is a source of bytes too (after base and own ones).
+    const foreignLocal = new Map();
+    try {
+      const owners = new Set(); for (const [n, c] of refs) ownersOf(n, c).forEach(o => owners.add(o));
+      for (const o of owners) for (const e of await SpriteStore.loadForPackage(o)) foreignLocal.set(o + '\u0000' + e.name, e);
+    } catch(e) { console.warn('[Packages] local sprite store unavailable for source packages:', e && e.message); }
 
     let pushed = 0, done = 0;
     const missing = [], differs = [], categoryMismatch = [];
     for (const [name, fallbackCategory] of refs) {
+      const owners = ownersOf(name, fallbackCategory);
       const localEntry = localByName.get(name);
       // The folder follows the entry that REFERENCES the sprite (building DB -> buildings, hex DB -> hex; Bridge -> hex): that
       // is the folder the game reads for it. A local record of another category is only a source of bytes.
@@ -14654,6 +14741,16 @@ const Packages = (() => {
       if (!blob) {
         try {
           const res = await fetch(`${BASE_URL}/packages/postapoc/sprites/${encodeURIComponent(category)}/${encodeURIComponent(name)}.png?_=${Date.now()}`);
+          if (res.ok) blob = await res.blob();
+        } catch(e) {}
+      }
+      for (const o of owners) {   // a Reskin+ copy of another package's entry: that package's local record, then its folder
+        if (blob) break;
+        const fl = foreignLocal.get(o + '\u0000' + name);
+        if (fl) { try { blob = await (await fetch(fl.dataUrl)).blob(); } catch(e) {} }
+        if (blob) break;
+        try {
+          const res = await fetch(`${BASE_URL}/packages/${encodeURIComponent(o)}/sprites/${encodeURIComponent(category)}/${encodeURIComponent(name)}.png?_=${Date.now()}`);
           if (res.ok) blob = await res.blob();
         } catch(e) {}
       }
@@ -14775,10 +14872,13 @@ const Packages = (() => {
   // package's or the shared local store, and not on the server (package folder or the postapoc pool).
   async function findMissingSprites(id) {
     const refs = await _packageSpriteRefs(id);
-    let have = new Set();
+    const ownersOf = _foreignSpriteOwners(id);
+    let have = new Set(), haveForeign = new Set();
     try {
       const [pkgLocal, baseLocal] = await Promise.all([SpriteStore.loadForPackage(id), SpriteStore.loadForPackage('postapoc')]);
       have = new Set([...baseLocal, ...pkgLocal].map(e => e.name));
+      const owners = new Set(); for (const [n, c] of refs) ownersOf(n, c).forEach(o => owners.add(o));
+      for (const o of owners) for (const e of await SpriteStore.loadForPackage(o)) haveForeign.add(o + '\u0000' + e.name);
     } catch(e) { console.warn('[Packages] local sprite store unavailable:', e && e.message); }
     const exists = async url => { try { return (await fetch(url, { method: 'HEAD' })).ok; } catch(e) { return false; } };
     const missing = [];
@@ -14787,6 +14887,11 @@ const Packages = (() => {
       const seg = `${category}/${encodeURIComponent(name)}.png`;
       if (await exists(`${BASE_URL}/packages/${encodeURIComponent(id)}/sprites/${seg}?_=${Date.now()}`)) continue;
       if (await exists(`${BASE_URL}/packages/postapoc/sprites/${seg}?_=${Date.now()}`)) continue;
+      const owners = ownersOf(name, category);
+      if (owners.some(o => haveForeign.has(o + '\u0000' + name))) continue;
+      let found = false;
+      for (const o of owners) if (await exists(`${BASE_URL}/packages/${encodeURIComponent(o)}/sprites/${seg}?_=${Date.now()}`)) { found = true; break; }
+      if (found) continue;
       missing.push({ name, category });
     }
     return missing;
@@ -15974,7 +16079,7 @@ const Packages = (() => {
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
-           spriteSrc, openReskinPicker, reskinTargetId, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
+           spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
@@ -18270,13 +18375,17 @@ const HexDB = (() => {
   // Reskin+ for the active (non-default) package. mode 'prefix' (default): a copy whose id is the package prefix +
   // baseId (Plain_1 -> Medieval_Plain_1). mode 'same': an entry with the identical id, which overrides the base
   // TileRenderer/RuntimeDatabaseSync slot at runtime (SP5). Either way an existing id+package entry is never duplicated.
-  function addReskin(baseId, mode) {
+  // The source can be any package (default postapoc) except the active one. NOTE: the roads branch (not merged here) adds a
+  // refusal for road/bridge entries in addReskin; re-check it when merging, nothing road-specific is handled in this one.
+  function addReskin(baseId, mode, sourcePkg) {
     mode = mode === 'same' ? 'same' : 'prefix';
-    const base = _data.hexes.find(h => h.id === baseId && (h.package || 'postapoc') === 'postapoc');
-    if (!base) { UI.toast(`⚠ No postapoc hex found with id "${baseId}"`); return; }
+    const src = sourcePkg || 'postapoc';
+    const base = _data.hexes.find(h => h.id === baseId && (h.package || 'postapoc') === src);
+    if (!base) { UI.toast(`⚠ No ${src} hex found with id "${baseId}"`); return; }
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
+    if (Packages.getActive() === src) { UI.toast('⚠ The source package must differ from the active package'); return; }
     const pkg = Packages.getActive();
     const newId = Packages.reskinTargetId(baseId, mode);
     const exIdx = _data.hexes.findIndex(h => h.id === newId && (h.package || 'postapoc') === pkg);
@@ -18286,11 +18395,13 @@ const HexDB = (() => {
       if (fi >= 0) _selectIdx(fi);
       return;
     }
+    if (mode === 'same' && !Packages.ensureReskinDependency(src)) return;
     const h = structuredClone(base);
     h.id = newId;
     h.package = pkg;
     _data.hexes.push(h);
     _autoSave();
+    Packages.aliasSourceSprite(h, base, 'hex');
     _loadNewEntrySprite(h);
     _applyFilter();
     _buildList();
@@ -18306,8 +18417,8 @@ const HexDB = (() => {
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
-    if (!_data.hexes.some(h => (h.package || 'postapoc') === 'postapoc')) { UI.toast('⚠ No postapoc hex tiles to reskin'); return; }
-    Packages.openReskinPicker({ kind: 'hex', entries: _data.hexes, onPick: (id, mode) => addReskin(id, mode) });
+    if (!Packages.reskinSourcePackages(_data.hexes).length) { UI.toast('⚠ No hex tiles in other packages to reskin'); return; }
+    Packages.openReskinPicker({ kind: 'hex', entries: _data.hexes, onPick: (id, mode, src) => addReskin(id, mode, src) });
   }
 
   // Call this from wherever the panel already re-renders on package switch (the same
@@ -19874,13 +19985,16 @@ const BldDB = (() => {
   }
 
   // Reskin+ for buildings; same two modes and collision rule as HexDB.addReskin.
-  function addReskin(baseId, mode) {
+  // NOTE: the roads branch (not merged here) adds a refusal for road/bridge buildings in addReskin; re-check it when merging.
+  function addReskin(baseId, mode, sourcePkg) {
     mode = mode === 'same' ? 'same' : 'prefix';
-    const base = _data.buildings.find(b => b.id === baseId && (b.package || 'postapoc') === 'postapoc');
-    if (!base) { UI.toast(`⚠ No postapoc building found with id "${baseId}"`); return; }
+    const src = sourcePkg || 'postapoc';
+    const base = _data.buildings.find(b => b.id === baseId && (b.package || 'postapoc') === src);
+    if (!base) { UI.toast(`⚠ No ${src} building found with id "${baseId}"`); return; }
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
+    if (Packages.getActive() === src) { UI.toast('⚠ The source package must differ from the active package'); return; }
     const pkg = Packages.getActive();
     const newId = Packages.reskinTargetId(baseId, mode);
     const exIdx = _data.buildings.findIndex(x => x.id === newId && (x.package || 'postapoc') === pkg);
@@ -19890,11 +20004,13 @@ const BldDB = (() => {
       if (fi >= 0) _selectIdx(fi);
       return;
     }
+    if (mode === 'same' && !Packages.ensureReskinDependency(src)) return;
     const b = structuredClone(base);
     b.id = newId;
     b.package = pkg;
     _data.buildings.push(b);
     _autoSave();
+    Packages.aliasSourceSprite(b, base, 'bld');
     _applyFilter();
     _buildList();
     _selectIdx(_filtered.indexOf(_data.buildings.length - 1));
@@ -19907,8 +20023,8 @@ const BldDB = (() => {
     if (typeof Packages === 'undefined' || Packages.getActive() === 'postapoc') {
       UI.toast('⚠ Select a non-default package first'); return;
     }
-    if (!_data.buildings.some(b => (b.package || 'postapoc') === 'postapoc')) { UI.toast('⚠ No postapoc buildings to reskin'); return; }
-    Packages.openReskinPicker({ kind: 'bld', entries: _data.buildings, onPick: (id, mode) => addReskin(id, mode) });
+    if (!Packages.reskinSourcePackages(_data.buildings).length) { UI.toast('⚠ No buildings in other packages to reskin'); return; }
+    Packages.openReskinPicker({ kind: 'bld', entries: _data.buildings, onPick: (id, mode, src) => addReskin(id, mode, src) });
   }
 
   // Call this from wherever the panel already re-renders on package switch (the same
