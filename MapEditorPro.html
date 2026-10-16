@@ -9717,8 +9717,21 @@ const GitHubSync = (() => {
   }
 
   // opts.skipManifest: the caller runs several publishes and does ONE refreshBaseManifestSafely() at the end.
+  // Roads V1 gate: throws (so _withPublishBtn reports it) BEFORE the first write. Only auto-fixable problems (duplicate ids)
+  // offer "Fix and continue". Mode off never blocks. Returns the warnings.
+  async function roadsGate(pkg) {
+    let g = RoadPerms.gate({ pkg });
+    if (g.errors.length && g.errors.every(e => e.fix === 'dedupe')) {
+      const ok = await UI.confirm('Road permissions', `${g.errors.length} tile(s) list the same road id twice.`, g.errors.slice(0, 10).map(e => e.message).join('\n'), 'Fix and continue');
+      if (ok) { HexDB.fixRoadDuplicates(pkg); g = RoadPerms.gate({ pkg }); }
+    }
+    if (!g.ok) throw new Error(RoadPerms.gateMessage(g));
+    return g.warnings;
+  }
+
   async function publishHexDbOnly(opts) {
     return _withPublishBtn('Publish HexDB', async () => {
+      await roadsGate('postapoc');
       UI.progress(10, 'Publishing hex_database.json…');
       const all = HexDB.getData();
       const hexes = (all.hexes || []).filter(_isBaseEntry);
@@ -10166,7 +10179,7 @@ const GitHubSync = (() => {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
     sha256Hex, _readRepoBytes, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
-    _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, BASE_URL, readRepoFile, readRepoJson,
+    _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, roadsGate, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
@@ -14726,6 +14739,14 @@ const Packages = (() => {
       ...rows('hex', d.hex), ...rows('bld', d.bld), ...unkeyed('hex', d.hex), ...unkeyed('bld', d.bld)].join('\n');
   }
 
+  // Road warnings (bridge on land, road on water, ...) listed under the publish diff; never blocking.
+  function _roadWarningsText(id) {
+    try {
+      const w = RoadPerms.gate({ pkg: id }).warnings;
+      return w.length ? '\n\nRoad warnings (' + w.length + '):\n' + w.slice(0, 10).map(x => '! ' + x.message).join('\n') + (w.length > 10 ? '\n...' : '') : '';
+    } catch (e) { return ''; }
+  }
+
   async function openPublishConfirm(id) {
     if (isDefault(id)) {
       // postapoc: use existing publish functions
@@ -14745,7 +14766,7 @@ const Packages = (() => {
     const head = d.firstPublish ? 'First publish of this package.' : `Server version: ${d.version}.`;
     const ok = await UI.confirm('Publish Package',
       `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; sprites and the version number are still updated.' : ''}`,
-      _formatDiff(d), 'Publish');
+      _formatDiff(d) + _roadWarningsText(id), 'Publish');
     if (ok) openPublishDialog(id);
   }
 
@@ -14910,6 +14931,7 @@ const Packages = (() => {
       // Defence in depth: names that came from the server or from older data are checked again before any path is built.
       const unsafeNames = [...hexes, ...buildings].map(e => e.spriteName).filter(n => n !== undefined && n !== '' && !isSafeSpriteName(n));
       if (unsafeNames.length) throw new Error(_unsafeNamesMessage(unsafeNames));
+      await GitHubSync.roadsGate(id);   // Roads V1: no write while the road permissions are invalid (mode stage/active)
       // A local-only package must not land on an id somebody else published meanwhile (never overwritten, nothing written).
       if (entry.localOnly && !entry.serverClaimed) {
         const clash = await _serverIdProblem(id);
@@ -15427,6 +15449,8 @@ const Packages = (() => {
         // '' means "no sprite" (no path is ever built from it); anything else must already be canonical, because it
         // becomes part of a repository path on publish.
         if (typeof e.spriteName === 'string' && e.spriteName !== '' && !isSafeSpriteName(e.spriteName)) return bad(`${at} ("${e.id}") has an unsafe spriteName: ${JSON.stringify(e.spriteName.slice(0, 60))}.`);
+        // Roads V1: roads and bridges are global base content; a package cannot define them (any write mode).
+        if (kind === 'building' && (e.isRoad === true || e.buildingCategory === 'Bridge')) return bad(`${at} ("${e.id}") is a road or bridge: roads and bridges are global (base package only), a package cannot define them.`);
         if (seen.has(e.id)) return bad(`Duplicate entry id "${e.id}"`);
         seen.add(e.id);
       }));
@@ -15500,6 +15524,14 @@ const Packages = (() => {
     if (getEntry(pid) || ch.same + ch.changed + cb.same + cb.changed > 0) {
       plan.conflict = { packageId: pid, hex: ch, bld: cb };
       warnings.push(`A package with the id "${pid}" already exists here (hex tiles: ${ch.new} new, ${ch.changed} changed, ${ch.same} unchanged; buildings: ${cb.new} new, ${cb.changed} changed, ${cb.same} unchanged). Pick another id to import it as a separate package.`);
+    }
+    // Roads V1: a tile listing road/bridge ids this editor's base Building DB does not know is imported as is, with a warning.
+    const roadTypes = RoadPerms.currentTypes();
+    if (roadTypes.order.length) {
+      const known = new Set(roadTypes.order), unknownIds = new Set();
+      let tiles = 0;
+      hexes.forEach(h => { const bad = Array.isArray(h.allowedRoads) ? h.allowedRoads.filter(id => typeof id === 'string' && !known.has(id)) : []; if (bad.length) { tiles++; bad.forEach(id => unknownIds.add(id)); } });
+      if (tiles) warnings.push(`${tiles} tiles list road ids unknown here (${[...unknownIds].slice(0, 5).join(', ')}); they are kept and shown in red in the Hex DB.`);
     }
     plan.hexes = hexes; plan.buildings = buildings;
     plan.summary.hexCount = hexes.length; plan.summary.bldCount = buildings.length;
@@ -17338,10 +17370,40 @@ const RoadPerms = (() => {
     return { errors, warnings };
   }
 
+  // ── Roads write mode (per browser; the owner switches it, publishing never does) ──
+  // off: output byte-identical to the editor before Roads V1. stage: allowedRoads + derived roadAllowed. active: stage + roadsSchema 1.
+  const WRITE_MODES = ['off', 'stage', 'active'];
+  function writeMode() {
+    try { const v = localStorage.getItem('roadsWriteMode'); return WRITE_MODES.includes(v) ? v : 'off'; } catch (e) { return 'off'; }
+  }
+  function setWriteMode(m) {
+    if (!WRITE_MODES.includes(m)) return false;
+    try { if (m === 'off') localStorage.removeItem('roadsWriteMode'); else localStorage.setItem('roadsWriteMode', m); } catch (e) { return false; }
+    return true;
+  }
+
+  // The check run before any publish write. pkg: 'postapoc' (base files) or a package id. In mode off nothing blocks
+  // (the editor then writes exactly what it wrote before); in stage/active every error blocks and unset records are errors.
+  function gate({ pkg, mode, hexes, buildings }) {
+    const m = mode || writeMode();
+    const v = validate({
+      hexes: hexes || (typeof HexDB !== 'undefined' ? HexDB.getAll() : []),
+      buildings: buildings || (typeof BldDB !== 'undefined' ? BldDB.getAll() : []),
+      scope: { pkg, requireField: m !== 'off' },
+    });
+    if (m === 'off') return { ok: true, mode: m, errors: [], warnings: v.warnings };
+    return { ok: v.errors.length === 0, mode: m, errors: v.errors, warnings: v.warnings };
+  }
+  // One line naming the count and the first three offenders.
+  function gateMessage(g) {
+    const n = g.errors.length;
+    return `Road permissions: ${n} problem${n === 1 ? '' : 's'} block the publish. ` + g.errors.slice(0, 3).map(e => e.message).join('; ') + (n > 3 ? `; and ${n - 3} more` : '');
+  }
+
   // Convenience getter for live code (the only place that reads BldDB).
   function currentTypes() { try { return typesFrom(BldDB.getAll()); } catch (e) { return typesFrom([]); } }
 
-  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
+  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, writeMode, setWriteMode, gate, gateMessage, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
 })();
 
 window.RoadPerms = RoadPerms;
@@ -18855,6 +18917,15 @@ const HexDB = (() => {
     const h = _resolveHex(target);
     return h && Array.isArray(h.allowedRoads) ? h.allowedRoads.slice() : null;
   }
+  // Removes duplicate ids from the lists of one package's records (lossless). Returns the number of records fixed.
+  function fixRoadDuplicates(pkg) {
+    let n = 0;
+    _data.hexes.forEach(h => {
+      if ((h.package || 'postapoc') !== pkg || !Array.isArray(h.allowedRoads)) return;
+      if (new Set(h.allowedRoads).size !== h.allowedRoads.length) { setAllowedRoads(h, h.allowedRoads); n++; }
+    });
+    return n;
+  }
   // Re-derives roadAllowed of every record that has a list (after the Building DB changed or finished loading). Returns the count changed.
   function refreshDerived() {
     const types = RoadPerms.currentTypes();
@@ -19167,7 +19238,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates };
 })();
 
 window.HexDB = HexDB;
