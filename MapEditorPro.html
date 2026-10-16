@@ -1150,6 +1150,16 @@ body.mode-common #map-io    { display: none; }
 .roads-matrix-table { border-collapse: collapse; font-size: 12px; }
 .roads-matrix-table th, .roads-matrix-table td { border: 1px solid var(--border, #444); padding: 3px 8px; text-align: center; }
 .roads-matrix-table td:first-child, .roads-matrix-table th:first-child { text-align: left; }
+.roads-matrix { display: flex; flex-direction: column; gap: 8px; min-width: 560px; }
+.rm-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; }
+.rm-scroll { max-height: 55vh; overflow: auto; }
+.roads-matrix-table thead th { position: sticky; top: 0; background: var(--panel, #222); z-index: 1; }
+.roads-matrix-table td:nth-child(2) { text-align: left; white-space: nowrap; }
+.rm-badge { margin-left: 6px; color: var(--muted); font-size: 10px; }
+.rm-warn { margin-left: 6px; color: #d97706; font-weight: bold; cursor: help; }
+.rm-unset { border: 1px dashed var(--muted, #888); background: none; color: var(--muted, #888); border-radius: 3px; cursor: pointer; min-width: 22px; }
+.rm-colacts { display: flex; gap: 2px; justify-content: center; margin-top: 2px; }
+.rm-colact { font-size: 11px; line-height: 1; padding: 1px 5px; cursor: pointer; }
 .hexdb-actions {
   display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;
 }
@@ -1587,6 +1597,7 @@ body.mode-common #map-io    { display: none; }
               style="display:none" title="Create an entry that reuses an existing postapoc id">+ Reskin</button>
       <button class="hexdb-tool-btn" onclick="HexDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="HexDB.save()">💾 Save DB</button>
+      <button class="hexdb-tool-btn" id="hexdb-roads-matrix-btn" onclick="HexDB.openRoadsMatrix()" title="Tiles x road/bridge types: view and edit permissions in bulk">Roads matrix</button>
       <button class="hexdb-tool-btn" id="hexdb-road-defaults-btn" onclick="HexDB.openRoadDefaults()" title="Road and bridge presets by tile type">Road defaults</button>
       <label style="font-size:11px;color:#aaa;margin-left:10px" for="roads-write-mode" title="What Publish writes for road permissions. Legacy only = exactly what the editor wrote before Roads V1.">Roads data</label>
       <select id="roads-write-mode" class="hexdb-select" style="flex:none;width:auto;font-size:11px;padding:2px 4px" onchange="HexDB.setRoadsMode(this.value)">
@@ -17430,6 +17441,58 @@ const RoadPerms = (() => {
 
 window.RoadPerms = RoadPerms;
 
+// ── RoadsHistory (Roads V1): the matrix modal's own undo stack ───────────────────────────────────────────
+// The Hex DB has no undo and the map History is map-only, so a bulk action on road permissions gets its own small stack:
+// one step per action (begin -> change -> commit), restored through HexDB.restoreRoads in a single batch (one autosave).
+// Independent of History (map). Cleared when the matrix modal closes; at most 50 steps.
+const RoadsHistory = (() => {
+  const MAX = 50;
+  let _undo = [], _redo = [], _open = null;
+  const _subs = [];
+  const _emit = () => _subs.forEach(f => { try { f(); } catch (e) { console.error(e); } });
+  // Captures the state of the given records (before an action changes them).
+  function begin(label, hexes) {
+    _open = { label: String(label || ''), before: HexDB.snapshotRoads(hexes) };
+    return _open.before.length;
+  }
+  // Captures the state after the action; pushes one step when anything changed. Returns whether a step was pushed.
+  function commit() {
+    const o = _open; _open = null;
+    if (!o) return false;
+    const after = HexDB.snapshotRoads(o.before.map(x => x.key));
+    const changed = o.before.some((b, i) => JSON.stringify(b) !== JSON.stringify(after[i]));
+    if (!changed) return false;
+    _undo.push({ label: o.label, before: o.before, after });
+    if (_undo.length > MAX) _undo.shift();
+    _redo = [];
+    _emit();
+    return true;
+  }
+  function undo() {
+    const st = _undo.pop();
+    if (!st) return false;
+    HexDB.restoreRoads(st.before);
+    _redo.push(st);
+    _emit();
+    return true;
+  }
+  function redo() {
+    const st = _redo.pop();
+    if (!st) return false;
+    HexDB.restoreRoads(st.after);
+    _undo.push(st);
+    _emit();
+    return true;
+  }
+  function clear() { _undo = []; _redo = []; _open = null; _emit(); }
+  const depth = () => _undo.length;
+  const redoDepth = () => _redo.length;
+  const labels = () => _undo.map(x => x.label);
+  function onChange(fn) { _subs.push(fn); return () => { const i = _subs.indexOf(fn); if (i >= 0) _subs.splice(i, 1); }; }
+  return { begin, commit, undo, redo, clear, depth, redoDepth, labels, onChange, MAX };
+})();
+window.RoadsHistory = RoadsHistory;
+
 // ── HexDB Module ───────────────────────────────────────────
 const HexDB = (() => {
   const FILTER_CATS = ['FilterTerrain','FilterResource','FilterWater','FilterSettlement','FilterHazard'];
@@ -17963,6 +18026,49 @@ const HexDB = (() => {
     });
   }
 
+  // ── Roads V1 F2: batch mutation + snapshots for RoadsHistory ──
+  // A snapshot keeps exactly what an action can change on a record: the list (or its absence) and the derived flag.
+  function snapshotRoads(targets) {
+    return (targets || []).map(t => {
+      const h = _resolveHex(typeof t === 'string' ? t : t);
+      if (!h) return { key: typeof t === 'string' ? t : null, missing: true };
+      const has = Array.isArray(h.allowedRoads);
+      return { key: _hexKey(h), has, list: has ? h.allowedRoads.slice() : null, ra: h.roadAllowed };
+    });
+  }
+  function restoreRoads(snaps) {
+    let n = 0;
+    (snaps || []).forEach(sn => {
+      const h = !sn.missing && sn.key ? _resolveHex(sn.key) : null;
+      if (!h) return;
+      if (sn.has) h.allowedRoads = sn.list.slice(); else delete h.allowedRoads;
+      h.roadAllowed = sn.ra;
+      n++;
+    });
+    if (n) _autoSave();
+    return n;
+  }
+  // changes: [{ hex: record|key, list }]. One RoadsHistory step and one autosave for the whole action; returns the number of
+  // tiles that really changed (0 pushes no step and no autosave).
+  function applyRoadChanges(label, changes) {
+    const types = RoadPerms.currentTypes();
+    const todo = [];
+    (changes || []).forEach(c => {
+      const h = _resolveHex(c.hex);
+      const n = RoadPerms.normalize(c.list);
+      if (!h || !n) return;
+      const next = RoadPerms.sortLike(n, types);
+      if (Array.isArray(h.allowedRoads) && h.allowedRoads.length === next.length && h.allowedRoads.every((v, i) => v === next[i])) return;
+      todo.push({ h, next });
+    });
+    if (!todo.length) return 0;
+    RoadsHistory.begin(label, todo.map(x => x.h));
+    todo.forEach(({ h, next }) => { h.allowedRoads = next; h.roadAllowed = RoadPerms.deriveRoadAllowed(next, types); });
+    _autoSave();
+    RoadsHistory.commit();
+    return todo.length;
+  }
+
   // ── Roads V1 F1: defaults by tile type (common.roadDefaults), applied only on request ──
   const _sameList = (a, b) => { const x = new Set(a), y = new Set(b); return x.size === y.size && [...x].every(v => y.has(v)); };
   function getRoadDefaults() {
@@ -18045,6 +18151,186 @@ const HexDB = (() => {
       ],
     });
   }
+
+  // ── Roads V1 F2: the tiles x types matrix ──
+  function openRoadsMatrix(init) {
+    if (document.getElementById('roads-matrix-modal')) return;
+    const st = { pkg: '', type: '', search: '', biome: '', ...(init || {}) };
+    if (!init) { st.type = _filter.type || ''; st.search = _filter.search || ''; st.biome = _filter.biome || ''; }
+    const sel = new Set();
+    let rowsShown = [], token = 0, problems = new Map();
+    const el = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+
+    const root = el('div', 'roads-matrix');
+    const bar = el('div', 'rm-bar');
+    const mkSelect = (id, label, opts, val) => {
+      const lab = el('label', null, label + ' ');
+      const s = el('select', 'hexdb-select'); s.id = id; s.style.cssText = 'flex:none;width:auto';
+      opts.forEach(([v, t]) => { const o = el('option', null, t); o.value = v; s.appendChild(o); });
+      s.value = val; lab.appendChild(s); return [lab, s];
+    };
+    const pkgs = [...new Set(_data.hexes.map(h => h.package || 'postapoc'))];
+    const [pkgLab, pkgSel] = mkSelect('rm-pkg', 'Package', [['', 'All'], ...pkgs.map(p => [p, p])], st.pkg);
+    const [typeLab, typeSel] = mkSelect('rm-type', 'Type', [['', 'All'], ...Object.keys(TYPE_GROUPS).map(g => [g, g])], st.type);
+    const search = el('input', 'hexdb-input'); search.id = 'rm-search'; search.placeholder = 'Search by id'; search.value = st.search; search.style.cssText = 'flex:none;width:140px';
+    const count = el('span', 'rm-count'); count.id = 'rm-count';
+    const btn = (id, text, title) => { const b = el('button', 'hexdb-tool-btn', text); b.type = 'button'; b.id = id; if (title) b.title = title; return b; };
+    const undoB = btn('rm-undo', 'Undo', 'Undo the last roads action (Ctrl+Z)'), redoB = btn('rm-redo', 'Redo', 'Redo (Ctrl+Y)');
+    bar.append(pkgLab, typeLab, search, count, undoB, redoB);
+    root.appendChild(bar);
+
+    const bulk = el('div', 'rm-bar'); bulk.id = 'rm-bulk';
+    root.appendChild(bulk);
+    const scroll = el('div', 'rm-scroll');
+    const table = el('table', 'roads-matrix-table'); table.id = 'rm-table';
+    const thead = table.createTHead(); const tbody = table.createTBody();
+    scroll.appendChild(table); root.appendChild(scroll);
+
+    const types = () => { const t = RoadPerms.currentTypes(); return t.roads.concat(t.bridges); };
+    const matches = h => {
+      if (st.pkg && (h.package || 'postapoc') !== st.pkg) return false;
+      if (st.type && h.type !== st.type) return false;
+      if (st.biome && h.biome !== st.biome) return false;
+      if (st.search && !String(h.id || '').toLowerCase().includes(st.search.toLowerCase())) return false;
+      return true;
+    };
+    const computeRows = () => _data.hexes.filter(matches).sort((a, b) => String(a.id).toLowerCase().localeCompare(String(b.id).toLowerCase()));
+
+    function buildHead() {
+      thead.textContent = '';
+      const tr = thead.insertRow();
+      tr.insertCell().textContent = '';
+      tr.insertCell().textContent = 'Tile';
+      types().forEach(b => {
+        const th = el('th'); th.dataset.typeId = b.id;
+        th.appendChild(el('div', null, b.id));
+        const acts = el('div', 'rm-colacts');
+        [['allow', '+', `Allow ${b.id} on all filtered tiles`], ['remove', '\u2212', `Remove ${b.id} from all filtered tiles`], ['exact', '=', `Set ${b.id} to exactly these ids...`]].forEach(([a, t, ti]) => {
+          const bb = el('button', 'rm-colact', t); bb.type = 'button'; bb.dataset.act = a; bb.dataset.typeId = b.id; bb.title = ti; bb.setAttribute('aria-label', ti);
+          acts.appendChild(bb);
+        });
+        th.appendChild(acts); tr.appendChild(th);
+      });
+    }
+    function fillCells(tr, h) {
+      const ts = types();
+      const list = Array.isArray(h.allowedRoads) ? h.allowedRoads : null;
+      // keep the same checkbox nodes between refreshes: only create what is missing
+      ts.forEach((b, i) => {
+        let td = tr.cells[2 + i];
+        if (!td) { td = tr.insertCell(); td.dataset.typeId = b.id; }
+        if (list === null) {
+          if (!td.querySelector('button.rm-unset')) {
+            td.textContent = '';
+            const u = el('button', 'rm-unset', '-'); u.type = 'button'; u.dataset.typeId = b.id; u.title = 'No road permissions yet: click to set'; td.appendChild(u);
+          }
+        } else {
+          let cb = td.querySelector('input[type=checkbox]');
+          if (!cb) { td.textContent = ''; cb = el('input'); cb.type = 'checkbox'; cb.dataset.typeId = b.id; td.appendChild(cb); }
+          cb.checked = list.includes(b.id);
+        }
+      });
+      const mark = tr.cells[1] && tr.cells[1].querySelector('.rm-warn');
+      const probs = problems.get(tr.dataset.key);
+      if (mark) { mark.hidden = !probs; mark.title = probs ? probs.join('\n') : ''; }
+    }
+    function makeRow(h) {
+      const tr = el('tr'); tr.dataset.key = _hexKey(h);
+      const c0 = tr.insertCell(); const cb = el('input', 'rm-sel'); cb.type = 'checkbox'; cb.checked = sel.has(tr.dataset.key); cb.title = 'Select this tile (Copy from tile applies to the selected tiles)'; c0.appendChild(cb);
+      const c1 = tr.insertCell(); c1.appendChild(el('span', 'rm-id', h.id)); c1.appendChild(el('span', 'rm-badge', h.type || ''));
+      const w = el('span', 'rm-warn', '!'); w.hidden = true; c1.appendChild(w);
+      fillCells(tr, h);
+      return tr;
+    }
+    function recomputeProblems() {
+      problems = new Map();
+      const v = RoadPerms.validate({ hexes: _data.hexes, buildings: BldDB.getAll(), scope: {} });
+      v.errors.concat(v.warnings).forEach(x => {
+        if (x.rule === 'tiles-not-empty' || x.rule === 'both-flags' || x.rule === 'road-in-package-bld') return;   // building rules
+        const k = (x.pkg || 'postapoc') + '::' + x.hexId;
+        if (!problems.has(k)) problems.set(k, []);
+        problems.get(k).push(x.message);
+      });
+    }
+    function render() {
+      const my = ++token;
+      rowsShown = computeRows();
+      count.textContent = `${rowsShown.length} shown / ${_data.hexes.length}`;
+      buildHead(); tbody.textContent = '';
+      recomputeProblems();
+      let i = 0;
+      const chunk = () => {
+        if (my !== token) return;
+        const frag = document.createDocumentFragment();
+        for (const end = Math.min(i + 100, rowsShown.length); i < end; i++) frag.appendChild(makeRow(rowsShown[i]));
+        tbody.appendChild(frag);
+        if (i < rowsShown.length) requestAnimationFrame(chunk);
+      };
+      chunk();
+      syncButtons();
+    }
+    // after a data change: update the rendered rows in place
+    function refresh() {
+      recomputeProblems();
+      const byKey = new Map(rowsShown.map(h => [_hexKey(h), h]));
+      [...tbody.rows].forEach(tr => { const h = byKey.get(tr.dataset.key); if (h) fillCells(tr, h); });
+      syncButtons();
+    }
+    function syncButtons() { undoB.disabled = RoadsHistory.depth() === 0; redoB.disabled = RoadsHistory.redoDepth() === 0; }
+
+    const hexByKey = k => _resolveHex(k);
+    // ── edits ──
+    table.addEventListener('change', e => {
+      const t = e.target;
+      if (t.classList.contains('rm-sel')) { const k = t.closest('tr').dataset.key; if (t.checked) sel.add(k); else sel.delete(k); return; }
+      if (t.type !== 'checkbox' || !t.dataset.typeId) return;
+      const h = hexByKey(t.closest('tr').dataset.key); if (!h) return;
+      const cur = Array.isArray(h.allowedRoads) ? h.allowedRoads : [];
+      const next = t.checked ? cur.concat(t.dataset.typeId) : cur.filter(x => x !== t.dataset.typeId);
+      applyRoadChanges(`${t.checked ? 'Allow' : 'Remove'} ${t.dataset.typeId} on ${h.id}`, [{ hex: h, list: next }]);
+      refresh();
+    });
+    table.addEventListener('click', e => {
+      const t = e.target.closest('button'); if (!t) return;
+      if (t.classList.contains('rm-unset')) {
+        const h = hexByKey(t.closest('tr').dataset.key); if (!h) return;
+        applyRoadChanges(`Set ${t.dataset.typeId} on ${h.id}`, [{ hex: h, list: [t.dataset.typeId] }]);
+        refresh();
+      } else if (t.classList.contains('rm-colact')) {
+        _matrixColumnAction(t.dataset.act, t.dataset.typeId, ctx());
+      }
+    });
+    pkgSel.addEventListener('change', () => { st.pkg = pkgSel.value; render(); });
+    typeSel.addEventListener('change', () => { st.type = typeSel.value; render(); });
+    search.addEventListener('input', () => { st.search = search.value; render(); });
+    undoB.addEventListener('click', () => { RoadsHistory.undo(); refresh(); });
+    redoB.addEventListener('click', () => { RoadsHistory.redo(); refresh(); });
+    const ctx = () => ({ rows: () => rowsShown.slice(), selected: () => rowsShown.filter(h => sel.has(_hexKey(h))), refresh, scopePkg: () => st.pkg, root });
+    _buildMatrixBulk(bulk, ctx());
+
+    const offHist = RoadsHistory.onChange(syncButtons);
+    const onKey = e => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const all = document.querySelectorAll('.ui-modal');
+      if (!all.length || all[all.length - 1] !== handle.el) return;          // a dialog opened over the matrix owns the keys
+      const tg = e.target;
+      if (tg && (tg.tagName === 'TEXTAREA' || (tg.tagName === 'INPUT' && !['checkbox', 'radio', 'button'].includes(tg.type)))) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) { e.preventDefault(); RoadsHistory.undo(); refresh(); }
+      else if (k === 'y' || (k === 'z' && e.shiftKey)) { e.preventDefault(); RoadsHistory.redo(); refresh(); }
+    };
+    document.addEventListener('keydown', onKey, true);
+    const handle = UI.showModal({
+      id: 'roads-matrix', title: 'Roads / Bridges matrix', body: root,
+      actions: [{ label: 'Close', primary: true, onClick: close => close() }],
+      onClose: () => { token++; document.removeEventListener('keydown', onKey, true); offHist(); RoadsHistory.clear(); },
+    });
+    render();
+    return handle;
+  }
+  // Column header actions and the bulk toolbar are added by F3.
+  function _matrixColumnAction() {}
+  function _buildMatrixBulk() {}
 
   function _renderRecord(hex) {
     const mainBody = [
@@ -19425,7 +19711,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
 })();
 
 window.HexDB = HexDB;
