@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "id": "postapoc",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-15T16:17:32.240Z",
-  "totalBytes": 37770653,
+  "generatedAt": "2026-10-16T11:49:01.359Z",
+  "totalBytes": 37771908,
   "dependencies": [],
   "files": [
     {
@@ -14,8 +14,8 @@
     },
     {
       "path": "hex_database.json",
-      "sha256": "f526587d2c197204b58d0057224c487065b8f56a3142028f1038abe2ec3cfb2f",
-      "size": 103664
+      "sha256": "8270d6c4476953fd1f93609044e033740cc6c214641324813974f96d810d06d1",
+      "size": 104919
     },
     {
       "path": "sprites/buildings/Artefact_1.png",
