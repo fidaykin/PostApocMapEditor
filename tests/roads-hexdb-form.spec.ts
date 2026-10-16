@@ -167,12 +167,12 @@ test.describe('Hex DB form: ROADS / BRIDGES block', () => {
     await expect(box(page, 'road_2')).toBeChecked();
   });
 
-  test('master retick with nothing remembered applies the placeholder default (first road type); F1 replaces it by the type default', async ({ page }) => {
+  test('master retick with nothing remembered applies the type default (Plains: road)', async ({ page }) => {
     await seedRoadsWorld(page);
     await selectHex(page, 'Decameroon_Plain_2');
     await expect(page.locator('#hexdb-roads-master')).not.toBeChecked();
     await page.locator('#hexdb-roads-master').check();
-    expect((await ar(page, 'Decameroon_Plain_2')).ar).toEqual(['road']);   // F1: becomes defaultsFor(type)
+    expect((await ar(page, 'Decameroon_Plain_2')).ar).toEqual(['road']);   // the Plains default
   });
 
   test('editing another field (textId) leaves allowedRoads untouched (guards the _readRecord interaction)', async ({ page }) => {

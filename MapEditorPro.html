@@ -1147,6 +1147,9 @@ body.mode-common #map-io    { display: none; }
 .hexdb-roads-unknown { display: flex; align-items: center; gap: 6px; color: #e55; font-size: 12px; }
 .hexdb-roads-unknown button { background: none; border: none; color: #e55; cursor: pointer; }
 .hexdb-roads-warn { color: #d97706; font-size: 12px; }
+.roads-matrix-table { border-collapse: collapse; font-size: 12px; }
+.roads-matrix-table th, .roads-matrix-table td { border: 1px solid var(--border, #444); padding: 3px 8px; text-align: center; }
+.roads-matrix-table td:first-child, .roads-matrix-table th:first-child { text-align: left; }
 .hexdb-actions {
   display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px;
 }
@@ -1584,6 +1587,7 @@ body.mode-common #map-io    { display: none; }
               style="display:none" title="Create an entry that reuses an existing postapoc id">+ Reskin</button>
       <button class="hexdb-tool-btn" onclick="HexDB.triggerLoad()">📂 Load DB</button>
       <button class="hexdb-tool-btn" onclick="HexDB.save()">💾 Save DB</button>
+      <button class="hexdb-tool-btn" id="hexdb-road-defaults-btn" onclick="HexDB.openRoadDefaults()" title="Road and bridge presets by tile type">Road defaults</button>
       <label style="font-size:11px;color:#aaa;margin-left:10px" for="roads-write-mode" title="What Publish writes for road permissions. Legacy only = exactly what the editor wrote before Roads V1.">Roads data</label>
       <select id="roads-write-mode" class="hexdb-select" style="flex:none;width:auto;font-size:11px;padding:2px 4px" onchange="HexDB.setRoadsMode(this.value)">
         <option value="off">Legacy only</option><option value="stage">Stage (both fields)</option><option value="active">Active (new schema)</option>
@@ -17411,10 +17415,17 @@ const RoadPerms = (() => {
     return { total: list.length, set, unset: list.length - set };
   }
 
+  // Defaults by tile type group (spec 3.3): initial presets; a group missing from the presets means nothing. Applied only on request.
+  const INITIAL_DEFAULTS = { Plains: ['road'], Rubble: ['road'], Rivers: ['bridge'] };
+  function defaultsFor(group, defaults) {
+    const d = (defaults && typeof defaults === 'object') ? defaults : INITIAL_DEFAULTS;
+    return Array.isArray(d[group]) ? d[group].slice() : [];
+  }
+
   // Convenience getter for live code (the only place that reads BldDB).
   function currentTypes() { try { return typesFrom(BldDB.getAll()); } catch (e) { return typesFrom([]); } }
 
-  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, writeMode, setWriteMode, gate, gateMessage, coverage, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
+  return { typesFrom, normalize, sortLike, deriveRoadAllowed, isWaterLike, stateOf, validate, currentTypes, writeMode, setWriteMode, gate, gateMessage, coverage, defaultsFor, INITIAL_DEFAULTS, LEGACY_ROAD_ENUM_IDS, LEGACY_ROAD_TERRAIN_IDS };
 })();
 
 window.RoadPerms = RoadPerms;
@@ -17884,7 +17895,8 @@ const HexDB = (() => {
       ...warns.map(w => `<div class="hexdb-row"><span class="hexdb-label"></span><div class="hexdb-roads-warn">! ${_esc(w.message)}</div></div>`),
       `<div class="hexdb-row"><span class="hexdb-label">Copy from tile</span>
   <input class="hexdb-input" id="hexdb-roads-copy-from" list="hexdb-id-list" placeholder="tile id (any package)">
-  <button type="button" class="hexdb-tool-btn" id="hexdb-roads-copy-btn">Copy list</button></div>`,
+  <button type="button" class="hexdb-tool-btn" id="hexdb-roads-copy-btn">Copy list</button>
+  <button type="button" class="hexdb-tool-btn" id="hexdb-roads-defaults-btn" title="Replace the list by the road defaults of this tile type">Apply type defaults</button></div>`,
     ].join('');
   }
   function _selectedHex() {
@@ -17920,9 +17932,10 @@ const HexDB = (() => {
         if (Array.isArray(h.allowedRoads) && h.allowedRoads.length) _roadsMemory.set(key, h.allowedRoads.slice());
         setAllowedRoads(h, []);
       } else {
-        // F1: without a remembered list this becomes the tile type's default; until then the first road type
+        // without a remembered list this becomes the tile type's default (the first road type when that default is empty)
         const first = RoadPerms.currentTypes().roads[0];
-        setAllowedRoads(h, _roadsMemory.get(key) || (first ? [first.id] : []));
+        const def = defaultRoadsFor(h);
+        setAllowedRoads(h, _roadsMemory.get(key) || (def.length ? def : (first ? [first.id] : [])));
       }
       _renderRoadsBlock();
     });
@@ -17932,6 +17945,12 @@ const HexDB = (() => {
       setAllowedRoads(h, h.allowedRoads.filter(x => x !== id));
       _renderRoadsBlock();
     }));
+    const defBtn = box.querySelector('#hexdb-roads-defaults-btn');
+    if (defBtn) defBtn.addEventListener('click', () => {
+      const h = _selectedHex(); if (!h) return;
+      applyTypeDefaults(h);
+      _renderRoadsBlock();
+    });
     const copyBtn = box.querySelector('#hexdb-roads-copy-btn');
     if (copyBtn) copyBtn.addEventListener('click', () => {
       const h = _selectedHex(); if (!h) return;
@@ -17941,6 +17960,89 @@ const HexDB = (() => {
       if (!Array.isArray(src.allowedRoads)) { UI.toast(`${src.id} has no road permissions yet`); return; }
       setAllowedRoads(h, src.allowedRoads);
       _renderRoadsBlock();
+    });
+  }
+
+  // ── Roads V1 F1: defaults by tile type (common.roadDefaults), applied only on request ──
+  const _sameList = (a, b) => { const x = new Set(a), y = new Set(b); return x.size === y.size && [...x].every(v => y.has(v)); };
+  function getRoadDefaults() {
+    const d = _data.common && _data.common.roadDefaults;
+    const out = {};
+    Object.keys(TYPE_GROUPS).forEach(g => { out[g] = RoadPerms.defaultsFor(g, d && typeof d === 'object' ? d : undefined); });
+    return out;
+  }
+  function setRoadDefaults(defaults) {
+    const out = {};
+    Object.keys(TYPE_GROUPS).forEach(g => { out[g] = RoadPerms.sortLike(RoadPerms.normalize(defaults && defaults[g]) || [], RoadPerms.currentTypes()); });
+    if (!_data.common || typeof _data.common !== 'object') _data.common = { goldPerTap: 10 };
+    _data.common.roadDefaults = out;
+    _autoSave();
+  }
+  function defaultRoadsFor(h) {
+    const d = _data.common && _data.common.roadDefaults;
+    return RoadPerms.defaultsFor(h && h.type, d && typeof d === 'object' ? d : undefined);
+  }
+  // Replaces the list by the default of the tile type (also fills an unset record: the user asked for it). One autosave.
+  function applyTypeDefaults(target) {
+    const h = _resolveHex(target);
+    if (!h) return false;
+    return setAllowedRoads(h, defaultRoadsFor(h));
+  }
+  // After a Type change: a set list that is not the new type's default is offered the default; unset records are left alone.
+  function _offerTypeDefaults(h) {
+    if (!Array.isArray(h.allowedRoads)) return;
+    const def = defaultRoadsFor(h);
+    if (_sameList(h.allowedRoads, def)) return;
+    UI.showDialog({
+      title: 'Road permissions',
+      message: `${h.id} is now ${h.type}. Replace its road list (${h.allowedRoads.join(', ') || 'none'}) by the ${h.type} default (${def.join(', ') || 'none'})?`,
+      buttons: [{ label: 'Keep', value: 'keep', kind: 'cancel' }, { label: 'Apply defaults', value: 'apply', kind: 'primary' }],
+    }).then(r => {
+      if (r.button !== 'apply') return;
+      applyTypeDefaults(h);
+      if (_selectedHex() === h) _renderRoadsBlock();
+    });
+  }
+  function openRoadDefaults() {
+    const types = RoadPerms.currentTypes();
+    const cols = types.roads.concat(types.bridges);
+    const cur = getRoadDefaults();
+    const wrap = document.createElement('div');
+    const table = document.createElement('table');
+    table.className = 'roads-matrix-table';
+    const thead = table.createTHead().insertRow();
+    thead.insertCell().textContent = 'Tile type';
+    cols.forEach(b => { const th = document.createElement('th'); th.dataset.typeId = b.id; th.textContent = b.id; thead.appendChild(th); });
+    const tb = table.createTBody();
+    Object.keys(TYPE_GROUPS).forEach(g => {
+      const tr = tb.insertRow();
+      tr.dataset.group = g;
+      tr.insertCell().textContent = g;
+      cols.forEach(b => {
+        const td = tr.insertCell();
+        const cb = document.createElement('input');
+        cb.type = 'checkbox'; cb.dataset.typeId = b.id; cb.checked = cur[g].includes(b.id);
+        td.appendChild(cb);
+      });
+    });
+    wrap.appendChild(table);
+    const note = document.createElement('p');
+    note.style.cssText = 'color:var(--muted);font-size:12px';
+    note.textContent = 'Presets only: they are applied when you ask (Apply type defaults, a Type change, the matrix). Never silently.';
+    wrap.appendChild(note);
+    UI.showModal({
+      id: 'road-defaults', title: 'Road defaults by tile type', body: wrap,
+      actions: [
+        { label: 'Save', primary: true, onClick: close => {
+          const next = {};
+          table.querySelectorAll('tbody tr[data-group]').forEach(tr => {
+            next[tr.dataset.group] = [...tr.querySelectorAll('input[data-type-id]')].filter(e => e.checked).map(e => e.dataset.typeId);
+          });
+          setRoadDefaults(next);
+          close();
+        } },
+        { label: 'Cancel', onClick: close => close() },
+      ],
     });
   }
 
@@ -18182,6 +18284,7 @@ const HexDB = (() => {
           _autoSave();
         }
         _renderRecord(h);
+        _offerTypeDefaults(h);
       });
     }
 
@@ -18887,7 +18990,18 @@ const HexDB = (() => {
     _data.hexes = pkgId === 'postapoc' ? [...res.merged, ...others] : [...others, ...res.merged];
     _dedupeHexes();
     if (pkgId === 'postapoc') {
-      if (serverData.common && SyncMerge.same(_data.common, { goldPerTap: 10 })) _data.common = serverData.common;
+      if (serverData.common) {
+        // common is merged by key: goldPerTap follows the old rule (the server's when the local one is untouched), the
+        // roadDefaults presets come from the server only while the local copy has none (local may hold unpublished edits)
+        const { roadDefaults: localRD, ...localRest } = _data.common || {};
+        const { roadDefaults: serverRD, ...serverRest } = serverData.common;
+        if (SyncMerge.same(localRest, { goldPerTap: 10 })) {
+          if (!localRD) _data.common = serverData.common;
+          else _data.common = { ...serverRest, roadDefaults: localRD };
+        } else if (!localRD && serverRD && typeof serverRD === 'object') {
+          _data.common = { ..._data.common, roadDefaults: structuredClone(serverRD) };
+        }
+      }
       _data.dbVersion = Math.max(_data.dbVersion || 0, serverData.dbVersion || 0);
       _syncCommonUI();
     }
@@ -18954,7 +19068,7 @@ const HexDB = (() => {
     // `hexes` stays in the head at its own position: overwriting it below keeps the key order of the pre-roads output
     const head = id === 'postapoc' ? { ..._data } : { version: 1, package: id };
     delete head.roadsSchema;
-    if (id === 'postapoc' && head.common && typeof head.common === 'object' && m !== 'active' && 'roadDefaults' in head.common) {
+    if (id === 'postapoc' && head.common && typeof head.common === 'object' && m !== 'active' && !local && 'roadDefaults' in head.common) {
       head.common = { ...head.common }; delete head.common.roadDefaults;   // F1 presets are written in mode active only
     }
     const out = {};
@@ -19311,7 +19425,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
 })();
 
 window.HexDB = HexDB;
