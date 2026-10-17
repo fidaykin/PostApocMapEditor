@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "id": "decameroon",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-15T14:16:25.645Z",
-  "totalBytes": 21579577,
+  "generatedAt": "2026-10-17T15:17:02.608Z",
+  "totalBytes": 21775971,
   "dependencies": [],
   "files": [
     {
@@ -441,6 +441,36 @@
       "path": "sprites/hex/Decameroon_WaterStones_1.png",
       "sha256": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647",
       "size": 127309
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_0_UpperRight.png",
+      "sha256": "d33570a548f30c1d3f93542e142ea36218f00b430986b710da25975ea47b7e95",
+      "size": 37248
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_1_LowerRight.png",
+      "sha256": "19701656df4e03be0aa27178172ef9dfa2d3e734176f01faae4719532bba6419",
+      "size": 34784
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_2_Bottom.png",
+      "sha256": "4ed67f60b81b26c76d9c63011fc715685bae4f61acbffd0cc059336c81f3331d",
+      "size": 25582
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_3_LowerLeft.png",
+      "sha256": "e15d07911396f4533b092592914718d2ab9167a7300aab2ff2ef891b39bb706c",
+      "size": 25632
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_4_UpperLeft.png",
+      "sha256": "542d14e388ec761b806d936724c5c67c1bf26e12c56bc70b4a1378a2e3344ad2",
+      "size": 44846
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_5_Top.png",
+      "sha256": "2c3c58617dcd59ca11b663bbe4db1b5f3f753db6e9297855290a732182efc262",
+      "size": 28302
     }
   ]
 }
