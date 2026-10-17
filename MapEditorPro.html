@@ -20479,7 +20479,7 @@ const BldDB = (() => {
           <input id="bld-f-resourceAwardedOnDestroy" type="checkbox"${resOnDes ? ' checked' : ''}></div>
         <div class="hexdb-row"${!canDes || !resOnDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Destroy Income</span>
           ${_resBlockHTML('destroyIncome', bld.destroyIncome, !canDes || !resOnDes)}</div>
-        <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Destroy Cost <span class="hexdb-info" title="Resources the player PAYS to destroy this. Not charged when Move to Storage on Destroy is on. Working name: it will be replaced by Source/Actions.">ⓘ</span></span>
+        <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Destroy Cost <span class="hexdb-info" title="Resources the player PAYS to destroy this (roads and bridges for now). Charged whenever it is not empty. Working name: it will be replaced by Source/Actions.">ⓘ</span></span>
           ${_resBlockHTML('destroyCost', bld.destroyCost, !canDes)}</div>
       </div>
     </div>`;
