@@ -5589,8 +5589,10 @@ const Canvas = (() => {
     document.getElementById('tile-insp-pos').textContent = `Col ${_selCol}, Row ${_selRow}`;
     const hexId = (mapData && mapData[_selRow * MAP_WIDTH + _selCol]) || '—';
     document.getElementById('tile-insp-id').textContent = hexId;
-    // Bridge section
-    const isBridge = /bridge/i.test(hexId) && !/^River_bridge_/i.test(hexId);
+    // Under-terrain section: bridges and every building painted into the cell
+    const lowId = String(hexId).toLowerCase();
+    const isBuildingCell = typeof BldDB !== 'undefined' && !Terrain.byHexId(hexId) && BldDB.getAll().some(b => b.id && b.id.toLowerCase() === lowId);
+    const isBridge = (/bridge/i.test(hexId) && !/^River_bridge_/i.test(hexId)) || isBuildingCell;
     const bridgeSec = document.getElementById('tile-insp-bridge');
     bridgeSec.style.display = isBridge ? '' : 'none';
     if (isBridge) {
@@ -7040,6 +7042,16 @@ const Tools = (() => {
     if (!(opts && opts.noSymmetry) && _symmetryApplies(hexId)) cells = _expandSymmetry(cells);
     return _writeTerrain(cells, hexId);
   }
+  // A building id painted into a cell remembers the HexDB tile it replaced: that is what the building stands on in the game
+  // (ClickUp 869fgny1h). Replacing a building with another keeps the remembered tile; painting a HexDB tile forgets it;
+  // bridges keep their own Under terrain rules (no automatic value).
+  function _trackBuildingParent(col, row, prev, now) {
+    const key = col + ',' + row;
+    if (Terrain.byHexId(now)) { if (tileExtras[key]) delete tileExtras[key].underTerrainId; return; }
+    if (typeof now !== 'string' || (/bridge/i.test(now) && !/^River_bridge_/i.test(now))) return;   // same test as Canvas._isBridgeId
+    if (typeof prev !== 'string' || !Terrain.byHexId(prev)) return;
+    tileExtras[key] = Object.assign(tileExtras[key] || {}, { underTerrainId: prev });
+  }
   // The write itself: each cell takes `hexId`, or its own `id` when hexId is null (Scatter writes all picks of a
   // stamp in this ONE pass: one footprint-map rebuild and one edge re-resolution over the union).
   function _writeTerrain(cells, hexId) {
@@ -7056,6 +7068,7 @@ const Tools = (() => {
       const prev = mapData[k], now = hexId || id;
       touched.push({ col: c, row: r, prev });
       mapData[k] = now;
+      _trackBuildingParent(c, r, prev, now);
       if (!footprints && (_isMultiTileId(now) || _isMultiTileId(prev))) footprints = true;
       const bi = keepBridges ? -1 : bridgesData.findIndex(b => b.col === c && b.row === r);
       if (bi >= 0) bridgesData.splice(bi, 1);
@@ -8640,7 +8653,7 @@ const Tools = (() => {
     return true;
   }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround, manualEdgesAround: _manualEdgesAround, AUTO_WATER_EDGES,
            fillAt: _fill, applyRect: _applyRect,
