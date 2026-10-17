@@ -20,6 +20,9 @@ Format: `## [version] — [date]`
 - Fix: in HEX DB the WATER EXITS block follows the Type field: it is hidden when the type is not Rivers (the old exits are cleared) and shown again when the type is changed back to Rivers. Before, the block stayed after the type changed and its exits could not be removed.
 - The PACKAGES tab notice (and the guides) no longer claims that the game does not load non-default packages: the game loads them once they are unlocked, which today only the debug panel of development builds does; a normal release build still shows only postapoc content.
 
+### Building DB: Destroy Cost
+- New field `destroyCost` (resources the player pays to destroy a building; working name, replaced by Source/Actions later). Default empty; older records get `[]` on load. Charged whenever it is not empty (the game applies it to roads and bridges for now). Destroy Income stays the reward.
+
 ### Building Editor fixes (QA 869e52z74, 869e52qdp, 869e52qrn, 869fcn16p)
 - Leaving the Id or Storage Upgrade ID field no longer downloads building_database.json; the trimmed value is stored by the normal autosave.
 - A building added, pasted, deleted or edited now updates its preview, the map palette and the map sprite at once, without a reload.
