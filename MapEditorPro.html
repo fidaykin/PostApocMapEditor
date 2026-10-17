@@ -2982,6 +2982,7 @@ const Terrain = (() => {
   function isLayeredHex(hexEntry) {
     if (!hexEntry) return false;
     if (hexEntry.isLayered) return true;
+    if (typeof hexEntry.baseTerrainId === 'string' && hexEntry.baseTerrainId.trim()) return true;   // sits on a base hex: layered (mirrors Unity IsLayeredRecord)
     if (_LAYERED_HEX_IDS.has((hexEntry.id || '').toLowerCase())) return true;
     return _LAYERED_TYPES.has((hexEntry.type || '').toLowerCase());
   }
@@ -3185,7 +3186,16 @@ const Terrain = (() => {
     return null;
   }
 
-  const api = { applyHexDbOverrides, getSprite, buildingUnderlayId, spriteState, pendingSprites, getCitySprite, getSettlementSprite,
+  // A layered hex may declare the hex it sits on (baseTerrainId, e.g. Water_Dirty_1): its sprite, once loaded; else null (the
+  // caller keeps drawing the sprite of the hex type, as before).
+  function layeredBaseSpriteFor(hexEntry) {
+    const id = hexEntry && typeof hexEntry.baseTerrainId === 'string' ? hexEntry.baseTerrainId.trim() : '';
+    if (!id) return null;
+    const img = getSprite(id);
+    return img && img.complete && img.naturalWidth > 0 ? img : null;
+  }
+
+  const api = { applyHexDbOverrides, getSprite, buildingUnderlayId, layeredBaseSpriteFor, spriteState, pendingSprites, getCitySprite, getSettlementSprite,
            color, byId, byHexId, getAll, registerUploadedUrls, unregisterUploadedUrls, getUploadedUrl,
            getTerrainSpriteForType, isLayeredHex, onColorsChanged, spriteColorStats,
            SPRITE_FALLBACK_COLORS: (() => { try { return localStorage.getItem('spriteFallbackColors') !== 'off'; } catch (e) { return true; } })() };
@@ -4096,7 +4106,7 @@ const Canvas = (() => {
     const ue = Terrain.byHexId(underId);
     const layered = !!(ue && Terrain.isLayeredHex(ue));
     if (layered) {
-      const bg = Terrain.getTerrainSpriteForType(ue.type);
+      const bg = Terrain.layeredBaseSpriteFor(ue) || Terrain.getTerrainSpriteForType(ue.type);
       if (ok(bg)) ctx.drawImage(bg, cx - radius, cy - radius, radius * 2, radius * 2);
       else { ctx.fillStyle = _terrainTypeFallbackColor(ue.type); ctx.fill(); }
     }
@@ -4148,7 +4158,7 @@ const Canvas = (() => {
       }
     } else if (hexEntry && Terrain.isLayeredHex(hexEntry)) {
       // Layered tile: draw terrain background, then object sprite on top
-      const terrainSprite = Terrain.getTerrainSpriteForType(hexEntry.type);
+      const terrainSprite = Terrain.layeredBaseSpriteFor(hexEntry) || Terrain.getTerrainSpriteForType(hexEntry.type);
       if (terrainSprite && terrainSprite.complete && terrainSprite.naturalWidth > 0) {
         ctx.drawImage(terrainSprite, cx - radius, cy - radius, radius * 2, radius * 2);
       } else {
@@ -15753,7 +15763,7 @@ const Packages = (() => {
   // half-imported package). Before each write the file's previous content is captured (null = new), so a failure removes
   // what the import created and puts overwritten files back. Local state (HexDB/BldDB/SpriteStore/trash) is snapshotted
   // first and restored after a failure. What could not be undone is reported exactly (error modal), never hidden.
-  const _REF_FIELDS      = ['destroyTransformTo', 'incomeTransformTo', 'storageUpgradeId', 'underTerrainId'];
+  const _REF_FIELDS      = ['destroyTransformTo', 'incomeTransformTo', 'storageUpgradeId', 'underTerrainId', 'baseTerrainId'];
   const _REF_LIST_FIELDS = ['destroySource', 'destroySources', 'upgradeTo', 'requiredHex', 'parents'];
   let _importResult = null;   // { status: 'running'|'ok'|'failed'|'cancelled'|'refused', remaining: string[] }
   function getImportResult() { return _importResult; }
@@ -18720,6 +18730,10 @@ const HexDB = (() => {
            style="width:110px" data-field="baseCostTaps"
            value="${hex.baseCostTaps ?? 0}">`,
         'Taps required to unlock this tile when first revealed on the map'),
+      _row('Base Terrain',
+        `<input class="hexdb-input" data-field="baseTerrainId" list="hexdb-id-list"
+           value="${_esc(hex.baseTerrainId ?? '')}" placeholder="e.g. Water_Dirty_1 (optional)">`,
+        'Optional. The hex drawn UNDER this sprite instead of the animated water. Setting it makes this a layered tile: the sprite is drawn on top of that hex (Fish on dirty water = Water_Dirty_1)'),
       `<div class="hexdb-roads" id="hexdb-roads">${_roadsBlockHTML(hex)}</div>`,
       ...(/bridge/i.test(hex.id || '') ? [
         _row('Under Terrain',
