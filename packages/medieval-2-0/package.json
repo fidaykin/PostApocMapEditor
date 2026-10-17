@@ -1,0 +1,30 @@
+{
+  "id": "medieval-2-0",
+  "name": "Medieval 2.0",
+  "version": "1.0.3",
+  "description": "",
+  "preview": "preview.png",
+  "isDefault": false,
+  "dependencies": [],
+  "changelog": [
+    {
+      "version": "1.0.1",
+      "date": "2026-10-16",
+      "note": "Medieval Hex Pack 1"
+    },
+    {
+      "version": "1.0.2",
+      "date": "2026-10-16",
+      "note": "Full Hex DB for Medieval"
+    },
+    {
+      "version": "1.0.3",
+      "date": "2026-10-16",
+      "note": "Medieval Buildings Set (25)"
+    }
+  ],
+  "manifestUrl": "packages/medieval-2-0/manifest.json",
+  "totalBytes": 13988518,
+  "minAppVersion": "0.0.0",
+  "schemaVersion": 1
+}

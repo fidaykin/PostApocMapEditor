@@ -1,0 +1,476 @@
+{
+  "schemaVersion": 1,
+  "id": "decameroon",
+  "version": "1.0.17",
+  "minAppVersion": "0.0.0",
+  "generatedAt": "2026-10-17T15:17:02.608Z",
+  "totalBytes": 21775971,
+  "dependencies": [],
+  "files": [
+    {
+      "path": "building_database.json",
+      "sha256": "87d181d0944d9e4f1c41f7e525104f4b16508a14d162434820a680fa785b106a",
+      "size": 56565
+    },
+    {
+      "path": "hex_database.json",
+      "sha256": "8b980b4210df56f9f335481f17f8aebc14b5f3b251435d8ba33e0eb61c45abca",
+      "size": 79631
+    },
+    {
+      "path": "sprites/buildings/Decameroon_Abbey_1.png",
+      "sha256": "d087cda237de76086d8ad108696ef7a7d8107d35f25f6c4950de6f99482c2e4a",
+      "size": 258829
+    },
+    {
+      "path": "sprites/buildings/Decameroon_Alchemist_1.png",
+      "sha256": "65b5a963a7a0c606032b2e8e48eb5fe312020dba4e17e00021feedbd89a5d6af",
+      "size": 311500
+    },
+    {
+      "path": "sprites/buildings/Decameroon_Artefact_1.png",
+      "sha256": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c",
+      "size": 286968
+    },
+    {
+      "path": "sprites/buildings/Decameroon_Farm_1.png",
+      "sha256": "eb6099ddc3e078d8a6b4cf7b4ecc15232c8a650e001a5c8ccd51db091beb1058",
+      "size": 284814
+    },
+    {
+      "path": "sprites/buildings/Decameroon_FishTrap_1.png",
+      "sha256": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368",
+      "size": 127488
+    },
+    {
+      "path": "sprites/buildings/Decameroon_ForestHut_1.png",
+      "sha256": "06c777a2f9d2ea40684538b9121b262ca18e9043986be3587879046afb81292a",
+      "size": 256418
+    },
+    {
+      "path": "sprites/buildings/Decameroon_GemMine_1.png",
+      "sha256": "88e69929a8070277c712423ca47351907986038d4f3c8c5b880df4327ccb524f",
+      "size": 319457
+    },
+    {
+      "path": "sprites/buildings/Decameroon_GoldMine_1.png",
+      "sha256": "96095ad1bb94d14cae387b1f0a364d900b6f1d58f982d3d744f2662eee815efa",
+      "size": 313531
+    },
+    {
+      "path": "sprites/buildings/Decameroon_GoldMine_Big_1.png",
+      "sha256": "f7ca515696ef333630a419d6ded15d9ff7a3362db30633f051940b216a6ced50",
+      "size": 338385
+    },
+    {
+      "path": "sprites/buildings/Decameroon_LumberMill_1.png",
+      "sha256": "52478068095515583b5194bdd5d489b44e6155a29e75b69122f44b4b32be4be6",
+      "size": 280169
+    },
+    {
+      "path": "sprites/buildings/Decameroon_LumberMill_Big_1.png",
+      "sha256": "73a5665988479b81a99f0288ed04d615c236ed2c80c6916131d759f06e0118ab",
+      "size": 308960
+    },
+    {
+      "path": "sprites/buildings/Decameroon_LumberMill_Industrial_1.png",
+      "sha256": "9b507bd5855db05f91fdc0e25d6bc58db9e4a31fe6a9616d6f4bf5d52bbdda76",
+      "size": 333961
+    },
+    {
+      "path": "sprites/buildings/Decameroon_Market_1.png",
+      "sha256": "889a802faaf961246da3bc9d9a42d72287e6412257cc1599a1a005699b41fb2d",
+      "size": 277363
+    },
+    {
+      "path": "sprites/buildings/Decameroon_Mill_1.png",
+      "sha256": "5881fd4dd4aad044101e0e6b9056642663cd9527558a05a5ec2174e9f9d6a754",
+      "size": 318766
+    },
+    {
+      "path": "sprites/buildings/Decameroon_Monastery_1.png",
+      "sha256": "2c361c445c8df0945e98c5762326563795ff7147a2a5a58e82ef9ca538a15aed",
+      "size": 313441
+    },
+    {
+      "path": "sprites/buildings/Decameroon_OreMine_1.png",
+      "sha256": "68163251c493d75f0d7eaa2bd8efcf1a2bfb6bfae5f8589f0c5c0e8491b5fff1",
+      "size": 265158
+    },
+    {
+      "path": "sprites/buildings/Decameroon_OreWorkshop_1.png",
+      "sha256": "788b8d925f84c421e8e248290602448c4e1d3a730ff9f14d9584f3fc10e9debb",
+      "size": 272876
+    },
+    {
+      "path": "sprites/buildings/Decameroon_Plantation_1.png",
+      "sha256": "995152d8e61cdce583c6e45a6c3b2ad3be2a92a222ec726404a41914e5336ab6",
+      "size": 340015
+    },
+    {
+      "path": "sprites/buildings/Decameroon_SilverMine_1.png",
+      "sha256": "4844b3dd0a179612b591712fe0be448f894ded812403f1925147be00890d2ed3",
+      "size": 307319
+    },
+    {
+      "path": "sprites/buildings/Decameroon_SmallShip_1.png",
+      "sha256": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b",
+      "size": 147988
+    },
+    {
+      "path": "sprites/buildings/Decameroon_SmallShipyard_1.png",
+      "sha256": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807",
+      "size": 334648
+    },
+    {
+      "path": "sprites/buildings/Decameroon_StoneConveyor_1.png",
+      "sha256": "07d35223ed7ce3ffb3f5a5a3459de95d91c2b7e2481ab13980b14483ce6ee9db",
+      "size": 293677
+    },
+    {
+      "path": "sprites/buildings/Decameroon_StoneMineBig_1.png",
+      "sha256": "f44188e093a02990b9276de0d56555d30e9cda68e4d47be2c4f78bb2bccef690",
+      "size": 299271
+    },
+    {
+      "path": "sprites/buildings/Decameroon_StoneMine_1.png",
+      "sha256": "93786fb30c55eb99558b2edf6041a8b919f371956bfb740560ba6f4d39cba66d",
+      "size": 243272
+    },
+    {
+      "path": "sprites/buildings/Decameroon_Tavern_1.png",
+      "sha256": "2852b3c4a510f550e4b227e5cfc89a81077edfcd77325ff75a2543acf95b1507",
+      "size": 308749
+    },
+    {
+      "path": "sprites/hex/Decameroon_Barren_1.png",
+      "sha256": "634a55aaad9ed832bdbe19e0414b5a0c81aaad9b1394413b41feaced00eda4f3",
+      "size": 186768
+    },
+    {
+      "path": "sprites/hex/Decameroon_BrokenShip_1.png",
+      "sha256": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20",
+      "size": 140153
+    },
+    {
+      "path": "sprites/hex/Decameroon_Desert_1.png",
+      "sha256": "3e3d59547f0a494d00c5f4f001cbfcec9b3f2972026b72956d08b204399b378b",
+      "size": 158951
+    },
+    {
+      "path": "sprites/hex/Decameroon_DestroyedBuilding_1.png",
+      "sha256": "e7ad592ff8648af8afea555ee4d39712bfef7fc5bf95bc19c37e3f84cfdb4428",
+      "size": 290869
+    },
+    {
+      "path": "sprites/hex/Decameroon_DirtyWater_1.png",
+      "sha256": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373",
+      "size": 78511
+    },
+    {
+      "path": "sprites/hex/Decameroon_Fish_1.png",
+      "sha256": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152",
+      "size": 37771
+    },
+    {
+      "path": "sprites/hex/Decameroon_Forest_1.png",
+      "sha256": "5b709da8a02285f8e1dbc48c9ff44c0eaa0d7f87193a7ba663eaedb997a4fefd",
+      "size": 239972
+    },
+    {
+      "path": "sprites/hex/Decameroon_Forest_2.png",
+      "sha256": "65da46c258103205a6b78d3d51947df7367f80798e6c5941e8855b29a83c08b5",
+      "size": 265619
+    },
+    {
+      "path": "sprites/hex/Decameroon_Forest_3.png",
+      "sha256": "2386a7ef921e2602bd7c0005c5daa1a8adc33b33254713de2800a486ec70aca7",
+      "size": 297575
+    },
+    {
+      "path": "sprites/hex/Decameroon_GemField_1.png",
+      "sha256": "6a9d0d52e4ccf3aec5a19e77e585381ea1c66d200bb6665b5354cf9b86102548",
+      "size": 257616
+    },
+    {
+      "path": "sprites/hex/Decameroon_GoldVein_1.png",
+      "sha256": "56eb17912d6b3c9c2d587c7869bd831e1a20c81523593d23943c57287b730c54",
+      "size": 252223
+    },
+    {
+      "path": "sprites/hex/Decameroon_Grain_1.png",
+      "sha256": "a2c8470e0751c4271fb313ed4d9d130cc8414b515e03854622e3bac2b9af79a0",
+      "size": 303603
+    },
+    {
+      "path": "sprites/hex/Decameroon_Herbs_1.png",
+      "sha256": "11430b7a271cbf7cf84183725ad55dc160f7f08fb69294410319bf1baac18186",
+      "size": 305712
+    },
+    {
+      "path": "sprites/hex/Decameroon_Hills_1.png",
+      "sha256": "42e870a90414859c4e165e55b6dd4474fa3f572e13db24e87a6115d9dcf4ffdd",
+      "size": 261642
+    },
+    {
+      "path": "sprites/hex/Decameroon_Lake_1.png",
+      "sha256": "7adae6abd9d38bda88d2b4fd21d6ef1d679198bdb87b4a4b6e522fe6de4ee45b",
+      "size": 213890
+    },
+    {
+      "path": "sprites/hex/Decameroon_Lake_2.png",
+      "sha256": "d0d2b16611a89369bd74cf7ffa4b24f5e61a7e20012b75b2e630ef97b4a83bde",
+      "size": 209492
+    },
+    {
+      "path": "sprites/hex/Decameroon_Lake_3.png",
+      "sha256": "f5fcd6350533d1053c54a8e2aa62d51b65ba8c4e4262130e9d35b62f969575ac",
+      "size": 214276
+    },
+    {
+      "path": "sprites/hex/Decameroon_Lake_4.png",
+      "sha256": "020e2003f2bbef3ce0571803e4edf8ab305979f0a4825f324e911b8cb71e5147",
+      "size": 206553
+    },
+    {
+      "path": "sprites/hex/Decameroon_Lake_5.png",
+      "sha256": "49d9c9c885f990862b06c4f32f7d7150ae856607d7279724e6d1f0e190d67cf6",
+      "size": 212745
+    },
+    {
+      "path": "sprites/hex/Decameroon_Lake_6.png",
+      "sha256": "fd52b9f77a418d5777d67a1bd3370593e72a808b4fd38d654f6248f6237ab68c",
+      "size": 211197
+    },
+    {
+      "path": "sprites/hex/Decameroon_Lake_7.png",
+      "sha256": "df132c8816c465290ee9e1a256ae8f38a207ce0409e1ebd94cf4b7a10bbf23d0",
+      "size": 218914
+    },
+    {
+      "path": "sprites/hex/Decameroon_LavaPlain_1.png",
+      "sha256": "331a71901041df54c8a2f06269c739229f5e5e21f81119ff0250eacae8287bdb",
+      "size": 285042
+    },
+    {
+      "path": "sprites/hex/Decameroon_LavaRift_1.png",
+      "sha256": "cfe9a94e5f42d23d8145a552e61bd6929f12eb4cee9fd26ee2efe565b6bfdbae",
+      "size": 236486
+    },
+    {
+      "path": "sprites/hex/Decameroon_Mountain_1.png",
+      "sha256": "a518ac16de7b7310ed8027438ae734fef99855e17d6def530d61471167bc26d8",
+      "size": 260989
+    },
+    {
+      "path": "sprites/hex/Decameroon_Mountain_2.png",
+      "sha256": "809e723e4d7006660eaf8766209b6b3e46f8a05e295f6aebc458c456fd7edbfe",
+      "size": 235997
+    },
+    {
+      "path": "sprites/hex/Decameroon_Plain_1.png",
+      "sha256": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa",
+      "size": 190259
+    },
+    {
+      "path": "sprites/hex/Decameroon_Plain_2.png",
+      "sha256": "92a2b3bd4a4ae7d5856f9c3d21b8bc82d126b09e3e3d1f5291fb793170c50091",
+      "size": 265041
+    },
+    {
+      "path": "sprites/hex/Decameroon_Rift_1.png",
+      "sha256": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022",
+      "size": 217745
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_D_2.png",
+      "sha256": "299fd7c121f30eb34a88ce5be9054339e049f2ff2198e45f314b90290a1f7360",
+      "size": 188073
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_D_3.png",
+      "sha256": "144cc22b582e1a57e301b2b8b3b0496343c31293691e503169d0ec78eea3f01d",
+      "size": 202027
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_D_4.png",
+      "sha256": "fd19b95f59cb42d7c48651143a23ef0ab304ab9e3d7b83a49bf2c057ef50a331",
+      "size": 192775
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_D_L_EE_2.png",
+      "sha256": "faf495aefb4bc3ad760a8fdbfa747431a332ae97ee0bff195c0640712c772b43",
+      "size": 182910
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_D_R_EE_2.png",
+      "sha256": "fb334d6af4f2f23d9c2b29b0d41962255e64f39952ebf85161305d914bdbdaaa",
+      "size": 168105
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_L_1.png",
+      "sha256": "132b3cf6e2b77c3d60e9dc28e96a0283766368ce6f55309413e2aa5719fa081a",
+      "size": 195072
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_L_4.png",
+      "sha256": "c0cbd059a662ac3819f5887d8302e4beaffba510e3d85e8e27334dd5804ec819",
+      "size": 205977
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_L_5.png",
+      "sha256": "474e61fc137092bd79efb83531fcf79eac78d20f621e192619ddef5ce76aa650",
+      "size": 204085
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_L_D_E_1.png",
+      "sha256": "4cd166b88b932c546070ff8ab9ffe1836819ffd4ef70580d614a5b75973293eb",
+      "size": 205142
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_L_L_E_5.png",
+      "sha256": "3f2710082f609a7b1080a0283cf741b490c086d1301453fa020ed1fb73feef63",
+      "size": 197729
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_L_R_E_5.png",
+      "sha256": "b49a6af3f29dba7d05b5a916423481e0afc2fcadde3e2a9ac62b38cc5c46b181",
+      "size": 199616
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_L_U_E_1.png",
+      "sha256": "be955071c04cead3af0ba7df919c40ad3d43a33b2a46e5e08a0f5fafae3e11ce",
+      "size": 193451
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_R_1.png",
+      "sha256": "4df60ca113aee4265f21e56f2dfa52b6a4002cc107a17a50e08f53090acf8439",
+      "size": 196137
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_R_4.png",
+      "sha256": "bf9a12ebd971621d089e81cb748636f029c7d4c8ee91b1d608b5ee82c8421793",
+      "size": 201059
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_R_5.png",
+      "sha256": "64e0ecdbdfb3b13f35c5cdfb3580fb049279e6f7d7b87edf78f5dd95bd4e33f7",
+      "size": 206898
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_U_2.png",
+      "sha256": "c85d7129e757c066cff0cce2f261b4b90b829c22c4434ac41da142e70c27e6f9",
+      "size": 188580
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_U_3.png",
+      "sha256": "c932f135f960d8ba9c08daf8805118ba8d316b24cd9bdea4dcc452f7e9d9921d",
+      "size": 200276
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_U_4.png",
+      "sha256": "916e0b05c10c72b8e6653f31852ca11840dffd555888d043746b15cc88c1d7c5",
+      "size": 190434
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_U_D_E_4.png",
+      "sha256": "1ffe24d7d7512fed5176b019be652ecc1eac58a2a2def4389ba2cbdf5920a1cb",
+      "size": 186999
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_U_L_EE_2.png",
+      "sha256": "5d9b91f358336132213e0e8c14004780f3c5f49b802abf3571c3069242ce018c",
+      "size": 171482
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_U_R_EE_2.png",
+      "sha256": "5e59ac3e7e413e26a6650992a54cde8de9bd5c4d01a6c766814be8bcc276620a",
+      "size": 170144
+    },
+    {
+      "path": "sprites/hex/Decameroon_River_U_U_E_4.png",
+      "sha256": "fc5dff00561d17050572daea4c0cf8bd06380a636f5ba71d36e32f4803ccf98e",
+      "size": 183462
+    },
+    {
+      "path": "sprites/hex/Decameroon_RockySwamp_1.png",
+      "sha256": "3d0f9f1b888db470225681c6ef13b2ffb87c1c40b331bf3ecb1be4f0d9176d88",
+      "size": 264490
+    },
+    {
+      "path": "sprites/hex/Decameroon_Rubble_1.png",
+      "sha256": "8d2174c2c5cedb4a79c17f0c325ddca872b80064b5cc68a28763e24085df00ae",
+      "size": 285899
+    },
+    {
+      "path": "sprites/hex/Decameroon_Rubble_2.png",
+      "sha256": "5b1a8d93d3eb7b857ccfb67eb0f648b57e7bea659ad3d8a79204300fa45d456d",
+      "size": 257522
+    },
+    {
+      "path": "sprites/hex/Decameroon_Rubble_3.png",
+      "sha256": "b660442b9448c67de1b4a64a77ad702245d6b64f2351cbe51605c7e7a1972ef1",
+      "size": 280239
+    },
+    {
+      "path": "sprites/hex/Decameroon_Settlements_Big_1.png",
+      "sha256": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e",
+      "size": 1716858
+    },
+    {
+      "path": "sprites/hex/Decameroon_Settlements_Small_1.png",
+      "sha256": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5",
+      "size": 308708
+    },
+    {
+      "path": "sprites/hex/Decameroon_SilverVein_1.png",
+      "sha256": "b4d73c15a6c732b996b742b3f0ec262c8e279ae083d49be0436e68c8e722ffb1",
+      "size": 256223
+    },
+    {
+      "path": "sprites/hex/Decameroon_Swamp_1.png",
+      "sha256": "f08efd2c9ffae071232e3efbc8dd91950ad1df6da0d5a22c428ab33d4677023d",
+      "size": 252332
+    },
+    {
+      "path": "sprites/hex/Decameroon_Water.png",
+      "sha256": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1",
+      "size": 64734
+    },
+    {
+      "path": "sprites/hex/Decameroon_WaterStones_1.png",
+      "sha256": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647",
+      "size": 127309
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_0_UpperRight.png",
+      "sha256": "d33570a548f30c1d3f93542e142ea36218f00b430986b710da25975ea47b7e95",
+      "size": 37248
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_1_LowerRight.png",
+      "sha256": "19701656df4e03be0aa27178172ef9dfa2d3e734176f01faae4719532bba6419",
+      "size": 34784
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_2_Bottom.png",
+      "sha256": "4ed67f60b81b26c76d9c63011fc715685bae4f61acbffd0cc059336c81f3331d",
+      "size": 25582
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_3_LowerLeft.png",
+      "sha256": "e15d07911396f4533b092592914718d2ab9167a7300aab2ff2ef891b39bb706c",
+      "size": 25632
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_4_UpperLeft.png",
+      "sha256": "542d14e388ec761b806d936724c5c67c1bf26e12c56bc70b4a1378a2e3344ad2",
+      "size": 44846
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_5_Top.png",
+      "sha256": "2c3c58617dcd59ca11b663bbe4db1b5f3f753db6e9297855290a732182efc262",
+      "size": 28302
+    }
+  ]
+}
