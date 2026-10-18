@@ -98,12 +98,19 @@ export class FakeGitHub {
     for (const k of this.overrides.keys())
       if (k.startsWith(dir + '/') && !k.slice(dir.length + 1).includes('/')) names.add(k.slice(dir.length + 1));
     for (const k of this.deleted) names.delete(k.startsWith(dir + '/') ? k.slice(dir.length + 1) : '');
-    if (!names.size) return null;
-    return [...names].map(name => ({
-      name, sha: this.sha(`${dir}/${name}`),
-      size: this.read(`${dir}/${name}`)!.length,
-      download_url: `${PAGES_BASE}${dir}/${name}`,
-    }));
+    // Sub-folders, as the real API lists them (type 'dir'); only those holding files written through write().
+    const dirs = new Set<string>();
+    for (const k of this.overrides.keys())
+      if (!this.deleted.has(k) && k.startsWith(dir + '/') && k.slice(dir.length + 1).includes('/')) dirs.add(k.slice(dir.length + 1).split('/')[0]);
+    if (!names.size && !dirs.size) return null;
+    return [
+      ...[...names].map(name => ({
+        name, sha: this.sha(`${dir}/${name}`),
+        size: this.read(`${dir}/${name}`)!.length,
+        download_url: `${PAGES_BASE}${dir}/${name}`,
+      })),
+      ...[...dirs].map(name => ({ name, type: 'dir', path: `${dir}/${name}` })),
+    ];
   }
   putPaths() { return this.puts.map(p => p.path); }
   /** Add (or replace) non-default packages in packages/registry.json. */

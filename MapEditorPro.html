@@ -9586,6 +9586,11 @@ const GitHubSync = (() => {
         if (a && b && (a.length !== b.length || await sha256Hex(a) !== await sha256Hex(b))) differing.push(ref);
       }
     }
+    // Terrain sprites (sprites/terrain/<folder>/*.png: coastline, later roads) are not referenced by any database entry, the game
+    // loads them by fixed file names per folder. Every png in those folders is listed, so a package publish keeps them.
+    for (const dir of (await _listDirFresh(`packages/${id}/sprites/terrain`)).filter(it => it && it.type === 'dir' && typeof it.name === 'string'))
+      for (const it of await _listDirFresh(`packages/${id}/sprites/terrain/${dir.name}`))
+        if (it && it.type !== 'dir' && typeof it.name === 'string' && /\.png$/i.test(it.name)) sprites.push(`sprites/terrain/${dir.name}/${it.name}`);
     const differMsgs = differing.map(ref => `same-named sprite differs between sprites/hex and sprites/buildings: ${ref}`);
     for (const m of differMsgs) console.warn(`[GitHubSync] manifest ${id}: ${m}`);
     if (missing.length) console.warn(`[GitHubSync] manifest ${id}: ${missing.length} referenced sprite(s) are not on the server and are not listed:`, missing);
