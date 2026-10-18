@@ -71,6 +71,16 @@ test('terrain sprites (coastline, roads) are listed with their real hash, other 
   expect(f.size).toBe(shore.length);
 });
 
+test('the base package manifest does not list its terrain folders (built into the app, never downloaded)', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.write('packages/postapoc/hex_database.json', '{"version":1,"hexes":[]}');
+  gh.write('packages/postapoc/sprites/terrain/coastline/Coastline_0_UpperRight.png', PNG);
+  gh.write('packages/postapoc/sprites/terrain/roads/road_hex_36_NS.png', PNG);
+  await openEditor(page, { gh, pat: true });
+  const m = await page.evaluate(() => GitHubSync.buildManifest('postapoc', '1.0.0'));
+  expect(m.files.map((f: any) => f.path).filter((x: string) => x.includes('sprites/terrain'))).toEqual([]);
+});
+
 test('a package without sprite folders still gets a valid manifest of its databases', async ({ page }) => {
   const gh = new FakeGitHub();
   gh.setRegistry([{ id: 'bare', name: 'bare' }]);

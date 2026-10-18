@@ -9588,6 +9588,8 @@ const GitHubSync = (() => {
     }
     // Terrain sprites (sprites/terrain/<folder>/*.png: coastline, later roads) are not referenced by any database entry, the game
     // loads them by fixed file names per folder. Every png in those folders is listed, so a package publish keeps them.
+    // The base package is built into the app and never downloaded (its server copy of these folders is reference art only).
+    if (id !== 'postapoc')
     for (const dir of (await _listDirFresh(`packages/${id}/sprites/terrain`)).filter(it => it && it.type === 'dir' && typeof it.name === 'string'))
       for (const it of await _listDirFresh(`packages/${id}/sprites/terrain/${dir.name}`))
         if (it && it.type !== 'dir' && typeof it.name === 'string' && /\.png$/i.test(it.name)) sprites.push(`sprites/terrain/${dir.name}/${it.name}`);
@@ -9699,6 +9701,51 @@ const GitHubSync = (() => {
       UI.toast('⚠ Published, but the package manifest was NOT updated: ' + e.message, { sticky: true });
       return null;
     }
+  }
+
+  // ── Terrain sprites of a package (sprites/terrain/<folder>/): coastline and roads ──
+  // The game loads these by fixed file names (Unity RuntimePackageSync.CoastlineFileNames / RoadFileNames; contracts
+  // package-coastline-sprites.md, package-road-sprites.md), so a wrong name would be ignored silently. They are refused here.
+  const TERRAIN_SPRITE_SETS = {
+    coastline: ['Coastline_0_UpperRight', 'Coastline_1_LowerRight', 'Coastline_2_Bottom', 'Coastline_3_LowerLeft', 'Coastline_4_UpperLeft', 'Coastline_5_Top'],
+    roads: ['road_hex_00_none', 'road_hex_01_SE', 'road_hex_03_SENE', 'road_hex_04_N', 'road_hex_05_SEN', 'road_hex_06_NEN', 'road_hex_07_SENEN', 'road_hex_09_SENW', 'road_hex_10_NENW', 'road_hex_11_SENENW', 'road_hex_13_SENNW', 'road_hex_14_NENNW', 'road_hex_15_SENENNW', 'road_hex_21_SENSW', 'road_hex_23_SENENSW', 'road_hex_27_SENENWSW', 'road_hex_31_SENENNWSW', 'road_hex_36_NS', 'road_hex_37_SENS', 'road_hex_39_SENENS', 'road_hex_45_SENNWS', 'road_hex_46_NENNWS', 'road_hex_47_SENENNWS', 'road_hex_63_SENENNWSWS', 'River_bridge_1', 'River_bridge_2', 'River_bridge_3'],
+  };
+  const TERRAIN_SPRITE_SIZE = 512;
+
+  // '' = fine, else why the file must not be uploaded. bytes: Uint8Array of the PNG.
+  function terrainSpriteProblem(folder, fileName, bytes) {
+    const names = TERRAIN_SPRITE_SETS[folder];
+    if (!names) return `unknown terrain folder "${folder}"`;
+    const m = /^(.+)\.png$/.exec(String(fileName));
+    if (!m || !names.includes(m[1])) return `${fileName}: not a ${folder} sprite name (expected one of: ${names.join(', ')})`;
+    const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    if (!bytes || bytes.length < 24 || sig.some((b, i) => bytes[i] !== b)) return `${fileName}: not a PNG file`;
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const w = dv.getUint32(16), h = dv.getUint32(20);
+    if (w !== TERRAIN_SPRITE_SIZE || h !== TERRAIN_SPRITE_SIZE) return `${fileName}: ${w}x${h}, must be ${TERRAIN_SPRITE_SIZE}x${TERRAIN_SPRITE_SIZE}`;
+    return '';
+  }
+
+  // Uploads PNGs to packages/<id>/sprites/terrain/<folder>/ and releases the package: manifest, registry and package.json get
+  // a new patch version (players keep a cached sprite until the version changes). All files are checked first: one bad file
+  // uploads nothing. The base package is refused: the game never downloads it, its art is built into the app.
+  // files: [{ name, bytes: Uint8Array }]
+  async function uploadTerrainSprites(pkgId, folder, files, opts = {}) {
+    if (!_MANIFEST_NAME_RE.test(String(pkgId))) throw new Error(`Refusing unsafe package id "${pkgId}"`);
+    if (!files || !files.length) throw new Error('No files chosen');
+    const problems = files.map(f => terrainSpriteProblem(folder, f.name, f.bytes)).filter(Boolean);
+    if (problems.length) throw new Error('Nothing was uploaded:\n' + problems.join('\n'));
+    const reg = await readRepoFile('packages/registry.json');
+    const entry = reg && reg.json && Array.isArray(reg.json.packages) && reg.json.packages.find(p => p.id === pkgId);
+    if (!entry) throw new Error(`Package "${pkgId}" is not in the registry on the server; publish it first`);
+    if (entry.isDefault) throw new Error(`"${pkgId}" is the base package: the game never downloads its terrain sprites (they are built into the app)`);
+    let done = 0;
+    for (const f of files) {
+      await _putBinary(`packages/${pkgId}/sprites/terrain/${folder}/${f.name}`, new Blob([f.bytes], { type: 'image/png' }), `terrain-upload ${pkgId}: ${folder}/${f.name}`);
+      if (opts.onProgress) opts.onProgress(++done, files.length);
+    }
+    const r = await refreshBaseManifest(pkgId);
+    return { version: r.version, count: files.length };
   }
 
   // ── PAT validation ────────────────────────────────────────────
@@ -10242,7 +10289,7 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    sha256Hex, _readRepoBytes, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
+    TERRAIN_SPRITE_SETS, terrainSpriteProblem, uploadTerrainSprites, sha256Hex, _readRepoBytes, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
     _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, roadsGate, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
@@ -14045,6 +14092,7 @@ const Packages = (() => {
       const actions = _el('td', {},
         _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
         _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
+      if (!p.isDefault) actions.append(' ', _btn('Terrain sprites', 'Upload this package’s coastline or road sprites to the server', () => openTerrainUpload(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Details', 'Edit the description, dependencies and preview image', () => openDetails(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Delete', 'Remove this package from the registry (it can be restored from Recently deleted)',
         () => confirmDelete(p.id), { 'data-pkg-id': p.id, style: 'color:#f38ba8' }));
@@ -14634,6 +14682,35 @@ const Packages = (() => {
   }
 
   // ── New Package modal ──────────────────────────────────────────
+  // Small dialog: pick the folder (coastline / roads) and the PNGs, then upload. Names and size are checked before anything is sent.
+  function openTerrainUpload(pkgId) {
+    document.getElementById('terrain-upload-modal')?.remove();
+    const sets = GitHubSync.TERRAIN_SPRITE_SETS;
+    const folderSel = _el('select', { id: 'terrain-upload-folder' }, ...Object.keys(sets).map(k => _el('option', { value: k, text: `${k} (${sets[k].length} file names)` })));
+    const files = _el('input', { type: 'file', id: 'terrain-upload-files', accept: 'image/png', multiple: 'multiple' });
+    const names = _el('div', { id: 'terrain-upload-names', style: 'font-size:11px;color:var(--muted);margin:6px 0;max-height:120px;overflow:auto' });
+    const status = _el('div', { id: 'terrain-upload-status', style: 'font-size:12px;white-space:pre-wrap;margin:8px 0' });
+    const showNames = () => { names.textContent = 'File names the game reads: ' + sets[folderSel.value].join(', '); };
+    folderSel.addEventListener('change', showNames); showNames();
+    const close = () => modal.remove();
+    const go = _btn('Upload', 'Upload the chosen PNGs and release a new package version', async () => {
+      go.disabled = true; status.textContent = 'Checking…';
+      try {
+        const picked = [];
+        for (const f of files.files) picked.push({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) });
+        const r = await GitHubSync.uploadTerrainSprites(pkgId, folderSel.value, picked, { onProgress: (d, t) => { status.textContent = `Uploading ${d}/${t}…`; } });
+        status.textContent = `✅ ${r.count} file(s) uploaded, ${pkgId} is now ${r.version}.`;
+        UI.toast(`${pkgId} ${r.version}: ${r.count} ${folderSel.value} sprite(s) uploaded`);
+      } catch (e) { status.textContent = '⚠ ' + e.message; }
+      go.disabled = false;
+    });
+    const modal = _el('div', { id: 'terrain-upload-modal', style: 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center' },
+      _el('div', { style: 'background:var(--panel,#1e1e2e);padding:16px;border-radius:8px;min-width:360px;max-width:560px' },
+        _el('strong', { text: `Terrain sprites: ${pkgId}` }), _el('div', { style: 'margin:10px 0' }, folderSel), files, names, status,
+        _el('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, go, _btn('Close', 'Close', close))));
+    document.body.append(modal);
+  }
+
   function openNewModal() {
     document.getElementById('pkg-new-name').value = '';
     document.getElementById('pkg-new-id').value = '';
@@ -16182,7 +16259,7 @@ const Packages = (() => {
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
-           spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
+           spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openTerrainUpload, openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
