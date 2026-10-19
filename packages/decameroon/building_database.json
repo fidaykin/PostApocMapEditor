@@ -74,7 +74,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_LumberMill_1",
@@ -167,7 +168,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Premium_LumberMill_1",
@@ -264,7 +266,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Industrial_LumberMill_1",
@@ -352,7 +355,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_StoneMine_1",
@@ -437,7 +441,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Big_StoneMine_1",
@@ -527,7 +532,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_StoneConveyor_1",
@@ -614,7 +620,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_IronMine_1",
@@ -690,7 +697,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Foundry_1",
@@ -766,7 +774,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Artefact_1",
@@ -843,7 +852,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Boat_1",
@@ -918,7 +928,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_ForestHut_1",
@@ -999,7 +1010,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_GoldMine_1",
@@ -1073,7 +1085,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_SilverMine_1",
@@ -1142,7 +1155,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Advanced_GoldMine_1",
@@ -1224,7 +1238,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Market_1",
@@ -1313,7 +1328,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Tavern_1",
@@ -1410,7 +1426,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Farm_1",
@@ -1503,7 +1520,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Mill_1",
@@ -1590,7 +1608,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Plantation_1",
@@ -1686,7 +1705,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_SmallShipyard_1",
@@ -1766,7 +1786,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_FishTrap_1",
@@ -1840,7 +1861,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": "Decameroon_Water_1"
+      "underTerrainId": "Decameroon_Water_1",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Abbey_1",
@@ -1865,7 +1887,9 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2"
+        "Decameroon_Plain_2",
+        "Decameroon_Forest_1",
+        "Decameroon_Hills_1"
       ],
       "minLevel": 1,
       "price": [
@@ -1924,7 +1948,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Monastery_1",
@@ -2009,7 +2034,8 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "Decameroon_Alchemy_1",
@@ -2097,18 +2123,19 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
-      "id": "Decameroon_Boat_2",
+      "id": "Medieval20_Abbey_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
-      "type": "Water Building",
-      "buildingCategory": "Ship",
-      "biome": "Decameron",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
       "filter": "FilterBuilding",
-      "spriteName": "Decameroon_SmallShip_1",
+      "spriteName": "Medieval_Abbey_1",
       "baseCostTaps": 1,
       "canDestroy": true,
       "destroyTransformToMode": "Parents",
@@ -2121,8 +2148,435 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "Decameroon_Water_1",
-        "Decameroon_Plain_1"
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        },
+        {
+          "type": "Stone",
+          "amount": 500
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Pollution",
+          "amount": 1000
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [
+        {
+          "type": "Food",
+          "amount": 500
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Advanced_GoldMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_GoldMine_Big_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_GoldVein_1"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        },
+        {
+          "type": "Stone",
+          "amount": 700
+        },
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 100
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Alchemy_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_Alchemist_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 100
+        },
+        {
+          "type": "Stone",
+          "amount": 50
+        },
+        {
+          "type": "Steel",
+          "amount": 50
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Pollution",
+          "amount": 2500
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [
+        {
+          "type": "Food",
+          "amount": 500
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Artefact_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Artefact",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "BoneMine_Kaiju_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 100
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Stone",
+          "amount": 1000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Big_StoneMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_StoneMineBig_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Hills_1",
+        "Medieval20_Mountain_1",
+        "Medieval20_Mountain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 100
+        },
+        {
+          "type": "Lumber",
+          "amount": 50
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Stone",
+          "amount": 1000
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Energy",
+          "amount": 50
+        }
+      ],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Stone",
+          "amount": 50000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Boat_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Water Building",
+      "buildingCategory": "Ship",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_SmallShip_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Water_1",
+        "Medieval20_Water_Dirty_1",
+        "Medieval20_Fish_1"
       ],
       "minLevel": 1,
       "price": [
@@ -2171,7 +2625,1621 @@
       "effects": "",
       "footprint": [],
       "package": "decameroon",
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Farm_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_Farm_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 3000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": true,
+      "tilesTypeMode": "Type",
+      "tilesTypeValue": "Rivers",
+      "radius": 2,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Food",
+          "amount": 10
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 2,
+      "canProduceEnabled": true,
+      "canProduce": [
+        "Medieval20_Grain_1"
+      ],
+      "availableTilesForProduce": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "canProductionFacilities": true,
+      "facilityBonusType": "Get",
+      "facilityBonusSize": 50,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [
+        {
+          "type": "Food",
+          "amount": 50
+        }
+      ],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [
+        "Medieval20_Grain_1"
+      ],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Food",
+          "amount": 1000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_FishTrap_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Water Building",
+      "buildingCategory": "Ship",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_FishTrap_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Fish_1"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 100
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Food",
+          "amount": 50
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_ForestHut_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_ForestHut_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Food",
+          "amount": 100
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Food",
+          "amount": 500
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Foundry_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_OreWorkshop_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Hills_1",
+        "Decameroon_Mountain_1",
+        "Decameroon_Mountain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 900
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Steel",
+          "amount": 1000
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_GemMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_GemMine_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_GemField_1"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 10
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gems",
+          "amount": 5
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_GoldMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_GoldMine_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_GoldVein_1"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 800
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 100
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Industrial_LumberMill_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_LumberMill_Industrial_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [],
+      "premiumPrice": 100,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Type",
+      "tilesTypeValue": "Rivers",
+      "radius": 2,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Lumber",
+          "amount": 1000
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [
+        "Decameroon_Grain_1"
+      ],
+      "availableTilesForProduce": [
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2"
+      ],
+      "canProductionFacilities": false,
+      "facilityBonusType": "Get",
+      "facilityBonusSize": 50,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [
+        {
+          "type": "Food",
+          "amount": 50
+        }
+      ],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [
+        "Decameroon_Grain_1"
+      ],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Lumber",
+          "amount": 10000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_IronMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_OreMine_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Hills_1",
+        "Medieval20_Mountain_1",
+        "Medieval20_Mountain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 800
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Steel",
+          "amount": 100
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_LumberMill_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_LumberMill_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Type",
+      "tilesTypeValue": "Rivers",
+      "radius": 2,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Lumber",
+          "amount": 50
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [
+        "Decameroon_Grain_1"
+      ],
+      "availableTilesForProduce": [
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2"
+      ],
+      "canProductionFacilities": false,
+      "facilityBonusType": "Get",
+      "facilityBonusSize": 50,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [
+        {
+          "type": "Food",
+          "amount": 50
+        }
+      ],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [
+        "Decameroon_Grain_1"
+      ],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Market_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_Market_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "ⓘ Medieval20_Plain_1",
+        "ⓘ Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        },
+        {
+          "type": "Lumber",
+          "amount": 2000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 300
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        },
+        {
+          "type": "Chips",
+          "amount": 1000
+        }
+      ],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Mill_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_Mill_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Lumber",
+          "amount": 200
+        },
+        {
+          "type": "Stone",
+          "amount": 100
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Food",
+          "amount": 100
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": true,
+      "facilityBonusType": "Give",
+      "facilityBonusSize": 50,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [
+        "Medieval20_Farm_1"
+      ],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Food",
+          "amount": 2000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Monastery_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_Monastery_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Mountain_2",
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 10
+        },
+        {
+          "type": "Stone",
+          "amount": 5
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Pollution",
+          "amount": 5000
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [
+        {
+          "type": "Food",
+          "amount": 500
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Plantation_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_Plantation_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 300
+        },
+        {
+          "type": "Lumber",
+          "amount": 500
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Type",
+      "tilesTypeValue": "Rivers",
+      "radius": 2,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Pollution",
+          "amount": 10
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 2,
+      "canProduceEnabled": true,
+      "canProduce": [
+        "Medieval20_Herbs_1"
+      ],
+      "availableTilesForProduce": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "canProductionFacilities": true,
+      "facilityBonusType": "Get",
+      "facilityBonusSize": 50,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [
+        {
+          "type": "Pollution",
+          "amount": 50
+        }
+      ],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [
+        "Medieval20_Herbs_1"
+      ],
+      "canStore": false,
+      "stores": [
+        {
+          "type": "Food",
+          "amount": 1000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Premium_LumberMill_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_LumberMill_Big_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 2000
+        },
+        {
+          "type": "Stone",
+          "amount": 10
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Type",
+      "tilesTypeValue": "Rivers",
+      "radius": 2,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Lumber",
+          "amount": 500
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [
+        "Decameroon_Grain_1"
+      ],
+      "availableTilesForProduce": [
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2"
+      ],
+      "canProductionFacilities": false,
+      "facilityBonusType": "Get",
+      "facilityBonusSize": 50,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [
+        {
+          "type": "Food",
+          "amount": 50
+        }
+      ],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [
+        "Decameroon_Grain_1"
+      ],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Lumber",
+          "amount": 5000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_SilverMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_SilverMine_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_SilverVein_1"
+      ],
+      "minLevel": 1,
+      "price": [],
+      "premiumPrice": 50,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 250
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_SmallShipyard_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Water Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_SmallShipyard_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Water_1",
+        "Medieval20_Water_Dirty_1",
+        "Medieval20_Fish_1"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 100
+        },
+        {
+          "type": "Lumber",
+          "amount": 1000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Food",
+          "amount": 1000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_StoneConveyor_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_StoneConveyor_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Energy",
+          "amount": 500
+        }
+      ],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": true,
+      "facilityBonusType": "Give",
+      "facilityBonusSize": 100,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [
+        {
+          "type": "Stone",
+          "amount": 10
+        }
+      ],
+      "facilityBonusInfluenceType": "Multiply",
+      "productionFacilities": [
+        "Medieval20_StoneMine_1"
+      ],
+      "canStore": false,
+      "stores": [
+        {
+          "type": "Stone",
+          "amount": 50000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_StoneMine_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_StoneMine_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Hills_1",
+        "Medieval20_Mountain_1",
+        "Medieval20_Mountain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 10000
+        },
+        {
+          "type": "Lumber",
+          "amount": 5000
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Parents",
+      "tilesTypeValue": "",
+      "radius": 0,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Stone",
+          "amount": 100
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Stone",
+          "amount": 5000
+        }
+      ],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
+    },
+    {
+      "id": "Medieval20_Tavern_1",
+      "textId": "",
+      "descIdleId": "",
+      "descBuildId": "",
+      "type": "Ground Building",
+      "buildingCategory": "Standard",
+      "biome": "Medieval 2.0",
+      "filter": "FilterBuilding",
+      "spriteName": "Medieval_Tavern_1",
+      "baseCostTaps": 1,
+      "canDestroy": true,
+      "destroyTransformToMode": "Parents",
+      "destroyTransformTo": "",
+      "destroySources": [],
+      "moveToStorageOnDestroy": true,
+      "resourceAwardedOnDestroy": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "needRoad": false,
+      "isRoad": false,
+      "availableTiles": [
+        "Medieval20_Plain_1",
+        "Medieval20_Plain_2"
+      ],
+      "minLevel": 1,
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        },
+        {
+          "type": "Lumber",
+          "amount": 1500
+        },
+        {
+          "type": "Stone",
+          "amount": 500
+        }
+      ],
+      "premiumPrice": 0,
+      "additionalBuildCondition": false,
+      "tilesTypeMode": "Type",
+      "tilesTypeValue": "",
+      "radius": 2,
+      "hexEarnsOnTap": false,
+      "destroyableByTap": false,
+      "incomeTransformToMode": "Parents",
+      "incomeTransformTo": "",
+      "capacity": 0,
+      "getPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 250
+        }
+      ],
+      "incomeConstant": [
+        {
+          "type": "Pollution",
+          "amount": 100
+        }
+      ],
+      "spendConstant": [
+        {
+          "type": "Food",
+          "amount": 5000
+        },
+        {
+          "type": "Lumber",
+          "amount": 1000
+        }
+      ],
+      "buildingRadius": 0,
+      "canProduceEnabled": false,
+      "canProduce": [],
+      "availableTilesForProduce": [],
+      "canProductionFacilities": false,
+      "facilityBonusType": "",
+      "facilityBonusSize": 0,
+      "facilityBonusTarget": "Income Per Turn",
+      "facilityBonusResources": [],
+      "facilityBonusInfluenceType": "Add",
+      "productionFacilities": [],
+      "canStore": false,
+      "stores": [],
+      "storageCapacity": [],
+      "storageUpgradeId": "",
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "footprint": [],
+      "package": "decameroon",
+      "underTerrainId": "",
+      "destroyCost": []
     }
   ]
 }
