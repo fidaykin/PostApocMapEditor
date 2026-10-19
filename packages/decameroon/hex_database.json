@@ -3175,6 +3175,55 @@
       "effects": "",
       "package": "decameroon",
       "edgeFaces": []
+    },
+    {
+      "id": "Decameroon_Grain_2",
+      "textId": "",
+      "type": "Resources",
+      "biome": "Decameron",
+      "filterCategory": "FilterResource",
+      "spriteName": "FarmGrain",
+      "category": "💎 RESOURCES",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 4,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Plain_1",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": false,
+      "destroyIncome": [],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 5,
+      "buildPrice": [],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": false,
+      "destroyable": false,
+      "incomeTransformTo": "Plains_1",
+      "incomeCapacity": 3,
+      "incomeGetPerTap": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": [],
+      "baseTerrainId": ""
     }
   ]
 }
