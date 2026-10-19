@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.23",
+  "version": "1.0.24",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -61,10 +61,15 @@
       "version": "1.0.23",
       "date": "2026-10-19",
       "note": "++"
+    },
+    {
+      "version": "1.0.24",
+      "date": "2026-10-19",
+      "note": "fix price and Need road checkbox settings"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22474862,
+  "totalBytes": 22825119,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
