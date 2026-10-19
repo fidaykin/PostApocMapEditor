@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -56,10 +56,15 @@
       "version": "1.0.22",
       "date": "2026-10-19",
       "note": "Alternative price for Gem Mine"
+    },
+    {
+      "version": "1.0.23",
+      "date": "2026-10-19",
+      "note": "++"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22474784,
+  "totalBytes": 22474862,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
