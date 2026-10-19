@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.20",
+  "version": "1.0.21",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -46,6 +46,11 @@
       "version": "1.0.20",
       "date": "2026-10-19",
       "note": "New Hex art (all tiles)"
+    },
+    {
+      "version": "1.0.21",
+      "date": "2026-10-19",
+      "note": "updated Buildings Art for Decameroon"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
