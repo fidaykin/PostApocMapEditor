@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -41,10 +41,15 @@
       "version": "1.0.19",
       "date": "2026-10-19",
       "note": "change Premium Price cost"
+    },
+    {
+      "version": "1.0.20",
+      "date": "2026-10-19",
+      "note": "New Hex art (all tiles)"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22193180,
+  "totalBytes": 22192973,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
