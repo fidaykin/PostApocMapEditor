@@ -1,7 +1,7 @@
 {
   "id": "medieval-2-0",
   "name": "Medieval 2.0",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -21,6 +21,11 @@
       "version": "1.0.3",
       "date": "2026-10-16",
       "note": "Medieval Buildings Set (25)"
+    },
+    {
+      "version": "1.0.4",
+      "date": "2026-10-19",
+      "note": "AutoUnlock =TRUE"
     }
   ],
   "manifestUrl": "packages/medieval-2-0/manifest.json",
