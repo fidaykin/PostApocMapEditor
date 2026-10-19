@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "id": "postapoc",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-16T14:35:28.334Z",
-  "totalBytes": 37771908,
+  "generatedAt": "2026-10-19T12:04:58.459Z",
+  "totalBytes": 37772233,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "7fca823472aa4b7c3b6068952a6eb073a07c7baee3c27c5f0b342f8885d361e0",
-      "size": 25904
+      "sha256": "6c0bcfa197f845fdffbe63589d59d6ad3e9abadef95db6590f192a6b63f373d7",
+      "size": 26229
     },
     {
       "path": "hex_database.json",
