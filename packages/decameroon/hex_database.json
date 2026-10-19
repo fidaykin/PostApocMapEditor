@@ -112,7 +112,7 @@
       "type": "Forests",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Forest_1",
+      "spriteName": "Medieval_Forest_1",
       "category": "🌲 FOREST",
       "terrainTypeId": -1,
       "fallback": false,
@@ -167,7 +167,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Plain_1",
@@ -175,7 +176,7 @@
       "type": "Plains",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Plain_1",
+      "spriteName": "Medieval_Plain_1",
       "category": "🌾 PLAINS",
       "terrainTypeId": -1,
       "fallback": false,
@@ -215,7 +216,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Plain_2",
@@ -223,7 +225,7 @@
       "type": "Plains",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Plain_2",
+      "spriteName": "Medieval_Plain_2",
       "category": "🌾 PLAINS",
       "terrainTypeId": -1,
       "fallback": false,
@@ -263,7 +265,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Forest_2",
@@ -271,7 +274,7 @@
       "type": "Forests",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Forest_2",
+      "spriteName": "Medieval_Forest_2",
       "category": "🌲 FOREST",
       "terrainTypeId": -1,
       "fallback": false,
@@ -326,7 +329,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Forest_3",
@@ -334,7 +338,7 @@
       "type": "Forests",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Forest_3",
+      "spriteName": "Medieval_Forest_3",
       "category": "🌲 FOREST",
       "terrainTypeId": -1,
       "fallback": false,
@@ -389,7 +393,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Hills_1",
@@ -397,7 +402,7 @@
       "type": "Hills/Mountains",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Hills_1",
+      "spriteName": "Medieval_Hills_1",
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": -1,
       "fallback": false,
@@ -437,7 +442,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Mountain_1",
@@ -445,7 +451,7 @@
       "type": "Hills/Mountains",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Mountain_1",
+      "spriteName": "Medieval_Mountain_1",
       "category": "⛰️ ROCKY/MOUNTAIN",
       "terrainTypeId": -1,
       "fallback": false,
@@ -490,7 +496,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Rubble_1",
@@ -498,7 +505,7 @@
       "type": "Rubble",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Rubble_1",
+      "spriteName": "Medieval_Rubble_1",
       "category": "🏚️ RUBBLE/WASTELAND",
       "terrainTypeId": -1,
       "fallback": false,
@@ -533,7 +540,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Rubble_2",
@@ -541,7 +549,7 @@
       "type": "Rubble",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Rubble_2",
+      "spriteName": "Medieval_Rubble_2",
       "category": "🏚️ RUBBLE/WASTELAND",
       "terrainTypeId": -1,
       "fallback": false,
@@ -576,7 +584,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Rubble_3",
@@ -584,7 +593,7 @@
       "type": "Rubble",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Rubble_3",
+      "spriteName": "Medieval_Rubble_3",
       "category": "🏚️ RUBBLE/WASTELAND",
       "terrainTypeId": -1,
       "fallback": false,
@@ -619,7 +628,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_GoldVein_1",
@@ -627,7 +637,7 @@
       "type": "Resources",
       "biome": "Decameron",
       "filterCategory": "FilterResource",
-      "spriteName": "Decameroon_GoldVein_1",
+      "spriteName": "Medieval_GoldVein_1",
       "category": "💎 RESOURCES",
       "terrainTypeId": -1,
       "fallback": false,
@@ -667,7 +677,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Grain_1",
@@ -675,7 +686,7 @@
       "type": "Resources",
       "biome": "Decameron",
       "filterCategory": "FilterResource",
-      "spriteName": "Decameroon_Grain_1",
+      "spriteName": "Medieval_Grain_1",
       "category": "💎 RESOURCES",
       "terrainTypeId": -1,
       "fallback": false,
@@ -715,7 +726,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Herbs_1",
@@ -723,7 +735,7 @@
       "type": "Resources",
       "biome": "Decameron",
       "filterCategory": "FilterResource",
-      "spriteName": "Decameroon_Herbs_1",
+      "spriteName": "Medieval_Herbs_1",
       "category": "💎 RESOURCES",
       "terrainTypeId": -1,
       "fallback": false,
@@ -763,7 +775,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Desert_1",
@@ -771,7 +784,7 @@
       "type": "Barren/Desert",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Desert_1",
+      "spriteName": "Medieval_Desert_1",
       "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": -1,
       "fallback": false,
@@ -811,7 +824,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Barren_1",
@@ -819,7 +833,7 @@
       "type": "Barren/Desert",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_Barren_1",
+      "spriteName": "Medieval_Barren_1",
       "category": "🏜️ BARREN/DESERT",
       "terrainTypeId": -1,
       "fallback": false,
@@ -859,7 +873,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Mountain_2",
@@ -920,7 +935,7 @@
       "type": "Water",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_Water",
+      "spriteName": "Medieval_Water_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -960,7 +975,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_DirtyWater_1",
@@ -968,7 +984,7 @@
       "type": "Water",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_DirtyWater_1",
+      "spriteName": "Medieval_DirtyWater_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1012,7 +1028,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_SilverVein_1",
@@ -1020,7 +1037,7 @@
       "type": "Resources",
       "biome": "Decameron",
       "filterCategory": "FilterResource",
-      "spriteName": "Decameroon_SilverVein_1",
+      "spriteName": "Medieval_SilverVein_1",
       "category": "💎 RESOURCES",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1060,7 +1077,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_GemField_1",
@@ -1068,7 +1086,7 @@
       "type": "Resources",
       "biome": "Decameron",
       "filterCategory": "FilterResource",
-      "spriteName": "Decameroon_GemField_1",
+      "spriteName": "Medieval_GemPond_1",
       "category": "💎 RESOURCES",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1108,7 +1126,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_DestroyedBuilding_1",
@@ -1116,7 +1135,7 @@
       "type": "Rubble",
       "biome": "Decameron",
       "filterCategory": "FilterTerrain",
-      "spriteName": "Decameroon_DestroyedBuilding_1",
+      "spriteName": "Medieval_DestroyedBuilding_1",
       "category": "🏚️ RUBBLE/WASTELAND",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1160,7 +1179,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_WaterStones_1",
@@ -1168,7 +1188,7 @@
       "type": "Water",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_WaterStones_1",
+      "spriteName": "Medieval_WaterStones_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1209,7 +1229,8 @@
       "effects": "",
       "package": "decameroon",
       "edgeFaces": [],
-      "isLayered": true
+      "isLayered": true,
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_BrokenShip_1",
@@ -1217,7 +1238,7 @@
       "type": "Water",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_BrokenShip_1",
+      "spriteName": "Medieval_BrokenShip_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1266,7 +1287,8 @@
       "effects": "",
       "package": "decameroon",
       "edgeFaces": [],
-      "isLayered": true
+      "isLayered": true,
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Fish_1",
@@ -1274,7 +1296,7 @@
       "type": "Water",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_Fish_1",
+      "spriteName": "Medieval_Fish_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1315,7 +1337,8 @@
       "effects": "",
       "package": "decameroon",
       "edgeFaces": [],
-      "isLayered": true
+      "isLayered": true,
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Lake_1",
@@ -1323,7 +1346,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_Lake_1",
+      "spriteName": "Medieval_Lake_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1365,7 +1388,8 @@
       "package": "decameroon",
       "edgeFaces": [
         "SW"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Lake_2",
@@ -1373,7 +1397,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_Lake_2",
+      "spriteName": "Medieval_Lake_2",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1415,7 +1439,8 @@
       "package": "decameroon",
       "edgeFaces": [
         "NW"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Lake_3",
@@ -1423,7 +1448,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_Lake_3",
+      "spriteName": "Medieval_Lake_3",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1465,7 +1490,8 @@
       "package": "decameroon",
       "edgeFaces": [
         "N"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Lake_4",
@@ -1473,7 +1499,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_Lake_4",
+      "spriteName": "Medieval_Lake_4",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1515,7 +1541,8 @@
       "package": "decameroon",
       "edgeFaces": [
         "NE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Lake_5",
@@ -1523,7 +1550,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_Lake_5",
+      "spriteName": "Medieval_Lake_5",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1565,7 +1592,8 @@
       "package": "decameroon",
       "edgeFaces": [
         "SE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Lake_6",
@@ -1573,7 +1601,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_Lake_6",
+      "spriteName": "Medieval_Lake_6",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1615,7 +1643,8 @@
       "package": "decameroon",
       "edgeFaces": [
         "S"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Lake_7",
@@ -1623,7 +1652,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_Lake_7",
+      "spriteName": "Medieval_Lake_7",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1663,7 +1692,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Lava_Plain_1",
@@ -1757,7 +1787,7 @@
       "type": "Swamp",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_Swamp_1",
+      "spriteName": "Medieval_Swamp_1",
       "category": "🟫 SWAMP",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1792,7 +1822,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_RockySwamp_1",
@@ -1800,7 +1831,7 @@
       "type": "Swamp",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_RockySwamp_1",
+      "spriteName": "Medieval_RockySwamp_1",
       "category": "🟫 SWAMP",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1835,7 +1866,8 @@
       "booster": "",
       "effects": "",
       "package": "decameroon",
-      "edgeFaces": []
+      "edgeFaces": [],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_D_2",
@@ -1843,7 +1875,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_D_2",
+      "spriteName": "Medieval_River_D_2",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1886,7 +1918,8 @@
       "edgeFaces": [
         "SW",
         "SE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_D_3",
@@ -1894,7 +1927,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_D_3",
+      "spriteName": "Medieval_River_D_3",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1938,7 +1971,8 @@
         "NW",
         "NE",
         "S"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_D_4",
@@ -1946,7 +1980,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_D_4",
+      "spriteName": "Medieval_River_D_4",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -1989,7 +2023,8 @@
       "edgeFaces": [
         "N",
         "SE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_D_L_EE_2",
@@ -1997,7 +2032,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_D_L_EE_2",
+      "spriteName": "Medieval_River_D_L_EE_2",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2041,7 +2076,8 @@
         "NW",
         "SW",
         "SE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_D_L_RE_2",
@@ -2049,7 +2085,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_D_R_EE_2",
+      "spriteName": "Medieval_River_D_R_EE_2",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2093,7 +2129,8 @@
         "SW",
         "SE",
         "NE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_L_1",
@@ -2101,7 +2138,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_L_1",
+      "spriteName": "Medieval_River_L_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2144,7 +2181,8 @@
       "edgeFaces": [
         "N",
         "S"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_L_4",
@@ -2152,7 +2190,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_L_4",
+      "spriteName": "Medieval_River_L_4",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2195,7 +2233,8 @@
       "edgeFaces": [
         "S",
         "NW"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_L_5",
@@ -2203,7 +2242,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_L_5",
+      "spriteName": "Medieval_River_L_5",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2246,7 +2285,8 @@
       "edgeFaces": [
         "NW",
         "SE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_L_D_E_1",
@@ -2254,7 +2294,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_L_D_E_1",
+      "spriteName": "Medieval_River_L_D_E_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2297,7 +2337,8 @@
       "edgeFaces": [
         "N",
         "S"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_L_L_E_5",
@@ -2305,7 +2346,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_L_L_E_5",
+      "spriteName": "Medieval_River_L_L_E_5",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2348,7 +2389,8 @@
       "edgeFaces": [
         "NW",
         "SE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_L_R_E_5",
@@ -2356,7 +2398,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_L_R_E_5",
+      "spriteName": "Medieval_River_L_R_E_5",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2399,7 +2441,8 @@
       "edgeFaces": [
         "NW",
         "SE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_L_U_E_1",
@@ -2407,7 +2450,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_L_U_E_1",
+      "spriteName": "Medieval_River_L_U_E_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2450,7 +2493,8 @@
       "edgeFaces": [
         "N",
         "S"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_R_1",
@@ -2458,7 +2502,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_R_1",
+      "spriteName": "Medieval_River_R_1",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2501,7 +2545,8 @@
       "edgeFaces": [
         "N",
         "S"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_R_4",
@@ -2509,7 +2554,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_R_4",
+      "spriteName": "Medieval_River_R_4",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2552,7 +2597,8 @@
       "edgeFaces": [
         "S",
         "NE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_R_5",
@@ -2560,7 +2606,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_R_5",
+      "spriteName": "Medieval_River_R_5",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2603,7 +2649,8 @@
       "edgeFaces": [
         "NE",
         "SW"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_U_2",
@@ -2611,7 +2658,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_U_2",
+      "spriteName": "Medieval_River_U_2",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2654,7 +2701,8 @@
       "edgeFaces": [
         "NE",
         "NW"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_U_3",
@@ -2662,7 +2710,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_U_3",
+      "spriteName": "Medieval_River_U_3",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2706,7 +2754,8 @@
         "N",
         "SW",
         "SE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_U_4",
@@ -2714,7 +2763,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_U_4",
+      "spriteName": "Medieval_River_U_4",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2757,7 +2806,8 @@
       "edgeFaces": [
         "N",
         "SW"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_U_D_E_4",
@@ -2765,7 +2815,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_U_D_E_4",
+      "spriteName": "Medieval_River_U_D_E_4",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2808,7 +2858,8 @@
       "edgeFaces": [
         "N",
         "SW"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_U_L_EE_2",
@@ -2816,7 +2867,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_U_L_EE_2",
+      "spriteName": "Medieval_River_U_L_EE_2",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2860,7 +2911,8 @@
         "SW",
         "NW",
         "NE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_U_R_EE_2",
@@ -2868,7 +2920,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_U_R_EE_2",
+      "spriteName": "Medieval_River_U_R_EE_2",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2912,7 +2964,8 @@
         "NW",
         "NE",
         "SE"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_River_U_U_E_4",
@@ -2920,7 +2973,7 @@
       "type": "Rivers",
       "biome": "Decameron",
       "filterCategory": "FilterWater",
-      "spriteName": "Decameroon_River_U_U_E_4",
+      "spriteName": "Medieval_River_U_U_E_4",
       "category": "💧 WATER / RIVER",
       "terrainTypeId": -1,
       "fallback": false,
@@ -2963,7 +3016,8 @@
       "edgeFaces": [
         "N",
         "SW"
-      ]
+      ],
+      "baseTerrainId": ""
     },
     {
       "id": "Decameroon_Rift_1",
