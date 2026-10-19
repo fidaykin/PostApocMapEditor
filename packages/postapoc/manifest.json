@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "id": "postapoc",
-  "version": "1.0.21",
+  "version": "1.0.22",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-19T16:25:06.507Z",
+  "generatedAt": "2026-10-19T17:58:07.791Z",
   "totalBytes": 37772233,
   "dependencies": [],
   "files": [
