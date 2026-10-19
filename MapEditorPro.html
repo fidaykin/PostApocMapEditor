@@ -13963,7 +13963,54 @@ const Packages = (() => {
     return id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('') + '_';
   }
 
-  // The remembered/active package may have been deleted elsewhere: fall back to the default and say so.
+  // The non-default package whose id prefix an entry id starts with ('Medieval20_Farm_1' -> 'medieval-2-0'), or ''.
+  // Prefixes are PascalCase words ending in a single '_', so two of them never nest: at most one package matches.
+  function packageForId(entryId) {
+    const id = String(entryId || '');
+    const hits = _registry.filter(p => !p.isDefault && id.length > idPrefix(p.id).length && id.startsWith(idPrefix(p.id)));
+    return hits.length === 1 ? hits[0].id : '';
+  }
+
+  // The id of an entry decides its package (ClickUp 869fjvua7). After the id was edited, an id with ANOTHER package's prefix
+  // moves the record there; nothing moves when that would clash with an entry of the target package or take a road/bridge out of
+  // the base package. rec is changed in place. kind: 'hex' | 'bld'. Returns { moved, from, to } or { moved:false, problem? }.
+  function movePackageByPrefix(rec, records, kind) {
+    const to = packageForId(rec && rec.id);
+    const from = (rec && rec.package) || 'postapoc';
+    if (!to || to === from) return { moved: false };
+    if (kind === 'bld' && (rec.isRoad || rec.buildingCategory === 'Bridge'))
+      return { moved: false, problem: `"${rec.id}" is a road or bridge: roads are global (base package only), it stays in "${from}"` };
+    if (records.some(o => o !== rec && o.id === rec.id && (o.package || 'postapoc') === to))
+      return { moved: false, problem: `Package "${to}" already has an entry "${rec.id}"; this one stays in "${from}"` };
+    const source = { ...rec, package: from };
+    rec.package = to;
+    aliasSourceSprite(rec, source, kind);
+    return { moved: true, from, to };
+  }
+
+  // A pasted copy belongs to the ACTIVE non-base package: its id loses the source package's prefix and gets the active one,
+  // then '_copy' (numbered when that id is taken in the package). With the base package active nothing is re-homed (the
+  // copy keeps its source package and id + '_copy'; a taken id is numbered too). clone is changed in place.
+  function adoptPastedRecord(clone, records, kind) {
+    const src = clone.package || 'postapoc';
+    const active = getActive();
+    const target = active === 'postapoc' ? src : active;
+    let id = String(clone.id || '');
+    if (active !== 'postapoc') {
+      const sp = idPrefix(src);
+      if (sp && id.startsWith(sp)) id = id.slice(sp.length);
+      id = idPrefix(active) + id;
+    }
+    const stem = id + '_copy';
+    let cand = stem, n = 2;
+    while (records.some(o => o.id === cand && (o.package || 'postapoc') === target)) cand = stem + (n++);
+    clone.id = cand;
+    if (active !== 'postapoc') {
+      clone.package = active;
+      if (src !== active) aliasSourceSprite(clone, { ...clone, package: src }, kind);
+    }
+  }
+
   function _ensureActiveExists() {
     if (getEntry(_active)) return;
     const gone = _active;
@@ -16256,7 +16303,7 @@ const Packages = (() => {
     }
   }
 
-  return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
+  return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix, packageForId, movePackageByPrefix, adoptPastedRecord,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
            spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openTerrainUpload, openNewModal, closeNewModal, _autoSlugId, createPackage,
@@ -18800,6 +18847,8 @@ const HexDB = (() => {
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
        <input class="hexdb-input" id="hexdb-id" data-field="id" value="${_esc(hex.id)}" placeholder="e.g. Plain_1">
        <small style="color:#888;font-size:0.8em;display:block;margin-top:2px">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small></div>`,
+      `<div class="hexdb-row"><span class="hexdb-label">Package</span>
+       <code id="hexdb-package-label" title="Set by the id prefix: an id like Medieval20_Plain_1 moves the tile to that package">${_esc(hex.package || 'postapoc')}</code></div>`,
       _row('TextId',    _textInput('textId', hex.textId, ' list="loc-keys-datalist"'),
         'Localisation key for the display name shown in-app'),
       _row('Desc Idle', _textInput('descriptionIdleId',  hex.descriptionIdleId  ?? ''),
@@ -19025,6 +19074,9 @@ const HexDB = (() => {
       }
     });
 
+    // The id decides the package: registered after the generic listeners, so the typed id is already saved.
+    document.getElementById('hexdb-id')?.addEventListener('change', _movePackageByPrefix);
+
     // ── Wire Type select → WATER EXITS block follows the type ─
     // Registered after the generic _readRecord listeners above, so the typed values are already saved.
     const typeEl = document.querySelector('#hexdb-right [data-field="type"]');
@@ -19225,6 +19277,20 @@ const HexDB = (() => {
   }
 
   // ── Read inputs → data ────────────────────────────────────
+  // An id with another package's prefix moves the tile to that package (ClickUp 869fjvua7).
+  function _movePackageByPrefix() {
+    if (_selFilt < 0 || _selFilt >= _filtered.length) return;
+    const realIdx = _filtered[_selFilt];
+    const h = _data.hexes[realIdx];
+    const r = Packages.movePackageByPrefix(h, _data.hexes, 'hex');
+    if (r.problem) UI.toast('⚠ ' + r.problem);
+    if (!r.moved) return;
+    _autoSave();
+    _applyFilter();
+    _selectIdx(_filtered.indexOf(realIdx));
+    UI.toast(`Moved to package "${r.to}" by the id prefix`);
+  }
+
   function _readRecord() {
     if (_selFilt < 0 || _selFilt >= _filtered.length) return;
     const realIdx = _filtered[_selFilt];
@@ -19513,7 +19579,7 @@ const HexDB = (() => {
   function paste() {
     if (!_clipboard) { UI.toast('Nothing to paste'); return; }
     const h = structuredClone(_clipboard);
-    h.id = h.id + '_copy';
+    Packages.adoptPastedRecord(h, _data.hexes, 'hex');
     _data.hexes.push(h);
     _autoSave();
     _loadNewEntrySprite(h);
@@ -20506,6 +20572,8 @@ const BldDB = (() => {
               onblur="this.value=this.value.trim();this.dispatchEvent(new Event('change',{bubbles:true}))">
             <small style="color:#888;font-size:0.8em">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small>
           </div></div>
+        <div class="hexdb-row"><span class="hexdb-label">Package</span>
+          <code id="bld-f-package" title="Set by the id prefix: an id like Medieval20_Farm_1 moves the building to that package">${_esc(bld.package || 'postapoc')}</code></div>
         <div class="hexdb-row"><span class="hexdb-label">TextId <span class="hexdb-info" title="Localisation key for display name. No leading/trailing spaces.">ⓘ</span></span>
           <div style="flex:1;min-width:0">
             <input class="hexdb-input" id="bld-f-textId" type="text" value="${_esc(bld.textId)}" list="loc-keys-datalist">
@@ -20938,6 +21006,8 @@ const BldDB = (() => {
       el.addEventListener('input',  _readRecord);
       el.addEventListener('change', _readRecord);
     });
+    // The id decides the package: registered after _readRecord, so the typed id is already saved.
+    document.getElementById('bld-f-id')?.addEventListener('change', _movePackageByPrefix);
 
     // ── Wire text-key validation hints ───────────────────────
     [['bld-f-textId','bld-hint-textId'],['bld-f-descIdleId','bld-hint-descIdleId'],['bld-f-descBuildId','bld-hint-descBuildId']].forEach(([inId, hintId]) => {
@@ -21093,6 +21163,21 @@ const BldDB = (() => {
         _renderRecord(bldObj);
       });
     });
+  }
+
+  // An id with another package's prefix moves the building to that package (ClickUp 869fjvua7).
+  function _movePackageByPrefix() {
+    if (_selFilt < 0 || _selFilt >= _filtered.length) return;
+    const realIdx = _filtered[_selFilt];
+    const bld = _data.buildings[realIdx];
+    const r = Packages.movePackageByPrefix(bld, _data.buildings, 'bld');
+    if (r.problem) UI.toast('⚠ ' + r.problem);
+    if (!r.moved) return;
+    _autoSave();
+    _syncLive(bld);
+    _applyFilter();
+    _selectIdx(_filtered.indexOf(realIdx));
+    UI.toast(`Moved to package "${r.to}" by the id prefix`);
   }
 
   function _readRecord() {
@@ -21353,7 +21438,7 @@ const BldDB = (() => {
       UI.toast('⚠ Roads and bridges are global (base package only): switch to the base package to paste this'); return;
     }
     const clone = structuredClone(_clipboard);
-    clone.id += '_copy';
+    Packages.adoptPastedRecord(clone, _data.buildings, 'bld');
     _data.buildings.push(clone);
     _autoSave();
     _syncLive(clone);
