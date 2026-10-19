@@ -33,7 +33,7 @@
           "amount": 1000
         }
       ],
-      "premiumPrice": 100,
+      "premiumPrice": 101,
       "additionalBuildCondition": false,
       "tilesTypeMode": "Parents",
       "tilesTypeValue": "",
