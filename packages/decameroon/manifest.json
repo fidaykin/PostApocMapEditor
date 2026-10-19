@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "id": "decameroon",
-  "version": "1.0.23",
+  "version": "1.0.24",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-19T18:38:12.612Z",
-  "totalBytes": 22825119,
+  "generatedAt": "2026-10-19T21:19:57.942Z",
+  "totalBytes": 22825185,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "90331ba93f737992be98f619590078d184521504ed69409be887fd447cd426c4",
-      "size": 110041
+      "sha256": "b25872af32efa84fce5080a6d9833e61941cbb54732ca69567a047fca47d90c1",
+      "size": 110107
     },
     {
       "path": "hex_database.json",
