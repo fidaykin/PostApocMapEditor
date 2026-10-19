@@ -1023,7 +1023,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": false,
+      "needRoad": true,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_GoldVein_1"
@@ -1345,7 +1345,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": false,
+      "needRoad": true,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
@@ -1387,16 +1387,20 @@
         {
           "type": "Pollution",
           "amount": 100
+        },
+        {
+          "type": "Gold",
+          "amount": 250
         }
       ],
       "spendConstant": [
         {
           "type": "Food",
-          "amount": 5000
+          "amount": 500
         },
         {
           "type": "Lumber",
-          "amount": 1000
+          "amount": 100
         }
       ],
       "buildingRadius": 0,
@@ -1536,7 +1540,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": false,
+      "needRoad": true,
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
