@@ -27,13 +27,8 @@
         "Decameroon_GemField_1"
       ],
       "minLevel": 1,
-      "price": [
-        {
-          "type": "Gold",
-          "amount": 10
-        }
-      ],
-      "premiumPrice": 0,
+      "price": [],
+      "premiumPrice": 100,
       "additionalBuildCondition": false,
       "tilesTypeMode": "Parents",
       "tilesTypeValue": "",
@@ -100,8 +95,7 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
@@ -194,8 +188,7 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
@@ -292,8 +285,7 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [],
@@ -561,13 +553,8 @@
         "Decameroon_Plain_2"
       ],
       "minLevel": 1,
-      "price": [
-        {
-          "type": "Gold",
-          "amount": 1000
-        }
-      ],
-      "premiumPrice": 0,
+      "price": [],
+      "premiumPrice": 500,
       "additionalBuildCondition": false,
       "tilesTypeMode": "Parents",
       "tilesTypeValue": "",
@@ -954,8 +941,7 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
@@ -1086,7 +1072,12 @@
       "footprint": [],
       "package": "decameroon",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [
+        {
+          "type": "Gold",
+          "amount": 10
+        }
+      ]
     },
     {
       "id": "Decameroon_SilverMine_1",
@@ -1264,8 +1255,7 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
@@ -1452,8 +1442,7 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
@@ -1546,8 +1535,7 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2",
-        "Plain_1"
+        "Decameroon_Plain_2"
       ],
       "minLevel": 1,
       "price": [
