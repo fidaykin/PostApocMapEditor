@@ -3,19 +3,24 @@
   "id": "decameroon",
   "version": "1.0.17",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-17T15:17:02.608Z",
-  "totalBytes": 21775971,
+  "generatedAt": "2026-10-19T13:21:19.781Z",
+  "totalBytes": 22193180,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "87d181d0944d9e4f1c41f7e525104f4b16508a14d162434820a680fa785b106a",
-      "size": 56565
+      "sha256": "c885e78402c3a8e3a30e7a0a542e1c748acc145515b67c515c0935c1669a079c",
+      "size": 110238
     },
     {
       "path": "hex_database.json",
-      "sha256": "8b980b4210df56f9f335481f17f8aebc14b5f3b251435d8ba33e0eb61c45abca",
-      "size": 79631
+      "sha256": "9623e0b0dc30472132ef10d6f586b3db1f0598423a8db468b56bfec701c83d40",
+      "size": 82400
+    },
+    {
+      "path": "sprites/buildings/BoneMine_Kaiju_1.png",
+      "sha256": "e8e8913d81e0696f3dfe1151c9b6f2c90afe391764fd6fe6f7067b437a2700f6",
+      "size": 352683
     },
     {
       "path": "sprites/buildings/Decameroon_Abbey_1.png",
@@ -114,8 +119,8 @@
     },
     {
       "path": "sprites/buildings/Decameroon_SmallShip_1.png",
-      "sha256": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b",
-      "size": 147988
+      "sha256": "22d027e9eba4da5675bcd0776fce4354350ede607db918f4dec393e511299a01",
+      "size": 156072
     },
     {
       "path": "sprites/buildings/Decameroon_SmallShipyard_1.png",
