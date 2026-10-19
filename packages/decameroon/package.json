@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.18",
+  "version": "1.0.19",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -36,6 +36,11 @@
       "version": "1.0.17",
       "date": "2026-10-19",
       "note": "test vhange Avaible Tiles Settings"
+    },
+    {
+      "version": "1.0.19",
+      "date": "2026-10-19",
+      "note": "change Premium Price cost"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
