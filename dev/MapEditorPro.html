@@ -13976,7 +13976,7 @@ const Packages = (() => {
   // The id of an entry decides its package (ClickUp 869fjvua7). After the id was edited, an id with ANOTHER package's prefix
   // moves the record there; nothing moves when that would clash with an entry of the target package or take a road/bridge out of
   // the base package. rec is changed in place. kind: 'hex' | 'bld'. Returns { moved, from, to } or { moved:false, problem? }.
-  function movePackageByPrefix(rec, records, kind) {
+  function movePackageByPrefix(rec, records, kind, opts = {}) {
     const to = packageForId(rec && rec.id);
     const from = (rec && rec.package) || 'postapoc';
     if (!to || to === from) return { moved: false };
@@ -13984,10 +13984,59 @@ const Packages = (() => {
       return { moved: false, problem: `"${rec.id}" is a road or bridge: roads are global (base package only), it stays in "${from}"` };
     if (records.some(o => o !== rec && o.id === rec.id && (o.package || 'postapoc') === to))
       return { moved: false, problem: `Package "${to}" already has an entry "${rec.id}"; this one stays in "${from}"` };
+    if (opts.dryRun) return { moved: true, from, to };
     const source = { ...rec, package: from };
     rec.package = to;
     aliasSourceSprite(rec, source, kind);
     return { moved: true, from, to };
+  }
+
+  // Records whose id carries ANOTHER package's prefix (made before the id decided the package: Copy, Paste, Change ID kept the
+  // old package). Dry run: { moves:[{ kind, id, from, to }], problems:[text] } for the given { hex, bld } lists.
+  function rehomePlan(lists) {
+    const moves = [], problems = [];
+    for (const [kind, records] of [['hex', lists.hex || []], ['bld', lists.bld || []]])
+      for (const rec of records) {
+        const r = movePackageByPrefix(rec, records, kind, { dryRun: true });
+        if (r.moved) moves.push({ kind, id: rec.id, from: r.from, to: r.to });
+        else if (r.problem) problems.push(r.problem);
+      }
+    return { moves, problems };
+  }
+
+  // PACKAGES tab: "Fix packages by id prefix". Shows what would move, moves it only after the confirm. Nothing is published.
+  function openRehomeDialog() {
+    const lists = { hex: HexDB.getAll(), bld: BldDB.getAll() };
+    const plan = rehomePlan(lists);
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'rehome-body' });
+    if (!plan.moves.length && !plan.problems.length) {
+      root.appendChild(T('p', 'Nothing to fix: every tile and building has the package its id prefix names.', { id: 'rehome-none' }));
+    } else {
+      if (plan.moves.length) {
+        root.appendChild(T('p', `${plan.moves.length} record(s) will move to the package their id prefix names:`, { id: 'rehome-summary' }));
+        const ul = T('ul', null, { id: 'rehome-list' });
+        for (const m of plan.moves.slice(0, 60)) ul.appendChild(T('li', `${m.kind === 'hex' ? 'tile' : 'building'} ${m.id}: ${m.from} → ${m.to}`));
+        if (plan.moves.length > 60) ul.appendChild(T('li', `…and ${plan.moves.length - 60} more`));
+        root.appendChild(ul);
+      }
+      if (plan.problems.length) {
+        root.appendChild(T('p', `${plan.problems.length} record(s) cannot move and stay:`, { className: 'pkg-notice warn' }));
+        const ul = T('ul', null, { id: 'rehome-problems' });
+        for (const t of plan.problems.slice(0, 30)) ul.appendChild(T('li', t));
+        root.appendChild(ul);
+      }
+      root.appendChild(T('p', 'Nothing is published. Afterwards publish the packages that changed (the one that lost records and the one that got them).', { style: 'font-size:12px;color:var(--muted)' }));
+    }
+    let m;
+    const actions = [{ label: plan.moves.length ? 'Cancel' : 'Close', onClick: () => m.close('cancel') }];
+    if (plan.moves.length) actions.push({ label: `Move ${plan.moves.length} record(s)`, primary: true, onClick: () => {
+      const a = BldDB.rehomeByPrefix(), b = HexDB.rehomeByPrefix();
+      m.close('applied');
+      UI.toast(`Moved ${a.moved + b.moved} record(s) by id prefix`);
+      renderPanel();
+    } });
+    m = UI.showModal({ id: 'rehome-modal', title: 'Fix packages by id prefix', body: root, modal: true, actions });
   }
 
   // A pasted copy belongs to the ACTIVE non-base package: its id loses the source package's prefix and gets the active one,
@@ -14126,7 +14175,8 @@ const Packages = (() => {
     }
     kids.push(_el('div', { style: 'display:flex;gap:8px;margin:12px 0' },
       _btn('↑ Import Package', 'Create a package from a ZIP exported by this editor', () => openImportModal()),
-      _btn('+ New Package', 'Create an empty package and make it active', () => openNewModal())));
+      _btn('+ New Package', 'Create an empty package and make it active', () => openNewModal()),
+      _btn('Fix packages by id prefix', 'Move tiles and buildings whose id starts with another package\u2019s prefix (for example Medieval20_) into that package', () => openRehomeDialog(), { id: 'rehome-btn' })));
 
     const tbody = _el('tbody');
     for (const p of _registry) {
@@ -16305,7 +16355,7 @@ const Packages = (() => {
     }
   }
 
-  return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix, packageForId, movePackageByPrefix, adoptPastedRecord,
+  return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix, packageForId, movePackageByPrefix, adoptPastedRecord, rehomePlan, openRehomeDialog,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
            isPkgVisible, togglePkgFilter,
            spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openTerrainUpload, openNewModal, closeNewModal, _autoSlugId, createPackage,
@@ -19279,6 +19329,21 @@ const HexDB = (() => {
   }
 
   // ── Read inputs → data ────────────────────────────────────
+  // Moves every tile whose id names another package's prefix (PACKAGES tab: Fix packages by id prefix).
+  function rehomeByPrefix() {
+    let moved = 0;
+    for (const rec of _data.hexes) if (Packages.movePackageByPrefix(rec, _data.hexes, 'hex').moved) moved++;
+    if (moved) {
+      _autoSave();
+      _selFilt = -1;
+      _applyFilter();
+      _buildList();
+      UI.buildPalette();
+      Canvas.render();
+    }
+    return { moved };
+  }
+
   // An id with another package's prefix moves the tile to that package (ClickUp 869fjvua7).
   function _movePackageByPrefix() {
     if (_selFilt < 0 || _selFilt >= _filtered.length) return;
@@ -20252,7 +20317,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, rehomeByPrefix, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
 })();
 
 window.HexDB = HexDB;
@@ -21167,6 +21232,22 @@ const BldDB = (() => {
     });
   }
 
+  // Moves every building whose id names another package's prefix (PACKAGES tab: Fix packages by id prefix).
+  function rehomeByPrefix() {
+    let moved = 0;
+    for (const rec of _data.buildings) if (Packages.movePackageByPrefix(rec, _data.buildings, 'bld').moved) moved++;
+    if (moved) {
+      _autoSave();
+      _syncLive();
+      _selFilt = -1;
+      _applyFilter();
+      _buildList();
+      const right = document.getElementById('bld-right');
+      if (right) right.innerHTML = '<div class="hexdb-empty"><div>Select a building</div></div>';
+    }
+    return { moved };
+  }
+
   // An id with another package's prefix moves the building to that package (ClickUp 869fjvua7).
   function _movePackageByPrefix() {
     if (_selFilt < 0 || _selFilt >= _filtered.length) return;
@@ -21698,7 +21779,7 @@ const BldDB = (() => {
 
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
            mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage,
-           pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
+           pushRecord, deleteSelected, copy, paste, rehomeByPrefix, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
 window.BldDB = BldDB;
