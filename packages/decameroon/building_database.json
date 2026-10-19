@@ -27,7 +27,12 @@
         "Decameroon_GemField_1"
       ],
       "minLevel": 1,
-      "price": [],
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 1000
+        }
+      ],
       "premiumPrice": 100,
       "additionalBuildCondition": false,
       "tilesTypeMode": "Parents",
