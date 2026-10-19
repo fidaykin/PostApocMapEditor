@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "id": "decameroon",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-19T16:13:30.320Z",
-  "totalBytes": 22682121,
+  "generatedAt": "2026-10-19T16:30:41.157Z",
+  "totalBytes": 22474784,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "adcca781d96f9c1fa2523fde7a97945d3f3b4d1ac67c27129567b7ada2c6fab4",
-      "size": 110031
+      "sha256": "99ccbd7d6facad8d1881612536c7428a263a09ba7fb2b9c4ac3f76ca6ea14457",
+      "size": 109963
     },
     {
       "path": "hex_database.json",
@@ -23,129 +23,129 @@
       "size": 352683
     },
     {
-      "path": "sprites/buildings/Decameroon_Abbey_1.png",
-      "sha256": "d087cda237de76086d8ad108696ef7a7d8107d35f25f6c4950de6f99482c2e4a",
-      "size": 258829
+      "path": "sprites/buildings/Medieval_Abbey_1.png",
+      "sha256": "52f496d2016b8aa078da7e960ed89e5a2ced95eeecf1c53c87b4d2f158a8f9fb",
+      "size": 224108
     },
     {
-      "path": "sprites/buildings/Decameroon_Alchemist_1.png",
-      "sha256": "65b5a963a7a0c606032b2e8e48eb5fe312020dba4e17e00021feedbd89a5d6af",
-      "size": 311500
+      "path": "sprites/buildings/Medieval_Alchemist_1.png",
+      "sha256": "84a3a936c34189d539a7830ef0561d293365fcd54db0eab6f9d7e8a348da5548",
+      "size": 277351
     },
     {
-      "path": "sprites/buildings/Decameroon_Artefact_1.png",
+      "path": "sprites/buildings/Medieval_Artefact_1.png",
       "sha256": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c",
       "size": 286968
     },
     {
-      "path": "sprites/buildings/Decameroon_Farm_1.png",
-      "sha256": "eb6099ddc3e078d8a6b4cf7b4ecc15232c8a650e001a5c8ccd51db091beb1058",
-      "size": 284814
+      "path": "sprites/buildings/Medieval_Farm_1.png",
+      "sha256": "4ff028f97670400a3b36b9f0d920b68538c074d41b7dda6d6064fe6d37533c78",
+      "size": 279275
     },
     {
-      "path": "sprites/buildings/Decameroon_FishTrap_1.png",
+      "path": "sprites/buildings/Medieval_FishTrap_1.png",
       "sha256": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368",
       "size": 127488
     },
     {
-      "path": "sprites/buildings/Decameroon_ForestHut_1.png",
-      "sha256": "06c777a2f9d2ea40684538b9121b262ca18e9043986be3587879046afb81292a",
-      "size": 256418
+      "path": "sprites/buildings/Medieval_ForestHut_1.png",
+      "sha256": "d79880410765c06d0ece0061d277fcb8482fe746a21fd372603d6771a2544e60",
+      "size": 272116
     },
     {
-      "path": "sprites/buildings/Decameroon_GemMine_1.png",
-      "sha256": "88e69929a8070277c712423ca47351907986038d4f3c8c5b880df4327ccb524f",
-      "size": 319457
+      "path": "sprites/buildings/Medieval_GemMine_1.png",
+      "sha256": "ad284549453607a151ad3f900a5682b50c51641471fcf7cc3526ad755427166d",
+      "size": 336747
     },
     {
-      "path": "sprites/buildings/Decameroon_GoldMine_1.png",
-      "sha256": "96095ad1bb94d14cae387b1f0a364d900b6f1d58f982d3d744f2662eee815efa",
-      "size": 313531
+      "path": "sprites/buildings/Medieval_GoldMine_1.png",
+      "sha256": "0e83635a522572b61fd104e8e72e4b0b18f50587d5712c13155913dbcb2c7c5f",
+      "size": 301045
     },
     {
-      "path": "sprites/buildings/Decameroon_GoldMine_Big_1.png",
-      "sha256": "f7ca515696ef333630a419d6ded15d9ff7a3362db30633f051940b216a6ced50",
-      "size": 338385
+      "path": "sprites/buildings/Medieval_GoldMine_Big_1.png",
+      "sha256": "3e5447e98de987f1eff3763f77f86d976a66ee65ad15a62f35c0378cfb948cd9",
+      "size": 336718
     },
     {
-      "path": "sprites/buildings/Decameroon_LumberMill_1.png",
-      "sha256": "52478068095515583b5194bdd5d489b44e6155a29e75b69122f44b4b32be4be6",
-      "size": 280169
+      "path": "sprites/buildings/Medieval_LumberMill_1.png",
+      "sha256": "9ae39c5fe1e57fa61e7e2c9d9c55236e33d7826dbc5b23f9ceec0542d2b5660a",
+      "size": 270575
     },
     {
-      "path": "sprites/buildings/Decameroon_LumberMill_Big_1.png",
-      "sha256": "73a5665988479b81a99f0288ed04d615c236ed2c80c6916131d759f06e0118ab",
-      "size": 308960
+      "path": "sprites/buildings/Medieval_LumberMill_Big_1.png",
+      "sha256": "9ff5d2bd1cfaf5dd837619fe30bdd640bfe31710b7ae46c1f70aa20022aa7f83",
+      "size": 291624
     },
     {
-      "path": "sprites/buildings/Decameroon_LumberMill_Industrial_1.png",
-      "sha256": "9b507bd5855db05f91fdc0e25d6bc58db9e4a31fe6a9616d6f4bf5d52bbdda76",
-      "size": 333961
+      "path": "sprites/buildings/Medieval_LumberMill_Industrial_1.png",
+      "sha256": "52c26f7215ed4f4c6262a54116f48ecb4ccb973d386feb4d5afda76ee46706c3",
+      "size": 307888
     },
     {
-      "path": "sprites/buildings/Decameroon_Market_1.png",
-      "sha256": "889a802faaf961246da3bc9d9a42d72287e6412257cc1599a1a005699b41fb2d",
-      "size": 277363
+      "path": "sprites/buildings/Medieval_Market_1.png",
+      "sha256": "b722966a816f869a02d6478f7a9f8ef4763e3b8a84395c7ced1f14d9b5aeb3f6",
+      "size": 284533
     },
     {
-      "path": "sprites/buildings/Decameroon_Mill_1.png",
-      "sha256": "5881fd4dd4aad044101e0e6b9056642663cd9527558a05a5ec2174e9f9d6a754",
-      "size": 318766
+      "path": "sprites/buildings/Medieval_Mill_1.png",
+      "sha256": "33441177b5f080208c760cf899270b2fe50c2e63c1643ca548a5037caa67d71e",
+      "size": 287251
     },
     {
-      "path": "sprites/buildings/Decameroon_Monastery_1.png",
-      "sha256": "2c361c445c8df0945e98c5762326563795ff7147a2a5a58e82ef9ca538a15aed",
-      "size": 313441
+      "path": "sprites/buildings/Medieval_Monastery_1.png",
+      "sha256": "cfde9d2ac1abe4992219631e054cfda89247444066f876c850e1d6c48a7c0804",
+      "size": 273891
     },
     {
-      "path": "sprites/buildings/Decameroon_OreMine_1.png",
-      "sha256": "68163251c493d75f0d7eaa2bd8efcf1a2bfb6bfae5f8589f0c5c0e8491b5fff1",
-      "size": 265158
+      "path": "sprites/buildings/Medieval_OreMine_1.png",
+      "sha256": "42e4b2f3d4d05e871f415bf5c56a531d32055606b3bd91b2ec3bf2a69819a92d",
+      "size": 258064
     },
     {
-      "path": "sprites/buildings/Decameroon_OreWorkshop_1.png",
-      "sha256": "788b8d925f84c421e8e248290602448c4e1d3a730ff9f14d9584f3fc10e9debb",
-      "size": 272876
+      "path": "sprites/buildings/Medieval_OreWorkshop_1.png",
+      "sha256": "3a56b3ae6e1b60fbb116d10e72759dda9b1e43fe946adad035606959b7ed005d",
+      "size": 305226
     },
     {
-      "path": "sprites/buildings/Decameroon_Plantation_1.png",
-      "sha256": "995152d8e61cdce583c6e45a6c3b2ad3be2a92a222ec726404a41914e5336ab6",
-      "size": 340015
+      "path": "sprites/buildings/Medieval_Plantation_1.png",
+      "sha256": "6dd943181d0adbe18a8b9065bf31c2fce6df9ad4d239140a7dd1b27e734535fa",
+      "size": 307909
     },
     {
-      "path": "sprites/buildings/Decameroon_SilverMine_1.png",
-      "sha256": "4844b3dd0a179612b591712fe0be448f894ded812403f1925147be00890d2ed3",
-      "size": 307319
+      "path": "sprites/buildings/Medieval_SilverMine_1.png",
+      "sha256": "fa0b909d34549c4d8f8fcbfa120861db63b50609bbaec882a85b22e866111565",
+      "size": 279475
     },
     {
-      "path": "sprites/buildings/Decameroon_SmallShip_1.png",
-      "sha256": "22d027e9eba4da5675bcd0776fce4354350ede607db918f4dec393e511299a01",
-      "size": 156072
+      "path": "sprites/buildings/Medieval_SmallShip_1.png",
+      "sha256": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b",
+      "size": 147988
     },
     {
-      "path": "sprites/buildings/Decameroon_SmallShipyard_1.png",
+      "path": "sprites/buildings/Medieval_SmallShipyard_1.png",
       "sha256": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807",
       "size": 334648
     },
     {
-      "path": "sprites/buildings/Decameroon_StoneConveyor_1.png",
-      "sha256": "07d35223ed7ce3ffb3f5a5a3459de95d91c2b7e2481ab13980b14483ce6ee9db",
-      "size": 293677
+      "path": "sprites/buildings/Medieval_StoneConveyor_1.png",
+      "sha256": "ae006ff84658298241a8298c2785dcd5ad1e88fea138474d5e157d239389edab",
+      "size": 299296
     },
     {
-      "path": "sprites/buildings/Decameroon_StoneMineBig_1.png",
-      "sha256": "f44188e093a02990b9276de0d56555d30e9cda68e4d47be2c4f78bb2bccef690",
-      "size": 299271
+      "path": "sprites/buildings/Medieval_StoneMineBig_1.png",
+      "sha256": "700f4a9f85e3cf4d3c80316d604afcc82f2957a66dc97f56c9759bf1d97fe9f5",
+      "size": 292169
     },
     {
-      "path": "sprites/buildings/Decameroon_StoneMine_1.png",
-      "sha256": "93786fb30c55eb99558b2edf6041a8b919f371956bfb740560ba6f4d39cba66d",
-      "size": 243272
+      "path": "sprites/buildings/Medieval_StoneMine_1.png",
+      "sha256": "809f530621b6591a5b42598bc8b933b6c4c96af8e826f230427668fd754c9d10",
+      "size": 254874
     },
     {
-      "path": "sprites/buildings/Decameroon_Tavern_1.png",
-      "sha256": "2852b3c4a510f550e4b227e5cfc89a81077edfcd77325ff75a2543acf95b1507",
-      "size": 308749
+      "path": "sprites/buildings/Medieval_Tavern_1.png",
+      "sha256": "e42e9d9a940b67cab416b96f4b3851f5a44fd731006c4d088ebaf4a26931412c",
+      "size": 306611
     },
     {
       "path": "sprites/hex/Decameroon_LavaPlain_1.png",
