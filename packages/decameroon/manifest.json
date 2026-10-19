@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "id": "decameroon",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-19T18:03:58.270Z",
-  "totalBytes": 22474862,
+  "generatedAt": "2026-10-19T18:38:12.612Z",
+  "totalBytes": 22825119,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "3b8eb604c6f43c1405dbb0575209cd9ccf14079a02f702d84c89590ed063dc33",
+      "sha256": "90331ba93f737992be98f619590078d184521504ed69409be887fd447cd426c4",
       "size": 110041
     },
     {
       "path": "hex_database.json",
-      "sha256": "294257e5facc6d7d70f1758f6201dc939ff9aae1aa8c7ed35ee98dca57a5148f",
-      "size": 83751
+      "sha256": "3f76638ce72ffba656b3cb3b72600847f942983a553155ddeeeb5d8526ad2475",
+      "size": 85063
     },
     {
       "path": "sprites/buildings/BoneMine_Kaiju_1.png",
@@ -176,6 +176,11 @@
       "path": "sprites/hex/Decameroon_Settlements_Small_1.png",
       "sha256": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5",
       "size": 308708
+    },
+    {
+      "path": "sprites/hex/FarmGrain.png",
+      "sha256": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345",
+      "size": 348945
     },
     {
       "path": "sprites/hex/Medieval_Barren_1.png",
