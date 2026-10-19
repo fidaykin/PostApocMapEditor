@@ -13988,24 +13988,29 @@ const Packages = (() => {
     return { moved: true, from, to };
   }
 
-  // A pasted copy belongs to the ACTIVE package: its id loses the source package's prefix and gets the active one, then
-  // '_copy' (numbered when that id is taken in the package). clone is changed in place.
+  // A pasted copy belongs to the ACTIVE non-base package: its id loses the source package's prefix and gets the active one,
+  // then '_copy' (numbered when that id is taken in the package). With the base package active nothing is re-homed (the
+  // copy keeps its source package and id + '_copy'; a taken id is numbered too). clone is changed in place.
   function adoptPastedRecord(clone, records, kind) {
     const src = clone.package || 'postapoc';
     const active = getActive();
+    const target = active === 'postapoc' ? src : active;
     let id = String(clone.id || '');
-    const sp = idPrefix(src);
-    if (sp && id.startsWith(sp)) id = id.slice(sp.length);
-    const stem = idPrefix(active) + id + '_copy';
+    if (active !== 'postapoc') {
+      const sp = idPrefix(src);
+      if (sp && id.startsWith(sp)) id = id.slice(sp.length);
+      id = idPrefix(active) + id;
+    }
+    const stem = id + '_copy';
     let cand = stem, n = 2;
-    while (records.some(o => o.id === cand && (o.package || 'postapoc') === active)) cand = stem + (n++);
+    while (records.some(o => o.id === cand && (o.package || 'postapoc') === target)) cand = stem + (n++);
     clone.id = cand;
-    if (active !== 'postapoc') clone.package = active;
-    else if (clone.package !== undefined) clone.package = 'postapoc';
-    if (src !== active) aliasSourceSprite(clone, { ...clone, package: src }, kind);
+    if (active !== 'postapoc') {
+      clone.package = active;
+      if (src !== active) aliasSourceSprite(clone, { ...clone, package: src }, kind);
+    }
   }
 
-  // The remembered/active package may have been deleted elsewhere: fall back to the default and say so.
   function _ensureActiveExists() {
     if (getEntry(_active)) return;
     const gone = _active;
