@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -39,7 +39,7 @@
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 21775971,
+  "totalBytes": 22193180,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
