@@ -5,6 +5,9 @@ Format: `## [version] — [date]`
 
 ## Unreleased
 
+### Maps
+- Publish Map now also writes `updatedAt` (the full ISO time of the publish) next to `uploadedTime` (the date) in `maps/map_list.json`. The game's Maps tab compares it with the time it last applied the map, so a map republished on the same day with the same size is recognised as updated. Entries published earlier have no `updatedAt`; the game then falls back to date and size.
+
 ### UI
 - PACKAGES: new **Fix packages by id prefix** button (ClickUp 869fjygem). Records made before the id decided the package (Copy, Paste, Change ID kept the old package) sit in the wrong package with, for example, a `Medieval20_` id inside Decameroon, so Publish Decameroon warned about the missing sprites of all of them. The dialog lists the tiles and buildings that would move to the package their id prefix names and the ones that cannot (an entry of that id already exists there, or a road or bridge), and moves them only after the confirm; nothing is published. Afterwards publish the package that lost the records and the one that got them.
 - The id of a BUILDINGS or HEX DB entry decides its package (ClickUp 869fjvua7). Paste now puts the copy into the **active package** (when it is not the base package): it drops the source package's id prefix, gets the active one (`Medieval20_Farm_1_copy`, numbered `_copy2` when taken) and the active package, in both databases. Typing another package's prefix into an id (`Medieval20_Building_1`) moves the entry to that package when the field is left, with a toast; nothing moves when the target package already has that id (a warning says so) or for a road or bridge, which stay in the base package. Before, Copy, Paste and Change ID left the old package in the record, so Medieval entries showed under Decameroon and were not part of the Medieval package or the build. Both forms show a read-only **Package** row, so the field that really decides it is no longer hidden.

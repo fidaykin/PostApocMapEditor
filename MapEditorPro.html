@@ -10032,6 +10032,7 @@ const GitHubSync = (() => {
         fileName: `${fname}.json`,
         size: String(new TextEncoder().encode(mapJson).length),
         uploadedTime: new Date().toISOString().substring(0, 10),
+        updatedAt: new Date().toISOString(),   // full time: the game compares it to tell a republished map from the one it has
       };
       const idx = list.maps.findIndex(m => m.fileName === entry.fileName);
       if (idx >= 0) list.maps[idx] = entry; else list.maps.push(entry);
