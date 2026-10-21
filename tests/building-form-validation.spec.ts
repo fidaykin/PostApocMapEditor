@@ -126,3 +126,29 @@ test.describe('Buildings form: id suggestions and checks', () => {
     await expect(f).toHaveValue('FormTest_1');
   });
 });
+
+test.describe('Buildings form: Pick… list', () => {
+  test('Available Tiles: pick tile ids and types from the list, unknown typed names stay', async ({ page }) => {
+    await setup(page, { availableTiles: ['Typed_Unknown'] });
+    await page.locator('button.hexdb-tag-pick[data-tags-field="availableTiles"]').click();
+    await expect(page.locator('#tag-picker-body')).toBeVisible();
+    await page.locator('#tag-picker-search').fill('plain');
+    await expect(page.locator('#tag-picker-body input[data-id="FormHex_Plain_1"]')).toBeVisible();
+    await expect(page.locator('#tag-picker-body input[data-id="FormHex_Lake_1"]')).toBeHidden();
+    await page.locator('#tag-picker-body input[data-id="FormHex_Plain_1"]').check();
+    await page.locator('#tag-picker-search').fill('');
+    await page.locator('#tag-picker-body input[data-id="Water"]').check();
+    await page.locator('#tag-picker-modal button', { hasText: 'Apply' }).click();
+    expect((await rec(page)).availableTiles).toEqual(['Typed_Unknown', 'FormHex_Plain_1', 'Water']);
+  });
+
+  test('Produce: lists buildings and tiles; unchecking removes the id', async ({ page }) => {
+    await setup(page, { canProduce: ['FormTest_1'] });
+    await page.locator('button.hexdb-tag-pick[data-tags-field="canProduce"]').click();
+    await expect(page.locator('#tag-picker-body input[data-id="FormTest_1"]')).toBeChecked();
+    await page.locator('#tag-picker-body input[data-id="FormTest_1"]').uncheck();
+    await page.locator('#tag-picker-body input[data-id="FormHex_Lake_1"]').check();
+    await page.locator('#tag-picker-modal button', { hasText: 'Apply' }).click();
+    expect((await rec(page)).canProduce).toEqual(['FormHex_Lake_1']);
+  });
+});
