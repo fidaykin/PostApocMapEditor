@@ -1897,6 +1897,10 @@ body.mode-common #map-io    { display: none; }
                      onchange="DistanceBands.commit(this.value)"
                      onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){event.stopPropagation();DistanceBands.syncInput();this.blur()}">
             </div>
+            <div style="display:flex;align-items:center;gap:6px;padding-top:4px">
+              <label for="map-skin-select" title="Content package that repaints this map in the game (visuals only). none: the map is drawn by its own tiles. Saved in the map as skin.">Skin</label>
+              <select id="map-skin-select" class="pkg-active-select" style="flex:1;min-width:0;max-width:none" onfocus="MapSkin.sync()" onchange="MapSkin.set(this.value)"></select>
+            </div>
             <div style="padding-top:8px" title="Scatters bunkers, mega cities, artifacts and ore clusters over free land, beyond the minimum distance from the city. One undo step. Needs the Terrain / Buildings / Settlements layers unlocked for what it writes. Same seed on the same map gives the same result; empty seed = random">Placement helper</div>
             <div id="pl-form" style="display:grid;grid-template-columns:1fr 64px;gap:3px 6px;align-items:center;padding-top:4px"></div>
             <div style="display:flex;gap:6px;padding:6px 0 4px">
@@ -2843,8 +2847,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.15";
-const COMMIT  = "53e71a6";
+const VERSION = "2026.10.21";
+const COMMIT  = "93673d9";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -11547,6 +11551,7 @@ const IO = (() => {
       data: data2d,
       settlements: settlements.map(s => ({ col: s.col, row: s.row, type: s.type }))
     };
+    if (mapSkin) result.skin = mapSkin;
     if (bridgesData.length > 0)
       result.bridges = bridgesData.map(b => ({ col: b.col, row: b.row, axis: b.axis }));
     const objEntries = Object.entries(objectsData);
@@ -11934,7 +11939,7 @@ const IO = (() => {
   function _snapshotMapState() {
     if (!mapData) return null;
     return {
-      w: MAP_WIDTH, h: MAP_HEIGHT, mapData, bridgesData, objectsData, tileExtras, roadsData,
+      w: MAP_WIDTH, h: MAP_HEIGHT, mapData, bridgesData, objectsData, tileExtras, roadsData, skin: mapSkin,
       settlements, settlementSlots, settlementPriority1, settlementPriority2, fileName: _currentFileName, bands: DistanceBands.toJson(),
       zones: typeof ZonePainter !== 'undefined' ? JSON.parse(JSON.stringify(ZonePainter.toSaveObject())) : null,
     };
@@ -11943,7 +11948,7 @@ const IO = (() => {
     MAP_WIDTH = s.w; MAP_HEIGHT = s.h; mapData = s.mapData; bridgesData = s.bridgesData; objectsData = s.objectsData;
     if (typeof Bookmarks !== 'undefined') Bookmarks.refresh();
     bumpMapWrite(); _mapGen++;
-    tileExtras = s.tileExtras; roadsData = s.roadsData; settlements = s.settlements; settlementSlots = s.settlementSlots;
+    tileExtras = s.tileExtras; roadsData = s.roadsData; MapSkin.reset(s.skin); settlements = s.settlements; settlementSlots = s.settlementSlots;
     settlementPriority1 = s.settlementPriority1; settlementPriority2 = s.settlementPriority2;
     _setFileName(s.fileName);
     DistanceBands.fromJson(s.bands);
@@ -11987,6 +11992,7 @@ const IO = (() => {
       roadsData = {};
       if (Array.isArray(json.roads))
         json.roads.forEach(r => { const { col, row, ...rest } = r; roadsData[col + ',' + row] = rest; });
+      MapSkin.reset(json.skin);
       // Detect old integer format: data[0][0] is a number → migrate to hex ID strings
       const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -12069,6 +12075,7 @@ const IO = (() => {
       objectsData = {};
       tileExtras  = {};
       roadsData   = {};
+      MapSkin.reset('');
       settlements = [defaultCityEntry(MAP_WIDTH, MAP_HEIGHT)];
       DistanceBands.setBounds([]);
       settlementSlots = [];
@@ -12270,6 +12277,7 @@ const IO = (() => {
       roadsData = {};
       if (Array.isArray(json.roads))
         json.roads.forEach(r => { const { col, row, ...rest } = r; roadsData[col + ',' + row] = rest; });
+      MapSkin.reset(json.skin);
       // Detect old integer format and migrate to hex ID strings
       const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -23180,6 +23188,34 @@ let bridgesData = [];   // [{col, row, axis}] — pre-placed bridges
 let objectsData = {};   // {"col,row": buildingId} — pre-placed building objects
 let tileExtras  = {};   // {"col,row": {underTerrainId}} — per-tile overrides for bridge under-terrain etc.
 let roadsData   = {};   // {"col,row": {type}} — painted road tiles
+let mapSkin     = '';   // package id the game uses to repaint this map ('' = none); written as "skin"
+
+// The map's skin: one content package that repaints the base records (skinSlot) when the game loads the map.
+const MapSkin = (() => {
+  function get() { return mapSkin; }
+  function set(id) {
+    const next = typeof id === 'string' ? id.trim() : '';
+    if (next === mapSkin) return;
+    mapSkin = next;
+    if (typeof IO !== 'undefined' && IO.scheduleAutoSave) IO.scheduleAutoSave();
+  }
+  // Options: none + every non-default package of the registry; a skin the registry no longer has stays selectable.
+  function sync() {
+    const sel = document.getElementById('map-skin-select');
+    if (!sel) return;
+    const ids = (typeof Packages !== 'undefined' ? Packages.getAll() : []).filter(p => p && p.id && !p.isDefault).map(p => p.id);
+    if (mapSkin && !ids.includes(mapSkin)) ids.push(mapSkin);
+    sel.textContent = '';
+    [''].concat(ids).forEach(id => {
+      const o = document.createElement('option');
+      o.value = id; o.textContent = id || 'none';
+      sel.appendChild(o);
+    });
+    sel.value = mapSkin;
+  }
+  function reset(id) { mapSkin = typeof id === 'string' ? id.trim() : ''; sync(); }
+  return { get, set, sync, reset };
+})();
 
 // Satellite→anchor lookup: maps "col_row" → {col, row} of the owning anchor tile.
 // Rebuilt lazily whenever mapData changes. Satellite tiles are the 6 neighbours that

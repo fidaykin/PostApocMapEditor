@@ -6,6 +6,7 @@ Format: `## [version] — [date]`
 ## Unreleased
 
 ### Maps
+- Map **Skin** (left palette, Map design section, map JSON key `skin`, absent when empty): the content package that repaints this map in the game. The game adds it as the last package of the map, so its skinSlot records replace the base look (visuals only). The map keeps its own tiles; only the art changes. The choice is saved with the map, restored by autosave and cleared by New map. This release pairs with the game change `feature/map-skin-cheat`; an older game ignores the key.
 - Publish Map now also writes `updatedAt` (the full ISO time of the publish) next to `uploadedTime` (the date) in `maps/map_list.json`. The game's Maps tab compares it with the time it last applied the map, so a map republished on the same day with the same size is recognised as updated. Entries published earlier have no `updatedAt`; the game then falls back to date and size.
 
 ### UI
