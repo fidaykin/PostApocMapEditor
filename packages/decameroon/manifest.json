@@ -1,26 +1,21 @@
 {
   "schemaVersion": 1,
   "id": "decameroon",
-  "version": "1.0.24",
+  "version": "1.0.25",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-19T21:19:57.942Z",
-  "totalBytes": 22825185,
+  "generatedAt": "2026-10-21T13:55:33.489Z",
+  "totalBytes": 22414739,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "b25872af32efa84fce5080a6d9833e61941cbb54732ca69567a047fca47d90c1",
-      "size": 110107
+      "sha256": "188d9a6f95176393feb05338e9b57d640abbfc3c79329b662262742351c4423d",
+      "size": 55113
     },
     {
       "path": "hex_database.json",
-      "sha256": "3f76638ce72ffba656b3cb3b72600847f942983a553155ddeeeb5d8526ad2475",
-      "size": 85063
-    },
-    {
-      "path": "sprites/buildings/BoneMine_Kaiju_1.png",
-      "sha256": "e8e8913d81e0696f3dfe1151c9b6f2c90afe391764fd6fe6f7067b437a2700f6",
-      "size": 352683
+      "sha256": "45cf06f2cb6fdd0b2eae025cc25b88ef5f84eadce61b1ec7bccc5eb4f109ea4a",
+      "size": 82294
     },
     {
       "path": "sprites/buildings/Medieval_Abbey_1.png",
