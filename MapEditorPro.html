@@ -20728,16 +20728,140 @@ const BldDB = (() => {
     return `<div class="hexdb-row bld-roads-msg" style="font-size:12px"><span class="hexdb-label"></span><div style="flex:1">${lines}</div></div>`;
   }
 
+  // Ids the Buildings form may reference (base package + the record's own package), rebuilt on every render.
+  // Tags: availableTiles and availableTilesForProduce take tile ids or tile types, canProduce tile or building ids.
+  let _refs = { hexIds: [], types: [], bldIds: [] };
+  const _TAG_LISTS = { availableTiles: 'blddb-tile-any-list', availableTilesForProduce: 'blddb-tile-any-list', canProduce: 'blddb-ref-id-list' };
+  function _refSetFor(field) {
+    if (field === 'canProduce') return new Set([..._refs.hexIds, ..._refs.bldIds]);
+    if (_TAG_LISTS[field]) return new Set([..._refs.hexIds, ..._refs.types]);
+    return null;
+  }
+  function _collectRefs(bld) {
+    const pkg = bld.package || 'postapoc';
+    const visible = r => !r.package || r.package === 'postapoc' || r.package === pkg;
+    const hexes = (typeof HexDB !== 'undefined' ? HexDB.getAll() : []).filter(h => h.id && visible(h));
+    _refs = {
+      hexIds: [...new Set(hexes.map(h => h.id))],
+      types: [...new Set(hexes.map(h => h.type).filter(Boolean))],
+      bldIds: [...new Set((_data.buildings ?? []).filter(b => b.id && visible(b)).map(b => b.id))],
+    };
+  }
+
   function _tagsHTML(fieldName, values, disabled) {
     const dis = disabled ? ' disabled' : '';
-    const tags = (values || []).map(v =>
-      `<span class="hexdb-tag">${_esc(v)}<button class="hexdb-tag-remove"
-         data-tags-field="${fieldName}" data-value="${_esc(v)}"${dis}>✕</button></span>`
-    ).join('');
+    const known = _refSetFor(fieldName);
+    const tags = (values || []).map(v => {
+      const bad = known && !known.has(v);
+      return `<span class="hexdb-tag"${bad ? ' style="border:1px solid #e57373" title="Unknown id or type: check the name"' : ''}>${_esc(v)}<button class="hexdb-tag-remove"
+         data-tags-field="${fieldName}" data-value="${_esc(v)}"${dis}>✕</button></span>`;
+    }).join('');
+    const list = _TAG_LISTS[fieldName] ? ` list="${_TAG_LISTS[fieldName]}"` : '';
     return `<div class="hexdb-tags" data-tags-field="${fieldName}">
       ${tags}
-      <input class="hexdb-tag-input" data-tags-field="${fieldName}"
-        placeholder="type ID + Enter"${dis}></div>`;
+      <input class="hexdb-tag-input" data-tags-field="${fieldName}"${list}
+        placeholder="type ID + Enter"${dis}>${_TAG_LISTS[fieldName]
+          ? `<button type="button" class="hexdb-tool-btn hexdb-tag-pick" data-tags-field="${fieldName}" title="Pick from the list of tiles${fieldName === 'canProduce' ? ' and buildings' : ' and types'}"${dis}>Pick…</button>` : ''}</div>`;
+  }
+
+  // Single choice from a searchable list, written into a text input (Tiles Type value).
+  function _openValuePicker(inputId, items, title) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'value-picker-body' });
+    const search = T('input', null, { className: 'hexdb-input', placeholder: 'search', id: 'value-picker-search', style: 'width:100%;margin-bottom:6px' });
+    const box = T('div', null, { style: 'max-height:320px;overflow:auto' });
+    root.append(search, box);
+    let picked = input.value;
+    const rows = [];
+    for (const id of items) {
+      const lab = T('label', null, { style: 'display:flex;gap:6px;align-items:center;padding:1px 0;cursor:pointer' });
+      const rb = T('input', null, { type: 'radio', name: 'value-picker', checked: id === picked });
+      rb.dataset.id = id;
+      rb.onchange = () => { picked = id; };
+      lab.append(rb, T('span', id));
+      box.appendChild(lab);
+      rows.push([id, lab]);
+    }
+    search.oninput = () => { const q = search.value.trim().toLowerCase(); for (const [id, lab] of rows) lab.style.display = !q || id.toLowerCase().includes(q) ? '' : 'none'; };
+    let m;
+    m = UI.showModal({ id: 'value-picker-modal', title, body: root, modal: true,
+      actions: [
+        { label: 'Cancel', onClick: () => m.close('cancel') },
+        { label: 'Apply', primary: true, onClick: () => {
+          input.value = picked;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          m.close('applied');
+        } },
+      ] });
+  }
+
+  // Searchable checklist of the known ids for a tag field; Apply replaces the field with the checked ones (names the
+  // list does not know stay, so nothing typed earlier is lost).
+  function _openTagPicker(field) {
+    if (_selFilt < 0) return;
+    const bldObj = _data.buildings[_filtered[_selFilt]];
+    const known = field === 'canProduce'
+      ? [['Buildings', _refs.bldIds], ['Tiles', _refs.hexIds]]
+      : [['Types', _refs.types], ['Tiles', _refs.hexIds]];
+    const chosen = new Set(Array.isArray(bldObj[field]) ? bldObj[field] : []);
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'tag-picker-body' });
+    const search = T('input', null, { className: 'hexdb-input', placeholder: 'search', id: 'tag-picker-search', style: 'width:100%;margin-bottom:6px' });
+    const box = T('div', null, { style: 'max-height:320px;overflow:auto' });
+    root.append(search, box);
+    const rows = [];
+    for (const [title, ids] of known) {
+      box.appendChild(T('div', title, { style: 'margin:8px 0 3px;color:var(--muted);font-size:12px' }));
+      for (const id of ids) {
+        const lab = T('label', null, { style: 'display:flex;gap:6px;align-items:center;padding:1px 0;cursor:pointer' });
+        const cb = T('input', null, { type: 'checkbox', checked: chosen.has(id) });
+        cb.dataset.id = id;
+        cb.onchange = () => { if (cb.checked) chosen.add(id); else chosen.delete(id); };
+        lab.append(cb, T('span', id));
+        box.appendChild(lab);
+        rows.push([id, lab]);
+      }
+    }
+    search.oninput = () => { const q = search.value.trim().toLowerCase(); for (const [id, lab] of rows) lab.style.display = !q || id.toLowerCase().includes(q) ? '' : 'none'; };
+    let m;
+    m = UI.showModal({ id: 'tag-picker-modal', title: field === 'canProduce' ? 'Pick tiles and buildings' : 'Pick tile ids and types', body: root, modal: true,
+      actions: [
+        { label: 'Cancel', onClick: () => m.close('cancel') },
+        { label: 'Apply', primary: true, onClick: () => {
+          const all = new Set(known.flatMap(([, ids]) => ids));
+          const kept = (Array.isArray(bldObj[field]) ? bldObj[field] : []).filter(v => !all.has(v));
+          bldObj[field] = [...kept, ...[...chosen].filter(v => all.has(v))];
+          _autoSave();
+          m.close('applied');
+          _renderRecord(bldObj);
+        } },
+      ] });
+  }
+
+  // Integer-only numeric fields (ClickUp: Price, Premium Price, Min Level, Radius checks). Keys that make a number
+  // non-integer are blocked, and on change the value becomes a clean integer in range (no leading zeros, no sign,
+  // empty -> the default).
+  const _INT_FIELDS = {
+    'bld-f-minLevel':      { min: 1, max: 1000,    def: 1 },
+    'bld-f-premiumPrice':  { min: 0, max: 1000000, def: 0 },
+    'bld-f-radius':        { min: 0, max: 10000,   def: 0 },
+    'bld-f-buildingRadius':{ min: 0, max: 10000,   def: 0 },
+  };
+  function _cleanInt(raw, { min, max, def }) {
+    const n = Math.trunc(parseFloat(String(raw ?? '').replace(',', '.')));
+    if (!Number.isFinite(n)) return def;
+    return Math.min(max, Math.max(min, n));
+  }
+  function _wireIntFields(root) {
+    for (const [id, cfg] of Object.entries(_INT_FIELDS)) {
+      const el = root.querySelector('#' + id);
+      if (!el) continue;
+      el.addEventListener('keydown', e => { if (['.', 'e', 'E', '+', '-', ','].includes(e.key)) e.preventDefault(); });
+      // capture: runs before the form's own change listener, so the record is saved from the clean value
+      el.addEventListener('change', () => { el.value = String(_cleanInt(el.value, cfg)); }, true);
+    }
   }
 
   function _resBlockHTML(fieldName, rows, disabled, resTypes) {
@@ -20775,6 +20899,7 @@ const BldDB = (() => {
   function _renderRecord(bld) {
     const right = document.getElementById('bld-right');
     const g = id => document.getElementById(id);
+    _collectRefs(bld);
     const col = s => _secState[s] ? '▶' : '▼';
     const bod = s => _secState[s] ? 'none' : 'block';
     // Same-id + same-package = real error. Same-id + different-package = intentional
@@ -20885,8 +21010,8 @@ const BldDB = (() => {
               <option${bld.destroyTransformToMode === 'Parents' ? ' selected' : ''}>Parents</option>
               <option${bld.destroyTransformToMode === 'HexID'   ? ' selected' : ''}>HexID</option>
             </select>
-            <input class="hexdb-input" id="bld-f-destroyTransformTo" type="text" placeholder="Tile ID"
-              list="blddb-hex-id-list"
+            <input class="hexdb-input" id="bld-f-destroyTransformTo" type="text" placeholder="Tile or building ID"
+              list="blddb-ref-id-list"
               value="${_esc(bld.destroyTransformTo)}"
               style="flex:1${bld.destroyTransformToMode === 'Parents' ? ';display:none' : ''}">
           </div>` : `<input class="hexdb-input" value="Unbreakable" style="width:160px" disabled>`}</div>
@@ -20934,8 +21059,10 @@ const BldDB = (() => {
               <option${bld.tilesTypeMode === 'Type'    ? ' selected' : ''}>Type</option>
             </select>
             <input class="hexdb-input" id="bld-f-tilesTypeValue" type="text" placeholder="ID or Type"
+              list="${bld.tilesTypeMode === 'Type' ? 'blddb-tile-type-list' : 'blddb-tile-id-list'}"
               value="${_esc(bld.tilesTypeValue)}"
               style="flex:1${bld.tilesTypeMode === 'Parents' ? ';display:none' : ''}">
+            <button type="button" id="bld-tilesType-pick" class="hexdb-tool-btn" title="Pick from the list"${bld.tilesTypeMode === 'Parents' ? ' style="display:none"' : ''}>Pick…</button>
           </div></div>
         <div class="hexdb-row"><span class="hexdb-label">Radius <span class="hexdb-info" title="0=must be on top; 1=adjacent; N=within N hexes">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-radius" type="number" step="1" min="0"
@@ -21201,9 +21328,15 @@ const BldDB = (() => {
       (_data.buildings ?? []).filter(b => b.id && !b.canBuild)
         .map(b => `<option value="${_esc(b.id)}">`).join('') +
       '</datalist>';
+    const dl = (id, vals) => `<datalist id="${id}">${vals.map(v => `<option value="${_esc(v)}">`).join('')}</datalist>`;
+    const refDatalists =
+      dl('blddb-ref-id-list', [..._refs.hexIds, ..._refs.bldIds]) +
+      dl('blddb-tile-id-list', _refs.hexIds) +
+      dl('blddb-tile-type-list', _refs.types) +
+      dl('blddb-tile-any-list', [..._refs.hexIds, ..._refs.types]);
     right.innerHTML = visualHTML + `<div class="hexdb-form">
       ${mainHTML}${footprintHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${specialHTML}${satelliteHTML}${actionsHTML}
-    </div>` + bldHexIdDatalist + bldBldIdDatalist;
+    </div>` + bldHexIdDatalist + bldBldIdDatalist + refDatalists;
 
     // ── Wire section headers ──────────────────────────────────
     right.querySelectorAll('.hexdb-section-hdr').forEach(hdr => {
@@ -21242,6 +21375,8 @@ const BldDB = (() => {
         }
       });
     }
+
+    _wireIntFields(right);
 
     // ── Wire simple inputs → _readRecord ─────────────────────
     right.querySelectorAll('input:not(.hexdb-tag-input):not([data-res-field]),select:not([data-res-field])').forEach(el => {
@@ -21300,11 +21435,18 @@ const BldDB = (() => {
         const bldObj = _data.buildings[_filtered[_selFilt]];
         const field  = input.dataset.tagsField;
         if (!Array.isArray(bldObj[field])) bldObj[field] = [];
+        const known = _refSetFor(field);
+        if (known && !known.has(val)) UI.toast(`⚠ "${val}" is not a known ${field === 'canProduce' ? 'tile or building id' : 'tile id or type'}: check the name`);
         if (!bldObj[field].includes(val)) bldObj[field].push(val);
         input.value = '';
         _autoSave();
         _renderRecord(bldObj);
       });
+    });
+    g('bld-tilesType-pick')?.addEventListener('click', () => _openValuePicker('bld-f-tilesTypeValue',
+      (bld.tilesTypeMode === 'Type' ? _refs.types : _refs.hexIds), bld.tilesTypeMode === 'Type' ? 'Pick a tile type' : 'Pick a tile id'));
+    right.querySelectorAll('.hexdb-tag-pick').forEach(btn => {
+      btn.addEventListener('click', () => _openTagPicker(btn.dataset.tagsField));
     });
     right.querySelectorAll('.hexdb-tag-remove').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -21482,13 +21624,13 @@ const BldDB = (() => {
     bld.canBuild                 = bv('bld-f-canBuild');
     bld.needRoad                 = bv('bld-f-needRoad');
     bld.isRoad                   = bv('bld-f-isRoad');
-    bld.minLevel                 = Math.max(1, nv('bld-f-minLevel'));
-    bld.premiumPrice             = nv('bld-f-premiumPrice');
+    bld.minLevel                 = Math.min(1000, Math.max(1, nv('bld-f-minLevel')));
+    bld.premiumPrice             = Math.min(1000000, Math.max(0, nv('bld-f-premiumPrice')));
     bld.additionalBuildCondition = bv('bld-f-additionalBuildCondition');
     if (g('bld-f-tilesTypeMode')) {
       bld.tilesTypeMode  = iv('bld-f-tilesTypeMode');
       bld.tilesTypeValue = iv('bld-f-tilesTypeValue');
-      bld.radius         = Math.max(0, nv('bld-f-radius'));
+      bld.radius         = Math.min(10000, Math.max(0, nv('bld-f-radius')));
     }
 
     // INCOME
@@ -21499,7 +21641,7 @@ const BldDB = (() => {
     bld.capacity              = Math.max(0, nv('bld-f-capacity'));
 
     // SETTINGS
-    bld.buildingRadius           = Math.max(0, nv('bld-f-buildingRadius'));
+    bld.buildingRadius           = Math.min(10000, Math.max(0, nv('bld-f-buildingRadius')));
     bld.canProduceEnabled        = bv('bld-f-canProduceEnabled');
     bld.canProductionFacilities  = bv('bld-f-canProductionFacilities');
     bld.facilityBonusType        = iv('bld-f-facilityBonusType');
