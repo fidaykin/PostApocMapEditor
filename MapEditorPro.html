@@ -20764,6 +20764,39 @@ const BldDB = (() => {
           ? `<button type="button" class="hexdb-tool-btn hexdb-tag-pick" data-tags-field="${fieldName}" title="Pick from the list of tiles${fieldName === 'canProduce' ? ' and buildings' : ' and types'}"${dis}>Pick…</button>` : ''}</div>`;
   }
 
+  // Single choice from a searchable list, written into a text input (Tiles Type value).
+  function _openValuePicker(inputId, items, title) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'value-picker-body' });
+    const search = T('input', null, { className: 'hexdb-input', placeholder: 'search', id: 'value-picker-search', style: 'width:100%;margin-bottom:6px' });
+    const box = T('div', null, { style: 'max-height:320px;overflow:auto' });
+    root.append(search, box);
+    let picked = input.value;
+    const rows = [];
+    for (const id of items) {
+      const lab = T('label', null, { style: 'display:flex;gap:6px;align-items:center;padding:1px 0;cursor:pointer' });
+      const rb = T('input', null, { type: 'radio', name: 'value-picker', checked: id === picked });
+      rb.dataset.id = id;
+      rb.onchange = () => { picked = id; };
+      lab.append(rb, T('span', id));
+      box.appendChild(lab);
+      rows.push([id, lab]);
+    }
+    search.oninput = () => { const q = search.value.trim().toLowerCase(); for (const [id, lab] of rows) lab.style.display = !q || id.toLowerCase().includes(q) ? '' : 'none'; };
+    let m;
+    m = UI.showModal({ id: 'value-picker-modal', title, body: root, modal: true,
+      actions: [
+        { label: 'Cancel', onClick: () => m.close('cancel') },
+        { label: 'Apply', primary: true, onClick: () => {
+          input.value = picked;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          m.close('applied');
+        } },
+      ] });
+  }
+
   // Searchable checklist of the known ids for a tag field; Apply replaces the field with the checked ones (names the
   // list does not know stay, so nothing typed earlier is lost).
   function _openTagPicker(field) {
@@ -21029,6 +21062,7 @@ const BldDB = (() => {
               list="${bld.tilesTypeMode === 'Type' ? 'blddb-tile-type-list' : 'blddb-tile-id-list'}"
               value="${_esc(bld.tilesTypeValue)}"
               style="flex:1${bld.tilesTypeMode === 'Parents' ? ';display:none' : ''}">
+            <button type="button" id="bld-tilesType-pick" class="hexdb-tool-btn" title="Pick from the list"${bld.tilesTypeMode === 'Parents' ? ' style="display:none"' : ''}>Pick…</button>
           </div></div>
         <div class="hexdb-row"><span class="hexdb-label">Radius <span class="hexdb-info" title="0=must be on top; 1=adjacent; N=within N hexes">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-radius" type="number" step="1" min="0"
@@ -21409,6 +21443,8 @@ const BldDB = (() => {
         _renderRecord(bldObj);
       });
     });
+    g('bld-tilesType-pick')?.addEventListener('click', () => _openValuePicker('bld-f-tilesTypeValue',
+      (bld.tilesTypeMode === 'Type' ? _refs.types : _refs.hexIds), bld.tilesTypeMode === 'Type' ? 'Pick a tile type' : 'Pick a tile id'));
     right.querySelectorAll('.hexdb-tag-pick').forEach(btn => {
       btn.addEventListener('click', () => _openTagPicker(btn.dataset.tagsField));
     });

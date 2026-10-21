@@ -152,3 +152,24 @@ test.describe('Buildings form: Pick… list', () => {
     expect((await rec(page)).canProduce).toEqual(['FormHex_Lake_1']);
   });
 });
+
+test.describe('Buildings form: Tiles Type Pick…', () => {
+  test('HexID mode picks a tile id, Type mode picks a type, Parents hides the button', async ({ page }) => {
+    await setup(page);
+    await page.locator('#bld-tilesType-pick').click();
+    await page.locator('#value-picker-search').fill('lake');
+    await expect(page.locator('#value-picker-body input[data-id="FormHex_Plain_1"]')).toBeHidden();
+    await page.locator('#value-picker-body input[data-id="FormHex_Lake_1"]').check();
+    await page.locator('#value-picker-modal button', { hasText: 'Apply' }).click();
+    expect((await rec(page)).tilesTypeValue).toBe('FormHex_Lake_1');
+
+    await page.locator('#bld-f-tilesTypeMode').selectOption('Type');
+    await page.locator('#bld-tilesType-pick').click();
+    await page.locator('#value-picker-body input[data-id="Plains"]').check();
+    await page.locator('#value-picker-modal button', { hasText: 'Apply' }).click();
+    expect((await rec(page)).tilesTypeValue).toBe('Plains');
+
+    await page.locator('#bld-f-tilesTypeMode').selectOption('Parents');
+    await expect(page.locator('#bld-tilesType-pick')).toBeHidden();
+  });
+});
