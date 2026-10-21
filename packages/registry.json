@@ -21,17 +21,6 @@
       "minAppVersion": "0.0.0",
       "schemaVersion": 1,
       "autoUnlock": true
-    },
-    {
-      "id": "medieval-2-0",
-      "name": "Medieval 2.0",
-      "isDefault": false,
-      "version": "1.0.5",
-      "manifestUrl": "packages/medieval-2-0/manifest.json",
-      "totalBytes": 13988518,
-      "minAppVersion": "0.0.0",
-      "schemaVersion": 1,
-      "autoUnlock": true
     }
   ]
 }
