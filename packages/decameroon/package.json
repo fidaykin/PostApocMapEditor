@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.24",
+  "version": "1.0.25",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -66,10 +66,15 @@
       "version": "1.0.24",
       "date": "2026-10-19",
       "note": "fix price and Need road checkbox settings"
+    },
+    {
+      "version": "1.0.25",
+      "date": "2026-10-21",
+      "note": "Medieval Package Deleted"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22825119,
+  "totalBytes": 22825185,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
