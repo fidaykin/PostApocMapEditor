@@ -13550,6 +13550,68 @@ const Satellite = (() => {
 // ─────────────────────────────────────────────────────────────────
 // Packages — registry, active state, create/publish/delete
 // ─────────────────────────────────────────────────────────────────
+// ── SkinSlotRules: skinSlot = the base id a package record repaints (docs/contracts/skin-slots.md) ───────────────────
+// Visuals only. The word "Slot" alone belongs to the Slots feature, hence "skinSlot". Pure functions, no DOM.
+const SkinSlotRules = (() => {
+  const low = s => String(s ?? '').trim().toLowerCase();
+  const norm = s => low(s).replace(/[^a-z0-9]/g, '');
+  const isBase = r => !r.package || r.package === 'postapoc';
+  const isWater = r => /water/i.test(String(r.type || ''));
+  // Mirrors Unity SkinSlots.Validate: hex type equal; buildings only water vs ground.
+  function compatible(kind, base, rec) {
+    if (kind === 'bld') return isWater(base) === isWater(rec);
+    return low(base.type) === low(rec.type);
+  }
+  const slotOf = r => String(r.skinSlot ?? '').trim();
+  function split(records, pkg) {
+    return { base: records.filter(isBase), own: records.filter(r => r.package === pkg) };
+  }
+  // The base record a package record would repaint if the prefix is stripped from its id, else null.
+  function suggest(rec, prefix, baseRecords) {
+    let id = String(rec.id || '');
+    if (prefix && id.startsWith(prefix)) id = id.slice(prefix.length);
+    const exact = baseRecords.find(b => b.id === id) || baseRecords.find(b => low(b.id) === low(id));
+    if (exact) return exact;
+    const hits = baseRecords.filter(b => norm(b.id) === norm(id));
+    return hits.length === 1 ? hits[0] : null;
+  }
+  // Problems the game would reject: 'nobase' (no base record), 'type' (type differs), 'dup' (second record on one slot).
+  function check(kind, ownRecords, baseRecords) {
+    const byId = new Map(baseRecords.map(b => [low(b.id), b]));
+    const seen = new Set();
+    const issues = [];
+    for (const r of ownRecords) {
+      const slot = slotOf(r);
+      if (!slot) continue;
+      const b = byId.get(low(slot));
+      if (!b) { issues.push({ id: r.id, kind: 'nobase', slot, msg: `${r.id}: no base record "${slot}"` }); continue; }
+      if (!compatible(kind, b, r)) { issues.push({ id: r.id, kind: 'type', slot, msg: `${r.id}: type "${r.type}" differs from base "${b.type}"` }); continue; }
+      if (seen.has(low(slot))) { issues.push({ id: r.id, kind: 'dup', slot, msg: `${r.id}: slot "${slot}" is already used by another record of this package` }); continue; }
+      seen.add(low(slot));
+    }
+    return issues;
+  }
+  // One row per base record: which package record repaints it (first valid one), and a suggestion for empty rows.
+  function rows(kind, ownRecords, baseRecords, prefix) {
+    const used = new Set(ownRecords.filter(r => slotOf(r)).map(r => low(slotOf(r))));
+    return baseRecords.map(b => {
+      const current = ownRecords.find(r => low(slotOf(r)) === low(b.id)) || null;
+      let suggestion = null;
+      if (!current) {
+        const cand = ownRecords.find(r => !slotOf(r) && compatible(kind, b, r) && suggest(r, prefix, baseRecords)?.id === b.id);
+        if (cand && !used.has(low(b.id))) suggestion = cand;
+      }
+      return { slot: b.id, type: b.type, current, suggestion };
+    });
+  }
+  function coverage(kind, ownRecords, baseRecords) {
+    const bad = new Set(check(kind, ownRecords, baseRecords).map(i => i.id));
+    const covered = new Set(ownRecords.filter(r => slotOf(r) && !bad.has(r.id)).map(r => low(slotOf(r))));
+    return { covered: covered.size, total: baseRecords.length };
+  }
+  return { isBase, slotOf, split, compatible, suggest, check, rows, coverage };
+})();
+
 const Packages = (() => {
   const LS_ACTIVE   = 'pkg_active';
   const LS_REGISTRY = 'pkg_registry_cache';
@@ -14191,6 +14253,7 @@ const Packages = (() => {
         _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
         _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Terrain sprites', 'Upload this package’s coastline or road sprites to the server', () => openTerrainUpload(p.id), { 'data-pkg-id': p.id }));
+      if (!p.isDefault) actions.append(' ', _btn('Skin slots', 'Say which base tile or building each record of this package repaints, so one map can switch between looks', () => openSkinSlots(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Details', 'Edit the description, dependencies and preview image', () => openDetails(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Delete', 'Remove this package from the registry (it can be restored from Recently deleted)',
         () => confirmDelete(p.id), { 'data-pkg-id': p.id, style: 'color:#f38ba8' }));
@@ -15081,6 +15144,95 @@ const Packages = (() => {
     } catch (e) { return ''; }
   }
 
+
+  // ── Skin slots table (docs/contracts/skin-slots.md): edits only the skinSlot field of the package records ──────────
+  function _skinData(pkgId) {
+    const out = {};
+    for (const [kind, all] of [['hex', HexDB.getAll()], ['bld', BldDB.getAll()]]) {
+      const { base, own } = SkinSlotRules.split(all, pkgId);
+      out[kind] = { base, own, issues: SkinSlotRules.check(kind, own, base), cov: SkinSlotRules.coverage(kind, own, base) };
+    }
+    return out;
+  }
+  // Problems the game would reject (it ignores such records), so Publish stops on them.
+  function skinSlotProblems(pkgId) {
+    const d = _skinData(pkgId);
+    return [...d.hex.issues, ...d.bld.issues].map(i => i.msg);
+  }
+  function _setSkin(kind, rec, slot) { return (kind === 'hex' ? HexDB : BldDB).setSkinSlot(rec.id, rec.package, slot); }
+  function _applySkinChoice(kind, pkgId, baseId, chosenId) {
+    const own = (kind === 'hex' ? HexDB : BldDB).getAll().filter(r => r.package === pkgId);
+    for (const r of own) if (SkinSlotRules.slotOf(r).toLowerCase() === baseId.toLowerCase()) _setSkin(kind, r, '');
+    const pick = own.find(r => r.id === chosenId);
+    if (pick) _setSkin(kind, pick, baseId);
+  }
+  function applySkinSuggestions(pkgId) {
+    let n = 0;
+    const prefix = idPrefix(pkgId);
+    for (const kind of ['hex', 'bld']) {
+      const { base, own } = SkinSlotRules.split((kind === 'hex' ? HexDB : BldDB).getAll(), pkgId);
+      for (const row of SkinSlotRules.rows(kind, own, base, prefix))
+        if (row.suggestion && _setSkin(kind, row.suggestion, row.slot)) n++;
+    }
+    return n;
+  }
+  function openSkinSlots(pkgId) {
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'skin-slots-body' });
+    const draw = () => {
+      const d = _skinData(pkgId), prefix = idPrefix(pkgId);
+      const kids = [];
+      const covTxt = k => `${d[k].cov.covered} of ${d[k].cov.total}`;
+      kids.push(T('p', `Covered: tiles ${covTxt('hex')}, buildings ${covTxt('bld')}. An empty row means the base look is used. The table only edits the Skin Slot field of this package's records.`, { id: 'skin-cov' }));
+      const issues = [...d.hex.issues, ...d.bld.issues];
+      if (issues.length) {
+        kids.push(T('p', `${issues.length} record(s) would be ignored by the game:`, { className: 'pkg-notice warn', id: 'skin-issues-head' }));
+        const ul = T('ul', null, { id: 'skin-issues' });
+        for (const i of issues.slice(0, 40)) ul.appendChild(T('li', i.msg));
+        kids.push(ul);
+      }
+      const sug = [...['hex', 'bld'].flatMap(k => SkinSlotRules.rows(k, d[k].own, d[k].base, prefix).filter(r => r.suggestion))].length;
+      kids.push(T('button', `Apply ${sug} suggestion(s) by id prefix`, { className: 'hexdb-tool-btn', id: 'skin-suggest-all', disabled: !sug,
+        title: 'Fill empty rows when the id without the package prefix names a base record of the same type',
+        onclick: () => { const n = applySkinSuggestions(pkgId); UI.toast(`Set Skin Slot on ${n} record(s)`); draw(); } }));
+      for (const [kind, title] of [['hex', 'Tiles'], ['bld', 'Buildings']]) {
+        kids.push(T('h4', title, { style: 'margin:14px 0 6px' }));
+        const table = T('table', null, { id: 'skin-table-' + kind });
+        const head = T('tr');
+        for (const h of ['Slot (base id)', 'Type', 'Repainted by this package']) head.appendChild(T('th', h));
+        table.appendChild(T('thead')).appendChild(head);
+        const tb = T('tbody');
+        for (const row of SkinSlotRules.rows(kind, d[kind].own, d[kind].base, prefix)) {
+          const tr = T('tr'); tr.dataset.slot = row.slot;
+          tr.appendChild(T('td')).appendChild(T('code', row.slot));
+          tr.appendChild(T('td', row.type || ''));
+          const sel = T('select', null, { className: 'hexdb-select skin-pick' });
+          sel.appendChild(T('option', '— base used —', { value: '' }));
+          for (const r of d[kind].own) {
+            const ok = SkinSlotRules.compatible(kind, d[kind].base.find(b => b.id === row.slot), r);
+            sel.appendChild(T('option', r.id + (ok ? '' : ' ⚠ type'), { value: r.id }));
+          }
+          sel.value = row.current ? row.current.id : '';
+          sel.onchange = () => { _applySkinChoice(kind, pkgId, row.slot, sel.value); draw(); };
+          const td = tr.appendChild(T('td'));
+          td.appendChild(sel);
+          if (row.suggestion) {
+            td.appendChild(T('button', `use ${row.suggestion.id}`, { className: 'hexdb-tool-btn skin-suggest', style: 'margin-left:6px',
+              title: 'Suggested by the id prefix', onclick: () => { _applySkinChoice(kind, pkgId, row.slot, row.suggestion.id); draw(); } }));
+          }
+          tb.appendChild(tr);
+        }
+        table.appendChild(tb);
+        kids.push(T('div', null, { style: 'max-height:260px;overflow:auto' })); kids[kids.length - 1].appendChild(table);
+      }
+      root.replaceChildren(...kids);
+    };
+    draw();
+    let m;
+    m = UI.showModal({ id: 'skin-slots-modal', title: `Skin slots: ${getEntry(pkgId)?.name || pkgId}`, body: root, modal: true,
+      actions: [{ label: 'Close', primary: true, onClick: () => { m.close('close'); renderPanel(); } }] });
+  }
+
   async function openPublishConfirm(id) {
     if (isDefault(id)) {
       // postapoc: use existing publish functions
@@ -15090,6 +15242,11 @@ const Packages = (() => {
         if (a || b) await GitHubSync.refreshBaseManifestSafely(true);   // one refresh (one version bump) for both publishes
       });
       return;
+    }
+    const skinProblems = skinSlotProblems(id);
+    if (skinProblems.length) {
+      return UI.toast(`⚠ Cannot publish: ${skinProblems.length} Skin Slot problem(s), the game would ignore those records`,
+        { detail: skinProblems.slice(0, 6).join('; ') + ' (open Skin slots on the PACKAGES tab)', ms: 9000 });
     }
     const entry = getEntry(id);
     const name  = entry?.name || id;
@@ -16355,7 +16512,7 @@ const Packages = (() => {
   }
 
   return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix, packageForId, movePackageByPrefix, adoptPastedRecord, rehomePlan, openRehomeDialog,
-           renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
+           renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips, openSkinSlots, skinSlotProblems, applySkinSuggestions,
            isPkgVisible, togglePkgFilter,
            spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openTerrainUpload, openNewModal, closeNewModal, _autoSlugId, createPackage,
            openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
@@ -18929,6 +19086,10 @@ const HexDB = (() => {
         `<input class="hexdb-input" data-field="baseTerrainId" list="hexdb-id-list"
            value="${_esc(hex.baseTerrainId ?? '')}" placeholder="e.g. Water_Dirty_1 (optional)">`,
         'Optional. The hex drawn UNDER this sprite instead of the animated water. Setting it makes this a layered tile: the sprite is drawn on top of that hex (Fish on dirty water = Water_Dirty_1)'),
+      _row('Skin Slot',
+        `<input class="hexdb-input" data-field="skinSlot" list="hexdb-id-list"
+           value="${_esc(hex.skinSlot ?? '')}" placeholder="base id, e.g. Plain_1 (optional)">`,
+        'Package tiles only. The id of the base tile this one repaints: a map keeps the base id and the active package changes only the look (sprite). Prices, type and rules come from the base tile. Leave empty for a tile that is new in this package'),
       `<div class="hexdb-roads" id="hexdb-roads">${_roadsBlockHTML(hex)}</div>`,
       ...(/bridge/i.test(hex.id || '') ? [
         _row('Under Terrain',
@@ -19328,6 +19489,16 @@ const HexDB = (() => {
   }
 
   // ── Read inputs → data ────────────────────────────────────
+  // Sets (or clears, slot '') the skinSlot of the record id in package pkg. Used by the Skin slots table.
+  function setSkinSlot(id, pkg, slot) {
+    const rec = _data.hexes.find(h => h.id === id && (h.package || 'postapoc') === pkg);
+    if (!rec) return false;
+    const v = String(slot ?? '').trim();
+    if (v) rec.skinSlot = v; else delete rec.skinSlot;
+    _autoSave();
+    return true;
+  }
+
   // Moves every tile whose id names another package's prefix (PACKAGES tab: Fix packages by id prefix).
   function rehomeByPrefix() {
     let moved = 0;
@@ -19367,6 +19538,7 @@ const HexDB = (() => {
       else if (el.type === 'number') h[f] = Math.round(parseFloat(el.value) || 0);
       else h[f] = el.value;
     });
+    if (!String(h.skinSlot ?? '').trim()) delete h.skinSlot; else h.skinSlot = String(h.skinSlot).trim();
     _validateId();
     _autoSave();
     if (h.id && h.spriteName) {
@@ -20316,7 +20488,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, rehomeByPrefix, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
 })();
 
 window.HexDB = HexDB;
@@ -20689,6 +20861,10 @@ const BldDB = (() => {
           <input class="hexdb-input" id="bld-f-underTerrainId" type="text"
             value="${_esc(bld.underTerrainId ?? '')}" list="blddb-hex-id-list" placeholder="e.g. Water_1">
         </div>` : ''}
+        <div class="hexdb-row"><span class="hexdb-label">Skin Slot <span class="hexdb-info" title="Package buildings only. The id of the base building this one repaints (look only; cost and rules come from the base building). Leave empty for a building that is new in this package.">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-skinSlot" type="text"
+            value="${_esc(bld.skinSlot ?? '')}" list="blddb-bld-id-list" placeholder="base id, e.g. Farm_1 (optional)">
+        </div>
         <div class="hexdb-row"><span class="hexdb-label">Base Cost Taps <span class="hexdb-info" title="Integer, 0–100 000. Auto-corrects leading zeros.">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-baseCostTaps" type="number" step="1" min="0" max="100000"
             oninput="this.value=Math.min(100000,Math.max(0,parseInt(this.value,10)||0))"
@@ -21231,6 +21407,16 @@ const BldDB = (() => {
     });
   }
 
+  // Sets (or clears, slot '') the skinSlot of the building id in package pkg. Used by the Skin slots table.
+  function setSkinSlot(id, pkg, slot) {
+    const rec = _data.buildings.find(b => b.id === id && (b.package || 'postapoc') === pkg);
+    if (!rec) return false;
+    const v = String(slot ?? '').trim();
+    if (v) rec.skinSlot = v; else delete rec.skinSlot;
+    _autoSave();
+    return true;
+  }
+
   // Moves every building whose id names another package's prefix (PACKAGES tab: Fix packages by id prefix).
   function rehomeByPrefix() {
     let moved = 0;
@@ -21282,6 +21468,7 @@ const BldDB = (() => {
     bld.filter       = iv('bld-f-filter');
     bld.spriteName      = iv('bld-f-spriteName');
     bld.underTerrainId  = iv('bld-f-underTerrainId');
+    { const sk = iv('bld-f-skinSlot').trim(); if (sk) bld.skinSlot = sk; else delete bld.skinSlot; }
     bld.baseCostTaps = Math.min(100000, Math.max(0, nv('bld-f-baseCostTaps')));
 
     // DESTROY
@@ -21778,7 +21965,7 @@ const BldDB = (() => {
 
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
            mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage,
-           pushRecord, deleteSelected, copy, paste, rehomeByPrefix, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
+           pushRecord, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
 window.BldDB = BldDB;
