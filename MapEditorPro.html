@@ -20728,16 +20728,63 @@ const BldDB = (() => {
     return `<div class="hexdb-row bld-roads-msg" style="font-size:12px"><span class="hexdb-label"></span><div style="flex:1">${lines}</div></div>`;
   }
 
+  // Ids the Buildings form may reference (base package + the record's own package), rebuilt on every render.
+  // Tags: availableTiles and availableTilesForProduce take tile ids or tile types, canProduce tile or building ids.
+  let _refs = { hexIds: [], types: [], bldIds: [] };
+  const _TAG_LISTS = { availableTiles: 'blddb-tile-any-list', availableTilesForProduce: 'blddb-tile-any-list', canProduce: 'blddb-ref-id-list' };
+  function _refSetFor(field) {
+    if (field === 'canProduce') return new Set([..._refs.hexIds, ..._refs.bldIds]);
+    if (_TAG_LISTS[field]) return new Set([..._refs.hexIds, ..._refs.types]);
+    return null;
+  }
+  function _collectRefs(bld) {
+    const pkg = bld.package || 'postapoc';
+    const visible = r => !r.package || r.package === 'postapoc' || r.package === pkg;
+    const hexes = (typeof HexDB !== 'undefined' ? HexDB.getAll() : []).filter(h => h.id && visible(h));
+    _refs = {
+      hexIds: [...new Set(hexes.map(h => h.id))],
+      types: [...new Set(hexes.map(h => h.type).filter(Boolean))],
+      bldIds: [...new Set((_data.buildings ?? []).filter(b => b.id && visible(b)).map(b => b.id))],
+    };
+  }
+
   function _tagsHTML(fieldName, values, disabled) {
     const dis = disabled ? ' disabled' : '';
-    const tags = (values || []).map(v =>
-      `<span class="hexdb-tag">${_esc(v)}<button class="hexdb-tag-remove"
-         data-tags-field="${fieldName}" data-value="${_esc(v)}"${dis}>✕</button></span>`
-    ).join('');
+    const known = _refSetFor(fieldName);
+    const tags = (values || []).map(v => {
+      const bad = known && !known.has(v);
+      return `<span class="hexdb-tag"${bad ? ' style="border:1px solid #e57373" title="Unknown id or type: check the name"' : ''}>${_esc(v)}<button class="hexdb-tag-remove"
+         data-tags-field="${fieldName}" data-value="${_esc(v)}"${dis}>✕</button></span>`;
+    }).join('');
+    const list = _TAG_LISTS[fieldName] ? ` list="${_TAG_LISTS[fieldName]}"` : '';
     return `<div class="hexdb-tags" data-tags-field="${fieldName}">
       ${tags}
-      <input class="hexdb-tag-input" data-tags-field="${fieldName}"
+      <input class="hexdb-tag-input" data-tags-field="${fieldName}"${list}
         placeholder="type ID + Enter"${dis}></div>`;
+  }
+
+  // Integer-only numeric fields (ClickUp: Price, Premium Price, Min Level, Radius checks). Keys that make a number
+  // non-integer are blocked, and on change the value becomes a clean integer in range (no leading zeros, no sign,
+  // empty -> the default).
+  const _INT_FIELDS = {
+    'bld-f-minLevel':      { min: 1, max: 1000,    def: 1 },
+    'bld-f-premiumPrice':  { min: 0, max: 1000000, def: 0 },
+    'bld-f-radius':        { min: 0, max: 10000,   def: 0 },
+    'bld-f-buildingRadius':{ min: 0, max: 10000,   def: 0 },
+  };
+  function _cleanInt(raw, { min, max, def }) {
+    const n = Math.trunc(parseFloat(String(raw ?? '').replace(',', '.')));
+    if (!Number.isFinite(n)) return def;
+    return Math.min(max, Math.max(min, n));
+  }
+  function _wireIntFields(root) {
+    for (const [id, cfg] of Object.entries(_INT_FIELDS)) {
+      const el = root.querySelector('#' + id);
+      if (!el) continue;
+      el.addEventListener('keydown', e => { if (['.', 'e', 'E', '+', '-', ','].includes(e.key)) e.preventDefault(); });
+      // capture: runs before the form's own change listener, so the record is saved from the clean value
+      el.addEventListener('change', () => { el.value = String(_cleanInt(el.value, cfg)); }, true);
+    }
   }
 
   function _resBlockHTML(fieldName, rows, disabled, resTypes) {
@@ -20775,6 +20822,7 @@ const BldDB = (() => {
   function _renderRecord(bld) {
     const right = document.getElementById('bld-right');
     const g = id => document.getElementById(id);
+    _collectRefs(bld);
     const col = s => _secState[s] ? '▶' : '▼';
     const bod = s => _secState[s] ? 'none' : 'block';
     // Same-id + same-package = real error. Same-id + different-package = intentional
@@ -20885,8 +20933,8 @@ const BldDB = (() => {
               <option${bld.destroyTransformToMode === 'Parents' ? ' selected' : ''}>Parents</option>
               <option${bld.destroyTransformToMode === 'HexID'   ? ' selected' : ''}>HexID</option>
             </select>
-            <input class="hexdb-input" id="bld-f-destroyTransformTo" type="text" placeholder="Tile ID"
-              list="blddb-hex-id-list"
+            <input class="hexdb-input" id="bld-f-destroyTransformTo" type="text" placeholder="Tile or building ID"
+              list="blddb-ref-id-list"
               value="${_esc(bld.destroyTransformTo)}"
               style="flex:1${bld.destroyTransformToMode === 'Parents' ? ';display:none' : ''}">
           </div>` : `<input class="hexdb-input" value="Unbreakable" style="width:160px" disabled>`}</div>
@@ -20934,6 +20982,7 @@ const BldDB = (() => {
               <option${bld.tilesTypeMode === 'Type'    ? ' selected' : ''}>Type</option>
             </select>
             <input class="hexdb-input" id="bld-f-tilesTypeValue" type="text" placeholder="ID or Type"
+              list="${bld.tilesTypeMode === 'Type' ? 'blddb-tile-type-list' : 'blddb-tile-id-list'}"
               value="${_esc(bld.tilesTypeValue)}"
               style="flex:1${bld.tilesTypeMode === 'Parents' ? ';display:none' : ''}">
           </div></div>
@@ -21201,9 +21250,15 @@ const BldDB = (() => {
       (_data.buildings ?? []).filter(b => b.id && !b.canBuild)
         .map(b => `<option value="${_esc(b.id)}">`).join('') +
       '</datalist>';
+    const dl = (id, vals) => `<datalist id="${id}">${vals.map(v => `<option value="${_esc(v)}">`).join('')}</datalist>`;
+    const refDatalists =
+      dl('blddb-ref-id-list', [..._refs.hexIds, ..._refs.bldIds]) +
+      dl('blddb-tile-id-list', _refs.hexIds) +
+      dl('blddb-tile-type-list', _refs.types) +
+      dl('blddb-tile-any-list', [..._refs.hexIds, ..._refs.types]);
     right.innerHTML = visualHTML + `<div class="hexdb-form">
       ${mainHTML}${footprintHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${specialHTML}${satelliteHTML}${actionsHTML}
-    </div>` + bldHexIdDatalist + bldBldIdDatalist;
+    </div>` + bldHexIdDatalist + bldBldIdDatalist + refDatalists;
 
     // ── Wire section headers ──────────────────────────────────
     right.querySelectorAll('.hexdb-section-hdr').forEach(hdr => {
@@ -21242,6 +21297,8 @@ const BldDB = (() => {
         }
       });
     }
+
+    _wireIntFields(right);
 
     // ── Wire simple inputs → _readRecord ─────────────────────
     right.querySelectorAll('input:not(.hexdb-tag-input):not([data-res-field]),select:not([data-res-field])').forEach(el => {
@@ -21300,6 +21357,8 @@ const BldDB = (() => {
         const bldObj = _data.buildings[_filtered[_selFilt]];
         const field  = input.dataset.tagsField;
         if (!Array.isArray(bldObj[field])) bldObj[field] = [];
+        const known = _refSetFor(field);
+        if (known && !known.has(val)) UI.toast(`⚠ "${val}" is not a known ${field === 'canProduce' ? 'tile or building id' : 'tile id or type'}: check the name`);
         if (!bldObj[field].includes(val)) bldObj[field].push(val);
         input.value = '';
         _autoSave();
@@ -21482,13 +21541,13 @@ const BldDB = (() => {
     bld.canBuild                 = bv('bld-f-canBuild');
     bld.needRoad                 = bv('bld-f-needRoad');
     bld.isRoad                   = bv('bld-f-isRoad');
-    bld.minLevel                 = Math.max(1, nv('bld-f-minLevel'));
-    bld.premiumPrice             = nv('bld-f-premiumPrice');
+    bld.minLevel                 = Math.min(1000, Math.max(1, nv('bld-f-minLevel')));
+    bld.premiumPrice             = Math.min(1000000, Math.max(0, nv('bld-f-premiumPrice')));
     bld.additionalBuildCondition = bv('bld-f-additionalBuildCondition');
     if (g('bld-f-tilesTypeMode')) {
       bld.tilesTypeMode  = iv('bld-f-tilesTypeMode');
       bld.tilesTypeValue = iv('bld-f-tilesTypeValue');
-      bld.radius         = Math.max(0, nv('bld-f-radius'));
+      bld.radius         = Math.min(10000, Math.max(0, nv('bld-f-radius')));
     }
 
     // INCOME
@@ -21499,7 +21558,7 @@ const BldDB = (() => {
     bld.capacity              = Math.max(0, nv('bld-f-capacity'));
 
     // SETTINGS
-    bld.buildingRadius           = Math.max(0, nv('bld-f-buildingRadius'));
+    bld.buildingRadius           = Math.min(10000, Math.max(0, nv('bld-f-buildingRadius')));
     bld.canProduceEnabled        = bv('bld-f-canProduceEnabled');
     bld.canProductionFacilities  = bv('bld-f-canProductionFacilities');
     bld.facilityBonusType        = iv('bld-f-facilityBonusType');
