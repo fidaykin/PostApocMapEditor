@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.26",
+  "version": "1.0.27",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -76,10 +76,15 @@
       "version": "1.0.26",
       "date": "2026-10-22",
       "note": "Change Market Price"
+    },
+    {
+      "version": "1.0.27",
+      "date": "2026-10-22",
+      "note": "test Avaible Tiles"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22414739,
+  "totalBytes": 22414669,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
