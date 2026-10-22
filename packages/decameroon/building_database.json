@@ -1260,7 +1260,10 @@
       "isRoad": false,
       "availableTiles": [
         "Plains",
-        "Rubble"
+        "Rubble",
+        "Decameroon_Plain_1",
+        "Decameroon_Plain_2",
+        "Forests"
       ],
       "minLevel": 1,
       "price": [
