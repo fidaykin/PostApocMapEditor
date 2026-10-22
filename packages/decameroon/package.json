@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.25",
+  "version": "1.0.26",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -71,10 +71,15 @@
       "version": "1.0.25",
       "date": "2026-10-21",
       "note": "Medieval Package Deleted"
+    },
+    {
+      "version": "1.0.26",
+      "date": "2026-10-22",
+      "note": "Change Market Price"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22825185,
+  "totalBytes": 22414739,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
