@@ -1259,8 +1259,8 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "Decameroon_Plain_1",
-        "Decameroon_Plain_2"
+        "Plains",
+        "Rubble"
       ],
       "minLevel": 1,
       "price": [
@@ -1540,7 +1540,8 @@
       "isRoad": false,
       "availableTiles": [
         "Decameroon_Plain_1",
-        "Decameroon_Plain_2"
+        "Decameroon_Plain_2",
+        "Decameroon_Swamp_1"
       ],
       "minLevel": 1,
       "price": [
