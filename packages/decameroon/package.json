@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.27",
+  "version": "1.0.28",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -81,10 +81,15 @@
       "version": "1.0.27",
       "date": "2026-10-22",
       "note": "test Avaible Tiles"
+    },
+    {
+      "version": "1.0.28",
+      "date": "2026-10-22",
+      "note": "test Avaiable tiles settings for Mill and Tawern"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22414669,
+  "totalBytes": 22414675,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
