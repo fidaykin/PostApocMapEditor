@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "id": "decameroon",
-  "version": "1.0.28",
+  "version": "1.0.29",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-22T14:23:07.406Z",
+  "generatedAt": "2026-10-22T14:44:26.088Z",
   "totalBytes": 22414735,
   "dependencies": [],
   "files": [
