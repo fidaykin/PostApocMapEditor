@@ -1273,7 +1273,7 @@
           "amount": 2000
         }
       ],
-      "premiumPrice": 0,
+      "premiumPrice": 105,
       "additionalBuildCondition": false,
       "tilesTypeMode": "Parents",
       "tilesTypeValue": "",
@@ -1294,11 +1294,7 @@
       "spendConstant": [
         {
           "type": "Lumber",
-          "amount": 500
-        },
-        {
-          "type": "Chips",
-          "amount": 1000
+          "amount": 5000
         }
       ],
       "buildingRadius": 0,
