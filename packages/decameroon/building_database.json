@@ -1541,7 +1541,9 @@
       "availableTiles": [
         "Decameroon_Plain_1",
         "Decameroon_Plain_2",
-        "Decameroon_Swamp_1"
+        "Decameroon_Swamp_1",
+        "Decameroon_Grain_1",
+        "Decameroon_Herbs_1"
       ],
       "minLevel": 1,
       "price": [
