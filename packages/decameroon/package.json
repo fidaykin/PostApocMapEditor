@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.29",
+  "version": "1.0.30",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -91,6 +91,11 @@
       "version": "1.0.29",
       "date": "2026-10-22",
       "note": "re test"
+    },
+    {
+      "version": "1.0.30",
+      "date": "2026-10-22",
+      "note": "new settings for Avaible Tiles Market and Mill"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
