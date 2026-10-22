@@ -15,9 +15,9 @@
       "id": "decameroon",
       "name": "Decameroon",
       "isDefault": false,
-      "version": "1.0.25",
+      "version": "1.0.26",
       "manifestUrl": "packages/decameroon/manifest.json",
-      "totalBytes": 22414739,
+      "totalBytes": 22414669,
       "minAppVersion": "0.0.0",
       "schemaVersion": 1,
       "autoUnlock": true
