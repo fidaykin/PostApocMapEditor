@@ -27,14 +27,12 @@ async function editorLists(page: Page) {
 
 async function publishHexDb(page: Page, gh: FakeGitHub) {
   const n = gh.writeLog.length;
-  await page.locator('#btn-publish-all').click();
-  await page.getByRole('button', { name: '☁ Publish HexDB' }).click();
+  await page.evaluate(() => { void GitHubSync.publishHexDbOnly(); });   // the menu entry is gone (unified Publish); the function stays
   await expect.poll(() => gh.writeLog.slice(n).some(w => w.path === 'hex_database.json'), { timeout: 10_000 }).toBe(true);
 }
 async function publishBldDb(page: Page, gh: FakeGitHub) {
   const n = gh.writeLog.length;
-  await page.locator('#btn-publish-all').click();
-  await page.getByRole('button', { name: '☁ Publish Buildings DB' }).click();
+  await page.evaluate(() => { void GitHubSync.publishBuildingsDb(); });
   await expect.poll(() => gh.writeLog.slice(n).some(w => w.path === 'building_database.json'), { timeout: 10_000 }).toBe(true);
 }
 async function publishPackage(page: Page, gh: FakeGitHub) {

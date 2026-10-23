@@ -1541,14 +1541,12 @@ body.mode-common #map-io    { display: none; }
     <div class="pub-drop-wrap" id="pub-drop-wrap">
       <button class="publish-btn" id="btn-publish-all" onclick="GitHubSync.togglePublishDropdown(event)" title="Publish to GitHub">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
-        <button onclick="GitHubSync.publishHexDbOnly()">☁ Publish HexDB</button>
-        <button onclick="GitHubSync.publishAllSprites()">☁ Publish Sprites</button>
-        <button onclick="GitHubSync.cleanGhostSprites()">🧹 Clean Ghost Sprites</button>
-        <button onclick="GitHubSync.publishBuildingsDb()">☁ Publish Buildings DB</button>
-        <button onclick="GitHubSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
+        <button onclick="GitHubSync.publish()" title="Publish the active package: data and changed sprites">☁ Publish</button>
+        <button onclick="GitHubSync.publishCommon()" title="Upgrades, Common settings and localization.json">☁ Publish Common</button>
         <div class="pub-drop-sep"></div>
         <button onclick="GitHubSync.publishMap()">☁ Publish Map</button>
         <div class="pub-drop-sep"></div>
+        <button onclick="GitHubSync.cleanGhostSprites()">🧹 Clean Ghost Sprites</button>
       </div>
     </div>
   </div>
@@ -2848,7 +2846,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.23";
-const COMMIT  = "d179fdc";
+const COMMIT  = "665957e";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9939,6 +9937,13 @@ const GitHubSync = (() => {
     });
   }
 
+  // The one Publish: the active package (data + changed sprites) after its diff. The base package asks for a separate confirmation.
+  async function publish() {
+    if (!isPATConfigured()) { UI.toast('⚠ Open your access link first (or use ⚙ GitHub to enter token)'); return; }
+    _closeDropdown();
+    await Packages.openPublishConfirm(Packages.getActive());
+  }
+
   async function publishUpgradeDb() {
     await _withPublishBtn('Publish Upgrade DB', async () => {
       UI.progress(30, 'Publishing upgrade_database.json…');
@@ -10338,7 +10343,7 @@ const GitHubSync = (() => {
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
     togglePublishDropdown, publishHexDbOnly, publishAllSprites, cleanGhostSprites,
-    publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishCommon, publishLoc, publishMap,
+    publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishCommon, publish, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
     loadHexDbIntoEditor, loadLocFromServer, loadUpgradeDbFromServer, syncContentFromServer,
     openMapsPopover, closeMapsPopover, _loadMap,

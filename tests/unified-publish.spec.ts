@@ -196,3 +196,38 @@ test.describe('Task 4: Publish Common', () => {
     await expect(page.locator('.toast, #toast').first()).toContainText(/common_settings\.json.*1 file\(s\) already written/);
   });
 });
+
+test.describe('Task 5: the Publish menu', () => {
+  test('has Publish, Publish Common, Publish Map and the maintenance action only', async ({ page }) => {
+    await openEditor(page, { gh: new FakeGitHub(), pat: true });
+    await page.locator('#btn-publish-all').click();
+    const labels = (await page.locator('#pub-drop button').allTextContents()).map(t => t.replace(/^[^A-Za-z]+/, '').trim());
+    expect(labels).toEqual(['Publish', 'Publish Common', 'Publish Map', 'Clean Ghost Sprites']);
+  });
+
+  test('Publish opens the diff of the active package; the base package asks for its own confirmation', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await setupPkg(page, gh);
+    await page.evaluate(() => Packages.setActive('hashpkg'));
+    await page.locator('#btn-publish-all').click();
+    await page.locator('#pub-drop button', { hasText: /^☁ Publish$/ }).click();
+    await expect(page.locator('#dialog-title')).toHaveText('Publish Package');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await quiesceAfterDialog(page);
+    await page.evaluate(() => Packages.setActive('postapoc'));
+    await page.locator('#btn-publish-all').click();
+    await page.locator('#pub-drop button', { hasText: /^☁ Publish$/ }).click();
+    await expect(page.locator('#dialog-title')).toHaveText('Publish base package');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await quiesceAfterDialog(page);
+    expect(gh.putPaths()).toEqual([]);
+  });
+
+  test('without a token Publish only says so', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh });
+    await page.evaluate(() => { void GitHubSync.publish(); });
+    await expect(page.locator('#dialog-title')).not.toBeVisible();
+    expect(gh.putPaths()).toEqual([]);
+  });
+});
