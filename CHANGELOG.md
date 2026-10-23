@@ -5,6 +5,14 @@ Format: `## [version] — [date]`
 
 ## Unreleased
 
+### Publishing
+- Unified **Publish** (menu bar): publishes the active package after a diff against the server that now also lists new and changed sprites; sprites whose sha256 already matches the server `manifest.json` are skipped (no or unreadable manifest uploads everything). The base package (`postapoc`) goes through the same dialog with its own confirmation and still writes the root copies for old game builds.
+- **Publish Common**: Upgrade DB, Common settings and `localization.json` in one confirmation; only changed files are written. The menu is now Publish, Publish Common, Publish Map and Clean Ghost Sprites; the old per-database entries are gone from the menu (the functions remain).
+
+### Fixes
+- The map file name survives a reload: the autosave stores it (`_fileName`), so the status bar shows the name instead of `(autosave)` and Save keeps the file name (ClickUp 869fm23zy thread).
+- The biome list follows the loaded databases: a biome used by a record (e.g. `Decameron`) is listed on a browser that does not know it, and the Buildings and Settlements forms keep the record's own biome instead of showing the first default (ClickUp 869fm23zy).
+
 ### Maps
 - Map **Skin** (left palette, Map design section, map JSON key `skin`, absent when empty): the content package that repaints this map in the game. The game adds it as the last package of the map, so its skinSlot records replace the base look (visuals only). The map keeps its own tiles; only the art changes. The choice is saved with the map, restored by autosave and cleared by New map. This release pairs with the game change `feature/map-skin-cheat`; an older game ignores the key.
 - Publish Map now also writes `updatedAt` (the full ISO time of the publish) next to `uploadedTime` (the date) in `maps/map_list.json`. The game's Maps tab compares it with the time it last applied the map, so a map republished on the same day with the same size is recognised as updated. Entries published earlier have no `updatedAt`; the game then falls back to date and size.

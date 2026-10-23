@@ -421,7 +421,7 @@ test.describe('C1: every writer of a covered file leaves a matching manifest', (
     seedBase(gh);
     await openEditor(page, { gh, pat: true });
     await page.evaluate(() => (window as any).__startupSyncDone);
-    await page.evaluate(() => { UI.showConfirm = (_t: string, _m: string, cb: () => void) => cb(); void Packages.openPublishConfirm('postapoc'); });
+    await page.evaluate(() => { UI.confirm = async () => true; void Packages.openPublishConfirm('postapoc'); });   // the base confirm shows a diff first (unified Publish)
     await expect.poll(() => manifestPuts(gh, 'postapoc'), { timeout: 60000 }).toBeGreaterThan(0);
     await page.waitForTimeout(500);
     expect(gh.putPaths()).toContain('packages/postapoc/hex_database.json');
