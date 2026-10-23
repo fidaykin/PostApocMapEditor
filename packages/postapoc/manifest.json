@@ -1,0 +1,486 @@
+{
+  "schemaVersion": 1,
+  "id": "postapoc",
+  "version": "1.0.37",
+  "minAppVersion": "0.0.0",
+  "generatedAt": "2026-10-23T10:54:27.112Z",
+  "totalBytes": 37772233,
+  "dependencies": [],
+  "files": [
+    {
+      "path": "building_database.json",
+      "sha256": "6c0bcfa197f845fdffbe63589d59d6ad3e9abadef95db6590f192a6b63f373d7",
+      "size": 26229
+    },
+    {
+      "path": "hex_database.json",
+      "sha256": "8270d6c4476953fd1f93609044e033740cc6c214641324813974f96d810d06d1",
+      "size": 104919
+    },
+    {
+      "path": "sprites/buildings/Artefact_1.png",
+      "sha256": "87237208e22714c2592b0e074df1e5abd99a807171eb401b67444026be83cbb8",
+      "size": 376323
+    },
+    {
+      "path": "sprites/buildings/BoneMine_Kaiju_1.png",
+      "sha256": "5743f2285a9391b3913fd12e2577a60869ed5d0fcf99c45c1e67db027f4ddec8",
+      "size": 272597
+    },
+    {
+      "path": "sprites/buildings/FarmGrain.png",
+      "sha256": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345",
+      "size": 348945
+    },
+    {
+      "path": "sprites/buildings/Farm_1.png",
+      "sha256": "7f79b2652e65eba2c433cd2b6983f48dd5843caeb1354b7c7bb8197a45da8706",
+      "size": 403652
+    },
+    {
+      "path": "sprites/buildings/GoldMine_1.png",
+      "sha256": "99c3b413c4f6d5b7a40000c408941e753a805d989e2e546baad2ff75cf264da3",
+      "size": 420902
+    },
+    {
+      "path": "sprites/buildings/IronMine_1.png",
+      "sha256": "95f6f1fc4abe06f6be2b7a7b4611794782ca04d844b6b9dea9cb2c3304c9dc32",
+      "size": 408793
+    },
+    {
+      "path": "sprites/buildings/LumberMill_1.png",
+      "sha256": "214577918559c65baa758e9ebd9fad6062558a8ebc5d52c5474c26df53db042d",
+      "size": 413622
+    },
+    {
+      "path": "sprites/buildings/OldGenerator_1.png",
+      "sha256": "63f8c62f0154b4c11aee59f42c4caee0aed0978e15da0711df34dfc6eda7a695",
+      "size": 356599
+    },
+    {
+      "path": "sprites/buildings/ScoutTower_1.png",
+      "sha256": "628282880713d367eb492732ebc84fd99ee2ea867b8d9a1c27e17295f674cd53",
+      "size": 382159
+    },
+    {
+      "path": "sprites/buildings/StoneConveyor.png",
+      "sha256": "8a8c4baec88308ba4ca7152a469b686363be3a5a49259e77f71fec19feddcd1e",
+      "size": 309326
+    },
+    {
+      "path": "sprites/buildings/StoneMine_1.png",
+      "sha256": "f321339f2bef2a16bf2c5594ba26a35b98aaad2e2dafe2d3664b0875332c4cc2",
+      "size": 394477
+    },
+    {
+      "path": "sprites/hex/Altar_Chicken_1.png",
+      "sha256": "4bd7f89e6e12f76e8d03246514810bb3f8371d06f3bcd3a56d171a2cc0d7fd23",
+      "size": 379641
+    },
+    {
+      "path": "sprites/hex/Barren.png",
+      "sha256": "4ef4b66253b2b9b8110abcb85bb06bf43f0dd642fcb53c662e7bef478720494b",
+      "size": 346441
+    },
+    {
+      "path": "sprites/hex/BrokenBoat.png",
+      "sha256": "9c7b8c4ec8be950d7979368552c6bf3b5481614a0cd268f45fbfb70a2fbda02c",
+      "size": 115230
+    },
+    {
+      "path": "sprites/hex/BrokenPlain.png",
+      "sha256": "de00e434d66772a5be988aac95d8fc9f7661db9647f045b14c98438a40a44201",
+      "size": 394352
+    },
+    {
+      "path": "sprites/hex/BrokenPlane.png",
+      "sha256": "f68a4f0bc928c196d434a9e80c03a4c2a1552b4b4a48201431bf1286850a530f",
+      "size": 359660
+    },
+    {
+      "path": "sprites/hex/BrokenRails.png",
+      "sha256": "6bfd340ed69a680817a86a246ba985c961428decb715bb68c18c5dd85007f57e",
+      "size": 356730
+    },
+    {
+      "path": "sprites/hex/Crystal_Kaiju_Alife_V_1.png",
+      "sha256": "34da601c1aaf425f43a664d54df9d79cc743c88c9a21c894c6b996e17bda26df",
+      "size": 1277190
+    },
+    {
+      "path": "sprites/hex/Crystal_Kaiju_Defeat_V_1.png",
+      "sha256": "90daded6aaf09cde88a31ecdbae157efc6df29f545e9a27de6d5ecb29fa35941",
+      "size": 1220285
+    },
+    {
+      "path": "sprites/hex/Crystal_Kaiju_Die_V1.png",
+      "sha256": "472f2a7147f208afe7877ff9145c5266c7b60513559da759449c3bf410be1d8c",
+      "size": 1232519
+    },
+    {
+      "path": "sprites/hex/Crystal_Kaiju_skeleton_V_1.png",
+      "sha256": "b17b0a83426d3a56ec8929c754d2229759295177ceeb8a4219408e2c72291256",
+      "size": 1015615
+    },
+    {
+      "path": "sprites/hex/Crystal_Kaiju_skeleton_V_2.png",
+      "sha256": "9e9ec72d837e8eb870fc74b03e8dc987c5ad8d6d1eb1f0e0377a8e0adbd2c2c7",
+      "size": 984163
+    },
+    {
+      "path": "sprites/hex/Crystal_Kaiju_skeleton_V_3.png",
+      "sha256": "2853334b0ca80ab6cb0444b113a9da02f790a164f96925af56d0fc11381d68f4",
+      "size": 914625
+    },
+    {
+      "path": "sprites/hex/Decameroon_Lake_1.png",
+      "sha256": "7adae6abd9d38bda88d2b4fd21d6ef1d679198bdb87b4a4b6e522fe6de4ee45b",
+      "size": 213890
+    },
+    {
+      "path": "sprites/hex/Dessert.png",
+      "sha256": "283b11e0babfef65d03922fdfb4c768c5b700d0d6bb0ea456c7ef6b062deefc7",
+      "size": 379513
+    },
+    {
+      "path": "sprites/hex/DestroyedBuilding_1.png",
+      "sha256": "0d41691ef460bd5478eaf17ac801a9cf5ff6d49413af08458d6a5909efb738b2",
+      "size": 377834
+    },
+    {
+      "path": "sprites/hex/DirtyWater.png",
+      "sha256": "c5541d3c3014d35def0327a20a385e8e296f2a3718ae56921c62172045758f94",
+      "size": 133889
+    },
+    {
+      "path": "sprites/hex/Fish_1.png",
+      "sha256": "de492db6df8da4c6913aae4a11e8029ff333cacecb1fae89a3a1b70e906ebb56",
+      "size": 45002
+    },
+    {
+      "path": "sprites/hex/Forest_1.png",
+      "sha256": "5ce93282296dac7a6f0f905f2f947812afc231de7a03dc73bc01aacac92134be",
+      "size": 275713
+    },
+    {
+      "path": "sprites/hex/Forest_2.png",
+      "sha256": "2cd7efbfd43225255abd5364390b3d6663cd64c2c2249cc03bc2cf6982c19971",
+      "size": 299843
+    },
+    {
+      "path": "sprites/hex/Forest_3.png",
+      "sha256": "d7c6cbd1613fc720a249624303d3f362ec3c8669aa48206a4ecee0f11069276f",
+      "size": 338446
+    },
+    {
+      "path": "sprites/hex/Forest_Kaiju_1.png",
+      "sha256": "97be98fe742984310b0303b051c96a606a5c37bd43687ae4cda6b98c27172af3",
+      "size": 323689
+    },
+    {
+      "path": "sprites/hex/Forest_Kaiju_2.png",
+      "sha256": "625d3bd45f09883846edca98f87d8ec1c4de197d6d69e5eb7fa8b62badf0ea2a",
+      "size": 374383
+    },
+    {
+      "path": "sprites/hex/Forest_red.png",
+      "sha256": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74",
+      "size": 393506
+    },
+    {
+      "path": "sprites/hex/GemField.png",
+      "sha256": "ba3376f732827dcf44b2d0a41010460778da773e0e16af438ad31f05d1e476fa",
+      "size": 363023
+    },
+    {
+      "path": "sprites/hex/GoldVein.png",
+      "sha256": "d310c4ec6f346c86addf534062131e4a5b76c3288d076631acd36383f5031939",
+      "size": 357094
+    },
+    {
+      "path": "sprites/hex/GoldenMine_Kaiju_1.png",
+      "sha256": "5379ec0a195832d81248a6082b7144535854ff9c36ba027047bf957286c82e1a",
+      "size": 388129
+    },
+    {
+      "path": "sprites/hex/Hills.png",
+      "sha256": "43bf851bc2b7c914c14ad838d9f7282e3cf95efad1ca49363207e8af59e9dbbb",
+      "size": 323033
+    },
+    {
+      "path": "sprites/hex/Lake_2.png",
+      "sha256": "13d8b0e13afb1b07ca07a93a041e55afe3e29774402c6f8e84085d1ec4d96ca8",
+      "size": 303716
+    },
+    {
+      "path": "sprites/hex/Lake_3.png",
+      "sha256": "85ae6e32543d6b228909156a5b6a204cb3625094a3a52f1a633e4918a2841ab4",
+      "size": 304207
+    },
+    {
+      "path": "sprites/hex/Lake_4.png",
+      "sha256": "0b334c3a14487bbbef0e644b4b18b797bdc90cbd56d8f14282118272aca95990",
+      "size": 312284
+    },
+    {
+      "path": "sprites/hex/Lake_5.png",
+      "sha256": "0ec55de0c7d957930f24e0f14125ff917e515c96d2f1f727fd9d4665525225de",
+      "size": 306182
+    },
+    {
+      "path": "sprites/hex/Lake_6.png",
+      "sha256": "a1f4d29bfd070d94d5797793c9b6244e127fd48da1d5cbcaa7b5ebdf40ddada6",
+      "size": 305832
+    },
+    {
+      "path": "sprites/hex/Lake_7.png",
+      "sha256": "38c40d706f966444631bc5b778973982a0abfd6caeaecba3d5a55782da50d1c3",
+      "size": 311958
+    },
+    {
+      "path": "sprites/hex/LavaPlain.png",
+      "sha256": "7d41a83c04a27e83007d735133d05fe3339ebb6376d4a3c98d48e840df7f3911",
+      "size": 316447
+    },
+    {
+      "path": "sprites/hex/LavaRift.png",
+      "sha256": "685a77df94c6f9e4fc607895dc12f43f59c8c3e1bab5e623be8d9105e4fb69d7",
+      "size": 317278
+    },
+    {
+      "path": "sprites/hex/MainSettlement_Kaiju_1.png",
+      "sha256": "23cd9ff34dd7e2a8d7f82a75e89972ec24be65f184c5b83342f692ec2edac2ec",
+      "size": 2456943
+    },
+    {
+      "path": "sprites/hex/Monster_Chicken_Big_2.png",
+      "sha256": "89b26a84c336c95e3fccedf21b6021604eff4e82c910e8a34232841038abfd0c",
+      "size": 840416
+    },
+    {
+      "path": "sprites/hex/Monster_Chicken_Small_1.png",
+      "sha256": "a4a2e89edbd399791d009f3cdf7f258e8eaa4ee9abcde882308dccf74d412963",
+      "size": 290964
+    },
+    {
+      "path": "sprites/hex/Mountain.png",
+      "sha256": "ab8e2d46f786e5970aca3ab5e29b60553708125b97b290d01c0e1602fd15e326",
+      "size": 299478
+    },
+    {
+      "path": "sprites/hex/Mountain_Kaiju_1.png",
+      "sha256": "032c5fc445452b061a876540ab1395ab2453751cf3cbed8ee3e933893f22dacc",
+      "size": 318386
+    },
+    {
+      "path": "sprites/hex/Mountain_Kaiju_2.png",
+      "sha256": "fffe542fbcf07fc04a18c625cd380d1359008353c7ab772e4c49317b06b1232a",
+      "size": 360341
+    },
+    {
+      "path": "sprites/hex/OilWater.png",
+      "sha256": "8e10b45c5b34883e647c8f10fafe48bcf9c947428c611424c9c25b3743128c05",
+      "size": 233179
+    },
+    {
+      "path": "sprites/hex/Oil_1.png",
+      "sha256": "b0433e6326956adb47007457d7de579e603c8656d33e9275b4c7c4ff7876fb01",
+      "size": 340588
+    },
+    {
+      "path": "sprites/hex/Plain_1.png",
+      "sha256": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa",
+      "size": 190259
+    },
+    {
+      "path": "sprites/hex/Plain_2.png",
+      "sha256": "08be61cd891f648b7a5f5b5a38eaba03afedb630f92ac39f90e6807096c643b3",
+      "size": 273104
+    },
+    {
+      "path": "sprites/hex/Plain_Cat_1.png",
+      "sha256": "d2ef0adfe1be0f4e56544eea264ea9c0d60de3b5178da91a1cf6480f79130a95",
+      "size": 270632
+    },
+    {
+      "path": "sprites/hex/Plain_Chicken_1.png",
+      "sha256": "c7d6b20196441c6ab7b3db9f54f9b0ecaf005aba13dccbd952311a78796971bf",
+      "size": 291615
+    },
+    {
+      "path": "sprites/hex/Plain_Kaiju_1.png",
+      "sha256": "a65cc4c1a0b33626b64457dc079baf2dcd408eb63b59459151d7a7e5d7cd77e5",
+      "size": 280776
+    },
+    {
+      "path": "sprites/hex/Rift.png",
+      "sha256": "2ed2b0a9caec40d6096c52e347d6c5446f5d0a1f1dd855c7a552053717c1609d",
+      "size": 302616
+    },
+    {
+      "path": "sprites/hex/River_D_2.png",
+      "sha256": "64a3c917f34e5653b637774ac378c8179c1385013f8dbaa2a73cf5f1ada03942",
+      "size": 293155
+    },
+    {
+      "path": "sprites/hex/River_D_3.png",
+      "sha256": "3085ecf30d59cdd5b8aa0a77b529689187a932c3f7d878de93b29eb44c2d4067",
+      "size": 299163
+    },
+    {
+      "path": "sprites/hex/River_D_4.png",
+      "sha256": "3f2dae24db65a325e7e7bee26ecf1b8bddde863b00d93d1798bfdbfe65003be5",
+      "size": 288444
+    },
+    {
+      "path": "sprites/hex/River_D_L_EE_2.png",
+      "sha256": "e4a0994c6c960facc893c6b661f429e63dce4e878380d4581e1b36a9352931cc",
+      "size": 273443
+    },
+    {
+      "path": "sprites/hex/River_D_R_EE_2.png",
+      "sha256": "9ef48a4b94026783161e4ddf359e1e67b97fac7f0e4895577c325e2a70f7ec93",
+      "size": 255968
+    },
+    {
+      "path": "sprites/hex/River_L_1.png",
+      "sha256": "edbf05d53d0782d20b7bf904c370380315259a2dd43cb8020ed50c8fe1a199bd",
+      "size": 276711
+    },
+    {
+      "path": "sprites/hex/River_L_4.png",
+      "sha256": "5639a1d62f5be045a7e79123f61f528202283a34f89cc382d669f05fe33071aa",
+      "size": 300821
+    },
+    {
+      "path": "sprites/hex/River_L_5.png",
+      "sha256": "39898fb206ff6650106d9f51bd0e9ebaab7c976a111fb06bb96ab756bbf4bea9",
+      "size": 299984
+    },
+    {
+      "path": "sprites/hex/River_L_D_E_1.png",
+      "sha256": "b7574c4d77089ae37202601dff22f499f3fa5577f1272a45e36641ac31acf41e",
+      "size": 286913
+    },
+    {
+      "path": "sprites/hex/River_L_L_E_5.png",
+      "sha256": "fec2e0db858688684a95f3028116424efa2e837ea743af7e9502d65ecde6e99d",
+      "size": 286694
+    },
+    {
+      "path": "sprites/hex/River_L_R_E_5.png",
+      "sha256": "6e9ce3a855dbbb6438b2e7054c6f8b9ffa300b465daddf1db5d302cd231aa0dc",
+      "size": 288552
+    },
+    {
+      "path": "sprites/hex/River_L_U_E_1.png",
+      "sha256": "d666df797f88a8b602e65a8501da3040d04351b5ce529b699849b6ed5851d907",
+      "size": 270992
+    },
+    {
+      "path": "sprites/hex/River_R_1.png",
+      "sha256": "28a6968bd4bda61e73b6f6d2b43c607d1096cbf23439066f7e17dc75a5943a70",
+      "size": 276729
+    },
+    {
+      "path": "sprites/hex/River_R_4.png",
+      "sha256": "46599d7453234fb9451f9c0a586825a5b0fd3d06f0a493e0c18d733461911107",
+      "size": 290454
+    },
+    {
+      "path": "sprites/hex/River_R_5.png",
+      "sha256": "a94d14a9a09674ab4302b25171952e2b1357c2918726dbc7627e676b29957450",
+      "size": 299723
+    },
+    {
+      "path": "sprites/hex/River_U_2.png",
+      "sha256": "1d246f6601093e1cf2b4f4e41eaafd358b50ba891d2eabfc6ecb3323a342fcea",
+      "size": 294078
+    },
+    {
+      "path": "sprites/hex/River_U_3.png",
+      "sha256": "373b2f27387a60b6213a6461f8c0dc6c15c31d70760569a4a635d4694d459f4c",
+      "size": 302609
+    },
+    {
+      "path": "sprites/hex/River_U_4.png",
+      "sha256": "ea48c70ee91be0120cfcbc9d8cfb09a902712eba95788b8895a1db7d352d48e0",
+      "size": 281790
+    },
+    {
+      "path": "sprites/hex/River_U_D_E_4.png",
+      "sha256": "0f6bc8291012333646d44b94934540ba59c71f945566b941b8cac113bcb9a632",
+      "size": 270733
+    },
+    {
+      "path": "sprites/hex/River_U_L_EE_2.png",
+      "sha256": "47ee4b6a67961f0c8d90faff4b2253b7a7f12772943d54383380ed349d590fb9",
+      "size": 256142
+    },
+    {
+      "path": "sprites/hex/River_U_R_EE_2.png",
+      "sha256": "b382ed9fbfd63a40ce06e25c1d83a5a3f442bca1640e5d7781e07a00adf4b019",
+      "size": 261326
+    },
+    {
+      "path": "sprites/hex/River_U_U_E_4.png",
+      "sha256": "6eb77acf16c0929c2294e32d228d35c6b1351bedcfd6e027f7944983b67ab41f",
+      "size": 266117
+    },
+    {
+      "path": "sprites/hex/Road_Bridge_NEWS_1.png",
+      "sha256": "3857fcd59826b91b4b9921976cd482d278c7d34be1663d1b737a256e8425b854",
+      "size": 118497
+    },
+    {
+      "path": "sprites/hex/RockySwamp.png",
+      "sha256": "bc6df1498ad836662ecb3a0ecb398bb47bb2e523f9157238866ab22c5703ddf3",
+      "size": 291936
+    },
+    {
+      "path": "sprites/hex/Rubble_1.png",
+      "sha256": "57b08a0fa251d79fe7e03ac151dfbb8171c45559041869a0978840821d731bc6",
+      "size": 319907
+    },
+    {
+      "path": "sprites/hex/Rubble_2.png",
+      "sha256": "bc225f30513dfb3f4961a908b9119ad4b8d402cb7134edb4ee231fc2289bce54",
+      "size": 336217
+    },
+    {
+      "path": "sprites/hex/Rubble_3.png",
+      "sha256": "e9dcb9d9461940241dd1d576b9146ff306aa6ef57bbe7be14c14defdf7193e70",
+      "size": 337816
+    },
+    {
+      "path": "sprites/hex/Setlements_Big_Chicken_1.png",
+      "sha256": "5b125292033680cbc71a77897058b382238af95b727e59164ee0a23657f3044e",
+      "size": 2365129
+    },
+    {
+      "path": "sprites/hex/SmallShip.png",
+      "sha256": "476993576691c349d8e9d3552e7c12d0e3ea30421c5b791fab343a651609c9c4",
+      "size": 183777
+    },
+    {
+      "path": "sprites/hex/SmallShipyard.png",
+      "sha256": "df9342420fe22fe74e9b46f5a207f6a2b7407ce80167bbc22bf0f6b76ccb31ff",
+      "size": 340896
+    },
+    {
+      "path": "sprites/hex/Stones_1.png",
+      "sha256": "e4197834145dac77a658be7eb7459812a703369823c6bd81c7342d4e8f26581e",
+      "size": 160550
+    },
+    {
+      "path": "sprites/hex/Swamp.png",
+      "sha256": "d645f404b0f3d5067b9adbbf504420a905c59bf116f1d32e3b80ecffd3aacc4b",
+      "size": 361055
+    },
+    {
+      "path": "sprites/hex/Water.png",
+      "sha256": "f45b1a7b32d6b71603cac54f803119f298d33aa97528bd38974df7dbfa8ce546",
+      "size": 106730
+    }
+  ]
+}

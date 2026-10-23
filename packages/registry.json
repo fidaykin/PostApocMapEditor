@@ -1,6 +1,26 @@
 {
   "version": 1,
   "packages": [
-    { "id": "postapoc", "name": "Post-Apocalypse", "isDefault": true, "version": "1.0.0" }
+    {
+      "id": "postapoc",
+      "name": "Post-Apocalypse",
+      "isDefault": true,
+      "version": "1.0.37",
+      "manifestUrl": "packages/postapoc/manifest.json",
+      "totalBytes": 37772233,
+      "minAppVersion": "0.0.0",
+      "schemaVersion": 1
+    },
+    {
+      "id": "decameroon",
+      "name": "Decameroon",
+      "isDefault": false,
+      "version": "1.0.30",
+      "manifestUrl": "packages/decameroon/manifest.json",
+      "totalBytes": 22414814,
+      "minAppVersion": "0.0.0",
+      "schemaVersion": 1,
+      "autoUnlock": true
+    }
   ]
 }

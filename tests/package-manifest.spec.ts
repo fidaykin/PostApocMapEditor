@@ -50,6 +50,37 @@ test('buildManifest lists databases and sprites sorted, with the real hash and s
   expect(Date.parse(m.generatedAt)).not.toBeNaN();
 });
 
+test('terrain sprites (coastline, roads) are listed with their real hash, other files in those folders are not', async ({ page }) => {
+  const gh = new FakeGitHub();
+  seedPackage(gh, 'terr');
+  const shore = Buffer.concat([PNG, Buffer.from('shore')]);
+  gh.write('packages/terr/sprites/terrain/coastline/Coastline_0_Top.png', shore);
+  gh.write('packages/terr/sprites/terrain/coastline/Coastline_1_TopRight.png', PNG);
+  gh.write('packages/terr/sprites/terrain/roads/Road_A.png', PNG);
+  gh.write('packages/terr/sprites/terrain/coastline/notes.txt', 'not a sprite');
+  await openEditor(page, { gh, pat: true });
+  const m = await page.evaluate(() => GitHubSync.buildManifest('terr', '1.0.0'));
+  const paths = m.files.map((f: any) => f.path);
+  expect(paths).toEqual([...paths].sort());
+  expect(paths).toContain('sprites/terrain/coastline/Coastline_0_Top.png');
+  expect(paths).toContain('sprites/terrain/coastline/Coastline_1_TopRight.png');
+  expect(paths).toContain('sprites/terrain/roads/Road_A.png');
+  expect(paths).not.toContain('sprites/terrain/coastline/notes.txt');
+  const f = m.files.find((x: any) => x.path === 'sprites/terrain/coastline/Coastline_0_Top.png');
+  expect(f.sha256).toBe(sha(shore));
+  expect(f.size).toBe(shore.length);
+});
+
+test('the base package manifest does not list its terrain folders (built into the app, never downloaded)', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.write('packages/postapoc/hex_database.json', '{"version":1,"hexes":[]}');
+  gh.write('packages/postapoc/sprites/terrain/coastline/Coastline_0_UpperRight.png', PNG);
+  gh.write('packages/postapoc/sprites/terrain/roads/road_hex_36_NS.png', PNG);
+  await openEditor(page, { gh, pat: true });
+  const m = await page.evaluate(() => GitHubSync.buildManifest('postapoc', '1.0.0'));
+  expect(m.files.map((f: any) => f.path).filter((x: string) => x.includes('sprites/terrain'))).toEqual([]);
+});
+
 test('a package without sprite folders still gets a valid manifest of its databases', async ({ page }) => {
   const gh = new FakeGitHub();
   gh.setRegistry([{ id: 'bare', name: 'bare' }]);
@@ -390,7 +421,7 @@ test.describe('C1: every writer of a covered file leaves a matching manifest', (
     seedBase(gh);
     await openEditor(page, { gh, pat: true });
     await page.evaluate(() => (window as any).__startupSyncDone);
-    await page.evaluate(() => { UI.showConfirm = (_t: string, _m: string, cb: () => void) => cb(); void Packages.openPublishConfirm('postapoc'); });
+    await page.evaluate(() => { UI.confirm = async () => true; void Packages.openPublishConfirm('postapoc'); });   // the base confirm shows a diff first (unified Publish)
     await expect.poll(() => manifestPuts(gh, 'postapoc'), { timeout: 60000 }).toBeGreaterThan(0);
     await page.waitForTimeout(500);
     expect(gh.putPaths()).toContain('packages/postapoc/hex_database.json');

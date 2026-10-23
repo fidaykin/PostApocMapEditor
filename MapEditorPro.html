@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.07.16.717ca1c</title>
+<title>Post Apo Map Editor 2026.10.23.9239f0c</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1541,14 +1541,12 @@ body.mode-common #map-io    { display: none; }
     <div class="pub-drop-wrap" id="pub-drop-wrap">
       <button class="publish-btn" id="btn-publish-all" onclick="GitHubSync.togglePublishDropdown(event)" title="Publish to GitHub">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
-        <button onclick="GitHubSync.publishHexDbOnly()">☁ Publish HexDB</button>
-        <button onclick="GitHubSync.publishAllSprites()">☁ Publish Sprites</button>
-        <button onclick="GitHubSync.cleanGhostSprites()">🧹 Clean Ghost Sprites</button>
-        <button onclick="GitHubSync.publishBuildingsDb()">☁ Publish Buildings DB</button>
-        <button onclick="GitHubSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
+        <button onclick="GitHubSync.publish()" title="Publish the active package: its tiles, buildings and changed sprites">☁ Publish Package Data</button>
+        <button onclick="GitHubSync.publishCommon()" title="Data shared by all packages: Upgrade DB, Common settings and localization.json">☁ Publish Common Data</button>
         <div class="pub-drop-sep"></div>
         <button onclick="GitHubSync.publishMap()">☁ Publish Map</button>
         <div class="pub-drop-sep"></div>
+        <button onclick="GitHubSync.cleanGhostSprites()">🧹 Clean Ghost Sprites</button>
       </div>
     </div>
   </div>
@@ -1896,6 +1894,10 @@ body.mode-common #map-io    { display: none; }
                      style="flex:1;min-width:0;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px"
                      onchange="DistanceBands.commit(this.value)"
                      onkeydown="if(event.key==='Enter'){this.blur()}else if(event.key==='Escape'){event.stopPropagation();DistanceBands.syncInput();this.blur()}">
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding-top:4px">
+              <label for="map-skin-select" title="Content package that repaints this map in the game (visuals only). none: the map is drawn by its own tiles. Saved in the map as skin.">Skin</label>
+              <select id="map-skin-select" class="pkg-active-select" style="flex:1;min-width:0;max-width:none" onfocus="MapSkin.sync()" onchange="MapSkin.set(this.value)"></select>
             </div>
             <div style="padding-top:8px" title="Scatters bunkers, mega cities, artifacts and ore clusters over free land, beyond the minimum distance from the city. One undo step. Needs the Terrain / Buildings / Settlements layers unlocked for what it writes. Same seed on the same map gives the same result; empty seed = random">Placement helper</div>
             <div id="pl-form" style="display:grid;grid-template-columns:1fr 64px;gap:3px 6px;align-items:center;padding-top:4px"></div>
@@ -2843,8 +2845,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.15";
-const COMMIT  = "53e71a6";
+const VERSION = "2026.10.23";
+const COMMIT  = "9239f0c";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9586,6 +9588,13 @@ const GitHubSync = (() => {
         if (a && b && (a.length !== b.length || await sha256Hex(a) !== await sha256Hex(b))) differing.push(ref);
       }
     }
+    // Terrain sprites (sprites/terrain/<folder>/*.png: coastline, later roads) are not referenced by any database entry, the game
+    // loads them by fixed file names per folder. Every png in those folders is listed, so a package publish keeps them.
+    // The base package is built into the app and never downloaded (its server copy of these folders is reference art only).
+    if (id !== 'postapoc')
+    for (const dir of (await _listDirFresh(`packages/${id}/sprites/terrain`)).filter(it => it && it.type === 'dir' && typeof it.name === 'string'))
+      for (const it of await _listDirFresh(`packages/${id}/sprites/terrain/${dir.name}`))
+        if (it && it.type !== 'dir' && typeof it.name === 'string' && /\.png$/i.test(it.name)) sprites.push(`sprites/terrain/${dir.name}/${it.name}`);
     const differMsgs = differing.map(ref => `same-named sprite differs between sprites/hex and sprites/buildings: ${ref}`);
     for (const m of differMsgs) console.warn(`[GitHubSync] manifest ${id}: ${m}`);
     if (missing.length) console.warn(`[GitHubSync] manifest ${id}: ${missing.length} referenced sprite(s) are not on the server and are not listed:`, missing);
@@ -9694,6 +9703,51 @@ const GitHubSync = (() => {
       UI.toast('⚠ Published, but the package manifest was NOT updated: ' + e.message, { sticky: true });
       return null;
     }
+  }
+
+  // ── Terrain sprites of a package (sprites/terrain/<folder>/): coastline and roads ──
+  // The game loads these by fixed file names (Unity RuntimePackageSync.CoastlineFileNames / RoadFileNames; contracts
+  // package-coastline-sprites.md, package-road-sprites.md), so a wrong name would be ignored silently. They are refused here.
+  const TERRAIN_SPRITE_SETS = {
+    coastline: ['Coastline_0_UpperRight', 'Coastline_1_LowerRight', 'Coastline_2_Bottom', 'Coastline_3_LowerLeft', 'Coastline_4_UpperLeft', 'Coastline_5_Top'],
+    roads: ['road_hex_00_none', 'road_hex_01_SE', 'road_hex_03_SENE', 'road_hex_04_N', 'road_hex_05_SEN', 'road_hex_06_NEN', 'road_hex_07_SENEN', 'road_hex_09_SENW', 'road_hex_10_NENW', 'road_hex_11_SENENW', 'road_hex_13_SENNW', 'road_hex_14_NENNW', 'road_hex_15_SENENNW', 'road_hex_21_SENSW', 'road_hex_23_SENENSW', 'road_hex_27_SENENWSW', 'road_hex_31_SENENNWSW', 'road_hex_36_NS', 'road_hex_37_SENS', 'road_hex_39_SENENS', 'road_hex_45_SENNWS', 'road_hex_46_NENNWS', 'road_hex_47_SENENNWS', 'road_hex_63_SENENNWSWS', 'River_bridge_1', 'River_bridge_2', 'River_bridge_3'],
+  };
+  const TERRAIN_SPRITE_SIZE = 512;
+
+  // '' = fine, else why the file must not be uploaded. bytes: Uint8Array of the PNG.
+  function terrainSpriteProblem(folder, fileName, bytes) {
+    const names = TERRAIN_SPRITE_SETS[folder];
+    if (!names) return `unknown terrain folder "${folder}"`;
+    const m = /^(.+)\.png$/.exec(String(fileName));
+    if (!m || !names.includes(m[1])) return `${fileName}: not a ${folder} sprite name (expected one of: ${names.join(', ')})`;
+    const sig = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
+    if (!bytes || bytes.length < 24 || sig.some((b, i) => bytes[i] !== b)) return `${fileName}: not a PNG file`;
+    const dv = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    const w = dv.getUint32(16), h = dv.getUint32(20);
+    if (w !== TERRAIN_SPRITE_SIZE || h !== TERRAIN_SPRITE_SIZE) return `${fileName}: ${w}x${h}, must be ${TERRAIN_SPRITE_SIZE}x${TERRAIN_SPRITE_SIZE}`;
+    return '';
+  }
+
+  // Uploads PNGs to packages/<id>/sprites/terrain/<folder>/ and releases the package: manifest, registry and package.json get
+  // a new patch version (players keep a cached sprite until the version changes). All files are checked first: one bad file
+  // uploads nothing. The base package is refused: the game never downloads it, its art is built into the app.
+  // files: [{ name, bytes: Uint8Array }]
+  async function uploadTerrainSprites(pkgId, folder, files, opts = {}) {
+    if (!_MANIFEST_NAME_RE.test(String(pkgId))) throw new Error(`Refusing unsafe package id "${pkgId}"`);
+    if (!files || !files.length) throw new Error('No files chosen');
+    const problems = files.map(f => terrainSpriteProblem(folder, f.name, f.bytes)).filter(Boolean);
+    if (problems.length) throw new Error('Nothing was uploaded:\n' + problems.join('\n'));
+    const reg = await readRepoFile('packages/registry.json');
+    const entry = reg && reg.json && Array.isArray(reg.json.packages) && reg.json.packages.find(p => p.id === pkgId);
+    if (!entry) throw new Error(`Package "${pkgId}" is not in the registry on the server; publish it first`);
+    if (entry.isDefault) throw new Error(`"${pkgId}" is the base package: the game never downloads its terrain sprites (they are built into the app)`);
+    let done = 0;
+    for (const f of files) {
+      await _putBinary(`packages/${pkgId}/sprites/terrain/${folder}/${f.name}`, new Blob([f.bytes], { type: 'image/png' }), `terrain-upload ${pkgId}: ${folder}/${f.name}`);
+      if (opts.onProgress) opts.onProgress(++done, files.length);
+    }
+    const r = await refreshBaseManifest(pkgId);
+    return { version: r.version, count: files.length };
   }
 
   // ── PAT validation ────────────────────────────────────────────
@@ -9815,17 +9869,24 @@ const GitHubSync = (() => {
       const all = await SpriteStore.loadForPackage('postapoc');   // the shared pool only: package sprites go out with their package
       if (!all.length) { UI.toast('No sprites in local store'); return; }
       UI.progress(10, `Uploading ${all.length} sprites…`);
-      let done = 0;
+      const published = await Packages._publishedHashes('postapoc');   // null = no usable manifest: upload everything
+      let done = 0, skipped = 0;
       for (const entry of all) {
         const res  = await fetch(entry.dataUrl);
         const blob = await res.blob();
-        await pushSprite(entry.name, blob, entry.category || 'hex');
+        const cat  = entry.category || 'hex';
+        const fname = entry.name.endsWith('.png') ? entry.name : `${entry.name}.png`;
+        if (published && published.get(`packages/postapoc/sprites/${cat}/${fname}`) === await sha256Hex(new Uint8Array(await blob.arrayBuffer()))) {
+          skipped++;
+        } else {
+          await pushSprite(entry.name, blob, cat);
+        }
         done++;
         UI.progress(Math.round((done / all.length) * 90) + 10, `${done}/${all.length} sprites…`);
       }
       if (!(opts && opts.skipManifest === true)) await refreshBaseManifestSafely();
-      UI.progressDone(`✅ ${all.length} sprites published`);
-      UI.toast(`✅ ${all.length} sprites published`);
+      UI.progressDone(`✅ ${all.length - skipped} sprites published, ${skipped} unchanged`);
+      UI.toast(`✅ ${all.length - skipped} sprites published, ${skipped} unchanged`);
     });
   }
 
@@ -9876,6 +9937,13 @@ const GitHubSync = (() => {
     });
   }
 
+  // The one Publish: the active package (data + changed sprites) after its diff. The base package asks for a separate confirmation.
+  async function publish() {
+    if (!isPATConfigured()) { UI.toast('⚠ Open your access link first (or use ⚙ GitHub to enter token)'); return; }
+    _closeDropdown();
+    await Packages.openPublishConfirm(Packages.getActive());
+  }
+
   async function publishUpgradeDb() {
     await _withPublishBtn('Publish Upgrade DB', async () => {
       UI.progress(30, 'Publishing upgrade_database.json…');
@@ -9897,6 +9965,37 @@ const GitHubSync = (() => {
       console.error('[GitHubSync] publishCommonDb:', e);
       UI.toast('❌ publishCommonDb failed: ' + e.message);
     }
+  }
+
+  // Publish Common Data: the three files shared by every package. One confirmation lists which differ from the server;
+  // only the changed ones are written. A failure names the file and says how many were already written.
+  async function publishCommon() {
+    return _withPublishBtn('Publish Common Data', async () => {
+      const files = [
+        { path: 'upgrade_database.json', text: UpgDB.getJson() },
+        { path: 'common_settings.json',  text: CommonDB.export() },
+        { path: 'localization.json',     text: JSON.stringify(LocalizationKeys.getExportData(), null, 2) },
+      ];
+      const enc = new TextEncoder();
+      for (const f of files) {
+        const have = await _readRepoBytes(f.path);
+        f.changed = !have || await sha256Hex(have) !== await sha256Hex(enc.encode(f.text));
+      }
+      const todo = files.filter(f => f.changed);
+      const ok = await UI.confirm('Publish Common Data',
+        todo.length ? `Publish ${todo.length} of ${files.length} shared file(s)?` : 'Nothing differs from the server.',
+        files.map(f => `${f.path}: ${f.changed ? 'changed' : 'unchanged'}`).join('\n'),
+        todo.length ? 'Publish' : 'Close');
+      if (!ok || !todo.length) return;
+      let n = 0;
+      for (const f of todo) {
+        UI.progress(Math.round(100 * n / todo.length), `Writing ${f.path}…`);
+        try { await _putText(f.path, f.text, `publish: ${f.path}`); n++; }
+        catch (e) { throw new Error(`${f.path}: ${e.message}${n ? ` (${n} file(s) already written)` : ''}`); }
+      }
+      UI.progressDone(`✅ ${n} shared file(s) published`);
+      UI.toast(`✅ Publish Common Data: ${todo.map(f => f.path).join(', ')}`);
+    });
   }
 
   async function publishLoc() {
@@ -9980,6 +10079,7 @@ const GitHubSync = (() => {
         fileName: `${fname}.json`,
         size: String(new TextEncoder().encode(mapJson).length),
         uploadedTime: new Date().toISOString().substring(0, 10),
+        updatedAt: new Date().toISOString(),   // full time: the game compares it to tell a republished map from the one it has
       };
       const idx = list.maps.findIndex(m => m.fileName === entry.fileName);
       if (idx >= 0) list.maps[idx] = entry; else list.maps.push(entry);
@@ -10237,13 +10337,13 @@ const GitHubSync = (() => {
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
-    sha256Hex, _readRepoBytes, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
+    TERRAIN_SPRITE_SETS, terrainSpriteProblem, uploadTerrainSprites, sha256Hex, _readRepoBytes, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
     _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, roadsGate, BASE_URL, readRepoFile, readRepoJson,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
     togglePublishDropdown, publishHexDbOnly, publishAllSprites, cleanGhostSprites,
-    publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc, publishMap,
+    publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishCommon, publish, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
     loadHexDbIntoEditor, loadLocFromServer, loadUpgradeDbFromServer, syncContentFromServer,
     openMapsPopover, closeMapsPopover, _loadMap,
@@ -11375,10 +11475,14 @@ const IO = (() => {
   let _fsDirHandle      = null;   // FileSystemDirectoryHandle for saved_maps/
   let _currentFileName  = '';
 
-  function _setFileName(name) {
+  // The name is stored in the autosave copy (`_fileName`), so a reload shows it again and Save keeps the file name.
+  // `persist` false is for the restore itself: it must not schedule a rewrite of the copy it just read.
+  function _setFileName(name, persist = true) {
+    const changed = name !== _currentFileName;
     _currentFileName = name;
     const el = document.getElementById('map-file-label');
     if (el) el.textContent = name || '—';
+    if (persist && changed && typeof mapData !== 'undefined' && mapData) scheduleAutoSave();
   }
 
   // ── IndexedDB helper (stores FileSystemDirectoryHandle across sessions) ──
@@ -11494,6 +11598,7 @@ const IO = (() => {
       data: data2d,
       settlements: settlements.map(s => ({ col: s.col, row: s.row, type: s.type }))
     };
+    if (mapSkin) result.skin = mapSkin;
     if (bridgesData.length > 0)
       result.bridges = bridgesData.map(b => ({ col: b.col, row: b.row, axis: b.axis }));
     const objEntries = Object.entries(objectsData);
@@ -11835,11 +11940,12 @@ const IO = (() => {
     return restored;
   }
 
-  // Builds the map JSON plus a monotonic `_autosavedAt` stamp.
+  // Builds the map JSON plus a monotonic `_autosavedAt` stamp and, for a named map, its `_fileName`.
   function _stampedJson() {
     const raw = _buildJson();
     _lastStamp = Math.max(Date.now(), _lastStamp + 1);
-    return { raw, json: raw.slice(0, -1) + ',"_autosavedAt":' + _lastStamp + '}' };
+    const named = _currentFileName && _currentFileName !== '(autosave)' ? ',"_fileName":' + JSON.stringify(_currentFileName) : '';
+    return { raw, json: raw.slice(0, -1) + named + ',"_autosavedAt":' + _lastStamp + '}' };
   }
 
   function _autoSave() {
@@ -11881,7 +11987,7 @@ const IO = (() => {
   function _snapshotMapState() {
     if (!mapData) return null;
     return {
-      w: MAP_WIDTH, h: MAP_HEIGHT, mapData, bridgesData, objectsData, tileExtras, roadsData,
+      w: MAP_WIDTH, h: MAP_HEIGHT, mapData, bridgesData, objectsData, tileExtras, roadsData, skin: mapSkin,
       settlements, settlementSlots, settlementPriority1, settlementPriority2, fileName: _currentFileName, bands: DistanceBands.toJson(),
       zones: typeof ZonePainter !== 'undefined' ? JSON.parse(JSON.stringify(ZonePainter.toSaveObject())) : null,
     };
@@ -11890,9 +11996,9 @@ const IO = (() => {
     MAP_WIDTH = s.w; MAP_HEIGHT = s.h; mapData = s.mapData; bridgesData = s.bridgesData; objectsData = s.objectsData;
     if (typeof Bookmarks !== 'undefined') Bookmarks.refresh();
     bumpMapWrite(); _mapGen++;
-    tileExtras = s.tileExtras; roadsData = s.roadsData; settlements = s.settlements; settlementSlots = s.settlementSlots;
+    tileExtras = s.tileExtras; roadsData = s.roadsData; MapSkin.reset(s.skin); settlements = s.settlements; settlementSlots = s.settlementSlots;
     settlementPriority1 = s.settlementPriority1; settlementPriority2 = s.settlementPriority2;
-    _setFileName(s.fileName);
+    _setFileName(s.fileName, false);
     DistanceBands.fromJson(s.bands);
     if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
     if (s.zones && typeof ZonePainter !== 'undefined') {
@@ -11934,6 +12040,7 @@ const IO = (() => {
       roadsData = {};
       if (Array.isArray(json.roads))
         json.roads.forEach(r => { const { col, row, ...rest } = r; roadsData[col + ',' + row] = rest; });
+      MapSkin.reset(json.skin);
       // Detect old integer format: data[0][0] is a number → migrate to hex ID strings
       const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -11988,7 +12095,7 @@ const IO = (() => {
       DistanceBands.fromJson(json.distance_bands);     // a map without the key gets the interval rings, never the previous map's limits
       History.clear();
       History.push('Open map');
-      _setFileName('(autosave)');
+      _setFileName(typeof json._fileName === 'string' && json._fileName ? json._fileName : '(autosave)', false);   // copies from before 2026.10.23 carry no name
       _userMap = true;
       return true;
     } catch(e) {
@@ -12016,6 +12123,7 @@ const IO = (() => {
       objectsData = {};
       tileExtras  = {};
       roadsData   = {};
+      MapSkin.reset('');
       settlements = [defaultCityEntry(MAP_WIDTH, MAP_HEIGHT)];
       DistanceBands.setBounds([]);
       settlementSlots = [];
@@ -12217,6 +12325,7 @@ const IO = (() => {
       roadsData = {};
       if (Array.isArray(json.roads))
         json.roads.forEach(r => { const { col, row, ...rest } = r; roadsData[col + ',' + row] = rest; });
+      MapSkin.reset(json.skin);
       // Detect old integer format and migrate to hex ID strings
       const needsMigration = json.data[0] && typeof json.data[0][0] === 'number';
       for (let r = 0; r < MAP_HEIGHT; r++) {
@@ -13497,6 +13606,68 @@ const Satellite = (() => {
 // ─────────────────────────────────────────────────────────────────
 // Packages — registry, active state, create/publish/delete
 // ─────────────────────────────────────────────────────────────────
+// ── SkinSlotRules: skinSlot = the base id a package record repaints (docs/contracts/skin-slots.md) ───────────────────
+// Visuals only. The word "Slot" alone belongs to the Slots feature, hence "skinSlot". Pure functions, no DOM.
+const SkinSlotRules = (() => {
+  const low = s => String(s ?? '').trim().toLowerCase();
+  const norm = s => low(s).replace(/[^a-z0-9]/g, '');
+  const isBase = r => !r.package || r.package === 'postapoc';
+  const isWater = r => /water/i.test(String(r.type || ''));
+  // Mirrors Unity SkinSlots.Validate: hex type equal; buildings only water vs ground.
+  function compatible(kind, base, rec) {
+    if (kind === 'bld') return isWater(base) === isWater(rec);
+    return low(base.type) === low(rec.type);
+  }
+  const slotOf = r => String(r.skinSlot ?? '').trim();
+  function split(records, pkg) {
+    return { base: records.filter(isBase), own: records.filter(r => r.package === pkg) };
+  }
+  // The base record a package record would repaint if the prefix is stripped from its id, else null.
+  function suggest(rec, prefix, baseRecords) {
+    let id = String(rec.id || '');
+    if (prefix && id.startsWith(prefix)) id = id.slice(prefix.length);
+    const exact = baseRecords.find(b => b.id === id) || baseRecords.find(b => low(b.id) === low(id));
+    if (exact) return exact;
+    const hits = baseRecords.filter(b => norm(b.id) === norm(id));
+    return hits.length === 1 ? hits[0] : null;
+  }
+  // Problems the game would reject: 'nobase' (no base record), 'type' (type differs), 'dup' (second record on one slot).
+  function check(kind, ownRecords, baseRecords) {
+    const byId = new Map(baseRecords.map(b => [low(b.id), b]));
+    const seen = new Set();
+    const issues = [];
+    for (const r of ownRecords) {
+      const slot = slotOf(r);
+      if (!slot) continue;
+      const b = byId.get(low(slot));
+      if (!b) { issues.push({ id: r.id, kind: 'nobase', slot, msg: `${r.id}: no base record "${slot}"` }); continue; }
+      if (!compatible(kind, b, r)) { issues.push({ id: r.id, kind: 'type', slot, msg: `${r.id}: type "${r.type}" differs from base "${b.type}"` }); continue; }
+      if (seen.has(low(slot))) { issues.push({ id: r.id, kind: 'dup', slot, msg: `${r.id}: slot "${slot}" is already used by another record of this package` }); continue; }
+      seen.add(low(slot));
+    }
+    return issues;
+  }
+  // One row per base record: which package record repaints it (first valid one), and a suggestion for empty rows.
+  function rows(kind, ownRecords, baseRecords, prefix) {
+    const used = new Set(ownRecords.filter(r => slotOf(r)).map(r => low(slotOf(r))));
+    return baseRecords.map(b => {
+      const current = ownRecords.find(r => low(slotOf(r)) === low(b.id)) || null;
+      let suggestion = null;
+      if (!current) {
+        const cand = ownRecords.find(r => !slotOf(r) && compatible(kind, b, r) && suggest(r, prefix, baseRecords)?.id === b.id);
+        if (cand && !used.has(low(b.id))) suggestion = cand;
+      }
+      return { slot: b.id, type: b.type, current, suggestion };
+    });
+  }
+  function coverage(kind, ownRecords, baseRecords) {
+    const bad = new Set(check(kind, ownRecords, baseRecords).map(i => i.id));
+    const covered = new Set(ownRecords.filter(r => slotOf(r) && !bad.has(r.id)).map(r => low(slotOf(r))));
+    return { covered: covered.size, total: baseRecords.length };
+  }
+  return { isBase, slotOf, split, compatible, suggest, check, rows, coverage };
+})();
+
 const Packages = (() => {
   const LS_ACTIVE   = 'pkg_active';
   const LS_REGISTRY = 'pkg_registry_cache';
@@ -13911,7 +14082,103 @@ const Packages = (() => {
     return id.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join('') + '_';
   }
 
-  // The remembered/active package may have been deleted elsewhere: fall back to the default and say so.
+  // The non-default package whose id prefix an entry id starts with ('Medieval20_Farm_1' -> 'medieval-2-0'), or ''.
+  // Prefixes are PascalCase words ending in a single '_', so two of them never nest: at most one package matches.
+  function packageForId(entryId) {
+    const id = String(entryId || '');
+    const hits = _registry.filter(p => !p.isDefault && id.length > idPrefix(p.id).length && id.startsWith(idPrefix(p.id)));
+    return hits.length === 1 ? hits[0].id : '';
+  }
+
+  // The id of an entry decides its package (ClickUp 869fjvua7). After the id was edited, an id with ANOTHER package's prefix
+  // moves the record there; nothing moves when that would clash with an entry of the target package or take a road/bridge out of
+  // the base package. rec is changed in place. kind: 'hex' | 'bld'. Returns { moved, from, to } or { moved:false, problem? }.
+  function movePackageByPrefix(rec, records, kind, opts = {}) {
+    const to = packageForId(rec && rec.id);
+    const from = (rec && rec.package) || 'postapoc';
+    if (!to || to === from) return { moved: false };
+    if (kind === 'bld' && (rec.isRoad || rec.buildingCategory === 'Bridge'))
+      return { moved: false, problem: `"${rec.id}" is a road or bridge: roads are global (base package only), it stays in "${from}"` };
+    if (records.some(o => o !== rec && o.id === rec.id && (o.package || 'postapoc') === to))
+      return { moved: false, problem: `Package "${to}" already has an entry "${rec.id}"; this one stays in "${from}"` };
+    if (opts.dryRun) return { moved: true, from, to };
+    const source = { ...rec, package: from };
+    rec.package = to;
+    aliasSourceSprite(rec, source, kind);
+    return { moved: true, from, to };
+  }
+
+  // Records whose id carries ANOTHER package's prefix (made before the id decided the package: Copy, Paste, Change ID kept the
+  // old package). Dry run: { moves:[{ kind, id, from, to }], problems:[text] } for the given { hex, bld } lists.
+  function rehomePlan(lists) {
+    const moves = [], problems = [];
+    for (const [kind, records] of [['hex', lists.hex || []], ['bld', lists.bld || []]])
+      for (const rec of records) {
+        const r = movePackageByPrefix(rec, records, kind, { dryRun: true });
+        if (r.moved) moves.push({ kind, id: rec.id, from: r.from, to: r.to });
+        else if (r.problem) problems.push(r.problem);
+      }
+    return { moves, problems };
+  }
+
+  // PACKAGES tab: "Fix packages by id prefix". Shows what would move, moves it only after the confirm. Nothing is published.
+  function openRehomeDialog() {
+    const lists = { hex: HexDB.getAll(), bld: BldDB.getAll() };
+    const plan = rehomePlan(lists);
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'rehome-body' });
+    if (!plan.moves.length && !plan.problems.length) {
+      root.appendChild(T('p', 'Nothing to fix: every tile and building has the package its id prefix names.', { id: 'rehome-none' }));
+    } else {
+      if (plan.moves.length) {
+        root.appendChild(T('p', `${plan.moves.length} record(s) will move to the package their id prefix names:`, { id: 'rehome-summary' }));
+        const ul = T('ul', null, { id: 'rehome-list' });
+        for (const m of plan.moves.slice(0, 60)) ul.appendChild(T('li', `${m.kind === 'hex' ? 'tile' : 'building'} ${m.id}: ${m.from} → ${m.to}`));
+        if (plan.moves.length > 60) ul.appendChild(T('li', `…and ${plan.moves.length - 60} more`));
+        root.appendChild(ul);
+      }
+      if (plan.problems.length) {
+        root.appendChild(T('p', `${plan.problems.length} record(s) cannot move and stay:`, { className: 'pkg-notice warn' }));
+        const ul = T('ul', null, { id: 'rehome-problems' });
+        for (const t of plan.problems.slice(0, 30)) ul.appendChild(T('li', t));
+        root.appendChild(ul);
+      }
+      root.appendChild(T('p', 'Nothing is published. Afterwards publish the packages that changed (the one that lost records and the one that got them).', { style: 'font-size:12px;color:var(--muted)' }));
+    }
+    let m;
+    const actions = [{ label: plan.moves.length ? 'Cancel' : 'Close', onClick: () => m.close('cancel') }];
+    if (plan.moves.length) actions.push({ label: `Move ${plan.moves.length} record(s)`, primary: true, onClick: () => {
+      const a = BldDB.rehomeByPrefix(), b = HexDB.rehomeByPrefix();
+      m.close('applied');
+      UI.toast(`Moved ${a.moved + b.moved} record(s) by id prefix`);
+      renderPanel();
+    } });
+    m = UI.showModal({ id: 'rehome-modal', title: 'Fix packages by id prefix', body: root, modal: true, actions });
+  }
+
+  // A pasted copy belongs to the ACTIVE non-base package: its id loses the source package's prefix and gets the active one,
+  // then '_copy' (numbered when that id is taken in the package). With the base package active nothing is re-homed (the
+  // copy keeps its source package and id + '_copy'; a taken id is numbered too). clone is changed in place.
+  function adoptPastedRecord(clone, records, kind) {
+    const src = clone.package || 'postapoc';
+    const active = getActive();
+    const target = active === 'postapoc' ? src : active;
+    let id = String(clone.id || '');
+    if (active !== 'postapoc') {
+      const sp = idPrefix(src);
+      if (sp && id.startsWith(sp)) id = id.slice(sp.length);
+      id = idPrefix(active) + id;
+    }
+    const stem = id + '_copy';
+    let cand = stem, n = 2;
+    while (records.some(o => o.id === cand && (o.package || 'postapoc') === target)) cand = stem + (n++);
+    clone.id = cand;
+    if (active !== 'postapoc') {
+      clone.package = active;
+      if (src !== active) aliasSourceSprite(clone, { ...clone, package: src }, kind);
+    }
+  }
+
   function _ensureActiveExists() {
     if (getEntry(_active)) return;
     const gone = _active;
@@ -14025,7 +14292,8 @@ const Packages = (() => {
     }
     kids.push(_el('div', { style: 'display:flex;gap:8px;margin:12px 0' },
       _btn('↑ Import Package', 'Create a package from a ZIP exported by this editor', () => openImportModal()),
-      _btn('+ New Package', 'Create an empty package and make it active', () => openNewModal())));
+      _btn('+ New Package', 'Create an empty package and make it active', () => openNewModal()),
+      _btn('Fix packages by id prefix', 'Move tiles and buildings whose id starts with another package\u2019s prefix (for example Medieval20_) into that package', () => openRehomeDialog(), { id: 'rehome-btn' })));
 
     const tbody = _el('tbody');
     for (const p of _registry) {
@@ -14040,6 +14308,9 @@ const Packages = (() => {
       const actions = _el('td', {},
         _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
         _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
+      if (!p.localOnly) actions.append(' ', _btn('Pull from server', 'Replace this package’s local hex tiles and buildings with the published ones (local edits to it are lost)', () => pullFromServer(p.id), { 'data-pkg-id': p.id }));
+      if (!p.isDefault) actions.append(' ', _btn('Terrain sprites', 'Upload this package’s coastline or road sprites to the server', () => openTerrainUpload(p.id), { 'data-pkg-id': p.id }));
+      if (!p.isDefault) actions.append(' ', _btn('Skin slots', 'Say which base tile or building each record of this package repaints, so one map can switch between looks', () => openSkinSlots(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Details', 'Edit the description, dependencies and preview image', () => openDetails(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Delete', 'Remove this package from the registry (it can be restored from Recently deleted)',
         () => confirmDelete(p.id), { 'data-pkg-id': p.id, style: 'color:#f38ba8' }));
@@ -14629,6 +14900,35 @@ const Packages = (() => {
   }
 
   // ── New Package modal ──────────────────────────────────────────
+  // Small dialog: pick the folder (coastline / roads) and the PNGs, then upload. Names and size are checked before anything is sent.
+  function openTerrainUpload(pkgId) {
+    document.getElementById('terrain-upload-modal')?.remove();
+    const sets = GitHubSync.TERRAIN_SPRITE_SETS;
+    const folderSel = _el('select', { id: 'terrain-upload-folder' }, ...Object.keys(sets).map(k => _el('option', { value: k, text: `${k} (${sets[k].length} file names)` })));
+    const files = _el('input', { type: 'file', id: 'terrain-upload-files', accept: 'image/png', multiple: 'multiple' });
+    const names = _el('div', { id: 'terrain-upload-names', style: 'font-size:11px;color:var(--muted);margin:6px 0;max-height:120px;overflow:auto' });
+    const status = _el('div', { id: 'terrain-upload-status', style: 'font-size:12px;white-space:pre-wrap;margin:8px 0' });
+    const showNames = () => { names.textContent = 'File names the game reads: ' + sets[folderSel.value].join(', '); };
+    folderSel.addEventListener('change', showNames); showNames();
+    const close = () => modal.remove();
+    const go = _btn('Upload', 'Upload the chosen PNGs and release a new package version', async () => {
+      go.disabled = true; status.textContent = 'Checking…';
+      try {
+        const picked = [];
+        for (const f of files.files) picked.push({ name: f.name, bytes: new Uint8Array(await f.arrayBuffer()) });
+        const r = await GitHubSync.uploadTerrainSprites(pkgId, folderSel.value, picked, { onProgress: (d, t) => { status.textContent = `Uploading ${d}/${t}…`; } });
+        status.textContent = `✅ ${r.count} file(s) uploaded, ${pkgId} is now ${r.version}.`;
+        UI.toast(`${pkgId} ${r.version}: ${r.count} ${folderSel.value} sprite(s) uploaded`);
+      } catch (e) { status.textContent = '⚠ ' + e.message; }
+      go.disabled = false;
+    });
+    const modal = _el('div', { id: 'terrain-upload-modal', style: 'position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:9000;display:flex;align-items:center;justify-content:center' },
+      _el('div', { style: 'background:var(--panel,#1e1e2e);padding:16px;border-radius:8px;min-width:360px;max-width:560px' },
+        _el('strong', { text: `Terrain sprites: ${pkgId}` }), _el('div', { style: 'margin:10px 0' }, folderSel), files, names, status,
+        _el('div', { style: 'display:flex;gap:8px;justify-content:flex-end' }, go, _btn('Close', 'Close', close))));
+    document.body.append(modal);
+  }
+
   function openNewModal() {
     document.getElementById('pkg-new-name').value = '';
     document.getElementById('pkg-new-id').value = '';
@@ -14754,8 +15054,8 @@ const Packages = (() => {
   // packages/<id>/sprites/<category>/<name>.png, preferring the local copy and falling back
   // to the already-published postapoc copy.
   async function _packageSpriteRefs(id) {
-    const hexes     = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => h.package === id);
-    const buildings = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.package === id);
+    const hexes     = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => (h.package || 'postapoc') === id);
+    const buildings = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => (b.package || 'postapoc') === id);
     const refs = new Map(); // spriteName -> default category (local SpriteStore entry wins if present)
     for (const h of hexes)
       if (h.spriteName) refs.set(h.spriteName, 'hex');
@@ -14786,10 +15086,22 @@ const Packages = (() => {
     return (name, cat) => (out.get(cat + '\u0000' + name) || []).filter(p => _ID_RE.test(p) && !_FORBIDDEN_KEYS.has(p));
   }
 
+  // sha256 of every file the server manifest lists, keyed by repo path; null when there is no usable manifest
+  // (first publish, or a corrupt file: then everything uploads).
+  async function _publishedHashes(id) {
+    try {
+      const bytes = await GitHubSync._readRepoBytes(`packages/${id}/manifest.json`);
+      if (!bytes) return null;
+      const m = JSON.parse(new TextDecoder().decode(bytes));
+      if (!m || !Array.isArray(m.files)) return null;
+      return new Map(m.files.filter(f => f && f.path && f.sha256).map(f => [`packages/${id}/${f.path}`, f.sha256]));
+    } catch (e) { console.warn('[Packages] server manifest unreadable, all sprites will upload:', e && e.message); return null; }
+  }
+
   async function publishPackageSprites(id, onProgress) {
     const refs = await _packageSpriteRefs(id);
     const ownersOf = _foreignSpriteOwners(id);
-    if (!refs.size) return { total: 0, pushed: 0, missing: [], differs: [], categoryMismatch: [] };
+    if (!refs.size) return { total: 0, pushed: 0, skipped: 0, missing: [], differs: [], categoryMismatch: [] };
     const unsafe = [...refs.keys()].filter(n => !isSafeSpriteName(n));
     if (unsafe.length) throw new Error(_unsafeNamesMessage(unsafe));   // never build a repo path from such a name
 
@@ -14804,7 +15116,8 @@ const Packages = (() => {
       for (const o of owners) for (const e of await SpriteStore.loadForPackage(o)) foreignLocal.set(o + '\u0000' + e.name, e);
     } catch(e) { console.warn('[Packages] local sprite store unavailable for source packages:', e && e.message); }
 
-    let pushed = 0, done = 0;
+    const published = await _publishedHashes(id);
+    let pushed = 0, skipped = 0, done = 0;
     const missing = [], differs = [], categoryMismatch = [];
     for (const [name, fallbackCategory] of refs) {
       const owners = ownersOf(name, fallbackCategory);
@@ -14837,6 +15150,10 @@ const Packages = (() => {
       if (onProgress) onProgress(done, refs.size, name);
       if (!blob) { missing.push(name); continue; }
       const target = `packages/${id}/sprites/${category}/${name}.png`;
+      if (published) {   // the same bytes are already on the server: nothing to write
+        const sha = await GitHubSync.sha256Hex(new Uint8Array(await blob.arrayBuffer()));
+        if (published.get(target) === sha) { skipped++; continue; }
+      }
       if (localEntry) {   // the local copy is about to replace a server file: tell the caller when they are different files
         try {
           const srv = await GitHubSync._readRepoBytes(target);
@@ -14849,7 +15166,7 @@ const Packages = (() => {
       await GitHubSync._putBinary(target, blob, `publish ${id}: sprite ${name}.png`);
       pushed++;
     }
-    return { total: refs.size, pushed, missing, differs, categoryMismatch };
+    return { total: refs.size, pushed, skipped, missing, differs, categoryMismatch };
   }
 
   // ── Publish Package ────────────────────────────────────────────
@@ -14867,9 +15184,28 @@ const Packages = (() => {
 
   async function diffAgainstServer(id) {
     const pub = await _fetchPublished(id);
-    const localHex = HexDB.getData().hexes.filter(h => h.package === id);
-    const localBld = BldDB.getAll().filter(b => b.package === id);
+    const localHex = HexDB.getData().hexes.filter(h => (h.package || 'postapoc') === id);
+    const localBld = BldDB.getAll().filter(b => (b.package || 'postapoc') === id);
+    // Sprites with a LOCAL copy that the server manifest lacks or lists with other bytes. A sprite without a local copy is
+    // taken from the server by publish, so it cannot change.
+    const sprites = { added: [], changed: [] };
+    const published = await _publishedHashes(id);
+    const refs = await _packageSpriteRefs(id);
+    let local = [];
+    try { local = [...await SpriteStore.loadForPackage('postapoc'), ...await SpriteStore.loadForPackage(id)]; }
+    catch (e) { console.warn('[Packages] local sprite store unavailable for the diff:', e && e.message); }
+    const byName = new Map(local.map(e => [e.name, e]));
+    for (const [name, category] of refs) {
+      const e = byName.get(name);
+      if (!e) continue;
+      let sha;
+      try { sha = await GitHubSync.sha256Hex(new Uint8Array(await (await (await fetch(e.dataUrl)).blob()).arrayBuffer())); }
+      catch (err) { continue; }
+      const have = published && published.get(`packages/${id}/sprites/${category}/${name}.png`);
+      if (!have) sprites.added.push(name); else if (have !== sha) sprites.changed.push(name);
+    }
     return {
+      sprites,
       hex: SyncMerge.diff(localHex, HexDB.migrateCopy(pub.hexes)),
       bld: SyncMerge.diff(localBld, BldDB.migrateCopy(pub.buildings)),
       firstPublish: !pub.pkg,
@@ -14889,8 +15225,10 @@ const Packages = (() => {
       ...x.unkeyedLocal.map(e => `+ unkeyed ${tag} ${JSON.stringify(e).slice(0, 120)}`),
       ...x.unkeyedServer.map(e => `- unkeyed ${tag} ${JSON.stringify(e).slice(0, 120)}`),
     ];
-    return [summary('Hex tiles', d.hex), summary('Buildings', d.bld), '',
-      ...rows('hex', d.hex), ...rows('bld', d.bld), ...unkeyed('hex', d.hex), ...unkeyed('bld', d.bld)].join('\n');
+    const spriteRows = [...d.sprites.added.map(n => `+ sprite ${n}`), ...d.sprites.changed.map(n => `~ sprite ${n}`)];
+    return [summary('Hex tiles', d.hex), summary('Buildings', d.bld),
+      `Sprites: ${d.sprites.added.length} new, ${d.sprites.changed.length} changed`, '',
+      ...rows('hex', d.hex), ...rows('bld', d.bld), ...spriteRows, ...unkeyed('hex', d.hex), ...unkeyed('bld', d.bld)].join('\n');
   }
 
   // Road warnings (bridge on land, road on water, ...) listed under the publish diff; never blocking.
@@ -14901,25 +15239,172 @@ const Packages = (() => {
     } catch (e) { return ''; }
   }
 
+
+  // ── Skin slots table (docs/contracts/skin-slots.md): edits only the skinSlot field of the package records ──────────
+  function _skinData(pkgId) {
+    const out = {};
+    for (const [kind, all] of [['hex', HexDB.getAll()], ['bld', BldDB.getAll()]]) {
+      const { base, own } = SkinSlotRules.split(all, pkgId);
+      out[kind] = { base, own, issues: SkinSlotRules.check(kind, own, base), cov: SkinSlotRules.coverage(kind, own, base) };
+    }
+    return out;
+  }
+  // Problems the game would reject (it ignores such records), so Publish stops on them.
+  function skinSlotProblems(pkgId) {
+    const d = _skinData(pkgId);
+    return [...d.hex.issues, ...d.bld.issues].map(i => i.msg);
+  }
+  function _setSkin(kind, rec, slot) { return (kind === 'hex' ? HexDB : BldDB).setSkinSlot(rec.id, rec.package, slot); }
+  function _applySkinChoice(kind, pkgId, baseId, chosenId) {
+    const own = (kind === 'hex' ? HexDB : BldDB).getAll().filter(r => r.package === pkgId);
+    for (const r of own) if (SkinSlotRules.slotOf(r).toLowerCase() === baseId.toLowerCase()) _setSkin(kind, r, '');
+    const pick = own.find(r => r.id === chosenId);
+    if (pick) _setSkin(kind, pick, baseId);
+  }
+  function applySkinSuggestions(pkgId) {
+    let n = 0;
+    const prefix = idPrefix(pkgId);
+    for (const kind of ['hex', 'bld']) {
+      const { base, own } = SkinSlotRules.split((kind === 'hex' ? HexDB : BldDB).getAll(), pkgId);
+      for (const row of SkinSlotRules.rows(kind, own, base, prefix))
+        if (row.suggestion && _setSkin(kind, row.suggestion, row.slot)) n++;
+    }
+    return n;
+  }
+  function openSkinSlots(pkgId) {
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'skin-slots-body' });
+    const draw = () => {
+      const d = _skinData(pkgId), prefix = idPrefix(pkgId);
+      const kids = [];
+      const covTxt = k => `${d[k].cov.covered} of ${d[k].cov.total}`;
+      kids.push(T('p', `Covered: tiles ${covTxt('hex')}, buildings ${covTxt('bld')}. An empty row means the base look is used. The table only edits the Skin Slot field of this package's records.`, { id: 'skin-cov' }));
+      const issues = [...d.hex.issues, ...d.bld.issues];
+      if (issues.length) {
+        kids.push(T('p', `${issues.length} record(s) would be ignored by the game:`, { className: 'pkg-notice warn', id: 'skin-issues-head' }));
+        const ul = T('ul', null, { id: 'skin-issues' });
+        for (const i of issues.slice(0, 40)) ul.appendChild(T('li', i.msg));
+        kids.push(ul);
+      }
+      const sug = [...['hex', 'bld'].flatMap(k => SkinSlotRules.rows(k, d[k].own, d[k].base, prefix).filter(r => r.suggestion))].length;
+      kids.push(T('button', `Apply ${sug} suggestion(s) by id prefix`, { className: 'hexdb-tool-btn', id: 'skin-suggest-all', disabled: !sug,
+        title: 'Fill empty rows when the id without the package prefix names a base record of the same type',
+        onclick: () => { const n = applySkinSuggestions(pkgId); UI.toast(`Set Skin Slot on ${n} record(s)`); draw(); } }));
+      for (const [kind, title] of [['hex', 'Tiles'], ['bld', 'Buildings']]) {
+        kids.push(T('h4', title, { style: 'margin:14px 0 6px' }));
+        const table = T('table', null, { id: 'skin-table-' + kind });
+        const head = T('tr');
+        for (const h of ['Slot (base id)', 'Type', 'Repainted by this package']) head.appendChild(T('th', h));
+        table.appendChild(T('thead')).appendChild(head);
+        const tb = T('tbody');
+        for (const row of SkinSlotRules.rows(kind, d[kind].own, d[kind].base, prefix)) {
+          const tr = T('tr'); tr.dataset.slot = row.slot;
+          tr.appendChild(T('td')).appendChild(T('code', row.slot));
+          tr.appendChild(T('td', row.type || ''));
+          const sel = T('select', null, { className: 'hexdb-select skin-pick' });
+          sel.appendChild(T('option', '— base used —', { value: '' }));
+          for (const r of d[kind].own) {
+            const ok = SkinSlotRules.compatible(kind, d[kind].base.find(b => b.id === row.slot), r);
+            sel.appendChild(T('option', r.id + (ok ? '' : ' ⚠ type'), { value: r.id }));
+          }
+          sel.value = row.current ? row.current.id : '';
+          sel.onchange = () => { _applySkinChoice(kind, pkgId, row.slot, sel.value); draw(); };
+          const td = tr.appendChild(T('td'));
+          td.appendChild(sel);
+          if (row.suggestion) {
+            td.appendChild(T('button', `use ${row.suggestion.id}`, { className: 'hexdb-tool-btn skin-suggest', style: 'margin-left:6px',
+              title: 'Suggested by the id prefix', onclick: () => { _applySkinChoice(kind, pkgId, row.slot, row.suggestion.id); draw(); } }));
+          }
+          tb.appendChild(tr);
+        }
+        table.appendChild(tb);
+        kids.push(T('div', null, { style: 'max-height:260px;overflow:auto' })); kids[kids.length - 1].appendChild(table);
+      }
+      root.replaceChildren(...kids);
+    };
+    draw();
+    let m;
+    m = UI.showModal({ id: 'skin-slots-modal', title: `Skin slots: ${getEntry(pkgId)?.name || pkgId}`, body: root, modal: true,
+      actions: [{ label: 'Close', primary: true, onClick: () => { m.close('close'); renderPanel(); } }] });
+  }
+
+  // ── Pull from server ───────────────────────────────────────────
+  // The startup sync keeps a local record that differs from the server (local edits win), so a browser holding an older copy of
+  // a package never picks the published one up. This replaces the package's hex and building records with the published ones.
+  // Local sprite copies are not touched. Nothing is written to the server.
+  function _formatPull(d) {
+    const rows = (tag, x) => [
+      ...x.changed.map(i => `~ ${tag} ${i}`),      // overwritten by the server version
+      ...x.added.map(i => `- ${tag} ${i}`),        // only here: removed
+      ...x.removed.map(i => `+ ${tag} ${i}`),      // only on the server: added
+    ];
+    const n = x => `${x.changed.length} overwritten, ${x.added.length} removed (only here), ${x.removed.length} added (only on the server)`;
+    return [`Hex tiles: ${n(d.hex)}`, `Buildings: ${n(d.bld)}`, '', ...rows('hex', d.hex), ...rows('bld', d.bld)].join('\n');
+  }
+
+  async function pullFromServer(id) {
+    const entry = getEntry(id);
+    const name = entry?.name || id;
+    let pub, d;
+    try { pub = await _fetchPublished(id); d = await diffAgainstServer(id); }
+    catch(e) { return UI.toast(`⚠ Could not read "${name}" from the server`, { detail: e.message, ms: 6000 }); }
+    if (!pub.pkg && !pub.hexes.length && !pub.buildings.length) return UI.toast(`⚠ "${name}" is not on the server yet: nothing to pull`, { ms: 5000 });
+    if (isDefault(id) && (!pub.hexes.length || !pub.buildings.length))
+      return UI.toast('⚠ The server copy of the base package is empty or unreadable: nothing was changed', { ms: 6000 });
+    const touched = d.hex.changed.length + d.hex.added.length + d.bld.changed.length + d.bld.added.length;
+    const nothing = !touched && !d.hex.removed.length && !d.bld.removed.length;
+    const ok = await UI.confirm('Pull from server',
+      nothing ? `"${name}" already matches the server.`
+        : `Replace the local hex tiles and buildings of "${name}" with the server version? Your local edits to this package are lost (${touched} record(s) differ or exist only here).`,
+      _formatPull(d), nothing ? 'Close' : 'Pull from server');
+    if (!ok || nothing) return;
+    const hs = HexDB.snapshotPackage(id), bs = BldDB.snapshotPackage(id);
+    try {
+      // The merge base is reset first: with a base equal to the server copy, an emptied local package would count as "deleted here".
+      SyncMerge.saveBase('hex', id, null); SyncMerge.saveBase('bld', id, null);
+      HexDB.removeByPackage(id); BldDB.removeByPackage(id);
+      HexDB.mergeFromServer(id, { hexes: pub.hexes });
+      BldDB.mergeFromServer(id, { buildings: pub.buildings });
+      try { HexDB.refreshDerived(); } catch(e) { console.warn('[Packages] pull: roads refresh failed:', e && e.message); }
+    } catch(e) {
+      HexDB.restorePackage(hs); BldDB.restorePackage(bs);   // all or nothing
+      return UI.toast(`⚠ Pull failed, nothing was changed: ${e.message}`, { sticky: true });
+    }
+    renderPanel();
+    UI.toast(`✅ "${name}" now matches the server (${touched} local change(s) replaced)`);
+  }
+
   async function openPublishConfirm(id) {
     if (isDefault(id)) {
-      // postapoc: use existing publish functions
-      UI.showConfirm('Publish postapoc', 'Publish hex_database.json and building_database.json?', async () => {
-        const a = await GitHubSync.publishHexDbOnly({ skipManifest: true });
-        const b = await GitHubSync.publishBuildingsDb({ skipManifest: true });
-        if (a || b) await GitHubSync.refreshBaseManifestSafely(true);   // one refresh (one version bump) for both publishes
-      });
+      // postapoc: the existing base publish functions (they also write the root copies old game builds read)
+      let d;
+      try { d = await diffAgainstServer(id); }
+      catch(e) { return UI.toast('⚠ Could not compare the base package with the server', { detail: e.message, ms: 6000 }); }
+      const ok = await UI.confirm('Publish base package',
+        'This is the base package: every player and old game build reads it. Publish hex_database.json, building_database.json and the changed sprites?',
+        _formatDiff(d) + _roadWarningsText(id), 'Publish base package');
+      if (!ok) return;
+      const a = await GitHubSync.publishHexDbOnly({ skipManifest: true });
+      const b = await GitHubSync.publishBuildingsDb({ skipManifest: true });
+      const c = await GitHubSync.publishAllSprites({ skipManifest: true });
+      if (a || b || c) await GitHubSync.refreshBaseManifestSafely(true);   // one refresh (one version bump) for all three
       return;
+    }
+    const skinProblems = skinSlotProblems(id);
+    if (skinProblems.length) {
+      return UI.toast(`⚠ Cannot publish: ${skinProblems.length} Skin Slot problem(s), the game would ignore those records`,
+        { detail: skinProblems.slice(0, 6).join('; ') + ' (open Skin slots on the PACKAGES tab)', ms: 9000 });
     }
     const entry = getEntry(id);
     const name  = entry?.name || id;
     let d;
     try { d = await diffAgainstServer(id); }
     catch(e) { return UI.toast(`⚠ Could not compare "${name}" with the server`, { detail: e.message, ms: 6000 }); }
-    const nothing = ![d.hex, d.bld].some(x => x.added.length || x.changed.length || x.removed.length || x.unkeyedLocal.length || x.unkeyedServer.length);
+    const nothing = ![d.hex, d.bld].some(x => x.added.length || x.changed.length || x.removed.length || x.unkeyedLocal.length || x.unkeyedServer.length)
+      && !d.sprites.added.length && !d.sprites.changed.length;
     const head = d.firstPublish ? 'First publish of this package.' : `Server version: ${d.version}.`;
     const ok = await UI.confirm('Publish Package',
-      `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; sprites and the version number are still updated.' : ''}`,
+      `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; unchanged sprites are skipped and the version number is still updated.' : ''}`,
       _formatDiff(d) + _roadWarningsText(id), 'Publish');
     if (ok) openPublishDialog(id);
   }
@@ -15189,7 +15674,7 @@ const Packages = (() => {
       _registry = _mergeLocal(regData.packages);
       _cacheRegistry();
       const spriteNote = spriteResult.total
-        ? `, ${spriteResult.pushed}/${spriteResult.total} sprites`
+        ? `, ${spriteResult.pushed} sprites uploaded, ${spriteResult.skipped} unchanged`
         : '';
       UI.progressDone(`✅ Package "${entry.name}" v${newVersion} published${spriteNote}`);
       const _list5 = a => a.slice(0, 5).join(', ') + (a.length > 5 ? ', ...' : '');
@@ -16174,11 +16659,11 @@ const Packages = (() => {
     }
   }
 
-  return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix,
-           renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips,
+  return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix, packageForId, movePackageByPrefix, adoptPastedRecord, rehomePlan, openRehomeDialog,
+           renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips, openSkinSlots, skinSlotProblems, applySkinSuggestions,
            isPkgVisible, togglePkgFilter,
-           spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
+           spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openTerrainUpload, openNewModal, closeNewModal, _autoSlugId, createPackage,
+           openPublishConfirm, openPublishDialog, pullFromServer, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, _publishedHashes, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
            _rewriteEntries, _rewriteAll, _rollback, getImportResult, confirmImport, _serverIdProblem,
@@ -17379,7 +17864,27 @@ const BiomeManager = (() => {
   }
   function _save() { localStorage.setItem(LS_KEY, JSON.stringify(_biomes)); }
 
-  function getNames() { return _biomes.map(b => b.name); }
+  // The list is per browser (localStorage), but the DBs carry their own biome values: a biome used by any hex, building or
+  // settlement record is listed too, so a laptop with a fresh browser still shows e.g. Decameron instead of the first default.
+  function _usedByRecords() {
+    const used = [];
+    [() => HexDB, () => BldDB, () => SttDB].forEach(get => {
+      let db; try { db = get(); } catch (e) { return; }      // a DB module that is not defined yet
+      const recs = db && db.getAll ? db.getAll() : [];
+      for (const r of recs) if (r && r.biome && !used.includes(r.biome)) used.push(r.biome);
+    });
+    return used;
+  }
+  function getNames() {
+    const names = _biomes.map(b => b.name);
+    for (const n of _usedByRecords()) if (!names.includes(n)) names.push(n);
+    return names;
+  }
+  /** Names for a record's select: the list, plus the record's own biome when it is not in it. */
+  function optionsFor(cur) {
+    const names = getNames();
+    return cur && !names.includes(cur) ? [cur, ...names] : names;
+  }
   function getColor(name) {
     const b = _biomes.find(b => b.name === name);
     return b ? b.color : '#888888';
@@ -17405,7 +17910,7 @@ const BiomeManager = (() => {
   }
 
   function refreshAllDropdowns() {
-    const names = _biomes.map(b => b.name);
+    const names = getNames();
     [
       { id: 'hexdb-biome-filter', all: 'All' },
       { id: 'bld-filter-biome',   all: 'All Biomes' },
@@ -17421,14 +17926,14 @@ const BiomeManager = (() => {
     const hexSel = document.querySelector('select.hexdb-select[data-field="biome"]');
     if (hexSel) {
       const cur = hexSel.value;
-      const list = cur && !names.includes(cur) ? [cur, ...names] : names;     // keep a biome that is not in the list (see _selectInput)
+      const list = optionsFor(cur);                                           // keep a biome that is not in the list (see _selectInput)
       hexSel.innerHTML = list.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
     }
     ['bld-f-biome', 'stt-f-biome'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       const cur = el.value;
-      el.innerHTML = names.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
+      el.innerHTML = optionsFor(cur).map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
     });
   }
 
@@ -17459,7 +17964,12 @@ const BiomeManager = (() => {
   }
 
   _load();
-  return { getNames, getColor, add, remove, updateColor, refreshAllDropdowns, openManager, closeManager };
+  // The filter dropdowns are built at start-up, before the DBs finish loading: rebuild them when a user opens one.
+  document.addEventListener('mousedown', e => {
+    if (e.target && ['hexdb-biome-filter', 'bld-filter-biome', 'stt-filter-biome'].includes(e.target.id)) refreshAllDropdowns();
+  }, true);
+
+  return { getNames, optionsFor, getColor, add, remove, updateColor, refreshAllDropdowns, openManager, closeManager };
 })();
 
 // ── RoadPerms Module (Roads/Bridges V1: pure helpers, no DOM, no HexDB/BldDB state except currentTypes) ─────
@@ -18718,6 +19228,8 @@ const HexDB = (() => {
       `<div class="hexdb-row"><span class="hexdb-label">Id *</span>
        <input class="hexdb-input" id="hexdb-id" data-field="id" value="${_esc(hex.id)}" placeholder="e.g. Plain_1">
        <small style="color:#888;font-size:0.8em;display:block;margin-top:2px">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small></div>`,
+      `<div class="hexdb-row"><span class="hexdb-label">Package</span>
+       <code id="hexdb-package-label" title="Set by the id prefix: an id like Medieval20_Plain_1 moves the tile to that package">${_esc(hex.package || 'postapoc')}</code></div>`,
       _row('TextId',    _textInput('textId', hex.textId, ' list="loc-keys-datalist"'),
         'Localisation key for the display name shown in-app'),
       _row('Desc Idle', _textInput('descriptionIdleId',  hex.descriptionIdleId  ?? ''),
@@ -18747,6 +19259,10 @@ const HexDB = (() => {
         `<input class="hexdb-input" data-field="baseTerrainId" list="hexdb-id-list"
            value="${_esc(hex.baseTerrainId ?? '')}" placeholder="e.g. Water_Dirty_1 (optional)">`,
         'Optional. The hex drawn UNDER this sprite instead of the animated water. Setting it makes this a layered tile: the sprite is drawn on top of that hex (Fish on dirty water = Water_Dirty_1)'),
+      _row('Skin Slot',
+        `<input class="hexdb-input" data-field="skinSlot" list="hexdb-id-list"
+           value="${_esc(hex.skinSlot ?? '')}" placeholder="base id, e.g. Plain_1 (optional)">`,
+        'Package tiles only. The id of the base tile this one repaints: a map keeps the base id and the active package changes only the look (sprite). Prices, type and rules come from the base tile. Leave empty for a tile that is new in this package'),
       `<div class="hexdb-roads" id="hexdb-roads">${_roadsBlockHTML(hex)}</div>`,
       ...(/bridge/i.test(hex.id || '') ? [
         _row('Under Terrain',
@@ -18942,6 +19458,9 @@ const HexDB = (() => {
         });
       }
     });
+
+    // The id decides the package: registered after the generic listeners, so the typed id is already saved.
+    document.getElementById('hexdb-id')?.addEventListener('change', _movePackageByPrefix);
 
     // ── Wire Type select → WATER EXITS block follows the type ─
     // Registered after the generic _readRecord listeners above, so the typed values are already saved.
@@ -19143,6 +19662,45 @@ const HexDB = (() => {
   }
 
   // ── Read inputs → data ────────────────────────────────────
+  // Sets (or clears, slot '') the skinSlot of the record id in package pkg. Used by the Skin slots table.
+  function setSkinSlot(id, pkg, slot) {
+    const rec = _data.hexes.find(h => h.id === id && (h.package || 'postapoc') === pkg);
+    if (!rec) return false;
+    const v = String(slot ?? '').trim();
+    if (v) rec.skinSlot = v; else delete rec.skinSlot;
+    _autoSave();
+    return true;
+  }
+
+  // Moves every tile whose id names another package's prefix (PACKAGES tab: Fix packages by id prefix).
+  function rehomeByPrefix() {
+    let moved = 0;
+    for (const rec of _data.hexes) if (Packages.movePackageByPrefix(rec, _data.hexes, 'hex').moved) moved++;
+    if (moved) {
+      _autoSave();
+      _selFilt = -1;
+      _applyFilter();
+      _buildList();
+      UI.buildPalette();
+      Canvas.render();
+    }
+    return { moved };
+  }
+
+  // An id with another package's prefix moves the tile to that package (ClickUp 869fjvua7).
+  function _movePackageByPrefix() {
+    if (_selFilt < 0 || _selFilt >= _filtered.length) return;
+    const realIdx = _filtered[_selFilt];
+    const h = _data.hexes[realIdx];
+    const r = Packages.movePackageByPrefix(h, _data.hexes, 'hex');
+    if (r.problem) UI.toast('⚠ ' + r.problem);
+    if (!r.moved) return;
+    _autoSave();
+    _applyFilter();
+    _selectIdx(_filtered.indexOf(realIdx));
+    UI.toast(`Moved to package "${r.to}" by the id prefix`);
+  }
+
   function _readRecord() {
     if (_selFilt < 0 || _selFilt >= _filtered.length) return;
     const realIdx = _filtered[_selFilt];
@@ -19153,6 +19711,7 @@ const HexDB = (() => {
       else if (el.type === 'number') h[f] = Math.round(parseFloat(el.value) || 0);
       else h[f] = el.value;
     });
+    if (!String(h.skinSlot ?? '').trim()) delete h.skinSlot; else h.skinSlot = String(h.skinSlot).trim();
     _validateId();
     _autoSave();
     if (h.id && h.spriteName) {
@@ -19431,7 +19990,7 @@ const HexDB = (() => {
   function paste() {
     if (!_clipboard) { UI.toast('Nothing to paste'); return; }
     const h = structuredClone(_clipboard);
-    h.id = h.id + '_copy';
+    Packages.adoptPastedRecord(h, _data.hexes, 'hex');
     _data.hexes.push(h);
     _autoSave();
     _loadNewEntrySprite(h);
@@ -20102,7 +20661,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, migrateToBuilding, load, loadFromObject, mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
 })();
 
 window.HexDB = HexDB;
@@ -20342,16 +20901,140 @@ const BldDB = (() => {
     return `<div class="hexdb-row bld-roads-msg" style="font-size:12px"><span class="hexdb-label"></span><div style="flex:1">${lines}</div></div>`;
   }
 
+  // Ids the Buildings form may reference (base package + the record's own package), rebuilt on every render.
+  // Tags: availableTiles and availableTilesForProduce take tile ids or tile types, canProduce tile or building ids.
+  let _refs = { hexIds: [], types: [], bldIds: [] };
+  const _TAG_LISTS = { availableTiles: 'blddb-tile-any-list', availableTilesForProduce: 'blddb-tile-any-list', canProduce: 'blddb-ref-id-list' };
+  function _refSetFor(field) {
+    if (field === 'canProduce') return new Set([..._refs.hexIds, ..._refs.bldIds]);
+    if (_TAG_LISTS[field]) return new Set([..._refs.hexIds, ..._refs.types]);
+    return null;
+  }
+  function _collectRefs(bld) {
+    const pkg = bld.package || 'postapoc';
+    const visible = r => !r.package || r.package === 'postapoc' || r.package === pkg;
+    const hexes = (typeof HexDB !== 'undefined' ? HexDB.getAll() : []).filter(h => h.id && visible(h));
+    _refs = {
+      hexIds: [...new Set(hexes.map(h => h.id))],
+      types: [...new Set(hexes.map(h => h.type).filter(Boolean))],
+      bldIds: [...new Set((_data.buildings ?? []).filter(b => b.id && visible(b)).map(b => b.id))],
+    };
+  }
+
   function _tagsHTML(fieldName, values, disabled) {
     const dis = disabled ? ' disabled' : '';
-    const tags = (values || []).map(v =>
-      `<span class="hexdb-tag">${_esc(v)}<button class="hexdb-tag-remove"
-         data-tags-field="${fieldName}" data-value="${_esc(v)}"${dis}>✕</button></span>`
-    ).join('');
+    const known = _refSetFor(fieldName);
+    const tags = (values || []).map(v => {
+      const bad = known && !known.has(v);
+      return `<span class="hexdb-tag"${bad ? ' style="border:1px solid #e57373" title="Unknown id or type: check the name"' : ''}>${_esc(v)}<button class="hexdb-tag-remove"
+         data-tags-field="${fieldName}" data-value="${_esc(v)}"${dis}>✕</button></span>`;
+    }).join('');
+    const list = _TAG_LISTS[fieldName] ? ` list="${_TAG_LISTS[fieldName]}"` : '';
     return `<div class="hexdb-tags" data-tags-field="${fieldName}">
       ${tags}
-      <input class="hexdb-tag-input" data-tags-field="${fieldName}"
-        placeholder="type ID + Enter"${dis}></div>`;
+      <input class="hexdb-tag-input" data-tags-field="${fieldName}"${list}
+        placeholder="type ID + Enter"${dis}>${_TAG_LISTS[fieldName]
+          ? `<button type="button" class="hexdb-tool-btn hexdb-tag-pick" data-tags-field="${fieldName}" title="Pick from the list of tiles${fieldName === 'canProduce' ? ' and buildings' : ' and types'}"${dis}>Pick…</button>` : ''}</div>`;
+  }
+
+  // Single choice from a searchable list, written into a text input (Tiles Type value).
+  function _openValuePicker(inputId, items, title) {
+    const input = document.getElementById(inputId);
+    if (!input) return;
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'value-picker-body' });
+    const search = T('input', null, { className: 'hexdb-input', placeholder: 'search', id: 'value-picker-search', style: 'width:100%;margin-bottom:6px' });
+    const box = T('div', null, { style: 'max-height:320px;overflow:auto' });
+    root.append(search, box);
+    let picked = input.value;
+    const rows = [];
+    for (const id of items) {
+      const lab = T('label', null, { style: 'display:flex;gap:6px;align-items:center;padding:1px 0;cursor:pointer' });
+      const rb = T('input', null, { type: 'radio', name: 'value-picker', checked: id === picked });
+      rb.dataset.id = id;
+      rb.onchange = () => { picked = id; };
+      lab.append(rb, T('span', id));
+      box.appendChild(lab);
+      rows.push([id, lab]);
+    }
+    search.oninput = () => { const q = search.value.trim().toLowerCase(); for (const [id, lab] of rows) lab.style.display = !q || id.toLowerCase().includes(q) ? '' : 'none'; };
+    let m;
+    m = UI.showModal({ id: 'value-picker-modal', title, body: root, modal: true,
+      actions: [
+        { label: 'Cancel', onClick: () => m.close('cancel') },
+        { label: 'Apply', primary: true, onClick: () => {
+          input.value = picked;
+          input.dispatchEvent(new Event('change', { bubbles: true }));
+          m.close('applied');
+        } },
+      ] });
+  }
+
+  // Searchable checklist of the known ids for a tag field; Apply replaces the field with the checked ones (names the
+  // list does not know stay, so nothing typed earlier is lost).
+  function _openTagPicker(field) {
+    if (_selFilt < 0) return;
+    const bldObj = _data.buildings[_filtered[_selFilt]];
+    const known = field === 'canProduce'
+      ? [['Buildings', _refs.bldIds], ['Tiles', _refs.hexIds]]
+      : [['Types', _refs.types], ['Tiles', _refs.hexIds]];
+    const chosen = new Set(Array.isArray(bldObj[field]) ? bldObj[field] : []);
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'tag-picker-body' });
+    const search = T('input', null, { className: 'hexdb-input', placeholder: 'search', id: 'tag-picker-search', style: 'width:100%;margin-bottom:6px' });
+    const box = T('div', null, { style: 'max-height:320px;overflow:auto' });
+    root.append(search, box);
+    const rows = [];
+    for (const [title, ids] of known) {
+      box.appendChild(T('div', title, { style: 'margin:8px 0 3px;color:var(--muted);font-size:12px' }));
+      for (const id of ids) {
+        const lab = T('label', null, { style: 'display:flex;gap:6px;align-items:center;padding:1px 0;cursor:pointer' });
+        const cb = T('input', null, { type: 'checkbox', checked: chosen.has(id) });
+        cb.dataset.id = id;
+        cb.onchange = () => { if (cb.checked) chosen.add(id); else chosen.delete(id); };
+        lab.append(cb, T('span', id));
+        box.appendChild(lab);
+        rows.push([id, lab]);
+      }
+    }
+    search.oninput = () => { const q = search.value.trim().toLowerCase(); for (const [id, lab] of rows) lab.style.display = !q || id.toLowerCase().includes(q) ? '' : 'none'; };
+    let m;
+    m = UI.showModal({ id: 'tag-picker-modal', title: field === 'canProduce' ? 'Pick tiles and buildings' : 'Pick tile ids and types', body: root, modal: true,
+      actions: [
+        { label: 'Cancel', onClick: () => m.close('cancel') },
+        { label: 'Apply', primary: true, onClick: () => {
+          const all = new Set(known.flatMap(([, ids]) => ids));
+          const kept = (Array.isArray(bldObj[field]) ? bldObj[field] : []).filter(v => !all.has(v));
+          bldObj[field] = [...kept, ...[...chosen].filter(v => all.has(v))];
+          _autoSave();
+          m.close('applied');
+          _renderRecord(bldObj);
+        } },
+      ] });
+  }
+
+  // Integer-only numeric fields (ClickUp: Price, Premium Price, Min Level, Radius checks). Keys that make a number
+  // non-integer are blocked, and on change the value becomes a clean integer in range (no leading zeros, no sign,
+  // empty -> the default).
+  const _INT_FIELDS = {
+    'bld-f-minLevel':      { min: 1, max: 1000,    def: 1 },
+    'bld-f-premiumPrice':  { min: 0, max: 1000000, def: 0 },
+    'bld-f-radius':        { min: 0, max: 10000,   def: 0 },
+    'bld-f-buildingRadius':{ min: 0, max: 10000,   def: 0 },
+  };
+  function _cleanInt(raw, { min, max, def }) {
+    const n = Math.trunc(parseFloat(String(raw ?? '').replace(',', '.')));
+    if (!Number.isFinite(n)) return def;
+    return Math.min(max, Math.max(min, n));
+  }
+  function _wireIntFields(root) {
+    for (const [id, cfg] of Object.entries(_INT_FIELDS)) {
+      const el = root.querySelector('#' + id);
+      if (!el) continue;
+      el.addEventListener('keydown', e => { if (['.', 'e', 'E', '+', '-', ','].includes(e.key)) e.preventDefault(); });
+      // capture: runs before the form's own change listener, so the record is saved from the clean value
+      el.addEventListener('change', () => { el.value = String(_cleanInt(el.value, cfg)); }, true);
+    }
   }
 
   function _resBlockHTML(fieldName, rows, disabled, resTypes) {
@@ -20389,6 +21072,7 @@ const BldDB = (() => {
   function _renderRecord(bld) {
     const right = document.getElementById('bld-right');
     const g = id => document.getElementById(id);
+    _collectRefs(bld);
     const col = s => _secState[s] ? '▶' : '▼';
     const bod = s => _secState[s] ? 'none' : 'block';
     // Same-id + same-package = real error. Same-id + different-package = intentional
@@ -20424,6 +21108,8 @@ const BldDB = (() => {
               onblur="this.value=this.value.trim();this.dispatchEvent(new Event('change',{bubbles:true}))">
             <small style="color:#888;font-size:0.8em">Format: TypeName_Number (e.g. Plain_1, Forest_2)</small>
           </div></div>
+        <div class="hexdb-row"><span class="hexdb-label">Package</span>
+          <code id="bld-f-package" title="Set by the id prefix: an id like Medieval20_Farm_1 moves the building to that package">${_esc(bld.package || 'postapoc')}</code></div>
         <div class="hexdb-row"><span class="hexdb-label">TextId <span class="hexdb-info" title="Localisation key for display name. No leading/trailing spaces.">ⓘ</span></span>
           <div style="flex:1;min-width:0">
             <input class="hexdb-input" id="bld-f-textId" type="text" value="${_esc(bld.textId)}" list="loc-keys-datalist">
@@ -20455,8 +21141,8 @@ const BldDB = (() => {
           <input id="bld-f-isRoad" type="checkbox"${bld.isRoad ? ' checked' : ''}></div>
         ${_roadsMsgHTML(bld)}
         <div class="hexdb-row"><span class="hexdb-label">Biome <span class="hexdb-info" title="Season/biome context">ⓘ</span></span>
-          <select class="hexdb-select" id="bld-f-biome">${BiomeManager.getNames().map(b =>
-            `<option${bld.biome === b ? ' selected' : ''}>${b}</option>`).join('')}</select></div>
+          <select class="hexdb-select" id="bld-f-biome">${BiomeManager.optionsFor(bld.biome).map(b =>
+            `<option${bld.biome === b ? ' selected' : ''}>${_esc(b)}</option>`).join('')}</select></div>
         <div class="hexdb-row"><span class="hexdb-label">Filter <span class="hexdb-info" title="UI filter category tag">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-filter" type="text" value="${_esc(bld.filter)}"></div>
         <div class="hexdb-row"><span class="hexdb-label">SpriteName</span>
@@ -20473,6 +21159,10 @@ const BldDB = (() => {
           <input class="hexdb-input" id="bld-f-underTerrainId" type="text"
             value="${_esc(bld.underTerrainId ?? '')}" list="blddb-hex-id-list" placeholder="e.g. Water_1">
         </div>` : ''}
+        <div class="hexdb-row"><span class="hexdb-label">Skin Slot <span class="hexdb-info" title="Package buildings only. The id of the base building this one repaints (look only; cost and rules come from the base building). Leave empty for a building that is new in this package.">ⓘ</span></span>
+          <input class="hexdb-input" id="bld-f-skinSlot" type="text"
+            value="${_esc(bld.skinSlot ?? '')}" list="blddb-bld-id-list" placeholder="base id, e.g. Farm_1 (optional)">
+        </div>
         <div class="hexdb-row"><span class="hexdb-label">Base Cost Taps <span class="hexdb-info" title="Integer, 0–100 000. Auto-corrects leading zeros.">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-baseCostTaps" type="number" step="1" min="0" max="100000"
             oninput="this.value=Math.min(100000,Math.max(0,parseInt(this.value,10)||0))"
@@ -20493,8 +21183,8 @@ const BldDB = (() => {
               <option${bld.destroyTransformToMode === 'Parents' ? ' selected' : ''}>Parents</option>
               <option${bld.destroyTransformToMode === 'HexID'   ? ' selected' : ''}>HexID</option>
             </select>
-            <input class="hexdb-input" id="bld-f-destroyTransformTo" type="text" placeholder="Tile ID"
-              list="blddb-hex-id-list"
+            <input class="hexdb-input" id="bld-f-destroyTransformTo" type="text" placeholder="Tile or building ID"
+              list="blddb-ref-id-list"
               value="${_esc(bld.destroyTransformTo)}"
               style="flex:1${bld.destroyTransformToMode === 'Parents' ? ';display:none' : ''}">
           </div>` : `<input class="hexdb-input" value="Unbreakable" style="width:160px" disabled>`}</div>
@@ -20542,8 +21232,10 @@ const BldDB = (() => {
               <option${bld.tilesTypeMode === 'Type'    ? ' selected' : ''}>Type</option>
             </select>
             <input class="hexdb-input" id="bld-f-tilesTypeValue" type="text" placeholder="ID or Type"
+              list="${bld.tilesTypeMode === 'Type' ? 'blddb-tile-type-list' : 'blddb-tile-id-list'}"
               value="${_esc(bld.tilesTypeValue)}"
               style="flex:1${bld.tilesTypeMode === 'Parents' ? ';display:none' : ''}">
+            <button type="button" id="bld-tilesType-pick" class="hexdb-tool-btn" title="Pick from the list"${bld.tilesTypeMode === 'Parents' ? ' style="display:none"' : ''}>Pick…</button>
           </div></div>
         <div class="hexdb-row"><span class="hexdb-label">Radius <span class="hexdb-info" title="0=must be on top; 1=adjacent; N=within N hexes">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-radius" type="number" step="1" min="0"
@@ -20809,9 +21501,15 @@ const BldDB = (() => {
       (_data.buildings ?? []).filter(b => b.id && !b.canBuild)
         .map(b => `<option value="${_esc(b.id)}">`).join('') +
       '</datalist>';
+    const dl = (id, vals) => `<datalist id="${id}">${vals.map(v => `<option value="${_esc(v)}">`).join('')}</datalist>`;
+    const refDatalists =
+      dl('blddb-ref-id-list', [..._refs.hexIds, ..._refs.bldIds]) +
+      dl('blddb-tile-id-list', _refs.hexIds) +
+      dl('blddb-tile-type-list', _refs.types) +
+      dl('blddb-tile-any-list', [..._refs.hexIds, ..._refs.types]);
     right.innerHTML = visualHTML + `<div class="hexdb-form">
       ${mainHTML}${footprintHTML}${destroyHTML}${buildHTML}${incomeHTML}${settingsHTML}${specialHTML}${satelliteHTML}${actionsHTML}
-    </div>` + bldHexIdDatalist + bldBldIdDatalist;
+    </div>` + bldHexIdDatalist + bldBldIdDatalist + refDatalists;
 
     // ── Wire section headers ──────────────────────────────────
     right.querySelectorAll('.hexdb-section-hdr').forEach(hdr => {
@@ -20851,11 +21549,15 @@ const BldDB = (() => {
       });
     }
 
+    _wireIntFields(right);
+
     // ── Wire simple inputs → _readRecord ─────────────────────
     right.querySelectorAll('input:not(.hexdb-tag-input):not([data-res-field]),select:not([data-res-field])').forEach(el => {
       el.addEventListener('input',  _readRecord);
       el.addEventListener('change', _readRecord);
     });
+    // The id decides the package: registered after _readRecord, so the typed id is already saved.
+    document.getElementById('bld-f-id')?.addEventListener('change', _movePackageByPrefix);
 
     // ── Wire text-key validation hints ───────────────────────
     [['bld-f-textId','bld-hint-textId'],['bld-f-descIdleId','bld-hint-descIdleId'],['bld-f-descBuildId','bld-hint-descBuildId']].forEach(([inId, hintId]) => {
@@ -20906,11 +21608,18 @@ const BldDB = (() => {
         const bldObj = _data.buildings[_filtered[_selFilt]];
         const field  = input.dataset.tagsField;
         if (!Array.isArray(bldObj[field])) bldObj[field] = [];
+        const known = _refSetFor(field);
+        if (known && !known.has(val)) UI.toast(`⚠ "${val}" is not a known ${field === 'canProduce' ? 'tile or building id' : 'tile id or type'}: check the name`);
         if (!bldObj[field].includes(val)) bldObj[field].push(val);
         input.value = '';
         _autoSave();
         _renderRecord(bldObj);
       });
+    });
+    g('bld-tilesType-pick')?.addEventListener('click', () => _openValuePicker('bld-f-tilesTypeValue',
+      (bld.tilesTypeMode === 'Type' ? _refs.types : _refs.hexIds), bld.tilesTypeMode === 'Type' ? 'Pick a tile type' : 'Pick a tile id'));
+    right.querySelectorAll('.hexdb-tag-pick').forEach(btn => {
+      btn.addEventListener('click', () => _openTagPicker(btn.dataset.tagsField));
     });
     right.querySelectorAll('.hexdb-tag-remove').forEach(btn => {
       btn.addEventListener('click', () => {
@@ -21013,6 +21722,47 @@ const BldDB = (() => {
     });
   }
 
+  // Sets (or clears, slot '') the skinSlot of the building id in package pkg. Used by the Skin slots table.
+  function setSkinSlot(id, pkg, slot) {
+    const rec = _data.buildings.find(b => b.id === id && (b.package || 'postapoc') === pkg);
+    if (!rec) return false;
+    const v = String(slot ?? '').trim();
+    if (v) rec.skinSlot = v; else delete rec.skinSlot;
+    _autoSave();
+    return true;
+  }
+
+  // Moves every building whose id names another package's prefix (PACKAGES tab: Fix packages by id prefix).
+  function rehomeByPrefix() {
+    let moved = 0;
+    for (const rec of _data.buildings) if (Packages.movePackageByPrefix(rec, _data.buildings, 'bld').moved) moved++;
+    if (moved) {
+      _autoSave();
+      _syncLive();
+      _selFilt = -1;
+      _applyFilter();
+      _buildList();
+      const right = document.getElementById('bld-right');
+      if (right) right.innerHTML = '<div class="hexdb-empty"><div>Select a building</div></div>';
+    }
+    return { moved };
+  }
+
+  // An id with another package's prefix moves the building to that package (ClickUp 869fjvua7).
+  function _movePackageByPrefix() {
+    if (_selFilt < 0 || _selFilt >= _filtered.length) return;
+    const realIdx = _filtered[_selFilt];
+    const bld = _data.buildings[realIdx];
+    const r = Packages.movePackageByPrefix(bld, _data.buildings, 'bld');
+    if (r.problem) UI.toast('⚠ ' + r.problem);
+    if (!r.moved) return;
+    _autoSave();
+    _syncLive(bld);
+    _applyFilter();
+    _selectIdx(_filtered.indexOf(realIdx));
+    UI.toast(`Moved to package "${r.to}" by the id prefix`);
+  }
+
   function _readRecord() {
     if (_selFilt < 0 || _selFilt >= _filtered.length) return;
     const bld = _data.buildings[_filtered[_selFilt]];
@@ -21033,6 +21783,7 @@ const BldDB = (() => {
     bld.filter       = iv('bld-f-filter');
     bld.spriteName      = iv('bld-f-spriteName');
     bld.underTerrainId  = iv('bld-f-underTerrainId');
+    { const sk = iv('bld-f-skinSlot').trim(); if (sk) bld.skinSlot = sk; else delete bld.skinSlot; }
     bld.baseCostTaps = Math.min(100000, Math.max(0, nv('bld-f-baseCostTaps')));
 
     // DESTROY
@@ -21046,13 +21797,13 @@ const BldDB = (() => {
     bld.canBuild                 = bv('bld-f-canBuild');
     bld.needRoad                 = bv('bld-f-needRoad');
     bld.isRoad                   = bv('bld-f-isRoad');
-    bld.minLevel                 = Math.max(1, nv('bld-f-minLevel'));
-    bld.premiumPrice             = nv('bld-f-premiumPrice');
+    bld.minLevel                 = Math.min(1000, Math.max(1, nv('bld-f-minLevel')));
+    bld.premiumPrice             = Math.min(1000000, Math.max(0, nv('bld-f-premiumPrice')));
     bld.additionalBuildCondition = bv('bld-f-additionalBuildCondition');
     if (g('bld-f-tilesTypeMode')) {
       bld.tilesTypeMode  = iv('bld-f-tilesTypeMode');
       bld.tilesTypeValue = iv('bld-f-tilesTypeValue');
-      bld.radius         = Math.max(0, nv('bld-f-radius'));
+      bld.radius         = Math.min(10000, Math.max(0, nv('bld-f-radius')));
     }
 
     // INCOME
@@ -21063,7 +21814,7 @@ const BldDB = (() => {
     bld.capacity              = Math.max(0, nv('bld-f-capacity'));
 
     // SETTINGS
-    bld.buildingRadius           = Math.max(0, nv('bld-f-buildingRadius'));
+    bld.buildingRadius           = Math.min(10000, Math.max(0, nv('bld-f-buildingRadius')));
     bld.canProduceEnabled        = bv('bld-f-canProduceEnabled');
     bld.canProductionFacilities  = bv('bld-f-canProductionFacilities');
     bld.facilityBonusType        = iv('bld-f-facilityBonusType');
@@ -21271,7 +22022,7 @@ const BldDB = (() => {
       UI.toast('⚠ Roads and bridges are global (base package only): switch to the base package to paste this'); return;
     }
     const clone = structuredClone(_clipboard);
-    clone.id += '_copy';
+    Packages.adoptPastedRecord(clone, _data.buildings, 'bld');
     _data.buildings.push(clone);
     _autoSave();
     _syncLive(clone);
@@ -21529,7 +22280,7 @@ const BldDB = (() => {
 
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
            mergeFromServer, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage,
-           pushRecord, deleteSelected, copy, paste, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
+           pushRecord, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
 window.BldDB = BldDB;
@@ -21660,7 +22411,7 @@ const SttDB = (() => {
         <div class="hexdb-row"><label>SettlementType</label>
           <input id="stt-f-settlementType" type="text" value="${_esc(stt.settlementType)}"></div>
         <div class="hexdb-row"><label>Biome</label>
-          <select id="stt-f-biome">${BiomeManager.getNames().map(b=>`<option${stt.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
+          <select id="stt-f-biome">${BiomeManager.optionsFor(stt.biome).map(b=>`<option${stt.biome===b?' selected':''}>${_esc(b)}</option>`).join('')}</select></div>
         <div class="hexdb-row"><label>Filter</label>
           <input id="stt-f-filterCategory" type="text" value="${_esc(stt.filterCategory)}"></div>
         <div class="hexdb-row"><label>Start Level</label>
@@ -22602,6 +23353,34 @@ let bridgesData = [];   // [{col, row, axis}] — pre-placed bridges
 let objectsData = {};   // {"col,row": buildingId} — pre-placed building objects
 let tileExtras  = {};   // {"col,row": {underTerrainId}} — per-tile overrides for bridge under-terrain etc.
 let roadsData   = {};   // {"col,row": {type}} — painted road tiles
+let mapSkin     = '';   // package id the game uses to repaint this map ('' = none); written as "skin"
+
+// The map's skin: one content package that repaints the base records (skinSlot) when the game loads the map.
+const MapSkin = (() => {
+  function get() { return mapSkin; }
+  function set(id) {
+    const next = typeof id === 'string' ? id.trim() : '';
+    if (next === mapSkin) return;
+    mapSkin = next;
+    if (typeof IO !== 'undefined' && IO.scheduleAutoSave) IO.scheduleAutoSave();
+  }
+  // Options: none + every non-default package of the registry; a skin the registry no longer has stays selectable.
+  function sync() {
+    const sel = document.getElementById('map-skin-select');
+    if (!sel) return;
+    const ids = (typeof Packages !== 'undefined' ? Packages.getAll() : []).filter(p => p && p.id && !p.isDefault).map(p => p.id);
+    if (mapSkin && !ids.includes(mapSkin)) ids.push(mapSkin);
+    sel.textContent = '';
+    [''].concat(ids).forEach(id => {
+      const o = document.createElement('option');
+      o.value = id; o.textContent = id || 'none';
+      sel.appendChild(o);
+    });
+    sel.value = mapSkin;
+  }
+  function reset(id) { mapSkin = typeof id === 'string' ? id.trim() : ''; sync(); }
+  return { get, set, sync, reset };
+})();
 
 // Satellite→anchor lookup: maps "col_row" → {col, row} of the owning anchor tile.
 // Rebuilt lazily whenever mapData changes. Satellite tiles are the 6 neighbours that
@@ -23359,8 +24138,8 @@ window.addEventListener('load', async () => {
       window.__lastSyncSummary = sync;
       if (sync.conflicts.length) {
         console.info('[sync] local edits kept over differing server versions:', sync.conflicts);
-        UI.toast(`Kept ${sync.conflicts.length} local edit(s) that differ from the server`,
-                 { ms: 6000, detail: sync.conflicts.slice(0, 5).join('\n') });
+        UI.toast(`Kept ${sync.conflicts.length} local edit(s) that differ from the server. To take the server version of a package, use PACKAGES > Pull from server.`,
+                 { sticky: true, detail: sync.conflicts.slice(0, 20).join('\n') + (sync.conflicts.length > 20 ? '\n…' : '') });
       }
       if (sync.failed.length) {
         console.warn('[sync] failed:', sync.failed);

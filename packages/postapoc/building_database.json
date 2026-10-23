@@ -90,7 +90,9 @@
           "maxCount": 0
         }
       ],
-      "underTerrainId": ""
+      "underTerrainId": "",
+      "isRoad": false,
+      "destroyCost": []
     },
     {
       "id": "Grain_1",
@@ -154,7 +156,9 @@
       "effects": "",
       "footprint": [],
       "storageCapacity": [],
-      "storageUpgradeId": ""
+      "storageUpgradeId": "",
+      "isRoad": false,
+      "destroyCost": []
     },
     {
       "id": "Old_Generator_1",
@@ -227,7 +231,9 @@
       "booster": "",
       "effects": "",
       "footprint": [],
-      "storageUpgradeId": ""
+      "storageUpgradeId": "",
+      "isRoad": false,
+      "destroyCost": []
     },
     {
       "id": "IronMine_Test_1",
@@ -308,7 +314,9 @@
       "booster": "",
       "effects": "",
       "footprint": [],
-      "storageUpgradeId": ""
+      "storageUpgradeId": "",
+      "isRoad": false,
+      "destroyCost": []
     },
     {
       "id": "Artefact_Test_1",
@@ -380,7 +388,9 @@
       "booster": "",
       "effects": "",
       "footprint": [],
-      "storageUpgradeId": ""
+      "storageUpgradeId": "",
+      "isRoad": false,
+      "destroyCost": []
     },
     {
       "id": "GoldMine_Test_1",
@@ -414,7 +424,7 @@
         }
       ],
       "canBuild": true,
-      "needRoad": true,
+      "needRoad": false,
       "availableTiles": [],
       "minLevel": 1,
       "price": [
@@ -461,7 +471,10 @@
       "booster": "",
       "effects": "",
       "footprint": [],
-      "storageUpgradeId": ""
+      "storageUpgradeId": "",
+      "isRoad": false,
+      "underTerrainId": "",
+      "destroyCost": []
     },
     {
       "id": "StoneConveyor_Test_1",
@@ -542,7 +555,9 @@
       "booster": "",
       "effects": "",
       "footprint": [],
-      "storageUpgradeId": ""
+      "storageUpgradeId": "",
+      "isRoad": false,
+      "destroyCost": []
     },
     {
       "id": "ScoutTower_Test_1",
@@ -605,7 +620,9 @@
       "booster": "",
       "effects": "",
       "footprint": [],
-      "storageUpgradeId": ""
+      "storageUpgradeId": "",
+      "isRoad": false,
+      "destroyCost": []
     },
     {
       "id": "LumberMill_Test_1",
@@ -686,7 +703,9 @@
       "booster": "",
       "effects": "",
       "footprint": [],
-      "storageUpgradeId": ""
+      "storageUpgradeId": "",
+      "isRoad": false,
+      "destroyCost": []
     },
     {
       "id": "StoneMine_Test_1",
@@ -767,7 +786,9 @@
       "booster": "",
       "effects": "",
       "footprint": [],
-      "storageUpgradeId": ""
+      "storageUpgradeId": "",
+      "isRoad": false,
+      "destroyCost": []
     },
     {
       "id": "BoneMine_Kaiju_1",
@@ -841,10 +862,12 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "footprint": []
+      "footprint": [],
+      "isRoad": false,
+      "destroyCost": []
     },
     {
-      "id": "Road_Bridge_NEWS_1",
+      "id": "bridge",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -903,7 +926,9 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "footprint": []
+      "footprint": [],
+      "isRoad": false,
+      "destroyCost": []
     },
     {
       "id": "road",
@@ -968,7 +993,8 @@
       "bonuses": [],
       "booster": "",
       "effects": "",
-      "footprint": []
+      "footprint": [],
+      "destroyCost": []
     }
   ]
 }
