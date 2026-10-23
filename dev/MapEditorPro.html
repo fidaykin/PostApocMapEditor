@@ -2848,8 +2848,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.21";
-const COMMIT  = "93673d9";
+const VERSION = "2026.10.23";
+const COMMIT  = "3ef163b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -17726,7 +17726,27 @@ const BiomeManager = (() => {
   }
   function _save() { localStorage.setItem(LS_KEY, JSON.stringify(_biomes)); }
 
-  function getNames() { return _biomes.map(b => b.name); }
+  // The list is per browser (localStorage), but the DBs carry their own biome values: a biome used by any hex, building or
+  // settlement record is listed too, so a laptop with a fresh browser still shows e.g. Decameron instead of the first default.
+  function _usedByRecords() {
+    const used = [];
+    [() => HexDB, () => BldDB, () => SttDB].forEach(get => {
+      let db; try { db = get(); } catch (e) { return; }      // a DB module that is not defined yet
+      const recs = db && db.getAll ? db.getAll() : [];
+      for (const r of recs) if (r && r.biome && !used.includes(r.biome)) used.push(r.biome);
+    });
+    return used;
+  }
+  function getNames() {
+    const names = _biomes.map(b => b.name);
+    for (const n of _usedByRecords()) if (!names.includes(n)) names.push(n);
+    return names;
+  }
+  /** Names for a record's select: the list, plus the record's own biome when it is not in it. */
+  function optionsFor(cur) {
+    const names = getNames();
+    return cur && !names.includes(cur) ? [cur, ...names] : names;
+  }
   function getColor(name) {
     const b = _biomes.find(b => b.name === name);
     return b ? b.color : '#888888';
@@ -17752,7 +17772,7 @@ const BiomeManager = (() => {
   }
 
   function refreshAllDropdowns() {
-    const names = _biomes.map(b => b.name);
+    const names = getNames();
     [
       { id: 'hexdb-biome-filter', all: 'All' },
       { id: 'bld-filter-biome',   all: 'All Biomes' },
@@ -17768,14 +17788,14 @@ const BiomeManager = (() => {
     const hexSel = document.querySelector('select.hexdb-select[data-field="biome"]');
     if (hexSel) {
       const cur = hexSel.value;
-      const list = cur && !names.includes(cur) ? [cur, ...names] : names;     // keep a biome that is not in the list (see _selectInput)
+      const list = optionsFor(cur);                                           // keep a biome that is not in the list (see _selectInput)
       hexSel.innerHTML = list.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
     }
     ['bld-f-biome', 'stt-f-biome'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       const cur = el.value;
-      el.innerHTML = names.map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
+      el.innerHTML = optionsFor(cur).map(n => `<option${n === cur ? ' selected' : ''}>${n}</option>`).join('');
     });
   }
 
@@ -17806,7 +17826,12 @@ const BiomeManager = (() => {
   }
 
   _load();
-  return { getNames, getColor, add, remove, updateColor, refreshAllDropdowns, openManager, closeManager };
+  // The filter dropdowns are built at start-up, before the DBs finish loading: rebuild them when a user opens one.
+  document.addEventListener('mousedown', e => {
+    if (e.target && ['hexdb-biome-filter', 'bld-filter-biome', 'stt-filter-biome'].includes(e.target.id)) refreshAllDropdowns();
+  }, true);
+
+  return { getNames, optionsFor, getColor, add, remove, updateColor, refreshAllDropdowns, openManager, closeManager };
 })();
 
 // ── RoadPerms Module (Roads/Bridges V1: pure helpers, no DOM, no HexDB/BldDB state except currentTypes) ─────
@@ -20978,8 +21003,8 @@ const BldDB = (() => {
           <input id="bld-f-isRoad" type="checkbox"${bld.isRoad ? ' checked' : ''}></div>
         ${_roadsMsgHTML(bld)}
         <div class="hexdb-row"><span class="hexdb-label">Biome <span class="hexdb-info" title="Season/biome context">ⓘ</span></span>
-          <select class="hexdb-select" id="bld-f-biome">${BiomeManager.getNames().map(b =>
-            `<option${bld.biome === b ? ' selected' : ''}>${b}</option>`).join('')}</select></div>
+          <select class="hexdb-select" id="bld-f-biome">${BiomeManager.optionsFor(bld.biome).map(b =>
+            `<option${bld.biome === b ? ' selected' : ''}>${_esc(b)}</option>`).join('')}</select></div>
         <div class="hexdb-row"><span class="hexdb-label">Filter <span class="hexdb-info" title="UI filter category tag">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-filter" type="text" value="${_esc(bld.filter)}"></div>
         <div class="hexdb-row"><span class="hexdb-label">SpriteName</span>
@@ -22248,7 +22273,7 @@ const SttDB = (() => {
         <div class="hexdb-row"><label>SettlementType</label>
           <input id="stt-f-settlementType" type="text" value="${_esc(stt.settlementType)}"></div>
         <div class="hexdb-row"><label>Biome</label>
-          <select id="stt-f-biome">${BiomeManager.getNames().map(b=>`<option${stt.biome===b?' selected':''}>${b}</option>`).join('')}</select></div>
+          <select id="stt-f-biome">${BiomeManager.optionsFor(stt.biome).map(b=>`<option${stt.biome===b?' selected':''}>${_esc(b)}</option>`).join('')}</select></div>
         <div class="hexdb-row"><label>Filter</label>
           <input id="stt-f-filterCategory" type="text" value="${_esc(stt.filterCategory)}"></div>
         <div class="hexdb-row"><label>Start Level</label>
