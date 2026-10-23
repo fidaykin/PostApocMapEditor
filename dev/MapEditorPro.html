@@ -1542,14 +1542,12 @@ body.mode-common #map-io    { display: none; }
     <div class="pub-drop-wrap" id="pub-drop-wrap">
       <button class="publish-btn" id="btn-publish-all" onclick="GitHubSync.togglePublishDropdown(event)" title="Publish to GitHub">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
-        <button onclick="GitHubSync.publishHexDbOnly()">☁ Publish HexDB</button>
-        <button onclick="GitHubSync.publishAllSprites()">☁ Publish Sprites</button>
-        <button onclick="GitHubSync.cleanGhostSprites()">🧹 Clean Ghost Sprites</button>
-        <button onclick="GitHubSync.publishBuildingsDb()">☁ Publish Buildings DB</button>
-        <button onclick="GitHubSync.publishUpgradeDb()">☁ Publish Upgrade DB</button>
+        <button onclick="GitHubSync.publish()" title="Publish the active package: data and changed sprites">☁ Publish</button>
+        <button onclick="GitHubSync.publishCommon()" title="Upgrades, Common settings and localization.json">☁ Publish Common</button>
         <div class="pub-drop-sep"></div>
         <button onclick="GitHubSync.publishMap()">☁ Publish Map</button>
         <div class="pub-drop-sep"></div>
+        <button onclick="GitHubSync.cleanGhostSprites()">🧹 Clean Ghost Sprites</button>
       </div>
     </div>
   </div>
@@ -2849,7 +2847,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.23";
-const COMMIT  = "0123149";
+const COMMIT  = "cc785fe";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9873,17 +9871,24 @@ const GitHubSync = (() => {
       const all = await SpriteStore.loadForPackage('postapoc');   // the shared pool only: package sprites go out with their package
       if (!all.length) { UI.toast('No sprites in local store'); return; }
       UI.progress(10, `Uploading ${all.length} sprites…`);
-      let done = 0;
+      const published = await Packages._publishedHashes('postapoc');   // null = no usable manifest: upload everything
+      let done = 0, skipped = 0;
       for (const entry of all) {
         const res  = await fetch(entry.dataUrl);
         const blob = await res.blob();
-        await pushSprite(entry.name, blob, entry.category || 'hex');
+        const cat  = entry.category || 'hex';
+        const fname = entry.name.endsWith('.png') ? entry.name : `${entry.name}.png`;
+        if (published && published.get(`packages/postapoc/sprites/${cat}/${fname}`) === await sha256Hex(new Uint8Array(await blob.arrayBuffer()))) {
+          skipped++;
+        } else {
+          await pushSprite(entry.name, blob, cat);
+        }
         done++;
         UI.progress(Math.round((done / all.length) * 90) + 10, `${done}/${all.length} sprites…`);
       }
       if (!(opts && opts.skipManifest === true)) await refreshBaseManifestSafely();
-      UI.progressDone(`✅ ${all.length} sprites published`);
-      UI.toast(`✅ ${all.length} sprites published`);
+      UI.progressDone(`✅ ${all.length - skipped} sprites published, ${skipped} unchanged`);
+      UI.toast(`✅ ${all.length - skipped} sprites published, ${skipped} unchanged`);
     });
   }
 
@@ -9934,6 +9939,13 @@ const GitHubSync = (() => {
     });
   }
 
+  // The one Publish: the active package (data + changed sprites) after its diff. The base package asks for a separate confirmation.
+  async function publish() {
+    if (!isPATConfigured()) { UI.toast('⚠ Open your access link first (or use ⚙ GitHub to enter token)'); return; }
+    _closeDropdown();
+    await Packages.openPublishConfirm(Packages.getActive());
+  }
+
   async function publishUpgradeDb() {
     await _withPublishBtn('Publish Upgrade DB', async () => {
       UI.progress(30, 'Publishing upgrade_database.json…');
@@ -9955,6 +9967,37 @@ const GitHubSync = (() => {
       console.error('[GitHubSync] publishCommonDb:', e);
       UI.toast('❌ publishCommonDb failed: ' + e.message);
     }
+  }
+
+  // Publish Common: the three files shared by every package. One confirmation lists which differ from the server;
+  // only the changed ones are written. A failure names the file and says how many were already written.
+  async function publishCommon() {
+    return _withPublishBtn('Publish Common', async () => {
+      const files = [
+        { path: 'upgrade_database.json', text: UpgDB.getJson() },
+        { path: 'common_settings.json',  text: CommonDB.export() },
+        { path: 'localization.json',     text: JSON.stringify(LocalizationKeys.getExportData(), null, 2) },
+      ];
+      const enc = new TextEncoder();
+      for (const f of files) {
+        const have = await _readRepoBytes(f.path);
+        f.changed = !have || await sha256Hex(have) !== await sha256Hex(enc.encode(f.text));
+      }
+      const todo = files.filter(f => f.changed);
+      const ok = await UI.confirm('Publish Common',
+        todo.length ? `Publish ${todo.length} of ${files.length} shared file(s)?` : 'Nothing differs from the server.',
+        files.map(f => `${f.path}: ${f.changed ? 'changed' : 'unchanged'}`).join('\n'),
+        todo.length ? 'Publish' : 'Close');
+      if (!ok || !todo.length) return;
+      let n = 0;
+      for (const f of todo) {
+        UI.progress(Math.round(100 * n / todo.length), `Writing ${f.path}…`);
+        try { await _putText(f.path, f.text, `publish: ${f.path}`); n++; }
+        catch (e) { throw new Error(`${f.path}: ${e.message}${n ? ` (${n} file(s) already written)` : ''}`); }
+      }
+      UI.progressDone(`✅ ${n} shared file(s) published`);
+      UI.toast(`✅ Publish Common: ${todo.map(f => f.path).join(', ')}`);
+    });
   }
 
   async function publishLoc() {
@@ -10302,7 +10345,7 @@ const GitHubSync = (() => {
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
     togglePublishDropdown, publishHexDbOnly, publishAllSprites, cleanGhostSprites,
-    publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishLoc, publishMap,
+    publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishCommon, publish, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
     loadHexDbIntoEditor, loadLocFromServer, loadUpgradeDbFromServer, syncContentFromServer,
     openMapsPopover, closeMapsPopover, _loadMap,
@@ -15012,8 +15055,8 @@ const Packages = (() => {
   // packages/<id>/sprites/<category>/<name>.png, preferring the local copy and falling back
   // to the already-published postapoc copy.
   async function _packageSpriteRefs(id) {
-    const hexes     = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => h.package === id);
-    const buildings = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.package === id);
+    const hexes     = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => (h.package || 'postapoc') === id);
+    const buildings = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => (b.package || 'postapoc') === id);
     const refs = new Map(); // spriteName -> default category (local SpriteStore entry wins if present)
     for (const h of hexes)
       if (h.spriteName) refs.set(h.spriteName, 'hex');
@@ -15044,10 +15087,22 @@ const Packages = (() => {
     return (name, cat) => (out.get(cat + '\u0000' + name) || []).filter(p => _ID_RE.test(p) && !_FORBIDDEN_KEYS.has(p));
   }
 
+  // sha256 of every file the server manifest lists, keyed by repo path; null when there is no usable manifest
+  // (first publish, or a corrupt file: then everything uploads).
+  async function _publishedHashes(id) {
+    try {
+      const bytes = await GitHubSync._readRepoBytes(`packages/${id}/manifest.json`);
+      if (!bytes) return null;
+      const m = JSON.parse(new TextDecoder().decode(bytes));
+      if (!m || !Array.isArray(m.files)) return null;
+      return new Map(m.files.filter(f => f && f.path && f.sha256).map(f => [`packages/${id}/${f.path}`, f.sha256]));
+    } catch (e) { console.warn('[Packages] server manifest unreadable, all sprites will upload:', e && e.message); return null; }
+  }
+
   async function publishPackageSprites(id, onProgress) {
     const refs = await _packageSpriteRefs(id);
     const ownersOf = _foreignSpriteOwners(id);
-    if (!refs.size) return { total: 0, pushed: 0, missing: [], differs: [], categoryMismatch: [] };
+    if (!refs.size) return { total: 0, pushed: 0, skipped: 0, missing: [], differs: [], categoryMismatch: [] };
     const unsafe = [...refs.keys()].filter(n => !isSafeSpriteName(n));
     if (unsafe.length) throw new Error(_unsafeNamesMessage(unsafe));   // never build a repo path from such a name
 
@@ -15062,7 +15117,8 @@ const Packages = (() => {
       for (const o of owners) for (const e of await SpriteStore.loadForPackage(o)) foreignLocal.set(o + '\u0000' + e.name, e);
     } catch(e) { console.warn('[Packages] local sprite store unavailable for source packages:', e && e.message); }
 
-    let pushed = 0, done = 0;
+    const published = await _publishedHashes(id);
+    let pushed = 0, skipped = 0, done = 0;
     const missing = [], differs = [], categoryMismatch = [];
     for (const [name, fallbackCategory] of refs) {
       const owners = ownersOf(name, fallbackCategory);
@@ -15095,6 +15151,10 @@ const Packages = (() => {
       if (onProgress) onProgress(done, refs.size, name);
       if (!blob) { missing.push(name); continue; }
       const target = `packages/${id}/sprites/${category}/${name}.png`;
+      if (published) {   // the same bytes are already on the server: nothing to write
+        const sha = await GitHubSync.sha256Hex(new Uint8Array(await blob.arrayBuffer()));
+        if (published.get(target) === sha) { skipped++; continue; }
+      }
       if (localEntry) {   // the local copy is about to replace a server file: tell the caller when they are different files
         try {
           const srv = await GitHubSync._readRepoBytes(target);
@@ -15107,7 +15167,7 @@ const Packages = (() => {
       await GitHubSync._putBinary(target, blob, `publish ${id}: sprite ${name}.png`);
       pushed++;
     }
-    return { total: refs.size, pushed, missing, differs, categoryMismatch };
+    return { total: refs.size, pushed, skipped, missing, differs, categoryMismatch };
   }
 
   // ── Publish Package ────────────────────────────────────────────
@@ -15125,9 +15185,28 @@ const Packages = (() => {
 
   async function diffAgainstServer(id) {
     const pub = await _fetchPublished(id);
-    const localHex = HexDB.getData().hexes.filter(h => h.package === id);
-    const localBld = BldDB.getAll().filter(b => b.package === id);
+    const localHex = HexDB.getData().hexes.filter(h => (h.package || 'postapoc') === id);
+    const localBld = BldDB.getAll().filter(b => (b.package || 'postapoc') === id);
+    // Sprites with a LOCAL copy that the server manifest lacks or lists with other bytes. A sprite without a local copy is
+    // taken from the server by publish, so it cannot change.
+    const sprites = { added: [], changed: [] };
+    const published = await _publishedHashes(id);
+    const refs = await _packageSpriteRefs(id);
+    let local = [];
+    try { local = [...await SpriteStore.loadForPackage('postapoc'), ...await SpriteStore.loadForPackage(id)]; }
+    catch (e) { console.warn('[Packages] local sprite store unavailable for the diff:', e && e.message); }
+    const byName = new Map(local.map(e => [e.name, e]));
+    for (const [name, category] of refs) {
+      const e = byName.get(name);
+      if (!e) continue;
+      let sha;
+      try { sha = await GitHubSync.sha256Hex(new Uint8Array(await (await (await fetch(e.dataUrl)).blob()).arrayBuffer())); }
+      catch (err) { continue; }
+      const have = published && published.get(`packages/${id}/sprites/${category}/${name}.png`);
+      if (!have) sprites.added.push(name); else if (have !== sha) sprites.changed.push(name);
+    }
     return {
+      sprites,
       hex: SyncMerge.diff(localHex, HexDB.migrateCopy(pub.hexes)),
       bld: SyncMerge.diff(localBld, BldDB.migrateCopy(pub.buildings)),
       firstPublish: !pub.pkg,
@@ -15147,8 +15226,10 @@ const Packages = (() => {
       ...x.unkeyedLocal.map(e => `+ unkeyed ${tag} ${JSON.stringify(e).slice(0, 120)}`),
       ...x.unkeyedServer.map(e => `- unkeyed ${tag} ${JSON.stringify(e).slice(0, 120)}`),
     ];
-    return [summary('Hex tiles', d.hex), summary('Buildings', d.bld), '',
-      ...rows('hex', d.hex), ...rows('bld', d.bld), ...unkeyed('hex', d.hex), ...unkeyed('bld', d.bld)].join('\n');
+    const spriteRows = [...d.sprites.added.map(n => `+ sprite ${n}`), ...d.sprites.changed.map(n => `~ sprite ${n}`)];
+    return [summary('Hex tiles', d.hex), summary('Buildings', d.bld),
+      `Sprites: ${d.sprites.added.length} new, ${d.sprites.changed.length} changed`, '',
+      ...rows('hex', d.hex), ...rows('bld', d.bld), ...spriteRows, ...unkeyed('hex', d.hex), ...unkeyed('bld', d.bld)].join('\n');
   }
 
   // Road warnings (bridge on land, road on water, ...) listed under the publish diff; never blocking.
@@ -15250,12 +15331,18 @@ const Packages = (() => {
 
   async function openPublishConfirm(id) {
     if (isDefault(id)) {
-      // postapoc: use existing publish functions
-      UI.showConfirm('Publish postapoc', 'Publish hex_database.json and building_database.json?', async () => {
-        const a = await GitHubSync.publishHexDbOnly({ skipManifest: true });
-        const b = await GitHubSync.publishBuildingsDb({ skipManifest: true });
-        if (a || b) await GitHubSync.refreshBaseManifestSafely(true);   // one refresh (one version bump) for both publishes
-      });
+      // postapoc: the existing base publish functions (they also write the root copies old game builds read)
+      let d;
+      try { d = await diffAgainstServer(id); }
+      catch(e) { return UI.toast('⚠ Could not compare the base package with the server', { detail: e.message, ms: 6000 }); }
+      const ok = await UI.confirm('Publish base package',
+        'This is the base package: every player and old game build reads it. Publish hex_database.json, building_database.json and the changed sprites?',
+        _formatDiff(d) + _roadWarningsText(id), 'Publish base package');
+      if (!ok) return;
+      const a = await GitHubSync.publishHexDbOnly({ skipManifest: true });
+      const b = await GitHubSync.publishBuildingsDb({ skipManifest: true });
+      const c = await GitHubSync.publishAllSprites({ skipManifest: true });
+      if (a || b || c) await GitHubSync.refreshBaseManifestSafely(true);   // one refresh (one version bump) for all three
       return;
     }
     const skinProblems = skinSlotProblems(id);
@@ -15268,10 +15355,11 @@ const Packages = (() => {
     let d;
     try { d = await diffAgainstServer(id); }
     catch(e) { return UI.toast(`⚠ Could not compare "${name}" with the server`, { detail: e.message, ms: 6000 }); }
-    const nothing = ![d.hex, d.bld].some(x => x.added.length || x.changed.length || x.removed.length || x.unkeyedLocal.length || x.unkeyedServer.length);
+    const nothing = ![d.hex, d.bld].some(x => x.added.length || x.changed.length || x.removed.length || x.unkeyedLocal.length || x.unkeyedServer.length)
+      && !d.sprites.added.length && !d.sprites.changed.length;
     const head = d.firstPublish ? 'First publish of this package.' : `Server version: ${d.version}.`;
     const ok = await UI.confirm('Publish Package',
-      `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; sprites and the version number are still updated.' : ''}`,
+      `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; unchanged sprites are skipped and the version number is still updated.' : ''}`,
       _formatDiff(d) + _roadWarningsText(id), 'Publish');
     if (ok) openPublishDialog(id);
   }
@@ -15541,7 +15629,7 @@ const Packages = (() => {
       _registry = _mergeLocal(regData.packages);
       _cacheRegistry();
       const spriteNote = spriteResult.total
-        ? `, ${spriteResult.pushed}/${spriteResult.total} sprites`
+        ? `, ${spriteResult.pushed} sprites uploaded, ${spriteResult.skipped} unchanged`
         : '';
       UI.progressDone(`✅ Package "${entry.name}" v${newVersion} published${spriteNote}`);
       const _list5 = a => a.slice(0, 5).join(', ') + (a.length > 5 ? ', ...' : '');
@@ -16530,7 +16618,7 @@ const Packages = (() => {
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips, openSkinSlots, skinSlotProblems, applySkinSuggestions,
            isPkgVisible, togglePkgFilter,
            spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openTerrainUpload, openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
+           openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, _publishedHashes, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
            _rewriteEntries, _rewriteAll, _rollback, getImportResult, confirmImport, _serverIdProblem,
