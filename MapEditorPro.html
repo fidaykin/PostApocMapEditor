@@ -2846,7 +2846,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.23";
-const COMMIT  = "27a27db";
+const COMMIT  = "f6ae080";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -14308,6 +14308,7 @@ const Packages = (() => {
       const actions = _el('td', {},
         _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
         _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
+      if (!p.localOnly) actions.append(' ', _btn('Pull from server', 'Replace this package’s local hex tiles and buildings with the published ones (local edits to it are lost)', () => pullFromServer(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Terrain sprites', 'Upload this package’s coastline or road sprites to the server', () => openTerrainUpload(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Skin slots', 'Say which base tile or building each record of this package repaints, so one map can switch between looks', () => openSkinSlots(p.id), { 'data-pkg-id': p.id }));
       if (!p.isDefault) actions.append(' ', _btn('Details', 'Edit the description, dependencies and preview image', () => openDetails(p.id), { 'data-pkg-id': p.id }));
@@ -15325,6 +15326,52 @@ const Packages = (() => {
     let m;
     m = UI.showModal({ id: 'skin-slots-modal', title: `Skin slots: ${getEntry(pkgId)?.name || pkgId}`, body: root, modal: true,
       actions: [{ label: 'Close', primary: true, onClick: () => { m.close('close'); renderPanel(); } }] });
+  }
+
+  // ── Pull from server ───────────────────────────────────────────
+  // The startup sync keeps a local record that differs from the server (local edits win), so a browser holding an older copy of
+  // a package never picks the published one up. This replaces the package's hex and building records with the published ones.
+  // Local sprite copies are not touched. Nothing is written to the server.
+  function _formatPull(d) {
+    const rows = (tag, x) => [
+      ...x.changed.map(i => `~ ${tag} ${i}`),      // overwritten by the server version
+      ...x.added.map(i => `- ${tag} ${i}`),        // only here: removed
+      ...x.removed.map(i => `+ ${tag} ${i}`),      // only on the server: added
+    ];
+    const n = x => `${x.changed.length} overwritten, ${x.added.length} removed (only here), ${x.removed.length} added (only on the server)`;
+    return [`Hex tiles: ${n(d.hex)}`, `Buildings: ${n(d.bld)}`, '', ...rows('hex', d.hex), ...rows('bld', d.bld)].join('\n');
+  }
+
+  async function pullFromServer(id) {
+    const entry = getEntry(id);
+    const name = entry?.name || id;
+    let pub, d;
+    try { pub = await _fetchPublished(id); d = await diffAgainstServer(id); }
+    catch(e) { return UI.toast(`⚠ Could not read "${name}" from the server`, { detail: e.message, ms: 6000 }); }
+    if (!pub.pkg && !pub.hexes.length && !pub.buildings.length) return UI.toast(`⚠ "${name}" is not on the server yet: nothing to pull`, { ms: 5000 });
+    if (isDefault(id) && (!pub.hexes.length || !pub.buildings.length))
+      return UI.toast('⚠ The server copy of the base package is empty or unreadable: nothing was changed', { ms: 6000 });
+    const touched = d.hex.changed.length + d.hex.added.length + d.bld.changed.length + d.bld.added.length;
+    const nothing = !touched && !d.hex.removed.length && !d.bld.removed.length;
+    const ok = await UI.confirm('Pull from server',
+      nothing ? `"${name}" already matches the server.`
+        : `Replace the local hex tiles and buildings of "${name}" with the server version? Your local edits to this package are lost (${touched} record(s) differ or exist only here).`,
+      _formatPull(d), nothing ? 'Close' : 'Pull from server');
+    if (!ok || nothing) return;
+    const hs = HexDB.snapshotPackage(id), bs = BldDB.snapshotPackage(id);
+    try {
+      // The merge base is reset first: with a base equal to the server copy, an emptied local package would count as "deleted here".
+      SyncMerge.saveBase('hex', id, null); SyncMerge.saveBase('bld', id, null);
+      HexDB.removeByPackage(id); BldDB.removeByPackage(id);
+      HexDB.mergeFromServer(id, { hexes: pub.hexes });
+      BldDB.mergeFromServer(id, { buildings: pub.buildings });
+      try { HexDB.refreshDerived(); } catch(e) { console.warn('[Packages] pull: roads refresh failed:', e && e.message); }
+    } catch(e) {
+      HexDB.restorePackage(hs); BldDB.restorePackage(bs);   // all or nothing
+      return UI.toast(`⚠ Pull failed, nothing was changed: ${e.message}`, { sticky: true });
+    }
+    renderPanel();
+    UI.toast(`✅ "${name}" now matches the server (${touched} local change(s) replaced)`);
   }
 
   async function openPublishConfirm(id) {
@@ -16616,7 +16663,7 @@ const Packages = (() => {
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips, openSkinSlots, skinSlotProblems, applySkinSuggestions,
            isPkgVisible, togglePkgFilter,
            spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openTerrainUpload, openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, _publishedHashes, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
+           openPublishConfirm, openPublishDialog, pullFromServer, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, _publishedHashes, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
            _rewriteEntries, _rewriteAll, _rollback, getImportResult, confirmImport, _serverIdProblem,
@@ -24091,8 +24138,8 @@ window.addEventListener('load', async () => {
       window.__lastSyncSummary = sync;
       if (sync.conflicts.length) {
         console.info('[sync] local edits kept over differing server versions:', sync.conflicts);
-        UI.toast(`Kept ${sync.conflicts.length} local edit(s) that differ from the server`,
-                 { ms: 6000, detail: sync.conflicts.slice(0, 5).join('\n') });
+        UI.toast(`Kept ${sync.conflicts.length} local edit(s) that differ from the server. To take the server version of a package, use PACKAGES > Pull from server.`,
+                 { sticky: true, detail: sync.conflicts.slice(0, 20).join('\n') + (sync.conflicts.length > 20 ? '\n…' : '') });
       }
       if (sync.failed.length) {
         console.warn('[sync] failed:', sync.failed);
