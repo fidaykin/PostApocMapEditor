@@ -2848,7 +2848,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.23";
-const COMMIT  = "38c8b2f";
+const COMMIT  = "5e72e3d";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9871,17 +9871,24 @@ const GitHubSync = (() => {
       const all = await SpriteStore.loadForPackage('postapoc');   // the shared pool only: package sprites go out with their package
       if (!all.length) { UI.toast('No sprites in local store'); return; }
       UI.progress(10, `Uploading ${all.length} sprites…`);
-      let done = 0;
+      const published = await Packages._publishedHashes('postapoc');   // null = no usable manifest: upload everything
+      let done = 0, skipped = 0;
       for (const entry of all) {
         const res  = await fetch(entry.dataUrl);
         const blob = await res.blob();
-        await pushSprite(entry.name, blob, entry.category || 'hex');
+        const cat  = entry.category || 'hex';
+        const fname = entry.name.endsWith('.png') ? entry.name : `${entry.name}.png`;
+        if (published && published.get(`packages/postapoc/sprites/${cat}/${fname}`) === await sha256Hex(new Uint8Array(await blob.arrayBuffer()))) {
+          skipped++;
+        } else {
+          await pushSprite(entry.name, blob, cat);
+        }
         done++;
         UI.progress(Math.round((done / all.length) * 90) + 10, `${done}/${all.length} sprites…`);
       }
       if (!(opts && opts.skipManifest === true)) await refreshBaseManifestSafely();
-      UI.progressDone(`✅ ${all.length} sprites published`);
-      UI.toast(`✅ ${all.length} sprites published`);
+      UI.progressDone(`✅ ${all.length - skipped} sprites published, ${skipped} unchanged`);
+      UI.toast(`✅ ${all.length - skipped} sprites published, ${skipped} unchanged`);
     });
   }
 
@@ -15010,8 +15017,8 @@ const Packages = (() => {
   // packages/<id>/sprites/<category>/<name>.png, preferring the local copy and falling back
   // to the already-published postapoc copy.
   async function _packageSpriteRefs(id) {
-    const hexes     = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => h.package === id);
-    const buildings = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => b.package === id);
+    const hexes     = (typeof HexDB !== 'undefined' ? HexDB.getData().hexes : []).filter(h => (h.package || 'postapoc') === id);
+    const buildings = (typeof BldDB !== 'undefined' ? BldDB.getAll() : []).filter(b => (b.package || 'postapoc') === id);
     const refs = new Map(); // spriteName -> default category (local SpriteStore entry wins if present)
     for (const h of hexes)
       if (h.spriteName) refs.set(h.spriteName, 'hex');
@@ -15140,8 +15147,8 @@ const Packages = (() => {
 
   async function diffAgainstServer(id) {
     const pub = await _fetchPublished(id);
-    const localHex = HexDB.getData().hexes.filter(h => h.package === id);
-    const localBld = BldDB.getAll().filter(b => b.package === id);
+    const localHex = HexDB.getData().hexes.filter(h => (h.package || 'postapoc') === id);
+    const localBld = BldDB.getAll().filter(b => (b.package || 'postapoc') === id);
     // Sprites with a LOCAL copy that the server manifest lacks or lists with other bytes. A sprite without a local copy is
     // taken from the server by publish, so it cannot change.
     const sprites = { added: [], changed: [] };
@@ -15286,12 +15293,18 @@ const Packages = (() => {
 
   async function openPublishConfirm(id) {
     if (isDefault(id)) {
-      // postapoc: use existing publish functions
-      UI.showConfirm('Publish postapoc', 'Publish hex_database.json and building_database.json?', async () => {
-        const a = await GitHubSync.publishHexDbOnly({ skipManifest: true });
-        const b = await GitHubSync.publishBuildingsDb({ skipManifest: true });
-        if (a || b) await GitHubSync.refreshBaseManifestSafely(true);   // one refresh (one version bump) for both publishes
-      });
+      // postapoc: the existing base publish functions (they also write the root copies old game builds read)
+      let d;
+      try { d = await diffAgainstServer(id); }
+      catch(e) { return UI.toast('⚠ Could not compare the base package with the server', { detail: e.message, ms: 6000 }); }
+      const ok = await UI.confirm('Publish base package',
+        'This is the base package: every player and old game build reads it. Publish hex_database.json, building_database.json and the changed sprites?',
+        _formatDiff(d) + _roadWarningsText(id), 'Publish base package');
+      if (!ok) return;
+      const a = await GitHubSync.publishHexDbOnly({ skipManifest: true });
+      const b = await GitHubSync.publishBuildingsDb({ skipManifest: true });
+      const c = await GitHubSync.publishAllSprites({ skipManifest: true });
+      if (a || b || c) await GitHubSync.refreshBaseManifestSafely(true);   // one refresh (one version bump) for all three
       return;
     }
     const skinProblems = skinSlotProblems(id);

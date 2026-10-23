@@ -79,3 +79,64 @@ test.describe('Task 2: the diff lists sprite changes', () => {
     await expect(page.locator('#dialog-msg')).not.toContainText('No entry differs');
   });
 });
+
+test.describe('Task 3: the base package publishes through the same dialog', () => {
+  async function editBase(page: Page) {
+    return page.evaluate(() => {
+      const h = HexDB.getData().hexes.find((x: any) => !x.package || x.package === 'postapoc');
+      h.effects = 'edited-by-test';
+      return h.id as string;
+    });
+  }
+
+  test('the diff and the base warning show; Cancel writes nothing', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh, pat: true });
+    const id = await editBase(page);
+    await page.evaluate(() => { Packages.openPublishConfirm('postapoc'); });
+    const details = page.locator('#dialog-details');
+    await expect(details).toContainText(`~ hex ${id}`);
+    await expect(page.locator('#dialog-msg')).toContainText('every player and old game build');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await quiesceAfterDialog(page);
+    expect(gh.putPaths()).toEqual([]);
+  });
+
+  test('confirming writes the package copy AND the root copy, then one manifest', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh, pat: true });
+    await editBase(page);
+    await page.evaluate(() => { Packages.openPublishConfirm('postapoc'); });
+    await page.getByRole('button', { name: 'Publish base package' }).click();
+    await expect.poll(() => gh.putPaths()).toContain('packages/postapoc/manifest.json');   // written last of the data files
+    const paths = gh.putPaths();
+    expect(paths).toContain('hex_database.json');
+    expect(paths).toContain('packages/postapoc/hex_database.json');
+    expect(paths.filter(p => p === 'packages/postapoc/manifest.json')).toHaveLength(1);
+  });
+
+  test('records of another package never reach the base diff', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh, pat: true });
+    await page.evaluate(() => HexDB.addEntries([{ id: 'Other_Only_1', package: 'otherpkg', spriteName: 'x', type: 'Plains' }]));
+    await page.evaluate(() => { Packages.openPublishConfirm('postapoc'); });
+    await expect(page.locator('#dialog-details')).not.toContainText('Other_Only_1');
+  });
+});
+
+test('base sprites whose hash matches the base manifest are not uploaded again', async ({ page }) => {
+  const gh = new FakeGitHub();
+  gh.setJson('packages/postapoc/manifest.json', { schemaVersion: 1, id: 'postapoc', version: '1.0.0', files: [
+    { path: 'sprites/hex/Basehash_Same.png', sha256: sha(TINY_PNG), size: TINY_PNG.length },
+  ] });
+  await openEditor(page, { gh, pat: true });
+  await seedSprites(page, [
+    { name: 'Basehash_Same', category: 'hex', dataUrl: dataUrl(TINY_PNG) },
+    { name: 'Basehash_New', category: 'hex', dataUrl: dataUrl(CHANGED_PNG) },
+  ]);
+  await page.evaluate(() => GitHubSync.publishAllSprites({ skipManifest: true }));
+  expect(gh.putPaths()).toContain('packages/postapoc/sprites/hex/Basehash_New.png');
+  expect(gh.putPaths()).toContain('sprites/hex/Basehash_New.png');
+  expect(gh.putPaths()).not.toContain('packages/postapoc/sprites/hex/Basehash_Same.png');
+  expect(gh.putPaths()).not.toContain('sprites/hex/Basehash_Same.png');
+});
