@@ -141,7 +141,7 @@ test('base sprites whose hash matches the base manifest are not uploaded again',
   expect(gh.putPaths()).not.toContain('sprites/hex/Basehash_Same.png');
 });
 
-test.describe('Task 4: Publish Common', () => {
+test.describe('Task 4: Publish Common Data', () => {
   const payloads = (page: Page) => page.evaluate(() => ({
     upg: UpgDB.getJson(), com: CommonDB.export(), loc: JSON.stringify(LocalizationKeys.getExportData(), null, 2),
   }));
@@ -198,11 +198,11 @@ test.describe('Task 4: Publish Common', () => {
 });
 
 test.describe('Task 5: the Publish menu', () => {
-  test('has Publish, Publish Common, Publish Map and the maintenance action only', async ({ page }) => {
+  test('has Publish Package Data, Publish Common Data, Publish Map and the maintenance action only', async ({ page }) => {
     await openEditor(page, { gh: new FakeGitHub(), pat: true });
     await page.locator('#btn-publish-all').click();
     const labels = (await page.locator('#pub-drop button').allTextContents()).map(t => t.replace(/^[^A-Za-z]+/, '').trim());
-    expect(labels).toEqual(['Publish', 'Publish Common', 'Publish Map', 'Clean Ghost Sprites']);
+    expect(labels).toEqual(['Publish Package Data', 'Publish Common Data', 'Publish Map', 'Clean Ghost Sprites']);
   });
 
   test('Publish opens the diff of the active package; the base package asks for its own confirmation', async ({ page }) => {
@@ -210,13 +210,13 @@ test.describe('Task 5: the Publish menu', () => {
     await setupPkg(page, gh);
     await page.evaluate(() => Packages.setActive('hashpkg'));
     await page.locator('#btn-publish-all').click();
-    await page.locator('#pub-drop button', { hasText: /^☁ Publish$/ }).click();
+    await page.locator('#pub-drop button', { hasText: /^☁ Publish Package Data$/ }).click();
     await expect(page.locator('#dialog-title')).toHaveText('Publish Package');
     await page.getByRole('button', { name: 'Cancel' }).click();
     await quiesceAfterDialog(page);
     await page.evaluate(() => Packages.setActive('postapoc'));
     await page.locator('#btn-publish-all').click();
-    await page.locator('#pub-drop button', { hasText: /^☁ Publish$/ }).click();
+    await page.locator('#pub-drop button', { hasText: /^☁ Publish Package Data$/ }).click();
     await expect(page.locator('#dialog-title')).toHaveText('Publish base package');
     await page.getByRole('button', { name: 'Cancel' }).click();
     await quiesceAfterDialog(page);
