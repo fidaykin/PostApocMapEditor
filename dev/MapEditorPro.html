@@ -1542,8 +1542,8 @@ body.mode-common #map-io    { display: none; }
     <div class="pub-drop-wrap" id="pub-drop-wrap">
       <button class="publish-btn" id="btn-publish-all" onclick="GitHubSync.togglePublishDropdown(event)" title="Publish to GitHub">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
-        <button onclick="GitHubSync.publish()" title="Publish the active package: data and changed sprites">☁ Publish</button>
-        <button onclick="GitHubSync.publishCommon()" title="Upgrades, Common settings and localization.json">☁ Publish Common</button>
+        <button onclick="GitHubSync.publish()" title="Publish the active package: its tiles, buildings and changed sprites">☁ Publish Package Data</button>
+        <button onclick="GitHubSync.publishCommon()" title="Data shared by all packages: Upgrade DB, Common settings and localization.json">☁ Publish Common Data</button>
         <div class="pub-drop-sep"></div>
         <button onclick="GitHubSync.publishMap()">☁ Publish Map</button>
         <div class="pub-drop-sep"></div>
@@ -2847,7 +2847,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.23";
-const COMMIT  = "cc785fe";
+const COMMIT  = "27a27db";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9969,10 +9969,10 @@ const GitHubSync = (() => {
     }
   }
 
-  // Publish Common: the three files shared by every package. One confirmation lists which differ from the server;
+  // Publish Common Data: the three files shared by every package. One confirmation lists which differ from the server;
   // only the changed ones are written. A failure names the file and says how many were already written.
   async function publishCommon() {
-    return _withPublishBtn('Publish Common', async () => {
+    return _withPublishBtn('Publish Common Data', async () => {
       const files = [
         { path: 'upgrade_database.json', text: UpgDB.getJson() },
         { path: 'common_settings.json',  text: CommonDB.export() },
@@ -9984,7 +9984,7 @@ const GitHubSync = (() => {
         f.changed = !have || await sha256Hex(have) !== await sha256Hex(enc.encode(f.text));
       }
       const todo = files.filter(f => f.changed);
-      const ok = await UI.confirm('Publish Common',
+      const ok = await UI.confirm('Publish Common Data',
         todo.length ? `Publish ${todo.length} of ${files.length} shared file(s)?` : 'Nothing differs from the server.',
         files.map(f => `${f.path}: ${f.changed ? 'changed' : 'unchanged'}`).join('\n'),
         todo.length ? 'Publish' : 'Close');
@@ -9996,7 +9996,7 @@ const GitHubSync = (() => {
         catch (e) { throw new Error(`${f.path}: ${e.message}${n ? ` (${n} file(s) already written)` : ''}`); }
       }
       UI.progressDone(`✅ ${n} shared file(s) published`);
-      UI.toast(`✅ Publish Common: ${todo.map(f => f.path).join(', ')}`);
+      UI.toast(`✅ Publish Common Data: ${todo.map(f => f.path).join(', ')}`);
     });
   }
 
