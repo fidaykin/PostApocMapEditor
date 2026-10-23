@@ -140,3 +140,59 @@ test('base sprites whose hash matches the base manifest are not uploaded again',
   expect(gh.putPaths()).not.toContain('packages/postapoc/sprites/hex/Basehash_Same.png');
   expect(gh.putPaths()).not.toContain('sprites/hex/Basehash_Same.png');
 });
+
+test.describe('Task 4: Publish Common', () => {
+  const payloads = (page: Page) => page.evaluate(() => ({
+    upg: UpgDB.getJson(), com: CommonDB.export(), loc: JSON.stringify(LocalizationKeys.getExportData(), null, 2),
+  }));
+  const confirmBtn = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
+
+  test('lists changed and unchanged files and writes only the changed ones', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh, pat: true });
+    const p = await payloads(page);
+    gh.write('upgrade_database.json', p.upg);                 // same as local
+    gh.write('localization.json', p.loc);                     // same as local
+    gh.write('common_settings.json', '{"old":true}');         // differs
+    await page.evaluate(() => { void GitHubSync.publishCommon(); });
+    const details = page.locator('#dialog-details');
+    await expect(details).toContainText('common_settings.json: changed');
+    await expect(details).toContainText('upgrade_database.json: unchanged');
+    await confirmBtn(page, 'Publish').click();
+    await expect.poll(() => gh.putPaths()).toEqual(['common_settings.json']);
+  });
+
+  test('Cancel writes nothing', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh, pat: true });
+    gh.write('common_settings.json', '{"old":true}');
+    await page.evaluate(() => { void GitHubSync.publishCommon(); });
+    await confirmBtn(page, 'Cancel').click();
+    await quiesceAfterDialog(page);
+    expect(gh.putPaths()).toEqual([]);
+  });
+
+  test('all three unchanged: only Close, no write', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh, pat: true });
+    const p = await payloads(page);
+    gh.write('upgrade_database.json', p.upg); gh.write('common_settings.json', p.com); gh.write('localization.json', p.loc);
+    await page.evaluate(() => { void GitHubSync.publishCommon(); });
+    await expect(page.locator('#dialog-msg')).toContainText('Nothing differs');
+    await confirmBtn(page, 'Close').click();
+    await quiesceAfterDialog(page);
+    expect(gh.putPaths()).toEqual([]);
+  });
+
+  test('a failing second write names the file and the one already written', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await openEditor(page, { gh, pat: true });
+    gh.write('upgrade_database.json', '{"old":1}'); gh.write('common_settings.json', '{"old":2}');
+    gh.write('localization.json', (await payloads(page)).loc);
+    gh.failPut = (p: string) => p === 'common_settings.json';
+    await page.evaluate(() => { void GitHubSync.publishCommon(); });
+    await confirmBtn(page, 'Publish').click();
+    await expect.poll(() => gh.putPaths()).toContain('upgrade_database.json');
+    await expect(page.locator('.toast, #toast').first()).toContainText(/common_settings\.json.*1 file\(s\) already written/);
+  });
+});
