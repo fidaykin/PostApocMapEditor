@@ -2848,7 +2848,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.23";
-const COMMIT  = "70ae41f";
+const COMMIT  = "38c8b2f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -15142,7 +15142,26 @@ const Packages = (() => {
     const pub = await _fetchPublished(id);
     const localHex = HexDB.getData().hexes.filter(h => h.package === id);
     const localBld = BldDB.getAll().filter(b => b.package === id);
+    // Sprites with a LOCAL copy that the server manifest lacks or lists with other bytes. A sprite without a local copy is
+    // taken from the server by publish, so it cannot change.
+    const sprites = { added: [], changed: [] };
+    const published = await _publishedHashes(id);
+    const refs = await _packageSpriteRefs(id);
+    let local = [];
+    try { local = [...await SpriteStore.loadForPackage('postapoc'), ...await SpriteStore.loadForPackage(id)]; }
+    catch (e) { console.warn('[Packages] local sprite store unavailable for the diff:', e && e.message); }
+    const byName = new Map(local.map(e => [e.name, e]));
+    for (const [name, category] of refs) {
+      const e = byName.get(name);
+      if (!e) continue;
+      let sha;
+      try { sha = await GitHubSync.sha256Hex(new Uint8Array(await (await (await fetch(e.dataUrl)).blob()).arrayBuffer())); }
+      catch (err) { continue; }
+      const have = published && published.get(`packages/${id}/sprites/${category}/${name}.png`);
+      if (!have) sprites.added.push(name); else if (have !== sha) sprites.changed.push(name);
+    }
     return {
+      sprites,
       hex: SyncMerge.diff(localHex, HexDB.migrateCopy(pub.hexes)),
       bld: SyncMerge.diff(localBld, BldDB.migrateCopy(pub.buildings)),
       firstPublish: !pub.pkg,
@@ -15162,8 +15181,10 @@ const Packages = (() => {
       ...x.unkeyedLocal.map(e => `+ unkeyed ${tag} ${JSON.stringify(e).slice(0, 120)}`),
       ...x.unkeyedServer.map(e => `- unkeyed ${tag} ${JSON.stringify(e).slice(0, 120)}`),
     ];
-    return [summary('Hex tiles', d.hex), summary('Buildings', d.bld), '',
-      ...rows('hex', d.hex), ...rows('bld', d.bld), ...unkeyed('hex', d.hex), ...unkeyed('bld', d.bld)].join('\n');
+    const spriteRows = [...d.sprites.added.map(n => `+ sprite ${n}`), ...d.sprites.changed.map(n => `~ sprite ${n}`)];
+    return [summary('Hex tiles', d.hex), summary('Buildings', d.bld),
+      `Sprites: ${d.sprites.added.length} new, ${d.sprites.changed.length} changed`, '',
+      ...rows('hex', d.hex), ...rows('bld', d.bld), ...spriteRows, ...unkeyed('hex', d.hex), ...unkeyed('bld', d.bld)].join('\n');
   }
 
   // Road warnings (bridge on land, road on water, ...) listed under the publish diff; never blocking.
@@ -15283,10 +15304,11 @@ const Packages = (() => {
     let d;
     try { d = await diffAgainstServer(id); }
     catch(e) { return UI.toast(`⚠ Could not compare "${name}" with the server`, { detail: e.message, ms: 6000 }); }
-    const nothing = ![d.hex, d.bld].some(x => x.added.length || x.changed.length || x.removed.length || x.unkeyedLocal.length || x.unkeyedServer.length);
+    const nothing = ![d.hex, d.bld].some(x => x.added.length || x.changed.length || x.removed.length || x.unkeyedLocal.length || x.unkeyedServer.length)
+      && !d.sprites.added.length && !d.sprites.changed.length;
     const head = d.firstPublish ? 'First publish of this package.' : `Server version: ${d.version}.`;
     const ok = await UI.confirm('Publish Package',
-      `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; sprites and the version number are still updated.' : ''}`,
+      `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; unchanged sprites are skipped and the version number is still updated.' : ''}`,
       _formatDiff(d) + _roadWarningsText(id), 'Publish');
     if (ok) openPublishDialog(id);
   }

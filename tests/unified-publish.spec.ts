@@ -56,3 +56,26 @@ test.describe('Task 1: unchanged sprites are skipped', () => {
     expect(r.skipped).toBe(0);
   });
 });
+
+test.describe('Task 2: the diff lists sprite changes', () => {
+  test('new and changed sprites are listed, unchanged ones are not', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await setupPkg(page, gh);
+    await page.evaluate(() => { Packages.openPublishConfirm('hashpkg'); });
+    const details = page.locator('#dialog-details');
+    await expect(details).toContainText('Sprites: 1 new, 1 changed');
+    await expect(details).toContainText('+ sprite Hashpkg_New');
+    await expect(details).toContainText('~ sprite Hashpkg_Changed');
+    await expect(details).not.toContainText('Hashpkg_Same');
+    await page.getByRole('button', { name: 'Cancel' }).click();
+    await quiesceAfterDialog(page);
+    expect(gh.putPaths()).toEqual([]);
+  });
+
+  test('a sprite-only change is not reported as "no entry differs"', async ({ page }) => {
+    const gh = new FakeGitHub();
+    await setupPkg(page, gh);
+    await page.evaluate(() => { Packages.openPublishConfirm('hashpkg'); });
+    await expect(page.locator('#dialog-msg')).not.toContainText('No entry differs');
+  });
+});
