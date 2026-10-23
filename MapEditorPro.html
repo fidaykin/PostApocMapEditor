@@ -2848,7 +2848,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.23";
-const COMMIT  = "3ef163b";
+const COMMIT  = "0123149";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -11432,10 +11432,14 @@ const IO = (() => {
   let _fsDirHandle      = null;   // FileSystemDirectoryHandle for saved_maps/
   let _currentFileName  = '';
 
-  function _setFileName(name) {
+  // The name is stored in the autosave copy (`_fileName`), so a reload shows it again and Save keeps the file name.
+  // `persist` false is for the restore itself: it must not schedule a rewrite of the copy it just read.
+  function _setFileName(name, persist = true) {
+    const changed = name !== _currentFileName;
     _currentFileName = name;
     const el = document.getElementById('map-file-label');
     if (el) el.textContent = name || '—';
+    if (persist && changed && typeof mapData !== 'undefined' && mapData) scheduleAutoSave();
   }
 
   // ── IndexedDB helper (stores FileSystemDirectoryHandle across sessions) ──
@@ -11893,11 +11897,12 @@ const IO = (() => {
     return restored;
   }
 
-  // Builds the map JSON plus a monotonic `_autosavedAt` stamp.
+  // Builds the map JSON plus a monotonic `_autosavedAt` stamp and, for a named map, its `_fileName`.
   function _stampedJson() {
     const raw = _buildJson();
     _lastStamp = Math.max(Date.now(), _lastStamp + 1);
-    return { raw, json: raw.slice(0, -1) + ',"_autosavedAt":' + _lastStamp + '}' };
+    const named = _currentFileName && _currentFileName !== '(autosave)' ? ',"_fileName":' + JSON.stringify(_currentFileName) : '';
+    return { raw, json: raw.slice(0, -1) + named + ',"_autosavedAt":' + _lastStamp + '}' };
   }
 
   function _autoSave() {
@@ -11950,7 +11955,7 @@ const IO = (() => {
     bumpMapWrite(); _mapGen++;
     tileExtras = s.tileExtras; roadsData = s.roadsData; MapSkin.reset(s.skin); settlements = s.settlements; settlementSlots = s.settlementSlots;
     settlementPriority1 = s.settlementPriority1; settlementPriority2 = s.settlementPriority2;
-    _setFileName(s.fileName);
+    _setFileName(s.fileName, false);
     DistanceBands.fromJson(s.bands);
     if (typeof UI !== 'undefined' && UI.rebuildSlotPanel) UI.rebuildSlotPanel();
     if (s.zones && typeof ZonePainter !== 'undefined') {
@@ -12047,7 +12052,7 @@ const IO = (() => {
       DistanceBands.fromJson(json.distance_bands);     // a map without the key gets the interval rings, never the previous map's limits
       History.clear();
       History.push('Open map');
-      _setFileName('(autosave)');
+      _setFileName(typeof json._fileName === 'string' && json._fileName ? json._fileName : '(autosave)', false);   // copies from before 2026.10.23 carry no name
       _userMap = true;
       return true;
     } catch(e) {
