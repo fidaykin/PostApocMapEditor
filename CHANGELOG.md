@@ -6,8 +6,8 @@ Format: `## [version] — [date]`
 ## Unreleased
 
 ### Publishing
-- Unified **Publish** (menu bar): publishes the active package after a diff against the server that now also lists new and changed sprites; sprites whose sha256 already matches the server `manifest.json` are skipped (no or unreadable manifest uploads everything). The base package (`postapoc`) goes through the same dialog with its own confirmation and still writes the root copies for old game builds.
-- **Publish Common**: Upgrade DB, Common settings and `localization.json` in one confirmation; only changed files are written. The menu is now Publish, Publish Common, Publish Map and Clean Ghost Sprites; the old per-database entries are gone from the menu (the functions remain).
+- Unified **Publish Package Data** (menu bar): publishes the active package after a diff against the server that now also lists new and changed sprites; sprites whose sha256 already matches the server `manifest.json` are skipped (no or unreadable manifest uploads everything). The base package (`postapoc`) goes through the same dialog with its own confirmation and still writes the root copies for old game builds.
+- **Publish Common Data**: Upgrade DB, Common settings and `localization.json` in one confirmation; only changed files are written. The menu is now Publish Package Data, Publish Common Data, Publish Map and Clean Ghost Sprites; the old per-database entries are gone from the menu (the functions remain).
 
 ### Fixes
 - The map file name survives a reload: the autosave stores it (`_fileName`), so the status bar shows the name instead of `(autosave)` and Save keeps the file name (ClickUp 869fm23zy thread).
