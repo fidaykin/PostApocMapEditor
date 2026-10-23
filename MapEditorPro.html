@@ -2848,7 +2848,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.23";
-const COMMIT  = "0123149";
+const COMMIT  = "70ae41f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -15042,10 +15042,22 @@ const Packages = (() => {
     return (name, cat) => (out.get(cat + '\u0000' + name) || []).filter(p => _ID_RE.test(p) && !_FORBIDDEN_KEYS.has(p));
   }
 
+  // sha256 of every file the server manifest lists, keyed by repo path; null when there is no usable manifest
+  // (first publish, or a corrupt file: then everything uploads).
+  async function _publishedHashes(id) {
+    try {
+      const bytes = await GitHubSync._readRepoBytes(`packages/${id}/manifest.json`);
+      if (!bytes) return null;
+      const m = JSON.parse(new TextDecoder().decode(bytes));
+      if (!m || !Array.isArray(m.files)) return null;
+      return new Map(m.files.filter(f => f && f.path && f.sha256).map(f => [`packages/${id}/${f.path}`, f.sha256]));
+    } catch (e) { console.warn('[Packages] server manifest unreadable, all sprites will upload:', e && e.message); return null; }
+  }
+
   async function publishPackageSprites(id, onProgress) {
     const refs = await _packageSpriteRefs(id);
     const ownersOf = _foreignSpriteOwners(id);
-    if (!refs.size) return { total: 0, pushed: 0, missing: [], differs: [], categoryMismatch: [] };
+    if (!refs.size) return { total: 0, pushed: 0, skipped: 0, missing: [], differs: [], categoryMismatch: [] };
     const unsafe = [...refs.keys()].filter(n => !isSafeSpriteName(n));
     if (unsafe.length) throw new Error(_unsafeNamesMessage(unsafe));   // never build a repo path from such a name
 
@@ -15060,7 +15072,8 @@ const Packages = (() => {
       for (const o of owners) for (const e of await SpriteStore.loadForPackage(o)) foreignLocal.set(o + '\u0000' + e.name, e);
     } catch(e) { console.warn('[Packages] local sprite store unavailable for source packages:', e && e.message); }
 
-    let pushed = 0, done = 0;
+    const published = await _publishedHashes(id);
+    let pushed = 0, skipped = 0, done = 0;
     const missing = [], differs = [], categoryMismatch = [];
     for (const [name, fallbackCategory] of refs) {
       const owners = ownersOf(name, fallbackCategory);
@@ -15093,6 +15106,10 @@ const Packages = (() => {
       if (onProgress) onProgress(done, refs.size, name);
       if (!blob) { missing.push(name); continue; }
       const target = `packages/${id}/sprites/${category}/${name}.png`;
+      if (published) {   // the same bytes are already on the server: nothing to write
+        const sha = await GitHubSync.sha256Hex(new Uint8Array(await blob.arrayBuffer()));
+        if (published.get(target) === sha) { skipped++; continue; }
+      }
       if (localEntry) {   // the local copy is about to replace a server file: tell the caller when they are different files
         try {
           const srv = await GitHubSync._readRepoBytes(target);
@@ -15105,7 +15122,7 @@ const Packages = (() => {
       await GitHubSync._putBinary(target, blob, `publish ${id}: sprite ${name}.png`);
       pushed++;
     }
-    return { total: refs.size, pushed, missing, differs, categoryMismatch };
+    return { total: refs.size, pushed, skipped, missing, differs, categoryMismatch };
   }
 
   // ── Publish Package ────────────────────────────────────────────
@@ -15539,7 +15556,7 @@ const Packages = (() => {
       _registry = _mergeLocal(regData.packages);
       _cacheRegistry();
       const spriteNote = spriteResult.total
-        ? `, ${spriteResult.pushed}/${spriteResult.total} sprites`
+        ? `, ${spriteResult.pushed} sprites uploaded, ${spriteResult.skipped} unchanged`
         : '';
       UI.progressDone(`✅ Package "${entry.name}" v${newVersion} published${spriteNote}`);
       const _list5 = a => a.slice(0, 5).join(', ') + (a.length > 5 ? ', ...' : '');
@@ -16528,7 +16545,7 @@ const Packages = (() => {
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips, openSkinSlots, skinSlotProblems, applySkinSuggestions,
            isPkgVisible, togglePkgFilter,
            spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openTerrainUpload, openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
+           openPublishConfirm, openPublishDialog, nextVersion, findMissingSprites, diffAgainstServer, publishPackage, publishPackageSprites, _publishedHashes, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
            _rewriteEntries, _rewriteAll, _rollback, getImportResult, confirmImport, _serverIdProblem,
