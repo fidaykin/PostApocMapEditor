@@ -37,7 +37,7 @@
       "incomePerTurn": [
         {
           "type": "Gold",
-          "amount": 60
+          "amount": 10
         }
       ],
       "incomeConstant": [],
@@ -93,7 +93,7 @@
       "incomePerTurn": [
         {
           "type": "Gold",
-          "amount": 25
+          "amount": 1
         }
       ],
       "incomeConstant": [],
@@ -1165,11 +1165,16 @@
       "buildPrice": [],
       "buildPremiumPrice": 0,
       "buildPlacementRule": "",
-      "tapIncomeEnabled": false,
-      "destroyable": false,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 3,
-      "incomeGetPerTap": [],
+      "tapIncomeEnabled": true,
+      "destroyable": true,
+      "incomeTransformTo": "Decameroon_Rubble_1",
+      "incomeCapacity": 10,
+      "incomeGetPerTap": [
+        {
+          "type": "Stone",
+          "amount": 1
+        }
+      ],
       "incomePerTurn": [],
       "incomeConstant": [],
       "spendConstant": [],
