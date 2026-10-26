@@ -1297,7 +1297,7 @@
       "spendConstant": [
         {
           "type": "Lumber",
-          "amount": 5000
+          "amount": 500
         }
       ],
       "buildingRadius": 0,
