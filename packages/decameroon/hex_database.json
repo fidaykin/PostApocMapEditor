@@ -370,7 +370,7 @@
       "buildPremiumPrice": 0,
       "buildPlacementRule": "",
       "tapIncomeEnabled": false,
-      "destroyable": false,
+      "destroyable": true,
       "incomeTransformTo": "Plains_1",
       "incomeCapacity": 3,
       "incomeGetPerTap": [],
@@ -1015,7 +1015,7 @@
       "buildPremiumPrice": 0,
       "buildPlacementRule": "",
       "tapIncomeEnabled": false,
-      "destroyable": false,
+      "destroyable": true,
       "incomeTransformTo": "Plains_1",
       "incomeCapacity": 3,
       "incomeGetPerTap": [],
@@ -3230,9 +3230,14 @@
           "amount": 3
         }
       ],
-      "bonusDrop": false,
+      "bonusDrop": true,
       "bonusTrigger": "Destroy",
-      "bonuses": [],
+      "bonuses": [
+        {
+          "type": "Gold",
+          "amount": 0
+        }
+      ],
       "booster": "",
       "effects": "",
       "package": "decameroon",
