@@ -3169,6 +3169,75 @@
       "package": "decameroon",
       "edgeFaces": [],
       "baseTerrainId": ""
+    },
+    {
+      "id": "Decameroon_Forest_4",
+      "textId": "",
+      "type": "Forests",
+      "biome": "Decameron",
+      "filterCategory": "FilterTerrain",
+      "spriteName": "Forest_red",
+      "category": "🌲 FOREST",
+      "terrainTypeId": -1,
+      "fallback": false,
+      "roadAllowed": false,
+      "descriptionIdleId": "",
+      "descriptionBuildId": "",
+      "baseCostTaps": 20,
+      "canDestroy": true,
+      "destroyTransformTo": "Decameroon_Forest_3",
+      "destroySource": [],
+      "canStored": false,
+      "destroyIncomeEnabled": true,
+      "destroyIncome": [
+        {
+          "type": "Lumber",
+          "amount": 25
+        }
+      ],
+      "canBuild": true,
+      "buildRequiresRoad": false,
+      "buildAvailableTiles": [],
+      "buildMinLevel": 31,
+      "buildPrice": [
+        {
+          "type": "Gold",
+          "amount": 150000
+        }
+      ],
+      "buildPremiumPrice": 0,
+      "buildPlacementRule": "",
+      "tapIncomeEnabled": true,
+      "destroyable": true,
+      "incomeTransformTo": "Decameroon_Forest_3",
+      "incomeCapacity": 5,
+      "incomeGetPerTap": [
+        {
+          "type": "Lumber",
+          "amount": 10
+        }
+      ],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 5
+        }
+      ],
+      "incomeConstant": [],
+      "spendConstant": [
+        {
+          "type": "Pollution",
+          "amount": 3
+        }
+      ],
+      "bonusDrop": false,
+      "bonusTrigger": "Destroy",
+      "bonuses": [],
+      "booster": "",
+      "effects": "",
+      "package": "decameroon",
+      "edgeFaces": [],
+      "baseTerrainId": ""
     }
   ]
 }
