@@ -2846,8 +2846,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.23";
-const COMMIT  = "3ec1ba6";
+const VERSION = "2026.10.26";
+const COMMIT  = "9239f0c";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -18572,14 +18572,14 @@ const HexDB = (() => {
 
   // ── Dynamic resource block helper ────────────────────────
   const DESTROY_RES_TYPES = ['Gold','Gems','Food','Lumber','Stone',
-    'Steel','Oil','Chips','Clay','Ore','Pollution'];
+    'Steel','Oil','Chips','Clay','Ore','Citrodium','UraniumBattery','Pollution'];
   const SPEND_RES_TYPES = ['Pollution','Energy','Gold','Gems','Food',
     'Lumber','Stone','Steel','Oil','Chips','Clay'];
 
   const RESOURCE_ICONS = {
     Gold:'🪙', Gems:'💎', Food:'🌾', Lumber:'🪵', Stone:'🪨',
     Steel:'⚙️', Oil:'🛢️', Chips:'💻', Clay:'🏺', Ore:'⛏️',
-    Pollution:'☣️', Energy:'⚡'
+    Pollution:'☣️', Energy:'⚡', Citrodium:'🔷', UraniumBattery:'🔋'
   };
   function _resIcon(type) { return RESOURCE_ICONS[type] || '◆'; }
 
@@ -20870,7 +20870,7 @@ const BldDB = (() => {
   }
 
   // ── Resource / Tags helpers ───────────────────────────────
-  const BLD_DESTROY_RES = ['Gold','Gems','Food','Lumber','Stone','Steel','Oil','Chips','Clay','Ore','Pollution'];
+  const BLD_DESTROY_RES = ['Gold','Gems','Food','Lumber','Stone','Steel','Oil','Chips','Clay','Ore','Citrodium','UraniumBattery','Pollution'];
   const BLD_SPEND_RES   = ['Pollution','Energy','Gold','Gems','Food','Lumber','Stone','Steel','Oil','Chips','Clay'];
   const BLD_STORE_RES   = ['Food','Lumber','Stone','Steel','Chips','Oil'];
   const BLD_RES_ICONS   = {
@@ -22649,7 +22649,7 @@ const UpgDB = (() => {
                            'Settlements', 'Action', 'Rules'];
   const UPG_PRICE_TYPES = ['Resource', 'GEM', 'Combined', 'Conditional'];
   const UPG_RES_TYPES   = ['Gold','Gems','Food','Lumber','Stone','Steel',
-                           'Oil','Chips','Clay','Ore','Pollution','Energy'];
+                           'Oil','Chips','Clay','Ore','Citrodium','UraniumBattery','Pollution','Energy'];
   const UPG_RES_ICONS   = {
     Gold:'🪙', Gems:'💎', Food:'🌾', Lumber:'🪵', Stone:'🪨',
     Steel:'⚙️', Oil:'🛢️', Chips:'💻', Clay:'🏺', Ore:'⛏️',
@@ -22899,7 +22899,7 @@ const UpgDB = (() => {
           </div>
         </div>
         ${upg.upgradeType === 'StorageBonus' ? (() => {
-          const STORAGE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'];
+          const STORAGE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore','UraniumBattery'];
           const flatMap = {}, pctMap = {};
           (upg.flatStorageBonusPerLevel || []).forEach(r => { flatMap[r.type] = r.amount; });
           (upg.percentStorageBonusPerLevel || []).forEach(r => { pctMap[r.type] = r.amount; });
@@ -23055,7 +23055,7 @@ const UpgDB = (() => {
 
     // Read storage bonus fields if StorageBonus type
     if (upg.upgradeType === 'StorageBonus') {
-      const STORAGE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'];
+      const STORAGE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore','UraniumBattery'];
       upg.flatStorageBonusPerLevel = STORAGE_TYPES.map(t => ({
         type: t,
         amount: parseFloat(document.getElementById(`upg-f-flat-${t.toLowerCase()}`)?.value) || 0
@@ -24216,9 +24216,9 @@ window.addEventListener('load', async () => {
 ;(function () {
   const ALL_RESOURCE_TYPES = [
     'Food','Lumber','Stone','Gold','Gems','Steel','Chips','Oil','Ore',
-    'Clay','Population','Energy','Pollution'
+    'Clay','Population','Energy','Pollution','Citrodium','UraniumBattery'
   ];
-  const STORAGE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore'];
+  const STORAGE_TYPES = ['Food','Lumber','Stone','Steel','Chips','Oil','Ore','UraniumBattery'];
 
   const DEFAULTS = {
     foodSpoilageRate: 0.05,
