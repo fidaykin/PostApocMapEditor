@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.32",
+  "version": "1.0.33",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -106,10 +106,15 @@
       "version": "1.0.32",
       "date": "2026-10-26",
       "note": "New Map"
+    },
+    {
+      "version": "1.0.33",
+      "date": "2026-10-26",
+      "note": "fix fake Settlements settings"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22813551,
+  "totalBytes": 22813622,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
