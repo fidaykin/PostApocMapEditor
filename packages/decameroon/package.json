@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.30",
+  "version": "1.0.31",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -96,10 +96,15 @@
       "version": "1.0.30",
       "date": "2026-10-22",
       "note": "new settings for Avaible Tiles Market and Mill"
+    },
+    {
+      "version": "1.0.31",
+      "date": "2026-10-26",
+      "note": "Decameroon update DB and Map  - add new Forest_4 -add Forest 4 to Map 26.10"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22414735,
+  "totalBytes": 22414814,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
