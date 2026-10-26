@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.31",
+  "version": "1.0.32",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -101,10 +101,15 @@
       "version": "1.0.31",
       "date": "2026-10-26",
       "note": "Decameroon update DB and Map  - add new Forest_4 -add Forest 4 to Map 26.10"
+    },
+    {
+      "version": "1.0.32",
+      "date": "2026-10-26",
+      "note": "New Map"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22414814,
+  "totalBytes": 22813551,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
