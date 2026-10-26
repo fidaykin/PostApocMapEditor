@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "id": "decameroon",
-  "version": "1.0.30",
+  "version": "1.0.31",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-22T15:00:17.268Z",
-  "totalBytes": 22414814,
+  "generatedAt": "2026-10-26T12:07:17.693Z",
+  "totalBytes": 22813551,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "84376894fdf675e5cf89b85750973ee92945a86b428e8b48fed0d7b4cda4c213",
-      "size": 55188
+      "sha256": "75c915caa861c2d28c074bc6b34c4908ee4fa4b2b33fa2832b663128ce46d5f5",
+      "size": 57446
     },
     {
       "path": "hex_database.json",
-      "sha256": "45cf06f2cb6fdd0b2eae025cc25b88ef5f84eadce61b1ec7bccc5eb4f109ea4a",
-      "size": 82294
+      "sha256": "7a87cd67ff900fe27346216ad64d1e9e6519e75697a8c5762f9903c746375cc0",
+      "size": 85267
     },
     {
       "path": "sprites/buildings/Medieval_Abbey_1.png",
@@ -176,6 +176,11 @@
       "path": "sprites/hex/FarmGrain.png",
       "sha256": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345",
       "size": 348945
+    },
+    {
+      "path": "sprites/hex/Forest_red.png",
+      "sha256": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74",
+      "size": 393506
     },
     {
       "path": "sprites/hex/Medieval_Barren_1.png",
