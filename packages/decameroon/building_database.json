@@ -1291,6 +1291,10 @@
         {
           "type": "Gold",
           "amount": 300
+        },
+        {
+          "type": "Food",
+          "amount": 100
         }
       ],
       "incomeConstant": [],
