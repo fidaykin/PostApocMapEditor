@@ -2845,8 +2845,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.26";
-const COMMIT  = "9239f0c";
+const VERSION = "2026.10.27";
+const COMMIT  = "fb449d6";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -19327,7 +19327,6 @@ const HexDB = (() => {
     const tapOn = hex.tapIncomeEnabled ?? false;
     const desOn = hex.destroyable ?? false;
     const tapDis = tapOn ? '' : ' disabled';
-    const isParent = (hex.incomeTransformTo ?? '') === '__parent__';
     const incomeBody = [
       // Tap Income + Destroyable on same row
       `<div class="hexdb-row hexdb-checkbox-row">
@@ -19345,13 +19344,7 @@ const HexDB = (() => {
         return `<div style="display:flex;gap:6px;align-items:center">
           <input class="hexdb-input" list="hexdb-id-list"
             data-field="incomeTransformTo" style="width:160px"
-            value="${isParent ? '' : _esc(hex.incomeTransformTo ?? 'Plains_1')}"
-            ${isParent ? ' disabled' : ''}${d}>
-          <select class="hexdb-select" id="income-transform-mode"
-            style="width:100px"${d}>
-            <option${isParent ? '' : ' selected'}>Hex ID</option>
-            <option${isParent ? ' selected' : ''}>Parent Hex</option>
-          </select>
+            value="${_esc(hex.incomeTransformTo ?? 'Plains_1')}"${d}>
         </div>`;
       })()),
       // Capacity
@@ -19515,18 +19508,6 @@ const HexDB = (() => {
       bonusDropEl.addEventListener('change', () => {
         if (_selFilt < 0) return;
         _renderRecord(_data.hexes[_filtered[_selFilt]]);
-      });
-    }
-
-    // ── Wire Transform to mode select ─────────────────────────────
-    const modeEl = document.getElementById('income-transform-mode');
-    if (modeEl) {
-      modeEl.addEventListener('change', () => {
-        if (_selFilt < 0) return;
-        const h = _data.hexes[_filtered[_selFilt]];
-        h.incomeTransformTo = modeEl.value === 'Parent Hex' ? '__parent__' : 'Plains_1';
-        _autoSave();
-        _renderRecord(h);
       });
     }
 
@@ -20067,7 +20048,8 @@ const HexDB = (() => {
       // Default new fields
       if (h.tapIncomeEnabled === undefined)   h.tapIncomeEnabled = false;
       if (h.destroyable === undefined)        h.destroyable = false;
-      if (!h.incomeTransformTo)              h.incomeTransformTo = 'Plains_1';
+      // Parent Hex was removed (designer, 2026-10-27): only a concrete Hex ID is allowed; '__parent__' is not a tile id
+      if (!h.incomeTransformTo || h.incomeTransformTo === '__parent__') h.incomeTransformTo = 'Plains_1';
       if (h.incomeCapacity === undefined)    h.incomeCapacity = 3;
       if (!Array.isArray(h.incomeGetPerTap)) h.incomeGetPerTap = [];
       if (!Array.isArray(h.incomeConstant))  h.incomeConstant = [];
