@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -16,10 +16,15 @@
       "version": "1.0.2",
       "date": "2026-10-29",
       "note": "HS Buildings pack"
+    },
+    {
+      "version": "1.0.3",
+      "date": "2026-10-29",
+      "note": "add map"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 15618103,
+  "totalBytes": 22955106,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
