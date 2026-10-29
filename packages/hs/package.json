@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -21,10 +21,15 @@
       "version": "1.0.3",
       "date": "2026-10-29",
       "note": "add map"
+    },
+    {
+      "version": "1.0.4",
+      "date": "2026-10-29",
+      "note": "update map HS"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 22955106,
+  "totalBytes": 22955254,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
