@@ -26,7 +26,7 @@
       "id": "hs",
       "name": "HS",
       "isDefault": false,
-      "version": "1.0.3",
+      "version": "1.0.4",
       "manifestUrl": "packages/hs/manifest.json",
       "totalBytes": 22955254,
       "minAppVersion": "0.0.0",
