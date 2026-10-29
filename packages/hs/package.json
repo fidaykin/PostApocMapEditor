@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -11,6 +11,15 @@
       "version": "1.0.1",
       "date": "2026-10-29",
       "note": "HS HExs"
+    },
+    {
+      "version": "1.0.2",
+      "date": "2026-10-29",
+      "note": "HS Buildings pack"
     }
-  ]
+  ],
+  "manifestUrl": "packages/hs/manifest.json",
+  "totalBytes": 15618103,
+  "minAppVersion": "0.0.0",
+  "schemaVersion": 1
 }
