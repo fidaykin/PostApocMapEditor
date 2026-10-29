@@ -1,21 +1,146 @@
 {
   "schemaVersion": 1,
   "id": "hs",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-29T13:03:24.370Z",
-  "totalBytes": 15618103,
+  "generatedAt": "2026-10-29T14:38:21.784Z",
+  "totalBytes": 22955106,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "5b92f6a54d3447a73dc17439a70c4efccc33c891e6c1c702b73f857fee07345d",
-      "size": 56
+      "sha256": "cd71a9c64563ab863f488ad1f43192f599e55adddd1979bc3ae7db31a3f62f62",
+      "size": 53867
     },
     {
       "path": "hex_database.json",
       "sha256": "859d678fbc3eab7a1a63d151413c02d4c347c5b5b9dfd29258c5891efd4458b3",
       "size": 83532
+    },
+    {
+      "path": "sprites/buildings/HS_Abbey_1.png",
+      "sha256": "722e4090dbc42cf8a9c693171712d3790b3aebc89ac707716c3ea54d7c28fd3e",
+      "size": 276458
+    },
+    {
+      "path": "sprites/buildings/HS_Alchemist_1.png",
+      "sha256": "b9fd825257b144cd62ca8ab0c22f2261706f3b3042f3b89214c9128682fdaec9",
+      "size": 295872
+    },
+    {
+      "path": "sprites/buildings/HS_Farm_1.png",
+      "sha256": "1caf7fe6f20565683aa0b1f4db7a46f80d78dd1050b5ecf72024e6d3df76d2c7",
+      "size": 303047
+    },
+    {
+      "path": "sprites/buildings/HS_ForestHut_1.png",
+      "sha256": "47cd0a3de21046254142248458adcf2a4e92486456b03eed2256f7b92fca31a5",
+      "size": 261651
+    },
+    {
+      "path": "sprites/buildings/HS_GemMine_1.png",
+      "sha256": "838998ca17ef6f0f45c4effba327a425423cfba18d0a15d731a0eaf259040bf1",
+      "size": 364712
+    },
+    {
+      "path": "sprites/buildings/HS_GoldMine_1.png",
+      "sha256": "3251f915c69b5a80f21f97ba5e034d2833b3b30f634f913850556339eebcbafd",
+      "size": 304512
+    },
+    {
+      "path": "sprites/buildings/HS_GoldMine_Big_1.png",
+      "sha256": "1c11bd0850c85cf0cb3c01528d4e6791850fb810cf57316521716f206d48978f",
+      "size": 340805
+    },
+    {
+      "path": "sprites/buildings/HS_LumberMill_1.png",
+      "sha256": "64b83ba3f6dea086e5b6ef7c9eec69dd89775a29bbb0e55ab006ff88a1676464",
+      "size": 291497
+    },
+    {
+      "path": "sprites/buildings/HS_LumberMill_Big_1.png",
+      "sha256": "78629f4f73af0e7e251c636406221c5dd9b802b2069668c750c2834f5416e69a",
+      "size": 321357
+    },
+    {
+      "path": "sprites/buildings/HS_LumberMill_Industrial_1.png",
+      "sha256": "d73d0f7413231c084dc804c1531f4900ac7acb3bb4618d48318c74cfbf25931f",
+      "size": 338840
+    },
+    {
+      "path": "sprites/buildings/HS_Market_1.png",
+      "sha256": "b5957f4bc2d966020a70268a0b0ca9909568e9a9369bc8217c82d89e19a4af0c",
+      "size": 289464
+    },
+    {
+      "path": "sprites/buildings/HS_Mill_1.png",
+      "sha256": "23eb2ea9659b1a010a960c419b6fa88a389fbbe806b95b1bac0c4d0e6e55c5ec",
+      "size": 307255
+    },
+    {
+      "path": "sprites/buildings/HS_Monastery_1.png",
+      "sha256": "901ea1ad7f76fdb5e283775bd4345b74d947f9cea6c5924f7cb959d9d0234949",
+      "size": 316364
+    },
+    {
+      "path": "sprites/buildings/HS_OreMine_1.png",
+      "sha256": "3fbf2228e9d13f1a92b38a47f7991ae9064dd307517f7fcf77a424597e8abc3d",
+      "size": 278157
+    },
+    {
+      "path": "sprites/buildings/HS_OreWorkshop_1.png",
+      "sha256": "8e5a7f7c3d2fbca2ee81a50c7f491e0cfdc780bdaf04969579bb25495e68db05",
+      "size": 303862
+    },
+    {
+      "path": "sprites/buildings/HS_Plantation_1.png",
+      "sha256": "6ef22232420b8e8fd18d134f9f31767a106243374e56a7fa6092585a2be44fb2",
+      "size": 329923
+    },
+    {
+      "path": "sprites/buildings/HS_SilverMine_1.png",
+      "sha256": "b92c8fda52de1a257756c7aa378292ae6b61ea8791d7c063ded4819bc02f887e",
+      "size": 302902
+    },
+    {
+      "path": "sprites/buildings/HS_StoneConveyor_1.png",
+      "sha256": "a16dac4cf07f4a74cd677c91b33a85fda3c081daad0479df09f5016b91d9247e",
+      "size": 289639
+    },
+    {
+      "path": "sprites/buildings/HS_StoneMine_1.png",
+      "sha256": "9779113297d5c08e33b526bcbd2ae671296623544c06d88a406c299757b95b9d",
+      "size": 258582
+    },
+    {
+      "path": "sprites/buildings/HS_StoneMine_Big_1.png",
+      "sha256": "ff57c5bc77262b30cbe3101b792a5544be4a3bd46a5efb1e83a652db29355af5",
+      "size": 307641
+    },
+    {
+      "path": "sprites/buildings/HS_Tavern_1.png",
+      "sha256": "ae84dbd4c2f96870af806197a61d3f964f36edf03ebd74f876489f67238530e0",
+      "size": 303560
+    },
+    {
+      "path": "sprites/buildings/Medieval_Artefact_1.png",
+      "sha256": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c",
+      "size": 286968
+    },
+    {
+      "path": "sprites/buildings/Medieval_FishTrap_1.png",
+      "sha256": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368",
+      "size": 127488
+    },
+    {
+      "path": "sprites/buildings/Medieval_SmallShip_1.png",
+      "sha256": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b",
+      "size": 147988
+    },
+    {
+      "path": "sprites/buildings/Medieval_SmallShipyard_1.png",
+      "sha256": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807",
+      "size": 334648
     },
     {
       "path": "sprites/hex/Decameroon_LavaPlain_1.png",
