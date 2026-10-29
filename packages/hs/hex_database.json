@@ -381,7 +381,8 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "skinSlot": "Forest_1"
     },
     {
       "id": "Hs_Decameroon_Forest_2",
@@ -445,7 +446,8 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "skinSlot": "Forest_2"
     },
     {
       "id": "Hs_Decameroon_Forest_3",
@@ -509,7 +511,8 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "skinSlot": "Forest_3"
     },
     {
       "id": "Hs_Decameroon_GemField_1",
@@ -1354,7 +1357,8 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "skinSlot": "Plain_1"
     },
     {
       "id": "Hs_Decameroon_Plain_2",
@@ -1403,7 +1407,8 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "skinSlot": "Plain_2"
     },
     {
       "id": "Hs_Decameroon_Rift_1",
