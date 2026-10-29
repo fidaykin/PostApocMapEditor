@@ -31,6 +31,7 @@ Application (repository root):
 | `MapEditorPro.html` | The editor: markup, styles and the inline modules (Canvas, Tools, History, IO, Generator, Packages, GitHubSync, Shortcuts, MapValidator, the database editors, ...). |
 | `hex-utils.js` | Pure hex-grid geometry: cube coordinates, neighbours, lines, discs, polygons, rotate and mirror, edge distances. |
 | `map-format.js` | `MapFormat`: version number and validation of the map JSON file, mirroring the loader's leniency. |
+| `map-convert.js` | `MapConvert`: re-targets a map JSON to another content package (renames hex and building ids, returns a report). Pure; not wired into the page yet. |
 | `brush.js` | The `Brush` module (radius 0 to 12 hex disc), the first module split out of the HTML. |
 | `zone-painter.js` | Zone Painter: zones (biomes), zone noise fills and their layer-lock gates. |
 | `gen-utils.js` | Pure helpers for generation: heightmap import, placement sampling, tile-class role table. |
