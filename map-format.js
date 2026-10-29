@@ -17,7 +17,7 @@
   // Keys the editor writes (tests/map-json-contract.spec.ts) plus the legacy overlay the loader still reads. Other keys are
   // legal: they are kept by migrate() and ignored by the loader.
   const KNOWN_KEYS = ['version', 'width', 'height', 'data', 'packages', 'settlements', 'settlement_priorities', 'settlement_slots',
-    'bridges', 'objects', 'tileExtras', 'roads', 'zones', 'zoneMap', 'biomePresets', '_zoneNextId', 'distance_bands', 'custom_terrain'];
+    'bridges', 'objects', 'tileExtras', 'roads', 'zones', 'zoneMap', 'biomePresets', '_zoneNextId', 'distance_bands', 'custom_terrain', 'skin'];
   // Lists the loader walks element by element: a null/undefined element makes it throw (bridges also filters on its fields).
   const ENTRY_LISTS = ['bridges', 'objects', 'roads', 'tileExtras', 'settlements', 'settlement_slots'];
   const hasOwn = (o, k) => Object.prototype.hasOwnProperty.call(o, k);
@@ -116,6 +116,7 @@
       if (!Array.isArray(json.packages)) warnings.push('packages is not an array and is ignored.');
       else if (json.packages.some(p => typeof p !== 'string')) warnings.push('packages contains entries that are not text.');
     }
+    if (json.skin !== undefined && json.skin !== null && typeof json.skin !== 'string') warnings.push('skin is not text and is ignored.');
     // biomePresets and zoneMap are read by ZonePainter.fromSaveObject AFTER the loader replaced the map: a truthy
     // non-array list (.forEach) or a zoneMap that is not base64 text (atob) would throw half-way, so both are ERRORS here.
     if (json.biomePresets && !Array.isArray(json.biomePresets)) errors.push('biomePresets must be an array.');
