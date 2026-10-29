@@ -31,7 +31,7 @@ Application (repository root):
 | `MapEditorPro.html` | The editor: markup, styles and the inline modules (Canvas, Tools, History, IO, Generator, Packages, GitHubSync, Shortcuts, MapValidator, the database editors, ...). |
 | `hex-utils.js` | Pure hex-grid geometry: cube coordinates, neighbours, lines, discs, polygons, rotate and mirror, edge distances. |
 | `map-format.js` | `MapFormat`: version number and validation of the map JSON file, mirroring the loader's leniency. |
-| `map-convert.js` | `MapConvert`: re-targets a map JSON to another content package (renames hex and building ids, returns a report). Pure; not wired into the page yet. |
+| `map-convert.js` | `MapConvert`: re-targets a map JSON to another content package (renames hex and building ids, returns a report). Pure. Used by the "Convert to package…" dialog (`ConvertMap`, Map design). |
 | `brush.js` | The `Brush` module (radius 0 to 12 hex disc), the first module split out of the HTML. |
 | `zone-painter.js` | Zone Painter: zones (biomes), zone noise fills and their layer-lock gates. |
 | `gen-utils.js` | Pure helpers for generation: heightmap import, placement sampling, tile-class role table. |
@@ -60,7 +60,7 @@ Tooling and project files:
 | `scripts/build-guides.js` | Renders the Markdown guides to HTML. |
 | `build_atlas.py`, `compress_sprites.sh`, `migrate_*.py` | One-off sprite and data utilities. |
 
-Load order in the page: `hex-utils.js`, `gen-utils.js`, `map-format.js`, `brush.js`, `zone-painter.js`, `map-jobs.js`, then the inline script. Each script tag carries a `?v=` cache-buster that must be bumped with every change to the file; `map-jobs.js`, `map-worker.js` and `MapJobs.VERSION` must agree.
+Load order in the page: `hex-utils.js`, `gen-utils.js`, `map-format.js`, `map-convert.js`, `brush.js`, `zone-painter.js`, `map-jobs.js`, then the inline script. Each script tag carries a `?v=` cache-buster that must be bumped with every change to the file; `map-jobs.js`, `map-worker.js` and `MapJobs.VERSION` must agree.
 
 ## Tests
 
@@ -88,7 +88,7 @@ The agents (and CI) never deploy production. The maintainer runs `bash deploy.sh
 
 | Needed by | Files |
 |---|---|
-| Page and scripts (load order) | `MapEditorPro.html`, `hex-utils.js?v=2`, `gen-utils.js?v=5`, `map-format.js?v=2`, `brush.js?v=1`, `zone-painter.js?v=21`, `map-jobs.js?v=6` |
+| Page and scripts (load order) | `MapEditorPro.html`, `hex-utils.js?v=2`, `gen-utils.js?v=5`, `map-format.js?v=2`, `map-convert.js?v=1`, `brush.js?v=1`, `zone-painter.js?v=21`, `map-jobs.js?v=6` |
 | Web Worker | `map-worker.js?v=6` (created by `new Worker('map-worker.js?v=6')`; it runs `importScripts('map-jobs.js?v=6')`, so `map-jobs.js` must sit next to it) |
 | Help menu | `docs/guides/editor-guide.en.html`, `docs/guides/editor-guide.uk.html` |
 | Sprites and content | `sprites/`, `packages/` (`registry.json`, `packages/postapoc/` with `hex_database.json`, `building_database.json`, `package.json`, `sprites/`), `hex_database.json`, `building_database.json`, `upgrade_database.json`, `localization.json` |
@@ -97,7 +97,7 @@ The agents (and CI) never deploy production. The maintainer runs `bash deploy.sh
 
 Any production path other than `deploy.sh` must include every file above. The `?v=` values are the cache-busters in the tags (the numbers above are the current ones): bump a script's `?v=` with every change to it; the `map-jobs.js` and `map-worker.js` values must equal `MapJobs.VERSION`, and `.github/workflows/deploy-dev.yml` checks the same numbers with `grep -q`, so a bump touches the HTML, the worker's `importScripts`, `MapJobs.VERSION`, the workflow and the lint in `tests/perf-workers.spec.ts` together (`zone-painter.js` only has to keep some `?v=`).
 
-**Dev workflow.** A push to `dev` that touches `MapEditorPro.html` or one of `map-jobs.js`, `map-worker.js`, `hex-utils.js`, `gen-utils.js`, `map-format.js`, `brush.js`, `zone-painter.js` runs `deploy-dev.yml`. It publishes only those eight files into `dev/` on `gh-pages`, rewrites the script tags and the worker URL to `dev/...`, and fails if a `?v=` tie above no longer matches. Everything else (databases, sprites, maps, docs) is read from the site root, i.e. from the last production deploy.
+**Dev workflow.** A push to `dev` that touches `MapEditorPro.html` or one of `map-jobs.js`, `map-worker.js`, `hex-utils.js`, `gen-utils.js`, `map-format.js`, `map-convert.js`, `brush.js`, `zone-painter.js` runs `deploy-dev.yml`. It publishes only those eight files into `dev/` on `gh-pages`, rewrites the script tags and the worker URL to `dev/...`, and fails if a `?v=` tie above no longer matches. Everything else (databases, sprites, maps, docs) is read from the site root, i.e. from the last production deploy.
 
 **Help guides on dev.** The Help-menu guide links (`docs/guides/editor-guide.en.html`, `editor-guide.uk.html`) resolve against the site root (`<base href="../">`), and the dev workflow does not copy `docs/`. They 404 on `dev/` until the docs reach `gh-pages` through `deploy.sh`.
 
