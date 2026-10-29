@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -26,6 +26,11 @@
       "version": "1.0.4",
       "date": "2026-10-29",
       "note": "update map HS"
+    },
+    {
+      "version": "1.0.5",
+      "date": "2026-10-29",
+      "note": "art"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
