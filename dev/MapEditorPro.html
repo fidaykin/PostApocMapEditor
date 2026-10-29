@@ -1450,6 +1450,7 @@ body.mode-common #map-io    { display: none; }
 <script src="dev/hex-utils.js?v=2"></script>
 <script src="dev/gen-utils.js?v=5"></script>
 <script src="dev/map-format.js?v=2"></script>
+<script src="dev/map-convert.js?v=1"></script>
 <script src="dev/brush.js?v=1"></script>
 <script src="dev/zone-painter.js?v=22"></script>
 <script src="dev/map-jobs.js?v=6"></script>
@@ -1899,6 +1900,9 @@ body.mode-common #map-io    { display: none; }
             <div style="display:flex;align-items:center;gap:6px;padding-top:4px">
               <label for="map-skin-select" title="Content package that repaints this map in the game (visuals only). none: the map is drawn by its own tiles. Saved in the map as skin.">Skin</label>
               <select id="map-skin-select" class="pkg-active-select" style="flex:1;min-width:0;max-width:none" onfocus="MapSkin.sync()" onchange="MapSkin.set(this.value)"></select>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding-top:4px">
+              <button class="hexdb-tool-btn" id="btn-convert-map" type="button" onclick="ConvertMap.open()" title="Re-target this map to another content package: renames its tile and building ids to the ids of that package and shows what could not be converted. The current map is not changed; the result is a new map you download or open.">Convert to package…</button>
             </div>
             <div style="padding-top:8px" title="Scatters bunkers, mega cities, artifacts and ore clusters over free land, beyond the minimum distance from the city. One undo step. Needs the Terrain / Buildings / Settlements layers unlocked for what it writes. Same seed on the same map gives the same result; empty seed = random">Placement helper</div>
             <div id="pl-form" style="display:grid;grid-template-columns:1fr 64px;gap:3px 6px;align-items:center;padding-top:4px"></div>
@@ -2846,8 +2850,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.27";
-const COMMIT  = "fb449d6";
+const VERSION = "2026.10.29";
+const COMMIT  = "41f516c";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -23364,6 +23368,98 @@ const MapSkin = (() => {
   }
   function reset(id) { mapSkin = typeof id === 'string' ? id.trim() : ''; sync(); }
   return { get, set, sync, reset };
+})();
+
+// Convert map to package (map-convert.js): shows what re-targeting the current map to a package would change, then lets the
+// user download the converted copy or open it. The current map is never modified by the preview.
+const ConvertMap = (() => {
+  const REASON = { missing: 'no counterpart in the package', typeMismatch: 'counterpart has another type', unknown: 'not in any loaded database' };
+  const targets = () => (typeof Packages !== 'undefined' ? Packages.getAll() : []).filter(p => p && p.id && !p.isDefault);
+  const baseName = () => {
+    const t = (document.getElementById('map-file-label') || {}).textContent || '';
+    return t && t !== '—' && t !== '(autosave)' ? t : 'map';
+  };
+  // Converted copy of a map JSON for the target package, using every loaded tile and building record.
+  function preview(json, target) {
+    return MapConvert.convert(json, { target, hex: HexDB.getAll(), bld: BldDB.getAll() });
+  }
+  function _download(r, target) {
+    const blob = new Blob([JSON.stringify(r.json)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = baseName() + '_' + target + '.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 100);
+  }
+  async function _open(r, target) {
+    const ok = await UI.confirm('Open converted map', 'The current map is replaced by the converted copy. Download or save the current map first if you still need it.', '', 'Open');
+    if (!ok) return false;
+    if (!IO.loadFromJSON(r.json)) return false;
+    IO.setFileName(baseName() + '_' + target);
+    UI.toast('Converted map opened');
+    return true;
+  }
+  function open() {
+    const src = IO.getMapJson();
+    if (!src) { UI.toast('No map to convert'); return; }
+    const json = JSON.parse(src);
+    const opts = targets();
+    if (!opts.length) { UI.toast('No content package to convert to'); return; }
+    const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
+    const root = T('div', null, { id: 'convert-map-body' });
+    const sel = T('select', null, { id: 'convert-map-target', className: 'hexdb-select' });
+    for (const p of opts) sel.appendChild(T('option', p.name && p.name !== p.id ? `${p.name} (${p.id})` : p.id, { value: p.id }));
+    const active = typeof Packages.getActive === 'function' ? Packages.getActive() : '';
+    if (opts.some(p => p.id === active)) sel.value = active;
+    const out = T('div', null, { id: 'convert-map-result' });
+    let current = null;
+    const draw = () => {
+      const target = sel.value;
+      current = preview(json, target);
+      const rep = current.report, kids = [];
+      const cols = [['converted', 'Converted'], ['same', 'Already in package'], ['keptBase', 'Base kept'], ['missing', 'No counterpart'], ['typeMismatch', 'Other type'], ['unknown', 'Unknown']];
+      const table = T('table', null, { id: 'convert-map-summary' });
+      const head = T('tr'); head.appendChild(T('th', ''));
+      cols.forEach(c => head.appendChild(T('th', c[1])));
+      table.appendChild(T('thead')).appendChild(head);
+      const tb = T('tbody');
+      for (const [k, title] of [['hex', 'Tiles'], ['bld', 'Buildings']]) {
+        const tr = T('tr'); tr.dataset.kind = k; tr.appendChild(T('th', title));
+        cols.forEach(c => tr.appendChild(T('td', String(rep[k][c[0]]), { className: 'cv-' + c[0] })));
+        tb.appendChild(tr);
+      }
+      table.appendChild(tb);
+      kids.push(table);
+      const total = rep.hex.converted + rep.bld.converted;
+      kids.push(T('p', total ? `Packages in the new map: ${current.json.packages.join(', ')} (was ${current.packages.before.join(', ') || 'none'}).`
+        : 'Nothing to convert: no id of this map has a counterpart in this package.', { id: 'convert-map-packages' }));
+      const rows = [];
+      for (const [k, title] of [['hex', 'tile'], ['bld', 'building']])
+        for (const [id, e] of Object.entries(rep[k].notConverted)) rows.push({ id, title, ...e });
+      rows.sort((a, b) => b.count - a.count);
+      if (rows.length) {
+        kids.push(T('p', `${rows.length} id(s) stay as they are:`, { className: 'pkg-notice warn', id: 'convert-map-left-head' }));
+        const ul = T('ul', null, { id: 'convert-map-left' });
+        for (const r of rows.slice(0, 40)) ul.appendChild(T('li', `${r.id} (${r.title}, ${r.count}×): ${REASON[r.how]}${r.to ? ' ' + r.to : ''}`));
+        if (rows.length > 40) ul.appendChild(T('li', `… and ${rows.length - 40} more`));
+        kids.push(ul);
+      }
+      kids.push(T('p', 'Prices, income and other values come from the records of the chosen package. The current map is not changed.', { style: 'opacity:.7;font-size:11px' }));
+      out.replaceChildren(...kids);
+    };
+    sel.onchange = draw;
+    root.append(T('label', 'Convert to package: ', { htmlFor: 'convert-map-target' }), sel, out);
+    draw();
+    let m;
+    const needWork = () => { if (current && current.report.hex.converted + current.report.bld.converted > 0) return true; UI.toast('Nothing to convert'); return false; };
+    m = UI.showModal({ id: 'convert-map-modal', title: 'Convert map to package', body: root, modal: true, actions: [
+      { label: 'Download converted map', primary: true, onClick: () => { if (needWork()) _download(current, sel.value); } },
+      { label: 'Open in editor', onClick: async () => { if (needWork() && await _open(current, sel.value)) m.close('close'); } },
+      { label: 'Close', onClick: () => m.close('close') },
+    ] });
+    return m;
+  }
+  return { open, preview };
 })();
 
 // Satellite→anchor lookup: maps "col_row" → {col, row} of the owning anchor tile.
