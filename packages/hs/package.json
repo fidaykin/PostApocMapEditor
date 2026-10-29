@@ -1,8 +1,16 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "",
   "preview": "preview.png",
-  "isDefault": false
+  "isDefault": false,
+  "dependencies": [],
+  "changelog": [
+    {
+      "version": "1.0.1",
+      "date": "2026-10-29",
+      "note": "HS HExs"
+    }
+  ]
 }
