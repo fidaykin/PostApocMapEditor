@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.10.29.0f2c16e</title>
+<title>Post Apo Map Editor 2026.07.16.717ca1c</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -855,6 +855,16 @@ body.mode-packages #pkg-panel { display: block; }
 #pkg-panel th, #pkg-panel td { padding: 8px 12px; border-bottom: 1px solid #313244; text-align: left; }
 #pkg-panel th { color: #888; font-weight: normal; font-size: 11px; text-transform: uppercase; }
 #pkg-panel tr:hover td { background: #181825; }
+#pkg-panel .pkg-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px; }
+#pkg-panel .pkg-act-group { display: inline-flex; flex-wrap: wrap; gap: 6px; }
+#pkg-panel .pkg-act-danger { margin-left: auto; padding-left: 12px; border-left: 1px solid #313244; }
+/* Convert to package dialog: wide summary table scrolls inside the dialog, secondary text keeps a readable contrast. */
+#convert-map-modal .modal-box { max-width: calc(100vw - 24px); }
+#convert-map-modal #convert-map-result { overflow-x: auto; }
+#convert-map-modal #convert-map-target { min-height: 32px; }
+#convert-map-modal .modal-body p { color: #c0c4d2; margin-bottom: 12px; }
+#convert-map-modal .modal-body p.cv-note { font-size: 12px; }
+#convert-map-modal .modal-actions button:disabled { opacity: .45; cursor: not-allowed; }
 .pkg-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px;
              font-weight: bold; background: #a6e3a1; color: #1e1e2e; }
 .pkg-chip  { padding: 3px 10px; border-radius: 12px; border: 1px solid #45475a;
@@ -2849,8 +2859,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.10.29";
-const COMMIT  = "0f2c16e";
+const VERSION = "2026.10.30";
+const COMMIT  = "b8b9c14";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -13676,7 +13686,7 @@ const Packages = (() => {
   const LS_ACTIVE   = 'pkg_active';
   const LS_REGISTRY = 'pkg_registry_cache';
   const LS_TRASH    = 'pkg_trash';
-  const GAME_LOADS_NON_DEFAULT = false;   // flip to true once a normal release build can unlock non-default packages (today only the debug panel of development builds does)
+  const GAME_LOADS_NON_DEFAULT = false;   // flip to true once a normal release build also unlocks the non-default packages a map lists (today it keeps them locked; development builds unlock them)
 
   let _registry = [{ id: 'postapoc', name: 'Post-Apocalypse', isDefault: true, version: '1.0.0' }];
   let _active   = 'postapoc';
@@ -14284,7 +14294,7 @@ const Packages = (() => {
     }
     if (!GAME_LOADS_NON_DEFAULT) {
       kids.push(_el('div', { id: 'pkg-game-notice', class: 'pkg-notice',
-        text: 'Non-default packages are loaded by the game only after they are unlocked, and today that is possible only from the debug panel of development builds. A normal release build shows only postapoc content. Published packages are stored on the server either way.' }));
+        text: 'The game installs a package by itself only when the registry marks it auto-install (badge in the table). Development builds also unlock and download the packages the loaded map lists. In a normal release build any other package stays locked, so only postapoc and auto-install packages show up. Published packages are stored on the server either way.' }));
     }
     if (_registry.some(p => p.localOnly)) {
       kids.push(_el('div', { id: 'pkg-local-notice', class: 'pkg-notice warn',
@@ -14309,15 +14319,24 @@ const Packages = (() => {
       if (p.isDefault) idCell.append(' ', _el('span', { class: 'pkg-badge', title: 'Built-in content that ships with the game; it cannot be deleted', text: 'default' }));
       if (!p.isDefault && getDetails(p.id).autoUnlock) idCell.append(' ', _el('span', { class: 'pkg-badge pkg-auto-badge', title: 'Installed by default: the game unlocks and downloads it at launch', text: 'auto' }));
       if (p.localOnly) idCell.append(' ', _el('span', { class: 'pkg-badge pkg-local-badge', title: 'Exists only in this browser until you publish it', text: 'local only' }));
-      const actions = _el('td', {},
-        _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }), ' ',
+      // Three groups so the everyday actions read first and Delete is set apart: main (Export, Publish, Pull), more (package
+      // content tools), danger (Delete). DOM order is the same as before.
+      const grp = (cls, ...kids) => _el('span', { class: 'pkg-act-group ' + cls }, ...kids);
+      const main = grp('pkg-act-main',
+        _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }),
         _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
-      if (!p.localOnly) actions.append(' ', _btn('Pull from server', 'Replace this package’s local hex tiles and buildings with the published ones (local edits to it are lost)', () => pullFromServer(p.id), { 'data-pkg-id': p.id }));
-      if (!p.isDefault) actions.append(' ', _btn('Terrain sprites', 'Upload this package’s coastline or road sprites to the server', () => openTerrainUpload(p.id), { 'data-pkg-id': p.id }));
-      if (!p.isDefault) actions.append(' ', _btn('Skin slots', 'Say which base tile or building each record of this package repaints, so one map can switch between looks', () => openSkinSlots(p.id), { 'data-pkg-id': p.id }));
-      if (!p.isDefault) actions.append(' ', _btn('Details', 'Edit the description, dependencies and preview image', () => openDetails(p.id), { 'data-pkg-id': p.id }));
-      if (!p.isDefault) actions.append(' ', _btn('Delete', 'Remove this package from the registry (it can be restored from Recently deleted)',
-        () => confirmDelete(p.id), { 'data-pkg-id': p.id, style: 'color:#f38ba8' }));
+      if (!p.localOnly) main.append(_btn('Pull from server', 'Replace this package’s local hex tiles and buildings with the published ones (local edits to it are lost)', () => pullFromServer(p.id), { 'data-pkg-id': p.id }));
+      const actionGroups = [main];
+      if (!p.isDefault) {
+        actionGroups.push(grp('pkg-act-more',
+          _btn('Terrain sprites', 'Upload this package’s coastline or road sprites to the server', () => openTerrainUpload(p.id), { 'data-pkg-id': p.id }),
+          _btn('Skin slots', 'Say which base tile or building each record of this package repaints, so one map can switch between looks', () => openSkinSlots(p.id), { 'data-pkg-id': p.id }),
+          _btn('Details', 'Edit the description, dependencies and preview image', () => openDetails(p.id), { 'data-pkg-id': p.id })));
+        actionGroups.push(grp('pkg-act-danger',
+          _btn('Delete', 'Remove this package from the registry (it can be restored from Recently deleted)',
+            () => confirmDelete(p.id), { 'data-pkg-id': p.id, style: 'color:#f38ba8' })));
+      }
+      const actions = _el('td', {}, _el('div', { class: 'pkg-actions' }, ...actionGroups));
       tbody.append(_el('tr', { data: { pkg: p.id } },
         _el('td', {}, first), idCell,
         _nameCell(p), _el('td', { text: p.version || '—' }),
@@ -23406,13 +23425,20 @@ const ConvertMap = (() => {
     const T = (tag, text, props) => { const e = document.createElement(tag); if (text != null) e.textContent = text; Object.assign(e, props || {}); return e; };
     const root = T('div', null, { id: 'convert-map-body' });
     const sel = T('select', null, { id: 'convert-map-target', className: 'hexdb-select' });
+    // No package is preselected: the editor's active package is usually the one the map is already on, and a preview for it
+    // says nothing. The buttons stay off until a package is chosen.
+    sel.appendChild(T('option', 'Choose a package…', { value: '' }));
     for (const p of opts) sel.appendChild(T('option', p.name && p.name !== p.id ? `${p.name} (${p.id})` : p.id, { value: p.id }));
-    const active = typeof Packages.getActive === 'function' ? Packages.getActive() : '';
-    if (opts.some(p => p.id === active)) sel.value = active;
+    sel.value = '';
     const out = T('div', null, { id: 'convert-map-result' });
     let current = null;
     const draw = () => {
       const target = sel.value;
+      if (!target) {
+        current = null;
+        out.replaceChildren(T('p', 'Choose the package to convert this map to. The preview appears here.', { id: 'convert-map-hint' }));
+        return;
+      }
       current = preview(json, target);
       const rep = current.report, kids = [];
       const cols = [['converted', 'Converted'], ['same', 'Already in package'], ['keptBase', 'Base kept'], ['missing', 'No counterpart'], ['typeMismatch', 'Other type'], ['unknown', 'Unknown']];
@@ -23442,19 +23468,21 @@ const ConvertMap = (() => {
         if (rows.length > 40) ul.appendChild(T('li', `… and ${rows.length - 40} more`));
         kids.push(ul);
       }
-      kids.push(T('p', 'Prices, income and other values come from the records of the chosen package. The current map is not changed.', { style: 'opacity:.7;font-size:11px' }));
+      kids.push(T('p', 'Prices, income and other values come from the records of the chosen package. The current map is not changed.', { className: 'cv-note' }));
       out.replaceChildren(...kids);
     };
-    sel.onchange = draw;
+    let m;
+    const syncButtons = () => { if (m) m.box.querySelectorAll('.modal-actions button').forEach((b, i) => { if (i < 2) b.disabled = !sel.value; }); };
+    sel.onchange = () => { draw(); syncButtons(); };
     root.append(T('label', 'Convert to package: ', { htmlFor: 'convert-map-target' }), sel, out);
     draw();
-    let m;
     const needWork = () => { if (current && current.report.hex.converted + current.report.bld.converted > 0) return true; UI.toast('Nothing to convert'); return false; };
-    m = UI.showModal({ id: 'convert-map-modal', title: 'Convert map to package', body: root, modal: true, actions: [
+    m = UI.showModal({ id: 'convert-map-modal', title: 'Convert map to package', body: root, modal: true, autofocus: sel, actions: [
       { label: 'Download converted map', primary: true, onClick: () => { if (needWork()) _download(current, sel.value); } },
       { label: 'Open in editor', onClick: async () => { if (needWork() && await _open(current, sel.value)) m.close('close'); } },
       { label: 'Close', onClick: () => m.close('close') },
     ] });
+    syncButtons();
     return m;
   }
   return { open, preview };
