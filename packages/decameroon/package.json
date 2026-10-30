@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.34",
+  "version": "1.0.35",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -116,10 +116,15 @@
       "version": "1.0.34",
       "date": "2026-10-27",
       "note": "Market Change"
+    },
+    {
+      "version": "1.0.35",
+      "date": "2026-10-30",
+      "note": "Rubble income =1 Gold"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22813707,
+  "totalBytes": 22813778,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
