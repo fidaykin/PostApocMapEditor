@@ -531,7 +531,12 @@
       "incomeTransformTo": "Plains_1",
       "incomeCapacity": 3,
       "incomeGetPerTap": [],
-      "incomePerTurn": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
       "incomeConstant": [],
       "spendConstant": [],
       "bonusDrop": false,
@@ -619,7 +624,12 @@
       "incomeTransformTo": "Plains_1",
       "incomeCapacity": 3,
       "incomeGetPerTap": [],
-      "incomePerTurn": [],
+      "incomePerTurn": [
+        {
+          "type": "Gold",
+          "amount": 1
+        }
+      ],
       "incomeConstant": [],
       "spendConstant": [],
       "bonusDrop": false,
@@ -3101,55 +3111,6 @@
       "buildRequiresRoad": false,
       "buildAvailableTiles": [],
       "buildMinLevel": 5,
-      "buildPrice": [],
-      "buildPremiumPrice": 0,
-      "buildPlacementRule": "",
-      "tapIncomeEnabled": false,
-      "destroyable": false,
-      "incomeTransformTo": "Plains_1",
-      "incomeCapacity": 3,
-      "incomeGetPerTap": [],
-      "incomePerTurn": [
-        {
-          "type": "Gold",
-          "amount": 1
-        }
-      ],
-      "incomeConstant": [],
-      "spendConstant": [],
-      "bonusDrop": false,
-      "bonusTrigger": "Destroy",
-      "bonuses": [],
-      "booster": "",
-      "effects": "",
-      "package": "decameroon",
-      "edgeFaces": [],
-      "baseTerrainId": ""
-    },
-    {
-      "id": "Decameroon_Barren_1_TEST",
-      "textId": "",
-      "type": "Barren/Desert",
-      "biome": "Test Biome",
-      "filterCategory": "FilterTerrain",
-      "spriteName": "Medieval_Barren_1",
-      "category": "🏜️ BARREN/DESERT",
-      "terrainTypeId": -1,
-      "fallback": false,
-      "roadAllowed": true,
-      "descriptionIdleId": "",
-      "descriptionBuildId": "",
-      "baseCostTaps": 11,
-      "canDestroy": true,
-      "destroyTransformTo": "Decameroon_Plain_1",
-      "destroySource": [],
-      "canStored": false,
-      "destroyIncomeEnabled": false,
-      "destroyIncome": [],
-      "canBuild": false,
-      "buildRequiresRoad": false,
-      "buildAvailableTiles": [],
-      "buildMinLevel": 1,
       "buildPrice": [],
       "buildPremiumPrice": 0,
       "buildPlacementRule": "",
