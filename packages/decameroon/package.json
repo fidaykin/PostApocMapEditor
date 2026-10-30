@@ -2,7 +2,7 @@
   "id": "decameroon",
   "name": "Decameroon",
   "isDefault": false,
-  "version": "1.0.35",
+  "version": "1.0.36",
   "description": "",
   "dependencies": [],
   "preview": "preview.png",
@@ -121,10 +121,15 @@
       "version": "1.0.35",
       "date": "2026-10-30",
       "note": "Rubble income =1 Gold"
+    },
+    {
+      "version": "1.0.36",
+      "date": "2026-10-30",
+      "note": "fix"
     }
   ],
   "manifestUrl": "packages/decameroon/manifest.json",
-  "totalBytes": 22813778,
+  "totalBytes": 22810332,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
