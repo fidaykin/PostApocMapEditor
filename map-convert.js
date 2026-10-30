@@ -5,8 +5,12 @@
 // maps drawn with the old ids do not change when the package is applied. This renames every id of the map to the id of the
 // target package that stands for it. Visual and id changes only: values (prices, income) come from the target records.
 //
-// Where ids live in a map file: data[row][col] (hex ids), objects[].id (building ids), tileExtras[].underTerrainId (hex id),
-// biomePresets[].terrainWeights keys and .forbiddenTerrain (hex ids). Everything else is copied as is.
+// Where ids live in a map file: data[row][col] (hex ids, and building ids painted as tiles: the game extracts those into buildings),
+// objects[].id (building ids), tileExtras[].underTerrainId (hex id), biomePresets[].terrainWeights keys and .forbiddenTerrain
+// (hex ids). Everything else is copied as is.
+//
+// The package list of the result is computed from what the converted map really uses, with the editor's own rule for saved maps
+// (_collectMapPackages): postapoc, the package of every id in data and objects, and their dependencies.
 (function (root, factory) {
   const api = factory();
   if (typeof module === 'object' && module && module.exports) module.exports = api;
@@ -89,10 +93,41 @@
     }
   }
 
+  // Packages the converted map needs, by the editor's rule for saved maps: postapoc, the package of every id in data and objects,
+  // and the dependencies of those (ctx.resolvePackages, when given). A package of the old list that this converter knows no record
+  // of (its database is not loaded) is kept, so it is never lost silently. `needs` says, per package other than postapoc, how many
+  // cells use it and which ids (for "why is this package still there").
+  function collectPackages(out, before, ixHex, ixBld, resolvePackages) {
+    const pkgOf = id => {
+      const r = ixBld.byId.get(low(id)) || ixHex.byId.get(low(id));
+      return r ? (r.package || 'postapoc') : null;
+    };
+    const used = new Set(['postapoc']);
+    const needs = {};
+    const use = id => {
+      if (typeof id !== 'string' || id === '') return;
+      const p = pkgOf(id);
+      if (!p) return;
+      used.add(p);
+      if (p === 'postapoc') return;
+      const e = needs[p] || (needs[p] = { count: 0, ids: {} });
+      e.count++; e.ids[id] = (e.ids[id] || 0) + 1;
+    };
+    if (Array.isArray(out.data)) for (const row of out.data) if (Array.isArray(row)) row.forEach(use);
+    if (Array.isArray(out.objects)) for (const o of out.objects) if (o && typeof o === 'object') use(o.id);
+    const known = new Set();
+    for (const ix of [ixHex, ixBld]) for (const r of ix.byId.values()) known.add(r.package || 'postapoc');
+    for (const p of before) if (!known.has(p)) used.add(p);
+    if (typeof resolvePackages === 'function') {
+      try { for (const p of resolvePackages([...used]) || []) used.add(p); } catch (e) { /* dependencies unknown: keep what is used */ }
+    }
+    return { list: [...used].sort(), needs };
+  }
+
   /**
    * @param json  parsed map file (never modified)
-   * @param ctx   { target: 'hs', hex: [{id,type,package,skinSlot}], bld: [...], prefixOf?: fn }
-   * @returns { json, report, packages: { before: [...], after: [...] } }
+   * @param ctx   { target: 'hs', hex: [{id,type,package,skinSlot}], bld: [...], prefixOf?: fn, resolvePackages?: ids => ids with dependencies }
+   * @returns { json, report, packages: { before: [...], after: [...], needs: { pkg: { count, ids } } } }
    */
   function convert(json, ctx) {
     const target = ctx && ctx.target;
@@ -103,18 +138,19 @@
     const out = JSON.parse(JSON.stringify(json));
     const report = newReport();
     const cache = { hex: new Map(), bld: new Map() };
-    const used = { before: new Set(), after: new Set() };
-    const pkgOf = (ix, id) => { const r = ix.byId.get(low(id)); return r && !isBase(r) ? r.package : null; };
 
-    // One id through the cache; also records which packages the map used before and after.
-    const map = (kind, id, count) => {
+    // One id through the cache. `prefer` is the kind to try first ('hex' in the terrain layer, 'bld' in objects): the terrain layer
+    // can hold building ids too (a building painted as a tile), and an id is only a hex or a building, never both.
+    const map = (prefer, id, count) => {
       if (typeof id !== 'string' || id === '') return id;
-      const ix = kind === 'hex' ? ixHex : ixBld, c = cache[kind];
+      const other = prefer === 'hex' ? 'bld' : 'hex';
+      const ix = k => (k === 'hex' ? ixHex : ixBld);
+      let kind = prefer;
+      if (!ix(prefer).byId.has(low(id)) && ix(other).byId.has(low(id))) kind = other;
+      const c = cache[kind];
       let res = c.get(id);
-      if (!res) { res = resolve(kind, id, ix, target, prefixFn); c.set(id, res); }
+      if (!res) { res = resolve(kind, id, ix(kind), target, prefixFn); c.set(id, res); }
       note(report[kind], id, res, count);
-      const b = pkgOf(ix, id); if (b) used.before.add(b);
-      const a = pkgOf(ix, res.id); if (a) used.after.add(a);
       return res.id;
     };
 
@@ -140,13 +176,10 @@
       }
     }
 
-    // Package list: drop a package whose ids all went away, add the target when it is used now. Dependencies of the target are
-    // resolved by the editor when the map is saved (its _collectMapPackages), so they are not guessed here.
     const before = Array.isArray(json.packages) ? json.packages.slice() : [];
-    const gone = [...used.before].filter(p => !used.after.has(p));
-    const added = [...used.after].filter(p => !used.before.has(p));
-    out.packages = [...new Set(before.filter(p => !gone.includes(p)).concat(added))].sort();
-    return { json: out, report, packages: { before, after: out.packages } };
+    const { list, needs } = collectPackages(out, before, ixHex, ixBld, ctx && ctx.resolvePackages);
+    out.packages = list;
+    return { json: out, report, packages: { before, after: out.packages, needs } };
   }
 
   // One line per kind for a status line or a log.
