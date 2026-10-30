@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "id": "decameroon",
-  "version": "1.0.35",
+  "version": "1.0.36",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-10-30T15:45:28.178Z",
-  "totalBytes": 22810332,
+  "generatedAt": "2026-10-30T15:52:40.224Z",
+  "totalBytes": 22810182,
   "dependencies": [],
   "files": [
     {
@@ -14,8 +14,8 @@
     },
     {
       "path": "hex_database.json",
-      "sha256": "5316115c757d0c1d7d587c0f6aee57eb61ae049f002dc6bedaf795506a110fe8",
-      "size": 84236
+      "sha256": "a8e06985bcdc8d2e21379582eb59bcd72713c622b76c7b3a2b4dd5085fe3ee23",
+      "size": 84086
     },
     {
       "path": "sprites/buildings/Medieval_Abbey_1.png",
