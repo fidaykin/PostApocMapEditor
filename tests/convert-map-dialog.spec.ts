@@ -36,6 +36,35 @@ test.describe('Convert map to package', () => {
     expect(opts).not.toContain('postapoc');
   });
 
+  test('no package is preselected: a hint shows and both actions stay off until one is chosen', async ({ page }) => {
+    await setup(page);
+    await open(page);
+    expect(await page.locator('#convert-map-target').inputValue()).toBe('');
+    await expect(page.locator('#convert-map-hint')).toBeVisible();
+    await expect(page.locator('#convert-map-summary')).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Download converted map' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Open in editor' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: 'Close' })).toBeEnabled();
+    // focus starts on the package list, so a stray Enter cannot download anything
+    expect(await page.evaluate(() => document.activeElement && document.activeElement.id)).toBe('convert-map-target');
+    await page.locator('#convert-map-target').selectOption('hs');
+    await expect(page.getByRole('button', { name: 'Download converted map' })).toBeEnabled();
+    await expect(page.getByRole('button', { name: 'Open in editor' })).toBeEnabled();
+    await page.locator('#convert-map-target').selectOption('');
+    await expect(page.getByRole('button', { name: 'Download converted map' })).toBeDisabled();
+  });
+
+  test('on a narrow screen the dialog stays inside the window and the summary table scrolls', async ({ page }) => {
+    await setup(page);
+    await page.setViewportSize({ width: 390, height: 780 });
+    await open(page);
+    await page.locator('#convert-map-target').selectOption('hs');
+    const box = await page.locator('#convert-map-modal .modal-box').boundingBox();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+    const ov = await page.locator('#convert-map-result').evaluate(e => getComputedStyle(e).overflowX);
+    expect(ov).toBe('auto');
+  });
+
   test('the preview counts converted ids and lists what stays', async ({ page }) => {
     await setup(page);
     await open(page);
