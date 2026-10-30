@@ -16,7 +16,7 @@ test('empty state, help text and game notice; the packages PDF guide is not link
   await openTab(page);
   await expect(page.locator('#pkg-help')).toContainText('content package');
   await expect(page.locator('#pkg-empty')).toContainText('No custom packages yet');
-  await expect(page.locator('#pkg-game-notice')).toContainText('only after they are unlocked');
+  await expect(page.locator('#pkg-game-notice')).toContainText('auto-install');
   await expect(page.locator('#pkg-guide-link')).toHaveCount(0);
   await expect(page.locator('#pkg-help a')).toHaveCount(0);
   expect(await page.evaluate(() => document.documentElement.innerHTML.includes('content-packages-editor-guide'))).toBe(false);
@@ -69,4 +69,16 @@ test('the trash and restore UI from Phase 0 is still in the panel', async ({ pag
   await page.getByRole('button', { name: 'Delete and remove entries' }).click();
   await expect(page.locator('tr[data-pkg="delpkg"]')).toHaveCount(0);
   await expect(page.locator('#pkg-panel [data-trash-act="restore"][data-id="delpkg"]')).toBeVisible();
+});
+
+test('row actions are grouped and Delete is set apart', async ({ page }) => {
+  await openTab(page, { registry: [{ id: 'hs', name: 'HS', version: '1.0.0', isDefault: false }] });
+  const row = page.locator('#pkg-panel tr[data-pkg="hs"]');
+  await expect(row.locator('.pkg-act-main button')).toHaveText(['↓ Export', 'Publish', 'Pull from server']);
+  await expect(row.locator('.pkg-act-more button')).toHaveText(['Terrain sprites', 'Skin slots', 'Details']);
+  await expect(row.locator('.pkg-act-danger button')).toHaveText(['Delete']);
+  // the default package has no content tools and no Delete
+  const base = page.locator('#pkg-panel tr[data-pkg="postapoc"]');
+  await expect(base.locator('.pkg-act-more')).toHaveCount(0);
+  await expect(base.locator('.pkg-act-danger')).toHaveCount(0);
 });
