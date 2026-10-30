@@ -531,12 +531,7 @@
       "incomeTransformTo": "Plains_1",
       "incomeCapacity": 3,
       "incomeGetPerTap": [],
-      "incomePerTurn": [
-        {
-          "type": "Gold",
-          "amount": 1
-        }
-      ],
+      "incomePerTurn": [],
       "incomeConstant": [],
       "spendConstant": [],
       "bonusDrop": false,
@@ -624,12 +619,7 @@
       "incomeTransformTo": "Plains_1",
       "incomeCapacity": 3,
       "incomeGetPerTap": [],
-      "incomePerTurn": [
-        {
-          "type": "Gold",
-          "amount": 1
-        }
-      ],
+      "incomePerTurn": [],
       "incomeConstant": [],
       "spendConstant": [],
       "bonusDrop": false,
