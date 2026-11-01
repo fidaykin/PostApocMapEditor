@@ -74,6 +74,19 @@ test.describe('Convert map to package', () => {
     expect(await cell(page, 'bld', 'converted')).toBe('1');
     await expect(page.locator('#convert-map-left')).toContainText('Decameroon_Grain_2');
     await expect(page.locator('#convert-map-packages')).toContainText('hs');
+    // decameroon stays because Decameroon_Grain_2 has no counterpart: the dialog says so
+    await expect(page.locator('#convert-map-stays-decameroon')).toContainText('Decameroon_Grain_2');
+  });
+
+  test('a building painted as a tile is converted, and a package nothing uses any more is not listed', async ({ page }) => {
+    await setup(page);
+    await page.evaluate(() => { mapData.fill('CvBase_Plain_1'); mapData[3] = 'Decameroon_Mill_1'; delete objectsData['5,5']; });
+    await open(page);
+    await page.locator('#convert-map-target').selectOption('hs');
+    expect(await cell(page, 'bld', 'converted')).toBe('1');
+    expect(await cell(page, 'hex', 'unknown')).toBe('0');
+    await expect(page.locator('#convert-map-packages')).toContainText('Packages in the new map: hs, postapoc');
+    await expect(page.locator('[id^="convert-map-stays-"]')).toHaveCount(0);
   });
 
   test('the preview does not change the current map', async ({ page }) => {
