@@ -2861,7 +2861,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.10.30";
-const COMMIT  = "b8b9c14";
+const COMMIT  = "d9a0bee";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -23400,7 +23400,9 @@ const ConvertMap = (() => {
   };
   // Converted copy of a map JSON for the target package, using every loaded tile and building record.
   function preview(json, target) {
-    return MapConvert.convert(json, { target, hex: HexDB.getAll(), bld: BldDB.getAll() });
+    // resolvePackages: the dependencies of the packages the converted map uses, the same rule the editor applies when it saves a map.
+    return MapConvert.convert(json, { target, hex: HexDB.getAll(), bld: BldDB.getAll(),
+      resolvePackages: ids => (Packages.resolveWithDependencies ? Packages.resolveWithDependencies(ids) : ids) });
   }
   function _download(r, target) {
     const blob = new Blob([JSON.stringify(r.json)], { type: 'application/json' });
@@ -23459,6 +23461,13 @@ const ConvertMap = (() => {
       const total = rep.hex.converted + rep.bld.converted;
       kids.push(T('p', total ? `Packages in the new map: ${current.json.packages.join(', ')} (was ${current.packages.before.join(', ') || 'none'}).`
         : 'Nothing to convert: no id of this map has a counterpart in this package.', { id: 'convert-map-packages' }));
+      // A package of the old map that is still listed: say which ids keep it there, so it is clear it is not left by mistake.
+      const stays = (current.packages.before || []).filter(id => id !== target && id !== 'postapoc' && current.json.packages.includes(id) && current.packages.needs[id]);
+      for (const id of stays) {
+        const n = current.packages.needs[id];
+        const ids = Object.entries(n.ids).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k, v]) => `${k} ×${v}`).join(', ');
+        kids.push(T('p', `${id} stays in the package list: ${n.count} cell(s) still use it (${ids}${Object.keys(n.ids).length > 4 ? ', …' : ''}).`, { className: 'pkg-notice warn', id: 'convert-map-stays-' + id }));
+      }
       const rows = [];
       for (const [k, title] of [['hex', 'tile'], ['bld', 'building']])
         for (const [id, e] of Object.entries(rep[k].notConverted)) rows.push({ id, title, ...e });
