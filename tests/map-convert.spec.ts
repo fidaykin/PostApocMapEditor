@@ -171,4 +171,50 @@ test.describe('MapConvert', () => {
   test('summary has one line per kind', () => {
     expect(MapConvert.summary(MapConvert.convert(map(), ctx).report).split('\n')).toHaveLength(2);
   });
+
+  test('a building painted as a tile (in data) is converted with the building rule', () => {
+    const r = MapConvert.convert({ data: [['Decameroon_GemMine_1', 'Decameroon_Plain_1', 'Decameroon_Harbor_1']], packages: ['decameroon', 'postapoc'] }, ctx);
+    expect(r.json.data[0][0]).toBe('Hs_Decameroon_GemMine_1');
+    expect(r.json.data[0][1]).toBe('Hs_Decameroon_Plain_1');
+    expect(r.json.data[0][2]).toBe('Decameroon_Harbor_1');            // the counterpart is ground, the source is water: rejected
+    expect(r.report.bld.mapping.Decameroon_GemMine_1).toBe('Hs_Decameroon_GemMine_1');
+    expect(r.report.bld.typeMismatch).toBe(1);
+    expect(r.report.hex.unknown).toBe(0);                              // not "unknown" any more
+  });
+
+  test('packages follow the final content: a building in data alone keeps or drops a package like a tile does', () => {
+    const m = { data: [['Decameroon_GemMine_1', 'Plain_1']], packages: ['decameroon', 'postapoc'] };
+    const r = MapConvert.convert(m, ctx);
+    expect(r.json.packages).toEqual(['hs', 'postapoc']);
+    const harbor = MapConvert.convert({ data: [['Decameroon_Harbor_1']], packages: ['decameroon', 'postapoc'] }, ctx);
+    expect(harbor.json.packages).toEqual(['decameroon', 'postapoc']);   // nothing converted: the target is not added
+  });
+
+  test('packages: postapoc is always listed, and the list is sorted and has no duplicates', () => {
+    const r = MapConvert.convert({ data: [['Decameroon_Plain_1', 'Decameroon_Lake_1']], packages: ['x', 'decameroon', 'decameroon'] }, ctx);
+    expect(r.json.packages).toEqual(['hs', 'postapoc', 'x']);           // x: unknown to the converter, kept
+  });
+
+  test('packages: dependencies of the used packages are added (ctx.resolvePackages)', () => {
+    const resolvePackages = (ids: string[]) => (ids.includes('hs') ? [...ids, 'texture-pack'] : ids);
+    const r = MapConvert.convert({ data: [['Decameroon_Plain_1']], packages: ['decameroon'] }, { ...ctx, resolvePackages });
+    expect(r.json.packages).toEqual(['hs', 'postapoc', 'texture-pack']);
+  });
+
+  test('a failing dependency resolver does not break the conversion', () => {
+    const r = MapConvert.convert({ data: [['Decameroon_Plain_1']], packages: ['decameroon'] }, { ...ctx, resolvePackages: () => { throw new Error('x'); } });
+    expect(r.json.packages).toEqual(['hs', 'postapoc']);
+  });
+
+  test('packages.needs says which ids keep a source package in the list', () => {
+    const r = MapConvert.convert({ data: [['Decameroon_Grain_2', 'Decameroon_Grain_2', 'Decameroon_Plain_1']], packages: ['decameroon', 'postapoc'] }, ctx);
+    expect(r.json.packages).toEqual(['decameroon', 'hs', 'postapoc']);
+    expect(r.packages.needs.decameroon).toEqual({ count: 2, ids: { Decameroon_Grain_2: 2 } });
+    expect(r.packages.needs.hs.count).toBe(1);
+  });
+
+  test('objects with a building id and a hex id are both resolved by what the id really is', () => {
+    const r = MapConvert.convert({ data: [['Decameroon_Plain_1']], objects: [{ col: 0, row: 0, id: 'Decameroon_GemMine_1' }], packages: ['decameroon'] }, ctx);
+    expect(r.json.objects[0].id).toBe('Hs_Decameroon_GemMine_1');
+  });
 });
