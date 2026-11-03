@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "id": "hs",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-11-03T15:31:19.203Z",
-  "totalBytes": 22956077,
+  "generatedAt": "2026-11-03T18:42:54.325Z",
+  "totalBytes": 22955102,
   "dependencies": [],
   "files": [
     {
@@ -14,8 +14,8 @@
     },
     {
       "path": "hex_database.json",
-      "sha256": "f64db9078fe2c1430fa9b854ca2c7264ae53c4232d3ccd72ec89e69d9ce5cff8",
-      "size": 84503
+      "sha256": "a8aa4fe99d0c04e05a75a0ecdbcd92b9b2da85ce505c0807df5df72e338b106b",
+      "size": 83528
     },
     {
       "path": "sprites/buildings/HS_Abbey_1.png",
