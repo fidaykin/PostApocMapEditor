@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -51,10 +51,15 @@
       "version": "1.0.10",
       "date": "2026-11-03",
       "note": "remove Slot from HS"
+    },
+    {
+      "version": "1.0.11",
+      "date": "2026-11-03",
+      "note": "small fixes Lumber Mill settings"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 22956077,
+  "totalBytes": 22955102,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
