@@ -3089,7 +3089,7 @@
       "baseTerrainId": ""
     },
     {
-      "id": "Hs_Decameroon_Forest_4_copy",
+      "id": "Hs_Decameroon_Forest_4",
       "textId": "",
       "type": "Forests",
       "biome": "HS",
@@ -3167,7 +3167,7 @@
       "baseTerrainId": ""
     },
     {
-      "id": "Hs_Decameroon_2_copy",
+      "id": "Hs_Decameroon_Grain_2",
       "textId": "",
       "type": "Resources",
       "biome": "HS",
