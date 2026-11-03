@@ -49,8 +49,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Barren_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_BrokenShip_1",
@@ -108,8 +107,7 @@
       "package": "hs",
       "edgeFaces": [],
       "isLayered": true,
-      "baseTerrainId": "",
-      "skinSlot": "Water_BrokenBoat_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Desert_1",
@@ -158,8 +156,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Desert_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_DestroyedBuilding_1",
@@ -270,8 +267,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Water_Dirty_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Fish_1",
@@ -321,8 +317,7 @@
       "package": "hs",
       "edgeFaces": [],
       "isLayered": true,
-      "baseTerrainId": "",
-      "skinSlot": "Fish_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Forest_1",
@@ -386,8 +381,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Forest_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Forest_2",
@@ -451,8 +445,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Forest_2"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Forest_3",
@@ -516,8 +509,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Forest_3"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_GemField_1",
@@ -566,8 +558,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "GemField_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_GoldVein_1",
@@ -616,8 +607,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "GoldVein_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Grain_1",
@@ -764,8 +754,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Hills_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Lake_1",
@@ -816,8 +805,7 @@
       "edgeFaces": [
         "SW"
       ],
-      "baseTerrainId": "",
-      "skinSlot": "Lake_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Lake_2",
@@ -868,8 +856,7 @@
       "edgeFaces": [
         "NW"
       ],
-      "baseTerrainId": "",
-      "skinSlot": "Lake_2"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Lake_3",
@@ -920,8 +907,7 @@
       "edgeFaces": [
         "N"
       ],
-      "baseTerrainId": "",
-      "skinSlot": "Lake_3"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Lake_4",
@@ -972,8 +958,7 @@
       "edgeFaces": [
         "NE"
       ],
-      "baseTerrainId": "",
-      "skinSlot": "Lake_4"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Lake_5",
@@ -1024,8 +1009,7 @@
       "edgeFaces": [
         "SE"
       ],
-      "baseTerrainId": "",
-      "skinSlot": "Lake_5"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Lake_6",
@@ -1076,8 +1060,7 @@
       "edgeFaces": [
         "S"
       ],
-      "baseTerrainId": "",
-      "skinSlot": "Lake_6"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Lake_7",
@@ -1126,8 +1109,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Lake_7"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Lava_Plain_1",
@@ -1171,8 +1153,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Lava_Plain_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Lava_Rift_1",
@@ -1216,8 +1197,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Lava_Rift_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Mountain_1",
@@ -1271,8 +1251,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Mountain_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Mountain_2",
@@ -1326,8 +1305,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Mountain_2"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Plain_1",
@@ -1376,8 +1354,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Plain_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Plain_2",
@@ -1426,8 +1403,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Plain_2"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Rift_1",
@@ -1481,8 +1457,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Rift_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_River_D_2",
@@ -2676,8 +2651,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "RockySwamp_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Rubble_1",
@@ -2721,8 +2695,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Rubble_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Rubble_2",
@@ -2766,8 +2739,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Rubble_2"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Rubble_3",
@@ -2811,8 +2783,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Rubble_3"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_SettementsBig_1",
@@ -3011,8 +2982,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Swamp_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Water_1",
@@ -3061,8 +3031,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": "",
-      "skinSlot": "Water_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_WaterStones_1",
@@ -3112,8 +3081,7 @@
       "package": "hs",
       "edgeFaces": [],
       "isLayered": true,
-      "baseTerrainId": "",
-      "skinSlot": "Water_Rock_1"
+      "baseTerrainId": ""
     },
     {
       "id": "Hs_Decameroon_Forest_4",
