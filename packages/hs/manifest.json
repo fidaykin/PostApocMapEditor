@@ -1,16 +1,16 @@
 {
   "schemaVersion": 1,
   "id": "hs",
-  "version": "1.0.10",
+  "version": "1.0.11",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-11-03T18:42:54.325Z",
-  "totalBytes": 22955102,
+  "generatedAt": "2026-11-03T20:12:30.417Z",
+  "totalBytes": 22955066,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "cd71a9c64563ab863f488ad1f43192f599e55adddd1979bc3ae7db31a3f62f62",
-      "size": 53867
+      "sha256": "a3250a17cc7cc2a6297cbdf2823579848226d07f8e33b5fdbb386cb09730462e",
+      "size": 53831
     },
     {
       "path": "hex_database.json",
