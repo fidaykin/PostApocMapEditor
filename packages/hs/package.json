@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.9",
+  "version": "1.0.10",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -46,10 +46,15 @@
       "version": "1.0.9",
       "date": "2026-11-03",
       "note": "add Skin slots for Hex HS Reconvert map"
+    },
+    {
+      "version": "1.0.10",
+      "date": "2026-11-03",
+      "note": "remove Slot from HS"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 22955250,
+  "totalBytes": 22956077,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
