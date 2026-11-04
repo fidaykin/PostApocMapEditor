@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.14",
+  "version": "1.0.15",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -71,10 +71,15 @@
       "version": "1.0.14",
       "date": "2026-11-04",
       "note": "add TESTMILL"
+    },
+    {
+      "version": "1.0.15",
+      "date": "2026-11-04",
+      "note": "test settings for Additional conditions"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 22957496,
+  "totalBytes": 22957360,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
