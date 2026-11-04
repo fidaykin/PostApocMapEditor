@@ -2097,7 +2097,7 @@
       "destroyCost": []
     },
     {
-      "id": "Hs_Decameroon_LumberMill_2",
+      "id": "Hs_Decameroon_TESTMILL_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2105,7 +2105,7 @@
       "buildingCategory": "Standard",
       "biome": "HS",
       "filter": "FilterBuilding",
-      "spriteName": "HS_LumberMill_1",
+      "spriteName": "HS_Farm_1",
       "baseCostTaps": 1,
       "canDestroy": true,
       "destroyTransformToMode": "Parents",
@@ -2124,7 +2124,7 @@
       "price": [
         {
           "type": "Gold",
-          "amount": 1000
+          "amount": 3000
         }
       ],
       "premiumPrice": 10,
@@ -2141,42 +2141,39 @@
       "incomePerTurn": [
         {
           "type": "Lumber",
-          "amount": 50
+          "amount": 15
         }
       ],
       "incomeConstant": [],
       "spendConstant": [],
-      "buildingRadius": 0,
+      "buildingRadius": 2,
       "canProduceEnabled": true,
       "canProduce": [
-        "Hs_Decameroon_Forest_1",
-        "Hs_Decameroon_Forest_2",
-        "Hs_Decameroon_Forest_3"
+        "Hs_Decameroon_Forest_1"
       ],
       "availableTilesForProduce": [
         "Hs_Decameroon_Plain_1",
-        "Hs_Decameroon_Plain_2",
-        "Hs_Decameroon_Rubble_1",
-        "Hs_Decameroon_Rubble_2",
-        "Hs_Decameroon_Rubble_3"
+        "Hs_Decameroon_Plain_2"
       ],
-      "canProductionFacilities": false,
+      "canProductionFacilities": true,
       "facilityBonusType": "Get",
       "facilityBonusSize": 50,
       "facilityBonusTarget": "Income Per Turn",
       "facilityBonusResources": [
         {
-          "type": "Food",
+          "type": "Lumber",
           "amount": 50
         }
       ],
       "facilityBonusInfluenceType": "Add",
-      "productionFacilities": [],
+      "productionFacilities": [
+        "Hs_Decameroon_Forest_1"
+      ],
       "canStore": true,
       "stores": [
         {
           "type": "Lumber",
-          "amount": 500
+          "amount": 1000
         }
       ],
       "storageCapacity": [],
