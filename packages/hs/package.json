@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -66,10 +66,15 @@
       "version": "1.0.13",
       "date": "2026-11-04",
       "note": "HS SkinSlots reSubmit Add test buildings Lumber Mill"
+    },
+    {
+      "version": "1.0.14",
+      "date": "2026-11-04",
+      "note": "add TESTMILL"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 22955066,
+  "totalBytes": 22957496,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
