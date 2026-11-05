@@ -1460,6 +1460,7 @@ body.mode-common #map-io    { display: none; }
 <script src="gen-utils.js?v=5"></script>
 <script src="map-format.js?v=2"></script>
 <script src="map-convert.js?v=1"></script>
+<script src="loc-records.js?v=1"></script>
 <script src="brush.js?v=1"></script>
 <script src="zone-painter.js?v=22"></script>
 <script src="map-jobs.js?v=6"></script>
@@ -17443,6 +17444,10 @@ const LocalizationKeys = (() => {
   let _groups = ['Tiles', 'Buildings', 'Settlements', 'Upgrades', 'Universal Keys'];
   let _collapseState = {};
   let _addGroup = 'Universal Keys';
+  let _links = [];            // LocRecords.plan(): the key that stands for every hex / building record of every loaded package
+  let _byKey = {};            // key -> { package: [link, ...] }
+  let _fltPkg = '';           // '' = all packages
+  let _fltStatus = '';        // '' | 'nouk' | 'unlinked' | 'norecords'
 
   function _migrateEntries(entries) {
     for (const e of entries) {
@@ -17563,7 +17568,8 @@ const LocalizationKeys = (() => {
   }
 
   function remove(key) {
-    if (!confirm(`Delete key "${key}"?`)) return;
+    const used = Object.values(_byKey[key] || {}).reduce((n, a) => n + a.filter(l => l.linked).length, 0);
+    if (!confirm(`Delete key "${key}"?` + (used ? `\n\n${used} record(s) use it as textId and would show their id instead of a name.` : ''))) return;
     _entries = _entries.filter(e => e.key !== key);
     _save();
     _populateDatalist();
@@ -17751,6 +17757,108 @@ const LocalizationKeys = (() => {
     }
   }
 
+  // ── Records of the packages (loc-records.js) ───────────────
+  // Every tile and building of every loaded package has a row here by default; only UI and custom keys are typed by hand.
+  function _pkgIds() {
+    const ids = (Packages.getAll() || []).map(p => p.id);
+    for (const l of _links) if (!ids.includes(l.package)) ids.push(l.package);
+    return ids;
+  }
+
+  function _recomputeLinks() {
+    const r = LocRecords.plan({ hex: HexDB.getAll(), bld: BldDB.getAll(), entries: _entries,
+      packageIds: (Packages.getAll() || []).map(p => p.id) });
+    _links = r.links;
+    _byKey = LocRecords.byKey(_links);
+    return r;
+  }
+
+  // Adds the missing rows. Returns how many were added. Never touches an existing row.
+  function syncFromRecords() {
+    let added = 0;
+    try {
+      const r = _recomputeLinks();
+      for (const e of r.seeds) { if (!_entries.some(x => x.key === e.key)) { _entries.push(e); added++; } }
+      if (added) { _save(); _populateDatalist(); }
+    } catch (err) {
+      console.warn('[LocalizationKeys] sync from records skipped:', err.message);
+    }
+    return added;
+  }
+
+  function _unlinked() { return _links.filter(l => !l.linked); }
+
+  // Writes the key into every record whose textId is empty (the key is the one shown in the table: own, legacy, inherited or generated).
+  function fillEmptyTextIds() {
+    syncFromRecords();
+    const todo = _unlinked();
+    if (!todo.length) { UI.toast('Every record already has a textId'); return; }
+    const per = {};
+    for (const l of todo) per[l.package] = (per[l.package] || 0) + 1;
+    const lines = Object.entries(per).map(([p, n]) => '  ' + p + ': ' + n).join('\n');
+    if (!confirm('Write the key into the empty textId of ' + todo.length + ' record(s)?\n' + lines +
+      '\n\nA package record that repaints a base record gets the base key. Changes stay in this browser until you Publish the package.')) return;
+    let n = 0;
+    for (const l of todo) if ((l.kind === 'hex' ? HexDB : BldDB).setTextId(l.id, l.package, l.key)) n++;
+    syncFromRecords();
+    _renderHead(); _renderList();
+    UI.toast('✅ textId filled in ' + n + ' record(s)', { detail: 'Publish the packages to send it to the server.', ms: 5000 });
+  }
+
+  function resync() {
+    const added = syncFromRecords();
+    _renderHead(); _renderList();
+    UI.toast(added ? 'Added ' + added + ' key row(s)' : 'Nothing to add: every record has a row');
+  }
+
+  function setFilter(kind, val) {
+    if (kind === 'pkg') _fltPkg = val; else _fltStatus = val;
+    _renderList();
+  }
+
+  function _cols() { return 'minmax(130px,1.3fr) 1fr 1fr 110px ' + _pkgIds().map(() => '64px').join(' ') + ' 24px'; }
+
+  function _renderHead() {
+    try { _recomputeLinks(); } catch (e) { /* DB not ready: package columns stay empty */ }
+    const head = document.getElementById('loc-keys-head');
+    if (head) {
+      head.style.gridTemplateColumns = _cols();
+      head.innerHTML = ['Key', 'EN', 'UK', 'Group'].map(t => '<span style="color:#888;font-size:11px;text-transform:uppercase">' + t + '</span>').join('') +
+        _pkgIds().map(id => '<span title="Records of package ' + _ea(id) + ' that use this key" style="color:#888;font-size:11px;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis">' + _ex(id) + '</span>').join('') + '<span></span>';
+    }
+    const sel = document.getElementById('loc-flt-pkg');
+    if (sel) sel.innerHTML = '<option value="">All packages</option>' + _pkgIds().map(id => '<option value="' + _ea(id) + '"' + (id === _fltPkg ? ' selected' : '') + '>' + _ex(id) + '</option>').join('');
+    const cnt = document.getElementById('loc-fill-count');
+    if (cnt) { const n = _unlinked().length; cnt.textContent = n ? '(' + n + ')' : ''; }
+  }
+
+  // One cell per package: how many records use the key; orange when some of them still have an empty textId.
+  function _pkgCell(key, pkg) {
+    const ls = (_byKey[key] || {})[pkg] || [];
+    if (!ls.length) return '<span style="color:#555;text-align:center">–</span>';
+    const open = ls.filter(l => !l.linked).length;
+    const tip = ls.map(l => l.id + (l.linked ? '' : ' (textId empty)') + (l.how === 'skinSlot' || l.how === 'stripped' ? ' ← ' + l.base : '')).join('\n');
+    return '<span title="' + _ea(tip) + '" style="text-align:center;font-size:12px;color:' + (open ? '#f90' : '#4caf50') + '">' + ls.length + (open ? '⚠' : '') + '</span>';
+  }
+
+  function _status(e) {
+    const refs = _byKey[e.key] || {};
+    const any = Object.values(refs).some(a => a.length);
+    return {
+      nouk: !(e.uk || '').trim(),
+      unlinked: Object.values(refs).some(a => a.some(l => !l.linked)),
+      norecords: !any && (e.group === 'Tiles' || e.group === 'Buildings'),
+      inPkg: pkg => !!(refs[pkg] && refs[pkg].length),
+    };
+  }
+
+  function _passes(e) {
+    if (!_fltPkg && !_fltStatus) return true;
+    const st = _status(e);
+    if (_fltPkg && !st.inPkg(_fltPkg)) return false;
+    return !_fltStatus || st[_fltStatus];
+  }
+
   function openManager() {
     const modal = document.getElementById('loc-keys-modal');
     if (!modal) return;
@@ -17764,6 +17872,9 @@ const LocalizationKeys = (() => {
       if (raw) _collapseState = JSON.parse(raw);
     } catch(e) { _collapseState = {}; }
     modal.style.display = 'flex';
+    const added = syncFromRecords();
+    if (added) UI.toast('Added ' + added + ' key row(s) for tiles and buildings of the packages', { detail: 'Fill EN/UK; "Fill empty textId" links the records.', ms: 5000 });
+    _renderHead();
     _renderAddForm();
     _renderList();
   }
@@ -17779,7 +17890,7 @@ const LocalizationKeys = (() => {
   }
 
   function _renderRow(e) {
-    return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;align-items:center;padding:3px 0 3px 5px;border-bottom:1px solid #333${_serverKeysSet ? ';border-left:3px solid #ef5350' : ''}">
+    return `<div style="display:grid;grid-template-columns:${_cols()};gap:4px;align-items:center;padding:3px 0 3px 5px;border-bottom:1px solid #333${_serverKeysSet ? ';border-left:3px solid #ef5350' : ''}">
     <input type="text" value="${_ea(e.key)}" data-orig="${_ea(e.key)}"
       style="background:#2a2a2a;border:1px solid #555;color:#aaa;padding:3px 6px;border-radius:3px;font-size:11px;width:100%;box-sizing:border-box"
       onblur="LocalizationKeys.renameKey(this.dataset.orig,this.value,this)"
@@ -17794,6 +17905,7 @@ const LocalizationKeys = (() => {
       style="background:#2a2a2a;border:1px solid #555;color:#aaa;padding:3px 2px;border-radius:3px;font-size:11px;width:100%">
       ${_groups.map(g => `<option value="${_ea(g)}"${g === e.group ? ' selected' : ''}>${_ex(g)}</option>`).join('')}
     </select>
+    ${_pkgIds().map(id => _pkgCell(e.key, id)).join('')}
     <button onclick="LocalizationKeys.remove('${_ej(e.key)}')"
       style="background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;padding:0 4px;line-height:1">✕</button>
   </div>`;
@@ -17802,13 +17914,15 @@ const LocalizationKeys = (() => {
   function _renderList() {
     const container = document.getElementById('loc-keys-list');
     if (!container) return;
+    try { _recomputeLinks(); } catch (e) { /* DB not ready */ }
 
-    const isFlat = !!(_filterText || _serverKeysSet);
+    const isFlat = !!(_filterText || _serverKeysSet || _fltPkg || _fltStatus);
 
     if (isFlat) {
       let visible = _filterText
         ? _entries.filter(e => e.key.toLowerCase().includes(_filterText) || (e.en||'').toLowerCase().includes(_filterText))
         : _entries;
+      visible = visible.filter(_passes);
       if (_serverKeysSet) visible = visible.filter(e => !_serverKeysSet.has(e.key));
       container.innerHTML = visible.map(_renderRow).join('');
       return;
@@ -17913,7 +18027,8 @@ const LocalizationKeys = (() => {
   return { load, getKeys, getEntries, getExportData, add, remove, downloadJson, importJson,
            compareWithServer, pushToServer, pullFromServer, clearCache, openManager, closeManager,
            filterList, _updateField, renameKey, _renderList, _ex, _ea,
-           addGroup, removeGroup, setEntryGroup, toggleGroup, toggleGroupsPanel, addKeyToGroup };
+           addGroup, removeGroup, setEntryGroup, toggleGroup, toggleGroupsPanel, addKeyToGroup,
+           syncFromRecords, resync, fillEmptyTextIds, setFilter, getLinks: () => _links };
 })();
 
 window.LocalizationKeys = LocalizationKeys;
@@ -19717,6 +19832,14 @@ const HexDB = (() => {
 
   // ── Read inputs → data ────────────────────────────────────
   // Sets (or clears, slot '') the skinSlot of the record id in package pkg. Used by the Skin slots table.
+  // Sets the localization key (textId) of the record id in package pkg, only while it is empty. Used by Localization Keys > Fill empty textId.
+  function setTextId(id, pkg, key) {
+    const rec = _data.hexes.find(h => h.id === id && (h.package || 'postapoc') === pkg);
+    if (!rec || String(rec.textId || '').trim()) return false;
+    rec.textId = key;
+    _autoSave();
+    return true;
+  }
   function setSkinSlot(id, pkg, slot) {
     const rec = _data.hexes.find(h => h.id === id && (h.package || 'postapoc') === pkg);
     if (!rec) return false;
@@ -20735,7 +20858,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, migrateToBuilding, load, loadFromObject, mergeFromServer, serverChangesSince, rebaseTo, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, setTextId, migrateToBuilding, load, loadFromObject, mergeFromServer, serverChangesSince, rebaseTo, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
 })();
 
 window.HexDB = HexDB;
@@ -21797,6 +21920,14 @@ const BldDB = (() => {
   }
 
   // Sets (or clears, slot '') the skinSlot of the building id in package pkg. Used by the Skin slots table.
+  // Sets the localization key (textId) of the record id in package pkg, only while it is empty. Used by Localization Keys > Fill empty textId.
+  function setTextId(id, pkg, key) {
+    const rec = _data.buildings.find(b => b.id === id && (b.package || 'postapoc') === pkg);
+    if (!rec || String(rec.textId || '').trim()) return false;
+    rec.textId = key;
+    _autoSave();
+    return true;
+  }
   function setSkinSlot(id, pkg, slot) {
     const rec = _data.buildings.find(b => b.id === id && (b.package || 'postapoc') === pkg);
     if (!rec) return false;
@@ -22370,7 +22501,7 @@ const BldDB = (() => {
 
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
            mergeFromServer, serverChangesSince, rebaseTo, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage,
-           pushRecord, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
+           pushRecord, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, setTextId, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
 window.BldDB = BldDB;
@@ -24565,7 +24696,7 @@ window.addEventListener('load', async () => {
 
 <!-- Localization Keys Manager Modal -->
 <div id="loc-keys-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:#252525;border:1px solid #555;border-radius:8px;padding:20px;width:min(820px,95vw);max-height:85vh;display:flex;flex-direction:column;gap:10px">
+  <div style="background:#252525;border:1px solid #555;border-radius:8px;padding:20px;width:min(1100px,96vw);max-height:85vh;display:flex;flex-direction:column;gap:10px">
     <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between">
       <strong style="color:#fff;font-size:15px">Localization Keys</strong>
@@ -24592,20 +24723,29 @@ window.addEventListener('load', async () => {
     <input id="loc-keys-search" type="text" placeholder="🔍 Filter by key or EN text…"
       oninput="LocalizationKeys.filterList(this.value)"
       style="background:#333;border:1px solid #555;color:#eee;padding:5px 10px;border-radius:4px;font-size:13px;width:100%;box-sizing:border-box">
+    <!-- Filters: package, status; "Fill empty textId" links the records that have no key yet -->
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="loc-flt-pkg" onchange="LocalizationKeys.setFilter('pkg',this.value)"
+        style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:4px;font-size:12px"></select>
+      <select id="loc-flt-status" onchange="LocalizationKeys.setFilter('status',this.value)"
+        style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:4px;font-size:12px">
+        <option value="">All keys</option><option value="nouk">No UK text</option>
+        <option value="unlinked">Records with empty textId</option><option value="norecords">Tile/building keys without records</option>
+      </select>
+      <button onclick="LocalizationKeys.resync()" class="hexdb-tool-btn"
+        title="Add a row for every tile and building of the loaded packages that has none">↻ Sync records</button>
+      <button onclick="LocalizationKeys.fillEmptyTextIds()" class="hexdb-tool-btn"
+        title="Write the key shown in the table into every record whose textId is empty">⛓ Fill empty textId <span id="loc-fill-count"></span></button>
+      <span style="color:#777;font-size:11px">Package columns: records using the key (<span style="color:#4caf50">green</span> linked, <span style="color:#f90">⚠</span> textId empty)</span>
+    </div>
     <!-- Groups panel (hidden by default) -->
     <div id="loc-groups-panel" style="display:none;background:#1e1e1e;border:1px solid #444;border-radius:4px;padding:10px"></div>
     <!-- Column headers -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;padding:2px 0;border-bottom:1px solid #555">
-      <span style="color:#888;font-size:11px;text-transform:uppercase">Key</span>
-      <span style="color:#888;font-size:11px;text-transform:uppercase">EN</span>
-      <span style="color:#888;font-size:11px;text-transform:uppercase">UK</span>
-      <span style="color:#888;font-size:11px;text-transform:uppercase">Group</span>
-      <span></span>
-    </div>
+    <div id="loc-keys-head" style="display:grid;gap:4px;padding:2px 0 2px 5px;border-bottom:1px solid #555"></div>
     <!-- Rows -->
     <div id="loc-keys-list" style="overflow-y:auto;flex:1;min-height:0;max-height:55vh"></div>
     <!-- Add new key -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;align-items:center;border-top:1px solid #444;padding-top:10px">
+    <div id="loc-add-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;align-items:center;border-top:1px solid #444;padding-top:10px">
       <input id="loc-new-key" type="text" placeholder="new_key"
         style="background:#333;border:1px solid #555;color:#eee;padding:4px 8px;border-radius:4px;font-size:12px"
         onkeydown="if(event.key==='Enter')document.getElementById('loc-add-btn').click()">
