@@ -45,6 +45,8 @@ test('a server entry without an id is listed as removed', async ({ page }) => {
   gh.setJson('packages/difpkg/hex_database.json', { version: 1, package: 'difpkg',
     hexes: [hex('Difpkg_Same'), hex('Difpkg_A'), { package: 'difpkg', spriteName: 'orphan', type: 'Plains' }] });
   await page.evaluate(() => { Packages.openPublishConfirm('difpkg'); });
+  // The server file changed after this browser's sync (Difpkg_Gone left it): the newer-changes warning comes first (869fnyg6y).
+  await page.getByRole('button', { name: 'Publish anyway' }).click();
   await expect(page.locator('#dialog-details')).toContainText('- unkeyed hex');
   await expect(page.locator('#dialog-details')).toContainText('orphan');
 });
