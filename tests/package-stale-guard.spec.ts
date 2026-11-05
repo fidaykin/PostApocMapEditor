@@ -93,3 +93,38 @@ test('the Skin slots dialog has no warning when nothing changed on the server', 
   await page.waitForTimeout(500);
   await expect(page.locator('#skin-stale')).toHaveCount(0);
 });
+
+// The base package has its own publish path (packages/postapoc plus the root copies old game builds read): same guard.
+async function changeBaseOnServer(gh: FakeGitHub): Promise<string> {
+  const data = JSON.parse(gh.read('packages/postapoc/hex_database.json')!.toString());
+  const h = data.hexes.find((x: any) => (x.package || 'postapoc') === 'postapoc' && x.id);
+  h.effects = 'edited on another laptop';
+  gh.setJson('packages/postapoc/hex_database.json', data);
+  return h.id as string;
+}
+
+test('the base package publish warns when the server has newer changes', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await openEditor(page, { gh, pat: true });
+  await page.evaluate(() => (window as any).__startupSyncDone);
+  const id = await changeBaseOnServer(gh);
+  await page.evaluate(() => { void Packages.openPublishConfirm('postapoc'); });
+  await expect(page.locator('#dialog-title')).toHaveText('The server has newer changes');
+  await expect(page.locator('#dialog-details')).toContainText(`hex ${id}`);
+  await page.getByRole('button', { name: 'Cancel' }).click();
+  await quiesceAfterDialog(page);
+  expect(gh.putPaths()).toEqual([]);
+});
+
+test('the base package: Publish anyway reaches the base confirm, and the next check starts from what was written', async ({ page }) => {
+  const gh = new FakeGitHub();
+  await openEditor(page, { gh, pat: true });
+  await page.evaluate(() => (window as any).__startupSyncDone);
+  await changeBaseOnServer(gh);
+  await page.evaluate(() => { void Packages.openPublishConfirm('postapoc'); });
+  await page.getByRole('button', { name: 'Publish anyway' }).click();
+  await expect(page.locator('#dialog-title')).toHaveText('Publish base package');
+  await page.getByRole('button', { name: 'Publish base package' }).click();
+  await expect.poll(() => gh.putPaths()).toContain('packages/postapoc/manifest.json');
+  expect(await page.evaluate(() => Packages.serverNewer('postapoc'))).toMatchObject({ known: true, hex: [], bld: [] });
+});
