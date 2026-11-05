@@ -2860,7 +2860,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.05";
-const COMMIT  = "2dc4777";
+const COMMIT  = "3262d19";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9878,6 +9878,8 @@ const GitHubSync = (() => {
       const pkgJson = JSON.stringify(pkgData, null, 2);
       UI.progress(30, 'Writing packages/postapoc/hex_database.json…');
       await _putText('packages/postapoc/hex_database.json', pkgJson, 'publish: hex_database.json');
+      try { HexDB.rebaseTo('postapoc', JSON.parse(pkgJson)); }   // the next "server has newer changes" check starts from what was written
+      catch (e) { console.warn('[GitHubSync] could not store the sync base after the base hex publish:', e && e.message); }
       UI.progress(70, 'Writing root hex_database.json (compat)…');
       await _putText('hex_database.json', json, 'publish: hex_database.json');
       if (!(opts && opts.skipManifest === true)) await refreshBaseManifestSafely();
@@ -9951,6 +9953,8 @@ const GitHubSync = (() => {
         ...Object.fromEntries(Object.entries(rawData).filter(([k]) => !['version','package'].includes(k))) };
       UI.progress(30, 'Writing packages/postapoc/building_database.json…');
       await _putText('packages/postapoc/building_database.json', JSON.stringify(pkgData, null, 2), 'publish: building_database.json');
+      try { BldDB.rebaseTo('postapoc', pkgData); }
+      catch (e) { console.warn('[GitHubSync] could not store the sync base after the base buildings publish:', e && e.message); }
       UI.progress(70, 'Writing root building_database.json (compat)…');
       await _putText('building_database.json', JSON.stringify(rawData, null, 2), 'publish: building_database.json');
       if (!(opts && opts.skipManifest === true)) await refreshBaseManifestSafely();
@@ -15423,12 +15427,25 @@ const Packages = (() => {
     UI.toast(`✅ "${name}" now matches the server (${touched} local change(s) replaced)`);
   }
 
+  // "The server has newer changes": true to go on (nothing newer, or the user chose Publish anyway), false to stop.
+  async function _confirmOverServerChanges(id, name) {
+    let newer = null;
+    try { newer = await serverNewer(id); } catch (e) { console.warn('[Packages] server-change check failed:', e && e.message); }
+    if (!newer || !(newer.hex.length || newer.bld.length)) return { go: true, newer };
+    const all = [...newer.hex.map(i => `hex ${i}`), ...newer.bld.map(i => `bld ${i}`)];
+    const go = await UI.confirm('The server has newer changes',
+      `The published "${name}"${newer.version ? ` (version ${newer.version})` : ''} changed since this browser last synced it: ${all.length} record(s) were edited elsewhere. Publishing now overwrites those changes with the ones in this browser. Cancel and use Pull from server to take the server version first, or publish anyway to overwrite it.`,
+      all.slice(0, 60).join('\n') + (all.length > 60 ? '\n…' : ''), 'Publish anyway');
+    return { go, newer };
+  }
+
   async function openPublishConfirm(id) {
     if (isDefault(id)) {
       // postapoc: the existing base publish functions (they also write the root copies old game builds read)
       let d;
       try { d = await diffAgainstServer(id); }
       catch(e) { return UI.toast('⚠ Could not compare the base package with the server', { detail: e.message, ms: 6000 }); }
+      if (!(await _confirmOverServerChanges(id, 'postapoc')).go) return;
       const ok = await UI.confirm('Publish base package',
         'This is the base package: every player and old game build reads it. Publish hex_database.json, building_database.json and the changed sprites?',
         _formatDiff(d) + _roadWarningsText(id), 'Publish base package');
@@ -15453,15 +15470,9 @@ const Packages = (() => {
       && !d.sprites.added.length && !d.sprites.changed.length;
     const head = d.firstPublish ? 'First publish of this package.' : `Server version: ${d.version}.`;
     // Records another editor changed on the server since this browser last synced: Publish would overwrite them.
-    let newer = null;
-    try { newer = d.firstPublish ? null : await serverNewer(id); } catch (e) { console.warn('[Packages] server-change check failed:', e && e.message); }
-    if (newer && (newer.hex.length || newer.bld.length)) {
-      const all = [...newer.hex.map(i => `hex ${i}`), ...newer.bld.map(i => `bld ${i}`)];
-      const go = await UI.confirm('The server has newer changes',
-        `The published "${name}" (version ${newer.version}) changed since this browser last synced it: ${all.length} record(s) were edited elsewhere. Publishing now overwrites those changes with the ones in this browser. Cancel and use Pull from server to take the server version first, or publish anyway to overwrite it.`,
-        all.slice(0, 60).join('\n') + (all.length > 60 ? '\n…' : ''), 'Publish anyway');
-      if (!go) return;
-    }
+    const guard = d.firstPublish ? { go: true, newer: null } : await _confirmOverServerChanges(id, name);
+    if (!guard.go) return;
+    const newer = guard.newer;
     const ok = await UI.confirm('Publish Package',
       `Publish "${name}"? ${head}${nothing ? ' No entry differs from the server; unchanged sprites are skipped and the version number is still updated.' : ''}${newer && !newer.known && !nothing ? ' This browser has no record of its last sync with the server, so changes made elsewhere cannot be told apart from yours: check the list below.' : ''}`,
       _formatDiff(d) + _roadWarningsText(id), 'Publish');
