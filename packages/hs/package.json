@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.16",
+  "version": "1.0.17",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -81,10 +81,15 @@
       "version": "1.0.16",
       "date": "2026-11-06",
       "note": "update all HEx art (HS)"
+    },
+    {
+      "version": "1.0.17",
+      "date": "2026-11-06",
+      "note": "new Buildings art and types"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 22959670,
+  "totalBytes": 22934218,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
