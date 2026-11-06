@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.17",
+  "version": "1.0.18",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -86,10 +86,15 @@
       "version": "1.0.17",
       "date": "2026-11-06",
       "note": "new Buildings art and types"
+    },
+    {
+      "version": "1.0.18",
+      "date": "2026-11-06",
+      "note": "re Load art"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 22934218,
+  "totalBytes": 25127258,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
