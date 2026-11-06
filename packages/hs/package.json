@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.15",
+  "version": "1.0.16",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -76,10 +76,15 @@
       "version": "1.0.15",
       "date": "2026-11-04",
       "note": "test settings for Additional conditions"
+    },
+    {
+      "version": "1.0.16",
+      "date": "2026-11-06",
+      "note": "update all HEx art (HS)"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 22957360,
+  "totalBytes": 22959670,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
