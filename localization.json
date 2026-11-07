@@ -604,6 +604,12 @@
       "group": "Tiles_Error"
     },
     {
+      "key": "error_build_condition",
+      "en": "{0} needs {1} within {2} tiles.",
+      "uk": "{0} потребує {1} у радіусі {2} тайлів.",
+      "group": "Tiles_Error"
+    },
+    {
       "key": "lake_desc",
       "en": "Lake",
       "uk": "Озеро",
