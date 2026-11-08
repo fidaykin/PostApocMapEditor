@@ -361,6 +361,16 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
   background: var(--canvas-bg); cursor: crosshair;
 }
 #map-canvas { display: block; }
+/* Quick bar (overlay at the top of the canvas, so the canvas size is unchanged): tool, brush size and style preset. */
+#quickbar { position: absolute; top: 6px; left: 50%; transform: translateX(-50%); z-index: 5; display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  max-width: calc(100% - 16px); flex-wrap: wrap; justify-content: center; background: var(--panel); border: 1px solid var(--border); border-radius: 6px; font-size: 11px; color: var(--muted); cursor: default; }
+body:not(.mode-map) #quickbar { display: none; }
+#quickbar .qb-btn { min-width: 26px; height: 24px; padding: 0 6px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: inherit; cursor: pointer; font-size: 13px; }
+#quickbar .qb-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+#quickbar .qb-size { min-width: 18px; text-align: center; font-weight: bold; color: var(--text, #ddd); }
+#quickbar .qb-sep { width: 1px; height: 18px; background: var(--border); }
+#quickbar select, #quickbar input[type=text] { height: 24px; background: #111; border: 1px solid #444; color: #4fc3f7; font-size: 11px; border-radius: 3px; }
+#quickbar input[type=text] { width: 110px; padding: 0 4px; }
 
 /* ── Right panel ──────────────────────────────────────────── */
 #right-panel {
@@ -1935,6 +1945,21 @@ body.mode-common #map-io    { display: none; }
     <!-- Canvas -->
     <div id="canvas-container">
       <canvas id="map-canvas"></canvas>
+      <div id="quickbar" role="toolbar" aria-label="Quick tool bar">
+        <button type="button" class="qb-btn" data-qtool="paint" onclick="QuickBar.setTool('paint')" title="Paint (P)" aria-label="Quick paint">✏️</button>
+        <button type="button" class="qb-btn" data-qtool="eraser" onclick="QuickBar.setTool('eraser')" title="Eraser (X)" aria-label="Quick eraser">⌫</button>
+        <button type="button" class="qb-btn" data-qtool="marquee" onclick="QuickBar.setTool('marquee')" title="Select Region (M)" aria-label="Quick select region">⛶</button>
+        <button type="button" class="qb-btn" data-qtool="scatter" onclick="QuickBar.setTool('scatter')" title="Scatter (A)" aria-label="Quick scatter">⁘</button>
+        <span class="qb-sep"></span>
+        <button type="button" class="qb-btn" id="qb-smaller" onclick="QuickBar.step(-1)" title="Smaller brush ([ or Alt + wheel down)" aria-label="Smaller brush">−</button>
+        <span class="qb-size" id="qb-size" title="Brush radius">0</span>
+        <button type="button" class="qb-btn" id="qb-larger" onclick="QuickBar.step(1)" title="Larger brush (] or Alt + wheel up)" aria-label="Larger brush">+</button>
+        <span class="qb-sep"></span>
+        <select id="qb-preset" aria-label="Brush preset" title="Brush preset: tool, size, symmetry and scatter density" onchange="QuickBar.applyPreset(this.value); this.blur()"></select>
+        <button type="button" class="qb-btn" id="qb-save" onclick="QuickBar.beginSave()" title="Save the current tool, size, symmetry and density as a preset" aria-label="Save preset">＋</button>
+        <input type="text" id="qb-name" maxlength="24" placeholder="Preset name" aria-label="Preset name" style="display:none" onkeydown="if(event.key==='Enter')QuickBar.commitSave(); else if(event.key==='Escape')QuickBar.cancelSave(); event.stopPropagation()">
+        <button type="button" class="qb-btn" id="qb-delete" onclick="QuickBar.deletePreset()" title="Delete the selected custom preset" aria-label="Delete preset">🗑</button>
+      </div>
     </div>
 
     <!-- Right panel -->
@@ -2860,8 +2885,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.11.05";
-const COMMIT  = "e7e3225";
+const VERSION = "2026.11.08";
+const COMMIT  = "03ca1ab";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5169,6 +5194,10 @@ const Canvas = (() => {
   function _onWheel(e) {
     e.preventDefault();
     if (_modalOpen()) return;
+    if (e.altKey && document.body.classList.contains('mode-map')) {   // Alt + wheel = brush size (wheel up = larger), never a zoom
+      if (e.deltaY !== 0 && typeof QuickBar !== 'undefined') QuickBar.wheel(e.deltaY < 0 ? 1 : -1);
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     setZoom(zoom - Math.sign(e.deltaY) * _step(0.15, 5), e.clientX - rect.left, e.clientY - rect.top);
   }
@@ -6770,8 +6799,17 @@ const Tools = (() => {
     if (_active === 'rect' && _rectStart && _toolsRectPreview && !_shapeStale()) { _previewRectSymmetry(_toolsRectPreview); }
     _updateEraserHover(_hoverCell);
     Canvas.setSymmetryGuide(_symMode);   // renders
+    if (typeof QuickBar !== 'undefined') QuickBar.sync();
   }
   function getSymmetry() { return _symMode; }
+  // One brush-size step (keys, the quick bar, Alt + wheel); the hover outline and the canvas follow the new radius.
+  function stepBrush(dir) {
+    const before = Brush.getSize();
+    if (dir > 0) Brush.grow(); else Brush.shrink();
+    if (Brush.getSize() === before) return false;
+    _updateEraserHover(_hoverCell); Canvas.render();
+    return true;
+  }
   function cycleSymmetry() {
     const m = HexUtils.SYMMETRY_MODES;
     setSymmetry(m[(m.indexOf(_symMode) + 1) % m.length]);
@@ -6813,6 +6851,7 @@ const Tools = (() => {
       btn.classList.toggle('active', btn.dataset.tool === name);
     });
     _markOptionRelevance(name);
+    if (typeof QuickBar !== 'undefined') QuickBar.sync();
     UI.updateStatusTool(TOOL_NAMES[name] || name);
     if (name !== 'select') Canvas.clearSelection();
     // Settlement tools require settlements to be visible
@@ -8591,10 +8630,7 @@ const Tools = (() => {
       if (physBracket || typedBracket) {
         if (e.repeat || !document.body.classList.contains('mode-map') || _isTypingOrModal()) return;
         e.preventDefault();
-        const before = Brush.getSize();
-        const larger = typedBracket ? k0 === ']' : e.code === 'BracketRight';
-        if (larger) Brush.grow(); else Brush.shrink();
-        if (Brush.getSize() !== before) { _updateEraserHover(_hoverCell); Canvas.render(); }
+        stepBrush((typedBracket ? k0 === ']' : e.code === 'BracketRight') ? 1 : -1);
         return;
       }
       if (e.altKey && (e.code === 'BracketLeft' || e.code === 'BracketRight')) return;   // Alt + a bracket key: not ours (unchanged)
@@ -8670,11 +8706,138 @@ const Tools = (() => {
     return true;
   }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, stepBrush, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround, manualEdgesAround: _manualEdgesAround, AUTO_WATER_EDGES,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
+})();
+// ════════════════════════════════════════════════════════════
+// QUICK BAR — tool, brush size and style presets over the canvas (a second control for what the left panel already holds)
+// ════════════════════════════════════════════════════════════
+// The bar holds no state of its own: tool, radius, symmetry and scatter density live in Tools / Brush / the palette inputs and
+// sync() redraws the bar from them. A preset is a named {tool, size, symmetry, density}; custom ones live in localStorage
+// (per browser, apart from the maps, like Stamps), the built-in four are fixed.
+const QuickBar = (() => {
+  const LS_KEY = 'quickbar_presets_v1';
+  const BUILTIN = [
+    { id: 'b:precise',   name: 'Precise',    tool: 'paint',   size: 0, symmetry: 'none', density: 40 },
+    { id: 'b:wide',      name: 'Wide',       tool: 'paint',   size: 3, symmetry: 'none', density: 40 },
+    { id: 'b:scatter',   name: 'Scatter',    tool: 'scatter', size: 2, symmetry: 'none', density: 30 },
+    { id: 'b:eraser',    name: 'Big eraser', tool: 'eraser',  size: 3, symmetry: 'none', density: 40 },
+  ];
+  let _custom = [];
+
+  function _load() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+      return Array.isArray(raw) ? raw.filter(p => p && typeof p.name === 'string' && p.name && typeof p.tool === 'string') : [];
+    } catch (e) { return []; }
+  }
+  function _persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(_custom)); } catch (e) { /* storage blocked: the presets last for this session */ } }
+  function _all() { return BUILTIN.concat(_custom); }
+  function _density() {
+    const el = document.getElementById('scatter-density');
+    const v = el ? parseFloat(el.value) : 40;
+    return isFinite(v) ? v : 40;
+  }
+  function current() { return { tool: Tools.getActive(), size: Brush.getSize(), symmetry: Tools.getSymmetry(), density: _density() }; }
+  function _matches(p, c) {
+    return p.tool === c.tool && p.size === c.size && p.symmetry === c.symmetry && (p.tool !== 'scatter' || p.density === c.density);
+  }
+  // A tool, size or preset change is refused while a stroke, fill or move is running (Esc cancels it), like undo.
+  function _refuse() {
+    if (Tools.isStrokeActive() || Tools.isStroking() || Tools.isFillBusy()) { UI.toast('Finish the current stroke, fill or move first (Esc)'); return true; }
+    return false;
+  }
+
+  function sync() {
+    const bar = document.getElementById('quickbar');
+    if (!bar) return;
+    const c = current();
+    bar.querySelectorAll('[data-qtool]').forEach(b => b.classList.toggle('active', b.dataset.qtool === c.tool));
+    const size = document.getElementById('qb-size');
+    if (size) size.textContent = String(c.size);
+    const sel = document.getElementById('qb-preset');
+    if (!sel) return;
+    const hit = _all().find(p => _matches(p, c));
+    sel.textContent = '';
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = hit ? 'Preset…' : 'Preset: custom';
+    sel.appendChild(none);
+    _all().forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id || ('c:' + p.name.toLowerCase()); o.textContent = p.name;
+      sel.appendChild(o);
+    });
+    sel.value = hit ? (hit.id || ('c:' + hit.name.toLowerCase())) : '';
+    const del = document.getElementById('qb-delete');
+    if (del) del.disabled = !(hit && !hit.id);
+  }
+
+  function setTool(name) { if (!_refuse()) Tools.setActive(name); }
+  function step(dir) { if (!_refuse()) Tools.stepBrush(dir); }
+  function wheel(dir) { step(dir); }
+
+  function applyPreset(id) {
+    if (!id) return;
+    if (_refuse()) { sync(); return; }
+    const p = _all().find(q => (q.id || ('c:' + q.name.toLowerCase())) === id);
+    if (!p) { sync(); return; }
+    Tools.setActive(p.tool);
+    Brush.setSize(p.size);
+    Tools.setSymmetry(p.symmetry || 'none');
+    const d = document.getElementById('scatter-density');
+    if (d && isFinite(p.density)) d.value = String(p.density);
+    sync();
+  }
+
+  function beginSave() {
+    const inp = document.getElementById('qb-name');
+    if (!inp) return;
+    inp.style.display = ''; inp.value = ''; inp.focus();
+  }
+  function cancelSave() {
+    const inp = document.getElementById('qb-name');
+    if (inp) { inp.style.display = 'none'; inp.value = ''; inp.blur(); }
+  }
+  function commitSave() {
+    const inp = document.getElementById('qb-name');
+    const name = inp ? inp.value.trim() : '';
+    if (!name) { cancelSave(); return; }
+    if (BUILTIN.some(p => p.name.toLowerCase() === name.toLowerCase())) { UI.toast('That name belongs to a built-in preset'); return; }
+    const c = current();
+    const entry = { name, tool: c.tool, size: c.size, symmetry: c.symmetry, density: c.density };
+    const i = _custom.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+    if (i >= 0) _custom[i] = entry; else _custom.push(entry);
+    _persist(); cancelSave(); sync();
+    UI.toast('Preset saved: ' + name);
+  }
+  function deletePreset() {
+    const sel = document.getElementById('qb-preset');
+    const id = sel ? sel.value : '';
+    const i = _custom.findIndex(p => 'c:' + p.name.toLowerCase() === id);
+    if (i < 0) return;
+    const name = _custom[i].name;
+    _custom.splice(i, 1); _persist(); sync();
+    UI.toast('Preset deleted: ' + name);
+  }
+
+  function init() {
+    _custom = _load();
+    // Brush.js owns the radius and its own buttons / slider / keys call straight into it: wrap the three mutators once so the bar
+    // follows every path (grow / shrink call the module-internal setSize, hence the three wrappers).
+    ['setSize', 'grow', 'shrink'].forEach(fn => {
+      const orig = Brush[fn];
+      Brush[fn] = function () { const r = orig.apply(Brush, arguments); sync(); return r; };
+    });
+    const d = document.getElementById('scatter-density');
+    if (d) d.addEventListener('input', sync);
+    sync();
+  }
+
+  return { init, sync, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,
+           presets: () => _all().map(p => Object.assign({}, p)), builtinCount: () => BUILTIN.length };
 })();
 // ════════════════════════════════════════════════════════════
 // HISTORY MODULE — 50-step string-array undo/redo
@@ -24421,6 +24584,7 @@ window.addEventListener('load', async () => {
   Canvas.init();
   UI.init();
   Tools.init();
+  QuickBar.init();
   try { Stamps.initPanel(); }                  // a failure here must not stop the startup steps below
   catch (e) { console.error('Stamps panel failed to start', e); UI.toast('Stamps panel failed to start: ' + (e && e.message || e)); }
   try { Bookmarks.initPanel(); }               // same: a failure here must not stop the startup steps below
