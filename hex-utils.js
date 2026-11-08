@@ -249,11 +249,25 @@
 
   // For each cell, with probability density% (0-100) pick one of ids at random. Consumes rng in cell order: one roll
   // per cell and, when the cell is taken, one more for the id.
-  function scatterPick(cells, ids, density, rng) {
+  // `weights` (optional, one number per id, >= 0): the id roll is weighted (weight 0 = never picked). Without weights, or with all
+  // weights equal (and above 0), the id roll is the plain uniform one, so a given seed gives the same picks as before weights existed.
+  function scatterPick(cells, ids, density, rng, weights) {
     const out = [];
     if (!ids.length) return out;
-    for (const { col, row } of cells)
-      if (rng() * 100 < density) out.push({ col, row, id: ids[Math.floor(rng() * ids.length)] });
+    let cum = null, total = 0;
+    if (Array.isArray(weights) && weights.length === ids.length) {
+      const w = weights.map(x => (isFinite(x) && x > 0 ? x : 0));
+      total = w.reduce((a, b) => a + b, 0);
+      if (!(total > 0)) return out;                                   // every variant has weight 0: nothing to scatter
+      if (w.some(x => x !== w[0])) { let acc = 0; cum = w.map(x => (acc += x)); }
+    }
+    for (const { col, row } of cells) {
+      if (!(rng() * 100 < density)) continue;
+      let i;
+      if (cum) { const t = rng() * total; i = cum.findIndex(c => t < c); if (i < 0) i = ids.length - 1; }
+      else i = Math.floor(rng() * ids.length);
+      out.push({ col, row, id: ids[i] });
+    }
     return out;
   }
 
