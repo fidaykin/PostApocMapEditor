@@ -111,12 +111,11 @@ test.describe('quick bar', () => {
     expect(await idAt(page, 225, 240)).not.toBe('Water_1');
   });
 
-  test('the bar is hidden outside the MAP mode and does not change the canvas size', async ({ page }) => {
-    const w0 = await page.evaluate(() => (document.getElementById('map-canvas') as HTMLCanvasElement).width);
+  test('the bar is a strip above the canvas (no overlap) and goes away with the MAP mode', async ({ page }) => {
+    const r = await page.evaluate(() => ({ bar: document.getElementById('quickbar')!.getBoundingClientRect().bottom, canvas: document.getElementById('map-canvas')!.getBoundingClientRect().top }));
+    expect(r.bar).toBeLessThanOrEqual(r.canvas);
     await expect(page.locator('#quickbar')).toBeVisible();
     await page.evaluate(() => App.setMode('hexdb'));
     await expect(page.locator('#quickbar')).toBeHidden();
-    await page.evaluate(() => App.setMode('map'));
-    expect(await page.evaluate(() => (document.getElementById('map-canvas') as HTMLCanvasElement).width)).toBe(w0);
   });
 });
