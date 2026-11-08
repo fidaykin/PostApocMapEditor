@@ -361,12 +361,16 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
   background: var(--canvas-bg); cursor: crosshair;
 }
 #map-canvas { display: block; }
-/* Quick bar: a strip above the canvas (tool, brush size, style preset). #canvas-col is the middle grid cell: the strip, then the canvas container. */
-#canvas-col { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-#canvas-col > #canvas-container { flex: 1 1 auto; min-height: 0; }
-#quickbar { flex: 0 0 auto; height: 34px; box-sizing: border-box; display: flex; align-items: center; gap: 6px; padding: 0 8px; overflow-x: auto; overflow-y: hidden;
-  background: var(--panel); border-bottom: 1px solid var(--border); font-size: 11px; color: var(--muted); }
+/* Quick bar: an overlay at the top of the canvas container (the canvas keeps its size). Hidden while you work on the map; it slides in when
+   the pointer touches the top edge of the canvas, stays while hovered or focused, and #qb-handle hints that it is there. */
+#quickbar { position: absolute; top: 0; left: 50%; transform: translate(-50%, -110%); z-index: 5; display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  max-width: calc(100% - 16px); overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 6px 6px; font-size: 11px; color: var(--muted); cursor: default;
+  visibility: hidden; opacity: 0; transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
+#quickbar.qb-open { transform: translate(-50%, 0); visibility: visible; opacity: 1; transition: transform .15s ease, opacity .15s ease; }
 #quickbar > * { flex-shrink: 0; }
+#qb-handle { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 4; width: 44px; height: 5px; border-radius: 0 0 4px 4px; background: var(--accent); opacity: .55; pointer-events: none; }
+body:not(.mode-map) #quickbar, body:not(.mode-map) #qb-handle { display: none; }
+#quickbar.qb-open + #qb-handle, #quickbar:focus-within + #qb-handle { opacity: 0; }
 #quickbar .qb-btn { min-width: 26px; height: 24px; padding: 0 6px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: inherit; cursor: pointer; font-size: 13px; }
 #quickbar .qb-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 #quickbar .qb-size { min-width: 18px; text-align: center; font-weight: bold; color: var(--text, #ddd); }
@@ -1945,7 +1949,8 @@ body.mode-common #map-io    { display: none; }
     </div>
 
     <!-- Canvas -->
-    <div id="canvas-col">
+    <div id="canvas-container">
+      <canvas id="map-canvas"></canvas>
       <div id="quickbar" role="toolbar" aria-label="Quick tool bar">
         <button type="button" class="qb-btn" data-qtool="paint" onclick="QuickBar.setTool('paint')" title="Paint (P)" aria-label="Quick paint">✏️</button>
         <button type="button" class="qb-btn" data-qtool="eraser" onclick="QuickBar.setTool('eraser')" title="Eraser (X)" aria-label="Quick eraser">⌫</button>
@@ -1961,9 +1966,7 @@ body.mode-common #map-io    { display: none; }
         <input type="text" id="qb-name" maxlength="24" placeholder="Preset name" aria-label="Preset name" style="display:none" onkeydown="if(event.key==='Enter')QuickBar.commitSave(); else if(event.key==='Escape')QuickBar.cancelSave(); event.stopPropagation()">
         <button type="button" class="qb-btn" id="qb-delete" onclick="QuickBar.deletePreset()" title="Delete the selected custom preset" aria-label="Delete preset">🗑</button>
       </div>
-    <div id="canvas-container">
-      <canvas id="map-canvas"></canvas>
-    </div>
+      <div id="qb-handle" aria-hidden="true"></div>
     </div>
 
     <!-- Right panel -->
@@ -2890,7 +2893,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.08";
-const COMMIT  = "9c032b5";
+const COMMIT  = "8403475";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8827,8 +8830,41 @@ const QuickBar = (() => {
     UI.toast('Preset deleted: ' + name);
   }
 
+  // Auto-hide: the bar opens when the pointer touches the top edge of the canvas and closes (after a short grace) once the pointer is
+  // away from it and nothing inside has focus. It never opens while a mouse button is down, so a stroke that passes the top edge is not disturbed.
+  const HOT_EDGE_PX = 10, CLOSE_DELAY_MS = 350;
+  let _closeTimer = null;
+  function open() {
+    clearTimeout(_closeTimer); _closeTimer = null;
+    const bar = document.getElementById('quickbar');
+    if (bar) bar.classList.add('qb-open');
+  }
+  function _close() {
+    const bar = document.getElementById('quickbar');
+    if (!bar || bar.matches(':hover') || bar.contains(document.activeElement)) return;
+    bar.classList.remove('qb-open');
+  }
+  function _scheduleClose() {
+    clearTimeout(_closeTimer);
+    _closeTimer = setTimeout(_close, CLOSE_DELAY_MS);
+  }
+  function isOpen() { const bar = document.getElementById('quickbar'); return !!bar && bar.classList.contains('qb-open'); }
+
   function init() {
     _custom = _load();
+    const cc = document.getElementById('canvas-container'), bar = document.getElementById('quickbar');
+    if (cc && bar) {
+      cc.addEventListener('mousemove', e => {
+        if (e.buttons !== 0) return;
+        if (e.clientY - cc.getBoundingClientRect().top <= HOT_EDGE_PX) open();
+        else if (isOpen()) _scheduleClose();
+      });
+      cc.addEventListener('mouseleave', () => { if (isOpen()) _scheduleClose(); });
+      cc.addEventListener('mousedown', () => { if (isOpen()) _scheduleClose(); });
+      bar.addEventListener('mouseenter', open);
+      bar.addEventListener('mouseleave', _scheduleClose);
+      bar.addEventListener('focusout', _scheduleClose);
+    }
     // Brush.js owns the radius and its own buttons / slider / keys call straight into it: wrap the three mutators once so the bar
     // follows every path (grow / shrink call the module-internal setSize, hence the three wrappers).
     ['setSize', 'grow', 'shrink'].forEach(fn => {
@@ -8840,7 +8876,7 @@ const QuickBar = (() => {
     sync();
   }
 
-  return { init, sync, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,
+  return { init, open, isOpen, sync, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,
            presets: () => _all().map(p => Object.assign({}, p)), builtinCount: () => BUILTIN.length };
 })();
 // ════════════════════════════════════════════════════════════

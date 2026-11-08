@@ -4,7 +4,7 @@ import { freshEditor, dragCells, idAt } from './editor-helpers';
 // Quick bar over the canvas: tool, brush size and style presets (a second control for what the left panel holds).
 
 test.describe('quick bar', () => {
-  test.beforeEach(async ({ page }) => { await freshEditor(page); });
+  test.beforeEach(async ({ page }) => { await freshEditor(page); await page.evaluate(() => QuickBar.open()); });   // the bar auto-hides: the specs below use it open
 
   test('tool buttons switch the tool and stay in step with the left panel', async ({ page }) => {
     await page.click('#quickbar [data-qtool="eraser"]');
@@ -111,9 +111,33 @@ test.describe('quick bar', () => {
     expect(await idAt(page, 225, 240)).not.toBe('Water_1');
   });
 
-  test('the bar is a strip above the canvas (no overlap) and goes away with the MAP mode', async ({ page }) => {
-    const r = await page.evaluate(() => ({ bar: document.getElementById('quickbar')!.getBoundingClientRect().bottom, canvas: document.getElementById('map-canvas')!.getBoundingClientRect().top }));
-    expect(r.bar).toBeLessThanOrEqual(r.canvas);
+  test('the canvas keeps its size and a cell under the closed bar stays clickable', async ({ page }) => {
+    const size = () => page.evaluate(() => { const c = document.getElementById('map-canvas') as HTMLCanvasElement; return [c.width, c.height]; });
+    const w = await size();
+    await page.evaluate(() => { document.getElementById('quickbar')!.classList.remove('qb-open'); });
+    expect(await size()).toEqual(w);
+    const top = await page.evaluate(() => { const b = document.getElementById('map-canvas')!.getBoundingClientRect(); return [b.left + b.width / 2, b.top + 20]; });
+    expect(await page.evaluate(([x, y]) => document.elementFromPoint(x, y)!.id, top)).toBe('map-canvas');   // closed: nothing covers the top rows
+    await page.evaluate(() => QuickBar.open());
+    expect(await size()).toEqual(w);
+  });
+
+  test('the bar opens at the top edge, closes when the pointer leaves, and stays closed while a button is held', async ({ page }) => {
+    await page.evaluate(() => { document.getElementById('quickbar')!.classList.remove('qb-open'); });
+    await expect(page.locator('#quickbar')).toBeHidden();
+    const b = (await page.locator('#canvas-container').boundingBox())!;
+    await page.mouse.move(b.x + 40, b.y + 300);
+    await page.mouse.down();
+    await page.mouse.move(b.x + b.width / 2, b.y + 3);                         // a stroke passing the top edge does not open it
+    await page.mouse.up();
+    await expect(page.locator('#quickbar')).toBeHidden();
+    await page.mouse.move(b.x + b.width / 2, b.y + 4);                         // pointer at the top edge, no button
+    await expect(page.locator('#quickbar')).toBeVisible();
+    await page.mouse.move(b.x + b.width / 2, b.y + 400);
+    await expect(page.locator('#quickbar')).toBeHidden();
+  });
+
+  test('the bar is hidden outside the MAP mode', async ({ page }) => {
     await expect(page.locator('#quickbar')).toBeVisible();
     await page.evaluate(() => App.setMode('hexdb'));
     await expect(page.locator('#quickbar')).toBeHidden();
