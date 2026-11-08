@@ -23,6 +23,8 @@ jobs:
           # Inject at start of <head> so it takes effect before any <script src> or <link> tags
           # GNU sed (ubuntu-latest) required — \n in replacement is literal on macOS sed
           sed 's|<head>|<head>\n<base href="../">|' MapEditorPro.html > /tmp/MapEditorPro_dev.html
+          # the replacement hits EVERY literal head tag (comments and strings too, which breaks the script): exactly one <base> must result
+          test "$(grep -c '<base href' /tmp/MapEditorPro_dev.html)" = 1
           # map-jobs.js / map-worker.js are versioned with the HTML (job protocol), so dev must serve ITS OWN copies from
           # dev/ rather than whatever prod last published at the root: point the script tag and the Worker URL into dev/.
           # (importScripts inside the worker resolves relative to the worker URL, so it picks up dev/map-jobs.js.)

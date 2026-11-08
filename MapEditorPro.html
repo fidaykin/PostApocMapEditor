@@ -2894,7 +2894,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.08";
-const COMMIT  = "7d22ab5";
+const COMMIT  = "528ac46";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5875,7 +5875,8 @@ const Bookmarks = (() => {
 
   return { initPanel, add, rename, remove, go, list, isAvailable, render, refresh, MAX, NAME_MAX };
 })();
-// BRUSH MODULE: lives in brush.js (classic script loaded from <head>; same global `Brush`).
+// BRUSH MODULE: lives in brush.js (a classic script loaded from the page head; same global `Brush`).
+// NOTE: never write the literal head tag in this file: deploy-dev.yml injects <base> after EVERY occurrence, inside comments and strings too.
 // ════════════════════════════════════════════════════════════
 // SELECTION MODULE (T2.8) — the region selection: a SET OF CELLS (col,row), independent of zoom/pan.
 // Stored as a Uint8Array mask over the map it was made on (identity + size); a replaced map (New/Load/Expand/
