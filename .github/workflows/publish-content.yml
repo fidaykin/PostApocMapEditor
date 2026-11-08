@@ -1,0 +1,36 @@
+name: Publish Content
+
+on:
+  repository_dispatch:
+    types: [publish-content]
+
+permissions:
+  contents: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Write file and commit
+        env:
+          FILE_PATH: ${{ github.event.client_payload.path }}
+          FILE_CONTENT: ${{ github.event.client_payload.content }}
+          COMMIT_MSG: ${{ github.event.client_payload.message }}
+        run: |
+          mkdir -p "$(dirname "$FILE_PATH")"
+          python3 - <<'PYEOF'
+          import base64, os
+          path = os.environ['FILE_PATH']
+          data = base64.b64decode(os.environ['FILE_CONTENT'])
+          open(path, 'wb').write(data)
+          print(f'Wrote {len(data)} bytes to {path}')
+          PYEOF
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name "github-actions[bot]"
+          git add "$FILE_PATH"
+          git diff --staged --quiet || git commit -m "$COMMIT_MSG"
+          git push

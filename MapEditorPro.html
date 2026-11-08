@@ -361,6 +361,22 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
   background: var(--canvas-bg); cursor: crosshair;
 }
 #map-canvas { display: block; }
+/* Quick bar: an overlay at the top of the canvas container (the canvas keeps its size). Hidden while you work on the map; it slides in when
+   the pointer touches the top edge of the canvas, stays while hovered or focused, and #qb-handle hints that it is there. */
+#quickbar { position: absolute; top: 0; left: 50%; transform: translate(-50%, -110%); z-index: 5; display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  max-width: calc(100% - 16px); overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 6px 6px; font-size: 11px; color: var(--muted); cursor: default;
+  visibility: hidden; opacity: 0; transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
+#quickbar.qb-open { transform: translate(-50%, 0); visibility: visible; opacity: 1; transition: transform .15s ease, opacity .15s ease; }
+#quickbar > * { flex-shrink: 0; }
+#qb-handle { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 4; width: 44px; height: 5px; border-radius: 0 0 4px 4px; background: var(--accent); opacity: .55; pointer-events: none; }
+body:not(.mode-map) #quickbar, body:not(.mode-map) #qb-handle { display: none; }
+#quickbar.qb-open + #qb-handle, #quickbar:focus-within + #qb-handle { opacity: 0; }
+#quickbar .qb-btn { min-width: 26px; height: 24px; padding: 0 6px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: inherit; cursor: pointer; font-size: 13px; }
+#quickbar .qb-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+#quickbar .qb-size { min-width: 18px; text-align: center; font-weight: bold; color: var(--text, #ddd); }
+#quickbar .qb-sep { width: 1px; height: 18px; background: var(--border); }
+#quickbar select, #quickbar input[type=text] { height: 24px; background: #111; border: 1px solid #444; color: #4fc3f7; font-size: 11px; border-radius: 3px; }
+#quickbar input[type=text] { width: 110px; padding: 0 4px; }
 
 /* ── Right panel ──────────────────────────────────────────── */
 #right-panel {
@@ -1460,6 +1476,7 @@ body.mode-common #map-io    { display: none; }
 <script src="gen-utils.js?v=5"></script>
 <script src="map-format.js?v=2"></script>
 <script src="map-convert.js?v=1"></script>
+<script src="loc-records.js?v=1"></script>
 <script src="brush.js?v=1"></script>
 <script src="zone-painter.js?v=22"></script>
 <script src="map-jobs.js?v=6"></script>
@@ -1934,6 +1951,22 @@ body.mode-common #map-io    { display: none; }
     <!-- Canvas -->
     <div id="canvas-container">
       <canvas id="map-canvas"></canvas>
+      <div id="quickbar" role="toolbar" aria-label="Quick tool bar">
+        <button type="button" class="qb-btn" data-qtool="paint" onclick="QuickBar.setTool('paint')" title="Paint (P)" aria-label="Quick paint">✏️</button>
+        <button type="button" class="qb-btn" data-qtool="eraser" onclick="QuickBar.setTool('eraser')" title="Eraser (X)" aria-label="Quick eraser">⌫</button>
+        <button type="button" class="qb-btn" data-qtool="marquee" onclick="QuickBar.setTool('marquee')" title="Select Region (M)" aria-label="Quick select region">⛶</button>
+        <button type="button" class="qb-btn" data-qtool="scatter" onclick="QuickBar.setTool('scatter')" title="Scatter (A)" aria-label="Quick scatter">⁘</button>
+        <span class="qb-sep"></span>
+        <button type="button" class="qb-btn" id="qb-smaller" onclick="QuickBar.step(-1)" title="Smaller brush ([ or Alt + wheel down)" aria-label="Smaller brush">−</button>
+        <span class="qb-size" id="qb-size" title="Brush radius">0</span>
+        <button type="button" class="qb-btn" id="qb-larger" onclick="QuickBar.step(1)" title="Larger brush (] or Alt + wheel up)" aria-label="Larger brush">+</button>
+        <span class="qb-sep"></span>
+        <select id="qb-preset" aria-label="Brush preset" title="Brush preset: tool, size, symmetry and scatter density" onchange="QuickBar.applyPreset(this.value); this.blur()"></select>
+        <button type="button" class="qb-btn" id="qb-save" onclick="QuickBar.beginSave()" title="Save the current tool, size, symmetry and density as a preset" aria-label="Save preset">＋</button>
+        <input type="text" id="qb-name" maxlength="24" placeholder="Preset name" aria-label="Preset name" style="display:none" onkeydown="if(event.key==='Enter')QuickBar.commitSave(); else if(event.key==='Escape')QuickBar.cancelSave(); event.stopPropagation()">
+        <button type="button" class="qb-btn" id="qb-delete" onclick="QuickBar.deletePreset()" title="Delete the selected custom preset" aria-label="Delete preset">🗑</button>
+      </div>
+      <div id="qb-handle" aria-hidden="true"></div>
     </div>
 
     <!-- Right panel -->
@@ -2859,8 +2892,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.11.05";
-const COMMIT  = "3262d19";
+const VERSION = "2026.11.08";
+const COMMIT  = "8403475";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5168,6 +5201,10 @@ const Canvas = (() => {
   function _onWheel(e) {
     e.preventDefault();
     if (_modalOpen()) return;
+    if (e.altKey && document.body.classList.contains('mode-map')) {   // Alt + wheel = brush size (wheel up = larger), never a zoom
+      if (e.deltaY !== 0 && typeof QuickBar !== 'undefined') QuickBar.wheel(e.deltaY < 0 ? 1 : -1);
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     setZoom(zoom - Math.sign(e.deltaY) * _step(0.15, 5), e.clientX - rect.left, e.clientY - rect.top);
   }
@@ -6769,8 +6806,17 @@ const Tools = (() => {
     if (_active === 'rect' && _rectStart && _toolsRectPreview && !_shapeStale()) { _previewRectSymmetry(_toolsRectPreview); }
     _updateEraserHover(_hoverCell);
     Canvas.setSymmetryGuide(_symMode);   // renders
+    if (typeof QuickBar !== 'undefined') QuickBar.sync();
   }
   function getSymmetry() { return _symMode; }
+  // One brush-size step (keys, the quick bar, Alt + wheel); the hover outline and the canvas follow the new radius.
+  function stepBrush(dir) {
+    const before = Brush.getSize();
+    if (dir > 0) Brush.grow(); else Brush.shrink();
+    if (Brush.getSize() === before) return false;
+    _updateEraserHover(_hoverCell); Canvas.render();
+    return true;
+  }
   function cycleSymmetry() {
     const m = HexUtils.SYMMETRY_MODES;
     setSymmetry(m[(m.indexOf(_symMode) + 1) % m.length]);
@@ -6812,6 +6858,7 @@ const Tools = (() => {
       btn.classList.toggle('active', btn.dataset.tool === name);
     });
     _markOptionRelevance(name);
+    if (typeof QuickBar !== 'undefined') QuickBar.sync();
     UI.updateStatusTool(TOOL_NAMES[name] || name);
     if (name !== 'select') Canvas.clearSelection();
     // Settlement tools require settlements to be visible
@@ -8590,10 +8637,7 @@ const Tools = (() => {
       if (physBracket || typedBracket) {
         if (e.repeat || !document.body.classList.contains('mode-map') || _isTypingOrModal()) return;
         e.preventDefault();
-        const before = Brush.getSize();
-        const larger = typedBracket ? k0 === ']' : e.code === 'BracketRight';
-        if (larger) Brush.grow(); else Brush.shrink();
-        if (Brush.getSize() !== before) { _updateEraserHover(_hoverCell); Canvas.render(); }
+        stepBrush((typedBracket ? k0 === ']' : e.code === 'BracketRight') ? 1 : -1);
         return;
       }
       if (e.altKey && (e.code === 'BracketLeft' || e.code === 'BracketRight')) return;   // Alt + a bracket key: not ours (unchanged)
@@ -8669,11 +8713,171 @@ const Tools = (() => {
     return true;
   }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, stepBrush, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround, manualEdgesAround: _manualEdgesAround, AUTO_WATER_EDGES,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
+})();
+// ════════════════════════════════════════════════════════════
+// QUICK BAR — tool, brush size and style presets over the canvas (a second control for what the left panel already holds)
+// ════════════════════════════════════════════════════════════
+// The bar holds no state of its own: tool, radius, symmetry and scatter density live in Tools / Brush / the palette inputs and
+// sync() redraws the bar from them. A preset is a named {tool, size, symmetry, density}; custom ones live in localStorage
+// (per browser, apart from the maps, like Stamps), the built-in four are fixed.
+const QuickBar = (() => {
+  const LS_KEY = 'quickbar_presets_v1';
+  const BUILTIN = [
+    { id: 'b:precise',   name: 'Precise',    tool: 'paint',   size: 0, symmetry: 'none', density: 40 },
+    { id: 'b:wide',      name: 'Wide',       tool: 'paint',   size: 3, symmetry: 'none', density: 40 },
+    { id: 'b:scatter',   name: 'Scatter',    tool: 'scatter', size: 2, symmetry: 'none', density: 30 },
+    { id: 'b:eraser',    name: 'Big eraser', tool: 'eraser',  size: 3, symmetry: 'none', density: 40 },
+  ];
+  let _custom = [];
+
+  function _load() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+      return Array.isArray(raw) ? raw.filter(p => p && typeof p.name === 'string' && p.name && typeof p.tool === 'string') : [];
+    } catch (e) { return []; }
+  }
+  function _persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(_custom)); } catch (e) { /* storage blocked: the presets last for this session */ } }
+  function _all() { return BUILTIN.concat(_custom); }
+  function _density() {
+    const el = document.getElementById('scatter-density');
+    const v = el ? parseFloat(el.value) : 40;
+    return isFinite(v) ? v : 40;
+  }
+  function current() { return { tool: Tools.getActive(), size: Brush.getSize(), symmetry: Tools.getSymmetry(), density: _density() }; }
+  function _matches(p, c) {
+    return p.tool === c.tool && p.size === c.size && p.symmetry === c.symmetry && (p.tool !== 'scatter' || p.density === c.density);
+  }
+  // A tool, size or preset change is refused while a stroke, fill or move is running (Esc cancels it), like undo.
+  function _refuse() {
+    if (Tools.isStrokeActive() || Tools.isStroking() || Tools.isFillBusy()) { UI.toast('Finish the current stroke, fill or move first (Esc)'); return true; }
+    return false;
+  }
+
+  function sync() {
+    const bar = document.getElementById('quickbar');
+    if (!bar) return;
+    const c = current();
+    bar.querySelectorAll('[data-qtool]').forEach(b => b.classList.toggle('active', b.dataset.qtool === c.tool));
+    const size = document.getElementById('qb-size');
+    if (size) size.textContent = String(c.size);
+    const sel = document.getElementById('qb-preset');
+    if (!sel) return;
+    const hit = _all().find(p => _matches(p, c));
+    sel.textContent = '';
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = hit ? 'Preset…' : 'Preset: custom';
+    sel.appendChild(none);
+    _all().forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id || ('c:' + p.name.toLowerCase()); o.textContent = p.name;
+      sel.appendChild(o);
+    });
+    sel.value = hit ? (hit.id || ('c:' + hit.name.toLowerCase())) : '';
+    const del = document.getElementById('qb-delete');
+    if (del) del.disabled = !(hit && !hit.id);
+  }
+
+  function setTool(name) { if (!_refuse()) Tools.setActive(name); }
+  function step(dir) { if (!_refuse()) Tools.stepBrush(dir); }
+  function wheel(dir) { step(dir); }
+
+  function applyPreset(id) {
+    if (!id) return;
+    if (_refuse()) { sync(); return; }
+    const p = _all().find(q => (q.id || ('c:' + q.name.toLowerCase())) === id);
+    if (!p) { sync(); return; }
+    Tools.setActive(p.tool);
+    Brush.setSize(p.size);
+    Tools.setSymmetry(p.symmetry || 'none');
+    const d = document.getElementById('scatter-density');
+    if (d && isFinite(p.density)) d.value = String(p.density);
+    sync();
+  }
+
+  function beginSave() {
+    const inp = document.getElementById('qb-name');
+    if (!inp) return;
+    inp.style.display = ''; inp.value = ''; inp.focus();
+  }
+  function cancelSave() {
+    const inp = document.getElementById('qb-name');
+    if (inp) { inp.style.display = 'none'; inp.value = ''; inp.blur(); }
+  }
+  function commitSave() {
+    const inp = document.getElementById('qb-name');
+    const name = inp ? inp.value.trim() : '';
+    if (!name) { cancelSave(); return; }
+    if (BUILTIN.some(p => p.name.toLowerCase() === name.toLowerCase())) { UI.toast('That name belongs to a built-in preset'); return; }
+    const c = current();
+    const entry = { name, tool: c.tool, size: c.size, symmetry: c.symmetry, density: c.density };
+    const i = _custom.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+    if (i >= 0) _custom[i] = entry; else _custom.push(entry);
+    _persist(); cancelSave(); sync();
+    UI.toast('Preset saved: ' + name);
+  }
+  function deletePreset() {
+    const sel = document.getElementById('qb-preset');
+    const id = sel ? sel.value : '';
+    const i = _custom.findIndex(p => 'c:' + p.name.toLowerCase() === id);
+    if (i < 0) return;
+    const name = _custom[i].name;
+    _custom.splice(i, 1); _persist(); sync();
+    UI.toast('Preset deleted: ' + name);
+  }
+
+  // Auto-hide: the bar opens when the pointer touches the top edge of the canvas and closes (after a short grace) once the pointer is
+  // away from it and nothing inside has focus. It never opens while a mouse button is down, so a stroke that passes the top edge is not disturbed.
+  const HOT_EDGE_PX = 10, CLOSE_DELAY_MS = 350;
+  let _closeTimer = null;
+  function open() {
+    clearTimeout(_closeTimer); _closeTimer = null;
+    const bar = document.getElementById('quickbar');
+    if (bar) bar.classList.add('qb-open');
+  }
+  function _close() {
+    const bar = document.getElementById('quickbar');
+    if (!bar || bar.matches(':hover') || bar.contains(document.activeElement)) return;
+    bar.classList.remove('qb-open');
+  }
+  function _scheduleClose() {
+    clearTimeout(_closeTimer);
+    _closeTimer = setTimeout(_close, CLOSE_DELAY_MS);
+  }
+  function isOpen() { const bar = document.getElementById('quickbar'); return !!bar && bar.classList.contains('qb-open'); }
+
+  function init() {
+    _custom = _load();
+    const cc = document.getElementById('canvas-container'), bar = document.getElementById('quickbar');
+    if (cc && bar) {
+      cc.addEventListener('mousemove', e => {
+        if (e.buttons !== 0) return;
+        if (e.clientY - cc.getBoundingClientRect().top <= HOT_EDGE_PX) open();
+        else if (isOpen()) _scheduleClose();
+      });
+      cc.addEventListener('mouseleave', () => { if (isOpen()) _scheduleClose(); });
+      cc.addEventListener('mousedown', () => { if (isOpen()) _scheduleClose(); });
+      bar.addEventListener('mouseenter', open);
+      bar.addEventListener('mouseleave', _scheduleClose);
+      bar.addEventListener('focusout', _scheduleClose);
+    }
+    // Brush.js owns the radius and its own buttons / slider / keys call straight into it: wrap the three mutators once so the bar
+    // follows every path (grow / shrink call the module-internal setSize, hence the three wrappers).
+    ['setSize', 'grow', 'shrink'].forEach(fn => {
+      const orig = Brush[fn];
+      Brush[fn] = function () { const r = orig.apply(Brush, arguments); sync(); return r; };
+    });
+    const d = document.getElementById('scatter-density');
+    if (d) d.addEventListener('input', sync);
+    sync();
+  }
+
+  return { init, open, isOpen, sync, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,
+           presets: () => _all().map(p => Object.assign({}, p)), builtinCount: () => BUILTIN.length };
 })();
 // ════════════════════════════════════════════════════════════
 // HISTORY MODULE — 50-step string-array undo/redo
@@ -17443,6 +17647,10 @@ const LocalizationKeys = (() => {
   let _groups = ['Tiles', 'Buildings', 'Settlements', 'Upgrades', 'Universal Keys'];
   let _collapseState = {};
   let _addGroup = 'Universal Keys';
+  let _links = [];            // LocRecords.plan(): the key that stands for every hex / building record of every loaded package
+  let _byKey = {};            // key -> { package: [link, ...] }
+  let _fltPkg = '';           // '' = all packages
+  let _fltStatus = '';        // '' | 'nouk' | 'unlinked' | 'norecords'
 
   function _migrateEntries(entries) {
     for (const e of entries) {
@@ -17563,7 +17771,8 @@ const LocalizationKeys = (() => {
   }
 
   function remove(key) {
-    if (!confirm(`Delete key "${key}"?`)) return;
+    const used = Object.values(_byKey[key] || {}).reduce((n, a) => n + a.filter(l => l.linked).length, 0);
+    if (!confirm(`Delete key "${key}"?` + (used ? `\n\n${used} record(s) use it as textId and would show their id instead of a name.` : ''))) return;
     _entries = _entries.filter(e => e.key !== key);
     _save();
     _populateDatalist();
@@ -17751,6 +17960,108 @@ const LocalizationKeys = (() => {
     }
   }
 
+  // ── Records of the packages (loc-records.js) ───────────────
+  // Every tile and building of every loaded package has a row here by default; only UI and custom keys are typed by hand.
+  function _pkgIds() {
+    const ids = (Packages.getAll() || []).map(p => p.id);
+    for (const l of _links) if (!ids.includes(l.package)) ids.push(l.package);
+    return ids;
+  }
+
+  function _recomputeLinks() {
+    const r = LocRecords.plan({ hex: HexDB.getAll(), bld: BldDB.getAll(), entries: _entries,
+      packageIds: (Packages.getAll() || []).map(p => p.id) });
+    _links = r.links;
+    _byKey = LocRecords.byKey(_links);
+    return r;
+  }
+
+  // Adds the missing rows. Returns how many were added. Never touches an existing row.
+  function syncFromRecords() {
+    let added = 0;
+    try {
+      const r = _recomputeLinks();
+      for (const e of r.seeds) { if (!_entries.some(x => x.key === e.key)) { _entries.push(e); added++; } }
+      if (added) { _save(); _populateDatalist(); }
+    } catch (err) {
+      console.warn('[LocalizationKeys] sync from records skipped:', err.message);
+    }
+    return added;
+  }
+
+  function _unlinked() { return _links.filter(l => !l.linked); }
+
+  // Writes the key into every record whose textId is empty (the key is the one shown in the table: own, legacy, inherited or generated).
+  function fillEmptyTextIds() {
+    syncFromRecords();
+    const todo = _unlinked();
+    if (!todo.length) { UI.toast('Every record already has a textId'); return; }
+    const per = {};
+    for (const l of todo) per[l.package] = (per[l.package] || 0) + 1;
+    const lines = Object.entries(per).map(([p, n]) => '  ' + p + ': ' + n).join('\n');
+    if (!confirm('Write the key into the empty textId of ' + todo.length + ' record(s)?\n' + lines +
+      '\n\nA package record that repaints a base record gets the base key. Changes stay in this browser until you Publish the package.')) return;
+    let n = 0;
+    for (const l of todo) if ((l.kind === 'hex' ? HexDB : BldDB).setTextId(l.id, l.package, l.key)) n++;
+    syncFromRecords();
+    _renderHead(); _renderList();
+    UI.toast('✅ textId filled in ' + n + ' record(s)', { detail: 'Publish the packages to send it to the server.', ms: 5000 });
+  }
+
+  function resync() {
+    const added = syncFromRecords();
+    _renderHead(); _renderList();
+    UI.toast(added ? 'Added ' + added + ' key row(s)' : 'Nothing to add: every record has a row');
+  }
+
+  function setFilter(kind, val) {
+    if (kind === 'pkg') _fltPkg = val; else _fltStatus = val;
+    _renderList();
+  }
+
+  function _cols() { return 'minmax(130px,1.3fr) 1fr 1fr 110px ' + _pkgIds().map(() => '64px').join(' ') + ' 24px'; }
+
+  function _renderHead() {
+    try { _recomputeLinks(); } catch (e) { /* DB not ready: package columns stay empty */ }
+    const head = document.getElementById('loc-keys-head');
+    if (head) {
+      head.style.gridTemplateColumns = _cols();
+      head.innerHTML = ['Key', 'EN', 'UK', 'Group'].map(t => '<span style="color:#888;font-size:11px;text-transform:uppercase">' + t + '</span>').join('') +
+        _pkgIds().map(id => '<span title="Records of package ' + _ea(id) + ' that use this key" style="color:#888;font-size:11px;text-transform:uppercase;overflow:hidden;text-overflow:ellipsis">' + _ex(id) + '</span>').join('') + '<span></span>';
+    }
+    const sel = document.getElementById('loc-flt-pkg');
+    if (sel) sel.innerHTML = '<option value="">All packages</option>' + _pkgIds().map(id => '<option value="' + _ea(id) + '"' + (id === _fltPkg ? ' selected' : '') + '>' + _ex(id) + '</option>').join('');
+    const cnt = document.getElementById('loc-fill-count');
+    if (cnt) { const n = _unlinked().length; cnt.textContent = n ? '(' + n + ')' : ''; }
+  }
+
+  // One cell per package: how many records use the key; orange when some of them still have an empty textId.
+  function _pkgCell(key, pkg) {
+    const ls = (_byKey[key] || {})[pkg] || [];
+    if (!ls.length) return '<span style="color:#555;text-align:center">–</span>';
+    const open = ls.filter(l => !l.linked).length;
+    const tip = ls.map(l => l.id + (l.linked ? '' : ' (textId empty)') + (l.how === 'skinSlot' || l.how === 'stripped' ? ' ← ' + l.base : '')).join('\n');
+    return '<span title="' + _ea(tip) + '" style="text-align:center;font-size:12px;color:' + (open ? '#f90' : '#4caf50') + '">' + ls.length + (open ? '⚠' : '') + '</span>';
+  }
+
+  function _status(e) {
+    const refs = _byKey[e.key] || {};
+    const any = Object.values(refs).some(a => a.length);
+    return {
+      nouk: !(e.uk || '').trim(),
+      unlinked: Object.values(refs).some(a => a.some(l => !l.linked)),
+      norecords: !any && (e.group === 'Tiles' || e.group === 'Buildings'),
+      inPkg: pkg => !!(refs[pkg] && refs[pkg].length),
+    };
+  }
+
+  function _passes(e) {
+    if (!_fltPkg && !_fltStatus) return true;
+    const st = _status(e);
+    if (_fltPkg && !st.inPkg(_fltPkg)) return false;
+    return !_fltStatus || st[_fltStatus];
+  }
+
   function openManager() {
     const modal = document.getElementById('loc-keys-modal');
     if (!modal) return;
@@ -17764,6 +18075,9 @@ const LocalizationKeys = (() => {
       if (raw) _collapseState = JSON.parse(raw);
     } catch(e) { _collapseState = {}; }
     modal.style.display = 'flex';
+    const added = syncFromRecords();
+    if (added) UI.toast('Added ' + added + ' key row(s) for tiles and buildings of the packages', { detail: 'Fill EN/UK; "Fill empty textId" links the records.', ms: 5000 });
+    _renderHead();
     _renderAddForm();
     _renderList();
   }
@@ -17779,7 +18093,7 @@ const LocalizationKeys = (() => {
   }
 
   function _renderRow(e) {
-    return `<div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;align-items:center;padding:3px 0 3px 5px;border-bottom:1px solid #333${_serverKeysSet ? ';border-left:3px solid #ef5350' : ''}">
+    return `<div style="display:grid;grid-template-columns:${_cols()};gap:4px;align-items:center;padding:3px 0 3px 5px;border-bottom:1px solid #333${_serverKeysSet ? ';border-left:3px solid #ef5350' : ''}">
     <input type="text" value="${_ea(e.key)}" data-orig="${_ea(e.key)}"
       style="background:#2a2a2a;border:1px solid #555;color:#aaa;padding:3px 6px;border-radius:3px;font-size:11px;width:100%;box-sizing:border-box"
       onblur="LocalizationKeys.renameKey(this.dataset.orig,this.value,this)"
@@ -17794,6 +18108,7 @@ const LocalizationKeys = (() => {
       style="background:#2a2a2a;border:1px solid #555;color:#aaa;padding:3px 2px;border-radius:3px;font-size:11px;width:100%">
       ${_groups.map(g => `<option value="${_ea(g)}"${g === e.group ? ' selected' : ''}>${_ex(g)}</option>`).join('')}
     </select>
+    ${_pkgIds().map(id => _pkgCell(e.key, id)).join('')}
     <button onclick="LocalizationKeys.remove('${_ej(e.key)}')"
       style="background:none;border:none;color:#e57373;cursor:pointer;font-size:14px;padding:0 4px;line-height:1">✕</button>
   </div>`;
@@ -17802,13 +18117,15 @@ const LocalizationKeys = (() => {
   function _renderList() {
     const container = document.getElementById('loc-keys-list');
     if (!container) return;
+    try { _recomputeLinks(); } catch (e) { /* DB not ready */ }
 
-    const isFlat = !!(_filterText || _serverKeysSet);
+    const isFlat = !!(_filterText || _serverKeysSet || _fltPkg || _fltStatus);
 
     if (isFlat) {
       let visible = _filterText
         ? _entries.filter(e => e.key.toLowerCase().includes(_filterText) || (e.en||'').toLowerCase().includes(_filterText))
         : _entries;
+      visible = visible.filter(_passes);
       if (_serverKeysSet) visible = visible.filter(e => !_serverKeysSet.has(e.key));
       container.innerHTML = visible.map(_renderRow).join('');
       return;
@@ -17913,7 +18230,8 @@ const LocalizationKeys = (() => {
   return { load, getKeys, getEntries, getExportData, add, remove, downloadJson, importJson,
            compareWithServer, pushToServer, pullFromServer, clearCache, openManager, closeManager,
            filterList, _updateField, renameKey, _renderList, _ex, _ea,
-           addGroup, removeGroup, setEntryGroup, toggleGroup, toggleGroupsPanel, addKeyToGroup };
+           addGroup, removeGroup, setEntryGroup, toggleGroup, toggleGroupsPanel, addKeyToGroup,
+           syncFromRecords, resync, fillEmptyTextIds, setFilter, getLinks: () => _links };
 })();
 
 window.LocalizationKeys = LocalizationKeys;
@@ -19717,6 +20035,14 @@ const HexDB = (() => {
 
   // ── Read inputs → data ────────────────────────────────────
   // Sets (or clears, slot '') the skinSlot of the record id in package pkg. Used by the Skin slots table.
+  // Sets the localization key (textId) of the record id in package pkg, only while it is empty. Used by Localization Keys > Fill empty textId.
+  function setTextId(id, pkg, key) {
+    const rec = _data.hexes.find(h => h.id === id && (h.package || 'postapoc') === pkg);
+    if (!rec || String(rec.textId || '').trim()) return false;
+    rec.textId = key;
+    _autoSave();
+    return true;
+  }
   function setSkinSlot(id, pkg, slot) {
     const rec = _data.hexes.find(h => h.id === id && (h.package || 'postapoc') === pkg);
     if (!rec) return false;
@@ -20735,7 +21061,7 @@ const HexDB = (() => {
     if (n > 0) _autoSave();
     return n;
   }
-  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, migrateToBuilding, load, loadFromObject, mergeFromServer, serverChangesSince, rebaseTo, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
+  return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, setTextId, migrateToBuilding, load, loadFromObject, mergeFromServer, serverChangesSince, rebaseTo, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage, getData, save, triggerLoad, getAll, getRev, getRoles, reportMissingRoles, pickSprite, setCommonGoldPerTap, countLocKey, renameLocKey, setAllowedRoads, getAllowedRoads, refreshDerived, fixRoadDuplicates, exportFor, setRoadsMode, openRoadsMatrix, backfillRoads, backfillPreview, openBackfill, snapshotRoads, restoreRoads, applyRoadChanges, getRoadDefaults, setRoadDefaults, defaultRoadsFor, applyTypeDefaults, openRoadDefaults };
 })();
 
 window.HexDB = HexDB;
@@ -21797,6 +22123,14 @@ const BldDB = (() => {
   }
 
   // Sets (or clears, slot '') the skinSlot of the building id in package pkg. Used by the Skin slots table.
+  // Sets the localization key (textId) of the record id in package pkg, only while it is empty. Used by Localization Keys > Fill empty textId.
+  function setTextId(id, pkg, key) {
+    const rec = _data.buildings.find(b => b.id === id && (b.package || 'postapoc') === pkg);
+    if (!rec || String(rec.textId || '').trim()) return false;
+    rec.textId = key;
+    _autoSave();
+    return true;
+  }
   function setSkinSlot(id, pkg, slot) {
     const rec = _data.buildings.find(b => b.id === id && (b.package || 'postapoc') === pkg);
     if (!rec) return false;
@@ -22370,7 +22704,7 @@ const BldDB = (() => {
 
   return { init, add, addReskin, promptReskin, _updateReskinButtonVisibility,
            mergeFromServer, serverChangesSince, rebaseTo, adoptForeign, addEntries, snapshotEntries, restoreEntries, snapshotPackage, restorePackage, migrateCopy, removeByPackage,
-           pushRecord, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
+           pushRecord, deleteSelected, copy, paste, rehomeByPrefix, setSkinSlot, setTextId, load, save, triggerLoad, getJson, getAll, pickSprite, countLocKey, renameLocKey };
 })();
 
 window.BldDB = BldDB;
@@ -24290,6 +24624,7 @@ window.addEventListener('load', async () => {
   Canvas.init();
   UI.init();
   Tools.init();
+  QuickBar.init();
   try { Stamps.initPanel(); }                  // a failure here must not stop the startup steps below
   catch (e) { console.error('Stamps panel failed to start', e); UI.toast('Stamps panel failed to start: ' + (e && e.message || e)); }
   try { Bookmarks.initPanel(); }               // same: a failure here must not stop the startup steps below
@@ -24565,7 +24900,7 @@ window.addEventListener('load', async () => {
 
 <!-- Localization Keys Manager Modal -->
 <div id="loc-keys-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9999;align-items:center;justify-content:center">
-  <div style="background:#252525;border:1px solid #555;border-radius:8px;padding:20px;width:min(820px,95vw);max-height:85vh;display:flex;flex-direction:column;gap:10px">
+  <div style="background:#252525;border:1px solid #555;border-radius:8px;padding:20px;width:min(1100px,96vw);max-height:85vh;display:flex;flex-direction:column;gap:10px">
     <!-- Header -->
     <div style="display:flex;align-items:center;justify-content:space-between">
       <strong style="color:#fff;font-size:15px">Localization Keys</strong>
@@ -24592,20 +24927,29 @@ window.addEventListener('load', async () => {
     <input id="loc-keys-search" type="text" placeholder="🔍 Filter by key or EN text…"
       oninput="LocalizationKeys.filterList(this.value)"
       style="background:#333;border:1px solid #555;color:#eee;padding:5px 10px;border-radius:4px;font-size:13px;width:100%;box-sizing:border-box">
+    <!-- Filters: package, status; "Fill empty textId" links the records that have no key yet -->
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="loc-flt-pkg" onchange="LocalizationKeys.setFilter('pkg',this.value)"
+        style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:4px;font-size:12px"></select>
+      <select id="loc-flt-status" onchange="LocalizationKeys.setFilter('status',this.value)"
+        style="background:#333;border:1px solid #555;color:#eee;padding:3px 6px;border-radius:4px;font-size:12px">
+        <option value="">All keys</option><option value="nouk">No UK text</option>
+        <option value="unlinked">Records with empty textId</option><option value="norecords">Tile/building keys without records</option>
+      </select>
+      <button onclick="LocalizationKeys.resync()" class="hexdb-tool-btn"
+        title="Add a row for every tile and building of the loaded packages that has none">↻ Sync records</button>
+      <button onclick="LocalizationKeys.fillEmptyTextIds()" class="hexdb-tool-btn"
+        title="Write the key shown in the table into every record whose textId is empty">⛓ Fill empty textId <span id="loc-fill-count"></span></button>
+      <span style="color:#777;font-size:11px">Package columns: records using the key (<span style="color:#4caf50">green</span> linked, <span style="color:#f90">⚠</span> textId empty)</span>
+    </div>
     <!-- Groups panel (hidden by default) -->
     <div id="loc-groups-panel" style="display:none;background:#1e1e1e;border:1px solid #444;border-radius:4px;padding:10px"></div>
     <!-- Column headers -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;padding:2px 0;border-bottom:1px solid #555">
-      <span style="color:#888;font-size:11px;text-transform:uppercase">Key</span>
-      <span style="color:#888;font-size:11px;text-transform:uppercase">EN</span>
-      <span style="color:#888;font-size:11px;text-transform:uppercase">UK</span>
-      <span style="color:#888;font-size:11px;text-transform:uppercase">Group</span>
-      <span></span>
-    </div>
+    <div id="loc-keys-head" style="display:grid;gap:4px;padding:2px 0 2px 5px;border-bottom:1px solid #555"></div>
     <!-- Rows -->
     <div id="loc-keys-list" style="overflow-y:auto;flex:1;min-height:0;max-height:55vh"></div>
     <!-- Add new key -->
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;align-items:center;border-top:1px solid #444;padding-top:10px">
+    <div id="loc-add-row" style="display:grid;grid-template-columns:1fr 1fr 1fr 120px auto;gap:4px;align-items:center;border-top:1px solid #444;padding-top:10px">
       <input id="loc-new-key" type="text" placeholder="new_key"
         style="background:#333;border:1px solid #555;color:#eee;padding:4px 8px;border-radius:4px;font-size:12px"
         onkeydown="if(event.key==='Enter')document.getElementById('loc-add-btn').click()">
