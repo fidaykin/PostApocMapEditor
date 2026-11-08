@@ -1963,6 +1963,7 @@ body.mode-common #map-io    { display: none; }
         <button type="button" class="qb-btn" id="qb-larger" onclick="QuickBar.step(1)" title="Larger brush (] or Alt + wheel up)" aria-label="Larger brush">+</button>
         <span class="qb-sep"></span>
         <select id="qb-preset" aria-label="Brush preset" title="Brush preset: tool, size, symmetry and scatter density" onchange="QuickBar.applyPreset(this.value); this.blur()"></select>
+        <button type="button" class="qb-btn" id="qb-water" onclick="QuickBar.toggleWaterEdges()" title="Auto water edges (off by default): when on, painting re-picks the river / lake pieces around the painted cells from the real hex neighbours. Neighbours it changes flash; one Undo reverts all" aria-label="Auto water edges" aria-pressed="false">〰</button>
         <button type="button" class="qb-btn" id="qb-save" onclick="QuickBar.beginSave()" title="Save the current tool, size, symmetry and density as a preset" aria-label="Save preset">＋</button>
         <input type="text" id="qb-name" maxlength="24" placeholder="Preset name" aria-label="Preset name" style="display:none" onkeydown="if(event.key==='Enter')QuickBar.commitSave(); else if(event.key==='Escape')QuickBar.cancelSave(); event.stopPropagation()">
         <button type="button" class="qb-btn" id="qb-delete" onclick="QuickBar.deletePreset()" title="Delete the selected custom preset" aria-label="Delete preset">🗑</button>
@@ -2894,7 +2895,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.08";
-const COMMIT  = "46a6eb2";
+const COMMIT  = "7d22ab5";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -7027,7 +7028,108 @@ const Tools = (() => {
   // Tools.autoResolveEdgesAround directly. Zone filling (Fill Zones, Fill This Zone, Randomize & Fill) is a hand tool too
   // and goes through manualEdgesAround (owner decision, same day).
   const AUTO_WATER_EDGES = false;
-  function _manualEdgesAround(cellsPainted) { if (AUTO_WATER_EDGES) _autoResolveEdgesAround(cellsPainted); }
+  function _manualEdgesAround(cellsPainted) {
+    if (AUTO_WATER_EDGES) _autoResolveEdgesAround(cellsPainted);
+    else if (_autoWaterOpt) _resolveWaterEdges(cellsPainted);
+  }
+
+  // ── Auto water edges, opt-in (ClickUp 869fpav2z) ──
+  // The 2026-10-07 decision stands: the hand tools write exactly the chosen tile unless the author switches this option on (quick bar, default
+  // OFF, remembered per browser). When on, the river / lake pieces in and around the written cells are re-picked from the REAL hex adjacency
+  // (HexUtils; EdgeTiling's legacy _DIRS tables read two wrong neighbours per cell on even map heights, which is why the old automatic mode
+  // drew pieces where they did not belong: ClickUp 869fpc6ak). Only directional pieces (edgeFaces) are ever rewritten; nothing else changes.
+  const _WATER_OPT_KEY = 'autoWaterEdges';
+  let _autoWaterOpt = false;
+  try { _autoWaterOpt = localStorage.getItem(_WATER_OPT_KEY) === '1'; } catch (e) { /* storage blocked: the option lasts for this session */ }
+  function setAutoWaterEdges(on) {
+    _autoWaterOpt = !!on;
+    try { localStorage.setItem(_WATER_OPT_KEY, _autoWaterOpt ? '1' : '0'); } catch (e) { /* session only */ }
+    if (typeof QuickBar !== 'undefined') QuickBar.sync();
+  }
+  function getAutoWaterEdges() { return _autoWaterOpt; }
+
+  // HexUtils.CUBE_DIRS order on screen (measured on the drawn grid): SE, NE, N, NW, SW, S. The opposite of direction i is (i + 3) % 6.
+  const _WATER_FACES = ['SE', 'NE', 'N', 'NW', 'SW', 'S'];
+  let _pieceRev = null, _pieceCache = null;
+  // Directional pieces per package: [{ id, dirs: Set of direction indices, n }], sorted by id so ties are deterministic.
+  function _waterPieces(pkg) {
+    const rev = HexDB.getRev ? HexDB.getRev() : null;
+    if (!_pieceCache || rev !== _pieceRev) { _pieceCache = new Map(); _pieceRev = rev; }
+    if (_pieceCache.has(pkg)) return _pieceCache.get(pkg);
+    const out = [];
+    for (const h of HexDB.getAll()) {
+      if (!h.id || (h.package || 'postapoc') !== pkg || !_isDirectional(h) || !_inEdgeFamily(h)) continue;
+      if (Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length) continue;
+      if (/_test|kaiju|chicken/i.test(h.id)) continue;
+      const dirs = new Set(h.edgeFaces.map(f => _WATER_FACES.indexOf(f)));
+      if (dirs.has(-1)) continue;                       // a face that is not a flat-top compass name: not usable here
+      out.push({ id: h.id, dirs, n: dirs.size });
+    }
+    out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    _pieceCache.set(pkg, out);
+    return out;
+  }
+  function _neighborAt(col, row, i) {
+    const c = HexUtils.toCube(col, row, MAP_WIDTH, MAP_HEIGHT), d = HexUtils.CUBE_DIRS[i];
+    const n = HexUtils.fromCube({ q: c.q + d.q, r: c.r + d.r, s: c.s + d.s }, MAP_WIDTH, MAP_HEIGHT);
+    return HexUtils.inBounds(n.col, n.row, MAP_WIDTH, MAP_HEIGHT) ? n : null;
+  }
+  // The piece whose exits are all wanted and as many as possible; the current one wins a tie. null = nothing fits (the cell stays as it is).
+  function _bestWaterPiece(pkg, wanted, current) {
+    let best = null;
+    for (const p of _waterPieces(pkg)) {
+      let ok = true;
+      for (const d of p.dirs) if (!wanted.has(d)) { ok = false; break; }
+      if (!ok) continue;
+      if (!best || p.n > best.n || (p.n === best.n && p.id === current && best.id !== current)) best = p;
+    }
+    return best ? best.id : null;
+  }
+  let _waterHlTimer = null;
+  function _resolveWaterEdges(cellsPainted) {
+    if (typeof HexDB === 'undefined') return [];
+    const W = MAP_WIDTH;
+    const todo = new Map(), painted = new Set();
+    for (const { col, row } of cellsPainted) {
+      if (!HexUtils.inBounds(col, row, W, MAP_HEIGHT)) continue;
+      painted.add(row * W + col);
+      if (_isDirectional(Terrain.byHexId(mapData[row * W + col]))) todo.set(row * W + col, { col, row });
+      for (let i = 0; i < 6; i++) {
+        const n = _neighborAt(col, row, i);
+        if (n && _isDirectional(Terrain.byHexId(mapData[n.row * W + n.col]))) todo.set(n.row * W + n.col, n);
+      }
+    }
+    if (!todo.size) return [];
+    const before = new Map();
+    for (let pass = 0; pass < 3; pass++) {              // a piece's exits depend on its neighbours' pieces: settle in a few passes
+      let moved = false;
+      for (const [k, { col, row }] of todo) {
+        const cur = mapData[k], entry = Terrain.byHexId(cur);
+        const wanted = new Set();
+        for (let i = 0; i < 6; i++) {
+          const n = _neighborAt(col, row, i);
+          if (!n) continue;
+          const nk = n.row * W + n.col, ne = Terrain.byHexId(mapData[nk]);
+          if (!ne || !_inEdgeFamily(ne)) continue;
+          // a piece that is not being re-picked must face back at this cell; one that is being re-picked, or flat water, connects
+          if (_isDirectional(ne) && !todo.has(nk) && !ne.edgeFaces.includes(_WATER_FACES[(i + 3) % 6])) continue;
+          wanted.add(i);
+        }
+        const pick = _bestWaterPiece((entry && entry.package) || 'postapoc', wanted, cur);
+        if (pick && pick !== cur) { if (!before.has(k)) before.set(k, cur); mapData[k] = pick; moved = true; }
+      }
+      if (!moved) break;
+    }
+    // Neighbours rewritten by this pass (not the cells the author wrote) flash for a moment so the change is visible; one Undo reverts all.
+    const flash = [];
+    for (const [k, prev] of before) if (!painted.has(k) && mapData[k] !== prev) flash.push(todo.get(k));
+    if (flash.length) {
+      Canvas.setHighlight('water-edges', flash, { stroke: 'rgba(255,193,7,0.95)' }, { render: false });
+      clearTimeout(_waterHlTimer);
+      _waterHlTimer = setTimeout(() => Canvas.setHighlight('water-edges', null), 1200);
+    }
+    return Array.from(before.keys());
+  }
 
   // cellsPainted: [{col,row,prev?}] where prev is the id the cell held BEFORE the edit.
   // A directional tile written here re-resolves itself and its water/river neighbours (original rule).
@@ -8724,7 +8826,7 @@ const Tools = (() => {
     return true;
   }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, stepBrush, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, stepBrush, setAutoWaterEdges, getAutoWaterEdges, resolveWaterEdges: _resolveWaterEdges, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround, manualEdgesAround: _manualEdgesAround, AUTO_WATER_EDGES,
            fillAt: _fill, applyRect: _applyRect,
@@ -8776,6 +8878,8 @@ const QuickBar = (() => {
     bar.querySelectorAll('[data-qtool]').forEach(b => b.classList.toggle('active', b.dataset.qtool === c.tool));
     const size = document.getElementById('qb-size');
     if (size) size.textContent = String(c.size);
+    const wb = document.getElementById('qb-water');
+    if (wb) { wb.classList.toggle('active', Tools.getAutoWaterEdges()); wb.setAttribute('aria-pressed', String(Tools.getAutoWaterEdges())); }
     const sel = document.getElementById('qb-preset');
     if (!sel) return;
     const hit = _all().find(p => _matches(p, c));
@@ -8796,6 +8900,11 @@ const QuickBar = (() => {
   function setTool(name) { if (!_refuse()) Tools.setActive(name); }
   function step(dir) { if (!_refuse()) Tools.stepBrush(dir); }
   function wheel(dir) { step(dir); }
+  function toggleWaterEdges() {
+    if (_refuse()) return;
+    Tools.setAutoWaterEdges(!Tools.getAutoWaterEdges());
+    UI.toast('Auto water edges: ' + (Tools.getAutoWaterEdges() ? 'on' : 'off'));
+  }
 
   function applyPreset(id) {
     if (!id) return;
@@ -8887,7 +8996,7 @@ const QuickBar = (() => {
     sync();
   }
 
-  return { init, open, isOpen, sync, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,
+  return { init, open, isOpen, sync, toggleWaterEdges, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,
            presets: () => _all().map(p => Object.assign({}, p)), builtinCount: () => BUILTIN.length };
 })();
 // ════════════════════════════════════════════════════════════
