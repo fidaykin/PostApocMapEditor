@@ -137,6 +137,34 @@ test.describe('quick bar', () => {
     await expect(page.locator('#quickbar')).toBeHidden();
   });
 
+  test('the pin keeps the bar open when the pointer leaves, is remembered, and unpinning lets it close again', async ({ page }) => {
+    await page.evaluate(() => { document.getElementById('quickbar')!.classList.remove('qb-open'); QuickBar.open(); });
+    await page.click('#qb-pin');
+    expect(await page.evaluate(() => QuickBar.isPinned())).toBe(true);
+    await expect(page.locator('#qb-pin')).toHaveAttribute('aria-pressed', 'true');
+    expect(await page.evaluate(() => localStorage.getItem('quickbarPinned'))).toBe('1');
+    const b = (await page.locator('#canvas-container').boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + 500);                       // far from the bar
+    await page.waitForTimeout(1500);                                           // longer than the close delay
+    await expect(page.locator('#quickbar')).toBeVisible();
+    await page.click('#qb-pin');                                               // unpin
+    expect(await page.evaluate(() => QuickBar.isPinned())).toBe(false);
+    await page.mouse.move(b.x + b.width / 2, b.y + 500);
+    await expect(page.locator('#quickbar')).toBeHidden({ timeout: 4000 });
+  });
+
+  test('the bar opens within 28 px of the top edge and waits a second before closing', async ({ page }) => {
+    await page.evaluate(() => { document.getElementById('quickbar')!.classList.remove('qb-open'); });
+    const b = (await page.locator('#canvas-container').boundingBox())!;
+    await page.mouse.move(b.x + 100, b.y + 500);                      // away from the bar (it sits top-centre)
+    await page.mouse.move(b.x + 100, b.y + 26);                       // inside the 28 px edge zone
+    await expect(page.locator('#quickbar')).toBeVisible();
+    await page.mouse.move(b.x + 100, b.y + 500);
+    await page.waitForTimeout(500);                                            // still inside the grace period
+    await expect(page.locator('#quickbar')).toBeVisible();
+    await expect(page.locator('#quickbar')).toBeHidden({ timeout: 4000 });
+  });
+
   test('the bar is hidden outside the MAP mode', async ({ page }) => {
     await expect(page.locator('#quickbar')).toBeVisible();
     await page.evaluate(() => App.setMode('hexdb'));

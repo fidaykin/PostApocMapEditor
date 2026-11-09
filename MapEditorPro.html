@@ -371,6 +371,7 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
 #qb-handle { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 4; width: 44px; height: 5px; border-radius: 0 0 4px 4px; background: var(--accent); opacity: .55; pointer-events: none; }
 body:not(.mode-map) #quickbar, body:not(.mode-map) #qb-handle { display: none; }
 #quickbar.qb-open + #qb-handle, #quickbar:focus-within + #qb-handle { opacity: 0; }
+#quickbar .qb-pinned { background: var(--accent); color: #fff; border-color: var(--accent); }
 #quickbar .qb-btn { min-width: 26px; height: 24px; padding: 0 6px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: inherit; cursor: pointer; font-size: 13px; }
 #quickbar .qb-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 #quickbar .qb-size { min-width: 18px; text-align: center; font-weight: bold; color: var(--text, #ddd); }
@@ -1952,6 +1953,8 @@ body.mode-common #map-io    { display: none; }
     <div id="canvas-container">
       <canvas id="map-canvas"></canvas>
       <div id="quickbar" role="toolbar" aria-label="Quick tool bar">
+        <button type="button" class="qb-btn" id="qb-pin" onclick="QuickBar.togglePin()" title="Pin the bar open (it covers the top rows of the map while pinned); unpinned it slides in at the top edge of the canvas" aria-label="Pin the quick bar" aria-pressed="false">📌</button>
+        <span class="qb-sep"></span>
         <button type="button" class="qb-btn" data-qtool="paint" onclick="QuickBar.setTool('paint')" title="Paint (P)" aria-label="Quick paint">✏️</button>
         <button type="button" class="qb-btn" data-qtool="eraser" onclick="QuickBar.setTool('eraser')" title="Eraser (X)" aria-label="Quick eraser">⌫</button>
         <button type="button" class="qb-btn" data-qtool="marquee" onclick="QuickBar.setTool('marquee')" title="Select Region (M)" aria-label="Quick select region">⛶</button>
@@ -2893,8 +2896,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.11.08";
-const COMMIT  = "528ac46";
+const VERSION = "2026.11.09";
+const COMMIT  = "d16cb6c";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -8951,7 +8954,10 @@ const QuickBar = (() => {
 
   // Auto-hide: the bar opens when the pointer touches the top edge of the canvas and closes (after a short grace) once the pointer is
   // away from it and nothing inside has focus. It never opens while a mouse button is down, so a stroke that passes the top edge is not disturbed.
-  const HOT_EDGE_PX = 10, CLOSE_DELAY_MS = 350;
+  const HOT_EDGE_PX = 28, CLOSE_DELAY_MS = 1000;
+  const PIN_KEY = 'quickbarPinned';
+  let _pinned = false;
+  try { _pinned = localStorage.getItem(PIN_KEY) === '1'; } catch (e) { /* storage blocked: the pin lasts for this session */ }
   let _closeTimer = null;
   function open() {
     clearTimeout(_closeTimer); _closeTimer = null;
@@ -8960,13 +8966,24 @@ const QuickBar = (() => {
   }
   function _close() {
     const bar = document.getElementById('quickbar');
-    if (!bar || bar.matches(':hover') || bar.contains(document.activeElement)) return;
+    if (!bar || _pinned || bar.matches(':hover') || bar.contains(document.activeElement)) return;
     bar.classList.remove('qb-open');
   }
   function _scheduleClose() {
     clearTimeout(_closeTimer);
     _closeTimer = setTimeout(_close, CLOSE_DELAY_MS);
   }
+  function _applyPin() {
+    const pin = document.getElementById('qb-pin');
+    if (pin) { pin.classList.toggle('qb-pinned', _pinned); pin.setAttribute('aria-pressed', String(_pinned)); }
+    if (_pinned) open(); else _scheduleClose();
+  }
+  function togglePin() {
+    _pinned = !_pinned;
+    try { localStorage.setItem(PIN_KEY, _pinned ? '1' : '0'); } catch (e) { /* session only */ }
+    _applyPin();
+  }
+  function isPinned() { return _pinned; }
   function isOpen() { const bar = document.getElementById('quickbar'); return !!bar && bar.classList.contains('qb-open'); }
 
   function init() {
@@ -8983,6 +9000,8 @@ const QuickBar = (() => {
       bar.addEventListener('mouseenter', open);
       bar.addEventListener('mouseleave', _scheduleClose);
       bar.addEventListener('focusout', _scheduleClose);
+      // a pointer click on a button hands the focus back to the map shortcuts (and lets the bar close); text fields and the select keep it while in use
+      bar.addEventListener('click', e => { const t = e.target; if (t && t.tagName === 'BUTTON' && e.detail > 0) t.blur(); });
     }
     // Brush.js owns the radius and its own buttons / slider / keys call straight into it: wrap the three mutators once so the bar
     // follows every path (grow / shrink call the module-internal setSize, hence the three wrappers).
@@ -8993,9 +9012,10 @@ const QuickBar = (() => {
     const d = document.getElementById('scatter-density');
     if (d) d.addEventListener('input', sync);
     sync();
+    if (_pinned) _applyPin();
   }
 
-  return { init, open, isOpen, sync, toggleWaterEdges, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,
+  return { init, open, isOpen, isPinned, togglePin, sync, toggleWaterEdges, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,
            presets: () => _all().map(p => Object.assign({}, p)), builtinCount: () => BUILTIN.length };
 })();
 // ════════════════════════════════════════════════════════════
