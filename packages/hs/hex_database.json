@@ -754,7 +754,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "Hs_Decameroon_Plain_1"
     },
     {
       "id": "Hs_Decameroon_Lake_1",
@@ -1251,7 +1251,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "Hs_Decameroon_Plain_1"
     },
     {
       "id": "Hs_Decameroon_Mountain_2",
@@ -1305,7 +1305,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "Hs_Decameroon_Plain_1"
     },
     {
       "id": "Hs_Decameroon_Plain_1",
