@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.20",
+  "version": "1.0.21",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -96,6 +96,11 @@
       "version": "1.0.20",
       "date": "2026-11-12",
       "note": "HS package (no updates) just synk"
+    },
+    {
+      "version": "1.0.21",
+      "date": "2026-11-12",
+      "note": "Test Mill building changes"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
