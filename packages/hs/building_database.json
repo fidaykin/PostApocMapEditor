@@ -2115,7 +2115,7 @@
       "resourceAwardedOnDestroy": false,
       "destroyIncome": [],
       "canBuild": true,
-      "needRoad": false,
+      "needRoad": true,
       "isRoad": false,
       "availableTiles": [
         "Plains"
@@ -2124,7 +2124,7 @@
       "price": [
         {
           "type": "Gold",
-          "amount": 3000
+          "amount": 2999
         }
       ],
       "premiumPrice": 10,
@@ -2173,7 +2173,7 @@
       "stores": [
         {
           "type": "Lumber",
-          "amount": 1000
+          "amount": 10000
         }
       ],
       "storageCapacity": [],
