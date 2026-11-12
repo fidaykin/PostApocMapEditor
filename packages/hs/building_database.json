@@ -1560,13 +1560,13 @@
       "facilityBonusTarget": "Income Per Turn",
       "facilityBonusResources": [
         {
-          "type": "Pollution",
+          "type": "Food",
           "amount": 50
         }
       ],
       "facilityBonusInfluenceType": "Add",
       "productionFacilities": [
-        "Decameroon_Herbs_1"
+        "Hs_Decameroon_Herbs_1"
       ],
       "canStore": false,
       "stores": [
