@@ -2989,12 +2989,16 @@
       ],
       "canProductionFacilities": true,
       "facilityBonusType": "Get",
-      "facilityBonusSize": 1,
+      "facilityBonusSize": 100,
       "facilityBonusTarget": "Income Per Turn",
       "facilityBonusResources": [
         {
           "type": "Lumber",
-          "amount": 100
+          "amount": 1
+        },
+        {
+          "type": "Gems",
+          "amount": 50
         }
       ],
       "facilityBonusInfluenceType": "Add",
