@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.19",
+  "version": "1.0.20",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -91,10 +91,15 @@
       "version": "1.0.18",
       "date": "2026-11-06",
       "note": "re Load art"
+    },
+    {
+      "version": "1.0.20",
+      "date": "2026-11-12",
+      "note": "HS package (no updates) just synk"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 25127258,
+  "totalBytes": 25127321,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
