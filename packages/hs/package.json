@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.22",
+  "version": "1.0.23",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -101,6 +101,11 @@
       "version": "1.0.21",
       "date": "2026-11-12",
       "note": "Test Mill building changes"
+    },
+    {
+      "version": "1.0.23",
+      "date": "2026-11-12",
+      "note": "Add Test Mill 2 for GET tests"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
