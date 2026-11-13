@@ -7833,10 +7833,60 @@ const Tools = (() => {
 
   function _objRefuse(msg) { if (!_objToasted) { _objToasted = true; UI.toast(msg); } return false; }
 
-  // Place the selected building at (col,row); returns true when something changed. Replaces a different building
-  // already there (its spawned satellites are removed first); the same id again is a no-op. Refused (toast) outside the
-  // map and on a cell under another multi-tile terrain's footprint.
-  function _placeObject(col, row) {
+  // Replace confirmation: placing a building on a cell that holds a different building, a forest or rocks destroys that
+  // content, so the user is asked first. A stroke never writes such a cell on its own: they are collected in _objPending
+  // and one dialog with the summary runs when the stroke ends (_confirmObjectReplace). Ground types (grass, water...)
+  // are covered without asking.
+  const _REPLACE_TERRAIN_TYPES = new Set(['Forests', 'Hills/Mountains']);
+  const _objPending = new Map();     // 'col,row' -> _objReplaceInfo of the cells of the running stroke that need a confirm
+  function _hexRecOf(id) {
+    if (typeof id !== 'string') return null;
+    const recs = HexDB.getAll().filter(h => h.id === id);
+    return recs.find(h => (h.package || 'postapoc') === 'postapoc') || recs[0] || null;
+  }
+  // What placing `bldId` on (col,row) would destroy, or null. terrainId/toId: a forest or rocks tile is really replaced by
+  // the ground its Hex DB record says it turns into when destroyed (destroyTransformTo, else Plains_1).
+  function _objReplaceInfo(col, row, bldId) {
+    const old = objectsData[col + ',' + row];
+    if (old === bldId) return null;
+    const labels = [];
+    let terrainId = null, toId = null;
+    if (old) labels.push(old);
+    if (!Layers.isLocked('terrain')) {
+      const id = mapData[row * MAP_WIDTH + col], rec = _hexRecOf(id);
+      if (rec && _REPLACE_TERRAIN_TYPES.has(rec.type)) {
+        terrainId = id;
+        toId = rec.destroyTransformTo && Terrain.byHexId(rec.destroyTransformTo) ? rec.destroyTransformTo : 'Plains_1';
+        labels.push(id + ' -> ' + toId);
+      }
+    }
+    return labels.length ? { col, row, old, terrainId, toId, labels } : null;
+  }
+  async function _confirmObjectReplace() {
+    const list = [..._objPending.values()];
+    _objPending.clear();
+    if (!list.length || !_selectedBuildingId) return;
+    const md = mapData, W = MAP_WIDTH, H = MAP_HEIGHT;
+    const count = new Map();
+    for (const i of list) for (const l of i.labels) count.set(l, (count.get(l) || 0) + 1);
+    const lines = [...count].map(([name, n]) => n > 1 ? name + ' x' + n : name);
+    const msg = list.length === 1
+      ? `Placing ${_selectedBuildingId} on ${list[0].col}, ${list[0].row} replaces what is there. It will be deleted.`
+      : `Placing ${_selectedBuildingId} on ${list.length} cells replaces what is there. It will be deleted.`;
+    const ok = await UI.confirm('Replace on the map', msg, lines.join('\n'), 'Replace');
+    if (!ok) return;                                                    // Cancel: nothing was written
+    if (mapData !== md || MAP_WIDTH !== W || MAP_HEIGHT !== H) { UI.toast('The map changed - nothing was replaced'); return; }
+    _beginLazyStroke();                                                 // one History step for the whole replacement
+    for (const i of list) _placeObject(i.col, i.row, true);
+    _eraseStroke = false; _eraseToken = null;
+    Canvas.drawMinimap();
+  }
+
+  // Place the selected building at (col,row); returns true when something changed. A cell that holds a different
+  // building, a forest or rocks is not written unless `confirmed` (see _objReplaceInfo); a replaced building has its spawned
+  // satellites removed first; the same id again is a no-op. Refused (toast) outside the map and on a cell under another
+  // multi-tile terrain's footprint.
+  function _placeObject(col, row, confirmed) {
     const bldId = _selectedBuildingId;
     if (!bldId) return false;
     // Defence only: _onDown/_onMove already ignore off-map cells, so input never reaches this line.
@@ -7845,8 +7895,11 @@ const Tools = (() => {
     const key = col + ',' + row;
     const old = objectsData[key];
     if (old === bldId) return false;
+    const info = _objReplaceInfo(col, row, bldId);
+    if (info && !confirmed) { _objPending.set(key, info); return false; }
     _pushOnce();
     if (old) _removeSatellites(col, row, old);
+    if (info && info.terrainId) _writeTerrain([{ col, row }], info.toId);   // the forest / rocks is really gone
     objectsData[key] = bldId;
     _spawnSatellites(col, row, bldId);
     IO.scheduleAutoSave();
@@ -8502,6 +8555,7 @@ const Tools = (() => {
           _selectedBuildingId = null; _updateBuildingLabel(); UI.toast('Pick a building first'); _isDown = false; break;
         }
         _beginLazyStroke();
+        _objPending.clear();
         if (_active === 'object') _placeObject(col, row); else _eraseObject(col, row);
         _lastObjectPainted = { col, row };
         break;
@@ -8554,7 +8608,7 @@ const Tools = (() => {
       _clearRoadStart(false); UI.toast('Road start cleared — the map changed'); Canvas.render();
     }
     if (_isStrokeTool(_active) && _eraseStroke && _eraseStale()) {   // the map was replaced mid-stroke: stop, write nothing
-      _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _lastObjectPainted = null; _lastRoadPainted = null; _clearEraserHover();
+      _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _lastObjectPainted = null; _lastRoadPainted = null; _clearEraserHover(); _objPending.clear();
       if (_active === 'road-connect') _clearRoadStart(false);
       UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : _active === 'eraser' ? 'Eraser stopped — the map changed' : ROAD_TOOLS.has(_active) ? 'Road tool stopped — the map changed' : _active === 'bridge' ? 'Bridge tool stopped — the map changed' : 'Building tool stopped — the map changed');
       Canvas.render();
@@ -8638,6 +8692,7 @@ const Tools = (() => {
     // stale toast: strokes write only from mousedown/mousemove, so nothing more is written, and the lazy History step (if any)
     // stays on the stack.
     _eraseStroke = false; _eraseToken = null; _scatterRun = null;
+    if (_active === 'object' && _objPending.size) _confirmObjectReplace();   // after the stroke: one dialog for every cell that needs it
     if ((_active === 'line' || _active === 'circle') && _shapeStart) { _finishDrag(e); return; }
 
     if (_active === 'paint' || _active === 'eraser' || _active === 'scatter' || _active === 'road' || _active === 'road-connect' || _active === 'erase-road') {
