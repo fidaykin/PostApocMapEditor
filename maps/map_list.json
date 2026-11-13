@@ -13,6 +13,12 @@
       "uploadedTime": "2026-07-16"
     },
     {
+      "name": "current_map-s2",
+      "fileName": "current_map-s2.json",
+      "size": "5586",
+      "uploadedTime": "2026-07-16"
+    },
+    {
       "name": "current_map",
       "fileName": "current_map.json",
       "size": "4422",
@@ -46,12 +52,6 @@
       "name": "current_map_zones_02",
       "fileName": "current_map_zones_02.json",
       "size": "3644",
-      "uploadedTime": "2026-07-16"
-    },
-    {
-      "name": "demo_tiles_map",
-      "fileName": "demo_tiles_map.json",
-      "size": "5410",
       "uploadedTime": "2026-07-16"
     },
     {
