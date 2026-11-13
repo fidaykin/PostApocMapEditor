@@ -22,6 +22,16 @@
             "mipCount": 8,
             "bytes": 2497600,
             "sha256": "f64276e6c95207112c57db4e8e983ab6ed76fe569b63607b2a819e94f12f74cc"
+        },
+        {
+            "file": "coast_256_2.bin",
+            "group": "coast",
+            "cell": 256,
+            "width": 4096,
+            "height": 256,
+            "mipCount": 8,
+            "bytes": 631680,
+            "sha256": "5235399f9c10e839fbfba288ef2db84b46267e24884578419439901e799de662"
         }
     ],
     "sprites": [
@@ -1524,6 +1534,60 @@
             "group": "buildings",
             "page": 1,
             "x": 512,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Coastline_0_UpperRight",
+            "group": "coast",
+            "page": 2,
+            "x": 0,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Coastline_1_LowerRight",
+            "group": "coast",
+            "page": 2,
+            "x": 256,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Coastline_2_Bottom",
+            "group": "coast",
+            "page": 2,
+            "x": 512,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Coastline_3_LowerLeft",
+            "group": "coast",
+            "page": 2,
+            "x": 768,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Coastline_4_UpperLeft",
+            "group": "coast",
+            "page": 2,
+            "x": 1024,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Coastline_5_Top",
+            "group": "coast",
+            "page": 2,
+            "x": 1280,
             "y": 0,
             "w": 256,
             "h": 256

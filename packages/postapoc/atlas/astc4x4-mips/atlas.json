@@ -42,6 +42,16 @@
             "mipCount": 8,
             "bytes": 13980800,
             "sha256": "990e29b2bb1216c4a0e58a72d3fddd4d85ed7545a2637e2191d4850f883d245c"
+        },
+        {
+            "file": "coast_512_4.bin",
+            "group": "coast",
+            "cell": 512,
+            "width": 4096,
+            "height": 512,
+            "mipCount": 8,
+            "bytes": 2796160,
+            "sha256": "608665113a91095bc44df94dd5d9039b3c28e2c415835ceb8570628f9aebc1e0"
         }
     ],
     "sprites": [
@@ -1660,6 +1670,60 @@
             "name": "StoneMine_1",
             "group": "buildings",
             "page": 3,
+            "x": 2560,
+            "y": 0,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "Coastline_0_UpperRight",
+            "group": "coast",
+            "page": 4,
+            "x": 0,
+            "y": 0,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "Coastline_1_LowerRight",
+            "group": "coast",
+            "page": 4,
+            "x": 512,
+            "y": 0,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "Coastline_2_Bottom",
+            "group": "coast",
+            "page": 4,
+            "x": 1024,
+            "y": 0,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "Coastline_3_LowerLeft",
+            "group": "coast",
+            "page": 4,
+            "x": 1536,
+            "y": 0,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "Coastline_4_UpperLeft",
+            "group": "coast",
+            "page": 4,
+            "x": 2048,
+            "y": 0,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "Coastline_5_Top",
+            "group": "coast",
+            "page": 4,
             "x": 2560,
             "y": 0,
             "w": 512,
