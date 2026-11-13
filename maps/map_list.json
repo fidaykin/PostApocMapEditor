@@ -145,12 +145,6 @@
       "uploadedTime": "2026-07-16"
     },
     {
-      "name": "map_export_My_Test",
-      "fileName": "map_export_My_Test.json",
-      "size": "2029508",
-      "uploadedTime": "2026-07-16"
-    },
-    {
       "name": "map_export_My_Test_02.06",
       "fileName": "map_export_My_Test_02.06.json",
       "size": "611410",
@@ -160,6 +154,12 @@
       "name": "map_river",
       "fileName": "map_river.json",
       "size": "6166",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_testZones_10",
+      "fileName": "map_testZones_10.json",
+      "size": "6134",
       "uploadedTime": "2026-07-16"
     },
     {
