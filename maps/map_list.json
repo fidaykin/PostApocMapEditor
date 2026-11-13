@@ -91,12 +91,6 @@
       "uploadedTime": "2026-07-16"
     },
     {
-      "name": "map_Medieval_Flat_V2",
-      "fileName": "map_Medieval_Flat_V2.json",
-      "size": "7957",
-      "uploadedTime": "2026-07-16"
-    },
-    {
       "name": "map_Medieval_Mix",
       "fileName": "map_Medieval_Mix.json",
       "size": "8111",
@@ -130,6 +124,12 @@
       "name": "map_all_tiles",
       "fileName": "map_all_tiles.json",
       "size": "6054",
+      "uploadedTime": "2026-07-16"
+    },
+    {
+      "name": "map_all_tiles_09",
+      "fileName": "map_all_tiles_09.json",
+      "size": "6076",
       "uploadedTime": "2026-07-16"
     },
     {
