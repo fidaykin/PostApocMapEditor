@@ -12,6 +12,11 @@ const useTool = async (page: Page, tool: string, bld?: string) => {
 const spyToasts = (page: Page) => page.evaluate(() => { (window as any).__toasts = []; const t = UI.toast; UI.toast = (m: string) => { (window as any).__toasts.push(m); return t.call(UI, m); }; });
 const toasts = (page: Page): Promise<string[]> => page.evaluate(() => (window as any).__toasts);
 const undoSize = (page: Page) => page.evaluate(() => History.undoSize());
+/** Stubs the replace confirm: records every ask in window.__replaceAsked and answers `yes`. */
+const answerReplace = (page: Page, yes: boolean) => page.evaluate((y) => {
+  (window as any).__replaceAsked = [];
+  UI.confirm = async (title: string, message: string, details?: string) => { (window as any).__replaceAsked.push({ title, message, details: details || '' }); return y; };
+}, yes);
 const objs = (page: Page): Promise<Record<string, string>> => page.evaluate(() => Object.assign({}, objectsData));
 
 /** Cells of the pixel ring: every cell whose centre is within R * (nearest-neighbour distance) * 1.01 of (col,row). */
@@ -191,8 +196,10 @@ test.describe('building tools (T2.14)', () => {
     await useTool(page, 'object', 'Farm_Test_1');
     await clickCell(page, 227, 224);
     const s0 = await undoSize(page);
+    await answerReplace(page, true);
     await page.evaluate(() => Tools.selectBuilding('Artefact_Test_1'));
     await clickCell(page, 227, 224);
+    await page.waitForFunction(() => objectsData['227,224'] === 'Artefact_Test_1');
     expect(await objs(page)).toEqual({ '227,224': 'Artefact_Test_1' });
     expect(await undoSize(page)).toBe(s0 + 1);
     await page.evaluate(() => History.undo());
@@ -202,6 +209,68 @@ test.describe('building tools (T2.14)', () => {
     const s1 = await undoSize(page);
     await clickCell(page, 227, 224);
     expect(await undoSize(page)).toBe(s1);
+  });
+
+  test('placing on another building asks first; Cancel changes nothing and leaves no undo step', async ({ page }) => {
+    await useTool(page, 'object', 'Artefact_Test_1');
+    await clickCell(page, 227, 224);
+    await page.evaluate(() => Tools.selectBuilding('Farm_Test_1'));
+    const before = await objs(page), s0 = await undoSize(page);
+    await answerReplace(page, false);
+    await clickCell(page, 227, 224);
+    await page.waitForFunction(() => (window as any).__replaceAsked.length === 1);
+    const asked = await page.evaluate(() => (window as any).__replaceAsked);
+    expect(asked[0].title).toBe('Replace on the map');
+    expect(asked[0].details).toContain('Artefact_Test_1');
+    expect(await objs(page)).toEqual(before);
+    expect(await undoSize(page)).toBe(s0);
+  });
+
+  test('placing on a forest asks; Replace really swaps the forest for the ground it turns into, in one undo step', async ({ page }) => {
+    const forest = await page.evaluate(() => { mapData[224 * MAP_WIDTH + 227] = 'Forest_1'; return mapData[224 * MAP_WIDTH + 227]; });
+    expect(await page.evaluate(() => HexDB.getAll().find(h => h.id === 'Forest_1')?.type)).toBe('Forests');
+    await useTool(page, 'object', 'Artefact_Test_1');
+    const s0 = await undoSize(page);
+    await answerReplace(page, true);
+    await clickCell(page, 227, 224);
+    await page.waitForFunction(() => objectsData['227,224'] === 'Artefact_Test_1');
+    expect(forest).toBe('Forest_1');
+    expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 227])).not.toBe('Forest_1');
+    expect(await undoSize(page)).toBe(s0 + 1);
+    await page.evaluate(() => History.undo());
+    expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 227])).toBe('Forest_1');
+    expect('227,224' in await objs(page)).toBe(false);
+  });
+
+  test('placing on a forest and Cancel keeps the forest and writes no building', async ({ page }) => {
+    await page.evaluate(() => { mapData[224 * MAP_WIDTH + 227] = 'Forest_1'; });
+    await useTool(page, 'object', 'Artefact_Test_1');
+    await answerReplace(page, false);
+    await clickCell(page, 227, 224);
+    await page.waitForFunction(() => (window as any).__replaceAsked.length === 1);
+    expect(await page.evaluate(() => mapData[224 * MAP_WIDTH + 227])).toBe('Forest_1');
+    expect('227,224' in await objs(page)).toBe(false);
+  });
+
+  test('placing on plain ground asks nothing', async ({ page }) => {
+    await useTool(page, 'object', 'Artefact_Test_1');
+    await answerReplace(page, true);
+    await clickCell(page, 227, 224);
+    expect(await objs(page)).toEqual({ '227,224': 'Artefact_Test_1' });
+    expect(await page.evaluate(() => (window as any).__replaceAsked.length)).toBe(0);
+  });
+
+  test('a drag over several occupied cells asks ONCE with a summary, and writes nothing before the answer', async ({ page }) => {
+    await page.evaluate(() => { objectsData['226,224'] = 'Farm_Test_1'; objectsData['227,224'] = 'Farm_Test_1'; objectsData['228,224'] = 'Farm_Test_1'; });
+    await useTool(page, 'object', 'Artefact_Test_1');
+    await answerReplace(page, true);
+    await dragCells(page, { col: 226, row: 224 }, { col: 228, row: 224 });
+    await page.waitForFunction(() => objectsData['228,224'] === 'Artefact_Test_1');
+    const asked = await page.evaluate(() => (window as any).__replaceAsked);
+    expect(asked.length).toBe(1);
+    expect(asked[0].details).toContain('Farm_Test_1 x3');
+    const o = await objs(page);
+    expect(['226,224', '227,224', '228,224'].map(k => o[k])).toEqual(['Artefact_Test_1', 'Artefact_Test_1', 'Artefact_Test_1']);
   });
 
   test('spawning never overwrites an existing building and never writes outside the map', async ({ page }) => {
