@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.27",
+  "version": "1.0.28",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -126,6 +126,11 @@
       "version": "1.0.27",
       "date": "2026-11-13",
       "note": "test deleted maps"
+    },
+    {
+      "version": "1.0.28",
+      "date": "2026-11-13",
+      "note": "add new map for HS Package"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
