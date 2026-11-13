@@ -19,6 +19,12 @@
       "uploadedTime": "2026-07-16"
     },
     {
+      "name": "current_map",
+      "fileName": "current_map.json",
+      "size": "4422",
+      "uploadedTime": "2026-07-16"
+    },
+    {
       "name": "current_map_02_water",
       "fileName": "current_map_02_water.json",
       "size": "3861",
