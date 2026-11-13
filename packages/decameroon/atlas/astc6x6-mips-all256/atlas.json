@@ -1,0 +1,1532 @@
+{
+    "variant": "astc6x6-mips-all256",
+    "format": "ASTC_6x6",
+    "mips": true,
+    "pages": [
+        {
+            "file": "hex_256_0.bin",
+            "group": "hex",
+            "cell": 256,
+            "width": 4096,
+            "height": 2048,
+            "mipCount": 8,
+            "bytes": 4987904,
+            "sha256": "e76ac7d5297458381f2985ad49931ca8b5940880ec28b11a276ff375f20e4095"
+        },
+        {
+            "file": "buildings_256_1.bin",
+            "group": "buildings",
+            "cell": 256,
+            "width": 4096,
+            "height": 1024,
+            "mipCount": 8,
+            "bytes": 2497600,
+            "sha256": "f64276e6c95207112c57db4e8e983ab6ed76fe569b63607b2a819e94f12f74cc"
+        }
+    ],
+    "sprites": [
+        {
+            "name": "Decameroon_Barren_1",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_BrokenBoat_1",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_BrokenShip_1",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Desert_1",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_DestroyedBuilding_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_DirtyWater_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Fish_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Forest_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Forest_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Forest_3",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_GemField_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_GoldVein_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Grain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Herbs_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Hills_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Lake_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3840,
+            "y": 1792,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Lake_2",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Lake_3",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Lake_4",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Lake_5",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Lake_6",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Lake_7",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_LavaPlain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_LavaRift_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Mountain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Mountain_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Plain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Plain_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Rift_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_D_2",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_D_3",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_D_4",
+            "group": "hex",
+            "page": 0,
+            "x": 3840,
+            "y": 1536,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_D_L_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_D_R_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_L_1",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_L_4",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_L_5",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_L_D_E_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_L_L_E_5",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_L_R_E_5",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_L_U_E_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_R_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_R_4",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_R_5",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_U_2",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_U_3",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_U_4",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_U_D_E_4",
+            "group": "hex",
+            "page": 0,
+            "x": 3840,
+            "y": 1280,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_U_L_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_U_R_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_River_U_U_E_4",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_RockySwamp_1",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Rubble_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Rubble_2",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Rubble_3",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Settlements_Small_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_SilverVein_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Swamp_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Water",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_WaterStones_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "FarmGrain",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Forest_red",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Barren_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_BrokenShip_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3840,
+            "y": 1024,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Desert_1",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_DestroyedBuilding_1",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_DirtyWater_1",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Fish_1",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Forest_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Forest_2",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Forest_3",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_GemPond_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_GoldVein_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Grain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Herbs_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Hills_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_2",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_3",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_4",
+            "group": "hex",
+            "page": 0,
+            "x": 3840,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_5",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_6",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_7",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Mountain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Plain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Plain_2",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_D_2",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_D_3",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_D_4",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_D_L_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_D_R_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_4",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_5",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_D_E_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_L_E_5",
+            "group": "hex",
+            "page": 0,
+            "x": 3840,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_R_E_5",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_U_E_1",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_R_1",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_R_4",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_R_5",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_2",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_3",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_4",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_D_E_4",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_L_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_R_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_U_E_4",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_RockySwamp_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Rubble_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Rubble_2",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Rubble_3",
+            "group": "hex",
+            "page": 0,
+            "x": 3840,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_SilverVein_1",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Swamp_1",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_WaterStones_1",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Water_1",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "BoneMine_Kaiju_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 0,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Abbey_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 256,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Alchemist_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 512,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Artefact_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 768,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Farm_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1024,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_FishTrap_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1280,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_ForestHut_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1536,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_GemMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1792,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_GoldMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2048,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_GoldMine_Big_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2304,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_LumberMill_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2560,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_LumberMill_Big_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2816,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_LumberMill_Industrial_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3072,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Market_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3328,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Mill_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3584,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Monastery_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3840,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_OreMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 0,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_OreWorkshop_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 256,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Plantation_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 512,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_SilverMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 768,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_SmallShipyard_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1024,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_SmallShip_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1280,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_StoneConveyor_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1536,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_StoneMineBig_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1792,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_StoneMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2048,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Tavern_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2304,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Abbey_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2560,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Alchemist_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2816,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Artefact_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3072,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Farm_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3328,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_FishTrap_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3584,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_ForestHut_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3840,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_GemMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 0,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_GoldMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 256,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_GoldMine_Big_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 512,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_LumberMill_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 768,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_LumberMill_Big_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1024,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_LumberMill_Industrial_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1280,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Market_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1536,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Mill_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1792,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Monastery_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2048,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_OreMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2304,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_OreWorkshop_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2560,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Plantation_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2816,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_SilverMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3072,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_SmallShipyard_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3328,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_SmallShip_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3584,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_StoneConveyor_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3840,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_StoneMineBig_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 0,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_StoneMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 256,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Tavern_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 512,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        }
+    ]
+}

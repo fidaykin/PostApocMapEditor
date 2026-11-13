@@ -1,0 +1,902 @@
+{
+    "variant": "astc6x6-mips-hex256",
+    "format": "ASTC_6x6",
+    "mips": true,
+    "pages": [
+        {
+            "file": "hex_256_0.bin",
+            "group": "hex",
+            "cell": 256,
+            "width": 4096,
+            "height": 1024,
+            "mipCount": 8,
+            "bytes": 2497600,
+            "sha256": "0a060766e9973ad08a8529188797b0cb79cde955809b9154220fed38b9a106fa"
+        },
+        {
+            "file": "buildings_512_1.bin",
+            "group": "buildings",
+            "cell": 512,
+            "width": 4096,
+            "height": 2560,
+            "mipCount": 8,
+            "bytes": 6229440,
+            "sha256": "5329e36cd70d7f21b80944269a3ff790fb4900521eaa170ff60e82c4d94966d3"
+        }
+    ],
+    "sprites": [
+        {
+            "name": "Decameroon_LavaPlain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_LavaRift_1",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Mountain_2",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Rift_1",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Decameroon_Settlements_Small_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "FarmGrain",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Forest_red",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Barren_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_BrokenShip_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Desert_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_DestroyedBuilding_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Forest_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Forest_2",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Forest_3",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_GemPond_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_GoldVein_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3840,
+            "y": 768,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Grain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Herbs_1",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Hills_1",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Mountain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Plain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Plain_2",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_RockySwamp_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Rubble_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Rubble_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Rubble_3",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_SilverVein_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Swamp_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_WaterStones_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_BrokenShip_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_DirtyWater_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Fish_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3840,
+            "y": 512,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_1",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_2",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_3",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_4",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_5",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_6",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Lake_7",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_D_2",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_D_3",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_D_4",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_D_L_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_D_R_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_4",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_5",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_D_E_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3840,
+            "y": 256,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_L_E_5",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_R_E_5",
+            "group": "hex",
+            "page": 0,
+            "x": 256,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_L_U_E_1",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_R_1",
+            "group": "hex",
+            "page": 0,
+            "x": 768,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_R_4",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_R_5",
+            "group": "hex",
+            "page": 0,
+            "x": 1280,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_2",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_3",
+            "group": "hex",
+            "page": 0,
+            "x": 1792,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_4",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_D_E_4",
+            "group": "hex",
+            "page": 0,
+            "x": 2304,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_L_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_R_EE_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2816,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_River_U_U_E_4",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_WaterStones_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3328,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "Medieval_Water_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 0,
+            "w": 256,
+            "h": 256
+        },
+        {
+            "name": "HS_Abbey_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 0,
+            "y": 2048,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_Alchemist_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 512,
+            "y": 2048,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_BigStorage_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1024,
+            "y": 2048,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_Farm_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1536,
+            "y": 2048,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_FishTrap_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2048,
+            "y": 2048,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_FoodAmbar_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2560,
+            "y": 2048,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_ForestHut_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3072,
+            "y": 2048,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_GemMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3584,
+            "y": 2048,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_GoldMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 0,
+            "y": 1536,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_GoldMine_Big_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 512,
+            "y": 1536,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_LumberMill_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1024,
+            "y": 1536,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_LumberMill_Big_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1536,
+            "y": 1536,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_LumberMill_Industrial_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2048,
+            "y": 1536,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_LumberStorage_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2560,
+            "y": 1536,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_Market_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3072,
+            "y": 1536,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_Mill_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3584,
+            "y": 1536,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_Monastery_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 0,
+            "y": 1024,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_OreMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 512,
+            "y": 1024,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_OreWorkshop_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1024,
+            "y": 1024,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_Plantation_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1536,
+            "y": 1024,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_SilverMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2048,
+            "y": 1024,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_SmallShipyard_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2560,
+            "y": 1024,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_SmallShip_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3072,
+            "y": 1024,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_SmallStorage_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3584,
+            "y": 1024,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_StoneConveyor_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 0,
+            "y": 512,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_StoneConveyor_2",
+            "group": "buildings",
+            "page": 1,
+            "x": 512,
+            "y": 512,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_StoneMine_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1024,
+            "y": 512,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_StoneMine_Big_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 1536,
+            "y": 512,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_Tavern_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2048,
+            "y": 512,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "HS_WaterMill_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 2560,
+            "y": 512,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "Medieval_Artefact_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3072,
+            "y": 512,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "Medieval_FishTrap_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 3584,
+            "y": 512,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "Medieval_SmallShipyard_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 0,
+            "y": 0,
+            "w": 512,
+            "h": 512
+        },
+        {
+            "name": "Medieval_SmallShip_1",
+            "group": "buildings",
+            "page": 1,
+            "x": 512,
+            "y": 0,
+            "w": 512,
+            "h": 512
+        }
+    ]
+}
