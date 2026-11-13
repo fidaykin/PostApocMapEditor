@@ -97,6 +97,12 @@
       "uploadedTime": "2026-07-16"
     },
     {
+      "name": "map_Medieval_Mix",
+      "fileName": "map_Medieval_Mix.json",
+      "size": "8111",
+      "uploadedTime": "2026-07-16"
+    },
+    {
       "name": "map_Medieval_V1",
       "fileName": "map_Medieval_V1.json",
       "size": "8181",
@@ -112,12 +118,6 @@
       "name": "map_New_Rivers_EEB",
       "fileName": "map_New_Rivers_EEB.json",
       "size": "6412",
-      "uploadedTime": "2026-07-16"
-    },
-    {
-      "name": "map_New_Rivers_Hills",
-      "fileName": "map_New_Rivers_Hills.json",
-      "size": "6392",
       "uploadedTime": "2026-07-16"
     },
     {
