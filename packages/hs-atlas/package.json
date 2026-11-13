@@ -1,0 +1,20 @@
+{
+  "id": "hs-atlas",
+  "name": "HS Atlas (test)",
+  "version": "1.0.0",
+  "description": "Test copy of hs with compressed ASTC atlas variants (atlas/<variant>/), for Dev > Performance > Atlas test",
+  "preview": "preview.png",
+  "isDefault": false,
+  "dependencies": [],
+  "changelog": [
+    {
+      "version": "1.0.0",
+      "date": "2026-11-13",
+      "note": "hs with atlas variants astc6x6, astc6x6-mips, astc6x6-mips-hex256, astc6x6-mips-all256"
+    }
+  ],
+  "manifestUrl": "packages/hs/manifest.json",
+  "totalBytes": 25326271,
+  "minAppVersion": "0.0.0",
+  "schemaVersion": 1
+}

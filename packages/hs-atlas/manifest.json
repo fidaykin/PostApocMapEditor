@@ -1,0 +1,601 @@
+{
+  "schemaVersion": 1,
+  "id": "hs-atlas",
+  "version": "1.0.0",
+  "minAppVersion": "0.0.0",
+  "generatedAt": "2026-11-13T15:48:17.000Z",
+  "totalBytes": 67234338,
+  "dependencies": [],
+  "files": [
+    {
+      "path": "atlas/astc6x6-mips-all256/atlas.json",
+      "sha256": "3836ac1913fdb3d58c18c257760b6f7d2660f0bc0914d43de9a231c584928e6f",
+      "size": 20125
+    },
+    {
+      "path": "atlas/astc6x6-mips-all256/buildings_256_1.bin",
+      "sha256": "ae7ce536b12a56877ea9dc83fd686c322c8be7c48cb4d9a00fb4fd1370f04681",
+      "size": 1865920
+    },
+    {
+      "path": "atlas/astc6x6-mips-all256/hex_256_0.bin",
+      "sha256": "0a060766e9973ad08a8529188797b0cb79cde955809b9154220fed38b9a106fa",
+      "size": 2497600
+    },
+    {
+      "path": "atlas/astc6x6-mips-hex256/atlas.json",
+      "sha256": "d05979e4d65940dbc54cfb9ea4d2b54e1fe29dd77b3579e9fee1ea22fccd5709",
+      "size": 20146
+    },
+    {
+      "path": "atlas/astc6x6-mips-hex256/buildings_512_1.bin",
+      "sha256": "5329e36cd70d7f21b80944269a3ff790fb4900521eaa170ff60e82c4d94966d3",
+      "size": 6229440
+    },
+    {
+      "path": "atlas/astc6x6-mips-hex256/hex_256_0.bin",
+      "sha256": "0a060766e9973ad08a8529188797b0cb79cde955809b9154220fed38b9a106fa",
+      "size": 2497600
+    },
+    {
+      "path": "atlas/astc6x6-mips/atlas.json",
+      "sha256": "536d58609b2f13c681e445e9b5d258f5d4794722c5b86c5f9c67b04c860d753c",
+      "size": 20195
+    },
+    {
+      "path": "atlas/astc6x6-mips/buildings_512_1.bin",
+      "sha256": "5329e36cd70d7f21b80944269a3ff790fb4900521eaa170ff60e82c4d94966d3",
+      "size": 6229440
+    },
+    {
+      "path": "atlas/astc6x6-mips/hex_512_0.bin",
+      "sha256": "ce547d0c9e67d3f3cf61737d22b748fcd15fcf675c89de357a8fa0ff97843c01",
+      "size": 9961280
+    },
+    {
+      "path": "atlas/astc6x6/atlas.json",
+      "sha256": "a1145a23009de29740561b1e36dce62d62fd75a1400ec6e6b7a664e096fa482a",
+      "size": 20191
+    },
+    {
+      "path": "atlas/astc6x6/buildings_512_1.bin",
+      "sha256": "19572dff4164094318192385f436347b9c8171b88f5330ebe8135962ccebe9c7",
+      "size": 4666256
+    },
+    {
+      "path": "atlas/astc6x6/hex_512_0.bin",
+      "sha256": "b1371e51ee9a0f21c9df91ddaf577458d814bcbcb4ea904c73bd2965c6cb3a2d",
+      "size": 7463824
+    },
+    {
+      "path": "building_database.json",
+      "sha256": "8f23a74b1ad789f9894a42f42549cc7087eeca378565bc6fd65bc5ec57aaa0d7",
+      "size": 77900
+    },
+    {
+      "path": "hex_database.json",
+      "sha256": "ecddf402995df9608798f15f794a2e8f19f21ee62514db5ba2b5194e021464ca",
+      "size": 84083
+    },
+    {
+      "path": "sprites/buildings/HS_Abbey_1.png",
+      "sha256": "722e4090dbc42cf8a9c693171712d3790b3aebc89ac707716c3ea54d7c28fd3e",
+      "size": 276458
+    },
+    {
+      "path": "sprites/buildings/HS_Alchemist_1.png",
+      "sha256": "b9fd825257b144cd62ca8ab0c22f2261706f3b3042f3b89214c9128682fdaec9",
+      "size": 295872
+    },
+    {
+      "path": "sprites/buildings/HS_BigStorage_1.png",
+      "sha256": "e887bd0c1687ac2a083eaf3cf2d107a5165aca58d2b8479990751b8cbc66c98f",
+      "size": 323880
+    },
+    {
+      "path": "sprites/buildings/HS_Farm_1.png",
+      "sha256": "14649b809b919758749699f5414fc0000f42885ba43e9f410b93e97dc1a82134",
+      "size": 312355
+    },
+    {
+      "path": "sprites/buildings/HS_FishTrap_1.png",
+      "sha256": "e50f20fbb44b2a2a552fc0a9bc30cd4311a37c7760c133190b0f9691a71d96a5",
+      "size": 91989
+    },
+    {
+      "path": "sprites/buildings/HS_FoodAmbar_1.png",
+      "sha256": "41b99f85f0628988439634dd5439465af9e180edea22404ae1c9d50cc5e83d1a",
+      "size": 310072
+    },
+    {
+      "path": "sprites/buildings/HS_ForestHut_1.png",
+      "sha256": "47cd0a3de21046254142248458adcf2a4e92486456b03eed2256f7b92fca31a5",
+      "size": 261651
+    },
+    {
+      "path": "sprites/buildings/HS_GemMine_1.png",
+      "sha256": "838998ca17ef6f0f45c4effba327a425423cfba18d0a15d731a0eaf259040bf1",
+      "size": 364712
+    },
+    {
+      "path": "sprites/buildings/HS_GoldMine_1.png",
+      "sha256": "11607d8d864779d1228903442b9518be4e265b5d7fce6b7086cdc57d7bf0c272",
+      "size": 307728
+    },
+    {
+      "path": "sprites/buildings/HS_GoldMine_Big_1.png",
+      "sha256": "1c11bd0850c85cf0cb3c01528d4e6791850fb810cf57316521716f206d48978f",
+      "size": 340805
+    },
+    {
+      "path": "sprites/buildings/HS_LumberMill_1.png",
+      "sha256": "06b9f6b98eca85088176bf46581badb0a4519d10d67fb634edc39e8a0d89f872",
+      "size": 294599
+    },
+    {
+      "path": "sprites/buildings/HS_LumberMill_Big_1.png",
+      "sha256": "eb9696b05f6a119920f995cf8b2715dd1d04accf53af8ba614286e74ed73e73f",
+      "size": 335311
+    },
+    {
+      "path": "sprites/buildings/HS_LumberMill_Industrial_1.png",
+      "sha256": "d73d0f7413231c084dc804c1531f4900ac7acb3bb4618d48318c74cfbf25931f",
+      "size": 338840
+    },
+    {
+      "path": "sprites/buildings/HS_LumberStorage_1.png",
+      "sha256": "54257637cb4612e0d780c35c3e87861d74d1566063e484ec59220545492e7088",
+      "size": 295466
+    },
+    {
+      "path": "sprites/buildings/HS_Market_1.png",
+      "sha256": "b5957f4bc2d966020a70268a0b0ca9909568e9a9369bc8217c82d89e19a4af0c",
+      "size": 289464
+    },
+    {
+      "path": "sprites/buildings/HS_Mill_1.png",
+      "sha256": "23eb2ea9659b1a010a960c419b6fa88a389fbbe806b95b1bac0c4d0e6e55c5ec",
+      "size": 307255
+    },
+    {
+      "path": "sprites/buildings/HS_Monastery_1.png",
+      "sha256": "901ea1ad7f76fdb5e283775bd4345b74d947f9cea6c5924f7cb959d9d0234949",
+      "size": 316364
+    },
+    {
+      "path": "sprites/buildings/HS_OreMine_1.png",
+      "sha256": "3fbf2228e9d13f1a92b38a47f7991ae9064dd307517f7fcf77a424597e8abc3d",
+      "size": 278157
+    },
+    {
+      "path": "sprites/buildings/HS_OreWorkshop_1.png",
+      "sha256": "8e5a7f7c3d2fbca2ee81a50c7f491e0cfdc780bdaf04969579bb25495e68db05",
+      "size": 303862
+    },
+    {
+      "path": "sprites/buildings/HS_Plantation_1.png",
+      "sha256": "6ef22232420b8e8fd18d134f9f31767a106243374e56a7fa6092585a2be44fb2",
+      "size": 329923
+    },
+    {
+      "path": "sprites/buildings/HS_SilverMine_1.png",
+      "sha256": "b92c8fda52de1a257756c7aa378292ae6b61ea8791d7c063ded4819bc02f887e",
+      "size": 302902
+    },
+    {
+      "path": "sprites/buildings/HS_SmallShip_1.png",
+      "sha256": "519e5393ce124c6b1ff45815b8e2fa9f4b8bdc7ca1519a2dacc6beb1979ce100",
+      "size": 120868
+    },
+    {
+      "path": "sprites/buildings/HS_SmallShipyard_1.png",
+      "sha256": "95f1109bad96f21bf81c6e31de224b42d7f58708e236e10af2172002169fb6e0",
+      "size": 306898
+    },
+    {
+      "path": "sprites/buildings/HS_SmallStorage_1.png",
+      "sha256": "64bc6d128d77e1684b50845c62dc7f35e7c2984acc1af0d2237e45008693bb15",
+      "size": 304785
+    },
+    {
+      "path": "sprites/buildings/HS_StoneConveyor_1.png",
+      "sha256": "a16dac4cf07f4a74cd677c91b33a85fda3c081daad0479df09f5016b91d9247e",
+      "size": 289639
+    },
+    {
+      "path": "sprites/buildings/HS_StoneConveyor_2.png",
+      "sha256": "6edcf32b2447bf13b194dfc1520c5afce335987c6eceab4ea86e07ffe0e3105f",
+      "size": 283581
+    },
+    {
+      "path": "sprites/buildings/HS_StoneMine_1.png",
+      "sha256": "7596c7fe20b5cabd23dac5a6dfaae8135c21491c10fd1d1f6fdb4e8dedba111f",
+      "size": 262894
+    },
+    {
+      "path": "sprites/buildings/HS_StoneMine_Big_1.png",
+      "sha256": "ff57c5bc77262b30cbe3101b792a5544be4a3bd46a5efb1e83a652db29355af5",
+      "size": 307641
+    },
+    {
+      "path": "sprites/buildings/HS_Tavern_1.png",
+      "sha256": "ae84dbd4c2f96870af806197a61d3f964f36edf03ebd74f876489f67238530e0",
+      "size": 303560
+    },
+    {
+      "path": "sprites/buildings/HS_WaterMill_1.png",
+      "sha256": "e97ef48e54e4340c4ba972e3a91e037db8fb3fdea5511cc5ba614129cdcb8609",
+      "size": 252784
+    },
+    {
+      "path": "sprites/buildings/Medieval_Artefact_1.png",
+      "sha256": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c",
+      "size": 286968
+    },
+    {
+      "path": "sprites/buildings/Medieval_FishTrap_1.png",
+      "sha256": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368",
+      "size": 127488
+    },
+    {
+      "path": "sprites/buildings/Medieval_SmallShip_1.png",
+      "sha256": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b",
+      "size": 147988
+    },
+    {
+      "path": "sprites/buildings/Medieval_SmallShipyard_1.png",
+      "sha256": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807",
+      "size": 334648
+    },
+    {
+      "path": "sprites/hex/Decameroon_LavaPlain_1.png",
+      "sha256": "331a71901041df54c8a2f06269c739229f5e5e21f81119ff0250eacae8287bdb",
+      "size": 285042
+    },
+    {
+      "path": "sprites/hex/Decameroon_LavaRift_1.png",
+      "sha256": "cfe9a94e5f42d23d8145a552e61bd6929f12eb4cee9fd26ee2efe565b6bfdbae",
+      "size": 236486
+    },
+    {
+      "path": "sprites/hex/Decameroon_Mountain_2.png",
+      "sha256": "809e723e4d7006660eaf8766209b6b3e46f8a05e295f6aebc458c456fd7edbfe",
+      "size": 235997
+    },
+    {
+      "path": "sprites/hex/Decameroon_Rift_1.png",
+      "sha256": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022",
+      "size": 217745
+    },
+    {
+      "path": "sprites/hex/Decameroon_Settlements_Big_1.png",
+      "sha256": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e",
+      "size": 1716858
+    },
+    {
+      "path": "sprites/hex/Decameroon_Settlements_Small_1.png",
+      "sha256": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5",
+      "size": 308708
+    },
+    {
+      "path": "sprites/hex/FarmGrain.png",
+      "sha256": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345",
+      "size": 348945
+    },
+    {
+      "path": "sprites/hex/Forest_red.png",
+      "sha256": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74",
+      "size": 393506
+    },
+    {
+      "path": "sprites/hex/HS_Barren_1.png",
+      "sha256": "09efb17275975105782255456f44b9cd583cf212e02d45eae18a04e868d3f1b9",
+      "size": 207742
+    },
+    {
+      "path": "sprites/hex/HS_BrokenShip_1.png",
+      "sha256": "df92fddef96e63d9e8fc75b541560a6c033beca1190501552715ff09c6a1469f",
+      "size": 137227
+    },
+    {
+      "path": "sprites/hex/HS_Desert_1.png",
+      "sha256": "d5e6ce5788a25791d42c5fca97826a1a37e7552d556e3e10b3f007005b5fd900",
+      "size": 169359
+    },
+    {
+      "path": "sprites/hex/HS_DestroyedBuilding_1.png",
+      "sha256": "e8915c4ce8cf706d321f15e4abed62f9e38e952424ca9e5df90c09ead994eebc",
+      "size": 273585
+    },
+    {
+      "path": "sprites/hex/HS_Forest_1.png",
+      "sha256": "f610753b6c2eb71e2b4898d9c82626b8fdaddee249aaf944cf35fe1ca5ce7150",
+      "size": 221463
+    },
+    {
+      "path": "sprites/hex/HS_Forest_2.png",
+      "sha256": "684725e1385313d53f8198ea719eed0c6ae4add509afb3a5ce3f7ece1b67ae60",
+      "size": 262646
+    },
+    {
+      "path": "sprites/hex/HS_Forest_3.png",
+      "sha256": "eba15dd5df4f1d262358600297d31fa38dda62e2e81040b440741d3789084d4e",
+      "size": 291149
+    },
+    {
+      "path": "sprites/hex/HS_GemPond_1.png",
+      "sha256": "666047cb2c692273128d9d4609497702dbc100031ae96c93e8724c4517a7acb6",
+      "size": 273999
+    },
+    {
+      "path": "sprites/hex/HS_GoldVein_1.png",
+      "sha256": "bbf80f727fef7b1a3bae9d3e6e8c66b3489dbc943176ecb9b3272ae94937584d",
+      "size": 225686
+    },
+    {
+      "path": "sprites/hex/HS_Grain_1.png",
+      "sha256": "f882f4562380f18e740acec5ac2d77b83ac246a5bca57d74f94558caa68579e0",
+      "size": 339547
+    },
+    {
+      "path": "sprites/hex/HS_Herbs_1.png",
+      "sha256": "db78062cc0203c9c1e6acf9ac9d0dfa31f27be535262a41876062572c7d08f80",
+      "size": 329738
+    },
+    {
+      "path": "sprites/hex/HS_Hills_1.png",
+      "sha256": "2d3dca3e7b241184b309b237b912158d78924e218e45fd3302ad5e284fec4c20",
+      "size": 261668
+    },
+    {
+      "path": "sprites/hex/HS_Mountain_1.png",
+      "sha256": "d097cdae3ca4494d8ec2f7d4c466279ac87b3de87d5224499c143dc28c4b6d47",
+      "size": 243818
+    },
+    {
+      "path": "sprites/hex/HS_Plain_1.png",
+      "sha256": "5d658866bbbb03e9b0d9a94ac1a5ec7b857159ffcf08feceafcd0e7b540bfde8",
+      "size": 166512
+    },
+    {
+      "path": "sprites/hex/HS_Plain_2.png",
+      "sha256": "66298e549b798dc55092d6121b2f4f52cf82dc48621714cfbafe552f838205ca",
+      "size": 258638
+    },
+    {
+      "path": "sprites/hex/HS_RockySwamp_1.png",
+      "sha256": "165e9fb2db57e575a4c209a02d4eaefcb9a06a427c24b69bcc343f85f08839ee",
+      "size": 289641
+    },
+    {
+      "path": "sprites/hex/HS_Rubble_1.png",
+      "sha256": "eff259f3562cb8cd161e8ef61f2c8082eee4e59247b6f1c4ee90e2105f79ee50",
+      "size": 247151
+    },
+    {
+      "path": "sprites/hex/HS_Rubble_2.png",
+      "sha256": "861b794a4f846969be2bb80ea46f39421515b61225b4149572917c810e0afd9c",
+      "size": 242985
+    },
+    {
+      "path": "sprites/hex/HS_Rubble_3.png",
+      "sha256": "2196891939377b8baba2ea0030472cb77f08dde70510530788a03c1c06ce9958",
+      "size": 259298
+    },
+    {
+      "path": "sprites/hex/HS_SilverVein_1.png",
+      "sha256": "c04bc0a34ff3c91ffe68312cd83ee451454efb0bf2956c41007d49fd8f05e741",
+      "size": 246861
+    },
+    {
+      "path": "sprites/hex/HS_Swamp_1.png",
+      "sha256": "e2b3f9177e6f858520b976d2d5a8122c48aad6fd933139d9d52c21ac7e278f90",
+      "size": 306570
+    },
+    {
+      "path": "sprites/hex/HS_WaterStones_1.png",
+      "sha256": "0e125876df50d72b204cb9762c626de44094c43799dd530b97c2d11e3d7adc44",
+      "size": 120129
+    },
+    {
+      "path": "sprites/hex/Medieval_BrokenShip_1.png",
+      "sha256": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20",
+      "size": 140153
+    },
+    {
+      "path": "sprites/hex/Medieval_DirtyWater_1.png",
+      "sha256": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373",
+      "size": 78511
+    },
+    {
+      "path": "sprites/hex/Medieval_Fish_1.png",
+      "sha256": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152",
+      "size": 37771
+    },
+    {
+      "path": "sprites/hex/Medieval_Lake_1.png",
+      "sha256": "a9dd737e30c2076fa7abce9e1dc1b1dd57a22f0f8a6ad72efee223b1a4009135",
+      "size": 215194
+    },
+    {
+      "path": "sprites/hex/Medieval_Lake_2.png",
+      "sha256": "80f5211ee89edd55dde8a449f14aaa123bad1764a29dc2e4d5c8422b8ec27be5",
+      "size": 214589
+    },
+    {
+      "path": "sprites/hex/Medieval_Lake_3.png",
+      "sha256": "9b04b0e993dccdce072fbc87e62de73a9692eabe1725e9c1eeb937a5dc284533",
+      "size": 214927
+    },
+    {
+      "path": "sprites/hex/Medieval_Lake_4.png",
+      "sha256": "2b397f8baf068665bc5f644bebd5dd42e3fe46961a40a2428bc079008d70bc76",
+      "size": 213673
+    },
+    {
+      "path": "sprites/hex/Medieval_Lake_5.png",
+      "sha256": "052a620353fecc97451b2ca9e73db7d2a9d3e348b98acb02061ad548a3da4d41",
+      "size": 213359
+    },
+    {
+      "path": "sprites/hex/Medieval_Lake_6.png",
+      "sha256": "ba450fe848274ec13a1e420e564b6ae581445ce6a1869a417dae119554a6dff7",
+      "size": 216597
+    },
+    {
+      "path": "sprites/hex/Medieval_Lake_7.png",
+      "sha256": "167af984001f710a672da65dfba5e9e934f133a4689007ab871e5a453d2956d0",
+      "size": 216032
+    },
+    {
+      "path": "sprites/hex/Medieval_River_D_2.png",
+      "sha256": "3e0e3fd73f562c86da970627e30ef9ab0b8020e65f8ee0d3e272885ec71503fa",
+      "size": 209343
+    },
+    {
+      "path": "sprites/hex/Medieval_River_D_3.png",
+      "sha256": "3119f478afee541b96e38893d969148050ccf4b136aa71b0160eb9415bdf249b",
+      "size": 222877
+    },
+    {
+      "path": "sprites/hex/Medieval_River_D_4.png",
+      "sha256": "5916bf2f57998244b5ba4d1908d6b7cfcbfb1bc35698cd32bc4eda1c5d373b1c",
+      "size": 213824
+    },
+    {
+      "path": "sprites/hex/Medieval_River_D_L_EE_2.png",
+      "sha256": "0ae66af2a7885a4d2a72887624585d2260d304d6cf459e054df28d4a6ebfb7f7",
+      "size": 202454
+    },
+    {
+      "path": "sprites/hex/Medieval_River_D_R_EE_2.png",
+      "sha256": "d1c681e198e606f0979fc886af4bebbf7b0e1c890eb87ece27220323485a43f7",
+      "size": 188664
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_1.png",
+      "sha256": "a3968ebfa2145a52f1656da46747535ee7755abe65c1aa821acdc29de95c08ee",
+      "size": 219582
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_4.png",
+      "sha256": "cf08e383520a1cb1d5f68069d83b45561feef85274415c06c652b3451f692429",
+      "size": 233822
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_5.png",
+      "sha256": "2f7677bf13dd76ddf33231206f186b50a28bd6da8d1fe8fb44499225de24f4ad",
+      "size": 227362
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_D_E_1.png",
+      "sha256": "aa0c3fbc0425f19e7e8c4dce8ba368d84777650c913946389f2eea2de14a27f6",
+      "size": 216772
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_L_E_5.png",
+      "sha256": "d306db011345c0446cf8d46773d78870c8389438bf0978977b5e154f313530b3",
+      "size": 221895
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_R_E_5.png",
+      "sha256": "bbfbf418f26829eebb83503e2bf70ed6dd1f8abfa7837e5ba2318e2cd9dd7ae3",
+      "size": 224304
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_U_E_1.png",
+      "sha256": "d7474d3e0c8597aa9a21a3e0c8811f8c16c6ce0e2ac39cab207b997178331a11",
+      "size": 211712
+    },
+    {
+      "path": "sprites/hex/Medieval_River_R_1.png",
+      "sha256": "328d68f85b344a32cba0349b7895eee3e2e96f9572d04c3c8b8f0f2af8ad1688",
+      "size": 218188
+    },
+    {
+      "path": "sprites/hex/Medieval_River_R_4.png",
+      "sha256": "c17afc0f55345f1f31fc8912d0ab2ea46996a5c10cdf5dff9ab5f1a5ce6f1dfe",
+      "size": 227434
+    },
+    {
+      "path": "sprites/hex/Medieval_River_R_5.png",
+      "sha256": "d05d212e14efe993108f7294643082ab0ac23f37ba51c197e04c728a2bbe0220",
+      "size": 229069
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_2.png",
+      "sha256": "fc98fcdb678795029e55a6e6d3a50e1c83ecd38cc4f22f5ab028acf9c258a6ef",
+      "size": 211163
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_3.png",
+      "sha256": "bac0fc4c8cac1d526b7027f3748ed4bc710f992421d913c60b2d82797b06dce8",
+      "size": 211612
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_4.png",
+      "sha256": "2355afedc10a63f209def3797dca8252045fc2dd5bfdf5a41ce335b9104a252c",
+      "size": 208382
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_D_E_4.png",
+      "sha256": "98cd49b903bd317763445dc6e446ab36e35a8e1a95b3f2a7ff3ad1e261121e29",
+      "size": 209560
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_L_EE_2.png",
+      "sha256": "447d43122003d9a425627a3cc7e09b303ec4966f6457e03519a616e1a5d5d3e7",
+      "size": 196063
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_R_EE_2.png",
+      "sha256": "30f4ecb21bbe2d13047310d32fffe8f053f146825e60d693f86f3c975e879775",
+      "size": 196243
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_U_E_4.png",
+      "sha256": "bb6dc80e91fbee2e010aa06a94db98a08911297662a34b1ea85e3ac3ef0fa8e2",
+      "size": 204664
+    },
+    {
+      "path": "sprites/hex/Medieval_WaterStones_1.png",
+      "sha256": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647",
+      "size": 127309
+    },
+    {
+      "path": "sprites/hex/Medieval_Water_1.png",
+      "sha256": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1",
+      "size": 64734
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_0_UpperRight.png",
+      "sha256": "d33570a548f30c1d3f93542e142ea36218f00b430986b710da25975ea47b7e95",
+      "size": 37248
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_1_LowerRight.png",
+      "sha256": "19701656df4e03be0aa27178172ef9dfa2d3e734176f01faae4719532bba6419",
+      "size": 34784
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_2_Bottom.png",
+      "sha256": "4ed67f60b81b26c76d9c63011fc715685bae4f61acbffd0cc059336c81f3331d",
+      "size": 25582
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_3_LowerLeft.png",
+      "sha256": "e15d07911396f4533b092592914718d2ab9167a7300aab2ff2ef891b39bb706c",
+      "size": 25632
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_4_UpperLeft.png",
+      "sha256": "542d14e388ec761b806d936724c5c67c1bf26e12c56bc70b4a1378a2e3344ad2",
+      "size": 44846
+    },
+    {
+      "path": "sprites/terrain/coastline/Coastline_5_Top.png",
+      "sha256": "2c3c58617dcd59ca11b663bbe4db1b5f3f753db6e9297855290a732182efc262",
+      "size": 28302
+    }
+  ]
+}

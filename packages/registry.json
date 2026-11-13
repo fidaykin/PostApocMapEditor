@@ -31,6 +31,16 @@
       "totalBytes": 25326271,
       "minAppVersion": "0.0.0",
       "schemaVersion": 1
+    },
+    {
+      "id": "hs-atlas",
+      "name": "HS Atlas (test)",
+      "isDefault": false,
+      "version": "1.0.0",
+      "manifestUrl": "packages/hs-atlas/manifest.json",
+      "totalBytes": 67234338,
+      "minAppVersion": "0.0.0",
+      "schemaVersion": 1
     }
   ]
 }
