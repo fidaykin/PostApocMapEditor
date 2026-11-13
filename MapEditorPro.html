@@ -2897,7 +2897,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.13";
-const COMMIT  = "64227e1";
+const COMMIT  = "f52e689";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9011,10 +9011,14 @@ const QuickBar = (() => {
   // away from it and nothing inside has focus. It never opens while a mouse button is down, so a stroke that passes the top edge is not disturbed.
   const HOT_EDGE_PX = 28, CLOSE_DELAY_MS = 1000;
   const PIN_KEY = 'quickbarPinned';
-  let _pinned = false;
-  try { _pinned = localStorage.getItem(PIN_KEY) === '1'; } catch (e) { /* storage blocked: the pin lasts for this session */ }
+  let _pinned = true;   // pinned and visible by default; what the user chooses is remembered
+  try { const v = localStorage.getItem(PIN_KEY); if (v === '0' || v === '1') _pinned = v === '1'; } catch (e) { /* storage blocked: the pin lasts for this session */ }
   let _closeTimer = null;
+  // After Unpin the bar shuts at once and stays shut until the pointer has left the top edge zone: the pointer is still over the
+  // bar's spot at that moment, so without this the hover would keep it open (or open it again) and Unpin would look like it did nothing.
+  let _held = false;
   function open() {
+    if (_held) return;
     clearTimeout(_closeTimer); _closeTimer = null;
     const bar = document.getElementById('quickbar');
     if (bar) bar.classList.add('qb-open');
@@ -9030,8 +9034,20 @@ const QuickBar = (() => {
   }
   function _applyPin() {
     const pin = document.getElementById('qb-pin');
-    if (pin) { pin.classList.toggle('qb-pinned', _pinned); pin.setAttribute('aria-pressed', String(_pinned)); }
-    if (_pinned) open(); else _scheduleClose();
+    if (pin) {
+      pin.classList.toggle('qb-pinned', _pinned);
+      pin.setAttribute('aria-pressed', String(_pinned));
+      pin.title = _pinned ? 'Unpin the bar: it hides and slides in again at the top edge of the canvas'
+                          : 'Pin the bar open (it covers the top rows of the map while pinned)';
+      pin.setAttribute('aria-label', _pinned ? 'Unpin the quick bar' : 'Pin the quick bar');
+    }
+    const bar = document.getElementById('quickbar');
+    if (_pinned) { _held = false; open(); }
+    else {
+      _held = true;
+      clearTimeout(_closeTimer); _closeTimer = null;
+      if (bar) bar.classList.remove('qb-open');
+    }
   }
   function togglePin() {
     _pinned = !_pinned;
@@ -9048,9 +9064,9 @@ const QuickBar = (() => {
       cc.addEventListener('mousemove', e => {
         if (e.buttons !== 0) return;
         if (e.clientY - cc.getBoundingClientRect().top <= HOT_EDGE_PX) open();
-        else if (isOpen()) _scheduleClose();
+        else { _held = false; if (isOpen()) _scheduleClose(); }
       });
-      cc.addEventListener('mouseleave', () => { if (isOpen()) _scheduleClose(); });
+      cc.addEventListener('mouseleave', () => { _held = false; if (isOpen()) _scheduleClose(); });
       cc.addEventListener('mousedown', () => { if (isOpen()) _scheduleClose(); });
       bar.addEventListener('mouseenter', open);
       bar.addEventListener('mouseleave', _scheduleClose);
@@ -9067,7 +9083,8 @@ const QuickBar = (() => {
     const d = document.getElementById('scatter-density');
     if (d) d.addEventListener('input', sync);
     sync();
-    if (_pinned) _applyPin();
+    _applyPin();   // also sets the button's state and tooltip; pinned = open from the start
+    if (!_pinned) _held = false;   // starting unpinned: the bar is shut, but the top edge may open it at once
   }
 
   return { init, open, isOpen, isPinned, togglePin, sync, toggleWaterEdges, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,

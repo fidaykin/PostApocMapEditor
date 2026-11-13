@@ -153,6 +153,32 @@ test.describe('quick bar', () => {
     await expect(page.locator('#quickbar')).toBeHidden({ timeout: 4000 });
   });
 
+  test('by default the bar is pinned and visible; a stored unpin is respected', async ({ page }) => {
+    await page.evaluate(() => localStorage.removeItem('quickbarPinned'));      // the specs seed '0'; a real first visit has no value
+    await page.reload();
+    await page.waitForFunction(() => typeof QuickBar !== 'undefined' && HexDB.getAll().length > 0);
+    expect(await page.evaluate(() => QuickBar.isPinned())).toBe(true);
+    await expect(page.locator('#quickbar')).toBeVisible();
+    await expect(page.locator('#qb-pin')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#qb-pin')).toHaveAttribute('aria-label', 'Unpin the quick bar');
+  });
+
+  test('Unpin hides the bar at once even with the pointer on it, and it comes back at the top edge only after the pointer left it', async ({ page }) => {
+    await page.evaluate(() => { QuickBar.open(); if (!QuickBar.isPinned()) QuickBar.togglePin(); });
+    await expect(page.locator('#quickbar')).toBeVisible();
+    await page.click('#qb-pin');                                               // unpin: the pointer stays on the bar's spot
+    expect(await page.evaluate(() => QuickBar.isPinned())).toBe(false);
+    await expect(page.locator('#qb-pin')).toHaveAttribute('aria-label', 'Pin the quick bar');
+    await expect(page.locator('#quickbar')).toBeHidden({ timeout: 1000 });
+    const b = (await page.locator('#canvas-container').boundingBox())!;
+    await page.mouse.move(b.x + b.width / 2, b.y + 6);                         // still in the top zone: stays shut
+    await page.mouse.move(b.x + b.width / 2 + 3, b.y + 8);
+    await expect(page.locator('#quickbar')).toBeHidden();
+    await page.mouse.move(b.x + b.width / 2, b.y + 300);                       // leaves the edge zone
+    await page.mouse.move(b.x + b.width / 2, b.y + 5);                         // touches it again: opens
+    await expect(page.locator('#quickbar')).toBeVisible();
+  });
+
   test('the bar opens within 28 px of the top edge and waits a second before closing', async ({ page }) => {
     await page.evaluate(() => { document.getElementById('quickbar')!.classList.remove('qb-open'); });
     const b = (await page.locator('#canvas-container').boundingBox())!;
