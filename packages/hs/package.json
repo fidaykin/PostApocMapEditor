@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.25",
+  "version": "1.0.26",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -116,10 +116,15 @@
       "version": "1.0.25",
       "date": "2026-11-12",
       "note": "fix Hs_Decameroon_Plantation_1"
+    },
+    {
+      "version": "1.0.26",
+      "date": "2026-11-13",
+      "note": "old maps deleted"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 25129753,
+  "totalBytes": 25326145,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
