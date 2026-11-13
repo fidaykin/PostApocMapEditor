@@ -2897,8 +2897,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.11.09";
-const COMMIT  = "d16cb6c";
+const VERSION = "2026.11.13";
+const COMMIT  = "64227e1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9728,7 +9728,16 @@ const GitHubSync = (() => {
     });
     if (!res.ok) throw new Error(`Cannot get ${path}: ${res.status}`);
     const data = await res.json();
-    return JSON.parse(atob(data.content.replace(/\s/g, '')));
+    // atob gives one char per byte: decode the bytes as UTF-8 or every non-ASCII name comes back as mojibake (and is then written back)
+    const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, '')), c => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder('utf-8').decode(bytes));
+  }
+
+  // maps/map_list.json straight from the repo (the Contents API, never the Pages CDN, which lags a commit by a minute or more).
+  // A missing file is an empty list; any other failure throws, so a caller never rewrites the list from a guess.
+  async function _getMapListFresh() {
+    try { return await _getFileJson('maps/map_list.json'); }
+    catch (e) { if (/: 404$/.test(e.message)) return { maps: [] }; throw e; }
   }
 
   // ── Content Manager actions ───────────────────────────────────
@@ -9819,8 +9828,9 @@ const GitHubSync = (() => {
         const sha = (await shaRes.json()).sha;
         await _deleteContents(`maps/${fileName}`, sha, `remove map: ${fileName}`);
       }
-      // Read map_list.json via GitHub API (not CDN) to avoid stale cache
-      const list = await _getFileJson('maps/map_list.json').catch(() => ({ maps: [] }));
+      // Read map_list.json via GitHub API (not CDN) to avoid stale cache. A failed read aborts: it used to fall back to an
+      // empty list, which would have written an empty map_list.json
+      const list = await _getMapListFresh();
       list.maps = (list.maps || []).filter(m => m.fileName !== fileName);
       await _putText('maps/map_list.json', JSON.stringify(list, null, 2) + '\n', `remove from map_list: ${fileName}`);
       document.querySelector(`[data-cm-id="map-${fileName}"]`)?.remove();
@@ -10439,11 +10449,9 @@ const GitHubSync = (() => {
       await _putText(`maps/${fname}.json`, mapJson, `publish map: ${fname}`);
 
       UI.progress(60, 'Updating map_list.json…');
-      let list = { maps: [] };
-      try {
-        const lr = await fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`);
-        if (lr.ok) list = await lr.json();
-      } catch(e) { /* start fresh */ }
+      // The Pages CDN lags a commit by a minute or more: merging into its copy wrote the deleted maps back
+      const list = await _getMapListFresh();
+      if (!Array.isArray(list.maps)) list.maps = [];
       const entry = {
         name: fname,
         fileName: `${fname}.json`,
@@ -10621,7 +10629,8 @@ const GitHubSync = (() => {
       const [hexFiles, bldFiles, mapList] = await Promise.all([
         _listFolder('packages/postapoc/sprites/hex'),
         _listFolder('packages/postapoc/sprites/buildings'),
-        fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`).then(r => r.ok ? r.json() : {maps:[]}).catch(() => ({maps:[]})),
+        (isPATConfigured() ? _getMapListFresh() : fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`).then(r => r.ok ? r.json() : {maps:[]}))
+          .catch(() => ({maps:[]})),
       ]);
 
       const dbResults = await Promise.all(_CM_DB_FILES.map(async name => {
