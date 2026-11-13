@@ -15,9 +15,9 @@
       "id": "decameroon",
       "name": "Decameroon",
       "isDefault": false,
-      "version": "1.0.36",
+      "version": "1.0.37",
       "manifestUrl": "packages/decameroon/manifest.json",
-      "totalBytes": 22810182,
+      "totalBytes": 22810290,
       "minAppVersion": "0.0.0",
       "schemaVersion": 1,
       "autoUnlock": true
@@ -26,9 +26,9 @@
       "id": "hs",
       "name": "HS",
       "isDefault": false,
-      "version": "1.0.26",
+      "version": "1.0.27",
       "manifestUrl": "packages/hs/manifest.json",
-      "totalBytes": 25326145,
+      "totalBytes": 25326271,
       "minAppVersion": "0.0.0",
       "schemaVersion": 1
     }

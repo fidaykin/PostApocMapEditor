@@ -381,7 +381,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "Hs_Decameroon_Plain_1"
     },
     {
       "id": "Hs_Decameroon_Forest_2",
@@ -445,7 +445,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "Hs_Decameroon_Plain_1"
     },
     {
       "id": "Hs_Decameroon_Forest_3",
@@ -509,7 +509,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "Hs_Decameroon_Plain_1"
     },
     {
       "id": "Hs_Decameroon_GemField_1",
@@ -2651,7 +2651,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "Hs_Decameroon_Plain_1"
     },
     {
       "id": "Hs_Decameroon_Rubble_1",
@@ -2982,7 +2982,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "Hs_Decameroon_Plain_1"
     },
     {
       "id": "Hs_Decameroon_Water_1",
@@ -3159,7 +3159,7 @@
       "effects": "",
       "package": "hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "Hs_Decameroon_Plain_1"
     },
     {
       "id": "Hs_Decameroon_Grain_2",
