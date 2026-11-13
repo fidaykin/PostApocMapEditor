@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.11.05.03ca1ab</title>
+<title>Post Apo Map Editor 2026.07.16.717ca1c</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -361,6 +361,23 @@ body:not(.layout-classic) #more-dropdown { position: fixed; }
   background: var(--canvas-bg); cursor: crosshair;
 }
 #map-canvas { display: block; }
+/* Quick bar: an overlay at the top of the canvas container (the canvas keeps its size). Hidden while you work on the map; it slides in when
+   the pointer touches the top edge of the canvas, stays while hovered or focused, and #qb-handle hints that it is there. */
+#quickbar { position: absolute; top: 0; left: 50%; transform: translate(-50%, -110%); z-index: 5; display: flex; align-items: center; gap: 6px; padding: 4px 8px;
+  max-width: calc(100% - 16px); overflow-x: auto; background: var(--panel); border: 1px solid var(--border); border-top: 0; border-radius: 0 0 6px 6px; font-size: 11px; color: var(--muted); cursor: default;
+  visibility: hidden; opacity: 0; transition: transform .15s ease, opacity .15s ease, visibility 0s linear .15s; }
+#quickbar.qb-open { transform: translate(-50%, 0); visibility: visible; opacity: 1; transition: transform .15s ease, opacity .15s ease; }
+#quickbar > * { flex-shrink: 0; }
+#qb-handle { position: absolute; top: 0; left: 50%; transform: translateX(-50%); z-index: 4; width: 44px; height: 5px; border-radius: 0 0 4px 4px; background: var(--accent); opacity: .55; pointer-events: none; }
+body:not(.mode-map) #quickbar, body:not(.mode-map) #qb-handle { display: none; }
+#quickbar.qb-open + #qb-handle, #quickbar:focus-within + #qb-handle { opacity: 0; }
+#quickbar .qb-pinned { background: var(--accent); color: #fff; border-color: var(--accent); }
+#quickbar .qb-btn { min-width: 26px; height: 24px; padding: 0 6px; background: transparent; border: 1px solid var(--border); border-radius: 4px; color: inherit; cursor: pointer; font-size: 13px; }
+#quickbar .qb-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+#quickbar .qb-size { min-width: 18px; text-align: center; font-weight: bold; color: var(--text, #ddd); }
+#quickbar .qb-sep { width: 1px; height: 18px; background: var(--border); }
+#quickbar select, #quickbar input[type=text] { height: 24px; background: #111; border: 1px solid #444; color: #4fc3f7; font-size: 11px; border-radius: 3px; }
+#quickbar input[type=text] { width: 110px; padding: 0 4px; }
 
 /* ── Right panel ──────────────────────────────────────────── */
 #right-panel {
@@ -1456,7 +1473,7 @@ body.mode-common #map-io    { display: none; }
 .gh-maps-empty { color:#888;font-size:13px;text-align:center;padding:24px; }
 
 </style>
-<script src="hex-utils.js?v=2"></script>
+<script src="hex-utils.js?v=3"></script>
 <script src="gen-utils.js?v=5"></script>
 <script src="map-format.js?v=2"></script>
 <script src="map-convert.js?v=1"></script>
@@ -1935,6 +1952,25 @@ body.mode-common #map-io    { display: none; }
     <!-- Canvas -->
     <div id="canvas-container">
       <canvas id="map-canvas"></canvas>
+      <div id="quickbar" role="toolbar" aria-label="Quick tool bar">
+        <button type="button" class="qb-btn" id="qb-pin" onclick="QuickBar.togglePin()" title="Pin the bar open (it covers the top rows of the map while pinned); unpinned it slides in at the top edge of the canvas" aria-label="Pin the quick bar" aria-pressed="false">📌</button>
+        <span class="qb-sep"></span>
+        <button type="button" class="qb-btn" data-qtool="paint" onclick="QuickBar.setTool('paint')" title="Paint (P)" aria-label="Quick paint">✏️</button>
+        <button type="button" class="qb-btn" data-qtool="eraser" onclick="QuickBar.setTool('eraser')" title="Eraser (X)" aria-label="Quick eraser">⌫</button>
+        <button type="button" class="qb-btn" data-qtool="marquee" onclick="QuickBar.setTool('marquee')" title="Select Region (M)" aria-label="Quick select region">⛶</button>
+        <button type="button" class="qb-btn" data-qtool="scatter" onclick="QuickBar.setTool('scatter')" title="Scatter (A)" aria-label="Quick scatter">⁘</button>
+        <span class="qb-sep"></span>
+        <button type="button" class="qb-btn" id="qb-smaller" onclick="QuickBar.step(-1)" title="Smaller brush ([ or Alt + wheel down)" aria-label="Smaller brush">−</button>
+        <span class="qb-size" id="qb-size" title="Brush radius">0</span>
+        <button type="button" class="qb-btn" id="qb-larger" onclick="QuickBar.step(1)" title="Larger brush (] or Alt + wheel up)" aria-label="Larger brush">+</button>
+        <span class="qb-sep"></span>
+        <select id="qb-preset" aria-label="Brush preset" title="Brush preset: tool, size, symmetry and scatter density" onchange="QuickBar.applyPreset(this.value); this.blur()"></select>
+        <button type="button" class="qb-btn" id="qb-water" onclick="QuickBar.toggleWaterEdges()" title="Auto water edges (off by default): when on, painting re-picks the river / lake pieces around the painted cells from the real hex neighbours. Neighbours it changes flash; one Undo reverts all" aria-label="Auto water edges" aria-pressed="false">〰</button>
+        <button type="button" class="qb-btn" id="qb-save" onclick="QuickBar.beginSave()" title="Save the current tool, size, symmetry and density as a preset" aria-label="Save preset">＋</button>
+        <input type="text" id="qb-name" maxlength="24" placeholder="Preset name" aria-label="Preset name" style="display:none" onkeydown="if(event.key==='Enter')QuickBar.commitSave(); else if(event.key==='Escape')QuickBar.cancelSave(); event.stopPropagation()">
+        <button type="button" class="qb-btn" id="qb-delete" onclick="QuickBar.deletePreset()" title="Delete the selected custom preset" aria-label="Delete preset">🗑</button>
+      </div>
+      <div id="qb-handle" aria-hidden="true"></div>
     </div>
 
     <!-- Right panel -->
@@ -2861,7 +2897,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.13";
-const COMMIT  = "c1ab29e";
+const COMMIT  = "64227e1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -5169,6 +5205,10 @@ const Canvas = (() => {
   function _onWheel(e) {
     e.preventDefault();
     if (_modalOpen()) return;
+    if (e.altKey && document.body.classList.contains('mode-map')) {   // Alt + wheel = brush size (wheel up = larger), never a zoom
+      if (e.deltaY !== 0 && typeof QuickBar !== 'undefined') QuickBar.wheel(e.deltaY < 0 ? 1 : -1);
+      return;
+    }
     const rect = canvas.getBoundingClientRect();
     setZoom(zoom - Math.sign(e.deltaY) * _step(0.15, 5), e.clientX - rect.left, e.clientY - rect.top);
   }
@@ -5838,7 +5878,8 @@ const Bookmarks = (() => {
 
   return { initPanel, add, rename, remove, go, list, isAvailable, render, refresh, MAX, NAME_MAX };
 })();
-// BRUSH MODULE: lives in brush.js (classic script loaded from <head>; same global `Brush`).
+// BRUSH MODULE: lives in brush.js (a classic script loaded from the page head; same global `Brush`).
+// NOTE: never write the literal head tag in this file: deploy-dev.yml injects <base> after EVERY occurrence, inside comments and strings too.
 // ════════════════════════════════════════════════════════════
 // SELECTION MODULE (T2.8) — the region selection: a SET OF CELLS (col,row), independent of zoom/pan.
 // Stored as a Uint8Array mask over the map it was made on (identity + size); a replaced map (New/Load/Expand/
@@ -6770,8 +6811,17 @@ const Tools = (() => {
     if (_active === 'rect' && _rectStart && _toolsRectPreview && !_shapeStale()) { _previewRectSymmetry(_toolsRectPreview); }
     _updateEraserHover(_hoverCell);
     Canvas.setSymmetryGuide(_symMode);   // renders
+    if (typeof QuickBar !== 'undefined') QuickBar.sync();
   }
   function getSymmetry() { return _symMode; }
+  // One brush-size step (keys, the quick bar, Alt + wheel); the hover outline and the canvas follow the new radius.
+  function stepBrush(dir) {
+    const before = Brush.getSize();
+    if (dir > 0) Brush.grow(); else Brush.shrink();
+    if (Brush.getSize() === before) return false;
+    _updateEraserHover(_hoverCell); Canvas.render();
+    return true;
+  }
   function cycleSymmetry() {
     const m = HexUtils.SYMMETRY_MODES;
     setSymmetry(m[(m.indexOf(_symMode) + 1) % m.length]);
@@ -6813,6 +6863,7 @@ const Tools = (() => {
       btn.classList.toggle('active', btn.dataset.tool === name);
     });
     _markOptionRelevance(name);
+    if (typeof QuickBar !== 'undefined') QuickBar.sync();
     UI.updateStatusTool(TOOL_NAMES[name] || name);
     if (name !== 'select') Canvas.clearSelection();
     // Settlement tools require settlements to be visible
@@ -6979,7 +7030,108 @@ const Tools = (() => {
   // Tools.autoResolveEdgesAround directly. Zone filling (Fill Zones, Fill This Zone, Randomize & Fill) is a hand tool too
   // and goes through manualEdgesAround (owner decision, same day).
   const AUTO_WATER_EDGES = false;
-  function _manualEdgesAround(cellsPainted) { if (AUTO_WATER_EDGES) _autoResolveEdgesAround(cellsPainted); }
+  function _manualEdgesAround(cellsPainted) {
+    if (AUTO_WATER_EDGES) _autoResolveEdgesAround(cellsPainted);
+    else if (_autoWaterOpt) _resolveWaterEdges(cellsPainted);
+  }
+
+  // ── Auto water edges, opt-in (ClickUp 869fpav2z) ──
+  // The 2026-10-07 decision stands: the hand tools write exactly the chosen tile unless the author switches this option on (quick bar, default
+  // OFF, remembered per browser). When on, the river / lake pieces in and around the written cells are re-picked from the REAL hex adjacency
+  // (HexUtils; EdgeTiling's legacy _DIRS tables read two wrong neighbours per cell on even map heights, which is why the old automatic mode
+  // drew pieces where they did not belong: ClickUp 869fpc6ak). Only directional pieces (edgeFaces) are ever rewritten; nothing else changes.
+  const _WATER_OPT_KEY = 'autoWaterEdges';
+  let _autoWaterOpt = false;
+  try { _autoWaterOpt = localStorage.getItem(_WATER_OPT_KEY) === '1'; } catch (e) { /* storage blocked: the option lasts for this session */ }
+  function setAutoWaterEdges(on) {
+    _autoWaterOpt = !!on;
+    try { localStorage.setItem(_WATER_OPT_KEY, _autoWaterOpt ? '1' : '0'); } catch (e) { /* session only */ }
+    if (typeof QuickBar !== 'undefined') QuickBar.sync();
+  }
+  function getAutoWaterEdges() { return _autoWaterOpt; }
+
+  // HexUtils.CUBE_DIRS order on screen (measured on the drawn grid): SE, NE, N, NW, SW, S. The opposite of direction i is (i + 3) % 6.
+  const _WATER_FACES = ['SE', 'NE', 'N', 'NW', 'SW', 'S'];
+  let _pieceRev = null, _pieceCache = null;
+  // Directional pieces per package: [{ id, dirs: Set of direction indices, n }], sorted by id so ties are deterministic.
+  function _waterPieces(pkg) {
+    const rev = HexDB.getRev ? HexDB.getRev() : null;
+    if (!_pieceCache || rev !== _pieceRev) { _pieceCache = new Map(); _pieceRev = rev; }
+    if (_pieceCache.has(pkg)) return _pieceCache.get(pkg);
+    const out = [];
+    for (const h of HexDB.getAll()) {
+      if (!h.id || (h.package || 'postapoc') !== pkg || !_isDirectional(h) || !_inEdgeFamily(h)) continue;
+      if (Array.isArray(h.occupiedOffsets) && h.occupiedOffsets.length) continue;
+      if (/_test|kaiju|chicken/i.test(h.id)) continue;
+      const dirs = new Set(h.edgeFaces.map(f => _WATER_FACES.indexOf(f)));
+      if (dirs.has(-1)) continue;                       // a face that is not a flat-top compass name: not usable here
+      out.push({ id: h.id, dirs, n: dirs.size });
+    }
+    out.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+    _pieceCache.set(pkg, out);
+    return out;
+  }
+  function _neighborAt(col, row, i) {
+    const c = HexUtils.toCube(col, row, MAP_WIDTH, MAP_HEIGHT), d = HexUtils.CUBE_DIRS[i];
+    const n = HexUtils.fromCube({ q: c.q + d.q, r: c.r + d.r, s: c.s + d.s }, MAP_WIDTH, MAP_HEIGHT);
+    return HexUtils.inBounds(n.col, n.row, MAP_WIDTH, MAP_HEIGHT) ? n : null;
+  }
+  // The piece whose exits are all wanted and as many as possible; the current one wins a tie. null = nothing fits (the cell stays as it is).
+  function _bestWaterPiece(pkg, wanted, current) {
+    let best = null;
+    for (const p of _waterPieces(pkg)) {
+      let ok = true;
+      for (const d of p.dirs) if (!wanted.has(d)) { ok = false; break; }
+      if (!ok) continue;
+      if (!best || p.n > best.n || (p.n === best.n && p.id === current && best.id !== current)) best = p;
+    }
+    return best ? best.id : null;
+  }
+  let _waterHlTimer = null;
+  function _resolveWaterEdges(cellsPainted) {
+    if (typeof HexDB === 'undefined') return [];
+    const W = MAP_WIDTH;
+    const todo = new Map(), painted = new Set();
+    for (const { col, row } of cellsPainted) {
+      if (!HexUtils.inBounds(col, row, W, MAP_HEIGHT)) continue;
+      painted.add(row * W + col);
+      if (_isDirectional(Terrain.byHexId(mapData[row * W + col]))) todo.set(row * W + col, { col, row });
+      for (let i = 0; i < 6; i++) {
+        const n = _neighborAt(col, row, i);
+        if (n && _isDirectional(Terrain.byHexId(mapData[n.row * W + n.col]))) todo.set(n.row * W + n.col, n);
+      }
+    }
+    if (!todo.size) return [];
+    const before = new Map();
+    for (let pass = 0; pass < 3; pass++) {              // a piece's exits depend on its neighbours' pieces: settle in a few passes
+      let moved = false;
+      for (const [k, { col, row }] of todo) {
+        const cur = mapData[k], entry = Terrain.byHexId(cur);
+        const wanted = new Set();
+        for (let i = 0; i < 6; i++) {
+          const n = _neighborAt(col, row, i);
+          if (!n) continue;
+          const nk = n.row * W + n.col, ne = Terrain.byHexId(mapData[nk]);
+          if (!ne || !_inEdgeFamily(ne)) continue;
+          // a piece that is not being re-picked must face back at this cell; one that is being re-picked, or flat water, connects
+          if (_isDirectional(ne) && !todo.has(nk) && !ne.edgeFaces.includes(_WATER_FACES[(i + 3) % 6])) continue;
+          wanted.add(i);
+        }
+        const pick = _bestWaterPiece((entry && entry.package) || 'postapoc', wanted, cur);
+        if (pick && pick !== cur) { if (!before.has(k)) before.set(k, cur); mapData[k] = pick; moved = true; }
+      }
+      if (!moved) break;
+    }
+    // Neighbours rewritten by this pass (not the cells the author wrote) flash for a moment so the change is visible; one Undo reverts all.
+    const flash = [];
+    for (const [k, prev] of before) if (!painted.has(k) && mapData[k] !== prev) flash.push(todo.get(k));
+    if (flash.length) {
+      Canvas.setHighlight('water-edges', flash, { stroke: 'rgba(255,193,7,0.95)' }, { render: false });
+      clearTimeout(_waterHlTimer);
+      _waterHlTimer = setTimeout(() => Canvas.setHighlight('water-edges', null), 1200);
+    }
+    return Array.from(before.keys());
+  }
 
   // cellsPainted: [{col,row,prev?}] where prev is the id the cell held BEFORE the edit.
   // A directional tile written here re-resolves itself and its water/river neighbours (original rule).
@@ -7583,6 +7735,12 @@ const Tools = (() => {
                    !/_test|kaiju|chicken/i.test(h.id))
       .map(h => h.id);
   }
+  // Per-variant weight from the Hex DB (scatterWeight, default 1, 0 = never scattered).
+  function _scatterWeight(id) {
+    const h = HexDB.getAll().find(e => e.id === id);
+    const w = h ? Number(h.scatterWeight) : NaN;
+    return isFinite(w) && w >= 0 ? w : 1;
+  }
   function _scatterChosen() {
     const id = UI.getSelectedTerrain();
     return _scatterVariants(id).filter(v => !_scatterOff.has(v.toLowerCase()));
@@ -7614,7 +7772,7 @@ const Tools = (() => {
       visited.add(k);
       fresh.push(c);
     }
-    const picks = HexUtils.scatterPick(fresh, ids, density, rng).filter(p => !getSatelliteAnchor(p.col, p.row));
+    const picks = HexUtils.scatterPick(fresh, ids, density, rng, ids.map(_scatterWeight)).filter(p => !getSatelliteAnchor(p.col, p.row));
     if (!picks.length) return 0;
     if (beforeWrite) beforeWrite();
     return _writeTerrain(picks, null).length;       // one pass, per-cell ids; the area is already symmetry-expanded
@@ -7637,6 +7795,7 @@ const Tools = (() => {
     if (!_scatterVariants(UI.getSelectedTerrain()).length) { UI.toast('Scatter: the selected tile has no scatterable variants'); return false; }
     const ids = _scatterChosen();
     if (!ids.length) { UI.toast('Scatter: no variants selected'); return false; }
+    if (!ids.some(i => _scatterWeight(i) > 0)) { UI.toast('Scatter: every selected variant has weight 0 (Hex DB > Scatter weight)'); return false; }
     const density = _scatterDensity();
     if (!(density > 0)) { UI.toast('Scatter: set a density above 0'); return false; }
     _scatterRun = { ids, density, rng: _scatterRngOverride || HexUtils.makeRng(_scatterSeed()), visited: new Set() };
@@ -7655,7 +7814,7 @@ const Tools = (() => {
     const box = document.getElementById('scatter-variants');
     if (!box || _active !== 'scatter' || typeof UI === 'undefined') return;
     const ids = _scatterVariants(UI.getSelectedTerrain());
-    const sig = ids.map(i => i + (_scatterOff.has(i.toLowerCase()) ? '0' : '1')).join('|');
+    const sig = ids.map(i => i + (_scatterOff.has(i.toLowerCase()) ? '0' : '1') + _scatterWeight(i)).join('|');
     if (box.dataset.sig === sig) return;
     box.dataset.sig = sig;
     box.textContent = '';
@@ -7665,17 +7824,69 @@ const Tools = (() => {
       const cb = document.createElement('input');
       cb.type = 'checkbox'; cb.dataset.id = id; cb.checked = !_scatterOff.has(id.toLowerCase());
       cb.addEventListener('change', () => { if (cb.checked) _scatterOff.delete(id.toLowerCase()); else _scatterOff.add(id.toLowerCase()); box.dataset.sig = ''; cb.blur(); });
-      lab.append(cb, document.createTextNode(id));
+      const w = _scatterWeight(id);
+      lab.append(cb, document.createTextNode(w === 1 ? id : id + ' ×' + w));   // a weight other than 1 is shown; edit it in Hex DB > Scatter weight
+      if (w === 0) lab.style.opacity = '.5';
       box.appendChild(lab);
     }
   }
 
   function _objRefuse(msg) { if (!_objToasted) { _objToasted = true; UI.toast(msg); } return false; }
 
-  // Place the selected building at (col,row); returns true when something changed. Replaces a different building
-  // already there (its spawned satellites are removed first); the same id again is a no-op. Refused (toast) outside the
-  // map and on a cell under another multi-tile terrain's footprint.
-  function _placeObject(col, row) {
+  // Replace confirmation: placing a building on a cell that holds a different building, a forest or rocks destroys that
+  // content, so the user is asked first. A stroke never writes such a cell on its own: they are collected in _objPending
+  // and one dialog with the summary runs when the stroke ends (_confirmObjectReplace). Ground types (grass, water...)
+  // are covered without asking.
+  const _REPLACE_TERRAIN_TYPES = new Set(['Forests', 'Hills/Mountains']);
+  const _objPending = new Map();     // 'col,row' -> _objReplaceInfo of the cells of the running stroke that need a confirm
+  function _hexRecOf(id) {
+    if (typeof id !== 'string') return null;
+    const recs = HexDB.getAll().filter(h => h.id === id);
+    return recs.find(h => (h.package || 'postapoc') === 'postapoc') || recs[0] || null;
+  }
+  // What placing `bldId` on (col,row) would destroy, or null. terrainId/toId: a forest or rocks tile is really replaced by
+  // the ground its Hex DB record says it turns into when destroyed (destroyTransformTo, else Plains_1).
+  function _objReplaceInfo(col, row, bldId) {
+    const old = objectsData[col + ',' + row];
+    if (old === bldId) return null;
+    const labels = [];
+    let terrainId = null, toId = null;
+    if (old) labels.push(old);
+    if (!Layers.isLocked('terrain')) {
+      const id = mapData[row * MAP_WIDTH + col], rec = _hexRecOf(id);
+      if (rec && _REPLACE_TERRAIN_TYPES.has(rec.type)) {
+        terrainId = id;
+        toId = rec.destroyTransformTo && Terrain.byHexId(rec.destroyTransformTo) ? rec.destroyTransformTo : 'Plains_1';
+        labels.push(id + ' -> ' + toId);
+      }
+    }
+    return labels.length ? { col, row, old, terrainId, toId, labels } : null;
+  }
+  async function _confirmObjectReplace() {
+    const list = [..._objPending.values()];
+    _objPending.clear();
+    if (!list.length || !_selectedBuildingId) return;
+    const md = mapData, W = MAP_WIDTH, H = MAP_HEIGHT;
+    const count = new Map();
+    for (const i of list) for (const l of i.labels) count.set(l, (count.get(l) || 0) + 1);
+    const lines = [...count].map(([name, n]) => n > 1 ? name + ' x' + n : name);
+    const msg = list.length === 1
+      ? `Placing ${_selectedBuildingId} on ${list[0].col}, ${list[0].row} replaces what is there. It will be deleted.`
+      : `Placing ${_selectedBuildingId} on ${list.length} cells replaces what is there. It will be deleted.`;
+    const ok = await UI.confirm('Replace on the map', msg, lines.join('\n'), 'Replace');
+    if (!ok) return;                                                    // Cancel: nothing was written
+    if (mapData !== md || MAP_WIDTH !== W || MAP_HEIGHT !== H) { UI.toast('The map changed - nothing was replaced'); return; }
+    _beginLazyStroke();                                                 // one History step for the whole replacement
+    for (const i of list) _placeObject(i.col, i.row, true);
+    _eraseStroke = false; _eraseToken = null;
+    Canvas.drawMinimap();
+  }
+
+  // Place the selected building at (col,row); returns true when something changed. A cell that holds a different
+  // building, a forest or rocks is not written unless `confirmed` (see _objReplaceInfo); a replaced building has its spawned
+  // satellites removed first; the same id again is a no-op. Refused (toast) outside the map and on a cell under another
+  // multi-tile terrain's footprint.
+  function _placeObject(col, row, confirmed) {
     const bldId = _selectedBuildingId;
     if (!bldId) return false;
     // Defence only: _onDown/_onMove already ignore off-map cells, so input never reaches this line.
@@ -7684,8 +7895,11 @@ const Tools = (() => {
     const key = col + ',' + row;
     const old = objectsData[key];
     if (old === bldId) return false;
+    const info = _objReplaceInfo(col, row, bldId);
+    if (info && !confirmed) { _objPending.set(key, info); return false; }
     _pushOnce();
     if (old) _removeSatellites(col, row, old);
+    if (info && info.terrainId) _writeTerrain([{ col, row }], info.toId);   // the forest / rocks is really gone
     objectsData[key] = bldId;
     _spawnSatellites(col, row, bldId);
     IO.scheduleAutoSave();
@@ -8341,6 +8555,7 @@ const Tools = (() => {
           _selectedBuildingId = null; _updateBuildingLabel(); UI.toast('Pick a building first'); _isDown = false; break;
         }
         _beginLazyStroke();
+        _objPending.clear();
         if (_active === 'object') _placeObject(col, row); else _eraseObject(col, row);
         _lastObjectPainted = { col, row };
         break;
@@ -8393,7 +8608,7 @@ const Tools = (() => {
       _clearRoadStart(false); UI.toast('Road start cleared — the map changed'); Canvas.render();
     }
     if (_isStrokeTool(_active) && _eraseStroke && _eraseStale()) {   // the map was replaced mid-stroke: stop, write nothing
-      _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _lastObjectPainted = null; _lastRoadPainted = null; _clearEraserHover();
+      _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _lastObjectPainted = null; _lastRoadPainted = null; _clearEraserHover(); _objPending.clear();
       if (_active === 'road-connect') _clearRoadStart(false);
       UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : _active === 'eraser' ? 'Eraser stopped — the map changed' : ROAD_TOOLS.has(_active) ? 'Road tool stopped — the map changed' : _active === 'bridge' ? 'Bridge tool stopped — the map changed' : 'Building tool stopped — the map changed');
       Canvas.render();
@@ -8477,6 +8692,7 @@ const Tools = (() => {
     // stale toast: strokes write only from mousedown/mousemove, so nothing more is written, and the lazy History step (if any)
     // stays on the stack.
     _eraseStroke = false; _eraseToken = null; _scatterRun = null;
+    if (_active === 'object' && _objPending.size) _confirmObjectReplace();   // after the stroke: one dialog for every cell that needs it
     if ((_active === 'line' || _active === 'circle') && _shapeStart) { _finishDrag(e); return; }
 
     if (_active === 'paint' || _active === 'eraser' || _active === 'scatter' || _active === 'road' || _active === 'road-connect' || _active === 'erase-road') {
@@ -8591,10 +8807,7 @@ const Tools = (() => {
       if (physBracket || typedBracket) {
         if (e.repeat || !document.body.classList.contains('mode-map') || _isTypingOrModal()) return;
         e.preventDefault();
-        const before = Brush.getSize();
-        const larger = typedBracket ? k0 === ']' : e.code === 'BracketRight';
-        if (larger) Brush.grow(); else Brush.shrink();
-        if (Brush.getSize() !== before) { _updateEraserHover(_hoverCell); Canvas.render(); }
+        stepBrush((typedBracket ? k0 === ']' : e.code === 'BracketRight') ? 1 : -1);
         return;
       }
       if (e.altKey && (e.code === 'BracketLeft' || e.code === 'BracketRight')) return;   // Alt + a bracket key: not ours (unchanged)
@@ -8670,11 +8883,195 @@ const Tools = (() => {
     return true;
   }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
+  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, stepBrush, setAutoWaterEdges, getAutoWaterEdges, resolveWaterEdges: _resolveWaterEdges, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround, manualEdgesAround: _manualEdgesAround, AUTO_WATER_EDGES,
            fillAt: _fill, applyRect: _applyRect,
            fill: _fill /* TEST HOOK: starts a fill directly, bypassing History.push and the _onDown busy guard */ };
+})();
+// ════════════════════════════════════════════════════════════
+// QUICK BAR — tool, brush size and style presets over the canvas (a second control for what the left panel already holds)
+// ════════════════════════════════════════════════════════════
+// The bar holds no state of its own: tool, radius, symmetry and scatter density live in Tools / Brush / the palette inputs and
+// sync() redraws the bar from them. A preset is a named {tool, size, symmetry, density}; custom ones live in localStorage
+// (per browser, apart from the maps, like Stamps), the built-in four are fixed.
+const QuickBar = (() => {
+  const LS_KEY = 'quickbar_presets_v1';
+  const BUILTIN = [
+    { id: 'b:precise',   name: 'Precise',    tool: 'paint',   size: 0, symmetry: 'none', density: 40 },
+    { id: 'b:wide',      name: 'Wide',       tool: 'paint',   size: 3, symmetry: 'none', density: 40 },
+    { id: 'b:scatter',   name: 'Scatter',    tool: 'scatter', size: 2, symmetry: 'none', density: 30 },
+    { id: 'b:eraser',    name: 'Big eraser', tool: 'eraser',  size: 3, symmetry: 'none', density: 40 },
+  ];
+  let _custom = [];
+
+  function _load() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(LS_KEY) || '[]');
+      return Array.isArray(raw) ? raw.filter(p => p && typeof p.name === 'string' && p.name && typeof p.tool === 'string') : [];
+    } catch (e) { return []; }
+  }
+  function _persist() { try { localStorage.setItem(LS_KEY, JSON.stringify(_custom)); } catch (e) { /* storage blocked: the presets last for this session */ } }
+  function _all() { return BUILTIN.concat(_custom); }
+  function _density() {
+    const el = document.getElementById('scatter-density');
+    const v = el ? parseFloat(el.value) : 40;
+    return isFinite(v) ? v : 40;
+  }
+  function current() { return { tool: Tools.getActive(), size: Brush.getSize(), symmetry: Tools.getSymmetry(), density: _density() }; }
+  function _matches(p, c) {
+    return p.tool === c.tool && p.size === c.size && p.symmetry === c.symmetry && (p.tool !== 'scatter' || p.density === c.density);
+  }
+  // A tool, size or preset change is refused while a stroke, fill or move is running (Esc cancels it), like undo.
+  function _refuse() {
+    if (Tools.isStrokeActive() || Tools.isStroking() || Tools.isFillBusy()) { UI.toast('Finish the current stroke, fill or move first (Esc)'); return true; }
+    return false;
+  }
+
+  function sync() {
+    const bar = document.getElementById('quickbar');
+    if (!bar) return;
+    const c = current();
+    bar.querySelectorAll('[data-qtool]').forEach(b => b.classList.toggle('active', b.dataset.qtool === c.tool));
+    const size = document.getElementById('qb-size');
+    if (size) size.textContent = String(c.size);
+    const wb = document.getElementById('qb-water');
+    if (wb) { wb.classList.toggle('active', Tools.getAutoWaterEdges()); wb.setAttribute('aria-pressed', String(Tools.getAutoWaterEdges())); }
+    const sel = document.getElementById('qb-preset');
+    if (!sel) return;
+    const hit = _all().find(p => _matches(p, c));
+    sel.textContent = '';
+    const none = document.createElement('option');
+    none.value = ''; none.textContent = hit ? 'Preset…' : 'Preset: custom';
+    sel.appendChild(none);
+    _all().forEach(p => {
+      const o = document.createElement('option');
+      o.value = p.id || ('c:' + p.name.toLowerCase()); o.textContent = p.name;
+      sel.appendChild(o);
+    });
+    sel.value = hit ? (hit.id || ('c:' + hit.name.toLowerCase())) : '';
+    const del = document.getElementById('qb-delete');
+    if (del) del.disabled = !(hit && !hit.id);
+  }
+
+  function setTool(name) { if (!_refuse()) Tools.setActive(name); }
+  function step(dir) { if (!_refuse()) Tools.stepBrush(dir); }
+  function wheel(dir) { step(dir); }
+  function toggleWaterEdges() {
+    if (_refuse()) return;
+    Tools.setAutoWaterEdges(!Tools.getAutoWaterEdges());
+    UI.toast('Auto water edges: ' + (Tools.getAutoWaterEdges() ? 'on' : 'off'));
+  }
+
+  function applyPreset(id) {
+    if (!id) return;
+    if (_refuse()) { sync(); return; }
+    const p = _all().find(q => (q.id || ('c:' + q.name.toLowerCase())) === id);
+    if (!p) { sync(); return; }
+    Tools.setActive(p.tool);
+    Brush.setSize(p.size);
+    Tools.setSymmetry(p.symmetry || 'none');
+    const d = document.getElementById('scatter-density');
+    if (d && isFinite(p.density)) d.value = String(p.density);
+    sync();
+  }
+
+  function beginSave() {
+    const inp = document.getElementById('qb-name');
+    if (!inp) return;
+    inp.style.display = ''; inp.value = ''; inp.focus();
+  }
+  function cancelSave() {
+    const inp = document.getElementById('qb-name');
+    if (inp) { inp.style.display = 'none'; inp.value = ''; inp.blur(); }
+  }
+  function commitSave() {
+    const inp = document.getElementById('qb-name');
+    const name = inp ? inp.value.trim() : '';
+    if (!name) { cancelSave(); return; }
+    if (BUILTIN.some(p => p.name.toLowerCase() === name.toLowerCase())) { UI.toast('That name belongs to a built-in preset'); return; }
+    const c = current();
+    const entry = { name, tool: c.tool, size: c.size, symmetry: c.symmetry, density: c.density };
+    const i = _custom.findIndex(p => p.name.toLowerCase() === name.toLowerCase());
+    if (i >= 0) _custom[i] = entry; else _custom.push(entry);
+    _persist(); cancelSave(); sync();
+    UI.toast('Preset saved: ' + name);
+  }
+  function deletePreset() {
+    const sel = document.getElementById('qb-preset');
+    const id = sel ? sel.value : '';
+    const i = _custom.findIndex(p => 'c:' + p.name.toLowerCase() === id);
+    if (i < 0) return;
+    const name = _custom[i].name;
+    _custom.splice(i, 1); _persist(); sync();
+    UI.toast('Preset deleted: ' + name);
+  }
+
+  // Auto-hide: the bar opens when the pointer touches the top edge of the canvas and closes (after a short grace) once the pointer is
+  // away from it and nothing inside has focus. It never opens while a mouse button is down, so a stroke that passes the top edge is not disturbed.
+  const HOT_EDGE_PX = 28, CLOSE_DELAY_MS = 1000;
+  const PIN_KEY = 'quickbarPinned';
+  let _pinned = false;
+  try { _pinned = localStorage.getItem(PIN_KEY) === '1'; } catch (e) { /* storage blocked: the pin lasts for this session */ }
+  let _closeTimer = null;
+  function open() {
+    clearTimeout(_closeTimer); _closeTimer = null;
+    const bar = document.getElementById('quickbar');
+    if (bar) bar.classList.add('qb-open');
+  }
+  function _close() {
+    const bar = document.getElementById('quickbar');
+    if (!bar || _pinned || bar.matches(':hover') || bar.contains(document.activeElement)) return;
+    bar.classList.remove('qb-open');
+  }
+  function _scheduleClose() {
+    clearTimeout(_closeTimer);
+    _closeTimer = setTimeout(_close, CLOSE_DELAY_MS);
+  }
+  function _applyPin() {
+    const pin = document.getElementById('qb-pin');
+    if (pin) { pin.classList.toggle('qb-pinned', _pinned); pin.setAttribute('aria-pressed', String(_pinned)); }
+    if (_pinned) open(); else _scheduleClose();
+  }
+  function togglePin() {
+    _pinned = !_pinned;
+    try { localStorage.setItem(PIN_KEY, _pinned ? '1' : '0'); } catch (e) { /* session only */ }
+    _applyPin();
+  }
+  function isPinned() { return _pinned; }
+  function isOpen() { const bar = document.getElementById('quickbar'); return !!bar && bar.classList.contains('qb-open'); }
+
+  function init() {
+    _custom = _load();
+    const cc = document.getElementById('canvas-container'), bar = document.getElementById('quickbar');
+    if (cc && bar) {
+      cc.addEventListener('mousemove', e => {
+        if (e.buttons !== 0) return;
+        if (e.clientY - cc.getBoundingClientRect().top <= HOT_EDGE_PX) open();
+        else if (isOpen()) _scheduleClose();
+      });
+      cc.addEventListener('mouseleave', () => { if (isOpen()) _scheduleClose(); });
+      cc.addEventListener('mousedown', () => { if (isOpen()) _scheduleClose(); });
+      bar.addEventListener('mouseenter', open);
+      bar.addEventListener('mouseleave', _scheduleClose);
+      bar.addEventListener('focusout', _scheduleClose);
+      // a pointer click on a button hands the focus back to the map shortcuts (and lets the bar close); text fields and the select keep it while in use
+      bar.addEventListener('click', e => { const t = e.target; if (t && t.tagName === 'BUTTON' && e.detail > 0) t.blur(); });
+    }
+    // Brush.js owns the radius and its own buttons / slider / keys call straight into it: wrap the three mutators once so the bar
+    // follows every path (grow / shrink call the module-internal setSize, hence the three wrappers).
+    ['setSize', 'grow', 'shrink'].forEach(fn => {
+      const orig = Brush[fn];
+      Brush[fn] = function () { const r = orig.apply(Brush, arguments); sync(); return r; };
+    });
+    const d = document.getElementById('scatter-density');
+    if (d) d.addEventListener('input', sync);
+    sync();
+    if (_pinned) _applyPin();
+  }
+
+  return { init, open, isOpen, isPinned, togglePin, sync, toggleWaterEdges, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,
+           presets: () => _all().map(p => Object.assign({}, p)), builtinCount: () => BUILTIN.length };
 })();
 // ════════════════════════════════════════════════════════════
 // HISTORY MODULE — 50-step string-array undo/redo
@@ -9385,7 +9782,16 @@ const GitHubSync = (() => {
     });
     if (!res.ok) throw new Error(`Cannot get ${path}: ${res.status}`);
     const data = await res.json();
-    return JSON.parse(atob(data.content.replace(/\s/g, '')));
+    // atob gives one char per byte: decode the bytes as UTF-8 or every non-ASCII name comes back as mojibake (and is then written back)
+    const bytes = Uint8Array.from(atob(data.content.replace(/\s/g, '')), c => c.charCodeAt(0));
+    return JSON.parse(new TextDecoder('utf-8').decode(bytes));
+  }
+
+  // maps/map_list.json straight from the repo (the Contents API, never the Pages CDN, which lags a commit by a minute or more).
+  // A missing file is an empty list; any other failure throws, so a caller never rewrites the list from a guess.
+  async function _getMapListFresh() {
+    try { return await _getFileJson('maps/map_list.json'); }
+    catch (e) { if (/: 404$/.test(e.message)) return { maps: [] }; throw e; }
   }
 
   // ── Content Manager actions ───────────────────────────────────
@@ -9476,8 +9882,9 @@ const GitHubSync = (() => {
         const sha = (await shaRes.json()).sha;
         await _deleteContents(`maps/${fileName}`, sha, `remove map: ${fileName}`);
       }
-      // Read map_list.json via GitHub API (not CDN) to avoid stale cache
-      const list = await _getFileJson('maps/map_list.json').catch(() => ({ maps: [] }));
+      // Read map_list.json via GitHub API (not CDN) to avoid stale cache. A failed read aborts: it used to fall back to an
+      // empty list, which would have written an empty map_list.json
+      const list = await _getMapListFresh();
       list.maps = (list.maps || []).filter(m => m.fileName !== fileName);
       await _putText('maps/map_list.json', JSON.stringify(list, null, 2) + '\n', `remove from map_list: ${fileName}`);
       document.querySelector(`[data-cm-id="map-${fileName}"]`)?.remove();
@@ -10096,11 +10503,9 @@ const GitHubSync = (() => {
       await _putText(`maps/${fname}.json`, mapJson, `publish map: ${fname}`);
 
       UI.progress(60, 'Updating map_list.json…');
-      let list = { maps: [] };
-      try {
-        const lr = await fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`);
-        if (lr.ok) list = await lr.json();
-      } catch(e) { /* start fresh */ }
+      // The Pages CDN lags a commit by a minute or more: merging into its copy wrote the deleted maps back
+      const list = await _getMapListFresh();
+      if (!Array.isArray(list.maps)) list.maps = [];
       const entry = {
         name: fname,
         fileName: `${fname}.json`,
@@ -10278,7 +10683,8 @@ const GitHubSync = (() => {
       const [hexFiles, bldFiles, mapList] = await Promise.all([
         _listFolder('packages/postapoc/sprites/hex'),
         _listFolder('packages/postapoc/sprites/buildings'),
-        fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`).then(r => r.ok ? r.json() : {maps:[]}).catch(() => ({maps:[]})),
+        (isPATConfigured() ? _getMapListFresh() : fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`).then(r => r.ok ? r.json() : {maps:[]}))
+          .catch(() => ({maps:[]})),
       ]);
 
       const dbResults = await Promise.all(_CM_DB_FILES.map(async name => {
@@ -19443,6 +19849,11 @@ const HexDB = (() => {
            style="width:110px" data-field="baseCostTaps"
            value="${hex.baseCostTaps ?? 0}">`,
         'Taps required to unlock this tile when first revealed on the map'),
+      _row('Scatter weight',
+        `<input class="hexdb-input" type="number" step="1" min="0" max="100"
+           style="width:110px" data-field="scatterWeight"
+           value="${hex.scatterWeight ?? 1}">`,
+        'How often the Scatter tool picks this tile among the variants of its family: 1 = equal share (default), 3 = three times as often, 0 = never scattered'),
       _row('Base Terrain',
         `<input class="hexdb-input" data-field="baseTerrainId" list="hexdb-id-list"
            value="${_esc(hex.baseTerrainId ?? '')}" placeholder="e.g. Water_Dirty_1 (optional)">`,
@@ -19889,6 +20300,7 @@ const HexDB = (() => {
       else h[f] = el.value;
     });
     if (!String(h.skinSlot ?? '').trim()) delete h.skinSlot; else h.skinSlot = String(h.skinSlot).trim();
+    if (h.scatterWeight !== undefined) { h.scatterWeight = Math.min(100, Math.max(0, h.scatterWeight)); if (h.scatterWeight === 1) delete h.scatterWeight; }   // 1 is the default: the record stays clean
     _validateId();
     _autoSave();
     if (h.id && h.spriteName) {
@@ -24421,6 +24833,7 @@ window.addEventListener('load', async () => {
   Canvas.init();
   UI.init();
   Tools.init();
+  QuickBar.init();
   try { Stamps.initPanel(); }                  // a failure here must not stop the startup steps below
   catch (e) { console.error('Stamps panel failed to start', e); UI.toast('Stamps panel failed to start: ' + (e && e.message || e)); }
   try { Bookmarks.initPanel(); }               // same: a failure here must not stop the startup steps below
