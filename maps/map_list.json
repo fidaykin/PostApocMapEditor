@@ -1,15 +1,15 @@
 {
   "maps": [
     {
+      "name": "b_t",
+      "fileName": "b_t.json",
+      "size": "5461",
+      "uploadedTime": "2026-07-17"
+    },
+    {
       "name": "current_empty",
       "fileName": "current_empty.json",
       "size": "2189",
-      "uploadedTime": "2026-07-16"
-    },
-    {
-      "name": "current_map-s2",
-      "fileName": "current_map-s2.json",
-      "size": "5586",
       "uploadedTime": "2026-07-16"
     },
     {
