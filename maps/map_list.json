@@ -133,6 +133,12 @@
       "uploadedTime": "2026-07-16"
     },
     {
+      "name": "map_all_tiles_09",
+      "fileName": "map_all_tiles_09.json",
+      "size": "6076",
+      "uploadedTime": "2026-07-16"
+    },
+    {
       "name": "map_complex_buildings",
       "fileName": "map_complex_buildings.json",
       "size": "5664",
@@ -167,12 +173,6 @@
       "fileName": "b_t_1.json",
       "size": "5482",
       "uploadedTime": "2026-07-17"
-    },
-    {
-      "name": "Decameroon_test_07.10",
-      "fileName": "Decameroon_test_07.10.json",
-      "size": "57731",
-      "uploadedTime": "2026-10-09"
     },
     {
       "name": "Decameroon_test_15.10",
