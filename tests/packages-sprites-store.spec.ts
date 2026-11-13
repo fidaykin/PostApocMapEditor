@@ -123,7 +123,9 @@ test('migration moves flat sprites that only a non-default package uses, lossles
 });
 
 test('startup migrates a pre-existing flat sprite store', async ({ page }) => {
-  await open(page);
+  const gh = new FakeGitHub();
+  gh.setRegistry([{ id: 'medieval', name: 'Medieval' }]);   // a package the server does not list is dropped at startup (orphan cleanup)
+  await open(page, gh);
   await seedHexes(page, [hexRec('Medieval_A', 'medieval', { spriteName: 'MedOnly' })]);
   await page.evaluate(async (a) => { await SpriteStore.save('MedOnly', a, 'hex'); }, A);
   await reloadEditor(page);
