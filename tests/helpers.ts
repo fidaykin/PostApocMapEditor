@@ -381,7 +381,7 @@ export interface OpenOptions {
   gh?: FakeGitHub;
   pat?: boolean;
   blankMap?: boolean;
-  storage?: Record<string, string>;
+  storage?: Record<string, string | null>;   // null = leave the key unset
 }
 
 /** Navigates and waits for startup within one STARTUP_CAP_MS deadline. */
@@ -412,12 +412,13 @@ export async function openEditor(page: Page, opts: OpenOptions = {}) {
   // Terrain at startup). Real users and every other spec get the default (on).
   let perfSpec = false;
   try { perfSpec = /(^|[\\/])perf-[^\\/]*\.spec\.ts$/.test(test.info().file); } catch (_) { /* outside a test */ }
-  const seed = { rightPanelMode: 'classic', ...(perfSpec ? { spriteFallbackColors: 'off' } : {}), ...(opts.pat ? { gh_sync_pat: 'test-token' } : {}), ...(opts.storage ?? {}) };
+  const seed: Record<string, string | null> = { rightPanelMode: 'classic', quickbarPinned: '0', ...(perfSpec ? { spriteFallbackColors: 'off' } : {}), ...(opts.pat ? { gh_sync_pat: 'test-token' } : {}), ...(opts.storage ?? {}) };
   // Seed localStorage once per browser context so reloads keep whatever the test changed.
-  await page.addInitScript((s: Record<string, string>) => {
+  // (quickbarPinned '0': the bar is pinned open by default in the app; the specs run with it unpinned unless they say otherwise)
+  await page.addInitScript((s: Record<string, string | null>) => {
     if (localStorage.getItem('__seeded')) return;
     localStorage.setItem('__seeded', '1');
-    for (const [k, v] of Object.entries(s)) localStorage.setItem(k, v);
+    for (const [k, v] of Object.entries(s)) { if (v === null) localStorage.removeItem(k); else localStorage.setItem(k, v); }
   }, seed);
   const fresh = page.url() === 'about:blank';
   try {
