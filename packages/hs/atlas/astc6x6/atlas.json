@@ -42,7 +42,8 @@
             "x": 0,
             "y": 3584,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "331a71901041df54c8a2f06269c739229f5e5e21f81119ff0250eacae8287bdb"
         },
         {
             "name": "Decameroon_LavaRift_1",
@@ -51,7 +52,8 @@
             "x": 512,
             "y": 3584,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "cfe9a94e5f42d23d8145a552e61bd6929f12eb4cee9fd26ee2efe565b6bfdbae"
         },
         {
             "name": "Decameroon_Mountain_2",
@@ -60,7 +62,8 @@
             "x": 1024,
             "y": 3584,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "809e723e4d7006660eaf8766209b6b3e46f8a05e295f6aebc458c456fd7edbfe"
         },
         {
             "name": "Decameroon_Rift_1",
@@ -69,7 +72,8 @@
             "x": 1536,
             "y": 3584,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022"
         },
         {
             "name": "Decameroon_Settlements_Small_1",
@@ -78,7 +82,8 @@
             "x": 2048,
             "y": 3584,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5"
         },
         {
             "name": "FarmGrain",
@@ -87,7 +92,8 @@
             "x": 2560,
             "y": 3584,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345"
         },
         {
             "name": "Forest_red",
@@ -96,7 +102,8 @@
             "x": 3072,
             "y": 3584,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74"
         },
         {
             "name": "HS_Barren_1",
@@ -105,7 +112,8 @@
             "x": 3584,
             "y": 3584,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "09efb17275975105782255456f44b9cd583cf212e02d45eae18a04e868d3f1b9"
         },
         {
             "name": "HS_BrokenShip_1",
@@ -114,7 +122,8 @@
             "x": 0,
             "y": 3072,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "df92fddef96e63d9e8fc75b541560a6c033beca1190501552715ff09c6a1469f"
         },
         {
             "name": "HS_Desert_1",
@@ -123,7 +132,8 @@
             "x": 512,
             "y": 3072,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "d5e6ce5788a25791d42c5fca97826a1a37e7552d556e3e10b3f007005b5fd900"
         },
         {
             "name": "HS_DestroyedBuilding_1",
@@ -132,7 +142,8 @@
             "x": 1024,
             "y": 3072,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "e8915c4ce8cf706d321f15e4abed62f9e38e952424ca9e5df90c09ead994eebc"
         },
         {
             "name": "HS_Forest_1",
@@ -141,7 +152,8 @@
             "x": 1536,
             "y": 3072,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "f610753b6c2eb71e2b4898d9c82626b8fdaddee249aaf944cf35fe1ca5ce7150"
         },
         {
             "name": "HS_Forest_2",
@@ -150,7 +162,8 @@
             "x": 2048,
             "y": 3072,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "684725e1385313d53f8198ea719eed0c6ae4add509afb3a5ce3f7ece1b67ae60"
         },
         {
             "name": "HS_Forest_3",
@@ -159,7 +172,8 @@
             "x": 2560,
             "y": 3072,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "eba15dd5df4f1d262358600297d31fa38dda62e2e81040b440741d3789084d4e"
         },
         {
             "name": "HS_GemPond_1",
@@ -168,7 +182,8 @@
             "x": 3072,
             "y": 3072,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "666047cb2c692273128d9d4609497702dbc100031ae96c93e8724c4517a7acb6"
         },
         {
             "name": "HS_GoldVein_1",
@@ -177,7 +192,8 @@
             "x": 3584,
             "y": 3072,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "bbf80f727fef7b1a3bae9d3e6e8c66b3489dbc943176ecb9b3272ae94937584d"
         },
         {
             "name": "HS_Grain_1",
@@ -186,7 +202,8 @@
             "x": 0,
             "y": 2560,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "f882f4562380f18e740acec5ac2d77b83ac246a5bca57d74f94558caa68579e0"
         },
         {
             "name": "HS_Herbs_1",
@@ -195,7 +212,8 @@
             "x": 512,
             "y": 2560,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "db78062cc0203c9c1e6acf9ac9d0dfa31f27be535262a41876062572c7d08f80"
         },
         {
             "name": "HS_Hills_1",
@@ -204,7 +222,8 @@
             "x": 1024,
             "y": 2560,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "2d3dca3e7b241184b309b237b912158d78924e218e45fd3302ad5e284fec4c20"
         },
         {
             "name": "HS_Mountain_1",
@@ -213,7 +232,8 @@
             "x": 1536,
             "y": 2560,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "d097cdae3ca4494d8ec2f7d4c466279ac87b3de87d5224499c143dc28c4b6d47"
         },
         {
             "name": "HS_Plain_1",
@@ -222,7 +242,8 @@
             "x": 2048,
             "y": 2560,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "5d658866bbbb03e9b0d9a94ac1a5ec7b857159ffcf08feceafcd0e7b540bfde8"
         },
         {
             "name": "HS_Plain_2",
@@ -231,7 +252,8 @@
             "x": 2560,
             "y": 2560,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "66298e549b798dc55092d6121b2f4f52cf82dc48621714cfbafe552f838205ca"
         },
         {
             "name": "HS_RockySwamp_1",
@@ -240,7 +262,8 @@
             "x": 3072,
             "y": 2560,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "165e9fb2db57e575a4c209a02d4eaefcb9a06a427c24b69bcc343f85f08839ee"
         },
         {
             "name": "HS_Rubble_1",
@@ -249,7 +272,8 @@
             "x": 3584,
             "y": 2560,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "eff259f3562cb8cd161e8ef61f2c8082eee4e59247b6f1c4ee90e2105f79ee50"
         },
         {
             "name": "HS_Rubble_2",
@@ -258,7 +282,8 @@
             "x": 0,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "861b794a4f846969be2bb80ea46f39421515b61225b4149572917c810e0afd9c"
         },
         {
             "name": "HS_Rubble_3",
@@ -267,7 +292,8 @@
             "x": 512,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "2196891939377b8baba2ea0030472cb77f08dde70510530788a03c1c06ce9958"
         },
         {
             "name": "HS_SilverVein_1",
@@ -276,7 +302,8 @@
             "x": 1024,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "c04bc0a34ff3c91ffe68312cd83ee451454efb0bf2956c41007d49fd8f05e741"
         },
         {
             "name": "HS_Swamp_1",
@@ -285,7 +312,8 @@
             "x": 1536,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "e2b3f9177e6f858520b976d2d5a8122c48aad6fd933139d9d52c21ac7e278f90"
         },
         {
             "name": "HS_WaterStones_1",
@@ -294,7 +322,8 @@
             "x": 2048,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "0e125876df50d72b204cb9762c626de44094c43799dd530b97c2d11e3d7adc44"
         },
         {
             "name": "Medieval_BrokenShip_1",
@@ -303,7 +332,8 @@
             "x": 2560,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20"
         },
         {
             "name": "Medieval_DirtyWater_1",
@@ -312,7 +342,8 @@
             "x": 3072,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373"
         },
         {
             "name": "Medieval_Fish_1",
@@ -321,7 +352,8 @@
             "x": 3584,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152"
         },
         {
             "name": "Medieval_Lake_1",
@@ -330,7 +362,8 @@
             "x": 0,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "a9dd737e30c2076fa7abce9e1dc1b1dd57a22f0f8a6ad72efee223b1a4009135"
         },
         {
             "name": "Medieval_Lake_2",
@@ -339,7 +372,8 @@
             "x": 512,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "80f5211ee89edd55dde8a449f14aaa123bad1764a29dc2e4d5c8422b8ec27be5"
         },
         {
             "name": "Medieval_Lake_3",
@@ -348,7 +382,8 @@
             "x": 1024,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "9b04b0e993dccdce072fbc87e62de73a9692eabe1725e9c1eeb937a5dc284533"
         },
         {
             "name": "Medieval_Lake_4",
@@ -357,7 +392,8 @@
             "x": 1536,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "2b397f8baf068665bc5f644bebd5dd42e3fe46961a40a2428bc079008d70bc76"
         },
         {
             "name": "Medieval_Lake_5",
@@ -366,7 +402,8 @@
             "x": 2048,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "052a620353fecc97451b2ca9e73db7d2a9d3e348b98acb02061ad548a3da4d41"
         },
         {
             "name": "Medieval_Lake_6",
@@ -375,7 +412,8 @@
             "x": 2560,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "ba450fe848274ec13a1e420e564b6ae581445ce6a1869a417dae119554a6dff7"
         },
         {
             "name": "Medieval_Lake_7",
@@ -384,7 +422,8 @@
             "x": 3072,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "167af984001f710a672da65dfba5e9e934f133a4689007ab871e5a453d2956d0"
         },
         {
             "name": "Medieval_River_D_2",
@@ -393,7 +432,8 @@
             "x": 3584,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "3e0e3fd73f562c86da970627e30ef9ab0b8020e65f8ee0d3e272885ec71503fa"
         },
         {
             "name": "Medieval_River_D_3",
@@ -402,7 +442,8 @@
             "x": 0,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "3119f478afee541b96e38893d969148050ccf4b136aa71b0160eb9415bdf249b"
         },
         {
             "name": "Medieval_River_D_4",
@@ -411,7 +452,8 @@
             "x": 512,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "5916bf2f57998244b5ba4d1908d6b7cfcbfb1bc35698cd32bc4eda1c5d373b1c"
         },
         {
             "name": "Medieval_River_D_L_EE_2",
@@ -420,7 +462,8 @@
             "x": 1024,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "0ae66af2a7885a4d2a72887624585d2260d304d6cf459e054df28d4a6ebfb7f7"
         },
         {
             "name": "Medieval_River_D_R_EE_2",
@@ -429,7 +472,8 @@
             "x": 1536,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "d1c681e198e606f0979fc886af4bebbf7b0e1c890eb87ece27220323485a43f7"
         },
         {
             "name": "Medieval_River_L_1",
@@ -438,7 +482,8 @@
             "x": 2048,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "a3968ebfa2145a52f1656da46747535ee7755abe65c1aa821acdc29de95c08ee"
         },
         {
             "name": "Medieval_River_L_4",
@@ -447,7 +492,8 @@
             "x": 2560,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "cf08e383520a1cb1d5f68069d83b45561feef85274415c06c652b3451f692429"
         },
         {
             "name": "Medieval_River_L_5",
@@ -456,7 +502,8 @@
             "x": 3072,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "2f7677bf13dd76ddf33231206f186b50a28bd6da8d1fe8fb44499225de24f4ad"
         },
         {
             "name": "Medieval_River_L_D_E_1",
@@ -465,7 +512,8 @@
             "x": 3584,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "aa0c3fbc0425f19e7e8c4dce8ba368d84777650c913946389f2eea2de14a27f6"
         },
         {
             "name": "Medieval_River_L_L_E_5",
@@ -474,7 +522,8 @@
             "x": 0,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "d306db011345c0446cf8d46773d78870c8389438bf0978977b5e154f313530b3"
         },
         {
             "name": "Medieval_River_L_R_E_5",
@@ -483,7 +532,8 @@
             "x": 512,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "bbfbf418f26829eebb83503e2bf70ed6dd1f8abfa7837e5ba2318e2cd9dd7ae3"
         },
         {
             "name": "Medieval_River_L_U_E_1",
@@ -492,7 +542,8 @@
             "x": 1024,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "d7474d3e0c8597aa9a21a3e0c8811f8c16c6ce0e2ac39cab207b997178331a11"
         },
         {
             "name": "Medieval_River_R_1",
@@ -501,7 +552,8 @@
             "x": 1536,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "328d68f85b344a32cba0349b7895eee3e2e96f9572d04c3c8b8f0f2af8ad1688"
         },
         {
             "name": "Medieval_River_R_4",
@@ -510,7 +562,8 @@
             "x": 2048,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "c17afc0f55345f1f31fc8912d0ab2ea46996a5c10cdf5dff9ab5f1a5ce6f1dfe"
         },
         {
             "name": "Medieval_River_R_5",
@@ -519,7 +572,8 @@
             "x": 2560,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "d05d212e14efe993108f7294643082ab0ac23f37ba51c197e04c728a2bbe0220"
         },
         {
             "name": "Medieval_River_U_2",
@@ -528,7 +582,8 @@
             "x": 3072,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "fc98fcdb678795029e55a6e6d3a50e1c83ecd38cc4f22f5ab028acf9c258a6ef"
         },
         {
             "name": "Medieval_River_U_3",
@@ -537,7 +592,8 @@
             "x": 3584,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "bac0fc4c8cac1d526b7027f3748ed4bc710f992421d913c60b2d82797b06dce8"
         },
         {
             "name": "Medieval_River_U_4",
@@ -546,7 +602,8 @@
             "x": 0,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "2355afedc10a63f209def3797dca8252045fc2dd5bfdf5a41ce335b9104a252c"
         },
         {
             "name": "Medieval_River_U_D_E_4",
@@ -555,7 +612,8 @@
             "x": 512,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "98cd49b903bd317763445dc6e446ab36e35a8e1a95b3f2a7ff3ad1e261121e29"
         },
         {
             "name": "Medieval_River_U_L_EE_2",
@@ -564,7 +622,8 @@
             "x": 1024,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "447d43122003d9a425627a3cc7e09b303ec4966f6457e03519a616e1a5d5d3e7"
         },
         {
             "name": "Medieval_River_U_R_EE_2",
@@ -573,7 +632,8 @@
             "x": 1536,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "30f4ecb21bbe2d13047310d32fffe8f053f146825e60d693f86f3c975e879775"
         },
         {
             "name": "Medieval_River_U_U_E_4",
@@ -582,7 +642,8 @@
             "x": 2048,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "bb6dc80e91fbee2e010aa06a94db98a08911297662a34b1ea85e3ac3ef0fa8e2"
         },
         {
             "name": "Medieval_WaterStones_1",
@@ -591,7 +652,8 @@
             "x": 2560,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647"
         },
         {
             "name": "Medieval_Water_1",
@@ -600,7 +662,8 @@
             "x": 3072,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1"
         },
         {
             "name": "HS_Abbey_1",
@@ -609,7 +672,8 @@
             "x": 0,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "722e4090dbc42cf8a9c693171712d3790b3aebc89ac707716c3ea54d7c28fd3e"
         },
         {
             "name": "HS_Alchemist_1",
@@ -618,7 +682,8 @@
             "x": 512,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "b9fd825257b144cd62ca8ab0c22f2261706f3b3042f3b89214c9128682fdaec9"
         },
         {
             "name": "HS_BigStorage_1",
@@ -627,7 +692,8 @@
             "x": 1024,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "e887bd0c1687ac2a083eaf3cf2d107a5165aca58d2b8479990751b8cbc66c98f"
         },
         {
             "name": "HS_Farm_1",
@@ -636,7 +702,8 @@
             "x": 1536,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "14649b809b919758749699f5414fc0000f42885ba43e9f410b93e97dc1a82134"
         },
         {
             "name": "HS_FishTrap_1",
@@ -645,7 +712,8 @@
             "x": 2048,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "e50f20fbb44b2a2a552fc0a9bc30cd4311a37c7760c133190b0f9691a71d96a5"
         },
         {
             "name": "HS_FoodAmbar_1",
@@ -654,7 +722,8 @@
             "x": 2560,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "41b99f85f0628988439634dd5439465af9e180edea22404ae1c9d50cc5e83d1a"
         },
         {
             "name": "HS_ForestHut_1",
@@ -663,7 +732,8 @@
             "x": 3072,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "47cd0a3de21046254142248458adcf2a4e92486456b03eed2256f7b92fca31a5"
         },
         {
             "name": "HS_GemMine_1",
@@ -672,7 +742,8 @@
             "x": 3584,
             "y": 2048,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "838998ca17ef6f0f45c4effba327a425423cfba18d0a15d731a0eaf259040bf1"
         },
         {
             "name": "HS_GoldMine_1",
@@ -681,7 +752,8 @@
             "x": 0,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "11607d8d864779d1228903442b9518be4e265b5d7fce6b7086cdc57d7bf0c272"
         },
         {
             "name": "HS_GoldMine_Big_1",
@@ -690,7 +762,8 @@
             "x": 512,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "1c11bd0850c85cf0cb3c01528d4e6791850fb810cf57316521716f206d48978f"
         },
         {
             "name": "HS_LumberMill_1",
@@ -699,7 +772,8 @@
             "x": 1024,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "06b9f6b98eca85088176bf46581badb0a4519d10d67fb634edc39e8a0d89f872"
         },
         {
             "name": "HS_LumberMill_Big_1",
@@ -708,7 +782,8 @@
             "x": 1536,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "eb9696b05f6a119920f995cf8b2715dd1d04accf53af8ba614286e74ed73e73f"
         },
         {
             "name": "HS_LumberMill_Industrial_1",
@@ -717,7 +792,8 @@
             "x": 2048,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "d73d0f7413231c084dc804c1531f4900ac7acb3bb4618d48318c74cfbf25931f"
         },
         {
             "name": "HS_LumberStorage_1",
@@ -726,7 +802,8 @@
             "x": 2560,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "54257637cb4612e0d780c35c3e87861d74d1566063e484ec59220545492e7088"
         },
         {
             "name": "HS_Market_1",
@@ -735,7 +812,8 @@
             "x": 3072,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "b5957f4bc2d966020a70268a0b0ca9909568e9a9369bc8217c82d89e19a4af0c"
         },
         {
             "name": "HS_Mill_1",
@@ -744,7 +822,8 @@
             "x": 3584,
             "y": 1536,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "23eb2ea9659b1a010a960c419b6fa88a389fbbe806b95b1bac0c4d0e6e55c5ec"
         },
         {
             "name": "HS_Monastery_1",
@@ -753,7 +832,8 @@
             "x": 0,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "901ea1ad7f76fdb5e283775bd4345b74d947f9cea6c5924f7cb959d9d0234949"
         },
         {
             "name": "HS_OreMine_1",
@@ -762,7 +842,8 @@
             "x": 512,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "3fbf2228e9d13f1a92b38a47f7991ae9064dd307517f7fcf77a424597e8abc3d"
         },
         {
             "name": "HS_OreWorkshop_1",
@@ -771,7 +852,8 @@
             "x": 1024,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "8e5a7f7c3d2fbca2ee81a50c7f491e0cfdc780bdaf04969579bb25495e68db05"
         },
         {
             "name": "HS_Plantation_1",
@@ -780,7 +862,8 @@
             "x": 1536,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "6ef22232420b8e8fd18d134f9f31767a106243374e56a7fa6092585a2be44fb2"
         },
         {
             "name": "HS_SilverMine_1",
@@ -789,7 +872,8 @@
             "x": 2048,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "b92c8fda52de1a257756c7aa378292ae6b61ea8791d7c063ded4819bc02f887e"
         },
         {
             "name": "HS_SmallShipyard_1",
@@ -798,7 +882,8 @@
             "x": 2560,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "95f1109bad96f21bf81c6e31de224b42d7f58708e236e10af2172002169fb6e0"
         },
         {
             "name": "HS_SmallShip_1",
@@ -807,7 +892,8 @@
             "x": 3072,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "519e5393ce124c6b1ff45815b8e2fa9f4b8bdc7ca1519a2dacc6beb1979ce100"
         },
         {
             "name": "HS_SmallStorage_1",
@@ -816,7 +902,8 @@
             "x": 3584,
             "y": 1024,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "64bc6d128d77e1684b50845c62dc7f35e7c2984acc1af0d2237e45008693bb15"
         },
         {
             "name": "HS_StoneConveyor_1",
@@ -825,7 +912,8 @@
             "x": 0,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "a16dac4cf07f4a74cd677c91b33a85fda3c081daad0479df09f5016b91d9247e"
         },
         {
             "name": "HS_StoneConveyor_2",
@@ -834,7 +922,8 @@
             "x": 512,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "6edcf32b2447bf13b194dfc1520c5afce335987c6eceab4ea86e07ffe0e3105f"
         },
         {
             "name": "HS_StoneMine_1",
@@ -843,7 +932,8 @@
             "x": 1024,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "7596c7fe20b5cabd23dac5a6dfaae8135c21491c10fd1d1f6fdb4e8dedba111f"
         },
         {
             "name": "HS_StoneMine_Big_1",
@@ -852,7 +942,8 @@
             "x": 1536,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "ff57c5bc77262b30cbe3101b792a5544be4a3bd46a5efb1e83a652db29355af5"
         },
         {
             "name": "HS_Tavern_1",
@@ -861,7 +952,8 @@
             "x": 2048,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "ae84dbd4c2f96870af806197a61d3f964f36edf03ebd74f876489f67238530e0"
         },
         {
             "name": "HS_WaterMill_1",
@@ -870,7 +962,8 @@
             "x": 2560,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "e97ef48e54e4340c4ba972e3a91e037db8fb3fdea5511cc5ba614129cdcb8609"
         },
         {
             "name": "Medieval_Artefact_1",
@@ -879,7 +972,8 @@
             "x": 3072,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c"
         },
         {
             "name": "Medieval_FishTrap_1",
@@ -888,7 +982,8 @@
             "x": 3584,
             "y": 512,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368"
         },
         {
             "name": "Medieval_SmallShipyard_1",
@@ -897,7 +992,8 @@
             "x": 0,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
         },
         {
             "name": "Medieval_SmallShip_1",
@@ -906,7 +1002,8 @@
             "x": 512,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b"
         },
         {
             "name": "Coastline_0_UpperRight",
@@ -915,7 +1012,8 @@
             "x": 0,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "d33570a548f30c1d3f93542e142ea36218f00b430986b710da25975ea47b7e95"
         },
         {
             "name": "Coastline_1_LowerRight",
@@ -924,7 +1022,8 @@
             "x": 512,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "19701656df4e03be0aa27178172ef9dfa2d3e734176f01faae4719532bba6419"
         },
         {
             "name": "Coastline_2_Bottom",
@@ -933,7 +1032,8 @@
             "x": 1024,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "4ed67f60b81b26c76d9c63011fc715685bae4f61acbffd0cc059336c81f3331d"
         },
         {
             "name": "Coastline_3_LowerLeft",
@@ -942,7 +1042,8 @@
             "x": 1536,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "e15d07911396f4533b092592914718d2ab9167a7300aab2ff2ef891b39bb706c"
         },
         {
             "name": "Coastline_4_UpperLeft",
@@ -951,7 +1052,8 @@
             "x": 2048,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "542d14e388ec761b806d936724c5c67c1bf26e12c56bc70b4a1378a2e3344ad2"
         },
         {
             "name": "Coastline_5_Top",
@@ -960,7 +1062,8 @@
             "x": 2560,
             "y": 0,
             "w": 512,
-            "h": 512
+            "h": 512,
+            "src": "2c3c58617dcd59ca11b663bbe4db1b5f3f753db6e9297855290a732182efc262"
         }
     ]
 }
