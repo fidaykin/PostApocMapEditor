@@ -42,6 +42,16 @@
             "mipCount": 8,
             "bytes": 2796160,
             "sha256": "b22f73b327d58ac29e08164bd1810c78fafc44c52fbf79fd57d0672682053060"
+        },
+        {
+            "file": "big_0_4.bin",
+            "group": "big",
+            "cell": 0,
+            "width": 1296,
+            "height": 1344,
+            "mipCount": 8,
+            "bytes": 2323136,
+            "sha256": "6eb5d01c8d3f592d4e9813c1147d831a2686f98e25b2080315af6fc318dbd822"
         }
     ],
     "sprites": [
@@ -1774,6 +1784,16 @@
             "w": 512,
             "h": 512,
             "src": "2c3c58617dcd59ca11b663bbe4db1b5f3f753db6e9297855290a732182efc262"
+        },
+        {
+            "name": "Decameroon_Settlements_Big_1",
+            "group": "hex",
+            "page": 4,
+            "x": 0,
+            "y": 3,
+            "w": 1286,
+            "h": 1341,
+            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e"
         }
     ]
 }

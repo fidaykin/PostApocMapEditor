@@ -52,6 +52,26 @@
             "mipCount": 1,
             "bytes": 2097152,
             "sha256": "585ed23c9e89a6fb3b4b6872f42f04f7a650e8f64b85de76021aacb02d9cc117"
+        },
+        {
+            "file": "big_0_5.bin",
+            "group": "big",
+            "cell": 0,
+            "width": 3936,
+            "height": 3552,
+            "mipCount": 1,
+            "bytes": 13980672,
+            "sha256": "2d0f4c0f65ccf39fac41dd7d5858505c347d7ee6945ff82aec28dc6c42b6ef68"
+        },
+        {
+            "file": "big_0_6.bin",
+            "group": "big",
+            "cell": 0,
+            "width": 2148,
+            "height": 696,
+            "mipCount": 1,
+            "bytes": 1495008,
+            "sha256": "85a42fc76204b1a96e8ee40357f3c3a88dca7f3ef5984c5a7450fce57062b2d7"
         }
     ],
     "sprites": [
@@ -1914,6 +1934,116 @@
             "w": 512,
             "h": 512,
             "src": "5d54dd8be7945c21162d1e84c0e7847a57ce5d8ec755f4df70abca0b128c7631"
+        },
+        {
+            "name": "Decameroon_Settlements_Big_1",
+            "group": "hex",
+            "page": 5,
+            "x": 0,
+            "y": 2211,
+            "w": 1286,
+            "h": 1341,
+            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e"
+        },
+        {
+            "name": "Decameroon_Settlements_Medieval_Town_1",
+            "group": "hex",
+            "page": 5,
+            "x": 1320,
+            "y": 2211,
+            "w": 1286,
+            "h": 1341,
+            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e"
+        },
+        {
+            "name": "MainSettlement_Kaiju_1",
+            "group": "hex",
+            "page": 5,
+            "x": 2640,
+            "y": 2211,
+            "w": 1286,
+            "h": 1341,
+            "src": "23cd9ff34dd7e2a8d7f82a75e89972ec24be65f184c5b83342f692ec2edac2ec"
+        },
+        {
+            "name": "Setlements_Big_Chicken_1",
+            "group": "hex",
+            "page": 5,
+            "x": 0,
+            "y": 843,
+            "w": 1286,
+            "h": 1341,
+            "src": "5b125292033680cbc71a77897058b382238af95b727e59164ee0a23657f3044e"
+        },
+        {
+            "name": "Crystal_Kaiju_Alife_V_1",
+            "group": "hex",
+            "page": 5,
+            "x": 1320,
+            "y": 1197,
+            "w": 1054,
+            "h": 987,
+            "src": "34da601c1aaf425f43a664d54df9d79cc743c88c9a21c894c6b996e17bda26df"
+        },
+        {
+            "name": "Monster_Chicken_Big_2",
+            "group": "hex",
+            "page": 5,
+            "x": 2400,
+            "y": 1243,
+            "w": 697,
+            "h": 941,
+            "src": "89b26a84c336c95e3fccedf21b6021604eff4e82c910e8a34232841038abfd0c"
+        },
+        {
+            "name": "Crystal_Kaiju_Die_V1",
+            "group": "hex",
+            "page": 5,
+            "x": 0,
+            "y": 6,
+            "w": 1054,
+            "h": 810,
+            "src": "472f2a7147f208afe7877ff9145c5266c7b60513559da759449c3bf410be1d8c"
+        },
+        {
+            "name": "Crystal_Kaiju_Defeat_V_1",
+            "group": "hex",
+            "page": 5,
+            "x": 1080,
+            "y": 33,
+            "w": 1151,
+            "h": 783,
+            "src": "90daded6aaf09cde88a31ecdbae157efc6df29f545e9a27de6d5ecb29fa35941"
+        },
+        {
+            "name": "Crystal_Kaiju_skeleton_V_2",
+            "group": "hex",
+            "page": 5,
+            "x": 2256,
+            "y": 59,
+            "w": 1068,
+            "h": 757,
+            "src": "9e9ec72d837e8eb870fc74b03e8dc987c5ad8d6d1eb1f0e0377a8e0adbd2c2c7"
+        },
+        {
+            "name": "Crystal_Kaiju_skeleton_V_1",
+            "group": "hex",
+            "page": 6,
+            "x": 0,
+            "y": 3,
+            "w": 1065,
+            "h": 693,
+            "src": "b17b0a83426d3a56ec8929c754d2229759295177ceeb8a4219408e2c72291256"
+        },
+        {
+            "name": "Crystal_Kaiju_skeleton_V_3",
+            "group": "hex",
+            "page": 6,
+            "x": 1092,
+            "y": 29,
+            "w": 1046,
+            "h": 667,
+            "src": "2853334b0ca80ab6cb0444b113a9da02f790a164f96925af56d0fc11381d68f4"
         }
     ]
 }
