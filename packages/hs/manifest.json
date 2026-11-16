@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "id": "hs",
-  "version": "1.0.29",
+  "version": "1.0.30",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-11-13T12:41:14.768Z",
-  "totalBytes": 25326271,
+  "generatedAt": "2026-11-16T09:09:08.601Z",
+  "totalBytes": 25297027,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "1626d780930b74fb40fb6ddc963da7ec79490ed719caf540e9fe960c9cc98389",
-      "size": 77678
+      "sha256": "db53e6a28c71b22e6d9b2e799b216724ff9d579dd121ea893a3c9d4126dde37e",
+      "size": 75368
     },
     {
       "path": "hex_database.json",
-      "sha256": "8d2c06c45ee944912a0b12b3b4566f3283e6971cd7ad921eb37db76a8a185dd9",
-      "size": 83705
+      "sha256": "44a6837235610a36db38494fcf0d5472145440f13e3bc4b4697020193b1084cd",
+      "size": 83714
     },
     {
       "path": "sprites/buildings/HS_Abbey_1.png",
@@ -243,11 +243,6 @@
       "size": 273585
     },
     {
-      "path": "sprites/hex/HS_Forest_1.png",
-      "sha256": "f610753b6c2eb71e2b4898d9c82626b8fdaddee249aaf944cf35fe1ca5ce7150",
-      "size": 221463
-    },
-    {
       "path": "sprites/hex/HS_Forest_2.png",
       "sha256": "684725e1385313d53f8198ea719eed0c6ae4add509afb3a5ce3f7ece1b67ae60",
       "size": 262646
@@ -256,6 +251,11 @@
       "path": "sprites/hex/HS_Forest_3.png",
       "sha256": "eba15dd5df4f1d262358600297d31fa38dda62e2e81040b440741d3789084d4e",
       "size": 291149
+    },
+    {
+      "path": "sprites/hex/HS_Forest_NB_1.png",
+      "sha256": "44cc5a7183a7f07923494e2a5797300df4e939a33478c4c7b322624b3a79ca9f",
+      "size": 212348
     },
     {
       "path": "sprites/hex/HS_GemPond_1.png",
@@ -288,14 +288,14 @@
       "size": 243818
     },
     {
-      "path": "sprites/hex/HS_Plain_1.png",
-      "sha256": "5d658866bbbb03e9b0d9a94ac1a5ec7b857159ffcf08feceafcd0e7b540bfde8",
-      "size": 166512
+      "path": "sprites/hex/HS_Plain_NB_1.png",
+      "sha256": "4b9da7e721d0c4d6662e843d95d4537c86c4a352849849a20d5e77b1b3e5fd58",
+      "size": 163988
     },
     {
-      "path": "sprites/hex/HS_Plain_2.png",
-      "sha256": "66298e549b798dc55092d6121b2f4f52cf82dc48621714cfbafe552f838205ca",
-      "size": 258638
+      "path": "sprites/hex/HS_Plain_NB_2.png",
+      "sha256": "d0583705ab09902436bdf7ec2d027f0925f0a9c27f955a6a69d0638f0b42313e",
+      "size": 243334
     },
     {
       "path": "sprites/hex/HS_RockySwamp_1.png",
