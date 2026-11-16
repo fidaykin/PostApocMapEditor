@@ -2897,7 +2897,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.16";
-const COMMIT  = "648eea5";
+const COMMIT  = "449e8aba";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -9810,14 +9810,28 @@ const GitHubSync = (() => {
       .catch(e => UI.toast('❌ Download failed: ' + e.message));
   }
 
-  async function _cmDeleteSprite(category, name, sha) {
+  // Entries of the package's local databases that name this sprite: deleting the file would leave them without a picture.
+  function _cmSpriteUsers(pkg, bare) {
+    const hex = typeof HexDB !== 'undefined' ? HexDB.getData().hexes.filter(h => h.package === pkg && h.spriteName === bare).map(h => h.id || h.spriteName) : [];
+    const bld = typeof BldDB !== 'undefined' ? BldDB.getAll().filter(b => b.package === pkg && b.spriteName === bare).map(b => b.id || b.spriteName) : [];
+    return [...hex, ...bld];
+  }
+
+  // pkg: the package whose folder is listed (packages/<pkg>/sprites/<category>/<name>). The default package also keeps a compat
+  // copy under sprites/<category>/, removed with it. Only the file is removed: the manifest lists what the databases reference,
+  // so an unreferenced file (a leftover test sprite) is not in it, and a referenced one is refused here.
+  async function _cmDeleteSprite(pkg, category, name) {
     if (!isPATConfigured()) return UI.toast('⚠ Configure PAT first');
-    if (!confirm(`Delete "${name}" from ${category} sprites?\nThis removes it from GitHub and local cache.`)) return;
+    const bare = name.replace(/\.png$/i, '');
+    const users = _cmSpriteUsers(pkg, bare);
+    if (users.length) return UI.toast(`⚠ "${bare}" is used by ${users.length} entr${users.length === 1 ? 'y' : 'ies'} of ${pkg} (${users.slice(0, 3).join(', ')}${users.length > 3 ? ', …' : ''}). Remove or re-point them first.`, { sticky: true });
+    if (!confirm(`Delete "${name}" from ${pkg} / ${category} sprites?\nThis removes the file from GitHub and the local cache.\nA sprite that is already packed into an atlas needs the atlas rebuilt.`)) return;
     try {
-      await _deleteContents(`sprites/${category}/${name}`, sha, `remove sprite: ${name}`);
-      await SpriteStore.remove(name.replace(/\.png$/i, ''));
+      const gone = await _removeFile(`packages/${pkg}/sprites/${category}/${name}`, `remove sprite: ${pkg}/${name}`);
+      if (pkg === 'postapoc') await _removeFile(`sprites/${category}/${name}`, `remove sprite: ${name} (compat)`);
+      await SpriteStore.remove(bare, pkg);
       document.querySelector(`[data-cm-id="sprite-${category}-${name}"]`)?.remove();
-      UI.toast(`✅ Deleted ${name}`);
+      UI.toast(gone === 'gone' ? `⚠ ${name} was already gone` : `✅ Deleted ${name}`);
     } catch(e) { UI.toast('❌ ' + e.message); }
   }
 
@@ -10680,8 +10694,8 @@ const GitHubSync = (() => {
     _renderCM('<div class="gh-maps-empty">Loading…</div>');
 
     try {
-      // The sprites of the ACTIVE package: a non-default package (hs) keeps its own files under packages/<id>/. Upload and delete stay
-      // on the default package (they also write the compat copy and refresh its manifest), so they are offered only there.
+      // The sprites of the ACTIVE package: a non-default package (hs) keeps its own files under packages/<id>/. Upload stays on the
+      // default package (it also writes the compat copy and refreshes its manifest), so it is offered only there; delete works on any.
       const cmPkg = typeof Packages !== 'undefined' ? (Packages.getActive() || 'postapoc') : 'postapoc';
       const cmOwn = cmPkg === 'postapoc';
       const [hexFiles, bldFiles, mapList] = await Promise.all([
@@ -10700,7 +10714,8 @@ const GitHubSync = (() => {
       }));
 
       const totalSize = [...hexFiles, ...bldFiles].reduce((s, f) => s + (f.size || 0), 0);
-      const authed = isPATConfigured() && cmOwn;
+      const authed = isPATConfigured();
+      const authedOwn = authed && cmOwn;   // maps, databases and upload stay with the default package
       const e = _escHtml;
       const sq = s => _escHtml(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));   // JS string literal first, then HTML attribute text
 
@@ -10712,7 +10727,7 @@ const GitHubSync = (() => {
           <div class="cm-fsize">${_fmtSize(f.size)}</div>
           <div class="cm-file-actions">
             <button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(f.download_url)}','${sq(f.name)}')" title="Download">↓</button>
-            ${authed ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteSprite('${sq(cat)}','${sq(f.name)}','${sq(f.sha)}')" title="Delete">✕</button>` : ''}
+            ${authed ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteSprite('${sq(cmPkg)}','${sq(cat)}','${sq(f.name)}')" title="Delete">✕</button>` : ''}
           </div>
         </div>`;
       };
@@ -10720,13 +10735,13 @@ const GitHubSync = (() => {
       _renderCM(`
         <div class="cm-section">
           <div class="cm-section-title">🖼 Sprites / hex${cmOwn ? '' : ' · ' + e(cmPkg)} <span class="cm-badge">${hexFiles.length}</span>
-            ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('hex')">+ Upload</button>` : ''}
+            ${authedOwn ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('hex')">+ Upload</button>` : ''}
           </div>
           <div class="cm-file-grid">${hexFiles.map(f => spriteCard(f, 'hex')).join('')}</div>
         </div>
         <div class="cm-section">
           <div class="cm-section-title">🏗 Sprites / buildings${cmOwn ? '' : ' · ' + e(cmPkg)} <span class="cm-badge">${bldFiles.length}</span>
-            ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('buildings')">+ Upload</button>` : ''}
+            ${authedOwn ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('buildings')">+ Upload</button>` : ''}
           </div>
           <div class="cm-file-grid">${bldFiles.map(f => spriteCard(f, 'buildings')).join('')}</div>
         </div>
@@ -10738,7 +10753,7 @@ const GitHubSync = (() => {
               <span class="cm-row-meta">${e(m.fileName)} · ${_fmtSize(parseInt(m.size||0))} · ${e(m.uploadedTime||'')}</span>
               <div class="cm-row-actions">
                 <button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(BASE_URL)}/maps/${sq(m.fileName)}','${sq(m.fileName)}')" title="Download">↓</button>
-                ${authed ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteMap('${sq(m.fileName)}','${sq(m.name)}')" title="Delete">✕</button>` : ''}
+                ${authedOwn ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteMap('${sq(m.fileName)}','${sq(m.name)}')" title="Delete">✕</button>` : ''}
               </div>
             </div>`
           ).join('') || '<div class="gh-maps-empty">No maps</div>'}</div>
@@ -10751,7 +10766,7 @@ const GitHubSync = (() => {
               <span class="cm-row-meta">${d.ok ? _fmtSize(d.size) : 'missing'}</span>
               <div class="cm-row-actions">
                 ${d.ok ? `<button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(BASE_URL)}/${sq(d.name)}','${sq(d.name)}')" title="Download">↓</button>` : ''}
-                ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadDb('${sq(d.name)}')" title="Upload">↑ Upload</button>` : ''}
+                ${authedOwn ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadDb('${sq(d.name)}')" title="Upload">↑ Upload</button>` : ''}
               </div>
             </div>`
           ).join('')}</div>
