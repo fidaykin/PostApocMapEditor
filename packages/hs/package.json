@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.34",
+  "version": "1.0.35",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -156,10 +156,15 @@
       "version": "1.0.34",
       "date": "2026-11-16",
       "note": "return old version ( from Atlas) Palin_1/2 and Forest_1"
+    },
+    {
+      "version": "1.0.35",
+      "date": "2026-11-16",
+      "note": "test sprites  for HS ( Forest_NB_1, Forest_New_1, Plain_NB_1, Forest_NB_2 was deleted by Content Manager"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 25297027,
+  "totalBytes": 25323961,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
