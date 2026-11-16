@@ -37,13 +37,13 @@ const TOOL: Record<string, string> = { p: 'paint', f: 'fill', r: 'rect', e: 'eye
 // Rule under test (all expectations below are hand-written): a typed '+', '=' or '-' zooms (zoom keys follow the TYPED character, so QWERTZ '+' on the
 // physical BracketRight and Dvorak '=' on it zoom in); a typed '[' or ']' changes the brush radius wherever it sits (Dvorak Minus/Equal, QWERTZ AltGr or
 // Option); the physical BracketLeft / BracketRight keys change the brush radius unless they type + = - (so the US keys, AZERTY ^ $, Cyrillic, Turkish-F
-// q w and Dvorak / keep working). Digits 0 1 2 3 are fit-to-screen and the overlay toggles by typed character, Shift ignored (AZERTY).
+// q w and Dvorak / keep working). Digits 0 1 2 are fit-to-screen and the overlay toggles by typed character, Shift ignored (AZERTY).
 // Codes: zi zoom in, zo zoom out, fit fit map, r1 r2 r3 overlays, b- b+ brush smaller / larger, '.' nothing.
 const NUMROW = ['Digit1', 'Digit2', 'Digit3', 'Digit4', 'Digit5', 'Digit6', 'Digit7', 'Digit8', 'Digit9', 'Digit0', 'Minus', 'Equal', 'BracketLeft', 'BracketRight'];
 type Press = { code: string; key: string; expect: string; shift?: boolean; ctrl?: boolean; alt?: boolean; altGr?: boolean };
 const plain = (typed: string[], expect: string[]): Press[] => typed.map((key, i) => ({ code: NUMROW[i], key, expect: expect[i] }));
 const DIGITS_QWERTY = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '0'];
-const DIGIT_EXPECT = ['r1', 'r2', 'r3', '.', '.', '.', '.', '.', '.', 'fit'];
+const DIGIT_EXPECT = ['r1', 'r2', '.', '.', '.', '.', '.', '.', '.', 'fit'];   // 3 was the coastline preview: no shortcut now
 const NUMROW_PRESSES: Record<string, Press[]> = {
   qwerty:    plain([...DIGITS_QWERTY, '-', '=', '[', ']'], [...DIGIT_EXPECT, 'zo', 'zi', 'b-', 'b+']),
   azerty:    [...plain(['&', 'é', '"', "'", '(', '-', 'è', '_', 'ç', 'à', ')', '=', 'Dead', '$'], ['.', '.', '.', '.', '.', 'zo', '.', '.', '.', '.', '.', 'zi', 'b-', 'b+']),

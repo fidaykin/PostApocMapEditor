@@ -2897,7 +2897,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.16";
-const COMMIT  = "4aac91e1";
+const COMMIT  = "a136f9a1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -17473,7 +17473,6 @@ const Shortcuts = (() => {
     register({ id: 'fit-map', group: 'View', keys: ['0'], display: '0', label: 'Fit the whole map on screen', run: () => Canvas.fitToScreen() });
     register({ id: 'ov-rings', group: 'Overlays', keys: ['1'], display: '1', label: 'Show or hide the distance rings', run: () => Canvas.toggleZones() });
     register({ id: 'ov-rulers', group: 'Overlays', keys: ['2'], display: '2', label: 'Show or hide the block rulers', run: () => Canvas.toggleRulers() });
-    register({ id: 'ov-coast', group: 'Overlays', keys: ['3'], display: '3', label: 'Show or hide the coastline preview', run: () => Canvas.toggleCoastline() });
     window.addEventListener('keydown', _onKey);
   }
 
