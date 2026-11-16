@@ -2896,8 +2896,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.11.13";
-const COMMIT  = "d67f733";
+const VERSION = "2026.11.16";
+const COMMIT  = "4aac91e1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10680,9 +10680,13 @@ const GitHubSync = (() => {
     _renderCM('<div class="gh-maps-empty">Loading…</div>');
 
     try {
+      // The sprites of the ACTIVE package: a non-default package (hs) keeps its own files under packages/<id>/. Upload and delete stay
+      // on the default package (they also write the compat copy and refresh its manifest), so they are offered only there.
+      const cmPkg = typeof Packages !== 'undefined' ? (Packages.getActive() || 'postapoc') : 'postapoc';
+      const cmOwn = cmPkg === 'postapoc';
       const [hexFiles, bldFiles, mapList] = await Promise.all([
-        _listFolder('packages/postapoc/sprites/hex'),
-        _listFolder('packages/postapoc/sprites/buildings'),
+        _listFolder(`packages/${cmPkg}/sprites/hex`),
+        _listFolder(`packages/${cmPkg}/sprites/buildings`),
         (isPATConfigured() ? _getMapListFresh() : fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`).then(r => r.ok ? r.json() : {maps:[]}))
           .catch(() => ({maps:[]})),
       ]);
@@ -10696,7 +10700,7 @@ const GitHubSync = (() => {
       }));
 
       const totalSize = [...hexFiles, ...bldFiles].reduce((s, f) => s + (f.size || 0), 0);
-      const authed = isPATConfigured();
+      const authed = isPATConfigured() && cmOwn;
       const e = _escHtml;
       const sq = s => _escHtml(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));   // JS string literal first, then HTML attribute text
 
@@ -10715,13 +10719,13 @@ const GitHubSync = (() => {
 
       _renderCM(`
         <div class="cm-section">
-          <div class="cm-section-title">🖼 Sprites / hex <span class="cm-badge">${hexFiles.length}</span>
+          <div class="cm-section-title">🖼 Sprites / hex${cmOwn ? '' : ' · ' + e(cmPkg)} <span class="cm-badge">${hexFiles.length}</span>
             ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('hex')">+ Upload</button>` : ''}
           </div>
           <div class="cm-file-grid">${hexFiles.map(f => spriteCard(f, 'hex')).join('')}</div>
         </div>
         <div class="cm-section">
-          <div class="cm-section-title">🏗 Sprites / buildings <span class="cm-badge">${bldFiles.length}</span>
+          <div class="cm-section-title">🏗 Sprites / buildings${cmOwn ? '' : ' · ' + e(cmPkg)} <span class="cm-badge">${bldFiles.length}</span>
             ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('buildings')">+ Upload</button>` : ''}
           </div>
           <div class="cm-file-grid">${bldFiles.map(f => spriteCard(f, 'buildings')).join('')}</div>
@@ -24098,7 +24102,7 @@ const ConvertMap = (() => {
       }
       current = preview(json, target);
       const rep = current.report, kids = [];
-      const cols = [['converted', 'Converted'], ['same', 'Already in package'], ['keptBase', 'Base kept'], ['missing', 'No counterpart'], ['typeMismatch', 'Other type'], ['unknown', 'Unknown']];
+      const cols = [['converted', 'Converted'], ['same', 'Already in package'], ['skinKept', 'Base kept as skin'], ['keptBase', 'Base kept'], ['missing', 'No counterpart'], ['typeMismatch', 'Other type'], ['unknown', 'Unknown']];
       const table = T('table', null, { id: 'convert-map-summary' });
       const head = T('tr'); head.appendChild(T('th', ''));
       cols.forEach(c => head.appendChild(T('th', c[1])));
