@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.33",
+  "version": "1.0.34",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -151,10 +151,15 @@
       "version": "1.0.33",
       "date": "2026-11-16",
       "note": "forest_1 NB"
+    },
+    {
+      "version": "1.0.34",
+      "date": "2026-11-16",
+      "note": "return old version ( from Atlas) Palin_1/2 and Forest_1"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 25301962,
+  "totalBytes": 25297027,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
