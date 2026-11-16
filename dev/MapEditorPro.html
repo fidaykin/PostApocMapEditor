@@ -2897,8 +2897,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.11.13";
-const COMMIT  = "64227e1";
+const VERSION = "2026.11.16";
+const COMMIT  = "4aac91e1";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10681,9 +10681,13 @@ const GitHubSync = (() => {
     _renderCM('<div class="gh-maps-empty">Loading…</div>');
 
     try {
+      // The sprites of the ACTIVE package: a non-default package (hs) keeps its own files under packages/<id>/. Upload and delete stay
+      // on the default package (they also write the compat copy and refresh its manifest), so they are offered only there.
+      const cmPkg = typeof Packages !== 'undefined' ? (Packages.getActive() || 'postapoc') : 'postapoc';
+      const cmOwn = cmPkg === 'postapoc';
       const [hexFiles, bldFiles, mapList] = await Promise.all([
-        _listFolder('packages/postapoc/sprites/hex'),
-        _listFolder('packages/postapoc/sprites/buildings'),
+        _listFolder(`packages/${cmPkg}/sprites/hex`),
+        _listFolder(`packages/${cmPkg}/sprites/buildings`),
         (isPATConfigured() ? _getMapListFresh() : fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`).then(r => r.ok ? r.json() : {maps:[]}))
           .catch(() => ({maps:[]})),
       ]);
@@ -10697,7 +10701,7 @@ const GitHubSync = (() => {
       }));
 
       const totalSize = [...hexFiles, ...bldFiles].reduce((s, f) => s + (f.size || 0), 0);
-      const authed = isPATConfigured();
+      const authed = isPATConfigured() && cmOwn;
       const e = _escHtml;
       const sq = s => _escHtml(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));   // JS string literal first, then HTML attribute text
 
@@ -10716,13 +10720,13 @@ const GitHubSync = (() => {
 
       _renderCM(`
         <div class="cm-section">
-          <div class="cm-section-title">🖼 Sprites / hex <span class="cm-badge">${hexFiles.length}</span>
+          <div class="cm-section-title">🖼 Sprites / hex${cmOwn ? '' : ' · ' + e(cmPkg)} <span class="cm-badge">${hexFiles.length}</span>
             ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('hex')">+ Upload</button>` : ''}
           </div>
           <div class="cm-file-grid">${hexFiles.map(f => spriteCard(f, 'hex')).join('')}</div>
         </div>
         <div class="cm-section">
-          <div class="cm-section-title">🏗 Sprites / buildings <span class="cm-badge">${bldFiles.length}</span>
+          <div class="cm-section-title">🏗 Sprites / buildings${cmOwn ? '' : ' · ' + e(cmPkg)} <span class="cm-badge">${bldFiles.length}</span>
             ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('buildings')">+ Upload</button>` : ''}
           </div>
           <div class="cm-file-grid">${bldFiles.map(f => spriteCard(f, 'buildings')).join('')}</div>
@@ -14497,11 +14501,38 @@ const Packages = (() => {
         _registry = _mergeLocal(data.packages);
         _cacheRegistry();
         _ensureActiveExists();
+        _purgeOrphanEntries(data.packages);
         renderPanel();
         renderBadges();
         renderActiveDropdowns();
       }
     } catch(e) { console.warn('[Packages] registry fetch failed:', e.message); }
+  }
+
+  // Tiles and buildings of a package that is neither on the server nor a local-only package here (it was deleted on the
+  // server, or imported once and never published) keep a palette section nobody can open. They are removed once the LIVE
+  // registry has been read, never from the cache and never from an empty or default-less registry (a bad answer must not
+  // wipe data). Each package keeps a restore copy in Recently deleted as a local-only package, so nothing is lost.
+  function _purgeOrphanEntries(serverList) {
+    if (!Array.isArray(serverList) || !serverList.some(p => p && p.isDefault)) return 0;
+    const known = new Set(['postapoc', ..._registry.map(p => p.id)]);
+    const counts = new Map();
+    for (const e of [...HexDB.getData().hexes, ...BldDB.getAll()]) {
+      const pkg = e.package || 'postapoc';
+      if (!known.has(pkg)) counts.set(pkg, (counts.get(pkg) || 0) + 1);
+    }
+    let removed = 0;
+    for (const id of counts.keys()) {
+      const prev = listTrash();
+      const copy = { id, entry: { id, name: id, version: '1.0.0', isDefault: false, localOnly: true }, deletedAt: new Date().toISOString(),
+        hexes: structuredClone(HexDB.getData().hexes.filter(h => h.package === id)),
+        buildings: structuredClone(BldDB.getAll().filter(b => b.package === id)) };
+      if (!_storeTrash([copy, ...prev.filter(t => t.id !== id)]).ok) { console.warn(`[Packages] orphan "${id}" kept: no room for a restore copy`); continue; }
+      const h = HexDB.removeByPackage(id), b = BldDB.removeByPackage(id);
+      removed += h + b;
+      UI.toast(`Removed ${h} tile(s) and ${b} building(s) of "${id}": that package is no longer on the server. Restore it from Recently deleted if you need it.`);
+    }
+    return removed;
   }
 
   // ── Getters / Setters ──────────────────────────────────────────
@@ -17140,7 +17171,7 @@ const Packages = (() => {
     }
   }
 
-  return { init, getActive, setActive, getAll, getEntry, isDefault, idPrefix, packageForId, movePackageByPrefix, adoptPastedRecord, rehomePlan, openRehomeDialog,
+  return { init, purgeOrphans: _purgeOrphanEntries, getActive, setActive, getAll, getEntry, isDefault, idPrefix, packageForId, movePackageByPrefix, adoptPastedRecord, rehomePlan, openRehomeDialog,
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips, openSkinSlots, skinSlotProblems, applySkinSuggestions,
            isPkgVisible, togglePkgFilter,
            spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openTerrainUpload, openNewModal, closeNewModal, _autoSlugId, createPackage,
@@ -24072,7 +24103,7 @@ const ConvertMap = (() => {
       }
       current = preview(json, target);
       const rep = current.report, kids = [];
-      const cols = [['converted', 'Converted'], ['same', 'Already in package'], ['keptBase', 'Base kept'], ['missing', 'No counterpart'], ['typeMismatch', 'Other type'], ['unknown', 'Unknown']];
+      const cols = [['converted', 'Converted'], ['same', 'Already in package'], ['skinKept', 'Base kept as skin'], ['keptBase', 'Base kept'], ['missing', 'No counterpart'], ['typeMismatch', 'Other type'], ['unknown', 'Unknown']];
       const table = T('table', null, { id: 'convert-map-summary' });
       const head = T('tr'); head.appendChild(T('th', ''));
       cols.forEach(c => head.appendChild(T('th', c[1])));
