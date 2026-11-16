@@ -109,10 +109,10 @@ test.describe('MapConvert', () => {
     expect(twice.report.hex.same).toBeGreaterThan(0);
   });
 
-  test('a record with a matching skinSlot is chosen over the prefix rule (base id -> overlay)', () => {
+  test('a base id keeps its id even when the target has an overlay of its slot (the game repaints it; ClickUp 869fnnwm1)', () => {
     const hex = HEX.concat([{ id: 'Hs_Skin_Plains', type: 'Plains', package: 'hs', skinSlot: 'Plain_1' }]);
     const r = MapConvert.convert({ data: [['Plain_1', 'Decameroon_Plain_1']], packages: ['postapoc', 'decameroon'] }, { ...ctx, hex });
-    expect(r.json.data[0][0]).toBe('Hs_Skin_Plains');
+    expect(r.json.data[0][0]).toBe('Plain_1');
     expect(r.json.data[0][1]).toBe('Hs_Decameroon_Plain_1');   // no skinSlot on the Decameroon record: prefix rule
   });
 
@@ -216,5 +216,27 @@ test.describe('MapConvert', () => {
   test('objects with a building id and a hex id are both resolved by what the id really is', () => {
     const r = MapConvert.convert({ data: [['Decameroon_Plain_1']], objects: [{ col: 0, row: 0, id: 'Decameroon_GemMine_1' }], packages: ['decameroon'] }, ctx);
     expect(r.json.objects[0].id).toBe('Hs_Decameroon_GemMine_1');
+  });
+
+  test('a base id that the target fills with an overlay of its slot keeps its base id and is counted as base kept as skin', () => {
+    const hex = [...HEX, { id: 'Hs_Plain_1', type: 'Plains', package: 'hs', skinSlot: 'Plain_1' }];
+    const r = MapConvert.convert(map(), { ...ctx, hex });
+    expect(r.json.data[1][2]).toBe('Plain_1');
+    expect(r.report.hex.skinKept).toBe(1);
+    expect(r.report.hex.converted).toBe(3);              // Decameroon_Plain_1, Decameroon_Lake_1 and the tileExtra still follow the prefix rule
+    expect(r.report.hex.mapping.Plain_1).toBeUndefined();
+    expect(MapConvert.summary(r.report)).toContain('1 base kept as skin');
+  });
+
+  test('without an overlay of the slot a base id is still counted as base kept', () => {
+    const r = MapConvert.convert(map(), ctx);
+    expect(r.report.hex.skinKept).toBe(0);
+  });
+
+  test('the packages of the map do not change because of a skin id', () => {
+    const hex = [...HEX, { id: 'Hs_Plain_1', type: 'Plains', package: 'hs', skinSlot: 'Plain_1' }];
+    const withSkin = MapConvert.convert(map(), { ...ctx, hex });
+    const without = MapConvert.convert(map(), ctx);
+    expect(withSkin.packages.after).toEqual(without.packages.after);
   });
 });
