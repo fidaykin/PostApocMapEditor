@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.32",
+  "version": "1.0.33",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -146,6 +146,11 @@
       "version": "1.0.32",
       "date": "2026-11-16",
       "note": "re submit No Borders tiles( Plain_1/2 and Forest_1 )"
+    },
+    {
+      "version": "1.0.33",
+      "date": "2026-11-16",
+      "note": "forest_1 NB"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
