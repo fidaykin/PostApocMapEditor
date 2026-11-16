@@ -9012,10 +9012,14 @@ const QuickBar = (() => {
   // away from it and nothing inside has focus. It never opens while a mouse button is down, so a stroke that passes the top edge is not disturbed.
   const HOT_EDGE_PX = 28, CLOSE_DELAY_MS = 1000;
   const PIN_KEY = 'quickbarPinned';
-  let _pinned = false;
-  try { _pinned = localStorage.getItem(PIN_KEY) === '1'; } catch (e) { /* storage blocked: the pin lasts for this session */ }
+  let _pinned = true;   // pinned and visible by default; what the user chooses is remembered
+  try { const v = localStorage.getItem(PIN_KEY); if (v === '0' || v === '1') _pinned = v === '1'; } catch (e) { /* storage blocked: the pin lasts for this session */ }
   let _closeTimer = null;
+  // After Unpin the bar shuts at once and stays shut until the pointer has left the top edge zone: the pointer is still over the
+  // bar's spot at that moment, so without this the hover would keep it open (or open it again) and Unpin would look like it did nothing.
+  let _held = false;
   function open() {
+    if (_held) return;
     clearTimeout(_closeTimer); _closeTimer = null;
     const bar = document.getElementById('quickbar');
     if (bar) bar.classList.add('qb-open');
@@ -9031,8 +9035,20 @@ const QuickBar = (() => {
   }
   function _applyPin() {
     const pin = document.getElementById('qb-pin');
-    if (pin) { pin.classList.toggle('qb-pinned', _pinned); pin.setAttribute('aria-pressed', String(_pinned)); }
-    if (_pinned) open(); else _scheduleClose();
+    if (pin) {
+      pin.classList.toggle('qb-pinned', _pinned);
+      pin.setAttribute('aria-pressed', String(_pinned));
+      pin.title = _pinned ? 'Unpin the bar: it hides and slides in again at the top edge of the canvas'
+                          : 'Pin the bar open (it covers the top rows of the map while pinned)';
+      pin.setAttribute('aria-label', _pinned ? 'Unpin the quick bar' : 'Pin the quick bar');
+    }
+    const bar = document.getElementById('quickbar');
+    if (_pinned) { _held = false; open(); }
+    else {
+      _held = true;
+      clearTimeout(_closeTimer); _closeTimer = null;
+      if (bar) bar.classList.remove('qb-open');
+    }
   }
   function togglePin() {
     _pinned = !_pinned;
@@ -9049,9 +9065,9 @@ const QuickBar = (() => {
       cc.addEventListener('mousemove', e => {
         if (e.buttons !== 0) return;
         if (e.clientY - cc.getBoundingClientRect().top <= HOT_EDGE_PX) open();
-        else if (isOpen()) _scheduleClose();
+        else { _held = false; if (isOpen()) _scheduleClose(); }
       });
-      cc.addEventListener('mouseleave', () => { if (isOpen()) _scheduleClose(); });
+      cc.addEventListener('mouseleave', () => { _held = false; if (isOpen()) _scheduleClose(); });
       cc.addEventListener('mousedown', () => { if (isOpen()) _scheduleClose(); });
       bar.addEventListener('mouseenter', open);
       bar.addEventListener('mouseleave', _scheduleClose);
@@ -9068,7 +9084,8 @@ const QuickBar = (() => {
     const d = document.getElementById('scatter-density');
     if (d) d.addEventListener('input', sync);
     sync();
-    if (_pinned) _applyPin();
+    _applyPin();   // also sets the button's state and tooltip; pinned = open from the start
+    if (!_pinned) _held = false;   // starting unpinned: the bar is shut, but the top edge may open it at once
   }
 
   return { init, open, isOpen, isPinned, togglePin, sync, toggleWaterEdges, setTool, step, wheel, applyPreset, beginSave, commitSave, cancelSave, deletePreset, current,
@@ -9811,14 +9828,28 @@ const GitHubSync = (() => {
       .catch(e => UI.toast('❌ Download failed: ' + e.message));
   }
 
-  async function _cmDeleteSprite(category, name, sha) {
+  // Entries of the package's local databases that name this sprite: deleting the file would leave them without a picture.
+  function _cmSpriteUsers(pkg, bare) {
+    const hex = typeof HexDB !== 'undefined' ? HexDB.getData().hexes.filter(h => h.package === pkg && h.spriteName === bare).map(h => h.id || h.spriteName) : [];
+    const bld = typeof BldDB !== 'undefined' ? BldDB.getAll().filter(b => b.package === pkg && b.spriteName === bare).map(b => b.id || b.spriteName) : [];
+    return [...hex, ...bld];
+  }
+
+  // pkg: the package whose folder is listed (packages/<pkg>/sprites/<category>/<name>). The default package also keeps a compat
+  // copy under sprites/<category>/, removed with it. Only the file is removed: the manifest lists what the databases reference,
+  // so an unreferenced file (a leftover test sprite) is not in it, and a referenced one is refused here.
+  async function _cmDeleteSprite(pkg, category, name) {
     if (!isPATConfigured()) return UI.toast('⚠ Configure PAT first');
-    if (!confirm(`Delete "${name}" from ${category} sprites?\nThis removes it from GitHub and local cache.`)) return;
+    const bare = name.replace(/\.png$/i, '');
+    const users = _cmSpriteUsers(pkg, bare);
+    if (users.length) return UI.toast(`⚠ "${bare}" is used by ${users.length} entr${users.length === 1 ? 'y' : 'ies'} of ${pkg} (${users.slice(0, 3).join(', ')}${users.length > 3 ? ', …' : ''}). Remove or re-point them first.`, { sticky: true });
+    if (!confirm(`Delete "${name}" from ${pkg} / ${category} sprites?\nThis removes the file from GitHub and the local cache.\nA sprite that is already packed into an atlas needs the atlas rebuilt.`)) return;
     try {
-      await _deleteContents(`sprites/${category}/${name}`, sha, `remove sprite: ${name}`);
-      await SpriteStore.remove(name.replace(/\.png$/i, ''));
+      const gone = await _removeFile(`packages/${pkg}/sprites/${category}/${name}`, `remove sprite: ${pkg}/${name}`);
+      if (pkg === 'postapoc') await _removeFile(`sprites/${category}/${name}`, `remove sprite: ${name} (compat)`);
+      await SpriteStore.remove(bare, pkg);
       document.querySelector(`[data-cm-id="sprite-${category}-${name}"]`)?.remove();
-      UI.toast(`✅ Deleted ${name}`);
+      UI.toast(gone === 'gone' ? `⚠ ${name} was already gone` : `✅ Deleted ${name}`);
     } catch(e) { UI.toast('❌ ' + e.message); }
   }
 
@@ -10681,8 +10712,8 @@ const GitHubSync = (() => {
     _renderCM('<div class="gh-maps-empty">Loading…</div>');
 
     try {
-      // The sprites of the ACTIVE package: a non-default package (hs) keeps its own files under packages/<id>/. Upload and delete stay
-      // on the default package (they also write the compat copy and refresh its manifest), so they are offered only there.
+      // The sprites of the ACTIVE package: a non-default package (hs) keeps its own files under packages/<id>/. Upload stays on the
+      // default package (it also writes the compat copy and refreshes its manifest), so it is offered only there; delete works on any.
       const cmPkg = typeof Packages !== 'undefined' ? (Packages.getActive() || 'postapoc') : 'postapoc';
       const cmOwn = cmPkg === 'postapoc';
       const [hexFiles, bldFiles, mapList] = await Promise.all([
@@ -10701,7 +10732,8 @@ const GitHubSync = (() => {
       }));
 
       const totalSize = [...hexFiles, ...bldFiles].reduce((s, f) => s + (f.size || 0), 0);
-      const authed = isPATConfigured() && cmOwn;
+      const authed = isPATConfigured();
+      const authedOwn = authed && cmOwn;   // maps, databases and upload stay with the default package
       const e = _escHtml;
       const sq = s => _escHtml(String(s).replace(/\\/g, '\\\\').replace(/'/g, "\\'"));   // JS string literal first, then HTML attribute text
 
@@ -10713,7 +10745,7 @@ const GitHubSync = (() => {
           <div class="cm-fsize">${_fmtSize(f.size)}</div>
           <div class="cm-file-actions">
             <button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(f.download_url)}','${sq(f.name)}')" title="Download">↓</button>
-            ${authed ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteSprite('${sq(cat)}','${sq(f.name)}','${sq(f.sha)}')" title="Delete">✕</button>` : ''}
+            ${authed ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteSprite('${sq(cmPkg)}','${sq(cat)}','${sq(f.name)}')" title="Delete">✕</button>` : ''}
           </div>
         </div>`;
       };
@@ -10721,13 +10753,13 @@ const GitHubSync = (() => {
       _renderCM(`
         <div class="cm-section">
           <div class="cm-section-title">🖼 Sprites / hex${cmOwn ? '' : ' · ' + e(cmPkg)} <span class="cm-badge">${hexFiles.length}</span>
-            ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('hex')">+ Upload</button>` : ''}
+            ${authedOwn ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('hex')">+ Upload</button>` : ''}
           </div>
           <div class="cm-file-grid">${hexFiles.map(f => spriteCard(f, 'hex')).join('')}</div>
         </div>
         <div class="cm-section">
           <div class="cm-section-title">🏗 Sprites / buildings${cmOwn ? '' : ' · ' + e(cmPkg)} <span class="cm-badge">${bldFiles.length}</span>
-            ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('buildings')">+ Upload</button>` : ''}
+            ${authedOwn ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadSprite('buildings')">+ Upload</button>` : ''}
           </div>
           <div class="cm-file-grid">${bldFiles.map(f => spriteCard(f, 'buildings')).join('')}</div>
         </div>
@@ -10739,7 +10771,7 @@ const GitHubSync = (() => {
               <span class="cm-row-meta">${e(m.fileName)} · ${_fmtSize(parseInt(m.size||0))} · ${e(m.uploadedTime||'')}</span>
               <div class="cm-row-actions">
                 <button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(BASE_URL)}/maps/${sq(m.fileName)}','${sq(m.fileName)}')" title="Download">↓</button>
-                ${authed ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteMap('${sq(m.fileName)}','${sq(m.name)}')" title="Delete">✕</button>` : ''}
+                ${authedOwn ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteMap('${sq(m.fileName)}','${sq(m.name)}')" title="Delete">✕</button>` : ''}
               </div>
             </div>`
           ).join('') || '<div class="gh-maps-empty">No maps</div>'}</div>
@@ -10752,7 +10784,7 @@ const GitHubSync = (() => {
               <span class="cm-row-meta">${d.ok ? _fmtSize(d.size) : 'missing'}</span>
               <div class="cm-row-actions">
                 ${d.ok ? `<button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(BASE_URL)}/${sq(d.name)}','${sq(d.name)}')" title="Download">↓</button>` : ''}
-                ${authed ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadDb('${sq(d.name)}')" title="Upload">↑ Upload</button>` : ''}
+                ${authedOwn ? `<button class="cm-btn cm-btn-up" onclick="GitHubSync._cmUploadDb('${sq(d.name)}')" title="Upload">↑ Upload</button>` : ''}
               </div>
             </div>`
           ).join('')}</div>
