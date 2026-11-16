@@ -2897,7 +2897,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.16";
-const COMMIT  = "f52e689";
+const COMMIT  = "648eea5";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -24075,7 +24075,7 @@ const ConvertMap = (() => {
       }
       current = preview(json, target);
       const rep = current.report, kids = [];
-      const cols = [['converted', 'Converted'], ['same', 'Already in package'], ['keptBase', 'Base kept'], ['missing', 'No counterpart'], ['typeMismatch', 'Other type'], ['unknown', 'Unknown']];
+      const cols = [['converted', 'Converted'], ['same', 'Already in package'], ['skinKept', 'Base kept as skin'], ['keptBase', 'Base kept'], ['missing', 'No counterpart'], ['typeMismatch', 'Other type'], ['unknown', 'Unknown']];
       const table = T('table', null, { id: 'convert-map-summary' });
       const head = T('tr'); head.appendChild(T('th', ''));
       cols.forEach(c => head.appendChild(T('th', c[1])));

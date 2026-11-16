@@ -49,12 +49,17 @@
     return { byId, targetById, targetBySlot };
   }
 
-  // What one id becomes. { id, how } with how: same | prefix | skin | keptBase | missing | typeMismatch | unknown.
+  // What one id becomes. { id, how } with how: same | prefix | skin | skinKept | keptBase | missing | typeMismatch | unknown.
   // `id` is the new id for same/prefix/skin, else the id unchanged.
   function resolve(kind, id, ix, target, prefixFn) {
     const own = ix.byId.get(low(id));
     if (!own) return { id, how: 'unknown' };
     if (own.package === target) return { id, how: 'same' };
+
+    // A base id whose slot the target fills with an overlay (Hs_Decameroon_Plain_1, skinSlot Plain_1) keeps its base id: the game
+    // repaints it with the skin while the package is applied, and its income and type stay the base ones. The overlay's own id
+    // would have neither (those values come from the base).
+    if (isBase(own) && !low(own.skinSlot) && ix.targetBySlot.has(low(id))) return { id, how: 'skinKept' };
 
     const tp = prefixFn(target);
     const sp = prefixFn(own.package);
@@ -81,7 +86,7 @@
     return { hex: bucket(), bld: bucket() };
   }
   function bucket() {
-    return { converted: 0, same: 0, keptBase: 0, missing: 0, typeMismatch: 0, unknown: 0, mapping: {}, notConverted: {} };
+    return { converted: 0, same: 0, skinKept: 0, keptBase: 0, missing: 0, typeMismatch: 0, unknown: 0, mapping: {}, notConverted: {} };
   }
   // count: how many map cells use the id (presets and tileExtras count 1 each).
   function note(b, id, res, count) {
@@ -184,7 +189,7 @@
 
   // One line per kind for a status line or a log.
   function summary(report) {
-    const f = (b, name) => `${name}: ${b.converted} converted, ${b.same} already in the package, ${b.keptBase} base kept, `
+    const f = (b, name) => `${name}: ${b.converted} converted, ${b.same} already in the package, ${b.skinKept} base kept as skin, ${b.keptBase} base kept, `
       + `${b.missing} without a counterpart, ${b.typeMismatch} with another type, ${b.unknown} unknown`;
     return [f(report.hex, 'tiles'), f(report.bld, 'buildings')].join('\n');
   }
