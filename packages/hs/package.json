@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.30",
+  "version": "1.0.31",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -136,10 +136,15 @@
       "version": "1.0.30",
       "date": "2026-11-16",
       "note": "added No Borders Hexs ( Plain_1/2 Forest_1)"
+    },
+    {
+      "version": "1.0.31",
+      "date": "2026-11-16",
+      "note": "Update NO borders tiles  for HS (Plain_1/2. Forest_1"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 25326271,
+  "totalBytes": 25297027,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
