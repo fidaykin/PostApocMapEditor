@@ -5,6 +5,9 @@ Format: `## [version] — [date]`
 
 ## Unreleased
 
+### Tools
+- **Pattern brush** (▦ in the tool column): paints with a map fragment tiled on the map grid, like a Photoshop pattern stamp, to cover large areas. The pattern is a map from the server, a map file, or the current selection; X/Y shift it, Skip leaves chosen tile ids undrawn. Brush size and symmetry apply; one stroke is one Undo step. Writes the terrain layer only. The core (`pattern-brush.js`) is built from replaceable parts (sources, placement rules) so it can be extended.
+
 ### Publishing
 - **Atlases are rebuilt on GitHub after every publish.** The game loads compressed atlases built from a package's PNGs; they used to be built by hand on one Mac. The workflow `package-atlases.yml` (tools/atlas, no Unity) now builds them after sprites are pushed. Publish asks for the rebuild once its last file is written and says so; **PACKAGES > Atlases** shows whether the atlas matches the published sprites and rebuilds it on request.
 - Unified **Publish Package Data** (menu bar): publishes the active package after a diff against the server that now also lists new and changed sprites; sprites whose sha256 already matches the server `manifest.json` are skipped (no or unreadable manifest uploads everything). The base package (`postapoc`) goes through the same dialog with its own confirmation and still writes the root copies for old game builds.
