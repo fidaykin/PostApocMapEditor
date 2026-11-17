@@ -7789,7 +7789,7 @@ const Tools = (() => {
   }
   async function _patternFromServer(fileName, name) {
     try {
-      const res = await fetch(`${BASE_URL}/maps/${encodeURIComponent(fileName)}?_=${Date.now()}`);
+      const res = await fetch(`${GitHubSync.BASE_URL}/maps/${encodeURIComponent(fileName)}?_=${Date.now()}`);
       if (!res.ok) throw new Error('HTTP ' + res.status);
       await _patternLoad('map', { json: await res.json(), name });
     } catch (e) { UI.toast('⚠ Could not load the map: ' + e.message, { ms: 6000 }); }
@@ -7800,9 +7800,14 @@ const Tools = (() => {
     sel.dataset.filled = '1';
     sel.replaceChildren(new Option('Choose a map…', ''));
     try {
-      const res = await fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`);
-      if (res.ok) for (const m of (await res.json()).maps || []) { _patternServerMaps.push(m); sel.add(new Option(m.name, m.fileName)); }
-    } catch (e) { /* offline: the file and selection sources still work */ }
+      const res = await fetch(`${GitHubSync.BASE_URL}/maps/map_list.json?_=${Date.now()}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      for (const m of (await res.json()).maps || []) { _patternServerMaps.push(m); sel.add(new Option(m.name, m.fileName)); }
+    } catch (e) {   // the file and selection sources still work; the next time the tool is picked the list is asked for again
+      delete sel.dataset.filled;
+      sel.options[0].text = 'Server maps unavailable';
+      UI.toast('⚠ Could not read the list of maps on the server: ' + e.message, { ms: 5000 });
+    }
     sel.onchange = () => { const m = _patternServerMaps.find(x => x.fileName === sel.value); sel.blur(); if (m) _patternFromServer(m.fileName, m.name); };
     const file = document.getElementById('pattern-file');
     if (file) file.onchange = async () => {
