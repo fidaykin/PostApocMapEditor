@@ -2918,7 +2918,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.17";
-const COMMIT  = "5a27ef12";
+const COMMIT  = "222712f0";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -3993,6 +3993,7 @@ const Canvas = (() => {
     _drawSelectionOverlay(radius, lod, scale);
     _drawHighlights(radius, lod, scale);
     _drawGhost(radius, lod, scale);
+    _drawPatternGhost(radius, lod);
     _drawSymmetryGuide(radius, scale);
 
     // Brush cursor preview
@@ -4485,6 +4486,39 @@ const Canvas = (() => {
     _ghost = layer || null;
     _ghostStats.sets++;
     if (opts && opts.render === false) _hlDirty = true; else render();
+  }
+  // Pattern brush preview: the tiles the pattern would write under the cursor, drawn translucent (sprite, else the tile colour).
+  // `cells` = [{ col, row, id }]; dropped when the map is replaced. Only at full detail: zoomed out the brush outline is enough.
+  let _patGhost = null;
+  const _PAT_GHOST_MAX = 1500;
+  function setPatternGhost(cells, opts) {
+    if (!cells || !cells.length) { if (!_patGhost) return; _patGhost = null; }
+    else _patGhost = { cells, md: mapData, W: MAP_WIDTH, H: MAP_HEIGHT };
+    if (opts && opts.render === false) _hlDirty = true; else render();
+  }
+  function hasPatternGhost() { return !!_patGhost; }
+  function _drawPatternGhost(radius, lod) {
+    const G = _patGhost;
+    if (!G) return;
+    if (G.md !== mapData || G.W !== MAP_WIDTH || G.H !== MAP_HEIGHT) { _patGhost = null; return; }
+    if (lod !== 0 || G.cells.length > _PAT_GHOST_MAX) return;
+    const cw = canvas.width, ch = canvas.height, pad = radius * 2;
+    ctx.save();
+    for (const c of G.cells) {
+      const pos = hexScreenPos(c.col, c.row);
+      if (pos.x < -pad || pos.x > cw + pad || pos.y < -pad || pos.y > ch + pad) continue;
+      const spr = Terrain.getSprite(c.id);
+      hexClipPath(pos.x, pos.y, radius);
+      ctx.save();
+      ctx.clip();
+      ctx.globalAlpha = 0.72;
+      if (spr && spr.complete && spr.naturalWidth > 0) ctx.drawImage(spr, pos.x - radius, pos.y - radius, radius * 2, radius * 2);
+      else { ctx.fillStyle = Terrain.color(c.id) || '#888'; ctx.fillRect(pos.x - radius, pos.y - radius, radius * 2, radius * 2); }
+      ctx.restore();
+      hexClipPath(pos.x, pos.y, radius);
+      ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = Math.max(1, radius * 0.05); ctx.stroke();
+    }
+    ctx.restore();
   }
   function getGhostCells() {
     const L = _ghost;
@@ -5717,7 +5751,7 @@ const Canvas = (() => {
     setMouseCallbacks, getCtx, getZoom, getCamera,
     toggleZones, hexDist, setSelectedSlot, toggleMinimapSize, isMinimapBig, toggleMinimapOverlay,
     jumpToBlock, parseGoto, centerOnTile, getViewCenterTile, gotoText,
-    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight, setSelectionOverlay, setGhost, getGhostCells, getGhostStats, getHighlightPoints, setSymmetryGuide, getSymmetryGuide,
+    selectTile, clearSelection, applyTileInspectorUnder, clearTileInspectorUnder, setHighlight, hasHighlight, setSelectionOverlay, setGhost, setPatternGhost, hasPatternGhost, getGhostCells, getGhostStats, getHighlightPoints, setSymmetryGuide, getSymmetryGuide,
     toggleRulers: () => {
       _showRulers = !_showRulers;
       const btn = document.getElementById('btn-toggle-rulers');
@@ -7710,15 +7744,19 @@ const Tools = (() => {
     Canvas.setHighlight('eraser', null, null, { render: false });
     Canvas.setHighlight('scatter', null, null, { render: false });
     Canvas.setHighlight('pattern', null, null, { render: false });
+    Canvas.setPatternGhost(null, { render: false });
+    _patternInfo();
   }
   // Hover preview (eraser and scatter): the brush disc plus its symmetric copies, in the tool's own layer. Scatter
   // previews the AREA only, never the random cells. Recomputed only when the cell, radius, mode or map changes.
   function _updateEraserHover(cell) {
     if ((_active !== 'eraser' && _active !== 'scatter' && _active !== 'pattern') || !cell) return;
-    const key = _active + '|' + cell.col + ',' + cell.row + '|' + Brush.getSize() + '|' + _symMode + '|' + MAP_WIDTH + 'x' + MAP_HEIGHT;
+    const key = _active + '|' + cell.col + ',' + cell.row + '|' + Brush.getSize() + '|' + _symMode + '|' + MAP_WIDTH + 'x' + MAP_HEIGHT + (_active === 'pattern' ? '|' + _patternSig() : '');
     if (key === _eraserHoverKey && Canvas.hasHighlight(_active)) return;
     _eraserHoverKey = key;
-    Canvas.setHighlight(_active, _expandSymmetry(Brush.getAffectedTiles(cell.col, cell.row)), _active === 'eraser' ? ERASER_STYLE : SCATTER_STYLE, { render: false });
+    const area = _expandSymmetry(Brush.getAffectedTiles(cell.col, cell.row));
+    Canvas.setHighlight(_active, area, _active === 'eraser' ? ERASER_STYLE : SCATTER_STYLE, { render: false });
+    if (_active === 'pattern') _updatePatternGhost(area, cell);
   }
   function _eraseStale() { return _eraseMd !== mapData || _eraseW !== MAP_WIDTH || _eraseH !== MAP_HEIGHT; }
   function _eraseAt(col, row) {
@@ -7737,9 +7775,22 @@ const Tools = (() => {
     const skip = ((document.getElementById('pattern-skip') || {}).value || '').split(',').map(x => x.trim()).filter(Boolean);
     return { mapper: 'grid', ox: num('pattern-ox'), oy: num('pattern-oy'), skip };
   }
-  function _patternInfo() {
+  // What identifies the pattern and its options, so the hover preview is redrawn when any of them changes
+  function _patternSig() { const o = _patternOpts(); return (_pattern ? _pattern.name + _pattern.w + 'x' + _pattern.h : '-') + '|' + o.ox + ',' + o.oy + '|' + o.skip.join(','); }
+  function _patternInfo(cell) {
     const el = document.getElementById('pattern-info');
-    if (el) el.textContent = _pattern ? `${_pattern.name}: ${_pattern.w}×${_pattern.h}${_pattern.h % 2 ? ' (odd height: odd rows shift at every repeat, use an even height for seamless tiling)' : ''}` : 'No pattern chosen';
+    if (!el) return;
+    if (!_pattern) { el.textContent = 'No pattern chosen'; return; }
+    const o = _patternOpts(), mod = (a, n) => ((a % n) + n) % n;
+    const under = cell ? ` · under the cursor: column ${mod(cell.col - o.ox, _pattern.w)}, row ${mod(cell.row - o.oy, _pattern.h)} of the pattern` : '';
+    el.textContent = `${_pattern.name}: ${_pattern.w}×${_pattern.h}${_pattern.h % 2 ? ' (odd height: odd rows shift at every repeat, use an even height for seamless tiling)' : ''}${under}`;
+  }
+  // The tiles a stroke at the hovered cell would write, drawn translucent on the map
+  function _updatePatternGhost(area, cell) {
+    _patternInfo(cell);
+    if (!_pattern) { Canvas.setPatternGhost(null, { render: false }); return; }
+    const inside = area.filter(c => c.col >= 0 && c.col < MAP_WIDTH && c.row >= 0 && c.row < MAP_HEIGHT && !getSatelliteAnchor(c.col, c.row));
+    Canvas.setPatternGhost(patternCells(inside), { render: false });
   }
   function setPattern(p) { _pattern = p; _patternInfo(); }
   function getPattern() { return _pattern; }
