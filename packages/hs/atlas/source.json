@@ -1,6 +1,6 @@
 {
- "stamp": "ab573607247860121457c9f839423a97ea6b541ca60c9be082ed767a2f0e46ae",
- "builtAt": "2026-11-17T10:48:58.979Z",
+ "stamp": "8d475223095fbf3d18ec5ecd9f7338f14cbeae34b1316521f88eee5d703e8f48",
+ "builtAt": "2026-11-17T11:55:38.534Z",
  "sprites": {
   "hex/Decameroon_LavaPlain_1.png": "359c226234374917572e6f112d303e78ae12800c",
   "hex/Decameroon_LavaRift_1.png": "f749e60cf83cdd7edfc982b2b8a11ab4e0f85b03",
@@ -17,7 +17,6 @@
   "hex/HS_Forest_1.png": "82c693b834bcbecf1bed9ef2c30100e0679c0910",
   "hex/HS_Forest_2.png": "478c0ff2b61f16380fb5af9c5fde5cf7291ed19c",
   "hex/HS_Forest_3.png": "f3946072e82cc15b3cf7814ebf13984745e5ce68",
-  "hex/HS_Forest_NEW_1.png": "b523eccc0585ba090a9dae71c44e401288a39945",
   "hex/HS_GemPond_1.png": "cf2893c0502274c30835769f72c1bc24f89d4bf7",
   "hex/HS_GoldVein_1.png": "abdc272fd9ec6513f60805c61e942fd04877d328",
   "hex/HS_Grain_1.png": "3e8184a8ca2a54805f7a52a8174e66f610932e19",
