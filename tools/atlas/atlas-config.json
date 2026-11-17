@@ -1,0 +1,14 @@
+{
+  "pageSize": 4096,
+  "sourceCell": 512,
+  "groups": ["hex", "buildings", "coast"],
+  "variants": [
+    { "name": "astc6x6",            "format": "ASTC_6x6", "mips": false, "cell": 512 },
+    { "name": "astc6x6-mips",       "format": "ASTC_6x6", "mips": true,  "cell": 512 },
+    { "name": "astc4x4",            "format": "ASTC_4x4", "mips": false, "cell": 512 },
+    { "name": "astc4x4-mips",       "format": "ASTC_4x4", "mips": true,  "cell": 512 },
+    { "name": "astc6x6-mips-hex256", "format": "ASTC_6x6", "mips": true, "cell": 512,
+      "rules": [ { "group": "hex", "cell": 256 } ] },
+    { "name": "astc6x6-mips-all256", "format": "ASTC_6x6", "mips": true, "cell": 256 }
+  ]
+}
