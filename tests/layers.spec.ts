@@ -567,6 +567,7 @@ const SCENARIOS: Scenario[] = [
       for (const v of [{ col: 228, row: 224 }, { col: 230, row: 224 }, { col: 229, row: 227 }]) await click(p, v);
       await p.keyboard.press('Enter'); } },
   { name: 'Scatter', tool: 'scatter', layer: 'terrain', prep: `UI.selectTerrain('Forest_1'); Tools.setActive('scatter'); document.getElementById('scatter-density').value = '100'; document.getElementById('scatter-seed').value = '4242';`, act: p => click(p) },
+  { name: 'Pattern brush', tool: 'pattern', layer: 'terrain', prep: `Tools.setPattern(PatternBrush.makePattern(1, 1, ['Forest_1'], 'f')); Tools.setActive('pattern');`, act: p => click(p) },
   { name: 'Eraser', tool: 'eraser', layer: 'terrain', prep: `mapData[224 * MAP_WIDTH + 228] = 'Water_1'; Tools.setActive('eraser');`, act: p => click(p) },
   { name: 'Replace tool', tool: 'replace', layer: 'terrain', prep: `mapData[224 * MAP_WIDTH + 228] = 'Water_1'; UI.selectTerrain('Plain_1'); Tools.setActive('replace');`, act: p => click(p) },
   { name: 'Place Building', tool: 'object', layer: 'objects', prep: `Tools.setActive('object'); Tools.selectBuilding('Artefact_Test_1');`, act: async p => { await hidePickerL(p); await click(p); } },

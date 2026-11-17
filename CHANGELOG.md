@@ -6,6 +6,7 @@ Format: `## [version] — [date]`
 ## Unreleased
 
 ### Tools
+- Pattern brush: the list of server maps was always empty (the tool read a `BASE_URL` it cannot see); it now lists the maps of the server, tells you when the list cannot be read and asks again next time.
 - **Pattern brush** (▦ in the tool column): paints with a map fragment tiled on the map grid, like a Photoshop pattern stamp, to cover large areas. The pattern is a map from the server, a map file, or the current selection; X/Y shift it, Skip leaves chosen tile ids undrawn. Brush size and symmetry apply; one stroke is one Undo step. Writes the terrain layer only. The core (`pattern-brush.js`) is built from replaceable parts (sources, placement rules) so it can be extended.
 
 ### Publishing

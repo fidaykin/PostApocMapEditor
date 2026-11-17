@@ -80,3 +80,30 @@ test('the selection becomes a pattern', async ({ page }) => {
   });
   expect(r).toEqual({ w: 2, h: 1, ids: ['Forest_1', 'Water_1'] });
 });
+
+test('the maps of the server are listed and choosing one loads it as the pattern', async ({ page }) => {
+  const g = new FakeGitHub();
+  g.setJson('maps/map_list.json', { maps: [{ name: 'Tiny', fileName: 'Tiny.json' }, { name: 'Other', fileName: 'Other.json' }] });
+  g.setJson('maps/Tiny.json', { version: 2, width: 2, height: 2, data: [['Forest_1', 'Water_1'], ['Hills_1', 'Plain_1']] });
+  await openEditor(page, { gh: g, pat: true });
+  await page.evaluate(() => Tools.setActive('pattern'));
+  const sel = page.locator('#pattern-source');
+  await expect(sel.locator('option')).toHaveText(['Choose a map…', 'Tiny', 'Other']);
+  await sel.selectOption('Tiny.json');
+  await expect.poll(() => page.evaluate(() => (Tools.getPattern() || {}).name)).toBe('Tiny');
+  expect(await page.evaluate(() => Tools.getPattern().ids)).toEqual(['Forest_1', 'Water_1', 'Hills_1', 'Plain_1']);
+  await expect(page.locator('#pattern-info')).toContainText('Tiny: 2×2');
+});
+
+test('an unreadable map list says so, and asks again the next time the tool is picked', async ({ page }) => {
+  const g = new FakeGitHub();
+  g.setJson('maps/map_list.json', { maps: [{ name: 'Later', fileName: 'Later.json' }] });
+  await openEditor(page, { gh: g, pat: true });
+  await page.route(/\/maps\/map_list\.json/, r => r.fulfill({ status: 500, headers: { 'access-control-allow-origin': '*' }, body: 'boom' }));
+  await page.evaluate(() => Tools.setActive('pattern'));
+  await expect(page.locator('#pattern-source option').first()).toHaveText('Server maps unavailable');
+  await expect(page.locator('body')).toContainText('Could not read the list of maps');
+  await page.unroute(/\/maps\/map_list\.json/);
+  await page.evaluate(() => { Tools.setActive('paint'); Tools.setActive('pattern'); });
+  await expect(page.locator('#pattern-source option')).toHaveText(['Choose a map…', 'Later']);
+});
