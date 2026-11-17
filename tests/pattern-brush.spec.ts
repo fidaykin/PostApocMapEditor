@@ -107,3 +107,43 @@ test('an unreadable map list says so, and asks again the next time the tool is p
   await page.evaluate(() => { Tools.setActive('paint'); Tools.setActive('pattern'); });
   await expect(page.locator('#pattern-source option')).toHaveText(['Choose a map…', 'Later']);
 });
+
+test('hovering with the tool shows the tiles a stroke would write as a ghost, and the cell of the pattern under the cursor', async ({ page }) => {
+  await openEditor(page, { gh: gh(), pat: true });
+  await page.evaluate(() => {
+    Tools.setPattern(PatternBrush.makePattern(2, 2, ['Forest_1', 'Water_1', 'Hills_1', 'Plain_1'], 'quad'));
+    Brush.setSize(1); Tools.setActive('pattern');
+  });
+  const box = await page.locator('#map-canvas, canvas').first().boundingBox();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.move(box!.x + box!.width / 2 + 5, box!.y + box!.height / 2 + 5);
+  await expect.poll(() => page.evaluate(() => Canvas.hasPatternGhost())).toBe(true);
+  await expect(page.locator('#pattern-info')).toContainText(/under the cursor: column [01], row [01] of the pattern/);
+  // moving off the map or switching tool takes the ghost away
+  await page.evaluate(() => Tools.setActive('paint'));
+  expect(await page.evaluate(() => Canvas.hasPatternGhost())).toBe(false);
+});
+
+test('without a pattern there is no ghost, only the brush outline', async ({ page }) => {
+  await openEditor(page, { gh: gh(), pat: true });
+  await page.evaluate(() => { Tools.setPattern(null); Tools.setActive('pattern'); });
+  const box = await page.locator('#map-canvas, canvas').first().boundingBox();
+  await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+  await page.mouse.move(box!.x + box!.width / 2 + 5, box!.y + box!.height / 2 + 5);
+  await expect.poll(() => page.evaluate(() => Canvas.hasHighlight('pattern'))).toBe(true);
+  expect(await page.evaluate(() => Canvas.hasPatternGhost())).toBe(false);
+});
+
+test('changing the offset redraws the ghost with the shifted pattern', async ({ page }) => {
+  await openEditor(page, { gh: gh(), pat: true });
+  await page.evaluate(() => { Tools.setPattern(PatternBrush.makePattern(2, 1, ['Forest_1', 'Water_1'], 'two')); Brush.setSize(0); Tools.setActive('pattern'); });
+  const box = await page.locator('#map-canvas, canvas').first().boundingBox();
+  const at = (dx: number) => page.mouse.move(box!.x + box!.width / 2 + dx, box!.y + box!.height / 2 + dx);
+  await at(0); await at(4);
+  const before = await page.evaluate(() => Tools.patternCells([{ col: 10, row: 10 }])[0].id);
+  await page.locator('#pattern-ox').fill('1');
+  await at(8);
+  const after = await page.evaluate(() => Tools.patternCells([{ col: 10, row: 10 }])[0].id);
+  expect(after).not.toBe(before);
+  await expect(page.locator('#pattern-info')).toContainText('under the cursor');
+});
