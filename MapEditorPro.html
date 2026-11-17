@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <link rel="icon" type="image/png" href="favicon.png">
-<title>Post Apo Map Editor 2026.11.17.12364f7c</title>
+<title>Post Apo Map Editor 2026.07.16.717ca1c</title>
 <style>
 /* ── Reset & theme variables ──────────────────────────────── */
 *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2897,7 +2897,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.17";
-const COMMIT  = "12364f7c";
+const COMMIT  = "e20efe5f";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10808,11 +10808,40 @@ const GitHubSync = (() => {
     document.getElementById('gh-cm-modal').style.display = 'none';
   }
 
+  // ── Package atlases ───────────────────────────────────────────
+  // The compressed atlases the game loads are built on GitHub (workflow package-atlases.yml) from the published PNGs: the browser cannot
+  // compress. A push of sprites starts it by itself; packages/atlas-request.json starts it by hand. source.json, written next to the atlas,
+  // lists the sprites it was built from (git blob ids = the "sha" of the Contents API), so the state is a comparison, not a guess.
+  const _ATLAS_GROUPS = { hex: 'sprites/hex', buildings: 'sprites/buildings', coast: 'sprites/terrain/coastline' };
+
+  /** { state: 'current' | 'stale' | 'none' | 'unknown', builtAt, changed: [names] } for a published package. Throws when GitHub cannot be read. */
+  async function atlasStatus(id) {
+    const built = await readRepoFile(`packages/${id}/atlas/source.json`);
+    const now = {};
+    for (const [g, dir] of Object.entries(_ATLAS_GROUPS))
+      for (const f of await _listFolder(`packages/${id}/${dir}`)) if (f.type !== 'dir' && /\.png$/.test(f.name)) now[`${g}/${f.name}`] = f.sha;
+    if (!built) {
+      const any = await _listFolder(`packages/${id}/atlas`);
+      return { state: any.length ? 'unknown' : 'none', builtAt: null, changed: [] };   // 'unknown': built before the record existed
+    }
+    const was = built.json.sprites || {};
+    const changed = [...new Set([...Object.keys(now), ...Object.keys(was)])].filter(k => now[k] !== was[k]).map(k => k.split('/').pop().replace(/\.png$/, ''));
+    return { state: changed.length ? 'stale' : 'current', builtAt: built.json.builtAt || null, changed };
+  }
+
+  /** Asks GitHub to rebuild the atlases that are out of date (one small commit; the workflow does the rest). Returns true when written. */
+  async function requestAtlasRebuild(id, why) {
+    const cur = await readRepoFile('packages/atlas-request.json');
+    await _putText('packages/atlas-request.json', JSON.stringify({ package: id, why: why || 'manual', requestedAt: new Date().toISOString() }, null, 1) + '\n',
+      `atlas: rebuild requested for ${id}`, cur ? cur.sha : undefined);
+    return true;
+  }
+
   return {
     isPATConfigured, getPAT, setPAT, validatePAT,
     openPATSettings, _onValidateClick,
     TERRAIN_SPRITE_SETS, terrainSpriteProblem, uploadTerrainSprites, sha256Hex, _readRepoBytes, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
-    _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, roadsGate, BASE_URL, readRepoFile, readRepoJson,
+    _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, roadsGate, BASE_URL, readRepoFile, readRepoJson, atlasStatus, requestAtlasRebuild,
     _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
@@ -14812,6 +14841,7 @@ const Packages = (() => {
       const main = grp('pkg-act-main',
         _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }),
         _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
+      if (!p.localOnly) main.append(_btn('Atlases', 'Check that the game’s compressed atlases match the published sprites, or rebuild them (GitHub builds them after every publish)', () => openAtlases(p.id), { 'data-pkg-id': p.id }));
       if (!p.localOnly) main.append(_btn('Pull from server', 'Replace this package’s local hex tiles and buildings with the published ones (local edits to it are lost)', () => pullFromServer(p.id), { 'data-pkg-id': p.id }));
       const actionGroups = [main];
       if (!p.isDefault) {
@@ -15914,6 +15944,35 @@ const Packages = (() => {
     return { go, newer };
   }
 
+  // The game reads compressed atlases built from the sprites; GitHub builds them after a publish (a few minutes). Asked here as well, once the
+  // last file is written, so a run always starts after the whole publish, and the author is told it is on its way. Never fails the publish.
+  async function _requestAtlases(id) {
+    try {
+      await GitHubSync.requestAtlasRebuild(id, 'publish');
+      UI.toast(`🗜 Atlases of "${id}" are being rebuilt on GitHub (a few minutes). The game shows the new sprites in atlas modes after that.`, { ms: 8000 });
+    } catch(e) {
+      UI.toast(`⚠ Published, but the atlas rebuild could not be requested: ${e.message}`, { sticky: true, detail: `GitHub also starts it by itself after sprites are pushed. Or use Atlases on the ${id} row.` });
+    }
+  }
+
+  // PACKAGES > Atlases: is the atlas current, and rebuild it.
+  async function openAtlases(id) {
+    let st;
+    try { st = await GitHubSync.atlasStatus(id); }
+    catch(e) { return UI.toast('⚠ Could not read the atlas state from GitHub', { detail: e.message, ms: 6000 }); }
+    const when = st.builtAt ? ` Built ${String(st.builtAt).replace('T', ' ').slice(0, 16)} UTC.` : '';
+    const text = {
+      current: `The atlases of "${id}" match its published sprites.${when}`,
+      stale: `The atlases of "${id}" are OUT OF DATE: ${st.changed.length} sprite(s) differ (${st.changed.slice(0, 6).join(', ')}${st.changed.length > 6 ? ', …' : ''}). GitHub normally rebuilds them a few minutes after a publish.${when}`,
+      none: `"${id}" has no atlases yet.`,
+      unknown: `"${id}" has atlases built before their record existed, so they cannot be compared. Rebuilding creates the record.`,
+    }[st.state];
+    const ok = await UI.confirm('Atlases', text, 'Rebuild runs on GitHub (a few minutes). It only rebuilds when the sprites changed since the last build.', 'Rebuild atlases');
+    if (!ok) return;
+    try { await GitHubSync.requestAtlasRebuild(id, 'manual'); UI.toast(`🗜 Atlas rebuild requested for "${id}". Check again in a few minutes.`, { ms: 7000 }); }
+    catch(e) { UI.toast('⚠ Could not request the rebuild: ' + e.message, { ms: 8000 }); }
+  }
+
   async function openPublishConfirm(id) {
     if (isDefault(id)) {
       // postapoc: the existing base publish functions (they also write the root copies old game builds read)
@@ -15929,6 +15988,7 @@ const Packages = (() => {
       const b = await GitHubSync.publishBuildingsDb({ skipManifest: true });
       const c = await GitHubSync.publishAllSprites({ skipManifest: true });
       if (a || b || c) await GitHubSync.refreshBaseManifestSafely(true);   // one refresh (one version bump) for all three
+      if (c) await _requestAtlases(id);
       return;
     }
     const skinProblems = skinSlotProblems(id);
@@ -16239,6 +16299,7 @@ const Packages = (() => {
       } else {
         UI.toast(`✅ ${entry.name} v${newVersion} published${spriteNote}`);
       }
+      await _requestAtlases(id);
       renderPanel();
       return { ok: true, version: newVersion };
   }
@@ -17212,7 +17273,7 @@ const Packages = (() => {
            renderPanel, renderBadges, renderActiveDropdowns, renderFilterChips, openSkinSlots, skinSlotProblems, applySkinSuggestions,
            isPkgVisible, togglePkgFilter,
            spriteSrc, openReskinPicker, reskinTargetId, reskinSourcePackages, ensureReskinDependency, aliasSourceSprite, normalizeSpriteFile, checkSpriteName, sanitizeSpriteName, isSafeSpriteName, migrateFlatSprites, openTerrainUpload, openNewModal, closeNewModal, _autoSlugId, createPackage,
-           openPublishConfirm, openPublishDialog, pullFromServer, nextVersion, findMissingSprites, diffAgainstServer, serverNewer, publishPackage, publishPackageSprites, _publishedHashes, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
+           openPublishConfirm, openAtlases, openPublishDialog, pullFromServer, nextVersion, findMissingSprites, diffAgainstServer, serverNewer, publishPackage, publishPackageSprites, _publishedHashes, confirmDelete, deletePackage, usage, listTrash, restoreDeleted, discardDeleted,
            _loadJSZip, exportPackage,
            openImportModal, _onImportFilePicked, closeImportModal, validatePackageZip, getImportPlan,
            _rewriteEntries, _rewriteAll, _rollback, getImportResult, confirmImport, _serverIdProblem,

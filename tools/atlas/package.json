@@ -1,0 +1,6 @@
+{
+  "name": "atlas-tools",
+  "private": true,
+  "description": "Dependencies of the atlas builder (CI installs just these, not the editor's test stack)",
+  "dependencies": { "pngjs": "7.0.0" }
+}
