@@ -6,6 +6,7 @@ Format: `## [version] — [date]`
 ## Unreleased
 
 ### Publishing
+- **Atlases are rebuilt on GitHub after every publish.** The game loads compressed atlases built from a package's PNGs; they used to be built by hand on one Mac. The workflow `package-atlases.yml` (tools/atlas, no Unity) now builds them after sprites are pushed. Publish asks for the rebuild once its last file is written and says so; **PACKAGES > Atlases** shows whether the atlas matches the published sprites and rebuilds it on request.
 - Unified **Publish Package Data** (menu bar): publishes the active package after a diff against the server that now also lists new and changed sprites; sprites whose sha256 already matches the server `manifest.json` are skipped (no or unreadable manifest uploads everything). The base package (`postapoc`) goes through the same dialog with its own confirmation and still writes the root copies for old game builds.
 - **Publish Common Data**: Upgrade DB, Common settings and `localization.json` in one confirmation; only changed files are written. The menu is now Publish Package Data, Publish Common Data, Publish Map and Clean Ghost Sprites; the old per-database entries are gone from the menu (the functions remain).
 
