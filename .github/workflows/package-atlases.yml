@@ -1,0 +1,112 @@
+name: Package Atlases
+
+# Keeps the compressed atlases of content packages (packages/<id>/atlas/) in step with their sprites. The editor publishes PNGs to gh-pages;
+# the game loads the atlases built from them (packed pages, ASTC). The browser cannot compress, so this job does, on a GitHub runner: no
+# one's computer has to be on. Every push that touches package sprites runs it; it waits until the publish has finished, rebuilds only the
+# packages whose sprites differ from the ones their atlas was built from (atlas/source.sha256), commits the result and pushes it.
+# "Rebuild atlases" in the editor's Content Manager pushes packages/atlas-request.json, which runs it too. Nothing is built when all are current.
+
+on:
+  push:
+    branches: [gh-pages]
+    paths:
+      - 'packages/*/sprites/**'
+      - 'packages/atlas-request.json'
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Rebuild every package even when its sprites have not changed"
+        type: boolean
+        default: false
+
+# A publish is many commits (one per file): a newer push cancels the run that is waiting or building, and the last one wins.
+concurrency:
+  group: package-atlases
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+env:
+  ASTCENC_VERSION: "5.7.1"
+
+jobs:
+  atlases:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+
+      - name: Wait for the publish to finish
+        if: github.event_name == 'push'
+        run: sleep 90
+
+      - name: Take the latest content
+        run: git fetch --quiet origin gh-pages && git reset --quiet --hard origin/gh-pages
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install the builder
+        run: npm install --prefix tools/atlas --omit=dev --no-audit --no-fund --silent
+
+      - name: Cache astcenc
+        id: astc
+        uses: actions/cache@v4
+        with:
+          path: ~/astcenc
+          key: astcenc-${{ env.ASTCENC_VERSION }}-linux-x64
+
+      - name: Install astcenc
+        if: steps.astc.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p ~/astcenc && cd ~/astcenc
+          BASE="https://github.com/ARM-software/astc-encoder/releases/download/${ASTCENC_VERSION}"
+          curl -fsSL -O "$BASE/astcenc-${ASTCENC_VERSION}-linux-x64.zip" -O "$BASE/release-sha256.txt"
+          grep "astcenc-${ASTCENC_VERSION}-linux-x64.zip" release-sha256.txt | sha256sum -c -
+          unzip -q "astcenc-${ASTCENC_VERSION}-linux-x64.zip"
+
+      - name: Pick the astcenc build for this CPU
+        run: |
+          BIN=$(find ~/astcenc -type f -name 'astcenc-avx2' | head -1)
+          grep -q avx2 /proc/cpuinfo || BIN=$(find ~/astcenc -type f -name 'astcenc-sse4.1' | head -1)
+          chmod +x "$BIN"; echo "ASTCENC=$BIN" >> "$GITHUB_ENV"; "$BIN" -version | head -2
+
+      - name: Find stale packages
+        id: stale
+        run: |
+          OUT=$(node tools/atlas/build-atlases.mjs --site . --check || true)
+          echo "$OUT"
+          LIST=$(echo "$OUT" | awk -F': ' '/: (stale|no-atlas)/ {print $1}' | tr '\n' ' ')
+          if [ "${{ inputs.force }}" = "true" ]; then LIST=$(echo "$OUT" | awk -F': ' '{print $1}' | tr '\n' ' '); fi
+          echo "Packages to rebuild: ${LIST:-none}"
+          echo "list=${LIST}" >> "$GITHUB_OUTPUT"
+
+      - name: Build atlases
+        if: steps.stale.outputs.list != ''
+        env:
+          LIST: ${{ steps.stale.outputs.list }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          ARGS=(); [ "$FORCE" = "true" ] && ARGS+=(--force)
+          node tools/atlas/build-atlases.mjs --site . --astcenc "$ASTCENC" --quality medium "${ARGS[@]}" $LIST
+
+      - name: Commit and push the atlases
+        if: steps.stale.outputs.list != ''
+        env:
+          LIST: ${{ steps.stale.outputs.list }}
+        run: |
+          git add -A packages
+          if git diff --cached --quiet; then echo "No atlas changed"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --quiet -m "atlas: $(echo $LIST) (rebuilt from the published sprites)"
+          # the editor may have published meanwhile; only packages/*/atlas/ is ours, so rebasing is safe
+          for i in 1 2 3; do
+            git pull --quiet --rebase origin gh-pages && git push --quiet origin HEAD:gh-pages && { echo "Pushed"; exit 0; }
+            sleep 5
+          done
+          echo "::error::Could not push the atlases to gh-pages"; exit 1

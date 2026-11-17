@@ -74,7 +74,7 @@ test('the trash and restore UI from Phase 0 is still in the panel', async ({ pag
 test('row actions are grouped and Delete is set apart', async ({ page }) => {
   await openTab(page, { registry: [{ id: 'hs', name: 'HS', version: '1.0.0', isDefault: false }] });
   const row = page.locator('#pkg-panel tr[data-pkg="hs"]');
-  await expect(row.locator('.pkg-act-main button')).toHaveText(['↓ Export', 'Publish', 'Pull from server']);
+  await expect(row.locator('.pkg-act-main button')).toHaveText(['↓ Export', 'Publish', 'Atlases', 'Pull from server']);
   await expect(row.locator('.pkg-act-more button')).toHaveText(['Terrain sprites', 'Skin slots', 'Details']);
   await expect(row.locator('.pkg-act-danger button')).toHaveText(['Delete']);
   // the default package has no content tools and no Delete

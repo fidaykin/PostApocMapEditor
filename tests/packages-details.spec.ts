@@ -218,7 +218,7 @@ test('publish: preview.png before the registry, package.json LAST; local descrip
   const r = await page.evaluate(() => Packages.publishPackage('a', { bump: 'minor' }));
   expect(r).toMatchObject({ ok: true, version: '1.3.0' });
   await waitForLastWrite(gh, PJ('a'));
-  const order = gh.writeLog.map(w => w.path);
+  const order = gh.writeLog.map(w => w.path).filter(p => p !== 'packages/atlas-request.json');   // the atlas request follows the commit marker: it is not data
   expect(order[order.length - 1]).toBe(PJ('a'));
   expect(order.indexOf('packages/a/preview.png')).toBeGreaterThan(order.indexOf('packages/a/sprites/hex/S1.png'));
   expect(order.indexOf('packages/a/preview.png')).toBeLessThan(order.indexOf(REG));
