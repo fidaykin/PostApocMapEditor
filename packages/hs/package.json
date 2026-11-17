@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.35",
+  "version": "1.0.36",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -161,6 +161,11 @@
       "version": "1.0.35",
       "date": "2026-11-16",
       "note": "test sprites  for HS ( Forest_NB_1, Forest_New_1, Plain_NB_1, Forest_NB_2 was deleted by Content Manager"
+    },
+    {
+      "version": "1.0.36",
+      "date": "2026-11-17",
+      "note": "wrong sprites deleted"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
