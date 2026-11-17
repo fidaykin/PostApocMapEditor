@@ -1480,6 +1480,7 @@ body.mode-common #map-io    { display: none; }
 <script src="dev/map-convert.js?v=1"></script>
 <script src="dev/loc-records.js?v=1"></script>
 <script src="dev/brush.js?v=1"></script>
+<script src="dev/pattern-brush.js?v=1"></script>
 <script src="dev/zone-painter.js?v=22"></script>
 <script src="dev/map-jobs.js?v=6"></script>
 </head>
@@ -1699,6 +1700,7 @@ body.mode-common #map-io    { display: none; }
             <button type="button" class="tool-btn" aria-label="Polygon" data-tool="polygon" onclick="Tools.setActive('polygon')" title="Polygon (G) - click corners, Enter or double-click fills, Shift = outline, Esc cancels. Two corners draw a line, collinear corners only their outline">⬠</button>
             <button type="button" class="tool-btn" aria-label="Eraser" data-tool="eraser" onclick="Tools.setActive('eraser')" title="Eraser (X) - drag to reset tiles to Plain_1 and remove buildings, roads, bridges and under-terrain. Brush size applies, symmetry mirrors it like Paint, Esc cancels the stroke. Zones and settlements are not touched">⌫</button>
             <button type="button" class="tool-btn" aria-label="Scatter" data-tool="scatter" onclick="Tools.setActive('scatter')" title="Scatter (A) - drag to sprinkle random variants of the selected terrain inside the brush, at the density below. Directional river/lake pieces are not scattered. Same seed gives the same result for the same drag; symmetry mirrors the area (each cell rolls on its own), Esc cancels the stroke">⁘</button>
+            <button type="button" class="tool-btn" aria-label="Pattern brush" data-tool="pattern" onclick="Tools.setActive('pattern')" title="Pattern brush - drag to paint with a map fragment (a pattern) tiled on the map grid. Pick the pattern below: a map from the server, a map file, or the current selection. Brush size and symmetry apply.">▦</button>
             <button type="button" class="tool-btn" aria-label="Replace tile" data-tool="replace" onclick="Tools.setActive('replace')" title="Replace (H) - click a tile to replace every tile of that id with the active terrain (inside the selection when there is one; the whole map otherwise). Edit > Replace Tile... picks both ids. One undo step">⇄</button>
             <button type="button" class="tool-btn" data-tool="zone" onclick="Tools.setActive('zone')" title="Zone Painter (Z)" aria-label="Zone painter">🗺️</button>
           </div>
@@ -1776,6 +1778,24 @@ body.mode-common #map-io    { display: none; }
                    style="width:70px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center"></label>
         </div>
         <div id="scatter-variants" style="display:flex;flex-wrap:wrap;gap:2px 8px;margin-top:4px;max-height:64px;overflow-y:auto"></div>
+      </div>
+      <div id="pattern-row" style="display:none;padding:4px 0 0;font-size:11px;color:var(--muted)">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <label>Pattern
+            <select id="pattern-source" aria-label="Pattern source" style="max-width:150px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px"></select></label>
+          <button type="button" class="hexdb-tool-btn" id="pattern-file-btn" title="Choose a map file (JSON) from this computer" onclick="document.getElementById('pattern-file').click()">Open file…</button>
+          <button type="button" class="hexdb-tool-btn" id="pattern-sel-btn" title="Use the current selection (M) as the pattern" onclick="Tools.patternFromSelection()">From selection</button>
+          <input id="pattern-file" type="file" accept=".json,application/json" style="display:none">
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:4px;flex-wrap:wrap">
+          <label title="Shift the pattern right by this many columns">X
+            <input id="pattern-ox" type="number" step="1" value="0" onkeydown="if(event.key==='Enter')this.blur()" style="width:44px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center"></label>
+          <label title="Shift the pattern down by this many rows">Y
+            <input id="pattern-oy" type="number" step="1" value="0" onkeydown="if(event.key==='Enter')this.blur()" style="width:44px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px;text-align:center"></label>
+          <label title="Tile ids the pattern does not draw, comma separated (e.g. Plain_1 to paint only the other tiles). Empty = everything is drawn">Skip
+            <input id="pattern-skip" type="text" placeholder="none" onkeydown="if(event.key==='Enter')this.blur()" style="width:90px;background:#111;border:1px solid #444;color:#4fc3f7;font-size:11px;padding:2px 4px;border-radius:3px"></label>
+        </div>
+        <div id="pattern-info" style="margin-top:4px">No pattern chosen</div>
       </div>
       </div>
       <!-- Terrain / tile picker: takes all the remaining height (min 320 px) and scrolls inside itself -->
@@ -2898,7 +2918,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.17";
-const COMMIT  = "e20efe5f";
+const COMMIT  = "5a27ef12";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -6747,7 +6767,7 @@ const Tools = (() => {
     settlement: 'Place Settlement', erase: 'Erase Settlement',
     zone: 'Zone Painter', object: 'Place Building', 'erase-object': 'Erase Building',
     road: 'Draw Road', 'road-connect': 'Connect Road', 'erase-road': 'Erase Road', bridge: 'Place Bridge',
-    line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser', scatter: 'Scatter', marquee: 'Select Region', paste: 'Paste', replace: 'Replace Tile',
+    line: 'Line', circle: 'Circle', polygon: 'Polygon', eraser: 'Eraser', scatter: 'Scatter', pattern: 'Pattern Brush', marquee: 'Select Region', paste: 'Paste', replace: 'Replace Tile',
     city: 'Move City',
   };
   // Which layer each tool EDITS (T2.18). _onDown refuses a press on a locked layer before any stroke state or History step.
@@ -6755,7 +6775,7 @@ const Tools = (() => {
   // every registered tool must be in exactly one). 'paste' writes at the drop (dropFloat), which asks the lock per layer.
   const TOOL_LAYER = {
     paint: 'terrain', fill: 'terrain', rect: 'terrain', line: 'terrain', circle: 'terrain', polygon: 'terrain',
-    scatter: 'terrain', eraser: 'terrain', replace: 'terrain',
+    scatter: 'terrain', pattern: 'terrain', eraser: 'terrain', replace: 'terrain',
     object: 'objects', 'erase-object': 'objects', bridge: 'objects',
     road: 'roads', 'road-connect': 'roads', 'erase-road': 'roads',
     settlement: 'settlements', erase: 'settlements', city: 'settlements',
@@ -6767,7 +6787,7 @@ const Tools = (() => {
     if (tool === 'paint' && UI.getSelectedBridgeAxis() >= 0) return 'objects';
     return TOOL_LAYER[tool] || null;
   }
-  const _DRAG_WRITERS = new Set(['paint', 'eraser', 'scatter', 'object', 'erase-object', 'zone', 'road', 'erase-road']);   // tools whose _onMove writes
+  const _DRAG_WRITERS = new Set(['paint', 'eraser', 'scatter', 'pattern', 'object', 'erase-object', 'zone', 'road', 'erase-road']);   // tools whose _onMove writes
   let _lockToasted = false;     // one lock toast per press / command
   // True (with ONE toast per press or command) when the layer is locked. `fresh` starts a new command (cut, delete ...).
   function _layerLocked(layer, fresh) {
@@ -6855,9 +6875,10 @@ const Tools = (() => {
     _isDown = false;                    // a drag started with the old tool must not keep writing with the new one
     _lastPainted = null; _lastZonePainted = null; _lastObjectPainted = null; _lastRoadPainted = null;
     _cancelShape();
-    _eraseStroke = false; _eraseToken = null; _scatterRun = null; _clearEraserHover();
+    _eraseStroke = false; _eraseToken = null; _scatterRun = null; _patternRun = null; _clearEraserHover();
     if (name !== 'paste') { _float = null; _floatKey = ''; _floatCell = null; Canvas.setGhost(null); }
     _showScatterRow(name === 'scatter');
+    _showPatternRow(name === 'pattern');
     const pt = document.getElementById('paste-tools');
     if (pt) pt.style.display = name === 'paste' ? 'flex' : 'none';
     document.querySelectorAll('.tool-btn').forEach(btn => {
@@ -6891,8 +6912,8 @@ const Tools = (() => {
   // Tool-options strip: the brush radius and the symmetry select stay in place for every tool, but are dimmed (data-relevant
   // = "false", with a hint in the tooltip) for the tools that do not use them. Nothing is disabled: a size set now applies
   // to the next brush tool.
-  const BRUSH_TOOLS = ['paint', 'eraser', 'scatter', 'line', 'circle', 'zone'];
-  const SYM_TOOLS = ['paint', 'rect', 'line', 'circle', 'polygon', 'eraser', 'scatter'];
+  const BRUSH_TOOLS = ['paint', 'eraser', 'scatter', 'pattern', 'line', 'circle', 'zone'];
+  const SYM_TOOLS = ['paint', 'rect', 'line', 'circle', 'polygon', 'eraser', 'scatter', 'pattern'];
   function _markOptionRelevance(name) {
     const label = TOOL_NAMES[name] || name;
     const set = (el, on, tip) => {
@@ -7666,7 +7687,7 @@ const Tools = (() => {
   // ONLY through _beginLazyStroke(), which resets the token, and call _pushOnce() immediately before its first write.
   // The road tools ('road', 'road-connect', 'erase-road') follow this: a click is a one-event stroke.
   // The Eraser is a stroke tool too but pushes eagerly (it begins with _beginLazyStroke(); _pushOnce()).
-  const _LAZY_STROKE_TOOLS = new Set(['scatter', 'object', 'erase-object', 'road', 'road-connect', 'erase-road', 'bridge']);
+  const _LAZY_STROKE_TOOLS = new Set(['scatter', 'pattern', 'object', 'erase-object', 'road', 'road-connect', 'erase-road', 'bridge']);
   const ROAD_TOOLS = new Set(['road', 'road-connect', 'erase-road']);
   function _isStrokeTool(t) { return t === 'eraser' || _LAZY_STROKE_TOOLS.has(t); }
   function _beginLazyStroke() {
@@ -7688,11 +7709,12 @@ const Tools = (() => {
     _eraserHoverKey = '';
     Canvas.setHighlight('eraser', null, null, { render: false });
     Canvas.setHighlight('scatter', null, null, { render: false });
+    Canvas.setHighlight('pattern', null, null, { render: false });
   }
   // Hover preview (eraser and scatter): the brush disc plus its symmetric copies, in the tool's own layer. Scatter
   // previews the AREA only, never the random cells. Recomputed only when the cell, radius, mode or map changes.
   function _updateEraserHover(cell) {
-    if ((_active !== 'eraser' && _active !== 'scatter') || !cell) return;
+    if ((_active !== 'eraser' && _active !== 'scatter' && _active !== 'pattern') || !cell) return;
     const key = _active + '|' + cell.col + ',' + cell.row + '|' + Brush.getSize() + '|' + _symMode + '|' + MAP_WIDTH + 'x' + MAP_HEIGHT;
     if (key === _eraserHoverKey && Canvas.hasHighlight(_active)) return;
     _eraserHoverKey = key;
@@ -7702,6 +7724,99 @@ const Tools = (() => {
   function _eraseAt(col, row) {
     _resetCells(Brush.getAffectedTiles(col, row));
     Canvas.render();
+  }
+
+  // ── Pattern brush ──────────────────────────────────────────
+  // Paints a map fragment tiled on the map grid (pattern-brush.js: pattern / source / mapper). Same stroke shape as Scatter: one lazy History step,
+  // the brush disc expanded by the symmetry mode, one _writeTerrain pass with per-cell ids. The pattern lives here until another is chosen.
+  let _pattern = null;                 // the loaded Pattern { name, w, h, ids }
+  let _patternRun = null;              // { visited } of the stroke in progress
+  const _patternServerMaps = [];       // [{ name, fileName }] from maps/map_list.json, filled when the row is first shown
+  function _patternOpts() {
+    const num = id => { const v = parseInt((document.getElementById(id) || {}).value, 10); return Number.isFinite(v) ? v : 0; };
+    const skip = ((document.getElementById('pattern-skip') || {}).value || '').split(',').map(x => x.trim()).filter(Boolean);
+    return { mapper: 'grid', ox: num('pattern-ox'), oy: num('pattern-oy'), skip };
+  }
+  function _patternInfo() {
+    const el = document.getElementById('pattern-info');
+    if (el) el.textContent = _pattern ? `${_pattern.name}: ${_pattern.w}×${_pattern.h}${_pattern.h % 2 ? ' (odd height: odd rows shift at every repeat, use an even height for seamless tiling)' : ''}` : 'No pattern chosen';
+  }
+  function setPattern(p) { _pattern = p; _patternInfo(); }
+  function getPattern() { return _pattern; }
+  // Cells of the brushed area -> the writes for this pattern (pure part of a stroke; also the API for tests and scripts)
+  function patternCells(cells, opts) {
+    if (!_pattern) return [];
+    return PatternBrush.cellsFor(cells, _pattern, Object.assign(_patternOpts(), opts || {}));
+  }
+  function _patternStamp(cells, visited, beforeWrite) {
+    if (_fillBusy || !_pattern) return 0;
+    const fresh = [];
+    for (const c of _expandSymmetry(cells)) {
+      if (c.col < 0 || c.col >= MAP_WIDTH || c.row < 0 || c.row >= MAP_HEIGHT) continue;
+      const k = c.row * MAP_WIDTH + c.col;
+      if (visited.has(k)) continue;
+      visited.add(k);
+      fresh.push(c);
+    }
+    const picks = patternCells(fresh).filter(p => !getSatelliteAnchor(p.col, p.row));
+    if (!picks.length) return 0;
+    if (beforeWrite) beforeWrite();
+    return _writeTerrain(picks, null).length;
+  }
+  // Public: paint the pattern over `cells` (caller owns History.push)
+  function paintPattern(cells, opts) { return _patternStamp(cells, (opts && opts.visited) || new Set(), null); }
+  function _patternAt(col, row) {
+    _patternStamp(Brush.getAffectedTiles(col, row), _patternRun.visited, _pushOnce);
+    Canvas.render();
+  }
+  function _patternBegin(col, row) {
+    if (!_pattern) { UI.toast('Pattern brush: choose a pattern first (a map, a file or the selection)'); return false; }
+    _patternRun = { visited: new Set() };
+    _beginLazyStroke();
+    _patternAt(col, row);
+    return true;
+  }
+  async function _patternLoad(source, arg, label) {
+    try {
+      const p = await PatternBrush.load(source, arg);
+      setPattern(p);
+      UI.toast('Pattern: ' + p.name + ' (' + p.w + '×' + p.h + ')');
+    } catch (e) { UI.toast('⚠ Pattern not loaded: ' + e.message, { ms: 6000 }); }
+  }
+  function patternFromSelection() {
+    if (Selection.isEmpty()) return UI.toast('Select a region first (M)');
+    const cells = Selection.getCells().map(c => ({ col: c.col, row: c.row, id: mapData[c.row * MAP_WIDTH + c.col] }));
+    return _patternLoad('cells', { cells, name: 'Selection' });
+  }
+  async function _patternFromServer(fileName, name) {
+    try {
+      const res = await fetch(`${BASE_URL}/maps/${encodeURIComponent(fileName)}?_=${Date.now()}`);
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      await _patternLoad('map', { json: await res.json(), name });
+    } catch (e) { UI.toast('⚠ Could not load the map: ' + e.message, { ms: 6000 }); }
+  }
+  async function _fillPatternSources() {
+    const sel = document.getElementById('pattern-source');
+    if (!sel || sel.dataset.filled) return;
+    sel.dataset.filled = '1';
+    sel.replaceChildren(new Option('Choose a map…', ''));
+    try {
+      const res = await fetch(`${BASE_URL}/maps/map_list.json?_=${Date.now()}`);
+      if (res.ok) for (const m of (await res.json()).maps || []) { _patternServerMaps.push(m); sel.add(new Option(m.name, m.fileName)); }
+    } catch (e) { /* offline: the file and selection sources still work */ }
+    sel.onchange = () => { const m = _patternServerMaps.find(x => x.fileName === sel.value); sel.blur(); if (m) _patternFromServer(m.fileName, m.name); };
+    const file = document.getElementById('pattern-file');
+    if (file) file.onchange = async () => {
+      const f = file.files && file.files[0]; file.value = '';
+      if (!f) return;
+      try { await _patternLoad('map', { json: JSON.parse(await f.text()), name: f.name.replace(/\.json$/i, '') }); }
+      catch (e) { UI.toast('⚠ Not a map file: ' + e.message, { ms: 6000 }); }
+    };
+  }
+  function _showPatternRow(on) {
+    const row = document.getElementById('pattern-row');
+    if (row) row.style.display = on ? '' : 'none';
+    if (on) { _fillPatternSources(); _patternInfo(); }
   }
 
   // ── Scatter (T2.7) ─────────────────────────────────────────
@@ -8518,6 +8633,10 @@ const Tools = (() => {
         if (!_scatterBegin(col, row)) { _isDown = false; break; }
         _lastPainted = { col, row };
         break;
+      case 'pattern':
+        if (!_patternBegin(col, row)) { _isDown = false; break; }
+        _lastPainted = { col, row };
+        break;
       case 'replace': {
         _isDown = false;
         const rAnc = getSatelliteAnchor(col, row);                 // a footprint cell stands for its anchor (like the eyedropper)
@@ -8606,7 +8725,7 @@ const Tools = (() => {
         if (k !== _shapeKey) { _shapeKey = k; _previewPolygon(hov); }
       }
     }
-    if (_active === 'eraser' || _active === 'scatter') {
+    if (_active === 'eraser' || _active === 'scatter' || _active === 'pattern') {
       const hv = Canvas.screenToHex(sx, sy);
       if (HexUtils.inBounds(hv.col, hv.row, MAP_WIDTH, MAP_HEIGHT)) { _hoverCell = hv; _updateEraserHover(hv); }
     }
@@ -8616,7 +8735,7 @@ const Tools = (() => {
     if (_isStrokeTool(_active) && _eraseStroke && _eraseStale()) {   // the map was replaced mid-stroke: stop, write nothing
       _eraseStroke = false; _eraseToken = null; _isDown = false; _lastPainted = null; _lastObjectPainted = null; _lastRoadPainted = null; _clearEraserHover(); _objPending.clear();
       if (_active === 'road-connect') _clearRoadStart(false);
-      UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : _active === 'eraser' ? 'Eraser stopped — the map changed' : ROAD_TOOLS.has(_active) ? 'Road tool stopped — the map changed' : _active === 'bridge' ? 'Bridge tool stopped — the map changed' : 'Building tool stopped — the map changed');
+      UI.toast(_active === 'scatter' ? 'Scatter stopped — the map changed' : _active === 'pattern' ? 'Pattern brush stopped — the map changed' : _active === 'eraser' ? 'Eraser stopped — the map changed' : ROAD_TOOLS.has(_active) ? 'Road tool stopped — the map changed' : _active === 'bridge' ? 'Bridge tool stopped — the map changed' : 'Building tool stopped — the map changed');
       Canvas.render();
       return;
     }
@@ -8630,6 +8749,11 @@ const Tools = (() => {
       case 'eraser':
         if (_lastPainted && _lastPainted.col === col && _lastPainted.row === row) break;
         _eraseAt(col, row);
+        _lastPainted = { col, row };
+        break;
+      case 'pattern':
+        if (!_eraseStroke || !_patternRun || (_lastPainted && _lastPainted.col === col && _lastPainted.row === row)) break;
+        _patternAt(col, row);
         _lastPainted = { col, row };
         break;
       case 'scatter':
@@ -8697,11 +8821,11 @@ const Tools = (() => {
     // NEXT mousemove (_onMove), not here. A mouseup that follows the replacement directly just ends the stroke without the
     // stale toast: strokes write only from mousedown/mousemove, so nothing more is written, and the lazy History step (if any)
     // stays on the stack.
-    _eraseStroke = false; _eraseToken = null; _scatterRun = null;
+    _eraseStroke = false; _eraseToken = null; _scatterRun = null; _patternRun = null;
     if (_active === 'object' && _objPending.size) _confirmObjectReplace();   // after the stroke: one dialog for every cell that needs it
     if ((_active === 'line' || _active === 'circle') && _shapeStart) { _finishDrag(e); return; }
 
-    if (_active === 'paint' || _active === 'eraser' || _active === 'scatter' || _active === 'road' || _active === 'road-connect' || _active === 'erase-road') {
+    if (_active === 'paint' || _active === 'eraser' || _active === 'scatter' || _active === 'pattern' || _active === 'road' || _active === 'road-connect' || _active === 'erase-road') {
       Canvas.drawMinimap();
     } else if (_active === 'rect' && _rectStart && _toolsRectPreview) {
       if (_shapeStale()) { _cancelStale(); Canvas.render(); return; }
@@ -8761,7 +8885,7 @@ const Tools = (() => {
     if (selId && typeof MutationObserver !== 'undefined') new MutationObserver(_renderScatterChips).observe(selId, { childList: true, characterData: true, subtree: true });
     // a click on the map hands the focus back from the scatter fields so tool shortcuts keep working
     const cvs = document.getElementById('map-canvas');
-    if (cvs) cvs.addEventListener('mousedown', () => { const a = document.activeElement; if (a && a.closest && a.closest('#scatter-row')) a.blur(); });
+    if (cvs) cvs.addEventListener('mousedown', () => { const a = document.activeElement; if (a && a.closest && a.closest('#scatter-row, #pattern-row')) a.blur(); });
     // A button released outside the canvas (or the window) still finishes the shape: no stuck tool state.
     // (an eraser stroke never needs this: leaving the canvas fires mouseleave first and ends it)
     window.addEventListener('mouseup', e => { if ((_shapeStart || (_active === 'marquee' && _rectStart)) && e.button === 0) _onUp(e); });
@@ -8775,7 +8899,7 @@ const Tools = (() => {
       if (_active === 'marquee' && _rectStart) { _isDown = false; _rectStart = null; _toolsRectPreview = null; Canvas.render(); }
       if (_isStrokeTool(_active)) {
         const had = _eraseStroke || Canvas.hasHighlight(_active);
-        _isDown = false; _eraseStroke = false; _eraseToken = null; _scatterRun = null; _lastPainted = null; _lastObjectPainted = null; _lastRoadPainted = null; _hoverCell = null; _clearEraserHover();
+        _isDown = false; _eraseStroke = false; _eraseToken = null; _scatterRun = null; _patternRun = null; _lastPainted = null; _lastObjectPainted = null; _lastRoadPainted = null; _hoverCell = null; _clearEraserHover();
         if (had) { IO.scheduleAutoSave(); Canvas.render(); }
       }
     });
@@ -8819,7 +8943,7 @@ const Tools = (() => {
       if (e.altKey && (e.code === 'BracketLeft' || e.code === 'BracketRight')) return;   // Alt + a bracket key: not ours (unchanged)
       const mapMode = document.body.classList.contains('mode-map');
       if (e.key === 'Escape' && _eraseStroke) {      // cancel the stroke: roll back ITS History step (no-op if it is no longer on top)
-        _eraseStroke = false; _isDown = false; _lastPainted = null; _lastRoadPainted = null; _scatterRun = null;
+        _eraseStroke = false; _isDown = false; _lastPainted = null; _lastRoadPainted = null; _scatterRun = null; _patternRun = null;
         if (!_eraseStale()) History.rollback(_eraseToken);
         _eraseToken = null;
         if (_active === 'road-connect') _clearRoadStart(false);   // the rolled-back connection leaves no dangling start
@@ -8889,7 +9013,7 @@ const Tools = (() => {
     return true;
   }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { refreshBuildingPicker, replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, stepBrush, setAutoWaterEdges, getAutoWaterEdges, resolveWaterEdges: _resolveWaterEdges, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
+  return { refreshBuildingPicker, replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, setPattern, getPattern, patternCells, paintPattern, patternFromSelection, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, stepBrush, setAutoWaterEdges, getAutoWaterEdges, resolveWaterEdges: _resolveWaterEdges, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround, manualEdgesAround: _manualEdgesAround, AUTO_WATER_EDGES,
            fillAt: _fill, applyRect: _applyRect,
