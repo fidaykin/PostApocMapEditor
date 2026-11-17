@@ -6933,7 +6933,9 @@ const Tools = (() => {
     // Road/Bridge have their own dedicated placement tools (Draw Road, Connect
     // Road, Place Bridge) — excluded from the generic list to avoid a redundant,
     // confusing duplicate entry point.
-    const buildings = bridges ? _bridgeBuildings() : BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge' && !b.isRoad);
+    // The package chips above the grid (Packages.togglePkgFilter) hide a package's entries here, the same as in the left palette.
+    const visible = b => typeof Packages === 'undefined' || Packages.isPkgVisible(b.package);
+    const buildings = (bridges ? _bridgeBuildings() : BldDB.getAll().filter(b => b.id && b.buildingCategory !== 'Bridge' && !b.isRoad)).filter(visible);
     if (bridges) { if (!buildings.some(b => b.id === _selectedBridgeId)) _selectedBridgeId = buildings.length ? buildings[0].id : null; }
     else if (!_selectedBuildingId && buildings.length) _selectedBuildingId = buildings[0].id;
     const selId = bridges ? _selectedBridgeId : _selectedBuildingId;
@@ -6980,6 +6982,9 @@ const Tools = (() => {
     const label = document.getElementById('obj-building-label');
     if (label) label.textContent = (_active === 'bridge' ? _selectedBridgeId : _selectedBuildingId) || '';
   }
+
+  // Re-lists the open picker (the package filter changed). A closed picker is filled again when its tool is chosen.
+  function refreshBuildingPicker() { if (_buildingPickerOpen()) _populateBuildingPicker(_active === 'bridge' ? 'bridge' : 'object'); }
 
   function getSelectedBuildingId() { return _selectedBuildingId; }
   function getSelectedBridgeId() { return _selectedBridgeId; }
@@ -8883,7 +8888,7 @@ const Tools = (() => {
     return true;
   }
   function isStrokeActive() { return _isDown || _eraseStroke; }   // a mouse gesture is in progress (menu / dialog writers must wait)
-  return { replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, stepBrush, setAutoWaterEdges, getAutoWaterEdges, resolveWaterEdges: _resolveWaterEdges, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
+  return { refreshBuildingPicker, replaceTerrain, replaceInfo, openReplace, closeReplace, applyReplace, isStroking, isPasting, isMoving, cancelFloat, rotateFloat, mirrorFloat, getFloatBuffer, getFloatTransform, setFloatTransform, beginMove, copySelection, cutSelection, deleteSelection, beginPaste, dropFloat, scatterCells, paintCells: _applyTerrainCells, toolLayers: () => ({ map: Object.assign({}, TOOL_LAYER), nonWriting: Array.from(NON_WRITING_TOOLS), registered: Object.keys(TOOL_NAMES), codeTools: Object.values(CODE_TOOLS) }), scatterVariants: _scatterVariants, setScatterRng, getLastScatterSeed, eraseCells: _resetCells, removeSatellites: _removeSatellites, setSymmetry, getSymmetry, cycleSymmetry, stepBrush, setAutoWaterEdges, getAutoWaterEdges, resolveWaterEdges: _resolveWaterEdges, expandSymmetry: _expandSymmetry, init, setActive, getActive, selectBuilding, getSelectedBuildingId, getSelectedBridgeId, getRoadConnectStart, clearRoadStart: _clearRoadStart, moveCity, refreshBridgeButton, whenIdle, isFillBusy, isStrokeActive, guardBulkWrite, isTypingOrModal: _isTypingOrModal, toolKeys: () => ({ key: Object.assign({}, _KEY_TOOLS), code: Object.assign({}, _CODE_LETTER_TOOLS) }), toolNames: () => Object.assign({}, TOOL_NAMES),
           _lazyStrokeTools: _LAZY_STROKE_TOOLS, _beginLazyStroke, _pushOnce /* TEST HOOKS: the lazy-stroke registry */,
            _rectCells, applyTerrainCells: _applyTerrainCells, autoResolveEdgesAround: _autoResolveEdgesAround, manualEdgesAround: _manualEdgesAround, AUTO_WATER_EDGES,
            fillAt: _fill, applyRect: _applyRect,
@@ -16448,6 +16453,7 @@ const Packages = (() => {
     if (_hiddenPkgs.has(pkgId)) _hiddenPkgs.delete(pkgId);
     else _hiddenPkgs.add(pkgId);
     if (typeof UI !== 'undefined') UI.buildPalette();
+    if (typeof Tools !== 'undefined') Tools.refreshBuildingPicker();
     _renderFilterChips();
   }
 
