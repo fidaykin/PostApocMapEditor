@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.36",
+  "version": "1.0.37",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -166,6 +166,11 @@
       "version": "1.0.36",
       "date": "2026-11-17",
       "note": "wrong sprites deleted"
+    },
+    {
+      "version": "1.0.37",
+      "date": "2026-11-18",
+      "note": "added 7 Bordered Tiles  HS_Forest_B_1 HS_Forest_B_2 HS_Forest_B_3 HS_Plain_B_1 HS_Blain_B_2 HS_Grain_B_1 HS_Farm_B_1"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
