@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.38",
+  "version": "1.0.39",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -176,10 +176,15 @@
       "version": "1.0.38",
       "date": "2026-11-18",
       "note": "New border art for HS HS_Forest_B2_1 HS_Forest_B2_2 HS_Forest_B2_3 HS_Grain_B2_1 HS_Plain_B2_1 HS_Plain_B2_2 HS_Farm_B2_1"
+    },
+    {
+      "version": "1.0.39",
+      "date": "2026-11-18",
+      "note": "New HS  Tiles with borders B1"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 25323961,
+  "totalBytes": 25818684,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
