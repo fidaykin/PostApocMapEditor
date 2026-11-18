@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.39",
+  "version": "1.0.40",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -181,10 +181,15 @@
       "version": "1.0.39",
       "date": "2026-11-18",
       "note": "New HS  Tiles with borders B1"
+    },
+    {
+      "version": "1.0.40",
+      "date": "2026-11-18",
+      "note": "B5 version for Borders tiles"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 25818684,
+  "totalBytes": 25802902,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
