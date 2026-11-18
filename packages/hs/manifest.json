@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "id": "hs",
-  "version": "1.0.37",
+  "version": "1.0.38",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-11-18T12:46:18.812Z",
-  "totalBytes": 25827319,
+  "generatedAt": "2026-11-18T13:06:03.846Z",
+  "totalBytes": 25818684,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "2e5b957c0cc1315f2f9eec7b2df85afa0dfaed68e1825f224b10e7f91c46f397",
-      "size": 75370
+      "sha256": "8815af3d35433cf44f0d0b8d5e6b5813aceef21602d05db647e40e865cc09494",
+      "size": 75371
     },
     {
       "path": "hex_database.json",
-      "sha256": "9ba0bf3bed4f1f35c62a422ec3431c619b992f21bd988802f26239bdcc9f72e3",
-      "size": 83718
+      "sha256": "4951101f40524f037e973bca9f36d5d33ea37350213d521bd7ada9c096f5c06d",
+      "size": 83724
     },
     {
       "path": "sprites/buildings/HS_Abbey_1.png",
@@ -38,9 +38,9 @@
       "size": 312355
     },
     {
-      "path": "sprites/buildings/HS_Farm_B_1.png",
-      "sha256": "785575b4de53632f2d45215f2735919123b2b563de4954f61ee6726218ab34a5",
-      "size": 336240
+      "path": "sprites/buildings/HS_Farm_B2_2.png",
+      "sha256": "d3efa52e7b5c6e4bc92b52a929d7f351efbbf9b250285b754a3aeb9f02577d1c",
+      "size": 333523
     },
     {
       "path": "sprites/buildings/HS_FishTrap_1.png",
@@ -243,19 +243,19 @@
       "size": 273585
     },
     {
-      "path": "sprites/hex/HS_Forest_B_1.png",
-      "sha256": "1a94f4ba9b4028c9255246ae4d48e40982d546b30e8ec31abbb94697684f250d",
-      "size": 259281
+      "path": "sprites/hex/HS_Forest_B2_1.png",
+      "sha256": "12b7f290127b0e302a38852486ad2f804fa22e1d534781ad9e07bdf328d5fefc",
+      "size": 257491
     },
     {
-      "path": "sprites/hex/HS_Forest_B_2.png",
-      "sha256": "db7d2ee04590b656363d1f950010bea7752e58ac21e4586de10c57dd203b9c71",
-      "size": 296307
+      "path": "sprites/hex/HS_Forest_B2_2.png",
+      "sha256": "eac16b94faa1da43a69cec752f68a31295091dbbc257e3a4da9466fca0b24ca7",
+      "size": 293387
     },
     {
-      "path": "sprites/hex/HS_Forest_B_3.png",
-      "sha256": "a87d21d88b531ff35770e87629cf73baa4e14485aa3ce3f86455bd156604d398",
-      "size": 320299
+      "path": "sprites/hex/HS_Forest_B2_3.png",
+      "sha256": "a22384b82ecd98c7b2d117072bd3b0310ea187770bc024e7d31046b4e94aa621",
+      "size": 321666
     },
     {
       "path": "sprites/hex/HS_GemPond_1.png",
@@ -273,9 +273,9 @@
       "size": 339547
     },
     {
-      "path": "sprites/hex/HS_Grain_B_1.png",
-      "sha256": "155eeca271b7f097ebf895277a20aca514da40f7d2a900d5368280f8a53bca06",
-      "size": 342873
+      "path": "sprites/hex/HS_Grain_B2_1.png",
+      "sha256": "21ca74f9c19c956a9ef976d348bbe79659e1257bc4a0b948cf4d371c19fbb202",
+      "size": 351382
     },
     {
       "path": "sprites/hex/HS_Herbs_1.png",
@@ -293,14 +293,14 @@
       "size": 243818
     },
     {
-      "path": "sprites/hex/HS_Plain_B_1.png",
-      "sha256": "2f2f25bd5f3033a16eedfe1c1bc884d7b64ad35de5e7ab787eaf6255e3b64b71",
-      "size": 203269
+      "path": "sprites/hex/HS_Plain_B2_1.png",
+      "sha256": "f24a102de57bd43dc7aed7ca64fda91613dc70c183723244a38a4ca8f696847d",
+      "size": 196980
     },
     {
-      "path": "sprites/hex/HS_Plain_B_2.png",
-      "sha256": "3f4bc89ad2a5b1226372b1f6203fa31dab137f82b9dae39abd0e201299f90d62",
-      "size": 294427
+      "path": "sprites/hex/HS_Plain_B2_2.png",
+      "sha256": "5fdc0177b1c2e768d2eaa0a16051806ec8b4d991cb35049f2bf9013cae3fb51e",
+      "size": 289625
     },
     {
       "path": "sprites/hex/HS_RockySwamp_1.png",
