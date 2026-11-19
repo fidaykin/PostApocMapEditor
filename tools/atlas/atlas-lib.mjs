@@ -118,8 +118,24 @@ export function packBig(pageSize, align, gap, sprites) {
   return pages;
 }
 
+/**
+ * The dominant colour of an RGBA image as "rrggbb": the mean of the opaque pixels weighted by their alpha, so transparent edges do not darken it.
+ * "" when nothing is visible. The game uses it for far-zoom views that draw a tile as one colour.
+ */
+export function averageColour(pixels) {
+  let r = 0, g = 0, b = 0, w = 0;
+  for (let i = 0; i < pixels.length; i += 4) {
+    const a = pixels[i + 3];
+    if (!a) continue;
+    r += pixels[i] * a; g += pixels[i + 1] * a; b += pixels[i + 2] * a; w += a;
+  }
+  if (!w) return '';
+  const h = v => Math.round(v / w).toString(16).padStart(2, '0');
+  return h(r) + h(g) + h(b);
+}
+
 /** The PNGs of a folder, sorted by name: source-size ones are cells, the others (multi-tile sprites) are "big". */
-export function readFolder(dir, group, cell, hashes, cells, bigs) {
+export function readFolder(dir, group, cell, hashes, cells, bigs, colours = {}) {
   const files = fs.readdirSync(dir).filter(f => f.toLowerCase().endsWith('.png')).sort((a, b) => { const x = a.toLowerCase(), y = b.toLowerCase(); return x < y ? -1 : x > y ? 1 : 0; });
   for (const f of files) {
     const bytes = fs.readFileSync(path.join(dir, f)), name = f.replace(/\.png$/i, '');
@@ -127,6 +143,7 @@ export function readFolder(dir, group, cell, hashes, cells, bigs) {
     try { png = PNG.sync.read(bytes); } catch { console.warn(`not an image: ${path.join(dir, f)}`); continue; }
     const pixels = new Uint8Array(png.data.buffer, png.data.byteOffset, png.data.length);
     hashes[`${group}/${name}`] = sha256(bytes);
+    colours[`${group}/${name}`] = averageColour(pixels);
     if (png.width === cell && png.height === cell) cells.push({ name, pixels });
     else bigs.push({ name, group, width: png.width, height: png.height, pixels });
   }
@@ -166,12 +183,12 @@ export const blockOf = format => { const m = /^ASTC_(\d+x\d+)$/.exec(format); if
  */
 export function buildPackage({ groupDirs, outDir, config, astcenc, quality = 'medium', mipCount = 8, only = null, log = () => {} }) {
   fs.mkdirSync(outDir, { recursive: true });
-  const sources = {}, bigs = [], hashes = {};
+  const sources = {}, bigs = [], hashes = {}, colours = {};
   for (const group of config.groups) {
     const dir = groupDirs[group];
     if (!dir || !fs.existsSync(dir)) { log(`no folder for ${group}`); continue; }
     sources[group] = [];
-    readFolder(dir, group, config.sourceCell, hashes, sources[group], bigs);
+    readFolder(dir, group, config.sourceCell, hashes, sources[group], bigs, colours);
   }
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'atlas-'));
   const indexes = [];
@@ -195,7 +212,7 @@ export function buildPackage({ groupDirs, outDir, config, astcenc, quality = 'me
         const file = `${page.group}_${page.cell}_${i}.bin`;
         fs.writeFileSync(path.join(vdir, file), raw);
         index.pages.push({ file, group: page.group, cell: page.cell, width: page.width, height: page.height, mipCount: n, bytes: raw.length, sha256: sha256(raw) });
-        for (const sp of page.sprites) index.sprites.push({ name: sp.name, group: sp.group, page: i, x: sp.x, y: sp.y, w: sp.w, h: sp.h, src: hashes[`${sp.group}/${sp.name}`] ?? '' });
+        for (const sp of page.sprites) index.sprites.push({ name: sp.name, group: sp.group, page: i, x: sp.x, y: sp.y, w: sp.w, h: sp.h, src: hashes[`${sp.group}/${sp.name}`] ?? '', color: colours[`${sp.group}/${sp.name}`] ?? '' });
       });
       fs.writeFileSync(path.join(vdir, 'atlas.json'), JSON.stringify(index, null, 4));
       log(`${v.name}: ${index.pages.length} page(s), ${index.sprites.length} sprites, ${(index.pages.reduce((s, p) => s + p.bytes, 0) / 1048576).toFixed(1)} MB`);
