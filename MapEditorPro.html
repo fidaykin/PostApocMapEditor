@@ -2916,8 +2916,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.11.17";
-const COMMIT  = "222712f0";
+const VERSION = "2026.11.19";
+const COMMIT  = "3510a712";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10992,7 +10992,7 @@ const GitHubSync = (() => {
   // The compressed atlases the game loads are built on GitHub (workflow package-atlases.yml) from the published PNGs: the browser cannot
   // compress. A push of sprites starts it by itself; packages/atlas-request.json starts it by hand. source.json, written next to the atlas,
   // lists the sprites it was built from (git blob ids = the "sha" of the Contents API), so the state is a comparison, not a guess.
-  const _ATLAS_GROUPS = { hex: 'sprites/hex', buildings: 'sprites/buildings', coast: 'sprites/terrain/coastline' };
+  const _ATLAS_GROUPS = { hex: 'sprites/hex', buildings: 'sprites/buildings', coast: 'sprites/terrain/coastline', roads: 'sprites/terrain/roads' };
 
   /** { state: 'current' | 'stale' | 'none' | 'unknown', builtAt, changed: [names] } for a published package. Throws when GitHub cannot be read. */
   async function atlasStatus(id) {
