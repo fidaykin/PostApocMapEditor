@@ -1,5 +1,5 @@
 {
- "package": "postapoc",
- "why": "roads group added to the atlas builder (PR #35)",
- "requestedAt": "2026-11-19T10:08:35.000Z"
+ "package": "all",
+ "why": "per-sprite colour and ATLAS_FORMAT 2 (PR #36)",
+ "requestedAt": "2026-11-19T11:45:13.000Z"
 }
