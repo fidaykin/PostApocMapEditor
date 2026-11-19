@@ -11,7 +11,7 @@
             "height": 2048,
             "mipCount": 8,
             "bytes": 4987904,
-            "sha256": "e76ac7d5297458381f2985ad49931ca8b5940880ec28b11a276ff375f20e4095"
+            "sha256": "e196533c4bf238634fe4157b29bd68594d5793c3b35fb4e4b6c5766a4495edf0"
         },
         {
             "file": "buildings_256_1.bin",
@@ -21,7 +21,7 @@
             "height": 1024,
             "mipCount": 8,
             "bytes": 2497600,
-            "sha256": "f64276e6c95207112c57db4e8e983ab6ed76fe569b63607b2a819e94f12f74cc"
+            "sha256": "4836819b84bbdb011c53ec449eb45b276ad71f9da3f507179869fbb2f8558fc4"
         },
         {
             "file": "coast_256_2.bin",
@@ -31,7 +31,7 @@
             "height": 256,
             "mipCount": 8,
             "bytes": 631680,
-            "sha256": "5235399f9c10e839fbfba288ef2db84b46267e24884578419439901e799de662"
+            "sha256": "379f8a3b6023361d3651a64d04536298b75d5874e1264e7afa1b1a62628abb34"
         },
         {
             "file": "big_0_3.bin",
@@ -41,7 +41,7 @@
             "height": 1344,
             "mipCount": 8,
             "bytes": 1032400,
-            "sha256": "bf43fc0c4e53a8681b5aa4068ef2a90663a74ae624992605300142ab8cbf981f"
+            "sha256": "942a543e5a35c486dd3e52ee7027a6db244ea13ab3321d511ba48aefdb76d920"
         }
     ],
     "sprites": [
@@ -1186,24 +1186,24 @@
             "src": "95554abb85c49af7d442c8d48b163a160896f278331e58e9d9ac4c533b4f8f9a"
         },
         {
-            "name": "Medieval_WaterStones_1",
+            "name": "Medieval_Water_1",
             "group": "hex",
             "page": 0,
             "x": 512,
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647"
+            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1"
         },
         {
-            "name": "Medieval_Water_1",
+            "name": "Medieval_WaterStones_1",
             "group": "hex",
             "page": 0,
             "x": 768,
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1"
+            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647"
         },
         {
             "name": "BoneMine_Kaiju_1",
@@ -1406,24 +1406,24 @@
             "src": "4844b3dd0a179612b591712fe0be448f894ded812403f1925147be00890d2ed3"
         },
         {
-            "name": "Decameroon_SmallShipyard_1",
+            "name": "Decameroon_SmallShip_1",
             "group": "buildings",
             "page": 1,
             "x": 1024,
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
+            "src": "22d027e9eba4da5675bcd0776fce4354350ede607db918f4dec393e511299a01"
         },
         {
-            "name": "Decameroon_SmallShip_1",
+            "name": "Decameroon_SmallShipyard_1",
             "group": "buildings",
             "page": 1,
             "x": 1280,
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "22d027e9eba4da5675bcd0776fce4354350ede607db918f4dec393e511299a01"
+            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
         },
         {
             "name": "Decameroon_StoneConveyor_1",
@@ -1436,24 +1436,24 @@
             "src": "07d35223ed7ce3ffb3f5a5a3459de95d91c2b7e2481ab13980b14483ce6ee9db"
         },
         {
-            "name": "Decameroon_StoneMineBig_1",
+            "name": "Decameroon_StoneMine_1",
             "group": "buildings",
             "page": 1,
             "x": 1792,
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "f44188e093a02990b9276de0d56555d30e9cda68e4d47be2c4f78bb2bccef690"
+            "src": "93786fb30c55eb99558b2edf6041a8b919f371956bfb740560ba6f4d39cba66d"
         },
         {
-            "name": "Decameroon_StoneMine_1",
+            "name": "Decameroon_StoneMineBig_1",
             "group": "buildings",
             "page": 1,
             "x": 2048,
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "93786fb30c55eb99558b2edf6041a8b919f371956bfb740560ba6f4d39cba66d"
+            "src": "f44188e093a02990b9276de0d56555d30e9cda68e4d47be2c4f78bb2bccef690"
         },
         {
             "name": "Decameroon_Tavern_1",
@@ -1656,24 +1656,24 @@
             "src": "fa0b909d34549c4d8f8fcbfa120861db63b50609bbaec882a85b22e866111565"
         },
         {
-            "name": "Medieval_SmallShipyard_1",
+            "name": "Medieval_SmallShip_1",
             "group": "buildings",
             "page": 1,
             "x": 3328,
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
+            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b"
         },
         {
-            "name": "Medieval_SmallShip_1",
+            "name": "Medieval_SmallShipyard_1",
             "group": "buildings",
             "page": 1,
             "x": 3584,
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b"
+            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
         },
         {
             "name": "Medieval_StoneConveyor_1",
@@ -1686,24 +1686,24 @@
             "src": "ae006ff84658298241a8298c2785dcd5ad1e88fea138474d5e157d239389edab"
         },
         {
-            "name": "Medieval_StoneMineBig_1",
+            "name": "Medieval_StoneMine_1",
             "group": "buildings",
             "page": 1,
             "x": 0,
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "700f4a9f85e3cf4d3c80316d604afcc82f2957a66dc97f56c9759bf1d97fe9f5"
+            "src": "809f530621b6591a5b42598bc8b933b6c4c96af8e826f230427668fd754c9d10"
         },
         {
-            "name": "Medieval_StoneMine_1",
+            "name": "Medieval_StoneMineBig_1",
             "group": "buildings",
             "page": 1,
             "x": 256,
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "809f530621b6591a5b42598bc8b933b6c4c96af8e826f230427668fd754c9d10"
+            "src": "700f4a9f85e3cf4d3c80316d604afcc82f2957a66dc97f56c9759bf1d97fe9f5"
         },
         {
             "name": "Medieval_Tavern_1",

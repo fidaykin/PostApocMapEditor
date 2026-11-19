@@ -11,7 +11,7 @@
             "height": 2304,
             "mipCount": 8,
             "bytes": 5597760,
-            "sha256": "74b9cce167a3ed9c9f78e0596521d2752172507abc5d06f5632b3a6aa9269e72"
+            "sha256": "980d4f9ce305d78b19feb7546ab141ef0c5c9e512266d1bbff98eea3c7fad754"
         },
         {
             "file": "buildings_512_1.bin",
@@ -21,7 +21,7 @@
             "height": 2560,
             "mipCount": 8,
             "bytes": 6229440,
-            "sha256": "1cd699ddd577d3f0cec191083c14a8afa3888f3b063be6a4a65dfb46aa5fff81"
+            "sha256": "7bf228a3e63343affd399cfb0106c29e243678653ae8f0716a1e2242db21f5a6"
         },
         {
             "file": "coast_512_2.bin",
@@ -31,27 +31,37 @@
             "height": 512,
             "mipCount": 8,
             "bytes": 1256064,
-            "sha256": "fafe34d8b7b60b4e3780fcbf2fa46b62829b38f6649a95173b8237f961197530"
+            "sha256": "7becb9e663713973599bb6ce4dc208b5cafdf426119a72df6322beef63c50cdc"
         },
         {
-            "file": "big_0_3.bin",
+            "file": "roads_512_3.bin",
+            "group": "roads",
+            "cell": 512,
+            "width": 4096,
+            "height": 1536,
+            "mipCount": 8,
+            "bytes": 3731840,
+            "sha256": "c3c33a96c62470cd112f9c2c42d47cb01bfb1355c5f988482b064ee313bb02f3"
+        },
+        {
+            "file": "big_0_4.bin",
             "group": "big",
             "cell": 0,
             "width": 3936,
             "height": 3552,
             "mipCount": 8,
             "bytes": 8285296,
-            "sha256": "609b168932d9aefcac76ea6d4aa4d5f4ba577c8cc31fe8b99da0807b3666ede1"
+            "sha256": "ae79dc8f1f425fd06365de8c92e743888fd80b2275c6d665ce18a33c62358eac"
         },
         {
-            "file": "big_0_4.bin",
+            "file": "big_0_5.bin",
             "group": "big",
             "cell": 0,
             "width": 2148,
             "height": 696,
             "mipCount": 8,
             "bytes": 887072,
-            "sha256": "61705ce0524c1d55d70df0cc0da834af30943463f92fa65d3f4b3e0e7f8be2e3"
+            "sha256": "897ff934cae36d6619ccf01d56c2a188a887aa0f8fb5e891aef1f8ad484d733a"
         }
     ],
     "sprites": [
@@ -1036,24 +1046,24 @@
             "src": "fffe542fbcf07fc04a18c625cd380d1359008353c7ab772e4c49317b06b1232a"
         },
         {
-            "name": "OilWater",
+            "name": "Oil_1",
             "group": "hex",
             "page": 0,
             "x": 512,
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "8e10b45c5b34883e647c8f10fafe48bcf9c947428c611424c9c25b3743128c05"
+            "src": "b0433e6326956adb47007457d7de579e603c8656d33e9275b4c7c4ff7876fb01"
         },
         {
-            "name": "Oil_1",
+            "name": "OilWater",
             "group": "hex",
             "page": 0,
             "x": 768,
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "b0433e6326956adb47007457d7de579e603c8656d33e9275b4c7c4ff7876fb01"
+            "src": "8e10b45c5b34883e647c8f10fafe48bcf9c947428c611424c9c25b3743128c05"
         },
         {
             "name": "Plain_1",
@@ -1686,24 +1696,24 @@
             "src": "4844b3dd0a179612b591712fe0be448f894ded812403f1925147be00890d2ed3"
         },
         {
-            "name": "Decameroon_SmallShipyard_1",
+            "name": "Decameroon_SmallShip_1",
             "group": "buildings",
             "page": 1,
             "x": 2560,
             "y": 1024,
             "w": 512,
             "h": 512,
-            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
+            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b"
         },
         {
-            "name": "Decameroon_SmallShip_1",
+            "name": "Decameroon_SmallShipyard_1",
             "group": "buildings",
             "page": 1,
             "x": 3072,
             "y": 1024,
             "w": 512,
             "h": 512,
-            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b"
+            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
         },
         {
             "name": "Decameroon_StoneConveyor_1",
@@ -1716,24 +1726,24 @@
             "src": "07d35223ed7ce3ffb3f5a5a3459de95d91c2b7e2481ab13980b14483ce6ee9db"
         },
         {
-            "name": "Decameroon_StoneMineBig_1",
+            "name": "Decameroon_StoneMine_1",
             "group": "buildings",
             "page": 1,
             "x": 0,
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "f44188e093a02990b9276de0d56555d30e9cda68e4d47be2c4f78bb2bccef690"
+            "src": "93786fb30c55eb99558b2edf6041a8b919f371956bfb740560ba6f4d39cba66d"
         },
         {
-            "name": "Decameroon_StoneMine_1",
+            "name": "Decameroon_StoneMineBig_1",
             "group": "buildings",
             "page": 1,
             "x": 512,
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "93786fb30c55eb99558b2edf6041a8b919f371956bfb740560ba6f4d39cba66d"
+            "src": "f44188e093a02990b9276de0d56555d30e9cda68e4d47be2c4f78bb2bccef690"
         },
         {
             "name": "Decameroon_Tavern_1",
@@ -1746,24 +1756,24 @@
             "src": "2852b3c4a510f550e4b227e5cfc89a81077edfcd77325ff75a2543acf95b1507"
         },
         {
-            "name": "FarmGrain",
+            "name": "Farm_1",
             "group": "buildings",
             "page": 1,
             "x": 1536,
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345"
+            "src": "7f79b2652e65eba2c433cd2b6983f48dd5843caeb1354b7c7bb8197a45da8706"
         },
         {
-            "name": "Farm_1",
+            "name": "FarmGrain",
             "group": "buildings",
             "page": 1,
             "x": 2048,
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "7f79b2652e65eba2c433cd2b6983f48dd5843caeb1354b7c7bb8197a45da8706"
+            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345"
         },
         {
             "name": "GoldMine_1",
@@ -1916,9 +1926,249 @@
             "src": "5d54dd8be7945c21162d1e84c0e7847a57ce5d8ec755f4df70abca0b128c7631"
         },
         {
+            "name": "road_hex_00_none",
+            "group": "roads",
+            "page": 3,
+            "x": 0,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "ac54c5a77b77855dd83e8a5fd16357ee8916355cb29b9c39eaec3cee98915cc1"
+        },
+        {
+            "name": "road_hex_01_SE",
+            "group": "roads",
+            "page": 3,
+            "x": 512,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "b1c1fef53ba909618c1b7f0e84d43c9020ea1cdad3dfc34c472978f5212b8fde"
+        },
+        {
+            "name": "road_hex_03_SENE",
+            "group": "roads",
+            "page": 3,
+            "x": 1024,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "b37f537d87b4aa9c3115275e93d00192e2affeb9a0b069599d24b99e1f2035e8"
+        },
+        {
+            "name": "road_hex_04_N",
+            "group": "roads",
+            "page": 3,
+            "x": 1536,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "a2a910cbe713a3a7a24dcca40267936013404392e83c6cc44d42ecdfa940030b"
+        },
+        {
+            "name": "road_hex_05_SEN",
+            "group": "roads",
+            "page": 3,
+            "x": 2048,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "d4582700ee4ff406e97e46126de027856b0a1ca202f1eec58bbc2efdd7b3f196"
+        },
+        {
+            "name": "road_hex_06_NEN",
+            "group": "roads",
+            "page": 3,
+            "x": 2560,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "a33fd56045cfd6f6276a87033c489020b563cabf0ef5655b57f98d54d4664fde"
+        },
+        {
+            "name": "road_hex_07_SENEN",
+            "group": "roads",
+            "page": 3,
+            "x": 3072,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "1ed4d008979c01ddad4a64811b8d7f30f6ade9afc6980b534df85e69a7f92861"
+        },
+        {
+            "name": "road_hex_09_SENW",
+            "group": "roads",
+            "page": 3,
+            "x": 3584,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "651daa357b71517a52d03143e0ca291715bc7146d037763aeb436a2973497af3"
+        },
+        {
+            "name": "road_hex_10_NENW",
+            "group": "roads",
+            "page": 3,
+            "x": 0,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "30cc4eefdd48edd7f0bc49866585a286c377c544587c8937e039e3640d3a1749"
+        },
+        {
+            "name": "road_hex_11_SENENW",
+            "group": "roads",
+            "page": 3,
+            "x": 512,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "75b796da47460c33d47af98851a0a9619cc992adc01cf04998b8653d09e166d3"
+        },
+        {
+            "name": "road_hex_13_SENNW",
+            "group": "roads",
+            "page": 3,
+            "x": 1024,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "3c91bf590270d9961180dbc19b75605033f5365e4bb50093e5b435ce51b6ee25"
+        },
+        {
+            "name": "road_hex_14_NENNW",
+            "group": "roads",
+            "page": 3,
+            "x": 1536,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "f2f0b7aa4ffaca653d8daec6c81d3ac16479bc5d59c3cab913f6146887209e15"
+        },
+        {
+            "name": "road_hex_15_SENENNW",
+            "group": "roads",
+            "page": 3,
+            "x": 2048,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "cef6d8f9d5fea6309e5e7408199e4f6087a70736a9c1513dfa1b93e8607f0f41"
+        },
+        {
+            "name": "road_hex_21_SENSW",
+            "group": "roads",
+            "page": 3,
+            "x": 2560,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "beb761a7b2efb28cf140d25127018f7d8bf791d816e73326f5d75d100299add8"
+        },
+        {
+            "name": "road_hex_23_SENENSW",
+            "group": "roads",
+            "page": 3,
+            "x": 3072,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "187a52a9c4f079af57f27633aaa06ec5e634350ad080860f7e8dfc3c278782d8"
+        },
+        {
+            "name": "road_hex_27_SENENWSW",
+            "group": "roads",
+            "page": 3,
+            "x": 3584,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "216b6115c1588a01314551d273a53be5e73dae073de8736fc200b5b990f7be4b"
+        },
+        {
+            "name": "road_hex_31_SENENNWSW",
+            "group": "roads",
+            "page": 3,
+            "x": 0,
+            "y": 0,
+            "w": 512,
+            "h": 512,
+            "src": "0d0c87cc09a050e3fc58a95d915f76724036ecbdcc024a6cb1515e21fdaba9df"
+        },
+        {
+            "name": "road_hex_36_NS",
+            "group": "roads",
+            "page": 3,
+            "x": 512,
+            "y": 0,
+            "w": 512,
+            "h": 512,
+            "src": "81a9a7a709b10b691f22879b233945d76fb9ee8f51b84da006933c049898b7cb"
+        },
+        {
+            "name": "road_hex_37_SENS",
+            "group": "roads",
+            "page": 3,
+            "x": 1024,
+            "y": 0,
+            "w": 512,
+            "h": 512,
+            "src": "9d335efbc31945438b737d74914e611fe59aeab68ca91cad66bcb913e91e90c7"
+        },
+        {
+            "name": "road_hex_39_SENENS",
+            "group": "roads",
+            "page": 3,
+            "x": 1536,
+            "y": 0,
+            "w": 512,
+            "h": 512,
+            "src": "f55c146a7cef033db9bb5c57d2f3a1426e3b8bdb036e3df37a55503056869ff6"
+        },
+        {
+            "name": "road_hex_45_SENNWS",
+            "group": "roads",
+            "page": 3,
+            "x": 2048,
+            "y": 0,
+            "w": 512,
+            "h": 512,
+            "src": "7944198a96667949e02b93570d87c6efecae27d582cd8555904f9bce804e9f5d"
+        },
+        {
+            "name": "road_hex_46_NENNWS",
+            "group": "roads",
+            "page": 3,
+            "x": 2560,
+            "y": 0,
+            "w": 512,
+            "h": 512,
+            "src": "67dc516e2ab7657d5a85b13bdc6544f1fb68de2ec11fc2efc58a00bdcd9921bc"
+        },
+        {
+            "name": "road_hex_47_SENENNWS",
+            "group": "roads",
+            "page": 3,
+            "x": 3072,
+            "y": 0,
+            "w": 512,
+            "h": 512,
+            "src": "7625d2093874d6473fc0f0c475e3bf9099216d44649eb9c74ce2502d43fd4d53"
+        },
+        {
+            "name": "road_hex_63_SENENNWSWS",
+            "group": "roads",
+            "page": 3,
+            "x": 3584,
+            "y": 0,
+            "w": 512,
+            "h": 512,
+            "src": "ce548d6cff4ddc15745d8ab66312037942e94951a77effadad1dcd701ea89131"
+        },
+        {
             "name": "Decameroon_Settlements_Big_1",
             "group": "hex",
-            "page": 3,
+            "page": 4,
             "x": 0,
             "y": 2211,
             "w": 1286,
@@ -1928,7 +2178,7 @@
         {
             "name": "Decameroon_Settlements_Medieval_Town_1",
             "group": "hex",
-            "page": 3,
+            "page": 4,
             "x": 1320,
             "y": 2211,
             "w": 1286,
@@ -1938,7 +2188,7 @@
         {
             "name": "MainSettlement_Kaiju_1",
             "group": "hex",
-            "page": 3,
+            "page": 4,
             "x": 2640,
             "y": 2211,
             "w": 1286,
@@ -1948,7 +2198,7 @@
         {
             "name": "Setlements_Big_Chicken_1",
             "group": "hex",
-            "page": 3,
+            "page": 4,
             "x": 0,
             "y": 843,
             "w": 1286,
@@ -1958,7 +2208,7 @@
         {
             "name": "Crystal_Kaiju_Alife_V_1",
             "group": "hex",
-            "page": 3,
+            "page": 4,
             "x": 1320,
             "y": 1197,
             "w": 1054,
@@ -1968,7 +2218,7 @@
         {
             "name": "Monster_Chicken_Big_2",
             "group": "hex",
-            "page": 3,
+            "page": 4,
             "x": 2400,
             "y": 1243,
             "w": 697,
@@ -1978,7 +2228,7 @@
         {
             "name": "Crystal_Kaiju_Die_V1",
             "group": "hex",
-            "page": 3,
+            "page": 4,
             "x": 0,
             "y": 6,
             "w": 1054,
@@ -1988,7 +2238,7 @@
         {
             "name": "Crystal_Kaiju_Defeat_V_1",
             "group": "hex",
-            "page": 3,
+            "page": 4,
             "x": 1080,
             "y": 33,
             "w": 1151,
@@ -1998,7 +2248,7 @@
         {
             "name": "Crystal_Kaiju_skeleton_V_2",
             "group": "hex",
-            "page": 3,
+            "page": 4,
             "x": 2256,
             "y": 59,
             "w": 1068,
@@ -2008,7 +2258,7 @@
         {
             "name": "Crystal_Kaiju_skeleton_V_1",
             "group": "hex",
-            "page": 4,
+            "page": 5,
             "x": 0,
             "y": 3,
             "w": 1065,
@@ -2018,7 +2268,7 @@
         {
             "name": "Crystal_Kaiju_skeleton_V_3",
             "group": "hex",
-            "page": 4,
+            "page": 5,
             "x": 1092,
             "y": 29,
             "w": 1046,
