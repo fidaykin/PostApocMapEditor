@@ -25,6 +25,16 @@ test.describe('atlas builder', () => {
     expect(matchesMask('axb', 'a.b')).toBe(false);   // the dot is literal
   });
 
+  test('averageColour: alpha-weighted mean as rrggbb, empty when nothing is visible', async () => {
+    const { averageColour } = await lib;
+    expect(averageColour(solid(4, 255))).toBe('ff0000');
+    const px = new Uint8Array(8); px.set([200, 100, 0, 255], 0); px.set([0, 0, 0, 0], 4);   // the transparent pixel must not darken it
+    expect(averageColour(px)).toBe('c86400');
+    px.set([100, 0, 0, 255], 4);                                                               // two opaque pixels: plain mean
+    expect(averageColour(px)).toBe('963200');
+    expect(averageColour(new Uint8Array(16))).toBe('');
+  });
+
   test('downscale averages blocks and keeps transparent edges untinted', async () => {
     const { downscale } = await lib;
     const src = new Uint8Array(4 * 4 * 4);
@@ -132,6 +142,8 @@ fs.writeFileSync(a[2],Buffer.concat([Buffer.alloc(16),Buffer.alloc(n*16,1)]));`)
     const raw = fs.readFileSync(path.join(out, 'astc6x6-mips-hex256', hex.file));
     expect(sha256(raw)).toBe(hex.sha256);
     expect(idx.sprites[0].src).toMatch(/^[0-9a-f]{64}$/);
+    expect(idx.sprites.find((s: any) => s.name === 'Farm').color).toBe('280000');                // png(…, r=40): the colour travels with the sprite
+    expect(idx.sprites.find((s: any) => s.name === 'Mega').color).toBe('1e0000');               // big sprites too (r=30)
     // stamp changes with a sprite and with the config, and ignores non-png files
     const cfg = Buffer.from(JSON.stringify(config));
     const s1 = stamp(site, 'p', cfg);
