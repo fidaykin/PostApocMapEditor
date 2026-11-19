@@ -1,7 +1,7 @@
 {
   "pageSize": 4096,
   "sourceCell": 512,
-  "groups": ["hex", "buildings", "coast"],
+  "groups": ["hex", "buildings", "coast", "roads"],
   "variants": [
     { "name": "astc6x6",            "format": "ASTC_6x6", "mips": false, "cell": 512 },
     { "name": "astc6x6-mips",       "format": "ASTC_6x6", "mips": true,  "cell": 512 },

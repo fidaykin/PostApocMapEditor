@@ -103,7 +103,7 @@ test.describe('atlas builder', () => {
     for (const d of Object.values(dirs) as string[]) fs.mkdirSync(d, { recursive: true });
     const png = (file: string, w: number, h: number, r: number) => { const p = new PNG({ width: w, height: h }); for (let i = 0; i < p.data.length; i += 4) { p.data[i] = r; p.data[i + 3] = 255; } fs.writeFileSync(file, PNG.sync.write(p)); };
     png(path.join(dirs.hex, 'B_Hex.png'), 512, 512, 20); png(path.join(dirs.hex, 'a_Hex.png'), 512, 512, 10);
-    png(path.join(dirs.hex, 'Mega.png'), 700, 900, 30); png(path.join(dirs.buildings, 'Farm.png'), 512, 512, 40);
+    png(path.join(dirs.hex, 'Mega.png'), 700, 900, 30); png(path.join(dirs.buildings, 'Farm.png'), 512, 512, 40); png(path.join(dirs.roads, 'road_hex_04_N.png'), 512, 512, 50);
     // fake astcenc: a header + 16 bytes per block; records the flags it got
     const fake = path.join(tmp, 'astcenc');
     fs.writeFileSync(fake, `#!/usr/bin/env node
@@ -121,7 +121,8 @@ fs.writeFileSync(a[2],Buffer.concat([Buffer.alloc(16),Buffer.alloc(n*16,1)]));`)
     expect(hex).toMatchObject({ cell: 256, width: 4096, height: 256 });                 // hex group goes down to 256 in this variant
     expect(idx.pages.find((p: any) => p.group === 'buildings').cell).toBe(512);
     expect(idx.pages.at(-1).group).toBe('big');                                         // the 700x900 sprite is packed whole
-    expect(idx.sprites.map((s: any) => s.name).sort()).toEqual(['B_Hex', 'Farm', 'Mega', 'a_Hex'].sort());
+    expect(idx.sprites.map((s: any) => s.name).sort()).toEqual(['B_Hex', 'Farm', 'Mega', 'a_Hex', 'road_hex_04_N'].sort());
+    expect(idx.sprites.find((s: any) => s.name === 'road_hex_04_N').group).toBe('roads');   // roads are packed as their own group
     expect(idx.sprites.find((s: any) => s.name === 'a_Hex').x).toBe(0);                 // sorted case-insensitively: a_Hex before B_Hex
     expect(idx.sprites.find((s: any) => s.name === 'B_Hex').x).toBe(256);
     // mips: 4096x256 in 6x6 blocks, 8 levels
@@ -138,6 +139,9 @@ fs.writeFileSync(a[2],Buffer.concat([Buffer.alloc(16),Buffer.alloc(n*16,1)]));`)
     expect(stamp(site, 'p', cfg)).toBe(s1);
     png(path.join(dirs.hex, 'a_Hex.png'), 512, 512, 11);
     expect(stamp(site, 'p', cfg)).not.toBe(s1);
+    const s2 = stamp(site, 'p', cfg);
+    png(path.join(dirs.roads, 'road_hex_04_N.png'), 512, 512, 51);
+    expect(stamp(site, 'p', cfg)).not.toBe(s2);                                         // a changed road makes the atlas stale
     expect(stamp(site, 'p', Buffer.from('{}'))).not.toBe(stamp(site, 'p', cfg));
     fs.rmSync(tmp, { recursive: true, force: true });
   });

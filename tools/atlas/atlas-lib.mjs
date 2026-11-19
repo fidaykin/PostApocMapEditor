@@ -210,13 +210,14 @@ export const groupDirs = (site, id) => ({
   hex: path.join(site, 'packages', id, 'sprites', 'hex'),
   buildings: path.join(site, 'packages', id, 'sprites', 'buildings'),
   coast: path.join(site, 'packages', id, 'sprites', 'terrain', 'coastline'),
+  roads: path.join(site, 'packages', id, 'sprites', 'terrain', 'roads'),
 });
 
 /** One hash for everything an atlas is made of: every packed PNG (name + content) and the config. Same value as Tools/atlas/build-package-atlases.sh in the Unity repo. */
 export function stamp(site, id, configBytes) {
   let text = '';
   const dirs = groupDirs(site, id);
-  for (const g of ['hex', 'buildings', 'coast']) {
+  for (const g of ['hex', 'buildings', 'coast', 'roads']) {
     const dir = dirs[g];
     if (!fs.existsSync(dir)) continue;
     const files = fs.readdirSync(dir).filter(f => f.endsWith('.png')).sort((a, b) => Buffer.compare(Buffer.from(a), Buffer.from(b)));
