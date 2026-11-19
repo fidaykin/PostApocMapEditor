@@ -53,7 +53,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "634a55aaad9ed832bdbe19e0414b5a0c81aaad9b1394413b41feaced00eda4f3"
+            "src": "634a55aaad9ed832bdbe19e0414b5a0c81aaad9b1394413b41feaced00eda4f3",
+            "color": "d6a67c"
         },
         {
             "name": "Decameroon_BrokenBoat_1",
@@ -63,7 +64,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "e47232531db58289ad91f82aeaff2f9e2ecc3ea743b80fc6b1d0b1208519e938"
+            "src": "e47232531db58289ad91f82aeaff2f9e2ecc3ea743b80fc6b1d0b1208519e938",
+            "color": "707b97"
         },
         {
             "name": "Decameroon_BrokenShip_1",
@@ -73,7 +75,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20"
+            "src": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20",
+            "color": "775e55"
         },
         {
             "name": "Decameroon_Desert_1",
@@ -83,7 +86,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "3e3d59547f0a494d00c5f4f001cbfcec9b3f2972026b72956d08b204399b378b"
+            "src": "3e3d59547f0a494d00c5f4f001cbfcec9b3f2972026b72956d08b204399b378b",
+            "color": "cd9a77"
         },
         {
             "name": "Decameroon_DestroyedBuilding_1",
@@ -93,7 +97,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "e7ad592ff8648af8afea555ee4d39712bfef7fc5bf95bc19c37e3f84cfdb4428"
+            "src": "e7ad592ff8648af8afea555ee4d39712bfef7fc5bf95bc19c37e3f84cfdb4428",
+            "color": "778142"
         },
         {
             "name": "Decameroon_DirtyWater_1",
@@ -103,7 +108,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373"
+            "src": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373",
+            "color": "075b84"
         },
         {
             "name": "Decameroon_Fish_1",
@@ -113,7 +119,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152"
+            "src": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152",
+            "color": "1c3b60"
         },
         {
             "name": "Decameroon_Forest_1",
@@ -123,7 +130,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "5b709da8a02285f8e1dbc48c9ff44c0eaa0d7f87193a7ba663eaedb997a4fefd"
+            "src": "5b709da8a02285f8e1dbc48c9ff44c0eaa0d7f87193a7ba663eaedb997a4fefd",
+            "color": "86924a"
         },
         {
             "name": "Decameroon_Forest_2",
@@ -133,7 +141,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "65da46c258103205a6b78d3d51947df7367f80798e6c5941e8855b29a83c08b5"
+            "src": "65da46c258103205a6b78d3d51947df7367f80798e6c5941e8855b29a83c08b5",
+            "color": "7d8b4a"
         },
         {
             "name": "Decameroon_Forest_3",
@@ -143,7 +152,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "2386a7ef921e2602bd7c0005c5daa1a8adc33b33254713de2800a486ec70aca7"
+            "src": "2386a7ef921e2602bd7c0005c5daa1a8adc33b33254713de2800a486ec70aca7",
+            "color": "738348"
         },
         {
             "name": "Decameroon_GemField_1",
@@ -153,7 +163,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "6a9d0d52e4ccf3aec5a19e77e585381ea1c66d200bb6665b5354cf9b86102548"
+            "src": "6a9d0d52e4ccf3aec5a19e77e585381ea1c66d200bb6665b5354cf9b86102548",
+            "color": "777866"
         },
         {
             "name": "Decameroon_GoldVein_1",
@@ -163,7 +174,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "56eb17912d6b3c9c2d587c7869bd831e1a20c81523593d23943c57287b730c54"
+            "src": "56eb17912d6b3c9c2d587c7869bd831e1a20c81523593d23943c57287b730c54",
+            "color": "9d9351"
         },
         {
             "name": "Decameroon_Grain_1",
@@ -173,7 +185,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "a2c8470e0751c4271fb313ed4d9d130cc8414b515e03854622e3bac2b9af79a0"
+            "src": "a2c8470e0751c4271fb313ed4d9d130cc8414b515e03854622e3bac2b9af79a0",
+            "color": "a58050"
         },
         {
             "name": "Decameroon_Herbs_1",
@@ -183,7 +196,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "11430b7a271cbf7cf84183725ad55dc160f7f08fb69294410319bf1baac18186"
+            "src": "11430b7a271cbf7cf84183725ad55dc160f7f08fb69294410319bf1baac18186",
+            "color": "8e8658"
         },
         {
             "name": "Decameroon_Hills_1",
@@ -193,7 +207,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "42e870a90414859c4e165e55b6dd4474fa3f572e13db24e87a6115d9dcf4ffdd"
+            "src": "42e870a90414859c4e165e55b6dd4474fa3f572e13db24e87a6115d9dcf4ffdd",
+            "color": "96974d"
         },
         {
             "name": "Decameroon_Lake_1",
@@ -203,7 +218,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "7adae6abd9d38bda88d2b4fd21d6ef1d679198bdb87b4a4b6e522fe6de4ee45b"
+            "src": "7adae6abd9d38bda88d2b4fd21d6ef1d679198bdb87b4a4b6e522fe6de4ee45b",
+            "color": "30878c"
         },
         {
             "name": "Decameroon_Lake_2",
@@ -213,7 +229,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "d0d2b16611a89369bd74cf7ffa4b24f5e61a7e20012b75b2e630ef97b4a83bde"
+            "src": "d0d2b16611a89369bd74cf7ffa4b24f5e61a7e20012b75b2e630ef97b4a83bde",
+            "color": "31898e"
         },
         {
             "name": "Decameroon_Lake_3",
@@ -223,7 +240,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "f5fcd6350533d1053c54a8e2aa62d51b65ba8c4e4262130e9d35b62f969575ac"
+            "src": "f5fcd6350533d1053c54a8e2aa62d51b65ba8c4e4262130e9d35b62f969575ac",
+            "color": "31898d"
         },
         {
             "name": "Decameroon_Lake_4",
@@ -233,7 +251,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "020e2003f2bbef3ce0571803e4edf8ab305979f0a4825f324e911b8cb71e5147"
+            "src": "020e2003f2bbef3ce0571803e4edf8ab305979f0a4825f324e911b8cb71e5147",
+            "color": "31898e"
         },
         {
             "name": "Decameroon_Lake_5",
@@ -243,7 +262,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "49d9c9c885f990862b06c4f32f7d7150ae856607d7279724e6d1f0e190d67cf6"
+            "src": "49d9c9c885f990862b06c4f32f7d7150ae856607d7279724e6d1f0e190d67cf6",
+            "color": "30878c"
         },
         {
             "name": "Decameroon_Lake_6",
@@ -253,7 +273,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "fd52b9f77a418d5777d67a1bd3370593e72a808b4fd38d654f6248f6237ab68c"
+            "src": "fd52b9f77a418d5777d67a1bd3370593e72a808b4fd38d654f6248f6237ab68c",
+            "color": "2f878b"
         },
         {
             "name": "Decameroon_Lake_7",
@@ -263,7 +284,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "df132c8816c465290ee9e1a256ae8f38a207ce0409e1ebd94cf4b7a10bbf23d0"
+            "src": "df132c8816c465290ee9e1a256ae8f38a207ce0409e1ebd94cf4b7a10bbf23d0",
+            "color": "358a8b"
         },
         {
             "name": "Decameroon_LavaPlain_1",
@@ -273,7 +295,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "331a71901041df54c8a2f06269c739229f5e5e21f81119ff0250eacae8287bdb"
+            "src": "331a71901041df54c8a2f06269c739229f5e5e21f81119ff0250eacae8287bdb",
+            "color": "856944"
         },
         {
             "name": "Decameroon_LavaRift_1",
@@ -283,7 +306,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "cfe9a94e5f42d23d8145a552e61bd6929f12eb4cee9fd26ee2efe565b6bfdbae"
+            "src": "cfe9a94e5f42d23d8145a552e61bd6929f12eb4cee9fd26ee2efe565b6bfdbae",
+            "color": "745341"
         },
         {
             "name": "Decameroon_Mountain_1",
@@ -293,7 +317,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "a518ac16de7b7310ed8027438ae734fef99855e17d6def530d61471167bc26d8"
+            "src": "a518ac16de7b7310ed8027438ae734fef99855e17d6def530d61471167bc26d8",
+            "color": "909272"
         },
         {
             "name": "Decameroon_Mountain_2",
@@ -303,7 +328,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "809e723e4d7006660eaf8766209b6b3e46f8a05e295f6aebc458c456fd7edbfe"
+            "src": "809e723e4d7006660eaf8766209b6b3e46f8a05e295f6aebc458c456fd7edbfe",
+            "color": "73744c"
         },
         {
             "name": "Decameroon_Plain_1",
@@ -313,7 +339,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa"
+            "src": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa",
+            "color": "98a04d"
         },
         {
             "name": "Decameroon_Plain_2",
@@ -323,7 +350,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "92a2b3bd4a4ae7d5856f9c3d21b8bc82d126b09e3e3d1f5291fb793170c50091"
+            "src": "92a2b3bd4a4ae7d5856f9c3d21b8bc82d126b09e3e3d1f5291fb793170c50091",
+            "color": "8e934d"
         },
         {
             "name": "Decameroon_Rift_1",
@@ -333,7 +361,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022"
+            "src": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022",
+            "color": "80a03c"
         },
         {
             "name": "Decameroon_River_D_2",
@@ -343,7 +372,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "299fd7c121f30eb34a88ce5be9054339e049f2ff2198e45f314b90290a1f7360"
+            "src": "299fd7c121f30eb34a88ce5be9054339e049f2ff2198e45f314b90290a1f7360",
+            "color": "539c57"
         },
         {
             "name": "Decameroon_River_D_3",
@@ -353,7 +383,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "144cc22b582e1a57e301b2b8b3b0496343c31293691e503169d0ec78eea3f01d"
+            "src": "144cc22b582e1a57e301b2b8b3b0496343c31293691e503169d0ec78eea3f01d",
+            "color": "47976f"
         },
         {
             "name": "Decameroon_River_D_4",
@@ -363,7 +394,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "fd19b95f59cb42d7c48651143a23ef0ab304ab9e3d7b83a49bf2c057ef50a331"
+            "src": "fd19b95f59cb42d7c48651143a23ef0ab304ab9e3d7b83a49bf2c057ef50a331",
+            "color": "579c55"
         },
         {
             "name": "Decameroon_River_D_L_EE_2",
@@ -373,7 +405,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "faf495aefb4bc3ad760a8fdbfa747431a332ae97ee0bff195c0640712c772b43"
+            "src": "faf495aefb4bc3ad760a8fdbfa747431a332ae97ee0bff195c0640712c772b43",
+            "color": "409170"
         },
         {
             "name": "Decameroon_River_D_R_EE_2",
@@ -383,7 +416,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "fb334d6af4f2f23d9c2b29b0d41962255e64f39952ebf85161305d914bdbdaaa"
+            "src": "fb334d6af4f2f23d9c2b29b0d41962255e64f39952ebf85161305d914bdbdaaa",
+            "color": "438f6b"
         },
         {
             "name": "Decameroon_River_L_1",
@@ -393,7 +427,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "132b3cf6e2b77c3d60e9dc28e96a0283766368ce6f55309413e2aa5719fa081a"
+            "src": "132b3cf6e2b77c3d60e9dc28e96a0283766368ce6f55309413e2aa5719fa081a",
+            "color": "54a067"
         },
         {
             "name": "Decameroon_River_L_4",
@@ -403,7 +438,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "c0cbd059a662ac3819f5887d8302e4beaffba510e3d85e8e27334dd5804ec819"
+            "src": "c0cbd059a662ac3819f5887d8302e4beaffba510e3d85e8e27334dd5804ec819",
+            "color": "609f55"
         },
         {
             "name": "Decameroon_River_L_5",
@@ -413,7 +449,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "474e61fc137092bd79efb83531fcf79eac78d20f621e192619ddef5ce76aa650"
+            "src": "474e61fc137092bd79efb83531fcf79eac78d20f621e192619ddef5ce76aa650",
+            "color": "509c5f"
         },
         {
             "name": "Decameroon_River_L_D_E_1",
@@ -423,7 +460,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "4cd166b88b932c546070ff8ab9ffe1836819ffd4ef70580d614a5b75973293eb"
+            "src": "4cd166b88b932c546070ff8ab9ffe1836819ffd4ef70580d614a5b75973293eb",
+            "color": "4d9c6e"
         },
         {
             "name": "Decameroon_River_L_L_E_5",
@@ -433,7 +471,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "3f2710082f609a7b1080a0283cf741b490c086d1301453fa020ed1fb73feef63"
+            "src": "3f2710082f609a7b1080a0283cf741b490c086d1301453fa020ed1fb73feef63",
+            "color": "4d9a61"
         },
         {
             "name": "Decameroon_River_L_R_E_5",
@@ -443,7 +482,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "b49a6af3f29dba7d05b5a916423481e0afc2fcadde3e2a9ac62b38cc5c46b181"
+            "src": "b49a6af3f29dba7d05b5a916423481e0afc2fcadde3e2a9ac62b38cc5c46b181",
+            "color": "4e9961"
         },
         {
             "name": "Decameroon_River_L_U_E_1",
@@ -453,7 +493,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "be955071c04cead3af0ba7df919c40ad3d43a33b2a46e5e08a0f5fafae3e11ce"
+            "src": "be955071c04cead3af0ba7df919c40ad3d43a33b2a46e5e08a0f5fafae3e11ce",
+            "color": "509a6b"
         },
         {
             "name": "Decameroon_River_R_1",
@@ -463,7 +504,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "4df60ca113aee4265f21e56f2dfa52b6a4002cc107a17a50e08f53090acf8439"
+            "src": "4df60ca113aee4265f21e56f2dfa52b6a4002cc107a17a50e08f53090acf8439",
+            "color": "549f68"
         },
         {
             "name": "Decameroon_River_R_4",
@@ -473,7 +515,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "bf9a12ebd971621d089e81cb748636f029c7d4c8ee91b1d608b5ee82c8421793"
+            "src": "bf9a12ebd971621d089e81cb748636f029c7d4c8ee91b1d608b5ee82c8421793",
+            "color": "5f9e55"
         },
         {
             "name": "Decameroon_River_R_5",
@@ -483,7 +526,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "64e0ecdbdfb3b13f35c5cdfb3580fb049279e6f7d7b87edf78f5dd95bd4e33f7"
+            "src": "64e0ecdbdfb3b13f35c5cdfb3580fb049279e6f7d7b87edf78f5dd95bd4e33f7",
+            "color": "4f9b60"
         },
         {
             "name": "Decameroon_River_U_2",
@@ -493,7 +537,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "c85d7129e757c066cff0cce2f261b4b90b829c22c4434ac41da142e70c27e6f9"
+            "src": "c85d7129e757c066cff0cce2f261b4b90b829c22c4434ac41da142e70c27e6f9",
+            "color": "529c58"
         },
         {
             "name": "Decameroon_River_U_3",
@@ -503,7 +548,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "c932f135f960d8ba9c08daf8805118ba8d316b24cd9bdea4dcc452f7e9d9921d"
+            "src": "c932f135f960d8ba9c08daf8805118ba8d316b24cd9bdea4dcc452f7e9d9921d",
+            "color": "46986e"
         },
         {
             "name": "Decameroon_River_U_4",
@@ -513,7 +559,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "916e0b05c10c72b8e6653f31852ca11840dffd555888d043746b15cc88c1d7c5"
+            "src": "916e0b05c10c72b8e6653f31852ca11840dffd555888d043746b15cc88c1d7c5",
+            "color": "5a9d55"
         },
         {
             "name": "Decameroon_River_U_D_E_4",
@@ -523,7 +570,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "1ffe24d7d7512fed5176b019be652ecc1eac58a2a2def4389ba2cbdf5920a1cb"
+            "src": "1ffe24d7d7512fed5176b019be652ecc1eac58a2a2def4389ba2cbdf5920a1cb",
+            "color": "579b57"
         },
         {
             "name": "Decameroon_River_U_L_EE_2",
@@ -533,7 +581,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "5d9b91f358336132213e0e8c14004780f3c5f49b802abf3571c3069242ce018c"
+            "src": "5d9b91f358336132213e0e8c14004780f3c5f49b802abf3571c3069242ce018c",
+            "color": "408f72"
         },
         {
             "name": "Decameroon_River_U_R_EE_2",
@@ -543,7 +592,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "5e59ac3e7e413e26a6650992a54cde8de9bd5c4d01a6c766814be8bcc276620a"
+            "src": "5e59ac3e7e413e26a6650992a54cde8de9bd5c4d01a6c766814be8bcc276620a",
+            "color": "418f6e"
         },
         {
             "name": "Decameroon_River_U_U_E_4",
@@ -553,7 +603,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "fc5dff00561d17050572daea4c0cf8bd06380a636f5ba71d36e32f4803ccf98e"
+            "src": "fc5dff00561d17050572daea4c0cf8bd06380a636f5ba71d36e32f4803ccf98e",
+            "color": "54985a"
         },
         {
             "name": "Decameroon_RockySwamp_1",
@@ -563,7 +614,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "3d0f9f1b888db470225681c6ef13b2ffb87c1c40b331bf3ecb1be4f0d9176d88"
+            "src": "3d0f9f1b888db470225681c6ef13b2ffb87c1c40b331bf3ecb1be4f0d9176d88",
+            "color": "908964"
         },
         {
             "name": "Decameroon_Rubble_1",
@@ -573,7 +625,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "8d2174c2c5cedb4a79c17f0c325ddca872b80064b5cc68a28763e24085df00ae"
+            "src": "8d2174c2c5cedb4a79c17f0c325ddca872b80064b5cc68a28763e24085df00ae",
+            "color": "909561"
         },
         {
             "name": "Decameroon_Rubble_2",
@@ -583,7 +636,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "5b1a8d93d3eb7b857ccfb67eb0f648b57e7bea659ad3d8a79204300fa45d456d"
+            "src": "5b1a8d93d3eb7b857ccfb67eb0f648b57e7bea659ad3d8a79204300fa45d456d",
+            "color": "a3a26e"
         },
         {
             "name": "Decameroon_Rubble_3",
@@ -593,7 +647,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "b660442b9448c67de1b4a64a77ad702245d6b64f2351cbe51605c7e7a1972ef1"
+            "src": "b660442b9448c67de1b4a64a77ad702245d6b64f2351cbe51605c7e7a1972ef1",
+            "color": "8d905c"
         },
         {
             "name": "Decameroon_Settlements_Small_1",
@@ -603,7 +658,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5"
+            "src": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5",
+            "color": "8c7c54"
         },
         {
             "name": "Decameroon_SilverVein_1",
@@ -613,7 +669,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "b4d73c15a6c732b996b742b3f0ec262c8e279ae083d49be0436e68c8e722ffb1"
+            "src": "b4d73c15a6c732b996b742b3f0ec262c8e279ae083d49be0436e68c8e722ffb1",
+            "color": "7a845f"
         },
         {
             "name": "Decameroon_Swamp_1",
@@ -623,7 +680,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "f08efd2c9ffae071232e3efbc8dd91950ad1df6da0d5a22c428ab33d4677023d"
+            "src": "f08efd2c9ffae071232e3efbc8dd91950ad1df6da0d5a22c428ab33d4677023d",
+            "color": "848355"
         },
         {
             "name": "Decameroon_Water",
@@ -633,7 +691,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1"
+            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1",
+            "color": "116ea8"
         },
         {
             "name": "Decameroon_WaterStones_1",
@@ -643,7 +702,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647"
+            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647",
+            "color": "787778"
         },
         {
             "name": "FarmGrain",
@@ -653,7 +713,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345"
+            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345",
+            "color": "e1b860"
         },
         {
             "name": "Forest_red",
@@ -663,7 +724,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74"
+            "src": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74",
+            "color": "551c21"
         },
         {
             "name": "Medieval_Barren_1",
@@ -673,7 +735,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "634a55aaad9ed832bdbe19e0414b5a0c81aaad9b1394413b41feaced00eda4f3"
+            "src": "634a55aaad9ed832bdbe19e0414b5a0c81aaad9b1394413b41feaced00eda4f3",
+            "color": "d6a67c"
         },
         {
             "name": "Medieval_BrokenShip_1",
@@ -683,7 +746,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20"
+            "src": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20",
+            "color": "775e55"
         },
         {
             "name": "Medieval_Desert_1",
@@ -693,7 +757,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "c7b759a31e891671acb006f5b4014be372cfdbb1a906522359d86a4c4c991061"
+            "src": "c7b759a31e891671acb006f5b4014be372cfdbb1a906522359d86a4c4c991061",
+            "color": "dfa97a"
         },
         {
             "name": "Medieval_DestroyedBuilding_1",
@@ -703,7 +768,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "9cfe558d37da2f52650b955c98e3bd4ef09d68fdd91d3a0ae144c666d7d9edf3"
+            "src": "9cfe558d37da2f52650b955c98e3bd4ef09d68fdd91d3a0ae144c666d7d9edf3",
+            "color": "8a884e"
         },
         {
             "name": "Medieval_DirtyWater_1",
@@ -713,7 +779,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373"
+            "src": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373",
+            "color": "075b84"
         },
         {
             "name": "Medieval_Fish_1",
@@ -723,7 +790,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152"
+            "src": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152",
+            "color": "1c3b60"
         },
         {
             "name": "Medieval_Forest_1",
@@ -733,7 +801,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "5b709da8a02285f8e1dbc48c9ff44c0eaa0d7f87193a7ba663eaedb997a4fefd"
+            "src": "5b709da8a02285f8e1dbc48c9ff44c0eaa0d7f87193a7ba663eaedb997a4fefd",
+            "color": "86924a"
         },
         {
             "name": "Medieval_Forest_2",
@@ -743,7 +812,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "65da46c258103205a6b78d3d51947df7367f80798e6c5941e8855b29a83c08b5"
+            "src": "65da46c258103205a6b78d3d51947df7367f80798e6c5941e8855b29a83c08b5",
+            "color": "7d8b4a"
         },
         {
             "name": "Medieval_Forest_3",
@@ -753,7 +823,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "2386a7ef921e2602bd7c0005c5daa1a8adc33b33254713de2800a486ec70aca7"
+            "src": "2386a7ef921e2602bd7c0005c5daa1a8adc33b33254713de2800a486ec70aca7",
+            "color": "738348"
         },
         {
             "name": "Medieval_GemPond_1",
@@ -763,7 +834,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "45c34d1a8385853a0ad1e8d0a997da7fb688852f798b8f8341bfe4d8cc4f21a4"
+            "src": "45c34d1a8385853a0ad1e8d0a997da7fb688852f798b8f8341bfe4d8cc4f21a4",
+            "color": "808070"
         },
         {
             "name": "Medieval_GoldVein_1",
@@ -773,7 +845,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "bb21dfd1d0a1ed9ad21533cc8fe1a83c1b6a7d2631f77e00992ca537d565e8fa"
+            "src": "bb21dfd1d0a1ed9ad21533cc8fe1a83c1b6a7d2631f77e00992ca537d565e8fa",
+            "color": "9c9047"
         },
         {
             "name": "Medieval_Grain_1",
@@ -783,7 +856,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "7430a53a05d1529f24b6776080238052ed88a50726ba3024925453666258d9d4"
+            "src": "7430a53a05d1529f24b6776080238052ed88a50726ba3024925453666258d9d4",
+            "color": "ac884c"
         },
         {
             "name": "Medieval_Herbs_1",
@@ -793,7 +867,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "11430b7a271cbf7cf84183725ad55dc160f7f08fb69294410319bf1baac18186"
+            "src": "11430b7a271cbf7cf84183725ad55dc160f7f08fb69294410319bf1baac18186",
+            "color": "8e8658"
         },
         {
             "name": "Medieval_Hills_1",
@@ -803,7 +878,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "8a2da9938fcd8d2a76cdaf3e00b7bf9cca276324571bc6becd456d13a9393d8a"
+            "src": "8a2da9938fcd8d2a76cdaf3e00b7bf9cca276324571bc6becd456d13a9393d8a",
+            "color": "909043"
         },
         {
             "name": "Medieval_Lake_1",
@@ -813,7 +889,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "a9dd737e30c2076fa7abce9e1dc1b1dd57a22f0f8a6ad72efee223b1a4009135"
+            "src": "a9dd737e30c2076fa7abce9e1dc1b1dd57a22f0f8a6ad72efee223b1a4009135",
+            "color": "378893"
         },
         {
             "name": "Medieval_Lake_2",
@@ -823,7 +900,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "80f5211ee89edd55dde8a449f14aaa123bad1764a29dc2e4d5c8422b8ec27be5"
+            "src": "80f5211ee89edd55dde8a449f14aaa123bad1764a29dc2e4d5c8422b8ec27be5",
+            "color": "398a95"
         },
         {
             "name": "Medieval_Lake_3",
@@ -833,7 +911,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "9b04b0e993dccdce072fbc87e62de73a9692eabe1725e9c1eeb937a5dc284533"
+            "src": "9b04b0e993dccdce072fbc87e62de73a9692eabe1725e9c1eeb937a5dc284533",
+            "color": "398a93"
         },
         {
             "name": "Medieval_Lake_4",
@@ -843,7 +922,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "2b397f8baf068665bc5f644bebd5dd42e3fe46961a40a2428bc079008d70bc76"
+            "src": "2b397f8baf068665bc5f644bebd5dd42e3fe46961a40a2428bc079008d70bc76",
+            "color": "388a95"
         },
         {
             "name": "Medieval_Lake_5",
@@ -853,7 +933,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "052a620353fecc97451b2ca9e73db7d2a9d3e348b98acb02061ad548a3da4d41"
+            "src": "052a620353fecc97451b2ca9e73db7d2a9d3e348b98acb02061ad548a3da4d41",
+            "color": "378893"
         },
         {
             "name": "Medieval_Lake_6",
@@ -863,7 +944,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "ba450fe848274ec13a1e420e564b6ae581445ce6a1869a417dae119554a6dff7"
+            "src": "ba450fe848274ec13a1e420e564b6ae581445ce6a1869a417dae119554a6dff7",
+            "color": "368793"
         },
         {
             "name": "Medieval_Lake_7",
@@ -873,7 +955,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "167af984001f710a672da65dfba5e9e934f133a4689007ab871e5a453d2956d0"
+            "src": "167af984001f710a672da65dfba5e9e934f133a4689007ab871e5a453d2956d0",
+            "color": "3d8b92"
         },
         {
             "name": "Medieval_Mountain_1",
@@ -883,7 +966,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "e2f68c95723b26a825540ca0a45cc477fc93411767095022c7a721aa2747a8b8"
+            "src": "e2f68c95723b26a825540ca0a45cc477fc93411767095022c7a721aa2747a8b8",
+            "color": "928d73"
         },
         {
             "name": "Medieval_Plain_1",
@@ -893,7 +977,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa"
+            "src": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa",
+            "color": "98a04d"
         },
         {
             "name": "Medieval_Plain_2",
@@ -903,7 +988,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "92a2b3bd4a4ae7d5856f9c3d21b8bc82d126b09e3e3d1f5291fb793170c50091"
+            "src": "92a2b3bd4a4ae7d5856f9c3d21b8bc82d126b09e3e3d1f5291fb793170c50091",
+            "color": "8e934d"
         },
         {
             "name": "Medieval_River_D_2",
@@ -913,7 +999,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "3e0e3fd73f562c86da970627e30ef9ab0b8020e65f8ee0d3e272885ec71503fa"
+            "src": "3e0e3fd73f562c86da970627e30ef9ab0b8020e65f8ee0d3e272885ec71503fa",
+            "color": "6b9c72"
         },
         {
             "name": "Medieval_River_D_3",
@@ -923,7 +1010,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "3119f478afee541b96e38893d969148050ccf4b136aa71b0160eb9415bdf249b"
+            "src": "3119f478afee541b96e38893d969148050ccf4b136aa71b0160eb9415bdf249b",
+            "color": "599881"
         },
         {
             "name": "Medieval_River_D_4",
@@ -933,7 +1021,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "5916bf2f57998244b5ba4d1908d6b7cfcbfb1bc35698cd32bc4eda1c5d373b1c"
+            "src": "5916bf2f57998244b5ba4d1908d6b7cfcbfb1bc35698cd32bc4eda1c5d373b1c",
+            "color": "719d70"
         },
         {
             "name": "Medieval_River_D_L_EE_2",
@@ -943,7 +1032,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "0ae66af2a7885a4d2a72887624585d2260d304d6cf459e054df28d4a6ebfb7f7"
+            "src": "0ae66af2a7885a4d2a72887624585d2260d304d6cf459e054df28d4a6ebfb7f7",
+            "color": "519181"
         },
         {
             "name": "Medieval_River_D_R_EE_2",
@@ -953,7 +1043,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "d1c681e198e606f0979fc886af4bebbf7b0e1c890eb87ece27220323485a43f7"
+            "src": "d1c681e198e606f0979fc886af4bebbf7b0e1c890eb87ece27220323485a43f7",
+            "color": "558e7f"
         },
         {
             "name": "Medieval_River_L_1",
@@ -963,7 +1054,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "a3968ebfa2145a52f1656da46747535ee7755abe65c1aa821acdc29de95c08ee"
+            "src": "a3968ebfa2145a52f1656da46747535ee7755abe65c1aa821acdc29de95c08ee",
+            "color": "709975"
         },
         {
             "name": "Medieval_River_L_4",
@@ -973,7 +1065,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "cf08e383520a1cb1d5f68069d83b45561feef85274415c06c652b3451f692429"
+            "src": "cf08e383520a1cb1d5f68069d83b45561feef85274415c06c652b3451f692429",
+            "color": "779e6d"
         },
         {
             "name": "Medieval_River_L_5",
@@ -983,7 +1076,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "2f7677bf13dd76ddf33231206f186b50a28bd6da8d1fe8fb44499225de24f4ad"
+            "src": "2f7677bf13dd76ddf33231206f186b50a28bd6da8d1fe8fb44499225de24f4ad",
+            "color": "679c77"
         },
         {
             "name": "Medieval_River_L_D_E_1",
@@ -993,7 +1087,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "aa0c3fbc0425f19e7e8c4dce8ba368d84777650c913946389f2eea2de14a27f6"
+            "src": "aa0c3fbc0425f19e7e8c4dce8ba368d84777650c913946389f2eea2de14a27f6",
+            "color": "619d7f"
         },
         {
             "name": "Medieval_River_L_L_E_5",
@@ -1003,7 +1098,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "d306db011345c0446cf8d46773d78870c8389438bf0978977b5e154f313530b3"
+            "src": "d306db011345c0446cf8d46773d78870c8389438bf0978977b5e154f313530b3",
+            "color": "639978"
         },
         {
             "name": "Medieval_River_L_R_E_5",
@@ -1013,7 +1109,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "bbfbf418f26829eebb83503e2bf70ed6dd1f8abfa7837e5ba2318e2cd9dd7ae3"
+            "src": "bbfbf418f26829eebb83503e2bf70ed6dd1f8abfa7837e5ba2318e2cd9dd7ae3",
+            "color": "649978"
         },
         {
             "name": "Medieval_River_L_U_E_1",
@@ -1023,7 +1120,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "d7474d3e0c8597aa9a21a3e0c8811f8c16c6ce0e2ac39cab207b997178331a11"
+            "src": "d7474d3e0c8597aa9a21a3e0c8811f8c16c6ce0e2ac39cab207b997178331a11",
+            "color": "659c7e"
         },
         {
             "name": "Medieval_River_R_1",
@@ -1033,7 +1131,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "328d68f85b344a32cba0349b7895eee3e2e96f9572d04c3c8b8f0f2af8ad1688"
+            "src": "328d68f85b344a32cba0349b7895eee3e2e96f9572d04c3c8b8f0f2af8ad1688",
+            "color": "69a07c"
         },
         {
             "name": "Medieval_River_R_4",
@@ -1043,7 +1142,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "c17afc0f55345f1f31fc8912d0ab2ea46996a5c10cdf5dff9ab5f1a5ce6f1dfe"
+            "src": "c17afc0f55345f1f31fc8912d0ab2ea46996a5c10cdf5dff9ab5f1a5ce6f1dfe",
+            "color": "779e6f"
         },
         {
             "name": "Medieval_River_R_5",
@@ -1053,7 +1153,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "d05d212e14efe993108f7294643082ab0ac23f37ba51c197e04c728a2bbe0220"
+            "src": "d05d212e14efe993108f7294643082ab0ac23f37ba51c197e04c728a2bbe0220",
+            "color": "669c78"
         },
         {
             "name": "Medieval_River_U_2",
@@ -1063,7 +1164,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "fc98fcdb678795029e55a6e6d3a50e1c83ecd38cc4f22f5ab028acf9c258a6ef"
+            "src": "fc98fcdb678795029e55a6e6d3a50e1c83ecd38cc4f22f5ab028acf9c258a6ef",
+            "color": "6a9a73"
         },
         {
             "name": "Medieval_River_U_3",
@@ -1073,7 +1175,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "bac0fc4c8cac1d526b7027f3748ed4bc710f992421d913c60b2d82797b06dce8"
+            "src": "bac0fc4c8cac1d526b7027f3748ed4bc710f992421d913c60b2d82797b06dce8",
+            "color": "58997f"
         },
         {
             "name": "Medieval_River_U_4",
@@ -1083,7 +1186,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "2355afedc10a63f209def3797dca8252045fc2dd5bfdf5a41ce335b9104a252c"
+            "src": "2355afedc10a63f209def3797dca8252045fc2dd5bfdf5a41ce335b9104a252c",
+            "color": "729d6e"
         },
         {
             "name": "Medieval_River_U_D_E_4",
@@ -1093,7 +1197,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "98cd49b903bd317763445dc6e446ab36e35a8e1a95b3f2a7ff3ad1e261121e29"
+            "src": "98cd49b903bd317763445dc6e446ab36e35a8e1a95b3f2a7ff3ad1e261121e29",
+            "color": "6f9b70"
         },
         {
             "name": "Medieval_River_U_L_EE_2",
@@ -1103,7 +1208,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "447d43122003d9a425627a3cc7e09b303ec4966f6457e03519a616e1a5d5d3e7"
+            "src": "447d43122003d9a425627a3cc7e09b303ec4966f6457e03519a616e1a5d5d3e7",
+            "color": "4f8e84"
         },
         {
             "name": "Medieval_River_U_R_EE_2",
@@ -1113,7 +1219,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "30f4ecb21bbe2d13047310d32fffe8f053f146825e60d693f86f3c975e879775"
+            "src": "30f4ecb21bbe2d13047310d32fffe8f053f146825e60d693f86f3c975e879775",
+            "color": "538e82"
         },
         {
             "name": "Medieval_River_U_U_E_4",
@@ -1123,7 +1230,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "bb6dc80e91fbee2e010aa06a94db98a08911297662a34b1ea85e3ac3ef0fa8e2"
+            "src": "bb6dc80e91fbee2e010aa06a94db98a08911297662a34b1ea85e3ac3ef0fa8e2",
+            "color": "6b9972"
         },
         {
             "name": "Medieval_RockySwamp_1",
@@ -1133,7 +1241,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "d6c3aee46eb25fca502e6cb1ef6859e5eaf9fb448b89951c694fe331ce2a76ce"
+            "src": "d6c3aee46eb25fca502e6cb1ef6859e5eaf9fb448b89951c694fe331ce2a76ce",
+            "color": "908b69"
         },
         {
             "name": "Medieval_Rubble_1",
@@ -1143,7 +1252,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "8d2174c2c5cedb4a79c17f0c325ddca872b80064b5cc68a28763e24085df00ae"
+            "src": "8d2174c2c5cedb4a79c17f0c325ddca872b80064b5cc68a28763e24085df00ae",
+            "color": "909561"
         },
         {
             "name": "Medieval_Rubble_2",
@@ -1153,7 +1263,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "5b1a8d93d3eb7b857ccfb67eb0f648b57e7bea659ad3d8a79204300fa45d456d"
+            "src": "5b1a8d93d3eb7b857ccfb67eb0f648b57e7bea659ad3d8a79204300fa45d456d",
+            "color": "a3a26e"
         },
         {
             "name": "Medieval_Rubble_3",
@@ -1163,7 +1274,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "b660442b9448c67de1b4a64a77ad702245d6b64f2351cbe51605c7e7a1972ef1"
+            "src": "b660442b9448c67de1b4a64a77ad702245d6b64f2351cbe51605c7e7a1972ef1",
+            "color": "8d905c"
         },
         {
             "name": "Medieval_SilverVein_1",
@@ -1173,7 +1285,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "d57c2c6c9f88426f6b1b6ca132ff7c2e5d408e57931d8b6729bb1285a3c96394"
+            "src": "d57c2c6c9f88426f6b1b6ca132ff7c2e5d408e57931d8b6729bb1285a3c96394",
+            "color": "808862"
         },
         {
             "name": "Medieval_Swamp_1",
@@ -1183,7 +1296,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "95554abb85c49af7d442c8d48b163a160896f278331e58e9d9ac4c533b4f8f9a"
+            "src": "95554abb85c49af7d442c8d48b163a160896f278331e58e9d9ac4c533b4f8f9a",
+            "color": "7a8056"
         },
         {
             "name": "Medieval_Water_1",
@@ -1193,7 +1307,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1"
+            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1",
+            "color": "116ea8"
         },
         {
             "name": "Medieval_WaterStones_1",
@@ -1203,7 +1318,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647"
+            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647",
+            "color": "787778"
         },
         {
             "name": "BoneMine_Kaiju_1",
@@ -1213,7 +1329,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "e8e8913d81e0696f3dfe1151c9b6f2c90afe391764fd6fe6f7067b437a2700f6"
+            "src": "e8e8913d81e0696f3dfe1151c9b6f2c90afe391764fd6fe6f7067b437a2700f6",
+            "color": "8f8a5b"
         },
         {
             "name": "Decameroon_Abbey_1",
@@ -1223,7 +1340,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "d087cda237de76086d8ad108696ef7a7d8107d35f25f6c4950de6f99482c2e4a"
+            "src": "d087cda237de76086d8ad108696ef7a7d8107d35f25f6c4950de6f99482c2e4a",
+            "color": "8d8564"
         },
         {
             "name": "Decameroon_Alchemist_1",
@@ -1233,7 +1351,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "65b5a963a7a0c606032b2e8e48eb5fe312020dba4e17e00021feedbd89a5d6af"
+            "src": "65b5a963a7a0c606032b2e8e48eb5fe312020dba4e17e00021feedbd89a5d6af",
+            "color": "887250"
         },
         {
             "name": "Decameroon_Artefact_1",
@@ -1243,7 +1362,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c"
+            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c",
+            "color": "8c984a"
         },
         {
             "name": "Decameroon_Farm_1",
@@ -1253,7 +1373,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "eb6099ddc3e078d8a6b4cf7b4ecc15232c8a650e001a5c8ccd51db091beb1058"
+            "src": "eb6099ddc3e078d8a6b4cf7b4ecc15232c8a650e001a5c8ccd51db091beb1058",
+            "color": "a1804f"
         },
         {
             "name": "Decameroon_FishTrap_1",
@@ -1263,7 +1384,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368"
+            "src": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368",
+            "color": "7e5d4a"
         },
         {
             "name": "Decameroon_ForestHut_1",
@@ -1273,7 +1395,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "06c777a2f9d2ea40684538b9121b262ca18e9043986be3587879046afb81292a"
+            "src": "06c777a2f9d2ea40684538b9121b262ca18e9043986be3587879046afb81292a",
+            "color": "8b855a"
         },
         {
             "name": "Decameroon_GemMine_1",
@@ -1283,7 +1406,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "88e69929a8070277c712423ca47351907986038d4f3c8c5b880df4327ccb524f"
+            "src": "88e69929a8070277c712423ca47351907986038d4f3c8c5b880df4327ccb524f",
+            "color": "7d6f5c"
         },
         {
             "name": "Decameroon_GoldMine_1",
@@ -1293,7 +1417,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "96095ad1bb94d14cae387b1f0a364d900b6f1d58f982d3d744f2662eee815efa"
+            "src": "96095ad1bb94d14cae387b1f0a364d900b6f1d58f982d3d744f2662eee815efa",
+            "color": "8a7b53"
         },
         {
             "name": "Decameroon_GoldMine_Big_1",
@@ -1303,7 +1428,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "f7ca515696ef333630a419d6ded15d9ff7a3362db30633f051940b216a6ced50"
+            "src": "f7ca515696ef333630a419d6ded15d9ff7a3362db30633f051940b216a6ced50",
+            "color": "7e684e"
         },
         {
             "name": "Decameroon_LumberMill_1",
@@ -1313,7 +1439,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "52478068095515583b5194bdd5d489b44e6155a29e75b69122f44b4b32be4be6"
+            "src": "52478068095515583b5194bdd5d489b44e6155a29e75b69122f44b4b32be4be6",
+            "color": "847b4c"
         },
         {
             "name": "Decameroon_LumberMill_Big_1",
@@ -1323,7 +1450,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "73a5665988479b81a99f0288ed04d615c236ed2c80c6916131d759f06e0118ab"
+            "src": "73a5665988479b81a99f0288ed04d615c236ed2c80c6916131d759f06e0118ab",
+            "color": "7e6e4f"
         },
         {
             "name": "Decameroon_LumberMill_Industrial_1",
@@ -1333,7 +1461,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "9b507bd5855db05f91fdc0e25d6bc58db9e4a31fe6a9616d6f4bf5d52bbdda76"
+            "src": "9b507bd5855db05f91fdc0e25d6bc58db9e4a31fe6a9616d6f4bf5d52bbdda76",
+            "color": "8c7860"
         },
         {
             "name": "Decameroon_Market_1",
@@ -1343,7 +1472,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "889a802faaf961246da3bc9d9a42d72287e6412257cc1599a1a005699b41fb2d"
+            "src": "889a802faaf961246da3bc9d9a42d72287e6412257cc1599a1a005699b41fb2d",
+            "color": "a27b5b"
         },
         {
             "name": "Decameroon_Mill_1",
@@ -1353,7 +1483,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "5881fd4dd4aad044101e0e6b9056642663cd9527558a05a5ec2174e9f9d6a754"
+            "src": "5881fd4dd4aad044101e0e6b9056642663cd9527558a05a5ec2174e9f9d6a754",
+            "color": "9d7d5b"
         },
         {
             "name": "Decameroon_Monastery_1",
@@ -1363,7 +1494,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "2c361c445c8df0945e98c5762326563795ff7147a2a5a58e82ef9ca538a15aed"
+            "src": "2c361c445c8df0945e98c5762326563795ff7147a2a5a58e82ef9ca538a15aed",
+            "color": "8a7e72"
         },
         {
             "name": "Decameroon_OreMine_1",
@@ -1373,7 +1505,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "68163251c493d75f0d7eaa2bd8efcf1a2bfb6bfae5f8589f0c5c0e8491b5fff1"
+            "src": "68163251c493d75f0d7eaa2bd8efcf1a2bfb6bfae5f8589f0c5c0e8491b5fff1",
+            "color": "786649"
         },
         {
             "name": "Decameroon_OreWorkshop_1",
@@ -1383,7 +1516,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "788b8d925f84c421e8e248290602448c4e1d3a730ff9f14d9584f3fc10e9debb"
+            "src": "788b8d925f84c421e8e248290602448c4e1d3a730ff9f14d9584f3fc10e9debb",
+            "color": "806b51"
         },
         {
             "name": "Decameroon_Plantation_1",
@@ -1393,7 +1527,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "995152d8e61cdce583c6e45a6c3b2ad3be2a92a222ec726404a41914e5336ab6"
+            "src": "995152d8e61cdce583c6e45a6c3b2ad3be2a92a222ec726404a41914e5336ab6",
+            "color": "82795d"
         },
         {
             "name": "Decameroon_SilverMine_1",
@@ -1403,7 +1538,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "4844b3dd0a179612b591712fe0be448f894ded812403f1925147be00890d2ed3"
+            "src": "4844b3dd0a179612b591712fe0be448f894ded812403f1925147be00890d2ed3",
+            "color": "847d62"
         },
         {
             "name": "Decameroon_SmallShip_1",
@@ -1413,7 +1549,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "22d027e9eba4da5675bcd0776fce4354350ede607db918f4dec393e511299a01"
+            "src": "22d027e9eba4da5675bcd0776fce4354350ede607db918f4dec393e511299a01",
+            "color": "507a8a"
         },
         {
             "name": "Decameroon_SmallShipyard_1",
@@ -1423,7 +1560,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
+            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807",
+            "color": "7c5b4f"
         },
         {
             "name": "Decameroon_StoneConveyor_1",
@@ -1433,7 +1571,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "07d35223ed7ce3ffb3f5a5a3459de95d91c2b7e2481ab13980b14483ce6ee9db"
+            "src": "07d35223ed7ce3ffb3f5a5a3459de95d91c2b7e2481ab13980b14483ce6ee9db",
+            "color": "7f6b48"
         },
         {
             "name": "Decameroon_StoneMine_1",
@@ -1443,7 +1582,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "93786fb30c55eb99558b2edf6041a8b919f371956bfb740560ba6f4d39cba66d"
+            "src": "93786fb30c55eb99558b2edf6041a8b919f371956bfb740560ba6f4d39cba66d",
+            "color": "857554"
         },
         {
             "name": "Decameroon_StoneMineBig_1",
@@ -1453,7 +1593,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "f44188e093a02990b9276de0d56555d30e9cda68e4d47be2c4f78bb2bccef690"
+            "src": "f44188e093a02990b9276de0d56555d30e9cda68e4d47be2c4f78bb2bccef690",
+            "color": "836e5a"
         },
         {
             "name": "Decameroon_Tavern_1",
@@ -1463,7 +1604,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "2852b3c4a510f550e4b227e5cfc89a81077edfcd77325ff75a2543acf95b1507"
+            "src": "2852b3c4a510f550e4b227e5cfc89a81077edfcd77325ff75a2543acf95b1507",
+            "color": "967b57"
         },
         {
             "name": "Medieval_Abbey_1",
@@ -1473,7 +1615,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "52f496d2016b8aa078da7e960ed89e5a2ced95eeecf1c53c87b4d2f158a8f9fb"
+            "src": "52f496d2016b8aa078da7e960ed89e5a2ced95eeecf1c53c87b4d2f158a8f9fb",
+            "color": "988a68"
         },
         {
             "name": "Medieval_Alchemist_1",
@@ -1483,7 +1626,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "84a3a936c34189d539a7830ef0561d293365fcd54db0eab6f9d7e8a348da5548"
+            "src": "84a3a936c34189d539a7830ef0561d293365fcd54db0eab6f9d7e8a348da5548",
+            "color": "8e734e"
         },
         {
             "name": "Medieval_Artefact_1",
@@ -1493,7 +1637,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c"
+            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c",
+            "color": "8c984a"
         },
         {
             "name": "Medieval_Farm_1",
@@ -1503,7 +1648,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "4ff028f97670400a3b36b9f0d920b68538c074d41b7dda6d6064fe6d37533c78"
+            "src": "4ff028f97670400a3b36b9f0d920b68538c074d41b7dda6d6064fe6d37533c78",
+            "color": "a37e4b"
         },
         {
             "name": "Medieval_FishTrap_1",
@@ -1513,7 +1659,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368"
+            "src": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368",
+            "color": "7e5d4a"
         },
         {
             "name": "Medieval_ForestHut_1",
@@ -1523,7 +1670,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "d79880410765c06d0ece0061d277fcb8482fe746a21fd372603d6771a2544e60"
+            "src": "d79880410765c06d0ece0061d277fcb8482fe746a21fd372603d6771a2544e60",
+            "color": "868558"
         },
         {
             "name": "Medieval_GemMine_1",
@@ -1533,7 +1681,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "ad284549453607a151ad3f900a5682b50c51641471fcf7cc3526ad755427166d"
+            "src": "ad284549453607a151ad3f900a5682b50c51641471fcf7cc3526ad755427166d",
+            "color": "7f6856"
         },
         {
             "name": "Medieval_GoldMine_1",
@@ -1543,7 +1692,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "0e83635a522572b61fd104e8e72e4b0b18f50587d5712c13155913dbcb2c7c5f"
+            "src": "0e83635a522572b61fd104e8e72e4b0b18f50587d5712c13155913dbcb2c7c5f",
+            "color": "8c7c52"
         },
         {
             "name": "Medieval_GoldMine_Big_1",
@@ -1553,7 +1703,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "3e5447e98de987f1eff3763f77f86d976a66ee65ad15a62f35c0378cfb948cd9"
+            "src": "3e5447e98de987f1eff3763f77f86d976a66ee65ad15a62f35c0378cfb948cd9",
+            "color": "856c52"
         },
         {
             "name": "Medieval_LumberMill_1",
@@ -1563,7 +1714,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "9ae39c5fe1e57fa61e7e2c9d9c55236e33d7826dbc5b23f9ceec0542d2b5660a"
+            "src": "9ae39c5fe1e57fa61e7e2c9d9c55236e33d7826dbc5b23f9ceec0542d2b5660a",
+            "color": "857d4c"
         },
         {
             "name": "Medieval_LumberMill_Big_1",
@@ -1573,7 +1725,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "9ff5d2bd1cfaf5dd837619fe30bdd640bfe31710b7ae46c1f70aa20022aa7f83"
+            "src": "9ff5d2bd1cfaf5dd837619fe30bdd640bfe31710b7ae46c1f70aa20022aa7f83",
+            "color": "83704b"
         },
         {
             "name": "Medieval_LumberMill_Industrial_1",
@@ -1583,7 +1736,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "52c26f7215ed4f4c6262a54116f48ecb4ccb973d386feb4d5afda76ee46706c3"
+            "src": "52c26f7215ed4f4c6262a54116f48ecb4ccb973d386feb4d5afda76ee46706c3",
+            "color": "917556"
         },
         {
             "name": "Medieval_Market_1",
@@ -1593,7 +1747,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "b722966a816f869a02d6478f7a9f8ef4763e3b8a84395c7ced1f14d9b5aeb3f6"
+            "src": "b722966a816f869a02d6478f7a9f8ef4763e3b8a84395c7ced1f14d9b5aeb3f6",
+            "color": "a67653"
         },
         {
             "name": "Medieval_Mill_1",
@@ -1603,7 +1758,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "33441177b5f080208c760cf899270b2fe50c2e63c1643ca548a5037caa67d71e"
+            "src": "33441177b5f080208c760cf899270b2fe50c2e63c1643ca548a5037caa67d71e",
+            "color": "a37b57"
         },
         {
             "name": "Medieval_Monastery_1",
@@ -1613,7 +1769,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "cfde9d2ac1abe4992219631e054cfda89247444066f876c850e1d6c48a7c0804"
+            "src": "cfde9d2ac1abe4992219631e054cfda89247444066f876c850e1d6c48a7c0804",
+            "color": "958273"
         },
         {
             "name": "Medieval_OreMine_1",
@@ -1623,7 +1780,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "42e4b2f3d4d05e871f415bf5c56a531d32055606b3bd91b2ec3bf2a69819a92d"
+            "src": "42e4b2f3d4d05e871f415bf5c56a531d32055606b3bd91b2ec3bf2a69819a92d",
+            "color": "81684c"
         },
         {
             "name": "Medieval_OreWorkshop_1",
@@ -1633,7 +1791,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "3a56b3ae6e1b60fbb116d10e72759dda9b1e43fe946adad035606959b7ed005d"
+            "src": "3a56b3ae6e1b60fbb116d10e72759dda9b1e43fe946adad035606959b7ed005d",
+            "color": "806448"
         },
         {
             "name": "Medieval_Plantation_1",
@@ -1643,7 +1802,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "6dd943181d0adbe18a8b9065bf31c2fce6df9ad4d239140a7dd1b27e734535fa"
+            "src": "6dd943181d0adbe18a8b9065bf31c2fce6df9ad4d239140a7dd1b27e734535fa",
+            "color": "8a7b58"
         },
         {
             "name": "Medieval_SilverMine_1",
@@ -1653,7 +1813,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "fa0b909d34549c4d8f8fcbfa120861db63b50609bbaec882a85b22e866111565"
+            "src": "fa0b909d34549c4d8f8fcbfa120861db63b50609bbaec882a85b22e866111565",
+            "color": "867b60"
         },
         {
             "name": "Medieval_SmallShip_1",
@@ -1663,7 +1824,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b"
+            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b",
+            "color": "81665a"
         },
         {
             "name": "Medieval_SmallShipyard_1",
@@ -1673,7 +1835,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
+            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807",
+            "color": "7c5b4f"
         },
         {
             "name": "Medieval_StoneConveyor_1",
@@ -1683,7 +1846,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "ae006ff84658298241a8298c2785dcd5ad1e88fea138474d5e157d239389edab"
+            "src": "ae006ff84658298241a8298c2785dcd5ad1e88fea138474d5e157d239389edab",
+            "color": "866e4a"
         },
         {
             "name": "Medieval_StoneMine_1",
@@ -1693,7 +1857,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "809f530621b6591a5b42598bc8b933b6c4c96af8e826f230427668fd754c9d10"
+            "src": "809f530621b6591a5b42598bc8b933b6c4c96af8e826f230427668fd754c9d10",
+            "color": "8c7857"
         },
         {
             "name": "Medieval_StoneMineBig_1",
@@ -1703,7 +1868,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "700f4a9f85e3cf4d3c80316d604afcc82f2957a66dc97f56c9759bf1d97fe9f5"
+            "src": "700f4a9f85e3cf4d3c80316d604afcc82f2957a66dc97f56c9759bf1d97fe9f5",
+            "color": "896e58"
         },
         {
             "name": "Medieval_Tavern_1",
@@ -1713,7 +1879,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "e42e9d9a940b67cab416b96f4b3851f5a44fd731006c4d088ebaf4a26931412c"
+            "src": "e42e9d9a940b67cab416b96f4b3851f5a44fd731006c4d088ebaf4a26931412c",
+            "color": "957954"
         },
         {
             "name": "Coastline_0_UpperRight",
@@ -1723,7 +1890,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "d33570a548f30c1d3f93542e142ea36218f00b430986b710da25975ea47b7e95"
+            "src": "d33570a548f30c1d3f93542e142ea36218f00b430986b710da25975ea47b7e95",
+            "color": "798f69"
         },
         {
             "name": "Coastline_1_LowerRight",
@@ -1733,7 +1901,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "19701656df4e03be0aa27178172ef9dfa2d3e734176f01faae4719532bba6419"
+            "src": "19701656df4e03be0aa27178172ef9dfa2d3e734176f01faae4719532bba6419",
+            "color": "7b8f58"
         },
         {
             "name": "Coastline_2_Bottom",
@@ -1743,7 +1912,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "4ed67f60b81b26c76d9c63011fc715685bae4f61acbffd0cc059336c81f3331d"
+            "src": "4ed67f60b81b26c76d9c63011fc715685bae4f61acbffd0cc059336c81f3331d",
+            "color": "7a9265"
         },
         {
             "name": "Coastline_3_LowerLeft",
@@ -1753,7 +1923,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "e15d07911396f4533b092592914718d2ab9167a7300aab2ff2ef891b39bb706c"
+            "src": "e15d07911396f4533b092592914718d2ab9167a7300aab2ff2ef891b39bb706c",
+            "color": "6e8764"
         },
         {
             "name": "Coastline_4_UpperLeft",
@@ -1763,7 +1934,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "542d14e388ec761b806d936724c5c67c1bf26e12c56bc70b4a1378a2e3344ad2"
+            "src": "542d14e388ec761b806d936724c5c67c1bf26e12c56bc70b4a1378a2e3344ad2",
+            "color": "798f5c"
         },
         {
             "name": "Coastline_5_Top",
@@ -1773,7 +1945,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "2c3c58617dcd59ca11b663bbe4db1b5f3f753db6e9297855290a732182efc262"
+            "src": "2c3c58617dcd59ca11b663bbe4db1b5f3f753db6e9297855290a732182efc262",
+            "color": "728a61"
         },
         {
             "name": "Decameroon_Settlements_Big_1",
@@ -1783,7 +1956,8 @@
             "y": 3,
             "w": 1286,
             "h": 1341,
-            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e"
+            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e",
+            "color": "8c8051"
         }
     ]
 }

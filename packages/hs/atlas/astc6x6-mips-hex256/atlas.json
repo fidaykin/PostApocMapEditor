@@ -53,7 +53,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "331a71901041df54c8a2f06269c739229f5e5e21f81119ff0250eacae8287bdb"
+            "src": "331a71901041df54c8a2f06269c739229f5e5e21f81119ff0250eacae8287bdb",
+            "color": "856944"
         },
         {
             "name": "Decameroon_LavaRift_1",
@@ -63,7 +64,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "cfe9a94e5f42d23d8145a552e61bd6929f12eb4cee9fd26ee2efe565b6bfdbae"
+            "src": "cfe9a94e5f42d23d8145a552e61bd6929f12eb4cee9fd26ee2efe565b6bfdbae",
+            "color": "745341"
         },
         {
             "name": "Decameroon_Mountain_2",
@@ -73,7 +75,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "809e723e4d7006660eaf8766209b6b3e46f8a05e295f6aebc458c456fd7edbfe"
+            "src": "809e723e4d7006660eaf8766209b6b3e46f8a05e295f6aebc458c456fd7edbfe",
+            "color": "73744c"
         },
         {
             "name": "Decameroon_Rift_1",
@@ -83,7 +86,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022"
+            "src": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022",
+            "color": "80a03c"
         },
         {
             "name": "Decameroon_Settlements_Small_1",
@@ -93,7 +97,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5"
+            "src": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5",
+            "color": "8c7c54"
         },
         {
             "name": "FarmGrain",
@@ -103,7 +108,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345"
+            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345",
+            "color": "e1b860"
         },
         {
             "name": "Forest_red",
@@ -113,7 +119,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74"
+            "src": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74",
+            "color": "551c21"
         },
         {
             "name": "HS_Barren_1",
@@ -123,7 +130,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "09efb17275975105782255456f44b9cd583cf212e02d45eae18a04e868d3f1b9"
+            "src": "09efb17275975105782255456f44b9cd583cf212e02d45eae18a04e868d3f1b9",
+            "color": "e1ad79"
         },
         {
             "name": "HS_BrokenShip_1",
@@ -133,7 +141,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "df92fddef96e63d9e8fc75b541560a6c033beca1190501552715ff09c6a1469f"
+            "src": "df92fddef96e63d9e8fc75b541560a6c033beca1190501552715ff09c6a1469f",
+            "color": "795f5d"
         },
         {
             "name": "HS_Desert_1",
@@ -143,7 +152,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "d5e6ce5788a25791d42c5fca97826a1a37e7552d556e3e10b3f007005b5fd900"
+            "src": "d5e6ce5788a25791d42c5fca97826a1a37e7552d556e3e10b3f007005b5fd900",
+            "color": "e8b480"
         },
         {
             "name": "HS_DestroyedBuilding_1",
@@ -153,7 +163,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "e8915c4ce8cf706d321f15e4abed62f9e38e952424ca9e5df90c09ead994eebc"
+            "src": "e8915c4ce8cf706d321f15e4abed62f9e38e952424ca9e5df90c09ead994eebc",
+            "color": "8e8151"
         },
         {
             "name": "HS_Forest_1",
@@ -163,7 +174,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "f610753b6c2eb71e2b4898d9c82626b8fdaddee249aaf944cf35fe1ca5ce7150"
+            "src": "f610753b6c2eb71e2b4898d9c82626b8fdaddee249aaf944cf35fe1ca5ce7150",
+            "color": "808f4d"
         },
         {
             "name": "HS_Forest_2",
@@ -173,7 +185,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "684725e1385313d53f8198ea719eed0c6ae4add509afb3a5ce3f7ece1b67ae60"
+            "src": "684725e1385313d53f8198ea719eed0c6ae4add509afb3a5ce3f7ece1b67ae60",
+            "color": "72824c"
         },
         {
             "name": "HS_Forest_3",
@@ -183,7 +196,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "eba15dd5df4f1d262358600297d31fa38dda62e2e81040b440741d3789084d4e"
+            "src": "eba15dd5df4f1d262358600297d31fa38dda62e2e81040b440741d3789084d4e",
+            "color": "62744a"
         },
         {
             "name": "HS_Forest_B1_1",
@@ -193,7 +207,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "f192e358a3d03082c2437b9173f59e27feffb2905babd28dda27ce09fb57bb5b"
+            "src": "f192e358a3d03082c2437b9173f59e27feffb2905babd28dda27ce09fb57bb5b",
+            "color": "8d915a"
         },
         {
             "name": "HS_Forest_B1_2",
@@ -203,7 +218,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "3350a6994e8589ef138b263fd16f597edad0cacdaa96b4502fa2640c7ac741e9"
+            "src": "3350a6994e8589ef138b263fd16f597edad0cacdaa96b4502fa2640c7ac741e9",
+            "color": "7d8456"
         },
         {
             "name": "HS_Forest_B1_3",
@@ -213,7 +229,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "69c7bdf67e7327dcf37f4012699a04bc7570972c685c21cb4ba197cc5394ce54"
+            "src": "69c7bdf67e7327dcf37f4012699a04bc7570972c685c21cb4ba197cc5394ce54",
+            "color": "6b7553"
         },
         {
             "name": "HS_Forest_B2_1",
@@ -223,7 +240,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "12b7f290127b0e302a38852486ad2f804fa22e1d534781ad9e07bdf328d5fefc"
+            "src": "12b7f290127b0e302a38852486ad2f804fa22e1d534781ad9e07bdf328d5fefc",
+            "color": "7d8d48"
         },
         {
             "name": "HS_Forest_B2_2",
@@ -233,7 +251,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "eac16b94faa1da43a69cec752f68a31295091dbbc257e3a4da9466fca0b24ca7"
+            "src": "eac16b94faa1da43a69cec752f68a31295091dbbc257e3a4da9466fca0b24ca7",
+            "color": "6f8148"
         },
         {
             "name": "HS_Forest_B2_3",
@@ -243,7 +262,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "a22384b82ecd98c7b2d117072bd3b0310ea187770bc024e7d31046b4e94aa621"
+            "src": "a22384b82ecd98c7b2d117072bd3b0310ea187770bc024e7d31046b4e94aa621",
+            "color": "5f7347"
         },
         {
             "name": "HS_Forest_B5_1",
@@ -253,7 +273,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "00c90c2a2337f3570463cd5262aa4a95cc8d8bc4db764a6de7cff7b55e7a9d33"
+            "src": "00c90c2a2337f3570463cd5262aa4a95cc8d8bc4db764a6de7cff7b55e7a9d33",
+            "color": "89954e"
         },
         {
             "name": "HS_Forest_B5_2",
@@ -263,7 +284,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "1cd0a0e029971010d403a5d13ddb9a7a0400051fe86d72b854f4637832f4cb92"
+            "src": "1cd0a0e029971010d403a5d13ddb9a7a0400051fe86d72b854f4637832f4cb92",
+            "color": "7c884e"
         },
         {
             "name": "HS_Forest_B5_3",
@@ -273,7 +295,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "b25a171bb2642c15afe886e386b329a41657ee41d3058d7032dbbdd450bb6912"
+            "src": "b25a171bb2642c15afe886e386b329a41657ee41d3058d7032dbbdd450bb6912",
+            "color": "69794d"
         },
         {
             "name": "HS_Forest_B_1",
@@ -283,7 +306,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "1a94f4ba9b4028c9255246ae4d48e40982d546b30e8ec31abbb94697684f250d"
+            "src": "1a94f4ba9b4028c9255246ae4d48e40982d546b30e8ec31abbb94697684f250d",
+            "color": "869050"
         },
         {
             "name": "HS_Forest_B_2",
@@ -293,7 +317,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "db7d2ee04590b656363d1f950010bea7752e58ac21e4586de10c57dd203b9c71"
+            "src": "db7d2ee04590b656363d1f950010bea7752e58ac21e4586de10c57dd203b9c71",
+            "color": "798450"
         },
         {
             "name": "HS_Forest_B_3",
@@ -303,7 +328,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "a87d21d88b531ff35770e87629cf73baa4e14485aa3ce3f86455bd156604d398"
+            "src": "a87d21d88b531ff35770e87629cf73baa4e14485aa3ce3f86455bd156604d398",
+            "color": "67754e"
         },
         {
             "name": "HS_GemPond_1",
@@ -313,7 +339,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "666047cb2c692273128d9d4609497702dbc100031ae96c93e8724c4517a7acb6"
+            "src": "666047cb2c692273128d9d4609497702dbc100031ae96c93e8724c4517a7acb6",
+            "color": "86816e"
         },
         {
             "name": "HS_GoldVein_1",
@@ -323,7 +350,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "bbf80f727fef7b1a3bae9d3e6e8c66b3489dbc943176ecb9b3272ae94937584d"
+            "src": "bbf80f727fef7b1a3bae9d3e6e8c66b3489dbc943176ecb9b3272ae94937584d",
+            "color": "a18f47"
         },
         {
             "name": "HS_Grain_1",
@@ -333,7 +361,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "f882f4562380f18e740acec5ac2d77b83ac246a5bca57d74f94558caa68579e0"
+            "src": "f882f4562380f18e740acec5ac2d77b83ac246a5bca57d74f94558caa68579e0",
+            "color": "b38044"
         },
         {
             "name": "HS_Grain_B1_1",
@@ -343,7 +372,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "8cc7121c5af9bd1e29e9d82c4ad796560bcd630ba7246b0adc21c433f625f4ef"
+            "src": "8cc7121c5af9bd1e29e9d82c4ad796560bcd630ba7246b0adc21c433f625f4ef",
+            "color": "bd844b"
         },
         {
             "name": "HS_Grain_B2_1",
@@ -353,7 +383,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "21ca74f9c19c956a9ef976d348bbe79659e1257bc4a0b948cf4d371c19fbb202"
+            "src": "21ca74f9c19c956a9ef976d348bbe79659e1257bc4a0b948cf4d371c19fbb202",
+            "color": "ae7e41"
         },
         {
             "name": "HS_Grain_B5_1",
@@ -363,7 +394,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "1fff17be83a4640b016036fcde961b144ed7b07fa0bf2820b354d893e835b29a"
+            "src": "1fff17be83a4640b016036fcde961b144ed7b07fa0bf2820b354d893e835b29a",
+            "color": "b78447"
         },
         {
             "name": "HS_Grain_B_1",
@@ -373,7 +405,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "155eeca271b7f097ebf895277a20aca514da40f7d2a900d5368280f8a53bca06"
+            "src": "155eeca271b7f097ebf895277a20aca514da40f7d2a900d5368280f8a53bca06",
+            "color": "be864d"
         },
         {
             "name": "HS_Herbs_1",
@@ -383,7 +416,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "db78062cc0203c9c1e6acf9ac9d0dfa31f27be535262a41876062572c7d08f80"
+            "src": "db78062cc0203c9c1e6acf9ac9d0dfa31f27be535262a41876062572c7d08f80",
+            "color": "938455"
         },
         {
             "name": "HS_Hills_1",
@@ -393,7 +427,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "2d3dca3e7b241184b309b237b912158d78924e218e45fd3302ad5e284fec4c20"
+            "src": "2d3dca3e7b241184b309b237b912158d78924e218e45fd3302ad5e284fec4c20",
+            "color": "959445"
         },
         {
             "name": "HS_Mountain_1",
@@ -403,7 +438,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "d097cdae3ca4494d8ec2f7d4c466279ac87b3de87d5224499c143dc28c4b6d47"
+            "src": "d097cdae3ca4494d8ec2f7d4c466279ac87b3de87d5224499c143dc28c4b6d47",
+            "color": "9e9879"
         },
         {
             "name": "HS_Plain_1",
@@ -413,7 +449,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "5d658866bbbb03e9b0d9a94ac1a5ec7b857159ffcf08feceafcd0e7b540bfde8"
+            "src": "5d658866bbbb03e9b0d9a94ac1a5ec7b857159ffcf08feceafcd0e7b540bfde8",
+            "color": "99a24e"
         },
         {
             "name": "HS_Plain_2",
@@ -423,7 +460,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "66298e549b798dc55092d6121b2f4f52cf82dc48621714cfbafe552f838205ca"
+            "src": "66298e549b798dc55092d6121b2f4f52cf82dc48621714cfbafe552f838205ca",
+            "color": "8f8d48"
         },
         {
             "name": "HS_Plain_B1_1",
@@ -433,7 +471,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "3e3558fb5f2f19f2050847eeb2a946a974598cbe7dccf8c6a8954c86c0668563"
+            "src": "3e3558fb5f2f19f2050847eeb2a946a974598cbe7dccf8c6a8954c86c0668563",
+            "color": "a6a35e"
         },
         {
             "name": "HS_Plain_B1_2",
@@ -443,7 +482,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "ffbb90ba16cfa9db92719e84fe7afad9e590b56ab29b5756a0b0e3dc66a42ff5"
+            "src": "ffbb90ba16cfa9db92719e84fe7afad9e590b56ab29b5756a0b0e3dc66a42ff5",
+            "color": "9c9054"
         },
         {
             "name": "HS_Plain_B2_1",
@@ -453,7 +493,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "f24a102de57bd43dc7aed7ca64fda91613dc70c183723244a38a4ca8f696847d"
+            "src": "f24a102de57bd43dc7aed7ca64fda91613dc70c183723244a38a4ca8f696847d",
+            "color": "94a049"
         },
         {
             "name": "HS_Plain_B2_2",
@@ -463,7 +504,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "5fdc0177b1c2e768d2eaa0a16051806ec8b4d991cb35049f2bf9013cae3fb51e"
+            "src": "5fdc0177b1c2e768d2eaa0a16051806ec8b4d991cb35049f2bf9013cae3fb51e",
+            "color": "8c8c44"
         },
         {
             "name": "HS_Plain_B5_1",
@@ -473,7 +515,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "3e1aeae318f67f42fad7217ababbde676f2b7b956b76a008427d076ddde6b2e1"
+            "src": "3e1aeae318f67f42fad7217ababbde676f2b7b956b76a008427d076ddde6b2e1",
+            "color": "a5a94e"
         },
         {
             "name": "HS_Plain_B5_2",
@@ -483,7 +526,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "b63dd07914fd08103d77f1b95f10146a6e4b89a3e192aa21fd74e84e7e13bd4a"
+            "src": "b63dd07914fd08103d77f1b95f10146a6e4b89a3e192aa21fd74e84e7e13bd4a",
+            "color": "9a944a"
         },
         {
             "name": "HS_Plain_B_1",
@@ -493,7 +537,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "2f2f25bd5f3033a16eedfe1c1bc884d7b64ad35de5e7ab787eaf6255e3b64b71"
+            "src": "2f2f25bd5f3033a16eedfe1c1bc884d7b64ad35de5e7ab787eaf6255e3b64b71",
+            "color": "a1a450"
         },
         {
             "name": "HS_Plain_B_2",
@@ -503,7 +548,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "3f4bc89ad2a5b1226372b1f6203fa31dab137f82b9dae39abd0e201299f90d62"
+            "src": "3f4bc89ad2a5b1226372b1f6203fa31dab137f82b9dae39abd0e201299f90d62",
+            "color": "98904b"
         },
         {
             "name": "HS_RockySwamp_1",
@@ -513,7 +559,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "165e9fb2db57e575a4c209a02d4eaefcb9a06a427c24b69bcc343f85f08839ee"
+            "src": "165e9fb2db57e575a4c209a02d4eaefcb9a06a427c24b69bcc343f85f08839ee",
+            "color": "938863"
         },
         {
             "name": "HS_Rubble_1",
@@ -523,7 +570,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "eff259f3562cb8cd161e8ef61f2c8082eee4e59247b6f1c4ee90e2105f79ee50"
+            "src": "eff259f3562cb8cd161e8ef61f2c8082eee4e59247b6f1c4ee90e2105f79ee50",
+            "color": "a39c6f"
         },
         {
             "name": "HS_Rubble_2",
@@ -533,7 +581,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "861b794a4f846969be2bb80ea46f39421515b61225b4149572917c810e0afd9c"
+            "src": "861b794a4f846969be2bb80ea46f39421515b61225b4149572917c810e0afd9c",
+            "color": "a9a676"
         },
         {
             "name": "HS_Rubble_3",
@@ -543,7 +592,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "2196891939377b8baba2ea0030472cb77f08dde70510530788a03c1c06ce9958"
+            "src": "2196891939377b8baba2ea0030472cb77f08dde70510530788a03c1c06ce9958",
+            "color": "999d68"
         },
         {
             "name": "HS_SilverVein_1",
@@ -553,7 +603,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "c04bc0a34ff3c91ffe68312cd83ee451454efb0bf2956c41007d49fd8f05e741"
+            "src": "c04bc0a34ff3c91ffe68312cd83ee451454efb0bf2956c41007d49fd8f05e741",
+            "color": "848c64"
         },
         {
             "name": "HS_Swamp_1",
@@ -563,7 +614,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "e2b3f9177e6f858520b976d2d5a8122c48aad6fd933139d9d52c21ac7e278f90"
+            "src": "e2b3f9177e6f858520b976d2d5a8122c48aad6fd933139d9d52c21ac7e278f90",
+            "color": "86824c"
         },
         {
             "name": "HS_WaterStones_1",
@@ -573,7 +625,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "0e125876df50d72b204cb9762c626de44094c43799dd530b97c2d11e3d7adc44"
+            "src": "0e125876df50d72b204cb9762c626de44094c43799dd530b97c2d11e3d7adc44",
+            "color": "807f8d"
         },
         {
             "name": "Medieval_BrokenShip_1",
@@ -583,7 +636,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20"
+            "src": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20",
+            "color": "775e55"
         },
         {
             "name": "Medieval_DirtyWater_1",
@@ -593,7 +647,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373"
+            "src": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373",
+            "color": "075b84"
         },
         {
             "name": "Medieval_Fish_1",
@@ -603,7 +658,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152"
+            "src": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152",
+            "color": "1c3b60"
         },
         {
             "name": "Medieval_Lake_1",
@@ -613,7 +669,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "a9dd737e30c2076fa7abce9e1dc1b1dd57a22f0f8a6ad72efee223b1a4009135"
+            "src": "a9dd737e30c2076fa7abce9e1dc1b1dd57a22f0f8a6ad72efee223b1a4009135",
+            "color": "378893"
         },
         {
             "name": "Medieval_Lake_2",
@@ -623,7 +680,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "80f5211ee89edd55dde8a449f14aaa123bad1764a29dc2e4d5c8422b8ec27be5"
+            "src": "80f5211ee89edd55dde8a449f14aaa123bad1764a29dc2e4d5c8422b8ec27be5",
+            "color": "398a95"
         },
         {
             "name": "Medieval_Lake_3",
@@ -633,7 +691,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "9b04b0e993dccdce072fbc87e62de73a9692eabe1725e9c1eeb937a5dc284533"
+            "src": "9b04b0e993dccdce072fbc87e62de73a9692eabe1725e9c1eeb937a5dc284533",
+            "color": "398a93"
         },
         {
             "name": "Medieval_Lake_4",
@@ -643,7 +702,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "2b397f8baf068665bc5f644bebd5dd42e3fe46961a40a2428bc079008d70bc76"
+            "src": "2b397f8baf068665bc5f644bebd5dd42e3fe46961a40a2428bc079008d70bc76",
+            "color": "388a95"
         },
         {
             "name": "Medieval_Lake_5",
@@ -653,7 +713,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "052a620353fecc97451b2ca9e73db7d2a9d3e348b98acb02061ad548a3da4d41"
+            "src": "052a620353fecc97451b2ca9e73db7d2a9d3e348b98acb02061ad548a3da4d41",
+            "color": "378893"
         },
         {
             "name": "Medieval_Lake_6",
@@ -663,7 +724,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "ba450fe848274ec13a1e420e564b6ae581445ce6a1869a417dae119554a6dff7"
+            "src": "ba450fe848274ec13a1e420e564b6ae581445ce6a1869a417dae119554a6dff7",
+            "color": "368793"
         },
         {
             "name": "Medieval_Lake_7",
@@ -673,7 +735,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "167af984001f710a672da65dfba5e9e934f133a4689007ab871e5a453d2956d0"
+            "src": "167af984001f710a672da65dfba5e9e934f133a4689007ab871e5a453d2956d0",
+            "color": "3d8b92"
         },
         {
             "name": "Medieval_River_D_2",
@@ -683,7 +746,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "3e0e3fd73f562c86da970627e30ef9ab0b8020e65f8ee0d3e272885ec71503fa"
+            "src": "3e0e3fd73f562c86da970627e30ef9ab0b8020e65f8ee0d3e272885ec71503fa",
+            "color": "6b9c72"
         },
         {
             "name": "Medieval_River_D_3",
@@ -693,7 +757,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "3119f478afee541b96e38893d969148050ccf4b136aa71b0160eb9415bdf249b"
+            "src": "3119f478afee541b96e38893d969148050ccf4b136aa71b0160eb9415bdf249b",
+            "color": "599881"
         },
         {
             "name": "Medieval_River_D_4",
@@ -703,7 +768,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "5916bf2f57998244b5ba4d1908d6b7cfcbfb1bc35698cd32bc4eda1c5d373b1c"
+            "src": "5916bf2f57998244b5ba4d1908d6b7cfcbfb1bc35698cd32bc4eda1c5d373b1c",
+            "color": "719d70"
         },
         {
             "name": "Medieval_River_D_L_EE_2",
@@ -713,7 +779,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "0ae66af2a7885a4d2a72887624585d2260d304d6cf459e054df28d4a6ebfb7f7"
+            "src": "0ae66af2a7885a4d2a72887624585d2260d304d6cf459e054df28d4a6ebfb7f7",
+            "color": "519181"
         },
         {
             "name": "Medieval_River_D_R_EE_2",
@@ -723,7 +790,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "d1c681e198e606f0979fc886af4bebbf7b0e1c890eb87ece27220323485a43f7"
+            "src": "d1c681e198e606f0979fc886af4bebbf7b0e1c890eb87ece27220323485a43f7",
+            "color": "558e7f"
         },
         {
             "name": "Medieval_River_L_1",
@@ -733,7 +801,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "a3968ebfa2145a52f1656da46747535ee7755abe65c1aa821acdc29de95c08ee"
+            "src": "a3968ebfa2145a52f1656da46747535ee7755abe65c1aa821acdc29de95c08ee",
+            "color": "709975"
         },
         {
             "name": "Medieval_River_L_4",
@@ -743,7 +812,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "cf08e383520a1cb1d5f68069d83b45561feef85274415c06c652b3451f692429"
+            "src": "cf08e383520a1cb1d5f68069d83b45561feef85274415c06c652b3451f692429",
+            "color": "779e6d"
         },
         {
             "name": "Medieval_River_L_5",
@@ -753,7 +823,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "2f7677bf13dd76ddf33231206f186b50a28bd6da8d1fe8fb44499225de24f4ad"
+            "src": "2f7677bf13dd76ddf33231206f186b50a28bd6da8d1fe8fb44499225de24f4ad",
+            "color": "679c77"
         },
         {
             "name": "Medieval_River_L_D_E_1",
@@ -763,7 +834,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "aa0c3fbc0425f19e7e8c4dce8ba368d84777650c913946389f2eea2de14a27f6"
+            "src": "aa0c3fbc0425f19e7e8c4dce8ba368d84777650c913946389f2eea2de14a27f6",
+            "color": "619d7f"
         },
         {
             "name": "Medieval_River_L_L_E_5",
@@ -773,7 +845,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "d306db011345c0446cf8d46773d78870c8389438bf0978977b5e154f313530b3"
+            "src": "d306db011345c0446cf8d46773d78870c8389438bf0978977b5e154f313530b3",
+            "color": "639978"
         },
         {
             "name": "Medieval_River_L_R_E_5",
@@ -783,7 +856,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "bbfbf418f26829eebb83503e2bf70ed6dd1f8abfa7837e5ba2318e2cd9dd7ae3"
+            "src": "bbfbf418f26829eebb83503e2bf70ed6dd1f8abfa7837e5ba2318e2cd9dd7ae3",
+            "color": "649978"
         },
         {
             "name": "Medieval_River_L_U_E_1",
@@ -793,7 +867,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "d7474d3e0c8597aa9a21a3e0c8811f8c16c6ce0e2ac39cab207b997178331a11"
+            "src": "d7474d3e0c8597aa9a21a3e0c8811f8c16c6ce0e2ac39cab207b997178331a11",
+            "color": "659c7e"
         },
         {
             "name": "Medieval_River_R_1",
@@ -803,7 +878,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "328d68f85b344a32cba0349b7895eee3e2e96f9572d04c3c8b8f0f2af8ad1688"
+            "src": "328d68f85b344a32cba0349b7895eee3e2e96f9572d04c3c8b8f0f2af8ad1688",
+            "color": "69a07c"
         },
         {
             "name": "Medieval_River_R_4",
@@ -813,7 +889,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "c17afc0f55345f1f31fc8912d0ab2ea46996a5c10cdf5dff9ab5f1a5ce6f1dfe"
+            "src": "c17afc0f55345f1f31fc8912d0ab2ea46996a5c10cdf5dff9ab5f1a5ce6f1dfe",
+            "color": "779e6f"
         },
         {
             "name": "Medieval_River_R_5",
@@ -823,7 +900,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "d05d212e14efe993108f7294643082ab0ac23f37ba51c197e04c728a2bbe0220"
+            "src": "d05d212e14efe993108f7294643082ab0ac23f37ba51c197e04c728a2bbe0220",
+            "color": "669c78"
         },
         {
             "name": "Medieval_River_U_2",
@@ -833,7 +911,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "fc98fcdb678795029e55a6e6d3a50e1c83ecd38cc4f22f5ab028acf9c258a6ef"
+            "src": "fc98fcdb678795029e55a6e6d3a50e1c83ecd38cc4f22f5ab028acf9c258a6ef",
+            "color": "6a9a73"
         },
         {
             "name": "Medieval_River_U_3",
@@ -843,7 +922,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "bac0fc4c8cac1d526b7027f3748ed4bc710f992421d913c60b2d82797b06dce8"
+            "src": "bac0fc4c8cac1d526b7027f3748ed4bc710f992421d913c60b2d82797b06dce8",
+            "color": "58997f"
         },
         {
             "name": "Medieval_River_U_4",
@@ -853,7 +933,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "2355afedc10a63f209def3797dca8252045fc2dd5bfdf5a41ce335b9104a252c"
+            "src": "2355afedc10a63f209def3797dca8252045fc2dd5bfdf5a41ce335b9104a252c",
+            "color": "729d6e"
         },
         {
             "name": "Medieval_River_U_D_E_4",
@@ -863,7 +944,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "98cd49b903bd317763445dc6e446ab36e35a8e1a95b3f2a7ff3ad1e261121e29"
+            "src": "98cd49b903bd317763445dc6e446ab36e35a8e1a95b3f2a7ff3ad1e261121e29",
+            "color": "6f9b70"
         },
         {
             "name": "Medieval_River_U_L_EE_2",
@@ -873,7 +955,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "447d43122003d9a425627a3cc7e09b303ec4966f6457e03519a616e1a5d5d3e7"
+            "src": "447d43122003d9a425627a3cc7e09b303ec4966f6457e03519a616e1a5d5d3e7",
+            "color": "4f8e84"
         },
         {
             "name": "Medieval_River_U_R_EE_2",
@@ -883,7 +966,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "30f4ecb21bbe2d13047310d32fffe8f053f146825e60d693f86f3c975e879775"
+            "src": "30f4ecb21bbe2d13047310d32fffe8f053f146825e60d693f86f3c975e879775",
+            "color": "538e82"
         },
         {
             "name": "Medieval_River_U_U_E_4",
@@ -893,7 +977,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "bb6dc80e91fbee2e010aa06a94db98a08911297662a34b1ea85e3ac3ef0fa8e2"
+            "src": "bb6dc80e91fbee2e010aa06a94db98a08911297662a34b1ea85e3ac3ef0fa8e2",
+            "color": "6b9972"
         },
         {
             "name": "Medieval_Water_1",
@@ -903,7 +988,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1"
+            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1",
+            "color": "116ea8"
         },
         {
             "name": "Medieval_WaterStones_1",
@@ -913,7 +999,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647"
+            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647",
+            "color": "787778"
         },
         {
             "name": "HS_Abbey_1",
@@ -923,7 +1010,8 @@
             "y": 2048,
             "w": 512,
             "h": 512,
-            "src": "722e4090dbc42cf8a9c693171712d3790b3aebc89ac707716c3ea54d7c28fd3e"
+            "src": "722e4090dbc42cf8a9c693171712d3790b3aebc89ac707716c3ea54d7c28fd3e",
+            "color": "988367"
         },
         {
             "name": "HS_Alchemist_1",
@@ -933,7 +1021,8 @@
             "y": 2048,
             "w": 512,
             "h": 512,
-            "src": "b9fd825257b144cd62ca8ab0c22f2261706f3b3042f3b89214c9128682fdaec9"
+            "src": "b9fd825257b144cd62ca8ab0c22f2261706f3b3042f3b89214c9128682fdaec9",
+            "color": "8f724f"
         },
         {
             "name": "HS_BigStorage_1",
@@ -943,7 +1032,8 @@
             "y": 2048,
             "w": 512,
             "h": 512,
-            "src": "e887bd0c1687ac2a083eaf3cf2d107a5165aca58d2b8479990751b8cbc66c98f"
+            "src": "e887bd0c1687ac2a083eaf3cf2d107a5165aca58d2b8479990751b8cbc66c98f",
+            "color": "79655c"
         },
         {
             "name": "HS_Farm_1",
@@ -953,7 +1043,8 @@
             "y": 2048,
             "w": 512,
             "h": 512,
-            "src": "14649b809b919758749699f5414fc0000f42885ba43e9f410b93e97dc1a82134"
+            "src": "14649b809b919758749699f5414fc0000f42885ba43e9f410b93e97dc1a82134",
+            "color": "ac7f49"
         },
         {
             "name": "HS_Farm_B1_1",
@@ -963,7 +1054,8 @@
             "y": 2048,
             "w": 512,
             "h": 512,
-            "src": "6e84e2ef3e3c5a0efe0d6174d4aa11e1e0caccc2f8fbbe5c58f764521d894753"
+            "src": "6e84e2ef3e3c5a0efe0d6174d4aa11e1e0caccc2f8fbbe5c58f764521d894753",
+            "color": "b3814f"
         },
         {
             "name": "HS_Farm_B2_2",
@@ -973,7 +1065,8 @@
             "y": 2048,
             "w": 512,
             "h": 512,
-            "src": "d3efa52e7b5c6e4bc92b52a929d7f351efbbf9b250285b754a3aeb9f02577d1c"
+            "src": "d3efa52e7b5c6e4bc92b52a929d7f351efbbf9b250285b754a3aeb9f02577d1c",
+            "color": "a67d44"
         },
         {
             "name": "HS_Farm_B5_1",
@@ -983,7 +1076,8 @@
             "y": 2048,
             "w": 512,
             "h": 512,
-            "src": "5c589d2764c7bd01d436622f4bc8c5f0d97d3fe254d689d57516a4fc66547f4a"
+            "src": "5c589d2764c7bd01d436622f4bc8c5f0d97d3fe254d689d57516a4fc66547f4a",
+            "color": "af8249"
         },
         {
             "name": "HS_Farm_B_1",
@@ -993,7 +1087,8 @@
             "y": 2048,
             "w": 512,
             "h": 512,
-            "src": "785575b4de53632f2d45215f2735919123b2b563de4954f61ee6726218ab34a5"
+            "src": "785575b4de53632f2d45215f2735919123b2b563de4954f61ee6726218ab34a5",
+            "color": "ad7f4a"
         },
         {
             "name": "HS_FishTrap_1",
@@ -1003,7 +1098,8 @@
             "y": 1536,
             "w": 512,
             "h": 512,
-            "src": "e50f20fbb44b2a2a552fc0a9bc30cd4311a37c7760c133190b0f9691a71d96a5"
+            "src": "e50f20fbb44b2a2a552fc0a9bc30cd4311a37c7760c133190b0f9691a71d96a5",
+            "color": "8f6545"
         },
         {
             "name": "HS_FoodAmbar_1",
@@ -1013,7 +1109,8 @@
             "y": 1536,
             "w": 512,
             "h": 512,
-            "src": "41b99f85f0628988439634dd5439465af9e180edea22404ae1c9d50cc5e83d1a"
+            "src": "41b99f85f0628988439634dd5439465af9e180edea22404ae1c9d50cc5e83d1a",
+            "color": "a17648"
         },
         {
             "name": "HS_ForestHut_1",
@@ -1023,7 +1120,8 @@
             "y": 1536,
             "w": 512,
             "h": 512,
-            "src": "47cd0a3de21046254142248458adcf2a4e92486456b03eed2256f7b92fca31a5"
+            "src": "47cd0a3de21046254142248458adcf2a4e92486456b03eed2256f7b92fca31a5",
+            "color": "858458"
         },
         {
             "name": "HS_GemMine_1",
@@ -1033,7 +1131,8 @@
             "y": 1536,
             "w": 512,
             "h": 512,
-            "src": "838998ca17ef6f0f45c4effba327a425423cfba18d0a15d731a0eaf259040bf1"
+            "src": "838998ca17ef6f0f45c4effba327a425423cfba18d0a15d731a0eaf259040bf1",
+            "color": "8b776a"
         },
         {
             "name": "HS_GoldMine_1",
@@ -1043,7 +1142,8 @@
             "y": 1536,
             "w": 512,
             "h": 512,
-            "src": "11607d8d864779d1228903442b9518be4e265b5d7fce6b7086cdc57d7bf0c272"
+            "src": "11607d8d864779d1228903442b9518be4e265b5d7fce6b7086cdc57d7bf0c272",
+            "color": "8b724f"
         },
         {
             "name": "HS_GoldMine_Big_1",
@@ -1053,7 +1153,8 @@
             "y": 1536,
             "w": 512,
             "h": 512,
-            "src": "1c11bd0850c85cf0cb3c01528d4e6791850fb810cf57316521716f206d48978f"
+            "src": "1c11bd0850c85cf0cb3c01528d4e6791850fb810cf57316521716f206d48978f",
+            "color": "785e4a"
         },
         {
             "name": "HS_LumberMill_1",
@@ -1063,7 +1164,8 @@
             "y": 1536,
             "w": 512,
             "h": 512,
-            "src": "06b9f6b98eca85088176bf46581badb0a4519d10d67fb634edc39e8a0d89f872"
+            "src": "06b9f6b98eca85088176bf46581badb0a4519d10d67fb634edc39e8a0d89f872",
+            "color": "877c49"
         },
         {
             "name": "HS_LumberMill_Big_1",
@@ -1073,7 +1175,8 @@
             "y": 1536,
             "w": 512,
             "h": 512,
-            "src": "eb9696b05f6a119920f995cf8b2715dd1d04accf53af8ba614286e74ed73e73f"
+            "src": "eb9696b05f6a119920f995cf8b2715dd1d04accf53af8ba614286e74ed73e73f",
+            "color": "826a41"
         },
         {
             "name": "HS_LumberMill_Industrial_1",
@@ -1083,7 +1186,8 @@
             "y": 1024,
             "w": 512,
             "h": 512,
-            "src": "d73d0f7413231c084dc804c1531f4900ac7acb3bb4618d48318c74cfbf25931f"
+            "src": "d73d0f7413231c084dc804c1531f4900ac7acb3bb4618d48318c74cfbf25931f",
+            "color": "917557"
         },
         {
             "name": "HS_LumberStorage_1",
@@ -1093,7 +1197,8 @@
             "y": 1024,
             "w": 512,
             "h": 512,
-            "src": "54257637cb4612e0d780c35c3e87861d74d1566063e484ec59220545492e7088"
+            "src": "54257637cb4612e0d780c35c3e87861d74d1566063e484ec59220545492e7088",
+            "color": "907a4d"
         },
         {
             "name": "HS_Market_1",
@@ -1103,7 +1208,8 @@
             "y": 1024,
             "w": 512,
             "h": 512,
-            "src": "b5957f4bc2d966020a70268a0b0ca9909568e9a9369bc8217c82d89e19a4af0c"
+            "src": "b5957f4bc2d966020a70268a0b0ca9909568e9a9369bc8217c82d89e19a4af0c",
+            "color": "ab7754"
         },
         {
             "name": "HS_Mill_1",
@@ -1113,7 +1219,8 @@
             "y": 1024,
             "w": 512,
             "h": 512,
-            "src": "23eb2ea9659b1a010a960c419b6fa88a389fbbe806b95b1bac0c4d0e6e55c5ec"
+            "src": "23eb2ea9659b1a010a960c419b6fa88a389fbbe806b95b1bac0c4d0e6e55c5ec",
+            "color": "a27855"
         },
         {
             "name": "HS_Monastery_1",
@@ -1123,7 +1230,8 @@
             "y": 1024,
             "w": 512,
             "h": 512,
-            "src": "901ea1ad7f76fdb5e283775bd4345b74d947f9cea6c5924f7cb959d9d0234949"
+            "src": "901ea1ad7f76fdb5e283775bd4345b74d947f9cea6c5924f7cb959d9d0234949",
+            "color": "917a73"
         },
         {
             "name": "HS_OreMine_1",
@@ -1133,7 +1241,8 @@
             "y": 1024,
             "w": 512,
             "h": 512,
-            "src": "3fbf2228e9d13f1a92b38a47f7991ae9064dd307517f7fcf77a424597e8abc3d"
+            "src": "3fbf2228e9d13f1a92b38a47f7991ae9064dd307517f7fcf77a424597e8abc3d",
+            "color": "7b6446"
         },
         {
             "name": "HS_OreWorkshop_1",
@@ -1143,7 +1252,8 @@
             "y": 1024,
             "w": 512,
             "h": 512,
-            "src": "8e5a7f7c3d2fbca2ee81a50c7f491e0cfdc780bdaf04969579bb25495e68db05"
+            "src": "8e5a7f7c3d2fbca2ee81a50c7f491e0cfdc780bdaf04969579bb25495e68db05",
+            "color": "846545"
         },
         {
             "name": "HS_Plantation_1",
@@ -1153,7 +1263,8 @@
             "y": 1024,
             "w": 512,
             "h": 512,
-            "src": "6ef22232420b8e8fd18d134f9f31767a106243374e56a7fa6092585a2be44fb2"
+            "src": "6ef22232420b8e8fd18d134f9f31767a106243374e56a7fa6092585a2be44fb2",
+            "color": "7e7657"
         },
         {
             "name": "HS_SilverMine_1",
@@ -1163,7 +1274,8 @@
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "b92c8fda52de1a257756c7aa378292ae6b61ea8791d7c063ded4819bc02f887e"
+            "src": "b92c8fda52de1a257756c7aa378292ae6b61ea8791d7c063ded4819bc02f887e",
+            "color": "907d5a"
         },
         {
             "name": "HS_SmallShip_1",
@@ -1173,7 +1285,8 @@
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "519e5393ce124c6b1ff45815b8e2fa9f4b8bdc7ca1519a2dacc6beb1979ce100"
+            "src": "519e5393ce124c6b1ff45815b8e2fa9f4b8bdc7ca1519a2dacc6beb1979ce100",
+            "color": "83604f"
         },
         {
             "name": "HS_SmallShipyard_1",
@@ -1183,7 +1296,8 @@
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "95f1109bad96f21bf81c6e31de224b42d7f58708e236e10af2172002169fb6e0"
+            "src": "95f1109bad96f21bf81c6e31de224b42d7f58708e236e10af2172002169fb6e0",
+            "color": "855c48"
         },
         {
             "name": "HS_SmallStorage_1",
@@ -1193,7 +1307,8 @@
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "64bc6d128d77e1684b50845c62dc7f35e7c2984acc1af0d2237e45008693bb15"
+            "src": "64bc6d128d77e1684b50845c62dc7f35e7c2984acc1af0d2237e45008693bb15",
+            "color": "827158"
         },
         {
             "name": "HS_StoneConveyor_1",
@@ -1203,7 +1318,8 @@
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "a16dac4cf07f4a74cd677c91b33a85fda3c081daad0479df09f5016b91d9247e"
+            "src": "a16dac4cf07f4a74cd677c91b33a85fda3c081daad0479df09f5016b91d9247e",
+            "color": "95774a"
         },
         {
             "name": "HS_StoneConveyor_2",
@@ -1213,7 +1329,8 @@
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "6edcf32b2447bf13b194dfc1520c5afce335987c6eceab4ea86e07ffe0e3105f"
+            "src": "6edcf32b2447bf13b194dfc1520c5afce335987c6eceab4ea86e07ffe0e3105f",
+            "color": "937b54"
         },
         {
             "name": "HS_StoneMine_1",
@@ -1223,7 +1340,8 @@
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "7596c7fe20b5cabd23dac5a6dfaae8135c21491c10fd1d1f6fdb4e8dedba111f"
+            "src": "7596c7fe20b5cabd23dac5a6dfaae8135c21491c10fd1d1f6fdb4e8dedba111f",
+            "color": "94805e"
         },
         {
             "name": "HS_StoneMine_Big_1",
@@ -1233,7 +1351,8 @@
             "y": 512,
             "w": 512,
             "h": 512,
-            "src": "ff57c5bc77262b30cbe3101b792a5544be4a3bd46a5efb1e83a652db29355af5"
+            "src": "ff57c5bc77262b30cbe3101b792a5544be4a3bd46a5efb1e83a652db29355af5",
+            "color": "94775b"
         },
         {
             "name": "HS_Tavern_1",
@@ -1243,7 +1362,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "ae84dbd4c2f96870af806197a61d3f964f36edf03ebd74f876489f67238530e0"
+            "src": "ae84dbd4c2f96870af806197a61d3f964f36edf03ebd74f876489f67238530e0",
+            "color": "9b7d51"
         },
         {
             "name": "HS_WaterMill_1",
@@ -1253,7 +1373,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "e97ef48e54e4340c4ba972e3a91e037db8fb3fdea5511cc5ba614129cdcb8609"
+            "src": "e97ef48e54e4340c4ba972e3a91e037db8fb3fdea5511cc5ba614129cdcb8609",
+            "color": "9f6756"
         },
         {
             "name": "Medieval_Artefact_1",
@@ -1263,7 +1384,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c"
+            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c",
+            "color": "8c984a"
         },
         {
             "name": "Medieval_FishTrap_1",
@@ -1273,7 +1395,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368"
+            "src": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368",
+            "color": "7e5d4a"
         },
         {
             "name": "Medieval_SmallShip_1",
@@ -1283,7 +1406,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b"
+            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b",
+            "color": "81665a"
         },
         {
             "name": "Medieval_SmallShipyard_1",
@@ -1293,7 +1417,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
+            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807",
+            "color": "7c5b4f"
         },
         {
             "name": "Coastline_0_UpperRight",
@@ -1303,7 +1428,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "d33570a548f30c1d3f93542e142ea36218f00b430986b710da25975ea47b7e95"
+            "src": "d33570a548f30c1d3f93542e142ea36218f00b430986b710da25975ea47b7e95",
+            "color": "798f69"
         },
         {
             "name": "Coastline_1_LowerRight",
@@ -1313,7 +1439,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "19701656df4e03be0aa27178172ef9dfa2d3e734176f01faae4719532bba6419"
+            "src": "19701656df4e03be0aa27178172ef9dfa2d3e734176f01faae4719532bba6419",
+            "color": "7b8f58"
         },
         {
             "name": "Coastline_2_Bottom",
@@ -1323,7 +1450,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "4ed67f60b81b26c76d9c63011fc715685bae4f61acbffd0cc059336c81f3331d"
+            "src": "4ed67f60b81b26c76d9c63011fc715685bae4f61acbffd0cc059336c81f3331d",
+            "color": "7a9265"
         },
         {
             "name": "Coastline_3_LowerLeft",
@@ -1333,7 +1461,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "e15d07911396f4533b092592914718d2ab9167a7300aab2ff2ef891b39bb706c"
+            "src": "e15d07911396f4533b092592914718d2ab9167a7300aab2ff2ef891b39bb706c",
+            "color": "6e8764"
         },
         {
             "name": "Coastline_4_UpperLeft",
@@ -1343,7 +1472,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "542d14e388ec761b806d936724c5c67c1bf26e12c56bc70b4a1378a2e3344ad2"
+            "src": "542d14e388ec761b806d936724c5c67c1bf26e12c56bc70b4a1378a2e3344ad2",
+            "color": "798f5c"
         },
         {
             "name": "Coastline_5_Top",
@@ -1353,7 +1483,8 @@
             "y": 0,
             "w": 512,
             "h": 512,
-            "src": "2c3c58617dcd59ca11b663bbe4db1b5f3f753db6e9297855290a732182efc262"
+            "src": "2c3c58617dcd59ca11b663bbe4db1b5f3f753db6e9297855290a732182efc262",
+            "color": "728a61"
         },
         {
             "name": "Decameroon_Settlements_Big_1",
@@ -1363,7 +1494,8 @@
             "y": 3,
             "w": 1286,
             "h": 1341,
-            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e"
+            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e",
+            "color": "8c8051"
         }
     ]
 }

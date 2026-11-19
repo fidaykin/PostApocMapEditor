@@ -73,7 +73,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "4bd7f89e6e12f76e8d03246514810bb3f8371d06f3bcd3a56d171a2cc0d7fd23"
+            "src": "4bd7f89e6e12f76e8d03246514810bb3f8371d06f3bcd3a56d171a2cc0d7fd23",
+            "color": "998531"
         },
         {
             "name": "Artefact_1",
@@ -83,7 +84,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c"
+            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c",
+            "color": "8c984a"
         },
         {
             "name": "Barren",
@@ -93,7 +95,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "4ef4b66253b2b9b8110abcb85bb06bf43f0dd642fcb53c662e7bef478720494b"
+            "src": "4ef4b66253b2b9b8110abcb85bb06bf43f0dd642fcb53c662e7bef478720494b",
+            "color": "e1b772"
         },
         {
             "name": "BrokenBoat",
@@ -103,7 +106,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "9c7b8c4ec8be950d7979368552c6bf3b5481614a0cd268f45fbfb70a2fbda02c"
+            "src": "9c7b8c4ec8be950d7979368552c6bf3b5481614a0cd268f45fbfb70a2fbda02c",
+            "color": "707b97"
         },
         {
             "name": "BrokenPlain",
@@ -113,7 +117,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "de00e434d66772a5be988aac95d8fc9f7661db9647f045b14c98438a40a44201"
+            "src": "de00e434d66772a5be988aac95d8fc9f7661db9647f045b14c98438a40a44201",
+            "color": "617d48"
         },
         {
             "name": "BrokenPlane",
@@ -123,7 +128,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "f68a4f0bc928c196d434a9e80c03a4c2a1552b4b4a48201431bf1286850a530f"
+            "src": "f68a4f0bc928c196d434a9e80c03a4c2a1552b4b4a48201431bf1286850a530f",
+            "color": "779348"
         },
         {
             "name": "BrokenRails",
@@ -133,7 +139,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "6bfd340ed69a680817a86a246ba985c961428decb715bb68c18c5dd85007f57e"
+            "src": "6bfd340ed69a680817a86a246ba985c961428decb715bb68c18c5dd85007f57e",
+            "color": "727f3e"
         },
         {
             "name": "Decameroon_Barren_1",
@@ -143,7 +150,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "634a55aaad9ed832bdbe19e0414b5a0c81aaad9b1394413b41feaced00eda4f3"
+            "src": "634a55aaad9ed832bdbe19e0414b5a0c81aaad9b1394413b41feaced00eda4f3",
+            "color": "d6a67c"
         },
         {
             "name": "Decameroon_BrokenBoat_1",
@@ -153,7 +161,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "e47232531db58289ad91f82aeaff2f9e2ecc3ea743b80fc6b1d0b1208519e938"
+            "src": "e47232531db58289ad91f82aeaff2f9e2ecc3ea743b80fc6b1d0b1208519e938",
+            "color": "707b97"
         },
         {
             "name": "Decameroon_BrokenShip_1",
@@ -163,7 +172,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20"
+            "src": "f392d2c27033cb1c473eab5b84b5e3ce86c28ad69c794ff666a0b521db49ef20",
+            "color": "775e55"
         },
         {
             "name": "Decameroon_Desert_1",
@@ -173,7 +183,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "3e3d59547f0a494d00c5f4f001cbfcec9b3f2972026b72956d08b204399b378b"
+            "src": "3e3d59547f0a494d00c5f4f001cbfcec9b3f2972026b72956d08b204399b378b",
+            "color": "cd9a77"
         },
         {
             "name": "Decameroon_DestroyedBuilding_1",
@@ -183,7 +194,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "e7ad592ff8648af8afea555ee4d39712bfef7fc5bf95bc19c37e3f84cfdb4428"
+            "src": "e7ad592ff8648af8afea555ee4d39712bfef7fc5bf95bc19c37e3f84cfdb4428",
+            "color": "778142"
         },
         {
             "name": "Decameroon_DirtyWater_1",
@@ -193,7 +205,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373"
+            "src": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373",
+            "color": "075b84"
         },
         {
             "name": "Decameroon_Fish_1",
@@ -203,7 +216,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152"
+            "src": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152",
+            "color": "1c3b60"
         },
         {
             "name": "Decameroon_Forest_1",
@@ -213,7 +227,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "5b709da8a02285f8e1dbc48c9ff44c0eaa0d7f87193a7ba663eaedb997a4fefd"
+            "src": "5b709da8a02285f8e1dbc48c9ff44c0eaa0d7f87193a7ba663eaedb997a4fefd",
+            "color": "86924a"
         },
         {
             "name": "Decameroon_Forest_2",
@@ -223,7 +238,8 @@
             "y": 2048,
             "w": 256,
             "h": 256,
-            "src": "65da46c258103205a6b78d3d51947df7367f80798e6c5941e8855b29a83c08b5"
+            "src": "65da46c258103205a6b78d3d51947df7367f80798e6c5941e8855b29a83c08b5",
+            "color": "7d8b4a"
         },
         {
             "name": "Decameroon_Forest_3",
@@ -233,7 +249,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "2386a7ef921e2602bd7c0005c5daa1a8adc33b33254713de2800a486ec70aca7"
+            "src": "2386a7ef921e2602bd7c0005c5daa1a8adc33b33254713de2800a486ec70aca7",
+            "color": "738348"
         },
         {
             "name": "Decameroon_GemField_1",
@@ -243,7 +260,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "6a9d0d52e4ccf3aec5a19e77e585381ea1c66d200bb6665b5354cf9b86102548"
+            "src": "6a9d0d52e4ccf3aec5a19e77e585381ea1c66d200bb6665b5354cf9b86102548",
+            "color": "777866"
         },
         {
             "name": "Decameroon_GoldVein_1",
@@ -253,7 +271,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "56eb17912d6b3c9c2d587c7869bd831e1a20c81523593d23943c57287b730c54"
+            "src": "56eb17912d6b3c9c2d587c7869bd831e1a20c81523593d23943c57287b730c54",
+            "color": "9d9351"
         },
         {
             "name": "Decameroon_Grain_1",
@@ -263,7 +282,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "a2c8470e0751c4271fb313ed4d9d130cc8414b515e03854622e3bac2b9af79a0"
+            "src": "a2c8470e0751c4271fb313ed4d9d130cc8414b515e03854622e3bac2b9af79a0",
+            "color": "a58050"
         },
         {
             "name": "Decameroon_Herbs_1",
@@ -273,7 +293,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "11430b7a271cbf7cf84183725ad55dc160f7f08fb69294410319bf1baac18186"
+            "src": "11430b7a271cbf7cf84183725ad55dc160f7f08fb69294410319bf1baac18186",
+            "color": "8e8658"
         },
         {
             "name": "Decameroon_Hills_1",
@@ -283,7 +304,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "42e870a90414859c4e165e55b6dd4474fa3f572e13db24e87a6115d9dcf4ffdd"
+            "src": "42e870a90414859c4e165e55b6dd4474fa3f572e13db24e87a6115d9dcf4ffdd",
+            "color": "96974d"
         },
         {
             "name": "Decameroon_Lake_1",
@@ -293,7 +315,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "7adae6abd9d38bda88d2b4fd21d6ef1d679198bdb87b4a4b6e522fe6de4ee45b"
+            "src": "7adae6abd9d38bda88d2b4fd21d6ef1d679198bdb87b4a4b6e522fe6de4ee45b",
+            "color": "30878c"
         },
         {
             "name": "Decameroon_Lake_2",
@@ -303,7 +326,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "d0d2b16611a89369bd74cf7ffa4b24f5e61a7e20012b75b2e630ef97b4a83bde"
+            "src": "d0d2b16611a89369bd74cf7ffa4b24f5e61a7e20012b75b2e630ef97b4a83bde",
+            "color": "31898e"
         },
         {
             "name": "Decameroon_Lake_3",
@@ -313,7 +337,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "f5fcd6350533d1053c54a8e2aa62d51b65ba8c4e4262130e9d35b62f969575ac"
+            "src": "f5fcd6350533d1053c54a8e2aa62d51b65ba8c4e4262130e9d35b62f969575ac",
+            "color": "31898d"
         },
         {
             "name": "Decameroon_Lake_4",
@@ -323,7 +348,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "020e2003f2bbef3ce0571803e4edf8ab305979f0a4825f324e911b8cb71e5147"
+            "src": "020e2003f2bbef3ce0571803e4edf8ab305979f0a4825f324e911b8cb71e5147",
+            "color": "31898e"
         },
         {
             "name": "Decameroon_Lake_5",
@@ -333,7 +359,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "49d9c9c885f990862b06c4f32f7d7150ae856607d7279724e6d1f0e190d67cf6"
+            "src": "49d9c9c885f990862b06c4f32f7d7150ae856607d7279724e6d1f0e190d67cf6",
+            "color": "30878c"
         },
         {
             "name": "Decameroon_Lake_6",
@@ -343,7 +370,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "fd52b9f77a418d5777d67a1bd3370593e72a808b4fd38d654f6248f6237ab68c"
+            "src": "fd52b9f77a418d5777d67a1bd3370593e72a808b4fd38d654f6248f6237ab68c",
+            "color": "2f878b"
         },
         {
             "name": "Decameroon_Lake_7",
@@ -353,7 +381,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "df132c8816c465290ee9e1a256ae8f38a207ce0409e1ebd94cf4b7a10bbf23d0"
+            "src": "df132c8816c465290ee9e1a256ae8f38a207ce0409e1ebd94cf4b7a10bbf23d0",
+            "color": "358a8b"
         },
         {
             "name": "Decameroon_LavaPlain_1",
@@ -363,7 +392,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "331a71901041df54c8a2f06269c739229f5e5e21f81119ff0250eacae8287bdb"
+            "src": "331a71901041df54c8a2f06269c739229f5e5e21f81119ff0250eacae8287bdb",
+            "color": "856944"
         },
         {
             "name": "Decameroon_LavaRift_1",
@@ -373,7 +403,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "cfe9a94e5f42d23d8145a552e61bd6929f12eb4cee9fd26ee2efe565b6bfdbae"
+            "src": "cfe9a94e5f42d23d8145a552e61bd6929f12eb4cee9fd26ee2efe565b6bfdbae",
+            "color": "745341"
         },
         {
             "name": "Decameroon_Mountain_1",
@@ -383,7 +414,8 @@
             "y": 1792,
             "w": 256,
             "h": 256,
-            "src": "a518ac16de7b7310ed8027438ae734fef99855e17d6def530d61471167bc26d8"
+            "src": "a518ac16de7b7310ed8027438ae734fef99855e17d6def530d61471167bc26d8",
+            "color": "909272"
         },
         {
             "name": "Decameroon_Mountain_2",
@@ -393,7 +425,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "809e723e4d7006660eaf8766209b6b3e46f8a05e295f6aebc458c456fd7edbfe"
+            "src": "809e723e4d7006660eaf8766209b6b3e46f8a05e295f6aebc458c456fd7edbfe",
+            "color": "73744c"
         },
         {
             "name": "Decameroon_Plain_1",
@@ -403,7 +436,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa"
+            "src": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa",
+            "color": "98a04d"
         },
         {
             "name": "Decameroon_Plain_2",
@@ -413,7 +447,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "92a2b3bd4a4ae7d5856f9c3d21b8bc82d126b09e3e3d1f5291fb793170c50091"
+            "src": "92a2b3bd4a4ae7d5856f9c3d21b8bc82d126b09e3e3d1f5291fb793170c50091",
+            "color": "8e934d"
         },
         {
             "name": "Decameroon_Rift_1",
@@ -423,7 +458,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022"
+            "src": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022",
+            "color": "80a03c"
         },
         {
             "name": "Decameroon_River_D_2",
@@ -433,7 +469,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "299fd7c121f30eb34a88ce5be9054339e049f2ff2198e45f314b90290a1f7360"
+            "src": "299fd7c121f30eb34a88ce5be9054339e049f2ff2198e45f314b90290a1f7360",
+            "color": "539c57"
         },
         {
             "name": "Decameroon_River_D_3",
@@ -443,7 +480,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "144cc22b582e1a57e301b2b8b3b0496343c31293691e503169d0ec78eea3f01d"
+            "src": "144cc22b582e1a57e301b2b8b3b0496343c31293691e503169d0ec78eea3f01d",
+            "color": "47976f"
         },
         {
             "name": "Decameroon_River_D_4",
@@ -453,7 +491,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "fd19b95f59cb42d7c48651143a23ef0ab304ab9e3d7b83a49bf2c057ef50a331"
+            "src": "fd19b95f59cb42d7c48651143a23ef0ab304ab9e3d7b83a49bf2c057ef50a331",
+            "color": "579c55"
         },
         {
             "name": "Decameroon_River_D_L_EE_2",
@@ -463,7 +502,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "faf495aefb4bc3ad760a8fdbfa747431a332ae97ee0bff195c0640712c772b43"
+            "src": "faf495aefb4bc3ad760a8fdbfa747431a332ae97ee0bff195c0640712c772b43",
+            "color": "409170"
         },
         {
             "name": "Decameroon_River_D_R_EE_2",
@@ -473,7 +513,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "fb334d6af4f2f23d9c2b29b0d41962255e64f39952ebf85161305d914bdbdaaa"
+            "src": "fb334d6af4f2f23d9c2b29b0d41962255e64f39952ebf85161305d914bdbdaaa",
+            "color": "438f6b"
         },
         {
             "name": "Decameroon_River_L_1",
@@ -483,7 +524,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "132b3cf6e2b77c3d60e9dc28e96a0283766368ce6f55309413e2aa5719fa081a"
+            "src": "132b3cf6e2b77c3d60e9dc28e96a0283766368ce6f55309413e2aa5719fa081a",
+            "color": "54a067"
         },
         {
             "name": "Decameroon_River_L_4",
@@ -493,7 +535,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "c0cbd059a662ac3819f5887d8302e4beaffba510e3d85e8e27334dd5804ec819"
+            "src": "c0cbd059a662ac3819f5887d8302e4beaffba510e3d85e8e27334dd5804ec819",
+            "color": "609f55"
         },
         {
             "name": "Decameroon_River_L_5",
@@ -503,7 +546,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "474e61fc137092bd79efb83531fcf79eac78d20f621e192619ddef5ce76aa650"
+            "src": "474e61fc137092bd79efb83531fcf79eac78d20f621e192619ddef5ce76aa650",
+            "color": "509c5f"
         },
         {
             "name": "Decameroon_River_L_D_E_1",
@@ -513,7 +557,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "4cd166b88b932c546070ff8ab9ffe1836819ffd4ef70580d614a5b75973293eb"
+            "src": "4cd166b88b932c546070ff8ab9ffe1836819ffd4ef70580d614a5b75973293eb",
+            "color": "4d9c6e"
         },
         {
             "name": "Decameroon_River_L_L_E_5",
@@ -523,7 +568,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "3f2710082f609a7b1080a0283cf741b490c086d1301453fa020ed1fb73feef63"
+            "src": "3f2710082f609a7b1080a0283cf741b490c086d1301453fa020ed1fb73feef63",
+            "color": "4d9a61"
         },
         {
             "name": "Decameroon_River_L_R_E_5",
@@ -533,7 +579,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "b49a6af3f29dba7d05b5a916423481e0afc2fcadde3e2a9ac62b38cc5c46b181"
+            "src": "b49a6af3f29dba7d05b5a916423481e0afc2fcadde3e2a9ac62b38cc5c46b181",
+            "color": "4e9961"
         },
         {
             "name": "Decameroon_River_L_U_E_1",
@@ -543,7 +590,8 @@
             "y": 1536,
             "w": 256,
             "h": 256,
-            "src": "be955071c04cead3af0ba7df919c40ad3d43a33b2a46e5e08a0f5fafae3e11ce"
+            "src": "be955071c04cead3af0ba7df919c40ad3d43a33b2a46e5e08a0f5fafae3e11ce",
+            "color": "509a6b"
         },
         {
             "name": "Decameroon_River_R_1",
@@ -553,7 +601,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "4df60ca113aee4265f21e56f2dfa52b6a4002cc107a17a50e08f53090acf8439"
+            "src": "4df60ca113aee4265f21e56f2dfa52b6a4002cc107a17a50e08f53090acf8439",
+            "color": "549f68"
         },
         {
             "name": "Decameroon_River_R_4",
@@ -563,7 +612,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "bf9a12ebd971621d089e81cb748636f029c7d4c8ee91b1d608b5ee82c8421793"
+            "src": "bf9a12ebd971621d089e81cb748636f029c7d4c8ee91b1d608b5ee82c8421793",
+            "color": "5f9e55"
         },
         {
             "name": "Decameroon_River_R_5",
@@ -573,7 +623,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "64e0ecdbdfb3b13f35c5cdfb3580fb049279e6f7d7b87edf78f5dd95bd4e33f7"
+            "src": "64e0ecdbdfb3b13f35c5cdfb3580fb049279e6f7d7b87edf78f5dd95bd4e33f7",
+            "color": "4f9b60"
         },
         {
             "name": "Decameroon_River_U_2",
@@ -583,7 +634,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "c85d7129e757c066cff0cce2f261b4b90b829c22c4434ac41da142e70c27e6f9"
+            "src": "c85d7129e757c066cff0cce2f261b4b90b829c22c4434ac41da142e70c27e6f9",
+            "color": "529c58"
         },
         {
             "name": "Decameroon_River_U_3",
@@ -593,7 +645,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "c932f135f960d8ba9c08daf8805118ba8d316b24cd9bdea4dcc452f7e9d9921d"
+            "src": "c932f135f960d8ba9c08daf8805118ba8d316b24cd9bdea4dcc452f7e9d9921d",
+            "color": "46986e"
         },
         {
             "name": "Decameroon_River_U_4",
@@ -603,7 +656,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "916e0b05c10c72b8e6653f31852ca11840dffd555888d043746b15cc88c1d7c5"
+            "src": "916e0b05c10c72b8e6653f31852ca11840dffd555888d043746b15cc88c1d7c5",
+            "color": "5a9d55"
         },
         {
             "name": "Decameroon_River_U_D_E_4",
@@ -613,7 +667,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "1ffe24d7d7512fed5176b019be652ecc1eac58a2a2def4389ba2cbdf5920a1cb"
+            "src": "1ffe24d7d7512fed5176b019be652ecc1eac58a2a2def4389ba2cbdf5920a1cb",
+            "color": "579b57"
         },
         {
             "name": "Decameroon_River_U_L_EE_2",
@@ -623,7 +678,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "5d9b91f358336132213e0e8c14004780f3c5f49b802abf3571c3069242ce018c"
+            "src": "5d9b91f358336132213e0e8c14004780f3c5f49b802abf3571c3069242ce018c",
+            "color": "408f72"
         },
         {
             "name": "Decameroon_River_U_R_EE_2",
@@ -633,7 +689,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "5e59ac3e7e413e26a6650992a54cde8de9bd5c4d01a6c766814be8bcc276620a"
+            "src": "5e59ac3e7e413e26a6650992a54cde8de9bd5c4d01a6c766814be8bcc276620a",
+            "color": "418f6e"
         },
         {
             "name": "Decameroon_River_U_U_E_4",
@@ -643,7 +700,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "fc5dff00561d17050572daea4c0cf8bd06380a636f5ba71d36e32f4803ccf98e"
+            "src": "fc5dff00561d17050572daea4c0cf8bd06380a636f5ba71d36e32f4803ccf98e",
+            "color": "54985a"
         },
         {
             "name": "Decameroon_RockySwamp_1",
@@ -653,7 +711,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "3d0f9f1b888db470225681c6ef13b2ffb87c1c40b331bf3ecb1be4f0d9176d88"
+            "src": "3d0f9f1b888db470225681c6ef13b2ffb87c1c40b331bf3ecb1be4f0d9176d88",
+            "color": "908964"
         },
         {
             "name": "Decameroon_Rubble_1",
@@ -663,7 +722,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "8d2174c2c5cedb4a79c17f0c325ddca872b80064b5cc68a28763e24085df00ae"
+            "src": "8d2174c2c5cedb4a79c17f0c325ddca872b80064b5cc68a28763e24085df00ae",
+            "color": "909561"
         },
         {
             "name": "Decameroon_Rubble_2",
@@ -673,7 +733,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "5b1a8d93d3eb7b857ccfb67eb0f648b57e7bea659ad3d8a79204300fa45d456d"
+            "src": "5b1a8d93d3eb7b857ccfb67eb0f648b57e7bea659ad3d8a79204300fa45d456d",
+            "color": "a3a26e"
         },
         {
             "name": "Decameroon_Rubble_3",
@@ -683,7 +744,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "b660442b9448c67de1b4a64a77ad702245d6b64f2351cbe51605c7e7a1972ef1"
+            "src": "b660442b9448c67de1b4a64a77ad702245d6b64f2351cbe51605c7e7a1972ef1",
+            "color": "8d905c"
         },
         {
             "name": "Decameroon_Settlements_Small_1",
@@ -693,7 +755,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5"
+            "src": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5",
+            "color": "8c7c54"
         },
         {
             "name": "Decameroon_SilverVein_1",
@@ -703,7 +766,8 @@
             "y": 1280,
             "w": 256,
             "h": 256,
-            "src": "b4d73c15a6c732b996b742b3f0ec262c8e279ae083d49be0436e68c8e722ffb1"
+            "src": "b4d73c15a6c732b996b742b3f0ec262c8e279ae083d49be0436e68c8e722ffb1",
+            "color": "7a845f"
         },
         {
             "name": "Decameroon_Swamp_1",
@@ -713,7 +777,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "f08efd2c9ffae071232e3efbc8dd91950ad1df6da0d5a22c428ab33d4677023d"
+            "src": "f08efd2c9ffae071232e3efbc8dd91950ad1df6da0d5a22c428ab33d4677023d",
+            "color": "848355"
         },
         {
             "name": "Decameroon_Water",
@@ -723,7 +788,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1"
+            "src": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1",
+            "color": "116ea8"
         },
         {
             "name": "Decameroon_WaterStones_1",
@@ -733,7 +799,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647"
+            "src": "d89b6fa640703fd3c0e890f413e96665bd37135313d27474b5a5ecdfe9b2e647",
+            "color": "787778"
         },
         {
             "name": "desert_oil_1",
@@ -743,7 +810,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "18356b21edad85aeb7673da7e6b9b7e9e2c3d10637a06fa42c9bba967a211681"
+            "src": "18356b21edad85aeb7673da7e6b9b7e9e2c3d10637a06fa42c9bba967a211681",
+            "color": "9a7164"
         },
         {
             "name": "Dessert",
@@ -753,7 +821,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "283b11e0babfef65d03922fdfb4c768c5b700d0d6bb0ea456c7ef6b062deefc7"
+            "src": "283b11e0babfef65d03922fdfb4c768c5b700d0d6bb0ea456c7ef6b062deefc7",
+            "color": "daaf6a"
         },
         {
             "name": "DestroyedBuilding_1",
@@ -763,7 +832,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "0d41691ef460bd5478eaf17ac801a9cf5ff6d49413af08458d6a5909efb738b2"
+            "src": "0d41691ef460bd5478eaf17ac801a9cf5ff6d49413af08458d6a5909efb738b2",
+            "color": "778142"
         },
         {
             "name": "DirtyWater",
@@ -773,7 +843,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "c5541d3c3014d35def0327a20a385e8e296f2a3718ae56921c62172045758f94"
+            "src": "c5541d3c3014d35def0327a20a385e8e296f2a3718ae56921c62172045758f94",
+            "color": "075b84"
         },
         {
             "name": "FarmGrain",
@@ -783,7 +854,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345"
+            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345",
+            "color": "e1b860"
         },
         {
             "name": "Fish_1",
@@ -793,7 +865,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "de492db6df8da4c6913aae4a11e8029ff333cacecb1fae89a3a1b70e906ebb56"
+            "src": "de492db6df8da4c6913aae4a11e8029ff333cacecb1fae89a3a1b70e906ebb56",
+            "color": "1c3b60"
         },
         {
             "name": "Forest_1",
@@ -803,7 +876,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "5ce93282296dac7a6f0f905f2f947812afc231de7a03dc73bc01aacac92134be"
+            "src": "5ce93282296dac7a6f0f905f2f947812afc231de7a03dc73bc01aacac92134be",
+            "color": "62982e"
         },
         {
             "name": "Forest_2",
@@ -813,7 +887,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "2cd7efbfd43225255abd5364390b3d6663cd64c2c2249cc03bc2cf6982c19971"
+            "src": "2cd7efbfd43225255abd5364390b3d6663cd64c2c2249cc03bc2cf6982c19971",
+            "color": "448436"
         },
         {
             "name": "Forest_3",
@@ -823,7 +898,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "d7c6cbd1613fc720a249624303d3f362ec3c8669aa48206a4ecee0f11069276f"
+            "src": "d7c6cbd1613fc720a249624303d3f362ec3c8669aa48206a4ecee0f11069276f",
+            "color": "2a7b40"
         },
         {
             "name": "Forest_frozen",
@@ -833,7 +909,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "98bd76a70331f24c6d845915e13dafd41188e05536c09d9a02b523f4a20bdede"
+            "src": "98bd76a70331f24c6d845915e13dafd41188e05536c09d9a02b523f4a20bdede",
+            "color": "5c6144"
         },
         {
             "name": "Forest_Kaiju_1",
@@ -843,7 +920,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "97be98fe742984310b0303b051c96a606a5c37bd43687ae4cda6b98c27172af3"
+            "src": "97be98fe742984310b0303b051c96a606a5c37bd43687ae4cda6b98c27172af3",
+            "color": "86924a"
         },
         {
             "name": "Forest_Kaiju_2",
@@ -853,7 +931,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "625d3bd45f09883846edca98f87d8ec1c4de197d6d69e5eb7fa8b62badf0ea2a"
+            "src": "625d3bd45f09883846edca98f87d8ec1c4de197d6d69e5eb7fa8b62badf0ea2a",
+            "color": "738348"
         },
         {
             "name": "Forest_red",
@@ -863,7 +942,8 @@
             "y": 1024,
             "w": 256,
             "h": 256,
-            "src": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74"
+            "src": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74",
+            "color": "551c21"
         },
         {
             "name": "GemField",
@@ -873,7 +953,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "ba3376f732827dcf44b2d0a41010460778da773e0e16af438ad31f05d1e476fa"
+            "src": "ba3376f732827dcf44b2d0a41010460778da773e0e16af438ad31f05d1e476fa",
+            "color": "80657c"
         },
         {
             "name": "GoldenMine_Kaiju_1",
@@ -883,7 +964,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "5379ec0a195832d81248a6082b7144535854ff9c36ba027047bf957286c82e1a"
+            "src": "5379ec0a195832d81248a6082b7144535854ff9c36ba027047bf957286c82e1a",
+            "color": "9d8e58"
         },
         {
             "name": "GoldMine",
@@ -893,7 +975,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "99c3b413c4f6d5b7a40000c408941e753a805d989e2e546baad2ff75cf264da3"
+            "src": "99c3b413c4f6d5b7a40000c408941e753a805d989e2e546baad2ff75cf264da3",
+            "color": "857c50"
         },
         {
             "name": "GoldVein",
@@ -903,7 +986,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "d310c4ec6f346c86addf534062131e4a5b76c3288d076631acd36383f5031939"
+            "src": "d310c4ec6f346c86addf534062131e4a5b76c3288d076631acd36383f5031939",
+            "color": "6b7b2c"
         },
         {
             "name": "Hills",
@@ -913,7 +997,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "43bf851bc2b7c914c14ad838d9f7282e3cf95efad1ca49363207e8af59e9dbbb"
+            "src": "43bf851bc2b7c914c14ad838d9f7282e3cf95efad1ca49363207e8af59e9dbbb",
+            "color": "699831"
         },
         {
             "name": "Lake_1",
@@ -923,7 +1008,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "e48d905968c8ce87350ca74636ec06fa9eb7a52c7bd4ad9b7cc02b3451a30690"
+            "src": "e48d905968c8ce87350ca74636ec06fa9eb7a52c7bd4ad9b7cc02b3451a30690",
+            "color": "31888d"
         },
         {
             "name": "Lake_2",
@@ -933,7 +1019,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "13d8b0e13afb1b07ca07a93a041e55afe3e29774402c6f8e84085d1ec4d96ca8"
+            "src": "13d8b0e13afb1b07ca07a93a041e55afe3e29774402c6f8e84085d1ec4d96ca8",
+            "color": "31898f"
         },
         {
             "name": "Lake_3",
@@ -943,7 +1030,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "85ae6e32543d6b228909156a5b6a204cb3625094a3a52f1a633e4918a2841ab4"
+            "src": "85ae6e32543d6b228909156a5b6a204cb3625094a3a52f1a633e4918a2841ab4",
+            "color": "31898f"
         },
         {
             "name": "Lake_4",
@@ -953,7 +1041,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "0b334c3a14487bbbef0e644b4b18b797bdc90cbd56d8f14282118272aca95990"
+            "src": "0b334c3a14487bbbef0e644b4b18b797bdc90cbd56d8f14282118272aca95990",
+            "color": "31888d"
         },
         {
             "name": "Lake_5",
@@ -963,7 +1052,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "0ec55de0c7d957930f24e0f14125ff917e515c96d2f1f727fd9d4665525225de"
+            "src": "0ec55de0c7d957930f24e0f14125ff917e515c96d2f1f727fd9d4665525225de",
+            "color": "32898c"
         },
         {
             "name": "Lake_6",
@@ -973,7 +1063,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "a1f4d29bfd070d94d5797793c9b6244e127fd48da1d5cbcaa7b5ebdf40ddada6"
+            "src": "a1f4d29bfd070d94d5797793c9b6244e127fd48da1d5cbcaa7b5ebdf40ddada6",
+            "color": "30878c"
         },
         {
             "name": "Lake_7",
@@ -983,7 +1074,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "38c40d706f966444631bc5b778973982a0abfd6caeaecba3d5a55782da50d1c3"
+            "src": "38c40d706f966444631bc5b778973982a0abfd6caeaecba3d5a55782da50d1c3",
+            "color": "358a8b"
         },
         {
             "name": "LavaPlain",
@@ -993,7 +1085,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "7d41a83c04a27e83007d735133d05fe3339ebb6376d4a3c98d48e840df7f3911"
+            "src": "7d41a83c04a27e83007d735133d05fe3339ebb6376d4a3c98d48e840df7f3911",
+            "color": "856944"
         },
         {
             "name": "LavaRift",
@@ -1003,7 +1096,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "685a77df94c6f9e4fc607895dc12f43f59c8c3e1bab5e623be8d9105e4fb69d7"
+            "src": "685a77df94c6f9e4fc607895dc12f43f59c8c3e1bab5e623be8d9105e4fb69d7",
+            "color": "745341"
         },
         {
             "name": "Monster_Chicken_Small_1",
@@ -1013,7 +1107,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "a4a2e89edbd399791d009f3cdf7f258e8eaa4ee9abcde882308dccf74d412963"
+            "src": "a4a2e89edbd399791d009f3cdf7f258e8eaa4ee9abcde882308dccf74d412963",
+            "color": "e4b163"
         },
         {
             "name": "Mountain",
@@ -1023,7 +1118,8 @@
             "y": 768,
             "w": 256,
             "h": 256,
-            "src": "ab8e2d46f786e5970aca3ab5e29b60553708125b97b290d01c0e1602fd15e326"
+            "src": "ab8e2d46f786e5970aca3ab5e29b60553708125b97b290d01c0e1602fd15e326",
+            "color": "7d936a"
         },
         {
             "name": "Mountain_Kaiju_1",
@@ -1033,7 +1129,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "032c5fc445452b061a876540ab1395ab2453751cf3cbed8ee3e933893f22dacc"
+            "src": "032c5fc445452b061a876540ab1395ab2453751cf3cbed8ee3e933893f22dacc",
+            "color": "73744c"
         },
         {
             "name": "Mountain_Kaiju_2",
@@ -1043,7 +1140,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "fffe542fbcf07fc04a18c625cd380d1359008353c7ab772e4c49317b06b1232a"
+            "src": "fffe542fbcf07fc04a18c625cd380d1359008353c7ab772e4c49317b06b1232a",
+            "color": "807e57"
         },
         {
             "name": "Oil_1",
@@ -1053,7 +1151,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "b0433e6326956adb47007457d7de579e603c8656d33e9275b4c7c4ff7876fb01"
+            "src": "b0433e6326956adb47007457d7de579e603c8656d33e9275b4c7c4ff7876fb01",
+            "color": "987d61"
         },
         {
             "name": "OilWater",
@@ -1063,7 +1162,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "8e10b45c5b34883e647c8f10fafe48bcf9c947428c611424c9c25b3743128c05"
+            "src": "8e10b45c5b34883e647c8f10fafe48bcf9c947428c611424c9c25b3743128c05",
+            "color": "20395c"
         },
         {
             "name": "Plain_1",
@@ -1073,7 +1173,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa"
+            "src": "8b5ec04c941301d3d320e3aac58829b3fd19ab81c3f4f770e0dc1ba2fc7f8daa",
+            "color": "98a04d"
         },
         {
             "name": "Plain_2",
@@ -1083,7 +1184,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "08be61cd891f648b7a5f5b5a38eaba03afedb630f92ac39f90e6807096c643b3"
+            "src": "08be61cd891f648b7a5f5b5a38eaba03afedb630f92ac39f90e6807096c643b3",
+            "color": "6c9921"
         },
         {
             "name": "Plain_Cat_1",
@@ -1093,7 +1195,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "d2ef0adfe1be0f4e56544eea264ea9c0d60de3b5178da91a1cf6480f79130a95"
+            "src": "d2ef0adfe1be0f4e56544eea264ea9c0d60de3b5178da91a1cf6480f79130a95",
+            "color": "5a8063"
         },
         {
             "name": "Plain_Chicken_1",
@@ -1103,7 +1206,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "c7d6b20196441c6ab7b3db9f54f9b0ecaf005aba13dccbd952311a78796971bf"
+            "src": "c7d6b20196441c6ab7b3db9f54f9b0ecaf005aba13dccbd952311a78796971bf",
+            "color": "a19c0c"
         },
         {
             "name": "Plain_Kaiju_1",
@@ -1113,7 +1217,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "a65cc4c1a0b33626b64457dc079baf2dcd408eb63b59459151d7a7e5d7cd77e5"
+            "src": "a65cc4c1a0b33626b64457dc079baf2dcd408eb63b59459151d7a7e5d7cd77e5",
+            "color": "98a04d"
         },
         {
             "name": "Rift",
@@ -1123,7 +1228,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "2ed2b0a9caec40d6096c52e347d6c5446f5d0a1f1dd855c7a552053717c1609d"
+            "src": "2ed2b0a9caec40d6096c52e347d6c5446f5d0a1f1dd855c7a552053717c1609d",
+            "color": "80a03c"
         },
         {
             "name": "River_D_2",
@@ -1133,7 +1239,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "64a3c917f34e5653b637774ac378c8179c1385013f8dbaa2a73cf5f1ada03942"
+            "src": "64a3c917f34e5653b637774ac378c8179c1385013f8dbaa2a73cf5f1ada03942",
+            "color": "539d59"
         },
         {
             "name": "River_D_3",
@@ -1143,7 +1250,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "3085ecf30d59cdd5b8aa0a77b529689187a932c3f7d878de93b29eb44c2d4067"
+            "src": "3085ecf30d59cdd5b8aa0a77b529689187a932c3f7d878de93b29eb44c2d4067",
+            "color": "489971"
         },
         {
             "name": "River_D_4",
@@ -1153,7 +1261,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "3f2dae24db65a325e7e7bee26ecf1b8bddde863b00d93d1798bfdbfe65003be5"
+            "src": "3f2dae24db65a325e7e7bee26ecf1b8bddde863b00d93d1798bfdbfe65003be5",
+            "color": "589d55"
         },
         {
             "name": "River_D_L_EE_2",
@@ -1163,7 +1272,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "e4a0994c6c960facc893c6b661f429e63dce4e878380d4581e1b36a9352931cc"
+            "src": "e4a0994c6c960facc893c6b661f429e63dce4e878380d4581e1b36a9352931cc",
+            "color": "409170"
         },
         {
             "name": "River_D_R_EE_2",
@@ -1173,7 +1283,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "9ef48a4b94026783161e4ddf359e1e67b97fac7f0e4895577c325e2a70f7ec93"
+            "src": "9ef48a4b94026783161e4ddf359e1e67b97fac7f0e4895577c325e2a70f7ec93",
+            "color": "438f6b"
         },
         {
             "name": "River_L_1",
@@ -1183,7 +1294,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "edbf05d53d0782d20b7bf904c370380315259a2dd43cb8020ed50c8fe1a199bd"
+            "src": "edbf05d53d0782d20b7bf904c370380315259a2dd43cb8020ed50c8fe1a199bd",
+            "color": "54a166"
         },
         {
             "name": "River_L_4",
@@ -1193,7 +1305,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "5639a1d62f5be045a7e79123f61f528202283a34f89cc382d669f05fe33071aa"
+            "src": "5639a1d62f5be045a7e79123f61f528202283a34f89cc382d669f05fe33071aa",
+            "color": "619f55"
         },
         {
             "name": "River_L_5",
@@ -1203,7 +1316,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "39898fb206ff6650106d9f51bd0e9ebaab7c976a111fb06bb96ab756bbf4bea9"
+            "src": "39898fb206ff6650106d9f51bd0e9ebaab7c976a111fb06bb96ab756bbf4bea9",
+            "color": "509c5f"
         },
         {
             "name": "River_L_D_E_1",
@@ -1213,7 +1327,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "b7574c4d77089ae37202601dff22f499f3fa5577f1272a45e36641ac31acf41e"
+            "src": "b7574c4d77089ae37202601dff22f499f3fa5577f1272a45e36641ac31acf41e",
+            "color": "4d9c6e"
         },
         {
             "name": "River_L_L_E_5",
@@ -1223,7 +1338,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "fec2e0db858688684a95f3028116424efa2e837ea743af7e9502d65ecde6e99d"
+            "src": "fec2e0db858688684a95f3028116424efa2e837ea743af7e9502d65ecde6e99d",
+            "color": "4d9a61"
         },
         {
             "name": "River_L_R_E_5",
@@ -1233,7 +1349,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "6e9ce3a855dbbb6438b2e7054c6f8b9ffa300b465daddf1db5d302cd231aa0dc"
+            "src": "6e9ce3a855dbbb6438b2e7054c6f8b9ffa300b465daddf1db5d302cd231aa0dc",
+            "color": "4e9961"
         },
         {
             "name": "River_L_U_E_1",
@@ -1243,7 +1360,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "d666df797f88a8b602e65a8501da3040d04351b5ce529b699849b6ed5851d907"
+            "src": "d666df797f88a8b602e65a8501da3040d04351b5ce529b699849b6ed5851d907",
+            "color": "509a6b"
         },
         {
             "name": "River_R_1",
@@ -1253,7 +1371,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "28a6968bd4bda61e73b6f6d2b43c607d1096cbf23439066f7e17dc75a5943a70"
+            "src": "28a6968bd4bda61e73b6f6d2b43c607d1096cbf23439066f7e17dc75a5943a70",
+            "color": "549f69"
         },
         {
             "name": "River_R_4",
@@ -1263,7 +1382,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "46599d7453234fb9451f9c0a586825a5b0fd3d06f0a493e0c18d733461911107"
+            "src": "46599d7453234fb9451f9c0a586825a5b0fd3d06f0a493e0c18d733461911107",
+            "color": "5f9e55"
         },
         {
             "name": "River_R_5",
@@ -1273,7 +1393,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "a94d14a9a09674ab4302b25171952e2b1357c2918726dbc7627e676b29957450"
+            "src": "a94d14a9a09674ab4302b25171952e2b1357c2918726dbc7627e676b29957450",
+            "color": "4f9c60"
         },
         {
             "name": "River_U_2",
@@ -1283,7 +1404,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "1d246f6601093e1cf2b4f4e41eaafd358b50ba891d2eabfc6ecb3323a342fcea"
+            "src": "1d246f6601093e1cf2b4f4e41eaafd358b50ba891d2eabfc6ecb3323a342fcea",
+            "color": "539d59"
         },
         {
             "name": "River_U_3",
@@ -1293,7 +1415,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "373b2f27387a60b6213a6461f8c0dc6c15c31d70760569a4a635d4694d459f4c"
+            "src": "373b2f27387a60b6213a6461f8c0dc6c15c31d70760569a4a635d4694d459f4c",
+            "color": "47996f"
         },
         {
             "name": "River_U_4",
@@ -1303,7 +1426,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "ea48c70ee91be0120cfcbc9d8cfb09a902712eba95788b8895a1db7d352d48e0"
+            "src": "ea48c70ee91be0120cfcbc9d8cfb09a902712eba95788b8895a1db7d352d48e0",
+            "color": "5b9e54"
         },
         {
             "name": "River_U_D_E_4",
@@ -1313,7 +1437,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "0f6bc8291012333646d44b94934540ba59c71f945566b941b8cac113bcb9a632"
+            "src": "0f6bc8291012333646d44b94934540ba59c71f945566b941b8cac113bcb9a632",
+            "color": "579b57"
         },
         {
             "name": "River_U_L_EE_2",
@@ -1323,7 +1448,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "47ee4b6a67961f0c8d90faff4b2253b7a7f12772943d54383380ed349d590fb9"
+            "src": "47ee4b6a67961f0c8d90faff4b2253b7a7f12772943d54383380ed349d590fb9",
+            "color": "408f72"
         },
         {
             "name": "River_U_R_EE_2",
@@ -1333,7 +1459,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "b382ed9fbfd63a40ce06e25c1d83a5a3f442bca1640e5d7781e07a00adf4b019"
+            "src": "b382ed9fbfd63a40ce06e25c1d83a5a3f442bca1640e5d7781e07a00adf4b019",
+            "color": "418f6e"
         },
         {
             "name": "River_U_U_E_4",
@@ -1343,7 +1470,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "6eb77acf16c0929c2294e32d228d35c6b1351bedcfd6e027f7944983b67ab41f"
+            "src": "6eb77acf16c0929c2294e32d228d35c6b1351bedcfd6e027f7944983b67ab41f",
+            "color": "54985a"
         },
         {
             "name": "Road_Bridge_NEWS_1",
@@ -1353,7 +1481,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "3857fcd59826b91b4b9921976cd482d278c7d34be1663d1b737a256e8425b854"
+            "src": "3857fcd59826b91b4b9921976cd482d278c7d34be1663d1b737a256e8425b854",
+            "color": "b57b4b"
         },
         {
             "name": "Road_Bridge_NS_1",
@@ -1363,7 +1492,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "142c6bc47e116c2d55afed818baa91e9339adb91fe1b0408998103636e7cceef"
+            "src": "142c6bc47e116c2d55afed818baa91e9339adb91fe1b0408998103636e7cceef",
+            "color": "b67d4c"
         },
         {
             "name": "Road_Bridge_SENW_1",
@@ -1373,7 +1503,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "97829a089b57ef19403bd37ebf04b28118079c9feb9399a22a100d7e93e860dc"
+            "src": "97829a089b57ef19403bd37ebf04b28118079c9feb9399a22a100d7e93e860dc",
+            "color": "b57b4b"
         },
         {
             "name": "RockySwamp",
@@ -1383,7 +1514,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "bc6df1498ad836662ecb3a0ecb398bb47bb2e523f9157238866ab22c5703ddf3"
+            "src": "bc6df1498ad836662ecb3a0ecb398bb47bb2e523f9157238866ab22c5703ddf3",
+            "color": "417144"
         },
         {
             "name": "Rubble_1",
@@ -1393,7 +1525,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "57b08a0fa251d79fe7e03ac151dfbb8171c45559041869a0978840821d731bc6"
+            "src": "57b08a0fa251d79fe7e03ac151dfbb8171c45559041869a0978840821d731bc6",
+            "color": "7b9c4a"
         },
         {
             "name": "Rubble_2",
@@ -1403,7 +1536,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "bc225f30513dfb3f4961a908b9119ad4b8d402cb7134edb4ee231fc2289bce54"
+            "src": "bc225f30513dfb3f4961a908b9119ad4b8d402cb7134edb4ee231fc2289bce54",
+            "color": "79935c"
         },
         {
             "name": "Rubble_3",
@@ -1413,7 +1547,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "e9dcb9d9461940241dd1d576b9146ff306aa6ef57bbe7be14c14defdf7193e70"
+            "src": "e9dcb9d9461940241dd1d576b9146ff306aa6ef57bbe7be14c14defdf7193e70",
+            "color": "6f8f4a"
         },
         {
             "name": "Settlements_1",
@@ -1423,7 +1558,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "d30ee24b6f753c8eaf15749abf02876145e6a6133924ead7355800071884084d"
+            "src": "d30ee24b6f753c8eaf15749abf02876145e6a6133924ead7355800071884084d",
+            "color": "75893f"
         },
         {
             "name": "Settlements_2",
@@ -1433,7 +1569,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "e3ded7bc32ec8e8f8ca9d25d7b9f00ad138067ec7ef0527a894d0bf572ef21b8"
+            "src": "e3ded7bc32ec8e8f8ca9d25d7b9f00ad138067ec7ef0527a894d0bf572ef21b8",
+            "color": "6c884c"
         },
         {
             "name": "SmallShip",
@@ -1443,7 +1580,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "476993576691c349d8e9d3552e7c12d0e3ea30421c5b791fab343a651609c9c4"
+            "src": "476993576691c349d8e9d3552e7c12d0e3ea30421c5b791fab343a651609c9c4",
+            "color": "507a8b"
         },
         {
             "name": "SmallShipyard",
@@ -1453,7 +1591,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "df9342420fe22fe74e9b46f5a207f6a2b7407ce80167bbc22bf0f6b76ccb31ff"
+            "src": "df9342420fe22fe74e9b46f5a207f6a2b7407ce80167bbc22bf0f6b76ccb31ff",
+            "color": "7e6249"
         },
         {
             "name": "Stones_1",
@@ -1463,7 +1602,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "e4197834145dac77a658be7eb7459812a703369823c6bd81c7342d4e8f26581e"
+            "src": "e4197834145dac77a658be7eb7459812a703369823c6bd81c7342d4e8f26581e",
+            "color": "7285a5"
         },
         {
             "name": "Swamp",
@@ -1473,7 +1613,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "d645f404b0f3d5067b9adbbf504420a905c59bf116f1d32e3b80ecffd3aacc4b"
+            "src": "d645f404b0f3d5067b9adbbf504420a905c59bf116f1d32e3b80ecffd3aacc4b",
+            "color": "5c883c"
         },
         {
             "name": "Water",
@@ -1483,7 +1624,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "f45b1a7b32d6b71603cac54f803119f298d33aa97528bd38974df7dbfa8ce546"
+            "src": "f45b1a7b32d6b71603cac54f803119f298d33aa97528bd38974df7dbfa8ce546",
+            "color": "116ea8"
         },
         {
             "name": "Artefact_1",
@@ -1493,7 +1635,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "87237208e22714c2592b0e074df1e5abd99a807171eb401b67444026be83cbb8"
+            "src": "87237208e22714c2592b0e074df1e5abd99a807171eb401b67444026be83cbb8",
+            "color": "8c984a"
         },
         {
             "name": "BoneMine_Kaiju_1",
@@ -1503,7 +1646,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "5743f2285a9391b3913fd12e2577a60869ed5d0fcf99c45c1e67db027f4ddec8"
+            "src": "5743f2285a9391b3913fd12e2577a60869ed5d0fcf99c45c1e67db027f4ddec8",
+            "color": "8f8a5b"
         },
         {
             "name": "Decameroon_Abbey_1",
@@ -1513,7 +1657,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "d087cda237de76086d8ad108696ef7a7d8107d35f25f6c4950de6f99482c2e4a"
+            "src": "d087cda237de76086d8ad108696ef7a7d8107d35f25f6c4950de6f99482c2e4a",
+            "color": "8d8564"
         },
         {
             "name": "Decameroon_Alchemist_1",
@@ -1523,7 +1668,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "65b5a963a7a0c606032b2e8e48eb5fe312020dba4e17e00021feedbd89a5d6af"
+            "src": "65b5a963a7a0c606032b2e8e48eb5fe312020dba4e17e00021feedbd89a5d6af",
+            "color": "887250"
         },
         {
             "name": "Decameroon_Artefact_1",
@@ -1533,7 +1679,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c"
+            "src": "1673c11811181b788f230022662ef8915e99eb4c56ae2d53938f6708b7f5799c",
+            "color": "8c984a"
         },
         {
             "name": "Decameroon_Farm_1",
@@ -1543,7 +1690,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "eb6099ddc3e078d8a6b4cf7b4ecc15232c8a650e001a5c8ccd51db091beb1058"
+            "src": "eb6099ddc3e078d8a6b4cf7b4ecc15232c8a650e001a5c8ccd51db091beb1058",
+            "color": "a1804f"
         },
         {
             "name": "Decameroon_FishTrap_1",
@@ -1553,7 +1701,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368"
+            "src": "4eb4aa59559be95e340466f6fcfb84ba8f5caade0dbe9a0e16f07cd8ec3f0368",
+            "color": "7e5d4a"
         },
         {
             "name": "Decameroon_ForestHut_1",
@@ -1563,7 +1712,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "06c777a2f9d2ea40684538b9121b262ca18e9043986be3587879046afb81292a"
+            "src": "06c777a2f9d2ea40684538b9121b262ca18e9043986be3587879046afb81292a",
+            "color": "8b855a"
         },
         {
             "name": "Decameroon_GemMine_1",
@@ -1573,7 +1723,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "88e69929a8070277c712423ca47351907986038d4f3c8c5b880df4327ccb524f"
+            "src": "88e69929a8070277c712423ca47351907986038d4f3c8c5b880df4327ccb524f",
+            "color": "7d6f5c"
         },
         {
             "name": "Decameroon_GoldMine_1",
@@ -1583,7 +1734,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "96095ad1bb94d14cae387b1f0a364d900b6f1d58f982d3d744f2662eee815efa"
+            "src": "96095ad1bb94d14cae387b1f0a364d900b6f1d58f982d3d744f2662eee815efa",
+            "color": "8a7b53"
         },
         {
             "name": "Decameroon_GoldMine_Big_1",
@@ -1593,7 +1745,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "f7ca515696ef333630a419d6ded15d9ff7a3362db30633f051940b216a6ced50"
+            "src": "f7ca515696ef333630a419d6ded15d9ff7a3362db30633f051940b216a6ced50",
+            "color": "7e684e"
         },
         {
             "name": "Decameroon_LumberMill_1",
@@ -1603,7 +1756,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "52478068095515583b5194bdd5d489b44e6155a29e75b69122f44b4b32be4be6"
+            "src": "52478068095515583b5194bdd5d489b44e6155a29e75b69122f44b4b32be4be6",
+            "color": "847b4c"
         },
         {
             "name": "Decameroon_LumberMill_Big_1",
@@ -1613,7 +1767,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "73a5665988479b81a99f0288ed04d615c236ed2c80c6916131d759f06e0118ab"
+            "src": "73a5665988479b81a99f0288ed04d615c236ed2c80c6916131d759f06e0118ab",
+            "color": "7e6e4f"
         },
         {
             "name": "Decameroon_LumberMill_Industrial_1",
@@ -1623,7 +1778,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "9b507bd5855db05f91fdc0e25d6bc58db9e4a31fe6a9616d6f4bf5d52bbdda76"
+            "src": "9b507bd5855db05f91fdc0e25d6bc58db9e4a31fe6a9616d6f4bf5d52bbdda76",
+            "color": "8c7860"
         },
         {
             "name": "Decameroon_Market_1",
@@ -1633,7 +1789,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "889a802faaf961246da3bc9d9a42d72287e6412257cc1599a1a005699b41fb2d"
+            "src": "889a802faaf961246da3bc9d9a42d72287e6412257cc1599a1a005699b41fb2d",
+            "color": "a27b5b"
         },
         {
             "name": "Decameroon_Mill_1",
@@ -1643,7 +1800,8 @@
             "y": 512,
             "w": 256,
             "h": 256,
-            "src": "5881fd4dd4aad044101e0e6b9056642663cd9527558a05a5ec2174e9f9d6a754"
+            "src": "5881fd4dd4aad044101e0e6b9056642663cd9527558a05a5ec2174e9f9d6a754",
+            "color": "9d7d5b"
         },
         {
             "name": "Decameroon_Monastery_1",
@@ -1653,7 +1811,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "2c361c445c8df0945e98c5762326563795ff7147a2a5a58e82ef9ca538a15aed"
+            "src": "2c361c445c8df0945e98c5762326563795ff7147a2a5a58e82ef9ca538a15aed",
+            "color": "8a7e72"
         },
         {
             "name": "Decameroon_OreMine_1",
@@ -1663,7 +1822,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "68163251c493d75f0d7eaa2bd8efcf1a2bfb6bfae5f8589f0c5c0e8491b5fff1"
+            "src": "68163251c493d75f0d7eaa2bd8efcf1a2bfb6bfae5f8589f0c5c0e8491b5fff1",
+            "color": "786649"
         },
         {
             "name": "Decameroon_OreWorkshop_1",
@@ -1673,7 +1833,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "788b8d925f84c421e8e248290602448c4e1d3a730ff9f14d9584f3fc10e9debb"
+            "src": "788b8d925f84c421e8e248290602448c4e1d3a730ff9f14d9584f3fc10e9debb",
+            "color": "806b51"
         },
         {
             "name": "Decameroon_Plantation_1",
@@ -1683,7 +1844,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "995152d8e61cdce583c6e45a6c3b2ad3be2a92a222ec726404a41914e5336ab6"
+            "src": "995152d8e61cdce583c6e45a6c3b2ad3be2a92a222ec726404a41914e5336ab6",
+            "color": "82795d"
         },
         {
             "name": "Decameroon_SilverMine_1",
@@ -1693,7 +1855,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "4844b3dd0a179612b591712fe0be448f894ded812403f1925147be00890d2ed3"
+            "src": "4844b3dd0a179612b591712fe0be448f894ded812403f1925147be00890d2ed3",
+            "color": "847d62"
         },
         {
             "name": "Decameroon_SmallShip_1",
@@ -1703,7 +1866,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b"
+            "src": "a4c78a498e1a526c55a30ad136a3e188924f46dff9ef9584a0f809e582a6473b",
+            "color": "81665a"
         },
         {
             "name": "Decameroon_SmallShipyard_1",
@@ -1713,7 +1877,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807"
+            "src": "c6895bf069a535e10cf0fce56c19d02bb05b7e6b6f26991c50b4234ea62dd807",
+            "color": "7c5b4f"
         },
         {
             "name": "Decameroon_StoneConveyor_1",
@@ -1723,7 +1888,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "07d35223ed7ce3ffb3f5a5a3459de95d91c2b7e2481ab13980b14483ce6ee9db"
+            "src": "07d35223ed7ce3ffb3f5a5a3459de95d91c2b7e2481ab13980b14483ce6ee9db",
+            "color": "7f6b48"
         },
         {
             "name": "Decameroon_StoneMine_1",
@@ -1733,7 +1899,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "93786fb30c55eb99558b2edf6041a8b919f371956bfb740560ba6f4d39cba66d"
+            "src": "93786fb30c55eb99558b2edf6041a8b919f371956bfb740560ba6f4d39cba66d",
+            "color": "857554"
         },
         {
             "name": "Decameroon_StoneMineBig_1",
@@ -1743,7 +1910,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "f44188e093a02990b9276de0d56555d30e9cda68e4d47be2c4f78bb2bccef690"
+            "src": "f44188e093a02990b9276de0d56555d30e9cda68e4d47be2c4f78bb2bccef690",
+            "color": "836e5a"
         },
         {
             "name": "Decameroon_Tavern_1",
@@ -1753,7 +1921,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "2852b3c4a510f550e4b227e5cfc89a81077edfcd77325ff75a2543acf95b1507"
+            "src": "2852b3c4a510f550e4b227e5cfc89a81077edfcd77325ff75a2543acf95b1507",
+            "color": "967b57"
         },
         {
             "name": "Farm_1",
@@ -1763,7 +1932,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "7f79b2652e65eba2c433cd2b6983f48dd5843caeb1354b7c7bb8197a45da8706"
+            "src": "7f79b2652e65eba2c433cd2b6983f48dd5843caeb1354b7c7bb8197a45da8706",
+            "color": "9f885c"
         },
         {
             "name": "FarmGrain",
@@ -1773,7 +1943,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345"
+            "src": "486768c4cd610c028719f6a47e4b45ba249b156db9573f4489acc78a46d1b345",
+            "color": "e1b860"
         },
         {
             "name": "GoldMine_1",
@@ -1783,7 +1954,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "99c3b413c4f6d5b7a40000c408941e753a805d989e2e546baad2ff75cf264da3"
+            "src": "99c3b413c4f6d5b7a40000c408941e753a805d989e2e546baad2ff75cf264da3",
+            "color": "857c50"
         },
         {
             "name": "IronMine_1",
@@ -1793,7 +1965,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "95f6f1fc4abe06f6be2b7a7b4611794782ca04d844b6b9dea9cb2c3304c9dc32"
+            "src": "95f6f1fc4abe06f6be2b7a7b4611794782ca04d844b6b9dea9cb2c3304c9dc32",
+            "color": "83784d"
         },
         {
             "name": "LumberMill_1",
@@ -1803,7 +1976,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "214577918559c65baa758e9ebd9fad6062558a8ebc5d52c5474c26df53db042d"
+            "src": "214577918559c65baa758e9ebd9fad6062558a8ebc5d52c5474c26df53db042d",
+            "color": "8c6f3e"
         },
         {
             "name": "OldGenerator_1",
@@ -1813,7 +1987,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "63f8c62f0154b4c11aee59f42c4caee0aed0978e15da0711df34dfc6eda7a695"
+            "src": "63f8c62f0154b4c11aee59f42c4caee0aed0978e15da0711df34dfc6eda7a695",
+            "color": "6c734f"
         },
         {
             "name": "Road_Bridge_NEWS_1",
@@ -1823,7 +1998,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "3857fcd59826b91b4b9921976cd482d278c7d34be1663d1b737a256e8425b854"
+            "src": "3857fcd59826b91b4b9921976cd482d278c7d34be1663d1b737a256e8425b854",
+            "color": "b57b4b"
         },
         {
             "name": "Road_Bridge_SENW_1",
@@ -1833,7 +2009,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "97829a089b57ef19403bd37ebf04b28118079c9feb9399a22a100d7e93e860dc"
+            "src": "97829a089b57ef19403bd37ebf04b28118079c9feb9399a22a100d7e93e860dc",
+            "color": "b57b4b"
         },
         {
             "name": "ScoutTower_1",
@@ -1843,7 +2020,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "628282880713d367eb492732ebc84fd99ee2ea867b8d9a1c27e17295f674cd53"
+            "src": "628282880713d367eb492732ebc84fd99ee2ea867b8d9a1c27e17295f674cd53",
+            "color": "617a46"
         },
         {
             "name": "StoneConveyor",
@@ -1853,7 +2031,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "8a8c4baec88308ba4ca7152a469b686363be3a5a49259e77f71fec19feddcd1e"
+            "src": "8a8c4baec88308ba4ca7152a469b686363be3a5a49259e77f71fec19feddcd1e",
+            "color": "7f7e55"
         },
         {
             "name": "StoneMine_1",
@@ -1863,7 +2042,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "f321339f2bef2a16bf2c5594ba26a35b98aaad2e2dafe2d3664b0875332c4cc2"
+            "src": "f321339f2bef2a16bf2c5594ba26a35b98aaad2e2dafe2d3664b0875332c4cc2",
+            "color": "6d714b"
         },
         {
             "name": "Coastline_0_UpperRight",
@@ -1873,7 +2053,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "537337ec92b2709e3f126fc9e64bf6410e601d5bf90fbfbfdcd5287e5b4ca61e"
+            "src": "537337ec92b2709e3f126fc9e64bf6410e601d5bf90fbfbfdcd5287e5b4ca61e",
+            "color": "668e56"
         },
         {
             "name": "Coastline_1_LowerRight",
@@ -1883,7 +2064,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "55944a715cf17939e14eab47ac5d639df8a552ae17ee12f94e431f7e6ea1f627"
+            "src": "55944a715cf17939e14eab47ac5d639df8a552ae17ee12f94e431f7e6ea1f627",
+            "color": "699243"
         },
         {
             "name": "Coastline_2_Bottom",
@@ -1893,7 +2075,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "8c5b3e607425e452572f1fdcb18c881ec438a6dfe83e104a04d1dbe50dfec234"
+            "src": "8c5b3e607425e452572f1fdcb18c881ec438a6dfe83e104a04d1dbe50dfec234",
+            "color": "6a9452"
         },
         {
             "name": "Coastline_3_LowerLeft",
@@ -1903,7 +2086,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "50c27bf4623205fb195c4e7611edb11dca07238e0c87f6d46848bd065aebf3a1"
+            "src": "50c27bf4623205fb195c4e7611edb11dca07238e0c87f6d46848bd065aebf3a1",
+            "color": "57894c"
         },
         {
             "name": "Coastline_4_UpperLeft",
@@ -1913,7 +2097,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "4e1d7e591fd4a71a16f064d1350045ff5fc0722660bcc34a999787a9de356f92"
+            "src": "4e1d7e591fd4a71a16f064d1350045ff5fc0722660bcc34a999787a9de356f92",
+            "color": "659247"
         },
         {
             "name": "Coastline_5_Top",
@@ -1923,7 +2108,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "5d54dd8be7945c21162d1e84c0e7847a57ce5d8ec755f4df70abca0b128c7631"
+            "src": "5d54dd8be7945c21162d1e84c0e7847a57ce5d8ec755f4df70abca0b128c7631",
+            "color": "5f8951"
         },
         {
             "name": "road_hex_00_none",
@@ -1933,7 +2119,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "ac54c5a77b77855dd83e8a5fd16357ee8916355cb29b9c39eaec3cee98915cc1"
+            "src": "ac54c5a77b77855dd83e8a5fd16357ee8916355cb29b9c39eaec3cee98915cc1",
+            "color": "808080"
         },
         {
             "name": "road_hex_01_SE",
@@ -1943,7 +2130,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "b1c1fef53ba909618c1b7f0e84d43c9020ea1cdad3dfc34c472978f5212b8fde"
+            "src": "b1c1fef53ba909618c1b7f0e84d43c9020ea1cdad3dfc34c472978f5212b8fde",
+            "color": "cd914e"
         },
         {
             "name": "road_hex_03_SENE",
@@ -1953,7 +2141,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "b37f537d87b4aa9c3115275e93d00192e2affeb9a0b069599d24b99e1f2035e8"
+            "src": "b37f537d87b4aa9c3115275e93d00192e2affeb9a0b069599d24b99e1f2035e8",
+            "color": "ca8c4a"
         },
         {
             "name": "road_hex_04_N",
@@ -1963,7 +2152,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "a2a910cbe713a3a7a24dcca40267936013404392e83c6cc44d42ecdfa940030b"
+            "src": "a2a910cbe713a3a7a24dcca40267936013404392e83c6cc44d42ecdfa940030b",
+            "color": "cb904d"
         },
         {
             "name": "road_hex_05_SEN",
@@ -1973,7 +2163,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "d4582700ee4ff406e97e46126de027856b0a1ca202f1eec58bbc2efdd7b3f196"
+            "src": "d4582700ee4ff406e97e46126de027856b0a1ca202f1eec58bbc2efdd7b3f196",
+            "color": "cd924f"
         },
         {
             "name": "road_hex_06_NEN",
@@ -1983,7 +2174,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "a33fd56045cfd6f6276a87033c489020b563cabf0ef5655b57f98d54d4664fde"
+            "src": "a33fd56045cfd6f6276a87033c489020b563cabf0ef5655b57f98d54d4664fde",
+            "color": "cb8f4d"
         },
         {
             "name": "road_hex_07_SENEN",
@@ -1993,7 +2185,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "1ed4d008979c01ddad4a64811b8d7f30f6ade9afc6980b534df85e69a7f92861"
+            "src": "1ed4d008979c01ddad4a64811b8d7f30f6ade9afc6980b534df85e69a7f92861",
+            "color": "cc904e"
         },
         {
             "name": "road_hex_09_SENW",
@@ -2003,7 +2196,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "651daa357b71517a52d03143e0ca291715bc7146d037763aeb436a2973497af3"
+            "src": "651daa357b71517a52d03143e0ca291715bc7146d037763aeb436a2973497af3",
+            "color": "c98c4a"
         },
         {
             "name": "road_hex_10_NENW",
@@ -2013,7 +2207,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "30cc4eefdd48edd7f0bc49866585a286c377c544587c8937e039e3640d3a1749"
+            "src": "30cc4eefdd48edd7f0bc49866585a286c377c544587c8937e039e3640d3a1749",
+            "color": "ca8c4b"
         },
         {
             "name": "road_hex_11_SENENW",
@@ -2023,7 +2218,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "75b796da47460c33d47af98851a0a9619cc992adc01cf04998b8653d09e166d3"
+            "src": "75b796da47460c33d47af98851a0a9619cc992adc01cf04998b8653d09e166d3",
+            "color": "ca8c4a"
         },
         {
             "name": "road_hex_13_SENNW",
@@ -2033,7 +2229,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "3c91bf590270d9961180dbc19b75605033f5365e4bb50093e5b435ce51b6ee25"
+            "src": "3c91bf590270d9961180dbc19b75605033f5365e4bb50093e5b435ce51b6ee25",
+            "color": "cc8f4d"
         },
         {
             "name": "road_hex_14_NENNW",
@@ -2043,7 +2240,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "f2f0b7aa4ffaca653d8daec6c81d3ac16479bc5d59c3cab913f6146887209e15"
+            "src": "f2f0b7aa4ffaca653d8daec6c81d3ac16479bc5d59c3cab913f6146887209e15",
+            "color": "c98a49"
         },
         {
             "name": "road_hex_15_SENENNW",
@@ -2053,7 +2251,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "cef6d8f9d5fea6309e5e7408199e4f6087a70736a9c1513dfa1b93e8607f0f41"
+            "src": "cef6d8f9d5fea6309e5e7408199e4f6087a70736a9c1513dfa1b93e8607f0f41",
+            "color": "cb8d4b"
         },
         {
             "name": "road_hex_21_SENSW",
@@ -2063,7 +2262,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "beb761a7b2efb28cf140d25127018f7d8bf791d816e73326f5d75d100299add8"
+            "src": "beb761a7b2efb28cf140d25127018f7d8bf791d816e73326f5d75d100299add8",
+            "color": "ce934f"
         },
         {
             "name": "road_hex_23_SENENSW",
@@ -2073,7 +2273,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "187a52a9c4f079af57f27633aaa06ec5e634350ad080860f7e8dfc3c278782d8"
+            "src": "187a52a9c4f079af57f27633aaa06ec5e634350ad080860f7e8dfc3c278782d8",
+            "color": "cc914e"
         },
         {
             "name": "road_hex_27_SENENWSW",
@@ -2083,7 +2284,8 @@
             "y": 256,
             "w": 256,
             "h": 256,
-            "src": "216b6115c1588a01314551d273a53be5e73dae073de8736fc200b5b990f7be4b"
+            "src": "216b6115c1588a01314551d273a53be5e73dae073de8736fc200b5b990f7be4b",
+            "color": "ca8d4b"
         },
         {
             "name": "road_hex_31_SENENNWSW",
@@ -2093,7 +2295,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "0d0c87cc09a050e3fc58a95d915f76724036ecbdcc024a6cb1515e21fdaba9df"
+            "src": "0d0c87cc09a050e3fc58a95d915f76724036ecbdcc024a6cb1515e21fdaba9df",
+            "color": "cb8f4c"
         },
         {
             "name": "road_hex_36_NS",
@@ -2103,7 +2306,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "81a9a7a709b10b691f22879b233945d76fb9ee8f51b84da006933c049898b7cb"
+            "src": "81a9a7a709b10b691f22879b233945d76fb9ee8f51b84da006933c049898b7cb",
+            "color": "cf9551"
         },
         {
             "name": "road_hex_37_SENS",
@@ -2113,7 +2317,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "9d335efbc31945438b737d74914e611fe59aeab68ca91cad66bcb913e91e90c7"
+            "src": "9d335efbc31945438b737d74914e611fe59aeab68ca91cad66bcb913e91e90c7",
+            "color": "ce9450"
         },
         {
             "name": "road_hex_39_SENENS",
@@ -2123,7 +2328,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "f55c146a7cef033db9bb5c57d2f3a1426e3b8bdb036e3df37a55503056869ff6"
+            "src": "f55c146a7cef033db9bb5c57d2f3a1426e3b8bdb036e3df37a55503056869ff6",
+            "color": "cd924f"
         },
         {
             "name": "road_hex_45_SENNWS",
@@ -2133,7 +2339,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "7944198a96667949e02b93570d87c6efecae27d582cd8555904f9bce804e9f5d"
+            "src": "7944198a96667949e02b93570d87c6efecae27d582cd8555904f9bce804e9f5d",
+            "color": "cc914e"
         },
         {
             "name": "road_hex_46_NENNWS",
@@ -2143,7 +2350,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "67dc516e2ab7657d5a85b13bdc6544f1fb68de2ec11fc2efc58a00bdcd9921bc"
+            "src": "67dc516e2ab7657d5a85b13bdc6544f1fb68de2ec11fc2efc58a00bdcd9921bc",
+            "color": "cc8f4d"
         },
         {
             "name": "road_hex_47_SENENNWS",
@@ -2153,7 +2361,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "7625d2093874d6473fc0f0c475e3bf9099216d44649eb9c74ce2502d43fd4d53"
+            "src": "7625d2093874d6473fc0f0c475e3bf9099216d44649eb9c74ce2502d43fd4d53",
+            "color": "cc8f4d"
         },
         {
             "name": "road_hex_63_SENENNWSWS",
@@ -2163,7 +2372,8 @@
             "y": 0,
             "w": 256,
             "h": 256,
-            "src": "ce548d6cff4ddc15745d8ab66312037942e94951a77effadad1dcd701ea89131"
+            "src": "ce548d6cff4ddc15745d8ab66312037942e94951a77effadad1dcd701ea89131",
+            "color": "cc904d"
         },
         {
             "name": "Decameroon_Settlements_Big_1",
@@ -2173,7 +2383,8 @@
             "y": 2211,
             "w": 1286,
             "h": 1341,
-            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e"
+            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e",
+            "color": "8c8051"
         },
         {
             "name": "Decameroon_Settlements_Medieval_Town_1",
@@ -2183,7 +2394,8 @@
             "y": 2211,
             "w": 1286,
             "h": 1341,
-            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e"
+            "src": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e",
+            "color": "8c8051"
         },
         {
             "name": "MainSettlement_Kaiju_1",
@@ -2193,7 +2405,8 @@
             "y": 2211,
             "w": 1286,
             "h": 1341,
-            "src": "23cd9ff34dd7e2a8d7f82a75e89972ec24be65f184c5b83342f692ec2edac2ec"
+            "src": "23cd9ff34dd7e2a8d7f82a75e89972ec24be65f184c5b83342f692ec2edac2ec",
+            "color": "88855f"
         },
         {
             "name": "Setlements_Big_Chicken_1",
@@ -2203,7 +2416,8 @@
             "y": 843,
             "w": 1286,
             "h": 1341,
-            "src": "5b125292033680cbc71a77897058b382238af95b727e59164ee0a23657f3044e"
+            "src": "5b125292033680cbc71a77897058b382238af95b727e59164ee0a23657f3044e",
+            "color": "9f8a27"
         },
         {
             "name": "Crystal_Kaiju_Alife_V_1",
@@ -2213,7 +2427,8 @@
             "y": 1197,
             "w": 1054,
             "h": 987,
-            "src": "34da601c1aaf425f43a664d54df9d79cc743c88c9a21c894c6b996e17bda26df"
+            "src": "34da601c1aaf425f43a664d54df9d79cc743c88c9a21c894c6b996e17bda26df",
+            "color": "5a7268"
         },
         {
             "name": "Monster_Chicken_Big_2",
@@ -2223,7 +2438,8 @@
             "y": 1243,
             "w": 697,
             "h": 941,
-            "src": "89b26a84c336c95e3fccedf21b6021604eff4e82c910e8a34232841038abfd0c"
+            "src": "89b26a84c336c95e3fccedf21b6021604eff4e82c910e8a34232841038abfd0c",
+            "color": "cb9b56"
         },
         {
             "name": "Crystal_Kaiju_Die_V1",
@@ -2233,7 +2449,8 @@
             "y": 6,
             "w": 1054,
             "h": 810,
-            "src": "472f2a7147f208afe7877ff9145c5266c7b60513559da759449c3bf410be1d8c"
+            "src": "472f2a7147f208afe7877ff9145c5266c7b60513559da759449c3bf410be1d8c",
+            "color": "656757"
         },
         {
             "name": "Crystal_Kaiju_Defeat_V_1",
@@ -2243,7 +2460,8 @@
             "y": 33,
             "w": 1151,
             "h": 783,
-            "src": "90daded6aaf09cde88a31ecdbae157efc6df29f545e9a27de6d5ecb29fa35941"
+            "src": "90daded6aaf09cde88a31ecdbae157efc6df29f545e9a27de6d5ecb29fa35941",
+            "color": "59746a"
         },
         {
             "name": "Crystal_Kaiju_skeleton_V_2",
@@ -2253,7 +2471,8 @@
             "y": 59,
             "w": 1068,
             "h": 757,
-            "src": "9e9ec72d837e8eb870fc74b03e8dc987c5ad8d6d1eb1f0e0377a8e0adbd2c2c7"
+            "src": "9e9ec72d837e8eb870fc74b03e8dc987c5ad8d6d1eb1f0e0377a8e0adbd2c2c7",
+            "color": "9c886d"
         },
         {
             "name": "Crystal_Kaiju_skeleton_V_1",
@@ -2263,7 +2482,8 @@
             "y": 3,
             "w": 1065,
             "h": 693,
-            "src": "b17b0a83426d3a56ec8929c754d2229759295177ceeb8a4219408e2c72291256"
+            "src": "b17b0a83426d3a56ec8929c754d2229759295177ceeb8a4219408e2c72291256",
+            "color": "a19582"
         },
         {
             "name": "Crystal_Kaiju_skeleton_V_3",
@@ -2273,7 +2493,8 @@
             "y": 29,
             "w": 1046,
             "h": 667,
-            "src": "2853334b0ca80ab6cb0444b113a9da02f790a164f96925af56d0fc11381d68f4"
+            "src": "2853334b0ca80ab6cb0444b113a9da02f790a164f96925af56d0fc11381d68f4",
+            "color": "a49573"
         }
     ]
 }
