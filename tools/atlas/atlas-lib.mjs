@@ -230,6 +230,9 @@ export const groupDirs = (site, id) => ({
   roads: path.join(site, 'packages', id, 'sprites', 'terrain', 'roads'),
 });
 
+/** Bump when the builder writes something new into an atlas (a record field, a layout rule): every atlas then counts as stale and is rebuilt. 2 = per-sprite "color". */
+export const ATLAS_FORMAT = 2;
+
 /** One hash for everything an atlas is made of: every packed PNG (name + content) and the config. Same value as Tools/atlas/build-package-atlases.sh in the Unity repo. */
 export function stamp(site, id, configBytes) {
   let text = '';
@@ -241,6 +244,7 @@ export function stamp(site, id, configBytes) {
     for (const f of files) text += `${g}/${f} ${sha256(fs.readFileSync(path.join(dir, f)))}\n`;
   }
   text += `config ${sha256(configBytes)}\n`;
+  text += `format ${ATLAS_FORMAT}\n`;
   return sha256(text);
 }
 
