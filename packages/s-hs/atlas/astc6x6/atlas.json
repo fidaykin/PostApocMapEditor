@@ -1,0 +1,382 @@
+{
+    "variant": "astc6x6",
+    "format": "ASTC_6x6",
+    "mips": false,
+    "pages": [
+        {
+            "file": "hex_512_0.bin",
+            "group": "hex",
+            "cell": 512,
+            "width": 4096,
+            "height": 2560,
+            "mipCount": 1,
+            "bytes": 4666256,
+            "sha256": "bc2cfab7a36f3b4f9b11571ccd9b551d9e88ef58d33dae33ba80af6b01f2dab5"
+        }
+    ],
+    "sprites": [
+        {
+            "name": "Decameroon_LavaPlain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 2048,
+            "w": 512,
+            "h": 512,
+            "src": "331a71901041df54c8a2f06269c739229f5e5e21f81119ff0250eacae8287bdb",
+            "color": "856944"
+        },
+        {
+            "name": "Decameroon_LavaRift_1",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 2048,
+            "w": 512,
+            "h": 512,
+            "src": "cfe9a94e5f42d23d8145a552e61bd6929f12eb4cee9fd26ee2efe565b6bfdbae",
+            "color": "745341"
+        },
+        {
+            "name": "Decameroon_Mountain_2",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 2048,
+            "w": 512,
+            "h": 512,
+            "src": "809e723e4d7006660eaf8766209b6b3e46f8a05e295f6aebc458c456fd7edbfe",
+            "color": "73744c"
+        },
+        {
+            "name": "Decameroon_Rift_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 2048,
+            "w": 512,
+            "h": 512,
+            "src": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022",
+            "color": "80a03c"
+        },
+        {
+            "name": "Forest_red",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 2048,
+            "w": 512,
+            "h": 512,
+            "src": "26475e6cb2526e0c6af4b99091e20eec65f2afcf719ba3ee8951298eba046c74",
+            "color": "551c21"
+        },
+        {
+            "name": "HS_Barren_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 2048,
+            "w": 512,
+            "h": 512,
+            "src": "8e63259d0952037e9e89fcacf46353b290b1683b6894c8c9db122c2cfb9e0718",
+            "color": "eab178"
+        },
+        {
+            "name": "HS_BrokenShip_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 2048,
+            "w": 512,
+            "h": 512,
+            "src": "af57be866c031316844b3d1a028a27c72f87fd48709d13c47dd47c63163eff4b",
+            "color": "7f605c"
+        },
+        {
+            "name": "HS_Desert_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 2048,
+            "w": 512,
+            "h": 512,
+            "src": "d3300f0ffb3914f85a1a2fe4f1380a1000dc7fb00fb28dc7ae1ea80ba25561ba",
+            "color": "edb77f"
+        },
+        {
+            "name": "HS_DestroyedBuilding_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 1536,
+            "w": 512,
+            "h": 512,
+            "src": "96f6637464fe9940b1d9f6649b5a76ed9f24a017eb60a806ef7a2c0865a40130",
+            "color": "918250"
+        },
+        {
+            "name": "HS_Forest_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 1536,
+            "w": 512,
+            "h": 512,
+            "src": "4a312eda14c169cf2bc0a247bc76bfc868fc28fbeac28c14f72b4ce5d6e9b1ff",
+            "color": "829149"
+        },
+        {
+            "name": "HS_Forest_S_2",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 1536,
+            "w": 512,
+            "h": 512,
+            "src": "3b0c1ee83361c25e138f3a2f1d069aa3c37aa4ec08cccb97bfac8aeb328fcf5c",
+            "color": "7a874c"
+        },
+        {
+            "name": "HS_Forest_S_3",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 1536,
+            "w": 512,
+            "h": 512,
+            "src": "323f9d11cef49e474d566250fe103ed5e90a103d9376c0f02bea8fac7115b718",
+            "color": "63784a"
+        },
+        {
+            "name": "HS_GemPond_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 1536,
+            "w": 512,
+            "h": 512,
+            "src": "3b8286a36a21e74babc713f6966d536a5b6cfc2f557b90664fbcdc16cbd28635",
+            "color": "8a8571"
+        },
+        {
+            "name": "HS_GoldVein_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 1536,
+            "w": 512,
+            "h": 512,
+            "src": "a4f11e8993aa36f3d6591547b703b18bfbe91af4b210481d3131003cd5c6f1d7",
+            "color": "a39146"
+        },
+        {
+            "name": "HS_Grain_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 1536,
+            "w": 512,
+            "h": 512,
+            "src": "f882f4562380f18e740acec5ac2d77b83ac246a5bca57d74f94558caa68579e0",
+            "color": "b38044"
+        },
+        {
+            "name": "HS_Grain_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 1536,
+            "w": 512,
+            "h": 512,
+            "src": "226479d9c00832d68e7672348d58ca6f33617f320767247ee28e3e4bab00a52a",
+            "color": "be843b"
+        },
+        {
+            "name": "HS_Herbs_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "610ae32bb19a9e888ea992f1b7e662955abd7c1d854f4a6afbdf82b3bf50af3b",
+            "color": "978558"
+        },
+        {
+            "name": "HS_Hills_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "5d8e39079d9a81e1fc370b23d5cc88cb3c832cced94671478391e10685735621",
+            "color": "979545"
+        },
+        {
+            "name": "HS_Mountain_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "e6046ee0539bf227b3a9165b48f1afcbfaba0621f42e376e6093e1db63acde4a",
+            "color": "a39a7b"
+        },
+        {
+            "name": "HS_Plain_S_1",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "a7f5d5d7b580b1c1589f827ab9effc5a24293e3160fad4dfc6511b2ad2eeebb6",
+            "color": "a0a44a"
+        },
+        {
+            "name": "HS_Plain_S_2",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "db6096879cc2bd0738fca6afee856d76574a169ece4250e077a98966faa494de",
+            "color": "9c9245"
+        },
+        {
+            "name": "Medieval_DirtyWater_1",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373",
+            "color": "075b84"
+        },
+        {
+            "name": "Medieval_Fish_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "f5381ca9c3ac045ef16af5ce1077d66e31e8587462469eed8b3056261e4ae152",
+            "color": "1c3b60"
+        },
+        {
+            "name": "Medieval_Lake_1",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 1024,
+            "w": 512,
+            "h": 512,
+            "src": "a9dd737e30c2076fa7abce9e1dc1b1dd57a22f0f8a6ad72efee223b1a4009135",
+            "color": "378893"
+        },
+        {
+            "name": "Medieval_Lake_2",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "80f5211ee89edd55dde8a449f14aaa123bad1764a29dc2e4d5c8422b8ec27be5",
+            "color": "398a95"
+        },
+        {
+            "name": "Medieval_Lake_3",
+            "group": "hex",
+            "page": 0,
+            "x": 512,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "9b04b0e993dccdce072fbc87e62de73a9692eabe1725e9c1eeb937a5dc284533",
+            "color": "398a93"
+        },
+        {
+            "name": "Medieval_Lake_4",
+            "group": "hex",
+            "page": 0,
+            "x": 1024,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "2b397f8baf068665bc5f644bebd5dd42e3fe46961a40a2428bc079008d70bc76",
+            "color": "388a95"
+        },
+        {
+            "name": "Medieval_Lake_5",
+            "group": "hex",
+            "page": 0,
+            "x": 1536,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "052a620353fecc97451b2ca9e73db7d2a9d3e348b98acb02061ad548a3da4d41",
+            "color": "378893"
+        },
+        {
+            "name": "Medieval_Lake_6",
+            "group": "hex",
+            "page": 0,
+            "x": 2048,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "ba450fe848274ec13a1e420e564b6ae581445ce6a1869a417dae119554a6dff7",
+            "color": "368793"
+        },
+        {
+            "name": "Medieval_Lake_7",
+            "group": "hex",
+            "page": 0,
+            "x": 2560,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "167af984001f710a672da65dfba5e9e934f133a4689007ab871e5a453d2956d0",
+            "color": "3d8b92"
+        },
+        {
+            "name": "Medieval_River_D_2",
+            "group": "hex",
+            "page": 0,
+            "x": 3072,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "3e0e3fd73f562c86da970627e30ef9ab0b8020e65f8ee0d3e272885ec71503fa",
+            "color": "6b9c72"
+        },
+        {
+            "name": "Medieval_River_D_3",
+            "group": "hex",
+            "page": 0,
+            "x": 3584,
+            "y": 512,
+            "w": 512,
+            "h": 512,
+            "src": "3119f478afee541b96e38893d969148050ccf4b136aa71b0160eb9415bdf249b",
+            "color": "599881"
+        },
+        {
+            "name": "Medieval_River_D_4",
+            "group": "hex",
+            "page": 0,
+            "x": 0,
+            "y": 0,
+            "w": 512,
+            "h": 512,
+            "src": "5916bf2f57998244b5ba4d1908d6b7cfcbfb1bc35698cd32bc4eda1c5d373b1c",
+            "color": "719d70"
+        }
+    ]
+}
