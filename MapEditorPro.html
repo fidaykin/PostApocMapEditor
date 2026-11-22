@@ -2868,7 +2868,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.22";
-const COMMIT  = "bdd31688";
+const COMMIT  = "924044f9";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -19174,7 +19174,7 @@ const HexDB = (() => {
       incomeGetPerTap:[], incomePerTurn:[],
       incomeConstant:[],
       spendConstant:[{type:'Pollution',amount:1}],
-      bonusDrop:false, bonusTrigger:'Destroy', bonuses:[],
+      bonusDrop:false, bonusTrigger:'Destroy', bonuses:[], actionBonusDrops:[],
       booster:'', effects:'',
       edgeFaces:[],
     };
@@ -19433,6 +19433,16 @@ const HexDB = (() => {
     </div>`;
   }
 
+  // Read-only Source (Destroy block): every Action whose Available Tiles includes this tile's
+  // id or type. D-47 (was O-31, п. 1/8): single source of truth is Available Tiles in Action;
+  // Source here only displays — it is never typed or edited in Hex/Buildings.
+  function _actionSourceHTML(id, type) {
+    const ids = (typeof ActionsDB !== 'undefined') ? ActionsDB.actionsTargeting(id, type) : [];
+    if (!ids.length) return '<span style="color:#888;font-size:12px">— none (set Available Tiles in Actions Editor) —</span>';
+    return '<div class="hexdb-tags">' +
+      ids.map(a => `<span class="hexdb-tag" style="opacity:.85">${_esc(a)}</span>`).join('') + '</div>';
+  }
+
   // ── Dynamic resource block helper ────────────────────────
   const DESTROY_RES_TYPES = ['Gold','Gems','Food','Lumber','Stone',
     'Steel','Oil','Chips','Clay','Ore','Citrodium','UraniumBattery','Pollution'];
@@ -19472,6 +19482,39 @@ const HexDB = (() => {
       ${rowsHTML}
       <button class="hexdb-res-add" data-res-field="${fieldName}"${dis}>+ Add Resource</button>
     </div>`;
+  }
+
+  // Trigger "Actions" (D-47, п. 2): one card per {Action ID, resource list}. Distinct data-abd-*
+  // attributes keep this out of the generic [data-res-field] sweep (resources nest one level deeper
+  // here than in a plain resource block).
+  function _actionBonusDropsHTML(rows) {
+    const actionIds = (typeof ActionsDB !== 'undefined') ? ActionsDB.getAll().map(a => a.id) : [];
+    const idOpts = actionIds.map(v => `<option value="${_esc(v)}">`).join('');
+    const cards = (rows || []).map((r, i) => {
+      const resRows = (r.resources || []).map((res, j) => `<div class="hexdb-res-row">
+          <span class="res-icon" style="font-size:16px;width:20px;text-align:center;flex-shrink:0">${_resIcon(res.type)}</span>
+          <select class="hexdb-select" style="width:110px" data-abd-idx="${i}" data-abd-res-idx="${j}" data-abd-res-key="type">
+            ${DESTROY_RES_TYPES.map(t => `<option${t === res.type ? ' selected' : ''}>${t}</option>`).join('')}
+          </select>
+          <input class="hexdb-input" type="number" step="1" min="0" style="width:90px" value="${res.amount ?? 0}"
+            data-abd-idx="${i}" data-abd-res-idx="${j}" data-abd-res-key="amount">
+          <button class="hexdb-res-remove" data-abd-idx="${i}" data-abd-res-remove="${j}">✕</button>
+        </div>`).join('');
+      return `<div class="level-card">
+        <div class="level-row">
+          <label style="flex-shrink:0">Action ID</label>
+          <input class="hexdb-input" style="flex:1" list="act-bonus-id-list-hex"
+            data-abd-idx="${i}" data-abd-field="actionId" value="${_esc(r.actionId ?? '')}">
+          <button data-abd-remove="${i}" title="Remove this action's bonus drop">✕</button>
+        </div>
+        <div style="margin-top:4px">${resRows}
+          <button class="hexdb-res-add" data-abd-res-add="${i}">+ Add Resource</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="level-cards">${cards}</div>
+      <button class="hexdb-res-add" data-abd-add="1">+ Add Action</button>
+      <datalist id="act-bonus-id-list-hex">${idOpts}</datalist>`;
   }
 
   const WATER_DIRS = [
@@ -20152,8 +20195,8 @@ const HexDB = (() => {
         : `<input class="hexdb-input" value="Unbreakable"
              style="width:200px" disabled>`,
         'Tile ID that replaces this hex after destruction (e.g. Plains_1)'),
-      _row('Source', _sourceTagsHTML('destroySource', hex.destroySource ?? [], !canDes),
-        'Action / Booster / Special IDs that are allowed to destroy this tile'),
+      _row('Source', _actionSourceHTML(hex.id, hex.type),
+        "Read-only: Action IDs whose Available Tiles include this hex's ID or type. Configure in the Actions Editor (D-47: single source of truth is Available Tiles)."),
       _checkRow('canStored', hex.canStored ?? false, 'hex moves to storage on destroy'),
       _checkRow('destroyIncomeEnabled', hex.destroyIncomeEnabled ?? false,
         'resources awarded on destroy'),
@@ -20241,6 +20284,7 @@ const HexDB = (() => {
 
     const bdOn = hex.bonusDrop ?? false;
     const bdDis = bdOn ? '' : ' disabled';
+    const isActionsTrigger = bdOn && hex.bonusTrigger === 'Actions';
     const specialBody = [
       _checkRow('bonusDrop', bdOn, 'has bonus drop on trigger'),
       _row('Triggers',
@@ -20249,11 +20293,15 @@ const HexDB = (() => {
            <option${(hex.bonusTrigger ?? 'Destroy') === 'Destroy' ? ' selected' : ''}>Destroy</option>
            <option${(hex.bonusTrigger ?? '') === 'Reveal' ? ' selected' : ''}>Reveal</option>
            <option${(hex.bonusTrigger ?? '') === 'Build'  ? ' selected' : ''}>Build</option>
+           <option${(hex.bonusTrigger ?? '') === 'Actions' ? ' selected' : ''}>Actions</option>
          </select>`,
-        'Game event that triggers the bonus drop (Destroy / Reveal / Build)'),
-      _row('Bonuses',
+        'Game event that triggers the bonus drop (Destroy / Reveal / Build / Actions)'),
+      isActionsTrigger ? '' : _row('Bonuses',
         _resourceBlockHTML('bonuses', hex.bonuses ?? [], !bdOn),
         'Resources dropped when the trigger event fires'),
+      isActionsTrigger ? _row('Actions Bonus Drop',
+        _actionBonusDropsHTML(hex.actionBonusDrops ?? []),
+        'Per-action reward: one Action ID and its own resource list (D-47, п. 2)') : '',
       _row('Boosters',
         `<input class="hexdb-input" style="width:200px;opacity:0.5"
            value="${_esc(hex.booster ?? '')}" disabled>`,
@@ -20381,6 +20429,15 @@ const HexDB = (() => {
       });
     }
 
+    // ── Wire Triggers select → re-render (Bonuses vs Actions Bonus Drop, D-47) ─
+    const bonusTriggerEl = document.querySelector('#hexdb-right [data-field="bonusTrigger"]');
+    if (bonusTriggerEl) {
+      bonusTriggerEl.addEventListener('change', () => {
+        if (_selFilt < 0) return;
+        _renderRecord(_data.hexes[_filtered[_selFilt]]);
+      });
+    }
+
     // ── Wire Destroy Income toggle → re-render ────────────────
     const desIncEl = document.querySelector('#hexdb-right [data-field="destroyIncomeEnabled"]');
     if (desIncEl) {
@@ -20453,13 +20510,79 @@ const HexDB = (() => {
         });
       }
     });
-    document.querySelectorAll('#hexdb-right .hexdb-res-add').forEach(btn => {
+    document.querySelectorAll('#hexdb-right .hexdb-res-add:not([data-abd-res-add]):not([data-abd-add])').forEach(btn => {
       btn.addEventListener('click', () => {
         if (_selFilt < 0) return;
         const h = _data.hexes[_filtered[_selFilt]];
         const field = btn.dataset.resField;
         if (!Array.isArray(h[field])) h[field] = [];
         h[field].push({ type: 'Gold', amount: 0 });
+        _autoSave();
+        _renderRecord(h);
+      });
+    });
+
+    // ── Wire Actions Bonus Drop (trigger = Actions, D-47 п. 2) ─
+    document.querySelectorAll('#hexdb-right [data-abd-idx]').forEach(el => {
+      const i = parseInt(el.dataset.abdIdx, 10);
+      if (el.dataset.abdField === 'actionId') {
+        el.addEventListener('input', () => {
+          if (_selFilt < 0) return;
+          const h = _data.hexes[_filtered[_selFilt]];
+          if (h.actionBonusDrops?.[i]) { h.actionBonusDrops[i].actionId = el.value.trim(); _autoSave(); }
+        });
+      } else if (el.dataset.abdResIdx !== undefined) {
+        const j = parseInt(el.dataset.abdResIdx, 10);
+        if (el.dataset.abdResRemove !== undefined) {
+          el.addEventListener('click', () => {
+            if (_selFilt < 0) return;
+            const h = _data.hexes[_filtered[_selFilt]];
+            const row = h.actionBonusDrops?.[i];
+            if (row) { row.resources.splice(j, 1); _autoSave(); _renderRecord(h); }
+          });
+        } else if (el.tagName === 'SELECT') {
+          el.addEventListener('change', () => {
+            if (_selFilt < 0) return;
+            const row = _data.hexes[_filtered[_selFilt]]?.actionBonusDrops?.[i];
+            if (row?.resources[j]) {
+              row.resources[j].type = el.value;
+              const icon = el.parentElement.querySelector('.res-icon');
+              if (icon) icon.textContent = _resIcon(el.value);
+              _autoSave();
+            }
+          });
+        } else if (el.type === 'number') {
+          el.addEventListener('input', () => {
+            if (_selFilt < 0) return;
+            const row = _data.hexes[_filtered[_selFilt]]?.actionBonusDrops?.[i];
+            if (row?.resources[j]) { row.resources[j].amount = Math.round(parseFloat(el.value) || 0); _autoSave(); }
+          });
+        }
+      }
+    });
+    document.querySelectorAll('#hexdb-right [data-abd-remove]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (_selFilt < 0) return;
+        const h = _data.hexes[_filtered[_selFilt]];
+        const i = parseInt(btn.dataset.abdRemove, 10);
+        if (Array.isArray(h.actionBonusDrops)) { h.actionBonusDrops.splice(i, 1); _autoSave(); _renderRecord(h); }
+      });
+    });
+    document.querySelectorAll('#hexdb-right [data-abd-res-add]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (_selFilt < 0) return;
+        const h = _data.hexes[_filtered[_selFilt]];
+        const i = parseInt(btn.dataset.abdResAdd, 10);
+        const row = h.actionBonusDrops?.[i];
+        if (row) { row.resources.push({ type: 'Gold', amount: 0 }); _autoSave(); _renderRecord(h); }
+      });
+    });
+    document.querySelectorAll('#hexdb-right [data-abd-add]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (_selFilt < 0) return;
+        const h = _data.hexes[_filtered[_selFilt]];
+        if (!Array.isArray(h.actionBonusDrops)) h.actionBonusDrops = [];
+        h.actionBonusDrops.push({ actionId: '', resources: [{ type: 'Gold', amount: 0 }] });
         _autoSave();
         _renderRecord(h);
       });
@@ -20953,6 +21076,7 @@ const HexDB = (() => {
       }
       if (!h.bonusTrigger)              h.bonusTrigger = 'Destroy';
       if (!Array.isArray(h.bonuses))    h.bonuses = [];
+      if (!Array.isArray(h.actionBonusDrops)) h.actionBonusDrops = [];
       if (h.effects === undefined)      h.effects = '';
       delete h.storageCapacity;
       delete h.energyConsumption;
@@ -21609,7 +21733,7 @@ const BldDB = (() => {
       storageCapacity: [],
       storageUpgradeId: '',
       // Special
-      bonusDrop: false, bonusTrigger: 'Destroy', bonuses: [], booster: '', effects: '',
+      bonusDrop: false, bonusTrigger: 'Destroy', bonuses: [], actionBonusDrops: [], booster: '', effects: '',
       // Footprint (Artefact type only)
       footprint: [],
     };
@@ -21674,6 +21798,7 @@ const BldDB = (() => {
     if (bld.bonusDrop === undefined)              bld.bonusDrop = false;
     if (bld.bonusTrigger === undefined)           bld.bonusTrigger = 'Destroy';
     if (!Array.isArray(bld.bonuses))              bld.bonuses = [];
+    if (!Array.isArray(bld.actionBonusDrops))     bld.actionBonusDrops = [];
     if (bld.booster === undefined)                bld.booster = '';
     if (bld.effects === undefined)                bld.effects = '';
     if (!Array.isArray(bld.footprint))            bld.footprint = [];
@@ -21940,6 +22065,48 @@ const BldDB = (() => {
       <button class="hexdb-res-add" data-res-field="${fieldName}"${dis}>+ Add Resource</button></div>`;
   }
 
+  // Read-only Source (Destroy block): every Action whose Available Tiles includes this building's
+  // id. D-47 (was O-31, п. 1/8): single source of truth is Available Tiles in Action; Source here
+  // only displays — it is never typed or edited in Hex/Buildings.
+  function _actionSourceHTML(id, type) {
+    const ids = (typeof ActionsDB !== 'undefined') ? ActionsDB.actionsTargeting(id, type) : [];
+    if (!ids.length) return '<span style="color:#888;font-size:12px">— none (set Available Tiles in Actions Editor) —</span>';
+    return '<div class="hexdb-tags">' +
+      ids.map(a => `<span class="hexdb-tag" style="opacity:.85">${_esc(a)}</span>`).join('') + '</div>';
+  }
+
+  // Trigger "Actions" (D-47, п. 2): one card per {Action ID, resource list}. Distinct data-abd-*
+  // attributes keep this out of the generic [data-res-field] sweep.
+  function _actionBonusDropsHTML(rows) {
+    const actionIds = (typeof ActionsDB !== 'undefined') ? ActionsDB.getAll().map(a => a.id) : [];
+    const idOpts = actionIds.map(v => `<option value="${_esc(v)}">`).join('');
+    const cards = (rows || []).map((r, i) => {
+      const resRows = (r.resources || []).map((res, j) => `<div class="hexdb-res-row">
+          <span class="res-icon" style="font-size:16px;width:20px;text-align:center;flex-shrink:0">${_resIcon(res.type)}</span>
+          <select class="hexdb-select" style="width:110px" data-abd-idx="${i}" data-abd-res-idx="${j}" data-abd-res-key="type">
+            ${BLD_DESTROY_RES.map(t => `<option${t === res.type ? ' selected' : ''}>${t}</option>`).join('')}
+          </select>
+          <input class="hexdb-input" type="number" step="1" min="0" style="width:90px" value="${res.amount ?? 0}"
+            data-abd-idx="${i}" data-abd-res-idx="${j}" data-abd-res-key="amount">
+          <button class="hexdb-res-remove" data-abd-idx="${i}" data-abd-res-remove="${j}">✕</button>
+        </div>`).join('');
+      return `<div class="level-card">
+        <div class="level-row">
+          <label style="flex-shrink:0">Action ID</label>
+          <input class="hexdb-input" style="flex:1" list="act-bonus-id-list-bld"
+            data-abd-idx="${i}" data-abd-field="actionId" value="${_esc(r.actionId ?? '')}">
+          <button data-abd-remove="${i}" title="Remove this action's bonus drop">✕</button>
+        </div>
+        <div style="margin-top:4px">${resRows}
+          <button class="hexdb-res-add" data-abd-res-add="${i}">+ Add Resource</button>
+        </div>
+      </div>`;
+    }).join('');
+    return `<div class="level-cards">${cards}</div>
+      <button class="hexdb-res-add" data-abd-add="1">+ Add Action</button>
+      <datalist id="act-bonus-id-list-bld">${idOpts}</datalist>`;
+  }
+
   // Same-id, different-package match is an intentional cross-package reskin (see SP5
   // plan) — not an error, but worth a quieter, non-blocking notice on the id field.
   // Module-level (not nested in _renderRecord) so both _renderRecord and _readRecord
@@ -22068,8 +22235,8 @@ const BldDB = (() => {
               value="${_esc(bld.destroyTransformTo)}"
               style="flex:1${bld.destroyTransformToMode === 'Parents' ? ';display:none' : ''}">
           </div>` : `<input class="hexdb-input" value="Unbreakable" style="width:160px" disabled>`}</div>
-        <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Source <span class="hexdb-info" title="Action IDs that can destroy this. Configure in Actions Editor.">ⓘ</span></span>
-          ${_tagsHTML('destroySources', bld.destroySources, !canDes)}</div>
+        <div class="hexdb-row"><span class="hexdb-label">Source <span class="hexdb-info" title="Read-only: Action IDs whose Available Tiles include this building's ID. Configure in the Actions Editor (D-47: single source of truth is Available Tiles).">ⓘ</span></span>
+          ${_actionSourceHTML(bld.id, null)}</div>
         <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Move to Storage on Destroy <span class="hexdb-info" title="YES: goes to Hex Storage; cost not charged, no income.">ⓘ</span></span>
           <input id="bld-f-moveToStorageOnDestroy" type="checkbox"${bld.moveToStorageOnDestroy ? ' checked' : ''}></div>
         <div class="hexdb-row"${!canDes ? ' style="opacity:0.4;pointer-events:none"' : ''}><span class="hexdb-label">Resources Awarded on Destroy</span>
@@ -22288,17 +22455,23 @@ const BldDB = (() => {
           </label>
         </div>
         <div class="hexdb-row"${!bdOn ? ' style="opacity:0.4;pointer-events:none"' : ''}>
-          <span class="hexdb-label">Triggers <span class="hexdb-info" title="Game event that triggers the bonus drop (Destroy / Reveal / Build)">ⓘ</span></span>
+          <span class="hexdb-label">Triggers <span class="hexdb-info" title="Game event that triggers the bonus drop (Destroy / Reveal / Build / Actions)">ⓘ</span></span>
           <select class="hexdb-select" id="bld-f-bonusTrigger" style="width:130px"${bdDis}>
             <option${!bld.bonusTrigger || bld.bonusTrigger === 'Destroy' ? ' selected' : ''}>Destroy</option>
             <option${bld.bonusTrigger === 'Reveal' ? ' selected' : ''}>Reveal</option>
             <option${bld.bonusTrigger === 'Build'  ? ' selected' : ''}>Build</option>
+            <option${bld.bonusTrigger === 'Actions' ? ' selected' : ''}>Actions</option>
           </select>
         </div>
+        ${bdOn && bld.bonusTrigger === 'Actions' ? `
+        <div class="hexdb-row">
+          <span class="hexdb-label">Actions Bonus Drop <span class="hexdb-info" title="Per-action reward: one Action ID and its own resource list (D-47, п. 2)">ⓘ</span></span>
+          ${_actionBonusDropsHTML(bld.actionBonusDrops ?? [])}
+        </div>` : `
         <div class="hexdb-row"${!bdOn ? ' style="opacity:0.4;pointer-events:none"' : ''}>
           <span class="hexdb-label">Bonuses <span class="hexdb-info" title="Resources dropped when the trigger event fires">ⓘ</span></span>
           ${_resBlockHTML('bonuses', bld.bonuses ?? [], !bdOn)}
-        </div>
+        </div>`}
         <div class="hexdb-row" style="opacity:0.4;pointer-events:none">
           <span class="hexdb-label">Boosters <span class="hexdb-info" title="Reserved — future use">ⓘ</span></span>
           <input class="hexdb-input" id="bld-f-booster" style="width:200px" value="${_esc(bld.booster ?? '')}" disabled>
@@ -22456,7 +22629,7 @@ const BldDB = (() => {
       'bld-f-buildingRadius',
       'bld-f-canProduceEnabled', 'bld-f-canProductionFacilities',
       'bld-f-facilityBonusType', 'bld-f-canStore',
-      'bld-f-bonusDrop',
+      'bld-f-bonusDrop', 'bld-f-bonusTrigger',
       'bld-f-isRoad', 'bld-f-buildingCategory',   // Roads V1: the Available Tiles lock and the roads messages follow them
     ];
     reRenderIds.forEach(id => {
@@ -22551,13 +22724,79 @@ const BldDB = (() => {
         });
       }
     });
-    right.querySelectorAll('.hexdb-res-add').forEach(btn => {
+    right.querySelectorAll('.hexdb-res-add:not([data-abd-res-add]):not([data-abd-add])').forEach(btn => {
       btn.addEventListener('click', () => {
         if (_selFilt < 0) return;
         const bldObj = _data.buildings[_filtered[_selFilt]];
         const field  = btn.dataset.resField;
         if (!Array.isArray(bldObj[field])) bldObj[field] = [];
         bldObj[field].push({ type: 'Gold', amount: 0 });
+        _autoSave();
+        _renderRecord(bldObj);
+      });
+    });
+
+    // ── Wire Actions Bonus Drop (trigger = Actions, D-47 п. 2) ─
+    right.querySelectorAll('[data-abd-idx]').forEach(el => {
+      const i = parseInt(el.dataset.abdIdx, 10);
+      if (el.dataset.abdField === 'actionId') {
+        el.addEventListener('input', () => {
+          if (_selFilt < 0) return;
+          const bldObj = _data.buildings[_filtered[_selFilt]];
+          if (bldObj.actionBonusDrops?.[i]) { bldObj.actionBonusDrops[i].actionId = el.value.trim(); _autoSave(); }
+        });
+      } else if (el.dataset.abdResIdx !== undefined) {
+        const j = parseInt(el.dataset.abdResIdx, 10);
+        if (el.dataset.abdResRemove !== undefined) {
+          el.addEventListener('click', () => {
+            if (_selFilt < 0) return;
+            const bldObj = _data.buildings[_filtered[_selFilt]];
+            const row = bldObj.actionBonusDrops?.[i];
+            if (row) { row.resources.splice(j, 1); _autoSave(); _renderRecord(bldObj); }
+          });
+        } else if (el.tagName === 'SELECT') {
+          el.addEventListener('change', () => {
+            if (_selFilt < 0) return;
+            const row = _data.buildings[_filtered[_selFilt]]?.actionBonusDrops?.[i];
+            if (row?.resources[j]) {
+              row.resources[j].type = el.value;
+              const icon = el.parentElement.querySelector('.res-icon');
+              if (icon) icon.textContent = _resIcon(el.value);
+              _autoSave();
+            }
+          });
+        } else if (el.type === 'number') {
+          el.addEventListener('input', () => {
+            if (_selFilt < 0) return;
+            const row = _data.buildings[_filtered[_selFilt]]?.actionBonusDrops?.[i];
+            if (row?.resources[j]) { row.resources[j].amount = Math.round(parseFloat(el.value) || 0); _autoSave(); }
+          });
+        }
+      }
+    });
+    right.querySelectorAll('[data-abd-remove]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (_selFilt < 0) return;
+        const bldObj = _data.buildings[_filtered[_selFilt]];
+        const i = parseInt(btn.dataset.abdRemove, 10);
+        if (Array.isArray(bldObj.actionBonusDrops)) { bldObj.actionBonusDrops.splice(i, 1); _autoSave(); _renderRecord(bldObj); }
+      });
+    });
+    right.querySelectorAll('[data-abd-res-add]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (_selFilt < 0) return;
+        const bldObj = _data.buildings[_filtered[_selFilt]];
+        const i = parseInt(btn.dataset.abdResAdd, 10);
+        const row = bldObj.actionBonusDrops?.[i];
+        if (row) { row.resources.push({ type: 'Gold', amount: 0 }); _autoSave(); _renderRecord(bldObj); }
+      });
+    });
+    right.querySelectorAll('[data-abd-add]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        if (_selFilt < 0) return;
+        const bldObj = _data.buildings[_filtered[_selFilt]];
+        if (!Array.isArray(bldObj.actionBonusDrops)) bldObj.actionBonusDrops = [];
+        bldObj.actionBonusDrops.push({ actionId: '', resources: [{ type: 'Gold', amount: 0 }] });
         _autoSave();
         _renderRecord(bldObj);
       });
