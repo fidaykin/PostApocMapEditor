@@ -1563,6 +1563,9 @@ body.mode-common #map-io    { display: none; }
         <div class="separator"></div>
         <button onclick="UpgDB.triggerLoad()">Load Upgrade DB…</button>
         <button onclick="UpgDB.save()">Save Upgrade DB</button>
+        <div class="separator"></div>
+        <button onclick="ActionsDB.triggerLoad()">Load Actions DB…</button>
+        <button onclick="ActionsDB.save()">Save Actions DB</button>
       </div>
     </div>
     <span id="sync-badge">DB: 💾 Autosave</span>
@@ -1573,7 +1576,7 @@ body.mode-common #map-io    { display: none; }
       <button class="publish-btn" id="btn-publish-all" onclick="GitHubSync.togglePublishDropdown(event)" title="Publish to GitHub">☁ Publish ▾</button>
       <div class="pub-drop" id="pub-drop">
         <button onclick="GitHubSync.publish()" title="Publish the active package: its tiles, buildings and changed sprites">☁ Publish Package Data</button>
-        <button onclick="GitHubSync.publishCommon()" title="Data shared by all packages: Upgrade DB, Common settings and localization.json">☁ Publish Common Data</button>
+        <button onclick="GitHubSync.publishCommon()" title="Data shared by all packages: Actions DB, Upgrade DB, Common settings and localization.json">☁ Publish Common Data</button>
         <div class="pub-drop-sep"></div>
         <button onclick="GitHubSync.publishMap()">☁ Publish Map</button>
         <div class="pub-drop-sep"></div>
@@ -2185,88 +2188,36 @@ body.mode-common #map-io    { display: none; }
 
   </div>
 
-  <!-- ── Stub editors (ACTIONS / UPGRADES / MONSTERS / QUESTS) ── -->
+  <!-- ── ACTIONS editor (MVP: Destroy / Forced Transform To, Type = Actions only; see docs/decisions/income-storage.md D-47) ── -->
   <div id="actions-main">
     <!-- Left: list -->
     <div id="act-left">
       <div id="act-filters">
-        <input id="act-search" type="text" placeholder="🔍 Search actions…" disabled>
+        <input id="act-search" type="text" placeholder="🔍 Search by id…" autocomplete="off">
         <div class="hexdb-filter-row">
-          <span style="width:38px;flex-shrink:0">Type</span>
-          <select class="hexdb-select" disabled>
+          <span style="width:38px;flex-shrink:0">Logic</span>
+          <select id="act-filter-logic">
             <option value="">All</option>
-            <option>Tap</option>
-            <option>Auto</option>
-            <option>Timed</option>
+            <option value="Destroy">Destroy</option>
+            <option value="ForcedTransformTo">Forced Transform To</option>
           </select>
         </div>
       </div>
-      <div id="act-list">
-        <div class="hexdb-list-row skel-item">tap_city_gold</div>
-        <div class="hexdb-list-row skel-item">tap_settlement</div>
-        <div class="hexdb-list-row skel-item">auto_food_decay</div>
-        <div class="hexdb-list-row skel-item">timed_scavenge</div>
-        <div class="hexdb-list-row skel-item">tap_building_repair</div>
-      </div>
+      <div id="act-list"></div>
       <div class="hexdb-list-footer">
-        <button disabled>+ Add Action</button>
+        <span id="act-count">0 shown / 0</span>
+        <button onclick="ActionsDB.add()">+ Add Action</button>
+        <button onclick="ActionsDB.deleteSelected()">🗑 Delete</button>
       </div>
     </div>
     <!-- Right: detail editor -->
     <div id="act-right">
-      <div class="skel-banner">⚠ Skeleton preview — schema not finalised. Fields shown are predicted.</div>
-      <div class="hexdb-section">
-        <div class="hexdb-section-hdr"><span>Basic</span><span class="hexdb-chevron">▼</span></div>
-        <div class="hexdb-section-body">
-          <div class="hexdb-row"><span class="hexdb-label">ID *</span>
-            <input class="hexdb-input" disabled placeholder="e.g. tap_city_gold"></div>
-          <div class="hexdb-row"><span class="hexdb-label">Name key</span>
-            <input class="hexdb-input" disabled placeholder="localization key"></div>
-          <div class="hexdb-row"><span class="hexdb-label">Icon</span>
-            <input class="hexdb-input" disabled placeholder="sprite name"></div>
-        </div>
-      </div>
-      <div class="hexdb-section">
-        <div class="hexdb-section-hdr"><span>Trigger</span><span class="hexdb-chevron">▼</span></div>
-        <div class="hexdb-section-body">
-          <div class="hexdb-row"><span class="hexdb-label">Type</span>
-            <select class="hexdb-select" disabled><option>Tap</option><option>Auto</option><option>Timed</option></select></div>
-          <div class="hexdb-row"><span class="hexdb-label">Target</span>
-            <select class="hexdb-select" disabled><option>City</option><option>Settlement</option><option>Building</option><option>Tile</option></select></div>
-          <div class="hexdb-row"><span class="hexdb-label">Cooldown (s)</span>
-            <input class="hexdb-input" type="number" disabled value="0"></div>
-        </div>
-      </div>
-      <div class="hexdb-section">
-        <div class="hexdb-section-hdr"><span>Reward</span><span class="hexdb-chevron">▼</span></div>
-        <div class="hexdb-section-body">
-          <div class="hexdb-row"><span class="hexdb-label">Resource</span>
-            <select class="hexdb-select" disabled><option>Gold</option><option>Food</option><option>Lumber</option><option>Stone</option><option>Gems</option></select></div>
-          <div class="hexdb-row"><span class="hexdb-label">Base Amount</span>
-            <input class="hexdb-input" type="number" disabled value="5"></div>
-          <div class="hexdb-row"><span class="hexdb-label">Strength ×</span>
-            <input class="hexdb-input" type="number" step="0.1" disabled value="1.0"></div>
-        </div>
-      </div>
-      <div class="hexdb-section">
-        <div class="hexdb-section-hdr"><span>Cost</span><span class="hexdb-chevron">▼</span></div>
-        <div class="hexdb-section-body">
-          <div class="hexdb-row"><span class="hexdb-label">Resource</span>
-            <select class="hexdb-select" disabled><option value="">(none)</option><option>Gold</option><option>Food</option><option>Gems</option></select></div>
-          <div class="hexdb-row"><span class="hexdb-label">Amount</span>
-            <input class="hexdb-input" type="number" disabled value="0"></div>
-        </div>
-      </div>
-      <div class="hexdb-section">
-        <div class="hexdb-section-hdr"><span>Unlock Condition</span><span class="hexdb-chevron">▼</span></div>
-        <div class="hexdb-section-body">
-          <div class="hexdb-row"><span class="hexdb-label">Min Town Level</span>
-            <input class="hexdb-input" type="number" disabled value="1"></div>
-          <div class="hexdb-row"><span class="hexdb-label">Required Building</span>
-            <input class="hexdb-input" disabled placeholder="building id or blank"></div>
-        </div>
+      <div class="hexdb-empty">
+        <div>No actions yet</div>
+        <div>or use <button class="hexdb-empty-btn" onclick="ActionsDB.add()">+ Add Action</button></div>
       </div>
     </div>
+    <input id="act-file-input" type="file" accept=".json" style="display:none">
   </div>
   <div id="upgrades-main">
 
@@ -2917,8 +2868,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.11.19";
-const COMMIT  = "031e2805";
+const VERSION = "2026.11.22";
+const COMMIT  = "bdd31688";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10624,6 +10575,7 @@ const GitHubSync = (() => {
     return _withPublishBtn('Publish Common Data', async () => {
       const files = [
         { path: 'upgrade_database.json', text: UpgDB.getJson() },
+        { path: 'actions.json',          text: ActionsDB.getJson() },
         { path: 'common_settings.json',  text: CommonDB.export() },
         { path: 'localization.json',     text: JSON.stringify(LocalizationKeys.getExportData(), null, 2) },
       ];
@@ -10776,6 +10728,16 @@ const GitHubSync = (() => {
     UpgDB.load(JSON.stringify(data));
   }
 
+  // actions.json: a brand-new publish target (D-47), so 404 (not yet published) is expected and silent.
+  async function loadActionsDbFromServer() {
+    const res = await fetch(`${BASE_URL}/actions.json?_=${Date.now()}`);
+    if (res.status === 404) return;
+    if (!res.ok) throw new Error(`actions.json not found (${res.status})`);
+    const data = await res.json();
+    if (!Array.isArray(data?.actions)) return;
+    ActionsDB.load(JSON.stringify(data));
+  }
+
   // JSON from the published site; null on 404 (a brand-new package has no database files yet).
   async function _fetchPublishedJson(path) {
     const res = await fetch(`${BASE_URL}/${path}?_=${Date.now()}`);
@@ -10883,7 +10845,7 @@ const GitHubSync = (() => {
   // ── Content Manager ──────────────────────────────────────────
   const _CM_DB_FILES = [
     'hex_database.json', 'building_database.json', 'upgrade_database.json',
-    'common_settings.json', 'localization.json',
+    'actions.json', 'common_settings.json', 'localization.json',
   ];
 
   function _fmtSize(bytes) {
@@ -11029,7 +10991,7 @@ const GitHubSync = (() => {
     togglePublishDropdown, publishHexDbOnly, publishAllSprites, cleanGhostSprites,
     publishBuildingsDb, publishUpgradeDb, publishCommonDb, publishCommon, publish, publishLoc, publishMap,
     pushSprite, listSpriteFiles, fetchSpriteDataUrl,
-    loadHexDbIntoEditor, loadLocFromServer, loadUpgradeDbFromServer, syncContentFromServer,
+    loadHexDbIntoEditor, loadLocFromServer, loadUpgradeDbFromServer, loadActionsDbFromServer, syncContentFromServer,
     openMapsPopover, closeMapsPopover, _loadMap,
     openContentManager, closeContentManager,
   };
@@ -24224,6 +24186,498 @@ const UpgDB = (() => {
 })();
 
 window.UpgDB = UpgDB;
+
+// ── ActionsDB ────────────────────────────────────────────────
+// Actions MVP (Logic = Destroy | ForcedTransformTo, Type = Actions only). Universal, lives in
+// Common (not a package): published as actions.json next to common_settings.json via
+// "Publish Common Data". See docs/decisions/income-storage.md D-47 (was O-31) for the design
+// decisions this mirrors: Available Tiles is the single source of truth (Source in Hex/Buildings
+// only shows the list, read-only); price is Resource-or-Gems like Buildings; icons are plain PNGs.
+const ActionsDB = (() => {
+  const LOGICS      = ['Destroy', 'ForcedTransformTo'];
+  const PRICE_TYPES = ['Gold','Gems','Food','Lumber','Stone','Steel','Oil',
+                        'Chips','Clay','Ore','Citrodium','UraniumBattery','Pollution'];
+  const PRICE_ICONS = {
+    Gold:'🪙', Gems:'💎', Food:'🌾', Lumber:'🪵', Stone:'🪨', Steel:'⚙️',
+    Oil:'🛢️', Chips:'💻', Clay:'🏺', Ore:'⛏️', Pollution:'☣️',
+  };
+  function _resIcon(t) { return PRICE_ICONS[t] || '◆'; }
+
+  let _data     = { version: 1, actions: [] };
+  let _selFilt  = -1;
+  let _filter   = { search: '', logic: '' };
+  let _filtered = [];
+  // Hex/Building ids and types the form may reference, rebuilt on every render (Available Tiles,
+  // Additional Actions Conditions). postapoc + every package: Actions are universal (Common).
+  let _refs = { ids: [], types: [] };
+
+  function _esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/"/g,'&quot;')
+                          .replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  function _blank() {
+    const n = _data.actions.length + 1;
+    return {
+      id: `NewAction_${n}`,
+      textId: '',
+      idDescription: '',
+      type: 'Actions',          // MVP: the only supported Type
+      logic: 'Destroy',
+      spriteName: '',
+      availableTiles: [],
+      price: [{ type: 'Gold', amount: 10 }],
+      premiumPrice: 0,
+      forcedTransformTo: '',
+      radius: 0,
+      additionalConditions: [],
+    };
+  }
+
+  // Fills in any field missing from an older or hand-edited record; never destructive.
+  function _migrate(a) {
+    if (!a.id)                           a.id = 'Action';
+    if (a.textId === undefined)          a.textId = '';
+    if (a.idDescription === undefined)   a.idDescription = '';
+    a.type = 'Actions';                  // MVP: no other Type exists yet
+    if (!LOGICS.includes(a.logic))       a.logic = 'Destroy';
+    if (a.spriteName === undefined)      a.spriteName = '';
+    if (!Array.isArray(a.availableTiles)) a.availableTiles = [];
+    if (!Array.isArray(a.price) || !a.price.length) a.price = [{ type: 'Gold', amount: 10 }];
+    a.price.forEach(r => { if (!PRICE_TYPES.includes(r.type)) r.type = 'Gold'; r.amount = Math.max(0, Math.round(r.amount) || 0); });
+    a.premiumPrice = Math.max(0, Math.round(a.premiumPrice) || 0);
+    if (a.forcedTransformTo === undefined) a.forcedTransformTo = '';
+    a.radius = Math.max(0, Math.round(a.radius) || 0);
+    if (!Array.isArray(a.additionalConditions)) a.additionalConditions = [];
+    return a;
+  }
+
+  function _autoSave() {
+    StorageGuard.setItem('actionsdb_autosave', JSON.stringify(_data), 'Actions DB autosave');
+  }
+
+  // Validation shown next to the field; publish still goes through GitHubSync.publishCommon's
+  // own confirm step, but a bad record is flagged here as the designer types (D-47, п. 1 model).
+  function _idProblem(a) {
+    if (!a.id || a.id !== a.id.trim() || /\s/.test(a.id)) return 'ID is required, no spaces';
+    if (_data.actions.some(o => o !== a && o.id === a.id)) return 'Duplicate ID';
+    return '';
+  }
+  function _textIdProblem(a) {
+    if (a.textId && a.textId !== a.textId.trim()) return 'Leading/trailing spaces';
+    return '';
+  }
+
+  function _collectRefs() {
+    const hexes = typeof HexDB !== 'undefined' ? HexDB.getAll() : [];
+    const blds  = typeof BldDB !== 'undefined' ? BldDB.getAll() : [];
+    _refs = {
+      ids:   [...new Set([...hexes.map(h => h.id), ...blds.map(b => b.id)].filter(Boolean))],
+      types: [...new Set(hexes.map(h => h.type).filter(Boolean))],
+    };
+  }
+
+  function _applyFilter() {
+    const s = _filter.search.toLowerCase();
+    const l = _filter.logic;
+    _filtered = _data.actions.map((_, i) => i).filter(i => {
+      const a = _data.actions[i];
+      return (!s || (a.id || '').toLowerCase().includes(s)) && (!l || a.logic === l);
+    });
+    _filtered.sort((x, y) => (_data.actions[x].id || '').localeCompare(_data.actions[y].id || ''));
+  }
+
+  function _emptyRightHTML() {
+    return '<div class="hexdb-empty"><div>No actions yet</div>' +
+      '<div>or use <button class="hexdb-empty-btn" onclick="ActionsDB.add()">+ Add Action</button></div></div>';
+  }
+
+  function _buildList() {
+    const list  = document.getElementById('act-list');
+    const count = document.getElementById('act-count');
+    if (!list) return;
+    list.innerHTML = '';
+    _filtered.forEach((dataIdx, filtIdx) => {
+      const a   = _data.actions[dataIdx];
+      const bad = _idProblem(a);
+      const row = document.createElement('div');
+      row.className = 'hexdb-list-row' + (_selFilt === filtIdx ? ' selected' : '');
+      row.dataset.filtIdx = filtIdx;
+      row.innerHTML =
+        `<span class="hexdb-list-id"${bad ? ' style="color:#e57373"' : ''}>${_esc(a.id) || '(no id)'}</span>` +
+        `<span style="float:right;font-size:10px;color:#888">${a.logic === 'Destroy' ? 'Destroy' : 'Transform'}</span>`;
+      row.addEventListener('click', () => _selectIdx(filtIdx));
+      list.appendChild(row);
+    });
+    if (count) count.textContent = `${_filtered.length} shown / ${_data.actions.length}`;
+  }
+
+  function _selectIdx(filtIdx) {
+    _selFilt = filtIdx;
+    document.querySelectorAll('#act-list .hexdb-list-row').forEach(r => {
+      r.classList.toggle('selected', +r.dataset.filtIdx === filtIdx);
+    });
+    const right = document.getElementById('act-right');
+    if (filtIdx >= 0 && filtIdx < _filtered.length) {
+      _collectRefs();
+      _renderRecord(_data.actions[_filtered[filtIdx]]);
+    } else if (right) {
+      right.innerHTML = _emptyRightHTML();
+    }
+  }
+
+  // Tag editor (chips + free-text input with a datalist); shared shape with Hex/Building DB editors.
+  function _tagsHTML(fieldName, values, listId, title) {
+    const tags = (values || []).map(v => {
+      const bad = fieldName === 'availableTiles'
+        ? !_refs.ids.includes(v) && !_refs.types.includes(v)
+        : !_refs.ids.includes(v);
+      return `<span class="hexdb-tag"${bad ? ' style="border:1px solid #e57373" title="Unknown id or type: check the name"' : ''}>${_esc(v)}` +
+        `<button class="hexdb-tag-remove" data-tags-field="${fieldName}" data-value="${_esc(v)}">✕</button></span>`;
+    }).join('');
+    return `<div class="hexdb-tags" data-tags-field="${fieldName}" title="${_esc(title || '')}">
+      ${tags}
+      <input class="hexdb-tag-input" data-tags-field="${fieldName}" list="${listId}" placeholder="type ID + Enter">
+    </div>`;
+  }
+
+  function _resBlockHTML(rows) {
+    const rowsHTML = (rows || []).map((r, i) => `<div class="hexdb-res-row">
+        <span class="res-icon" style="font-size:16px;width:20px;text-align:center;flex-shrink:0">${_resIcon(r.type)}</span>
+        <select class="hexdb-select" style="width:110px" data-price-idx="${i}" data-price-key="type">
+          ${PRICE_TYPES.map(t => `<option${t === r.type ? ' selected' : ''}>${t}</option>`).join('')}
+        </select>
+        <input class="hexdb-input" type="number" step="1" min="0" style="width:90px"
+          data-price-idx="${i}" data-price-key="amount" value="${r.amount ?? 0}">
+        <button class="hexdb-res-remove" data-price-idx="${i}">✕</button>
+      </div>`).join('');
+    return `<div>${rowsHTML}<button class="hexdb-res-add">+ Add Resource</button></div>`;
+  }
+
+  function _renderRecord(a) {
+    const right = document.getElementById('act-right');
+    if (!right) return;
+    const idErr   = _idProblem(a);
+    const textErr = _textIdProblem(a);
+    const idOpts  = [..._refs.ids, ..._refs.types].map(v => `<option value="${_esc(v)}">`).join('');
+    const hexOpts = _refs.ids.map(v => `<option value="${_esc(v)}">`).join('');
+
+    right.innerHTML = `
+      <div style="padding:8px 10px;border-bottom:1px solid var(--border);background:var(--panel);
+        flex-shrink:0;margin:-12px -12px 0;display:flex;align-items:center;gap:10px">
+        <div style="font-size:13px;font-weight:bold;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
+          >${_esc(a.id) || '(unnamed)'}</div>
+        <div style="font-size:11px;color:#888">${a.logic === 'Destroy' ? 'Destroy' : 'Forced Transform To'}</div>
+      </div>
+      <div class="hexdb-form">
+        <div class="hexdb-section">
+          <div class="hexdb-section-hdr" data-sec="main">▼ MAIN INFO</div>
+          <div class="hexdb-section-body" data-sec="main">
+            <div class="hexdb-row"><span class="hexdb-label">ID *</span>
+              <input class="hexdb-input" id="act-f-id" value="${_esc(a.id)}" style="border-color:${idErr ? '#e57373' : ''}"></div>
+            ${idErr ? `<div class="hexdb-row"><span class="hexdb-label"></span><span style="color:#e57373;font-size:12px">${idErr}</span></div>` : ''}
+            <div class="hexdb-row"><span class="hexdb-label">Text ID</span>
+              <input class="hexdb-input" id="act-f-textId" value="${_esc(a.textId)}" list="loc-keys-datalist"
+                style="border-color:${textErr ? '#e57373' : ''}" placeholder="localization key"></div>
+            ${textErr ? `<div class="hexdb-row"><span class="hexdb-label"></span><span style="color:#e57373;font-size:12px">${textErr}</span></div>` : ''}
+            <div class="hexdb-row"><span class="hexdb-label">ID Description</span>
+              <input class="hexdb-input" id="act-f-idDescription" value="${_esc(a.idDescription)}" list="loc-keys-datalist"
+                placeholder="localization key"></div>
+            <div class="hexdb-row"><span class="hexdb-label">Type</span>
+              <input class="hexdb-input" value="Actions" disabled title="MVP: only Type = Actions. Boosters is a second-stage item (D-47)."></div>
+            <div class="hexdb-row"><span class="hexdb-label">Logic</span>
+              <select class="hexdb-select" id="act-f-logic">
+                <option value="Destroy"${a.logic === 'Destroy' ? ' selected' : ''}>Destroy</option>
+                <option value="ForcedTransformTo"${a.logic === 'ForcedTransformTo' ? ' selected' : ''}>Forced Transform To</option>
+              </select></div>
+            <div class="hexdb-row"><span class="hexdb-label">Sprite Name</span>
+              <input class="hexdb-input" id="act-f-spriteName" value="${_esc(a.spriteName)}" placeholder="icon file name (PNG)"></div>
+          </div>
+        </div>
+        <div class="hexdb-section">
+          <div class="hexdb-section-hdr" data-sec="action">▼ ACTION</div>
+          <div class="hexdb-section-body" data-sec="action">
+            <div class="hexdb-row" style="align-items:flex-start"><span class="hexdb-label" style="padding-top:4px">Available Tiles</span>
+              <div style="flex:1">${_tagsHTML('availableTiles', a.availableTiles, 'act-id-list',
+                'Hex/Building IDs and/or types this action can target. Single source of truth: Source in Hex/Buildings only shows this list (D-47).')}</div></div>
+            <div class="hexdb-row" style="align-items:flex-start"><span class="hexdb-label" style="padding-top:4px">Price</span>
+              <div style="flex:1">${_resBlockHTML(a.price)}</div></div>
+            <div class="hexdb-row"><span class="hexdb-label">Premium Price (Gems)</span>
+              <input class="hexdb-input" id="act-f-premiumPrice" type="number" step="1" min="0" value="${a.premiumPrice}" style="width:110px"
+                title="Resource-or-Gems, same logic as Buildings (D-47): an alternative payment, not combined with Price."></div>
+            <div class="hexdb-row"${a.logic !== 'ForcedTransformTo' ? ' style="display:none"' : ''} id="act-row-forcedTransformTo">
+              <span class="hexdb-label">Forced Transform To</span>
+              <input class="hexdb-input" id="act-f-forcedTransformTo" value="${_esc(a.forcedTransformTo)}" list="act-hex-list" placeholder="Hex ID"></div>
+          </div>
+        </div>
+        <div class="hexdb-section">
+          <div class="hexdb-section-hdr" data-sec="special">▼ SPECIAL</div>
+          <div class="hexdb-section-body" data-sec="special">
+            <div class="hexdb-row"><span class="hexdb-label">Radius</span>
+              <input class="hexdb-input" id="act-f-radius" type="number" step="1" min="0" value="${a.radius}" style="width:90px"
+                title="0 = the target tile only (D-47). MVP has no Radius = Max."></div>
+            <div class="hexdb-row" style="align-items:flex-start"><span class="hexdb-label" style="padding-top:4px">Additional Actions Conditions</span>
+              <div style="flex:1">${_tagsHTML('additionalConditions', a.additionalConditions, 'act-id-list',
+                'Hex/Building IDs forbidden inside the radius for this action to apply.')}</div></div>
+          </div>
+        </div>
+        <div class="hexdb-actions">
+          <button onclick="ActionsDB.deleteSelected()">🗑 Delete</button>
+        </div>
+      </div>
+      <datalist id="act-id-list">${idOpts}</datalist>
+      <datalist id="act-hex-list">${hexOpts}</datalist>
+    `;
+    _wireRecord(a);
+  }
+
+  function _refreshListRow() {
+    const a = _selFilt >= 0 ? _data.actions[_filtered[_selFilt]] : null;
+    if (!a) return;
+    const row = document.querySelector(`#act-list .hexdb-list-row[data-filt-idx="${_selFilt}"]`);
+    if (!row) return;
+    const bad = _idProblem(a);
+    const idEl = row.querySelector('.hexdb-list-id');
+    if (idEl) { idEl.textContent = a.id || '(no id)'; idEl.style.color = bad ? '#e57373' : ''; }
+  }
+
+  function _wireRecord(a) {
+    const right = document.getElementById('act-right');
+    if (!right) return;
+
+    right.querySelectorAll('.hexdb-section-hdr').forEach(hdr => {
+      hdr.addEventListener('click', () => {
+        const body = right.querySelector(`.hexdb-section-body[data-sec="${hdr.dataset.sec}"]`);
+        const collapsed = body.style.display === 'none';
+        body.style.display = collapsed ? '' : 'none';
+        hdr.textContent = (collapsed ? '▼ ' : '▶ ') + hdr.textContent.slice(2);
+      });
+    });
+
+    const g = id => document.getElementById(id);
+    const onSimple = () => {
+      a.id                 = (g('act-f-id')?.value ?? '').trim();
+      a.textId             = g('act-f-textId')?.value ?? '';
+      a.idDescription      = g('act-f-idDescription')?.value ?? '';
+      const prevLogic      = a.logic;
+      a.logic              = g('act-f-logic')?.value ?? a.logic;
+      a.spriteName         = g('act-f-spriteName')?.value ?? '';
+      a.premiumPrice       = Math.max(0, Math.round(parseFloat(g('act-f-premiumPrice')?.value) || 0));
+      a.forcedTransformTo  = g('act-f-forcedTransformTo')?.value ?? '';
+      a.radius             = Math.max(0, Math.round(parseFloat(g('act-f-radius')?.value) || 0));
+      _autoSave();
+      if (a.logic !== prevLogic) { _buildList(); _renderRecord(a); return; }
+      const row = g('act-row-forcedTransformTo');
+      if (row) row.style.display = a.logic === 'ForcedTransformTo' ? '' : 'none';
+      _refreshListRow();
+    };
+    right.querySelectorAll('#act-f-id,#act-f-textId,#act-f-idDescription,#act-f-logic,#act-f-spriteName,' +
+      '#act-f-premiumPrice,#act-f-forcedTransformTo,#act-f-radius').forEach(el => {
+      el.addEventListener('input', onSimple);
+      el.addEventListener('change', onSimple);
+    });
+
+    // Tags (Available Tiles, Additional Actions Conditions)
+    right.querySelectorAll('.hexdb-tag-input').forEach(input => {
+      input.addEventListener('keydown', e => {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const val = input.value.trim();
+        if (!val) return;
+        const field = input.dataset.tagsField;
+        if (!Array.isArray(a[field])) a[field] = [];
+        if (!a[field].includes(val)) a[field].push(val);
+        input.value = '';
+        _autoSave();
+        _renderRecord(a);
+      });
+    });
+    right.querySelectorAll('.hexdb-tag-remove').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const field = btn.dataset.tagsField, val = btn.dataset.value;
+        if (Array.isArray(a[field])) {
+          a[field] = a[field].filter(v => v !== val);
+          _autoSave();
+          _renderRecord(a);
+        }
+      });
+    });
+
+    // Price resource rows
+    right.querySelectorAll('[data-price-idx]').forEach(el => {
+      const idx = parseInt(el.dataset.priceIdx, 10);
+      if (el.classList.contains('hexdb-res-remove')) {
+        el.addEventListener('click', () => {
+          a.price.splice(idx, 1);
+          if (!a.price.length) a.price.push({ type: 'Gold', amount: 0 });
+          _autoSave();
+          _renderRecord(a);
+        });
+      } else if (el.tagName === 'SELECT') {
+        el.addEventListener('change', () => {
+          if (a.price[idx]) {
+            a.price[idx].type = el.value;
+            const icon = el.parentElement.querySelector('.res-icon');
+            if (icon) icon.textContent = _resIcon(el.value);
+            _autoSave();
+          }
+        });
+      } else if (el.type === 'number') {
+        el.addEventListener('input', () => {
+          if (a.price[idx]) { a.price[idx].amount = Math.max(0, Math.round(parseFloat(el.value) || 0)); _autoSave(); }
+        });
+      }
+    });
+    right.querySelectorAll('.hexdb-res-add').forEach(btn => {
+      btn.addEventListener('click', () => {
+        a.price.push({ type: 'Gold', amount: 0 });
+        _autoSave();
+        _renderRecord(a);
+      });
+    });
+  }
+
+  function add() {
+    _data.actions.push(_blank());
+    _autoSave();
+    _applyFilter();
+    _buildList();
+    const newFiltIdx = _filtered.indexOf(_data.actions.length - 1);
+    _selectIdx(newFiltIdx >= 0 ? newFiltIdx : _filtered.length - 1);
+  }
+
+  function deleteSelected() {
+    if (_selFilt < 0) return;
+    const dataIdx = _filtered[_selFilt];
+    UI.showConfirm('Delete Action', `Delete "${_data.actions[dataIdx].id || '(no id)'}"?`, () => {
+      _data.actions.splice(dataIdx, 1);
+      _autoSave();
+      _selFilt = -1;
+      _applyFilter();
+      _buildList();
+      const right = document.getElementById('act-right');
+      if (right) right.innerHTML = _emptyRightHTML();
+    });
+  }
+
+  // Loads a full actions.json (file drop, "Load Actions DB…", or the server copy at startup).
+  // Unlike the per-package DBs, Actions has no cross-package merge: it is one Common table.
+  function load(json) {
+    try {
+      const parsed = JSON.parse(json);
+      if (!Array.isArray(parsed.actions)) throw new Error('No "actions" array');
+      parsed.actions.forEach(_migrate);
+      _data    = parsed;
+      _selFilt = -1;
+      _autoSave();
+      _applyFilter();
+      _buildList();
+      const right = document.getElementById('act-right');
+      if (right) right.innerHTML = _emptyRightHTML();
+      if (_filtered.length) _selectIdx(0);
+      UI.toast(`Loaded ${_data.actions.length} action(s)`);
+    } catch(e) { UI.toast('Error loading Actions DB: ' + e.message); }
+  }
+
+  function save() {
+    const blob = new Blob([getJson()], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'actions.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+    UI.toast('Saved actions.json');
+  }
+
+  function triggerLoad() { document.getElementById('act-file-input')?.click(); }
+
+  function getAll() { return _data.actions; }
+  function getJson() { return JSON.stringify(_data, null, 2); }
+
+  // Read-only list for Hex/Buildings editors' Source field (D-47): every action id whose
+  // availableTiles includes this tile id or its type.
+  function actionsTargeting(tileId, tileType) {
+    return _data.actions
+      .filter(a => Array.isArray(a.availableTiles) &&
+        (a.availableTiles.includes(tileId) || (tileType && a.availableTiles.includes(tileType))))
+      .map(a => a.id);
+  }
+
+  function init() {
+    try {
+      const saved = localStorage.getItem('actionsdb_autosave');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.actions)) {
+          parsed.actions.forEach(_migrate);
+          _data = parsed;
+        }
+      }
+    } catch(e) {}
+    _collectRefs();
+    _applyFilter();
+    _buildList();
+
+    const fi = document.getElementById('act-file-input');
+    if (fi) fi.addEventListener('change', e => {
+      const f = e.target.files[0]; if (!f) return;
+      const r = new FileReader();
+      r.onload = ev => load(ev.target.result);
+      r.readAsText(f); fi.value = '';
+    });
+
+    const search = document.getElementById('act-search');
+    if (search) search.addEventListener('input', e => {
+      const prevDataIdx = _selFilt >= 0 ? _filtered[_selFilt] : -1;
+      _filter.search = e.target.value;
+      _applyFilter();
+      _selFilt = prevDataIdx >= 0 ? _filtered.indexOf(prevDataIdx) : -1;
+      _buildList();
+      _selectIdx(_selFilt);
+    });
+
+    const filterLogic = document.getElementById('act-filter-logic');
+    if (filterLogic) filterLogic.addEventListener('change', e => {
+      const prevDataIdx = _selFilt >= 0 ? _filtered[_selFilt] : -1;
+      _filter.logic = e.target.value;
+      _applyFilter();
+      _selFilt = prevDataIdx >= 0 ? _filtered.indexOf(prevDataIdx) : -1;
+      _buildList();
+      _selectIdx(_selFilt);
+    });
+
+    const main = document.getElementById('actions-main');
+    if (main) {
+      main.addEventListener('dragover', e => { e.preventDefault(); main.classList.add('dragover'); });
+      main.addEventListener('dragleave', () => main.classList.remove('dragover'));
+      main.addEventListener('drop', e => {
+        e.preventDefault(); main.classList.remove('dragover');
+        const f = e.dataTransfer.files[0]; if (!f) return;
+        const r = new FileReader();
+        r.onload = ev => load(ev.target.result);
+        r.readAsText(f);
+      });
+    }
+
+    document.addEventListener('keydown', e => {
+      if (!document.body.classList.contains('mode-actions')) return;
+      const inInput = ['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
+      if (e.key === 'Delete' && !inInput) deleteSelected();
+      if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && !inInput && _filtered.length) {
+        e.preventDefault();
+        const next = _selFilt + (e.key === 'ArrowDown' ? 1 : -1);
+        if (next >= 0 && next < _filtered.length) {
+          _selectIdx(next);
+          document.querySelector(`#act-list .hexdb-list-row[data-filt-idx="${next}"]`)?.scrollIntoView({block:'nearest'});
+        }
+      }
+    });
+  }
+
+  return { init, add, deleteSelected, load, save, triggerLoad, getAll, getJson, actionsTargeting };
+})();
+
+window.ActionsDB = ActionsDB;
 // ── Dev / QA utilities ─────────────────────────────────────
 const Dev = (() => {
   const CAT_ORDER = {
@@ -25184,6 +25638,7 @@ window.addEventListener('load', async () => {
   BldDB.init();
   SttDB.init();
   UpgDB.init();
+  ActionsDB.init();
   // Background sync with gh-pages. The localStorage copy is loaded first (instant); the server
   // version is MERGED into it: local edits are kept, untouched entries take server updates.
   window.__startupSyncDone = (async () => {
@@ -25201,6 +25656,7 @@ window.addEventListener('load', async () => {
       }
     } catch(e) { console.warn('[init] content sync failed:', e.message); }
     try { await GitHubSync.loadUpgradeDbFromServer();  } catch(e) { console.warn('[init] upgrade_database.json fetch failed:', e.message); }
+    try { await GitHubSync.loadActionsDbFromServer();  } catch(e) { console.warn('[init] actions.json fetch failed:', e.message); }
     // Load building sprites into Terrain so tiles migrated from HexDB render on canvas
     // Bridge: sprites/hex/  Road: sprites/terrain/roads/  all others: sprites/buildings/
     const _allBlds = BldDB.getAll();
