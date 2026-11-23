@@ -3,7 +3,7 @@
   "package": "s-hs",
   "hexes": [
     {
-      "id": "SHs_Barren_1",
+      "id": "SHs_Decameroon_Barren_1",
       "textId": "",
       "type": "Barren/Desert",
       "biome": "HSS",
@@ -49,10 +49,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_BrokenShip_1",
+      "id": "SHs_Decameroon_BrokenShip_1",
       "textId": "",
       "type": "Water",
       "biome": "HSS",
@@ -107,10 +108,11 @@
       "package": "s-hs",
       "edgeFaces": [],
       "isLayered": true,
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Desert_1",
+      "id": "SHs_Decameroon_Desert_1",
       "textId": "",
       "type": "Barren/Desert",
       "biome": "HSS",
@@ -124,7 +126,7 @@
       "descriptionBuildId": "",
       "baseCostTaps": 11,
       "canDestroy": true,
-      "destroyTransformTo": "SHs_Barren_1",
+      "destroyTransformTo": "SHs_Decameroon_Barren_1",
       "destroySource": [],
       "canStored": false,
       "destroyIncomeEnabled": false,
@@ -156,10 +158,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_DestroyedBuilding_1",
+      "id": "SHs_Decameroon_DestroyedBuilding_1",
       "textId": "",
       "type": "Rubble",
       "biome": "HSS",
@@ -214,10 +217,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_DirtyWater_1",
+      "id": "SHs_Decameroon_DirtyWater_1",
       "textId": "",
       "type": "Water",
       "biome": "HSS",
@@ -267,10 +271,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Fish_1",
+      "id": "SHs_Decameroon_Fish_1",
       "textId": "",
       "type": "Water",
       "biome": "HSS",
@@ -317,10 +322,11 @@
       "package": "s-hs",
       "edgeFaces": [],
       "isLayered": true,
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Forest_1",
+      "id": "SHs_Decameroon_Forest_1",
       "textId": "",
       "type": "Forests",
       "biome": "HSS",
@@ -381,10 +387,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": "Hs_Decameroon_Plain_1"
+      "baseTerrainId": "Hs_Decameroon_Plain_1",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Forest_2",
+      "id": "SHs_Decameroon_Forest_2",
       "textId": "",
       "type": "Forests",
       "biome": "HSS",
@@ -445,10 +452,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": "Hs_Decameroon_Plain_1"
+      "baseTerrainId": "Hs_Decameroon_Plain_1",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Forest_3",
+      "id": "SHs_Decameroon_Forest_3",
       "textId": "",
       "type": "Forests",
       "biome": "HSS",
@@ -509,10 +517,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": "Hs_Decameroon_Plain_1"
+      "baseTerrainId": "Hs_Decameroon_Plain_1",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Forest_4",
+      "id": "SHs_Decameroon_Forest_4",
       "textId": "",
       "type": "Forests",
       "biome": "HSS",
@@ -573,10 +582,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": "Hs_Decameroon_Plain_1"
+      "baseTerrainId": "Hs_Decameroon_Plain_1",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_GemField_1",
+      "id": "SHs_Decameroon_GemField_1",
       "textId": "",
       "type": "Resources",
       "biome": "HSS",
@@ -622,10 +632,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_GoldVein_1",
+      "id": "SHs_Decameroon_GoldVein_1",
       "textId": "",
       "type": "Resources",
       "biome": "HSS",
@@ -671,10 +682,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Grain_1",
+      "id": "SHs_Decameroon_Grain_1",
       "textId": "",
       "type": "Resources",
       "biome": "HSS",
@@ -720,10 +732,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Grain_2",
+      "id": "SHs_Decameroon_Grain_2",
       "textId": "",
       "type": "Resources",
       "biome": "HSS",
@@ -769,10 +782,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Herbs_1",
+      "id": "SHs_Decameroon_Herbs_1",
       "textId": "",
       "type": "Resources",
       "biome": "HSS",
@@ -818,10 +832,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Hills_1",
+      "id": "SHs_Decameroon_Hills_1",
       "textId": "",
       "type": "Hills/Mountains",
       "biome": "HSS",
@@ -867,10 +882,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": "Hs_Decameroon_Plain_1"
+      "baseTerrainId": "Hs_Decameroon_Plain_1",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Lake_1",
+      "id": "SHs_Decameroon_Lake_1",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -918,10 +934,11 @@
       "edgeFaces": [
         "SW"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Lake_2",
+      "id": "SHs_Decameroon_Lake_2",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -969,10 +986,11 @@
       "edgeFaces": [
         "NW"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Lake_3",
+      "id": "SHs_Decameroon_Lake_3",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1020,10 +1038,11 @@
       "edgeFaces": [
         "N"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Lake_4",
+      "id": "SHs_Decameroon_Lake_4",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1071,10 +1090,11 @@
       "edgeFaces": [
         "NE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Lake_5",
+      "id": "SHs_Decameroon_Lake_5",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1122,10 +1142,11 @@
       "edgeFaces": [
         "SE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Lake_6",
+      "id": "SHs_Decameroon_Lake_6",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1173,10 +1194,11 @@
       "edgeFaces": [
         "S"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Lake_7",
+      "id": "SHs_Decameroon_Lake_7",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1222,10 +1244,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Lava_Plain_1",
+      "id": "SHs_Decameroon_Lava_Plain_1",
       "textId": "",
       "type": "Volcanic/Rift",
       "biome": "HSS",
@@ -1266,10 +1289,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Lava_Rift_1",
+      "id": "SHs_Decameroon_Lava_Rift_1",
       "textId": "",
       "type": "Volcanic/Rift",
       "biome": "HSS",
@@ -1310,10 +1334,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Mountain_1",
+      "id": "SHs_Decameroon_Mountain_1",
       "textId": "",
       "type": "Hills/Mountains",
       "biome": "HSS",
@@ -1364,10 +1389,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": "Hs_Decameroon_Plain_1"
+      "baseTerrainId": "Hs_Decameroon_Plain_1",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Mountain_2",
+      "id": "SHs_Decameroon_Mountain_2",
       "textId": "",
       "type": "Hills/Mountains",
       "biome": "HSS",
@@ -1418,10 +1444,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": "Hs_Decameroon_Plain_1"
+      "baseTerrainId": "Hs_Decameroon_Plain_1",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Plain_1",
+      "id": "SHs_Decameroon_Plain_1",
       "textId": "",
       "type": "Plains",
       "biome": "HSS",
@@ -1467,10 +1494,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Plain_2",
+      "id": "SHs_Decameroon_Plain_2",
       "textId": "",
       "type": "Plains",
       "biome": "HSS",
@@ -1516,10 +1544,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Rift_1",
+      "id": "SHs_Decameroon_Rift_1",
       "textId": "",
       "type": "Volcanic/Rift",
       "biome": "HSS",
@@ -1570,10 +1599,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_D_2",
+      "id": "SHs_Decameroon_River_D_2",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1622,10 +1652,11 @@
         "SW",
         "SE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_D_3",
+      "id": "SHs_Decameroon_River_D_3",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1675,10 +1706,11 @@
         "NE",
         "S"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_D_4",
+      "id": "SHs_Decameroon_River_D_4",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1727,10 +1759,11 @@
         "N",
         "SE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_D_L_EE_2",
+      "id": "SHs_Decameroon_River_D_L_EE_2",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1780,10 +1813,11 @@
         "SW",
         "SE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_D_L_RE_2",
+      "id": "SHs_Decameroon_River_D_L_RE_2",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1833,10 +1867,11 @@
         "SE",
         "NE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_L_1",
+      "id": "SHs_Decameroon_River_L_1",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1885,10 +1920,11 @@
         "N",
         "S"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_L_4",
+      "id": "SHs_Decameroon_River_L_4",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1937,10 +1973,11 @@
         "S",
         "NW"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_L_5",
+      "id": "SHs_Decameroon_River_L_5",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -1989,10 +2026,11 @@
         "NW",
         "SE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_L_D_E_1",
+      "id": "SHs_Decameroon_River_L_D_E_1",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2041,10 +2079,11 @@
         "N",
         "S"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_L_L_E_5",
+      "id": "SHs_Decameroon_River_L_L_E_5",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2093,10 +2132,11 @@
         "NW",
         "SE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_L_R_E_5",
+      "id": "SHs_Decameroon_River_L_R_E_5",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2145,10 +2185,11 @@
         "NW",
         "SE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_L_U_E_1",
+      "id": "SHs_Decameroon_River_L_U_E_1",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2197,10 +2238,11 @@
         "N",
         "S"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_R_1",
+      "id": "SHs_Decameroon_River_R_1",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2249,10 +2291,11 @@
         "N",
         "S"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_R_4",
+      "id": "SHs_Decameroon_River_R_4",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2301,10 +2344,11 @@
         "S",
         "NE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_R_5",
+      "id": "SHs_Decameroon_River_R_5",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2353,10 +2397,11 @@
         "NE",
         "SW"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_U_2",
+      "id": "SHs_Decameroon_River_U_2",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2405,10 +2450,11 @@
         "NE",
         "NW"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_U_3",
+      "id": "SHs_Decameroon_River_U_3",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2458,10 +2504,11 @@
         "SW",
         "SE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_U_4",
+      "id": "SHs_Decameroon_River_U_4",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2510,10 +2557,11 @@
         "N",
         "SW"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_U_D_E_4",
+      "id": "SHs_Decameroon_River_U_D_E_4",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2562,10 +2610,11 @@
         "N",
         "SW"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_U_L_EE_2",
+      "id": "SHs_Decameroon_River_U_L_EE_2",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2615,10 +2664,11 @@
         "NW",
         "NE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_U_R_EE_2",
+      "id": "SHs_Decameroon_River_U_R_EE_2",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2668,10 +2718,11 @@
         "NE",
         "SE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_River_U_U_E_4",
+      "id": "SHs_Decameroon_River_U_U_E_4",
       "textId": "",
       "type": "Rivers",
       "biome": "HSS",
@@ -2720,10 +2771,11 @@
         "N",
         "SW"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_RockySwamp_1",
+      "id": "SHs_Decameroon_RockySwamp_1",
       "textId": "",
       "type": "Swamp",
       "biome": "HSS",
@@ -2764,10 +2816,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": "Hs_Decameroon_Plain_1"
+      "baseTerrainId": "Hs_Decameroon_Plain_1",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Rubble_1",
+      "id": "SHs_Decameroon_Rubble_1",
       "textId": "",
       "type": "Rubble",
       "biome": "HSS",
@@ -2808,10 +2861,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Rubble_2",
+      "id": "SHs_Decameroon_Rubble_2",
       "textId": "",
       "type": "Rubble",
       "biome": "HSS",
@@ -2852,10 +2906,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Rubble_3",
+      "id": "SHs_Decameroon_Rubble_3",
       "textId": "",
       "type": "Rubble",
       "biome": "HSS",
@@ -2896,10 +2951,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_SettementsBig_1",
+      "id": "SHs_Decameroon_SettementsBig_1",
       "textId": "",
       "type": "Special",
       "biome": "HSS",
@@ -2953,10 +3009,11 @@
         "S",
         "SE"
       ],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Settlements_1",
+      "id": "SHs_Decameroon_Settlements_1",
       "textId": "",
       "type": "Special",
       "biome": "HSS",
@@ -3002,10 +3059,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_SilverVein_1",
+      "id": "SHs_Decameroon_SilverVein_1",
       "textId": "",
       "type": "Resources",
       "biome": "HSS",
@@ -3051,10 +3109,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Swamp_1",
+      "id": "SHs_Decameroon_Swamp_1",
       "textId": "",
       "type": "Swamp",
       "biome": "HSS",
@@ -3095,10 +3154,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": "Hs_Decameroon_Plain_1"
+      "baseTerrainId": "Hs_Decameroon_Plain_1",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Water_1",
+      "id": "SHs_Decameroon_Water_1",
       "textId": "",
       "type": "Water",
       "biome": "HSS",
@@ -3144,10 +3204,11 @@
       "effects": "",
       "package": "s-hs",
       "edgeFaces": [],
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_WaterStones_1",
+      "id": "SHs_Decameroon_WaterStones_1",
       "textId": "",
       "type": "Water",
       "biome": "HSS",
@@ -3194,7 +3255,8 @@
       "package": "s-hs",
       "edgeFaces": [],
       "isLayered": true,
-      "baseTerrainId": ""
+      "baseTerrainId": "",
+      "actionBonusDrops": []
     }
   ]
 }
