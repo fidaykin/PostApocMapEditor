@@ -36,3 +36,17 @@ test('checking an already-autoLoad map clears it (toggle off)', async ({ page })
   await setAutoLoad(page, 'a.json');
   await expect.poll(() => maps(gh).find((m: any) => m.fileName === 'a.json')?.autoLoad).toBeFalsy();
 });
+
+// Maps and their autoLoad flag are global (map_list.json at the repo root), not scoped to any content package — unlike
+// sprite upload, which writes into the active package's own folder. The Content Manager's Maps row buttons must not
+// require the base "postapoc" package to be active (they used to, by reusing the sprite-upload gate: ClickUp-less bug
+// found by the owner — "так є але я натис зірочку а вона лишилася в тому ж стані" led to tracing it to the wrong gate).
+test('the auto-load star and delete buttons show for maps even when a non-default package is active', async ({ page }) => {
+  const gh = new FakeGitHub(); gh.setRegistry([{ id: 'hs', name: 'HS' }]); seed(gh);
+  await openEditor(page, { gh, pat: true });
+  await page.evaluate(() => Packages.setActive('hs'));
+  await page.evaluate(() => GitHubSync.openContentManager());
+  const row = page.locator('[data-cm-id="map-a.json"]');
+  await expect(row.locator('button[onclick*="_cmSetAutoLoadMap"]')).toBeVisible();
+  await expect(row.locator('button[onclick*="_cmDeleteMap"]')).toBeVisible();
+});
