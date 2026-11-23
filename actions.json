@@ -8,7 +8,9 @@
       "type": "Actions",
       "logic": "Destroy",
       "spriteName": "",
-      "availableTiles": [],
+      "availableTiles": [
+        "Forests"
+      ],
       "price": [
         {
           "type": "Gold",
