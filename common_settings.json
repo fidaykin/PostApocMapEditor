@@ -1,0 +1,97 @@
+{
+  "foodSpoilageRate": 0.05,
+  "baseFoodIncome": 0,
+  "resources": [
+    {
+      "type": "Food",
+      "requiresStorage": true,
+      "usesFoodFormula": true,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Lumber",
+      "requiresStorage": true,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Stone",
+      "requiresStorage": true,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Gold",
+      "requiresStorage": false,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Gems",
+      "requiresStorage": false,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Steel",
+      "requiresStorage": true,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Chips",
+      "requiresStorage": true,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Oil",
+      "requiresStorage": true,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Ore",
+      "requiresStorage": true,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Clay",
+      "requiresStorage": false,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Population",
+      "requiresStorage": false,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Energy",
+      "requiresStorage": false,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Pollution",
+      "requiresStorage": false,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "Citrodium",
+      "requiresStorage": false,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    },
+    {
+      "type": "UraniumBattery",
+      "requiresStorage": true,
+      "usesFoodFormula": false,
+      "baseStorageSettings": 0
+    }
+  ],
+  "storageCapacity": []
+}
