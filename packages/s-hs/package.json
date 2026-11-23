@@ -1,7 +1,7 @@
 {
   "id": "s-hs",
   "name": "S_HS",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -21,10 +21,15 @@
       "version": "1.0.3",
       "date": "2026-11-23",
       "note": "Shs Package Buildings art update"
+    },
+    {
+      "version": "1.0.4",
+      "date": "2026-11-23",
+      "note": "Fix S_HS ids: restore the missing Decameroon_ segment (SHs_X -> SHs_Decameroon_X) so Hs maps convert to S_HS correctly."
     }
   ],
   "manifestUrl": "packages/s-hs/manifest.json",
-  "totalBytes": 15612518,
+  "totalBytes": 25602188,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
