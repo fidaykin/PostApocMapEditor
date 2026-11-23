@@ -36,9 +36,9 @@
       "id": "s-hs",
       "name": "S_HS",
       "isDefault": false,
-      "version": "1.0.2",
+      "version": "1.0.3",
       "manifestUrl": "packages/s-hs/manifest.json",
-      "totalBytes": 15612518,
+      "totalBytes": 25602188,
       "minAppVersion": "0.0.0",
       "schemaVersion": 1
     }
