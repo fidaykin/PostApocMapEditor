@@ -3,7 +3,7 @@
   "package": "s-hs",
   "buildings": [
     {
-      "id": "SHs_Abbey_1",
+      "id": "SHs_Decameroon_Abbey_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -25,7 +25,7 @@
       "isRoad": false,
       "availableTiles": [
         "Plains",
-        "SHs_Hills_1"
+        "SHs_Decameroon_Hills_1"
       ],
       "minLevel": 1,
       "price": [
@@ -85,10 +85,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Advanced_GoldMine_1",
+      "id": "SHs_Decameroon_Advanced_GoldMine_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -109,7 +110,7 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "SHs_GoldVein_1"
+        "SHs_Decameroon_GoldVein_1"
       ],
       "minLevel": 1,
       "price": [
@@ -168,10 +169,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Alchemy_1",
+      "id": "SHs_Decameroon_Alchemy_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -256,10 +258,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Artefact_1",
+      "id": "SHs_Decameroon_Artefact_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -336,10 +339,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Big_StoneMine_1",
+      "id": "SHs_Decameroon_Big_StoneMine_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -425,10 +429,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_BigStorage_1",
+      "id": "SHs_Decameroon_BigStorage_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -513,10 +518,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Boat_1",
+      "id": "SHs_Decameroon_Boat_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -537,9 +543,9 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "SHs_Water_1",
-        "SHs_Fish_1",
-        "SHs_DirtyWater_1"
+        "SHs_Decameroon_Water_1",
+        "SHs_Decameroon_Fish_1",
+        "SHs_Decameroon_DirtyWater_1"
       ],
       "minLevel": 1,
       "price": [
@@ -589,10 +595,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Farm_1",
+      "id": "SHs_Decameroon_Farm_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -644,7 +651,7 @@
       "buildingRadius": 2,
       "canProduceEnabled": true,
       "canProduce": [
-        "SHs_Grain_1"
+        "SHs_Decameroon_Grain_1"
       ],
       "availableTilesForProduce": [
         "Plains"
@@ -661,7 +668,7 @@
       ],
       "facilityBonusInfluenceType": "Add",
       "productionFacilities": [
-        "SHs_Grain_1"
+        "SHs_Decameroon_Grain_1"
       ],
       "canStore": true,
       "stores": [
@@ -680,10 +687,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_FishTrap_1",
+      "id": "SHs_Decameroon_FishTrap_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -704,7 +712,7 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "SHs_Fish_1"
+        "SHs_Decameroon_Fish_1"
       ],
       "minLevel": 1,
       "price": [
@@ -755,10 +763,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_FishTrap_2",
+      "id": "SHs_Decameroon_FishTrap_2",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -779,7 +788,7 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "SHs_Fish_1"
+        "SHs_Decameroon_Fish_1"
       ],
       "minLevel": 1,
       "price": [
@@ -830,10 +839,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_FoodAmbar_1",
+      "id": "SHs_Decameroon_FoodAmbar_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -910,10 +920,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_ForestHut_1",
+      "id": "SHs_Decameroon_ForestHut_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -990,10 +1001,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Foundry_1",
+      "id": "SHs_Decameroon_Foundry_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1065,10 +1077,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_GemMine_1",
+      "id": "SHs_Decameroon_GemMine_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1089,7 +1102,7 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "SHs_GemField_1"
+        "SHs_Decameroon_GemField_1"
       ],
       "minLevel": 1,
       "price": [
@@ -1140,10 +1153,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_GoldMine_1",
+      "id": "SHs_Decameroon_GoldMine_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1164,7 +1178,7 @@
       "needRoad": true,
       "isRoad": false,
       "availableTiles": [
-        "SHs_GoldVein_1"
+        "SHs_Decameroon_GoldVein_1"
       ],
       "minLevel": 1,
       "price": [
@@ -1220,10 +1234,11 @@
           "type": "Gold",
           "amount": 10
         }
-      ]
+      ],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Industrial_LumberMill_1",
+      "id": "SHs_Decameroon_Industrial_LumberMill_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1302,10 +1317,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_IronMine_1",
+      "id": "SHs_Decameroon_IronMine_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1377,10 +1393,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_LumberMill_1",
+      "id": "SHs_Decameroon_LumberMill_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1462,10 +1479,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_LumberStorage_1",
+      "id": "SHs_Decameroon_LumberStorage_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1542,10 +1560,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Market_1",
+      "id": "SHs_Decameroon_Market_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1632,10 +1651,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Mill_1",
+      "id": "SHs_Decameroon_Mill_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1657,8 +1677,8 @@
       "isRoad": false,
       "availableTiles": [
         "Plains",
-        "SHs_Grain_1",
-        "SHs_Grain_2"
+        "SHs_Decameroon_Grain_1",
+        "SHs_Decameroon_Grain_2"
       ],
       "minLevel": 1,
       "price": [
@@ -1701,7 +1721,7 @@
       "facilityBonusResources": [],
       "facilityBonusInfluenceType": "Add",
       "productionFacilities": [
-        "SHs_Farm_1"
+        "SHs_Decameroon_Farm_1"
       ],
       "canStore": true,
       "stores": [
@@ -1720,10 +1740,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Monastery_1",
+      "id": "SHs_Decameroon_Monastery_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1805,10 +1826,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Plantation_1",
+      "id": "SHs_Decameroon_Plantation_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1864,7 +1886,7 @@
       "buildingRadius": 2,
       "canProduceEnabled": true,
       "canProduce": [
-        "SHs_Herbs_1"
+        "SHs_Decameroon_Herbs_1"
       ],
       "availableTilesForProduce": [
         "Plains"
@@ -1881,7 +1903,7 @@
       ],
       "facilityBonusInfluenceType": "Add",
       "productionFacilities": [
-        "SHs_Herbs_1"
+        "SHs_Decameroon_Herbs_1"
       ],
       "canStore": false,
       "stores": [
@@ -1900,10 +1922,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Premium_LumberMill_1",
+      "id": "SHs_Decameroon_Premium_LumberMill_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -1991,10 +2014,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_SilverMine_1",
+      "id": "SHs_Decameroon_SilverMine_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2015,7 +2039,7 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "SHs_SilverVein_1"
+        "SHs_Decameroon_SilverVein_1"
       ],
       "minLevel": 1,
       "price": [],
@@ -2061,10 +2085,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_SmallShipyard_1",
+      "id": "SHs_Decameroon_SmallShipyard_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2085,9 +2110,9 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "SHs_DirtyWater_1",
-        "SHs_Fish_1",
-        "SHs_Water_1"
+        "SHs_Decameroon_DirtyWater_1",
+        "SHs_Decameroon_Fish_1",
+        "SHs_Decameroon_Water_1"
       ],
       "minLevel": 1,
       "price": [
@@ -2142,10 +2167,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_SmallShipyard_2",
+      "id": "SHs_Decameroon_SmallShipyard_2",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2166,9 +2192,9 @@
       "needRoad": false,
       "isRoad": false,
       "availableTiles": [
-        "SHs_DirtyWater_1",
-        "SHs_Fish_1",
-        "SHs_Water_1"
+        "SHs_Decameroon_DirtyWater_1",
+        "SHs_Decameroon_Fish_1",
+        "SHs_Decameroon_Water_1"
       ],
       "minLevel": 1,
       "price": [
@@ -2223,10 +2249,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_SmallStorage_1",
+      "id": "SHs_Decameroon_SmallStorage_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2311,10 +2338,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_StoneConveyor_1",
+      "id": "SHs_Decameroon_StoneConveyor_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2374,7 +2402,7 @@
       ],
       "facilityBonusInfluenceType": "Multiply",
       "productionFacilities": [
-        "SHs_StoneMine_1"
+        "SHs_Decameroon_StoneMine_1"
       ],
       "canStore": false,
       "stores": [
@@ -2393,10 +2421,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_StoneConveyor_2",
+      "id": "SHs_Decameroon_StoneConveyor_2",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2456,7 +2485,7 @@
       ],
       "facilityBonusInfluenceType": "Multiply",
       "productionFacilities": [
-        "SHs_StoneMine_1"
+        "SHs_Decameroon_StoneMine_1"
       ],
       "canStore": false,
       "stores": [
@@ -2475,10 +2504,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_StoneMine_1",
+      "id": "SHs_Decameroon_StoneMine_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2559,10 +2589,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_Tavern_1",
+      "id": "SHs_Decameroon_Tavern_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2660,10 +2691,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_TESTMILL_1",
+      "id": "SHs_Decameroon_TESTMILL_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2715,7 +2747,7 @@
       "buildingRadius": 2,
       "canProduceEnabled": true,
       "canProduce": [
-        "SHs_Forest_1"
+        "SHs_Decameroon_Forest_1"
       ],
       "availableTilesForProduce": [
         "Plains"
@@ -2732,7 +2764,7 @@
       ],
       "facilityBonusInfluenceType": "Add",
       "productionFacilities": [
-        "SHs_Forest_1"
+        "SHs_Decameroon_Forest_1"
       ],
       "canStore": true,
       "stores": [
@@ -2751,10 +2783,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_TESTMILL_2",
+      "id": "SHs_Decameroon_TESTMILL_2",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2823,10 +2856,10 @@
       ],
       "facilityBonusInfluenceType": "Add",
       "productionFacilities": [
-        "SHs_Forest_1",
-        "SHs_Forest_2",
-        "SHs_Forest_3",
-        "SHs_Forest_4"
+        "SHs_Decameroon_Forest_1",
+        "SHs_Decameroon_Forest_2",
+        "SHs_Decameroon_Forest_3",
+        "SHs_Decameroon_Forest_4"
       ],
       "canStore": true,
       "stores": [
@@ -2845,10 +2878,11 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     },
     {
-      "id": "SHs_WaterMill_1",
+      "id": "SHs_Decameroon_WaterMill_1",
       "textId": "",
       "descIdleId": "",
       "descBuildId": "",
@@ -2919,7 +2953,8 @@
       "footprint": [],
       "package": "s-hs",
       "underTerrainId": "",
-      "destroyCost": []
+      "destroyCost": [],
+      "actionBonusDrops": []
     }
   ]
 }
