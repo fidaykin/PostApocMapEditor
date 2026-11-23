@@ -1,7 +1,7 @@
 {
   "id": "s-hs",
   "name": "S_HS",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -11,6 +11,15 @@
       "version": "1.0.1",
       "date": "2026-11-21",
       "note": "test HSS render"
+    },
+    {
+      "version": "1.0.2",
+      "date": "2026-11-23",
+      "note": "ShS package all Hex art update"
     }
-  ]
+  ],
+  "manifestUrl": "packages/s-hs/manifest.json",
+  "totalBytes": 7730675,
+  "minAppVersion": "0.0.0",
+  "schemaVersion": 1
 }
