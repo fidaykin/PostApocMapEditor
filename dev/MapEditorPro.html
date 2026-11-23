@@ -2869,7 +2869,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.23";
-const COMMIT  = "6ffff185";
+const COMMIT  = "6af71916";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -10060,6 +10060,27 @@ const GitHubSync = (() => {
     } catch(e) { UI.toast('❌ ' + e.message); }
   }
 
+  /**
+   * Sets which map the client loads on a fresh install (empty save — see RuntimeMapApplier on the client
+   * side). Only one map can be autoLoad at a time, so checking one clears it on every other entry in the
+   * same write — metadata-only, no map re-upload (mirrors _cmDeleteMap's read-modify-write of map_list.json).
+   */
+  async function _cmSetAutoLoadMap(fileName) {
+    if (!isPATConfigured()) return UI.toast('⚠ Configure PAT first');
+    try {
+      const list = await _getMapListFresh();
+      const maps = list.maps || [];
+      const target = maps.find(m => m.fileName === fileName);
+      if (!target) return UI.toast('❌ Map not found in map_list.json');
+      const turningOn = !target.autoLoad;
+      for (const m of maps) delete m.autoLoad;
+      if (turningOn) target.autoLoad = true;
+      await _putText('maps/map_list.json', JSON.stringify(list, null, 2) + '\n', `autoLoad: ${turningOn ? fileName : 'none'}`);
+      UI.toast(turningOn ? `✅ "${target.name}" is now the auto-load map` : `✅ Auto-load cleared`);
+      openContentManager();
+    } catch(e) { UI.toast('❌ ' + e.message); }
+  }
+
   // ── Encode helpers ────────────────────────────────────────────
   function _encodeText(text) {
     return btoa(unescape(encodeURIComponent(text)));
@@ -10914,10 +10935,11 @@ const GitHubSync = (() => {
           <div class="cm-section-title">🗺 Maps <span class="cm-badge">${(mapList.maps||[]).length}</span></div>
           <div class="cm-list">${(mapList.maps||[]).map(m =>
             `<div class="cm-row" data-cm-id="map-${e(m.fileName)}">
-              <span class="cm-row-name">${e(m.name)}</span>
+              <span class="cm-row-name">${m.autoLoad ? '★ ' : ''}${e(m.name)}</span>
               <span class="cm-row-meta">${e(m.fileName)} · ${_fmtSize(parseInt(m.size||0))} · ${e(m.uploadedTime||'')}</span>
               <div class="cm-row-actions">
                 <button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(BASE_URL)}/maps/${sq(m.fileName)}','${sq(m.fileName)}')" title="Download">↓</button>
+                ${authedOwn ? `<button class="cm-btn ${m.autoLoad ? 'cm-btn-autoload-on' : ''}" onclick="GitHubSync._cmSetAutoLoadMap('${sq(m.fileName)}')" title="${m.autoLoad ? 'Auto-loads on a fresh install — click to clear' : 'Set as the map a fresh install auto-loads'}">${m.autoLoad ? '★' : '☆'}</button>` : ''}
                 ${authedOwn ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteMap('${sq(m.fileName)}','${sq(m.name)}')" title="Delete">✕</button>` : ''}
               </div>
             </div>`
@@ -10985,7 +11007,7 @@ const GitHubSync = (() => {
     openPATSettings, _onValidateClick,
     TERRAIN_SPRITE_SETS, terrainSpriteProblem, uploadTerrainSprites, sha256Hex, _readRepoBytes, buildManifest, manifestRegistryFields, publishManifest, refreshBaseManifest, refreshBaseManifestSafely, _manifestPathProblem, _semParse, _semCmp, _bumpPatch, _missingNote,
     _putText, _putBinary, _putContents, _encodeText, _encodeBlob, _listFolder, _snapshotFile, _fileSha, _removeFile, _restoreFile, _withPublishBtn, roadsGate, BASE_URL, readRepoFile, readRepoJson, atlasStatus, requestAtlasRebuild,
-    _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap,
+    _cmDownload, _cmUploadSprite, _cmUploadDb, _cmDeleteSprite, _cmDeleteMap, _cmSetAutoLoadMap,
     get lastMapName() { return _lastMapName; },
     set lastMapName(v) { _lastMapName = v; localStorage.setItem('ghLastMapName', v); },
     togglePublishDropdown, publishHexDbOnly, publishAllSprites, cleanGhostSprites,
@@ -15831,8 +15853,15 @@ const Packages = (() => {
       }
       done++;
       if (onProgress) onProgress(done, refs.size, name);
-      if (!blob) { missing.push(name); continue; }
       const target = `packages/${id}/sprites/${category}/${name}.png`;
+      if (!blob) {
+        // Not found locally, in postapoc, or in a reskin source — but the package's own manifest (the server's record of what
+        // it already has) may still list it: a previous publish from another browser/session put it there, and this browser's
+        // local cache never saw it. Checking the manifest instead of just local state avoids a false "missing" on a republish.
+        if (published && published.has(target)) { skipped++; continue; }
+        missing.push(name);
+        continue;
+      }
       if (published) {   // the same bytes are already on the server: nothing to write
         const sha = await GitHubSync.sha256Hex(new Uint8Array(await blob.arrayBuffer()));
         if (published.get(target) === sha) { skipped++; continue; }
@@ -26284,6 +26313,8 @@ window.addEventListener('load', async () => {
 .cm-btn-del:hover { background:#f38ba8;color:#1e1e2e; }
 .cm-btn-up { color:#a6e3a1;border-color:#a6e3a1;margin-left:auto; }
 .cm-btn-up:hover { background:#a6e3a1;color:#1e1e2e; }
+.cm-btn-autoload-on { color:#f9e2af;border-color:#f9e2af; }
+.cm-btn-autoload-on:hover { background:#f9e2af;color:#1e1e2e; }
 </style>
 
 <!-- Packages — New Package modal -->
