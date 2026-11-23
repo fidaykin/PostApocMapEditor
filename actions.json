@@ -21,6 +21,27 @@
       "forcedTransformTo": "",
       "radius": 0,
       "additionalConditions": []
+    },
+    {
+      "id": "action_geothermal_test",
+      "textId": "action_geothermal_test",
+      "idDescription": "action_geothermal_test",
+      "type": "Actions",
+      "logic": "ForcedTransformTo",
+      "spriteName": "",
+      "availableTiles": [
+        "Lava_Rift_1"
+      ],
+      "price": [
+        {
+          "type": "Gold",
+          "amount": 50
+        }
+      ],
+      "premiumPrice": 0,
+      "forcedTransformTo": "Rift_1",
+      "radius": 0,
+      "additionalConditions": []
     }
   ]
 }
