@@ -1,7 +1,7 @@
 {
   "id": "s-hs",
   "name": "S_HS",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -16,10 +16,15 @@
       "version": "1.0.2",
       "date": "2026-11-23",
       "note": "ShS package all Hex art update"
+    },
+    {
+      "version": "1.0.3",
+      "date": "2026-11-23",
+      "note": "Shs Package Buildings art update"
     }
   ],
   "manifestUrl": "packages/s-hs/manifest.json",
-  "totalBytes": 7730675,
+  "totalBytes": 15612518,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
