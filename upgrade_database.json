@@ -1,4 +1,32 @@
 {
   "version": 1,
-  "upgrades": []
+  "upgrades": [
+    {
+      "id": "NewUpgrade_1",
+      "upgradeType": "Regular",
+      "eventId": "",
+      "isRepeatable": false,
+      "descriptionId": "",
+      "parameters": "Online Income",
+      "isGroup": false,
+      "trigger": "",
+      "typeIco": "",
+      "upgradeIco": "",
+      "upgradeLevels": 1,
+      "priceType": "Resource",
+      "levels": [
+        {
+          "target": "",
+          "price": [
+            {
+              "type": "Gold",
+              "amount": 100
+            }
+          ]
+        }
+      ],
+      "flatStorageBonusPerLevel": [],
+      "percentStorageBonusPerLevel": []
+    }
+  ]
 }
