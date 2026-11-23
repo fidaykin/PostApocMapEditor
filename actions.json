@@ -30,7 +30,7 @@
       "logic": "ForcedTransformTo",
       "spriteName": "",
       "availableTiles": [
-        "Lava_Rift_1"
+        "LavaRift"
       ],
       "price": [
         {
