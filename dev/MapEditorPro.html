@@ -2868,8 +2868,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.11.22";
-const COMMIT  = "924044f9";
+const VERSION = "2026.11.23";
+const COMMIT  = "6ffff185";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -24577,6 +24577,7 @@ const ActionsDB = (() => {
     return `<div class="hexdb-tags" data-tags-field="${fieldName}" title="${_esc(title || '')}">
       ${tags}
       <input class="hexdb-tag-input" data-tags-field="${fieldName}" list="${listId}" placeholder="type ID + Enter">
+      <button class="hexdb-res-add" data-tags-add="${fieldName}" type="button">+ Add</button>
     </div>`;
   }
 
@@ -24767,9 +24768,24 @@ const ActionsDB = (() => {
         });
       }
     });
-    right.querySelectorAll('.hexdb-res-add').forEach(btn => {
+    right.querySelectorAll('.hexdb-res-add:not([data-tags-add])').forEach(btn => {
       btn.addEventListener('click', () => {
         a.price.push({ type: 'Gold', amount: 0 });
+        _autoSave();
+        _renderRecord(a);
+      });
+    });
+
+    // Tags "+ Add" button: same as pressing Enter in the tag input next to it.
+    right.querySelectorAll('[data-tags-add]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const field = btn.dataset.tagsAdd;
+        const input = right.querySelector(`.hexdb-tag-input[data-tags-field="${field}"]`);
+        const val = (input?.value || '').trim();
+        if (!val) { input?.focus(); return; }
+        if (!Array.isArray(a[field])) a[field] = [];
+        if (!a[field].includes(val)) a[field].push(val);
+        if (input) input.value = '';
         _autoSave();
         _renderRecord(a);
       });
