@@ -1,7 +1,9 @@
 import { test, expect } from '@playwright/test';
+import { createHash } from 'crypto';
 import { openEditor, reloadEditor, FakeGitHub, hexRec, bldRec, seedHexes, seedBuildings, dataUrl, TINY_PNG } from './helpers';
 
 const A = 'data:image/png;base64,AAAA', B = 'data:image/png;base64,BBBB';
+const sha = (b: Buffer | string) => createHash('sha256').update(b).digest('hex');
 
 async function open(page: any, gh = new FakeGitHub()) {
   await openEditor(page, { gh, pat: true });
@@ -99,6 +101,21 @@ test('publishing a package writes its sprites into the package folder, preferrin
   expect(gh.putPaths()).toContain('packages/medieval/sprites/hex/OwnS.png');
   expect(gh.putPaths()).toContain('packages/medieval/sprites/hex/Barren.png');   // came from the postapoc pool
   expect(gh.putPaths().some(p => p.startsWith('packages/postapoc/'))).toBe(false);
+});
+
+test('a sprite already on the server for this package (per its manifest) is skipped, not reported missing, when this browser has no local copy', async ({ page }) => {
+  // Reproduces a republish from a browser that never cached the sprite locally: a previous publish (from another
+  // browser/session) already put the file on the server and listed it in the package's own manifest.
+  const bytes = Buffer.from('already-published-elsewhere');
+  const gh = new FakeGitHub();
+  gh.write('packages/medieval/sprites/hex/AlreadyUp.png', bytes);
+  gh.setJson('packages/medieval/manifest.json', { schemaVersion: 1, id: 'medieval', version: '1.0.0', minAppVersion: '0.0.0', generatedAt: 'x',
+    dependencies: [], files: [{ path: 'sprites/hex/AlreadyUp.png', sha256: sha(bytes) }] });
+  await open(page, gh);
+  await seedHexes(page, [hexRec('Medieval_Up', 'medieval', { spriteName: 'AlreadyUp' })]);
+  const res = await page.evaluate(() => Packages.publishPackageSprites('medieval'));
+  expect(res).toMatchObject({ total: 1, pushed: 0, skipped: 1, missing: [] });
+  expect(gh.putPaths()).not.toContain('packages/medieval/sprites/hex/AlreadyUp.png');   // not re-uploaded, not flagged missing
 });
 
 test('migration moves flat sprites that only a non-default package uses, losslessly and idempotently', async ({ page }) => {
