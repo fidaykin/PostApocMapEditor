@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "id": "s-hs",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-11-21T16:37:00.375Z",
-  "totalBytes": 7730675,
+  "generatedAt": "2026-11-23T14:55:11.711Z",
+  "totalBytes": 15612518,
   "dependencies": [],
   "files": [
     {
@@ -14,8 +14,8 @@
     },
     {
       "path": "hex_database.json",
-      "sha256": "fcac25cd3b011c0e4bd5b2cddbd0098b70e800645c3b894f380c1cca023bae6e",
-      "size": 44755
+      "sha256": "cbceeae25712605e3cc81b5ba3a53380d6bdd989b525616e89a01735dea51013",
+      "size": 83068
     },
     {
       "path": "sprites/hex/Decameroon_LavaPlain_1.png",
@@ -36,6 +36,16 @@
       "path": "sprites/hex/Decameroon_Rift_1.png",
       "sha256": "9e4807d0ac337a0a700bacac0410606ab189b2798ae505e4ba07cc132dc30022",
       "size": 217745
+    },
+    {
+      "path": "sprites/hex/Decameroon_Settlements_Big_1.png",
+      "sha256": "f8f8d1fd107ad428002d910a799c2ac6b763f555f49febd6c1eac82219d2658e",
+      "size": 1716858
+    },
+    {
+      "path": "sprites/hex/Decameroon_Settlements_Small_1.png",
+      "sha256": "359cc5d10fe0715c5640d068399840263bb1af14b9323cd56887468033c2cfc5",
+      "size": 308708
     },
     {
       "path": "sprites/hex/Forest_red.png",
@@ -123,6 +133,41 @@
       "size": 254151
     },
     {
+      "path": "sprites/hex/HS_RockySwamp_S_1.png",
+      "sha256": "778eb96f054a7b6fb09131d39e4a632989a0578110b80935a48680c9f4ad6ea6",
+      "size": 284940
+    },
+    {
+      "path": "sprites/hex/HS_Rubble_S_1.png",
+      "sha256": "761d71a628746b9850269ea45de2b77ed6d7c7a28d2db364e70f0b30ced61165",
+      "size": 248526
+    },
+    {
+      "path": "sprites/hex/HS_Rubble_S_2.png",
+      "sha256": "4a93121d3dde5a3c447c6b11f6a800ff33d9ca8696b0db4bf51bca0059124e7b",
+      "size": 254179
+    },
+    {
+      "path": "sprites/hex/HS_Rubble_S_3.png",
+      "sha256": "31206460928b69cf45772958d02072eda093c1bf678b22daea59673e6f6ac429",
+      "size": 266769
+    },
+    {
+      "path": "sprites/hex/HS_SilverVein_S_1.png",
+      "sha256": "ca96fae6f4f6ced2e41b945f323b7d284410501f0a32edd0d6c114eb3946e83d",
+      "size": 226035
+    },
+    {
+      "path": "sprites/hex/HS_Swamp_S_1.png",
+      "sha256": "6db30152c5018fca088826537f2cb14816c1d3079d7c151f0211304d5c89ee62",
+      "size": 298560
+    },
+    {
+      "path": "sprites/hex/HS_WaterStones_S_1.png",
+      "sha256": "d6aea7b359d5fcf9fe3be53005094920ca61cd89cca50f295f899769657caf77",
+      "size": 115276
+    },
+    {
       "path": "sprites/hex/Medieval_DirtyWater_1.png",
       "sha256": "23f5234c8c0217df3422d402dd72c3d625da73d4bf052b6c8c3bd8891a2a3373",
       "size": 78511
@@ -181,6 +226,106 @@
       "path": "sprites/hex/Medieval_River_D_4.png",
       "sha256": "5916bf2f57998244b5ba4d1908d6b7cfcbfb1bc35698cd32bc4eda1c5d373b1c",
       "size": 213824
+    },
+    {
+      "path": "sprites/hex/Medieval_River_D_L_EE_2.png",
+      "sha256": "0ae66af2a7885a4d2a72887624585d2260d304d6cf459e054df28d4a6ebfb7f7",
+      "size": 202454
+    },
+    {
+      "path": "sprites/hex/Medieval_River_D_R_EE_2.png",
+      "sha256": "d1c681e198e606f0979fc886af4bebbf7b0e1c890eb87ece27220323485a43f7",
+      "size": 188664
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_1.png",
+      "sha256": "a3968ebfa2145a52f1656da46747535ee7755abe65c1aa821acdc29de95c08ee",
+      "size": 219582
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_4.png",
+      "sha256": "cf08e383520a1cb1d5f68069d83b45561feef85274415c06c652b3451f692429",
+      "size": 233822
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_5.png",
+      "sha256": "2f7677bf13dd76ddf33231206f186b50a28bd6da8d1fe8fb44499225de24f4ad",
+      "size": 227362
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_D_E_1.png",
+      "sha256": "aa0c3fbc0425f19e7e8c4dce8ba368d84777650c913946389f2eea2de14a27f6",
+      "size": 216772
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_L_E_5.png",
+      "sha256": "d306db011345c0446cf8d46773d78870c8389438bf0978977b5e154f313530b3",
+      "size": 221895
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_R_E_5.png",
+      "sha256": "bbfbf418f26829eebb83503e2bf70ed6dd1f8abfa7837e5ba2318e2cd9dd7ae3",
+      "size": 224304
+    },
+    {
+      "path": "sprites/hex/Medieval_River_L_U_E_1.png",
+      "sha256": "d7474d3e0c8597aa9a21a3e0c8811f8c16c6ce0e2ac39cab207b997178331a11",
+      "size": 211712
+    },
+    {
+      "path": "sprites/hex/Medieval_River_R_1.png",
+      "sha256": "328d68f85b344a32cba0349b7895eee3e2e96f9572d04c3c8b8f0f2af8ad1688",
+      "size": 218188
+    },
+    {
+      "path": "sprites/hex/Medieval_River_R_4.png",
+      "sha256": "c17afc0f55345f1f31fc8912d0ab2ea46996a5c10cdf5dff9ab5f1a5ce6f1dfe",
+      "size": 227434
+    },
+    {
+      "path": "sprites/hex/Medieval_River_R_5.png",
+      "sha256": "d05d212e14efe993108f7294643082ab0ac23f37ba51c197e04c728a2bbe0220",
+      "size": 229069
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_2.png",
+      "sha256": "fc98fcdb678795029e55a6e6d3a50e1c83ecd38cc4f22f5ab028acf9c258a6ef",
+      "size": 211163
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_3.png",
+      "sha256": "bac0fc4c8cac1d526b7027f3748ed4bc710f992421d913c60b2d82797b06dce8",
+      "size": 211612
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_4.png",
+      "sha256": "2355afedc10a63f209def3797dca8252045fc2dd5bfdf5a41ce335b9104a252c",
+      "size": 208382
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_D_E_4.png",
+      "sha256": "98cd49b903bd317763445dc6e446ab36e35a8e1a95b3f2a7ff3ad1e261121e29",
+      "size": 209560
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_L_EE_2.png",
+      "sha256": "447d43122003d9a425627a3cc7e09b303ec4966f6457e03519a616e1a5d5d3e7",
+      "size": 196063
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_R_EE_2.png",
+      "sha256": "30f4ecb21bbe2d13047310d32fffe8f053f146825e60d693f86f3c975e879775",
+      "size": 196243
+    },
+    {
+      "path": "sprites/hex/Medieval_River_U_U_E_4.png",
+      "sha256": "bb6dc80e91fbee2e010aa06a94db98a08911297662a34b1ea85e3ac3ef0fa8e2",
+      "size": 204664
+    },
+    {
+      "path": "sprites/hex/Medieval_Water_1.png",
+      "sha256": "e16ce15c89c65f5cee184218eb7e187cbd84d927dcd893597e637b5e2e7405f1",
+      "size": 64734
     }
   ]
 }
