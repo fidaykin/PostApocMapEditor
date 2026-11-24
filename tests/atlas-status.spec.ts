@@ -78,6 +78,31 @@ test('a failed request does not fail the publish and tells the author what to do
   await expect(page.locator('body')).toContainText('atlas rebuild could not be requested');
 });
 
+test('the PACKAGES tab shows a badge next to Atlases reflecting current/stale state, and clears on rebuild request', async ({ page }) => {
+  const gh = seed();
+  await openEditor(page, { gh, pat: true });
+  await page.waitForFunction(() => !!Packages.getEntry('hs'));
+  await page.click('#tab-packages');
+  const badge = page.locator('tr[data-pkg="hs"] .pkg-atlas-badge');
+  await expect(badge).toHaveText('⚪');   // no atlas built yet
+  await expect(badge).toHaveAttribute('title', /No atlas built yet/);
+
+  await recordBuild(page, gh);
+  await badge.click();   // force a re-check — the "none" result is still within the cache TTL otherwise
+  await expect(badge).toHaveText('🟢');
+  await expect(badge).toHaveAttribute('title', /match the published sprites/);
+
+  gh.write('packages/hs/sprites/hex/HS_Plain_1.png', B);
+  await badge.click();
+  await expect(badge).toHaveText('🟡');
+  await expect(badge).toHaveAttribute('title', /sprite\(s\) differ/);
+
+  // Rebuild request clears the cache so the next render re-checks instead of repeating the stale verdict verbatim
+  await page.evaluate(() => { Packages.openAtlases('hs'); });
+  await page.getByRole('button', { name: 'Rebuild atlases' }).click();
+  await expect.poll(() => gh.read('packages/atlas-request.json') !== null).toBe(true);
+});
+
 test('the package row has an Atlases button that explains the state and offers the rebuild', async ({ page }) => {
   const gh = seed();
   await openEditor(page, { gh, pat: true });
