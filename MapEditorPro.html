@@ -10938,8 +10938,8 @@ const GitHubSync = (() => {
               <span class="cm-row-meta">${e(m.fileName)} · ${_fmtSize(parseInt(m.size||0))} · ${e(m.uploadedTime||'')}</span>
               <div class="cm-row-actions">
                 <button class="cm-btn" onclick="GitHubSync._cmDownload('${sq(BASE_URL)}/maps/${sq(m.fileName)}','${sq(m.fileName)}')" title="Download">↓</button>
-                ${authedOwn ? `<button class="cm-btn ${m.autoLoad ? 'cm-btn-autoload-on' : ''}" onclick="GitHubSync._cmSetAutoLoadMap('${sq(m.fileName)}')" title="${m.autoLoad ? 'Auto-loads on a fresh install — click to clear' : 'Set as the map a fresh install auto-loads'}">${m.autoLoad ? '★' : '☆'}</button>` : ''}
-                ${authedOwn ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteMap('${sq(m.fileName)}','${sq(m.name)}')" title="Delete">✕</button>` : ''}
+                ${authed ? `<button class="cm-btn ${m.autoLoad ? 'cm-btn-autoload-on' : ''}" onclick="GitHubSync._cmSetAutoLoadMap('${sq(m.fileName)}')" title="${m.autoLoad ? 'Auto-loads on a fresh install — click to clear' : 'Set as the map a fresh install auto-loads'}">${m.autoLoad ? '★' : '☆'}</button>` : ''}
+                ${authed ? `<button class="cm-btn cm-btn-del" onclick="GitHubSync._cmDeleteMap('${sq(m.fileName)}','${sq(m.name)}')" title="Delete">✕</button>` : ''}
               </div>
             </div>`
           ).join('') || '<div class="gh-maps-empty">No maps</div>'}</div>
