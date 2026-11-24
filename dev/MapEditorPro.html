@@ -885,6 +885,9 @@ body.mode-packages #pkg-panel { display: block; }
 #convert-map-modal .modal-actions button:disabled { opacity: .45; cursor: not-allowed; }
 .pkg-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 10px;
              font-weight: bold; background: #a6e3a1; color: #1e1e2e; }
+.pkg-atlas-badge { display: inline-block; margin-left: 4px; font-size: 13px; cursor: pointer; vertical-align: middle; }
+.pkg-atlas-badge.atlas-stale { filter: drop-shadow(0 0 2px #f9e2af80); }
+.pkg-atlas-badge.atlas-error { color: #f38ba8; }
 .pkg-chip  { padding: 3px 10px; border-radius: 12px; border: 1px solid #45475a;
              background: #1e1e2e; color: #cdd6f4; cursor: pointer; font-size: 11px; }
 .pkg-chip.active { background: #a6e3a1; color: #1e1e2e; border-color: #a6e3a1; }
@@ -2868,8 +2871,8 @@ body.mode-common #map-io    { display: none; }
 </div>
 
 <script>
-const VERSION = "2026.11.23";
-const COMMIT  = "1fe8ba5f";
+const VERSION = "2026.11.24";
+const COMMIT  = "665404ff";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -14952,6 +14955,50 @@ const Packages = (() => {
     }
   }
 
+  // Atlas state badge next to the Atlases button (PACKAGES tab): without this, rebuilding an atlas gave no
+  // feedback short of re-opening the Atlases dialog by hand. Cached briefly so repeated renderPanel() calls
+  // (every edit re-renders the whole table) don't re-hit GitHub for every package every time.
+  const _ATLAS_BADGE_TTL_MS = 20000;
+  const _atlasBadgeCache = new Map();   // id -> { status, at }
+  const _ATLAS_BADGE_STATES = {
+    current: ['🟢', 'atlas-current'],
+    stale:   ['🟡', 'atlas-stale'],
+    none:    ['⚪', 'atlas-none'],
+    unknown: ['❓', 'atlas-unknown'],
+    error:   ['⚠',  'atlas-error'],
+  };
+  function _atlasBadgeTitle(st) {
+    const when = st.builtAt ? ` Built ${String(st.builtAt).replace('T', ' ').slice(0, 16)} UTC.` : '';
+    const suffix = ' (click to re-check)';
+    switch (st.state) {
+      case 'current': return 'Atlases match the published sprites.' + when + suffix;
+      case 'stale':   return `${st.changed.length} sprite(s) differ from the built atlas: ${st.changed.slice(0, 6).join(', ')}${st.changed.length > 6 ? ', …' : ''}.` + when + suffix;
+      case 'none':    return 'No atlas built yet for this package.' + suffix;
+      case 'unknown': return 'Atlas built before this status was tracked — rebuild once to start comparing it.' + suffix;
+      case 'error':   return (st.message || 'Could not read the atlas state from GitHub.') + suffix;
+      default:        return '';
+    }
+  }
+  /** Re-renders the atlas badges. `forceIds`: re-check these ids even if cached (manual click, or right after a rebuild request). */
+  async function _fillAtlasBadges(forceIds) {
+    for (const el of [...document.querySelectorAll('#pkg-panel [data-atlas-badge]')]) {
+      const id = el.dataset.atlasBadge;
+      const force = Array.isArray(forceIds) && forceIds.includes(id);
+      const cached = !force && _atlasBadgeCache.get(id);
+      let st;
+      if (cached && Date.now() - cached.at < _ATLAS_BADGE_TTL_MS) st = cached.status;
+      else {
+        try { st = await GitHubSync.atlasStatus(id); _atlasBadgeCache.set(id, { status: st, at: Date.now() }); }
+        catch (e) { st = { state: 'error', message: e.message }; }
+      }
+      if (!el.isConnected) continue;
+      const [icon, cls] = _ATLAS_BADGE_STATES[st.state] || ['?', ''];
+      el.className = 'pkg-atlas-badge ' + cls;
+      el.textContent = icon;
+      el.title = _atlasBadgeTitle(st);
+    }
+  }
+
   function renderPanel() {
     const el = document.getElementById('pkg-panel');
     if (!el) return;
@@ -15006,7 +15053,11 @@ const Packages = (() => {
       const main = grp('pkg-act-main',
         _btn('↓ Export', 'Download a ZIP of the local version of this package (works offline, nothing is uploaded)', () => exportPackage(p.id), { 'data-pkg-id': p.id }),
         _btn('Publish', 'Upload this package’s entries and sprites to the server', () => openPublishConfirm(p.id), { 'data-pkg-id': p.id }));
-      if (!p.localOnly) main.append(_btn('Atlases', 'Check that the game’s compressed atlases match the published sprites, or rebuild them (GitHub builds them after every publish)', () => openAtlases(p.id), { 'data-pkg-id': p.id }));
+      if (!p.localOnly) {
+        main.append(_btn('Atlases', 'Check that the game’s compressed atlases match the published sprites, or rebuild them (GitHub builds them after every publish)', () => openAtlases(p.id), { 'data-pkg-id': p.id }));
+        main.append(_el('span', { class: 'pkg-atlas-badge', text: '…', title: 'Checking atlas state… (click to re-check)',
+          data: { atlasBadge: p.id }, on: () => _fillAtlasBadges([p.id]) }));
+      }
       if (!p.localOnly) main.append(_btn('Pull from server', 'Replace this package’s local hex tiles and buildings with the published ones (local edits to it are lost)', () => pullFromServer(p.id), { 'data-pkg-id': p.id }));
       const actionGroups = [main];
       if (!p.isDefault) {
@@ -15043,6 +15094,7 @@ const Packages = (() => {
     }
     el.replaceChildren(...kids);
     _fillPreviews();
+    _fillAtlasBadges();
   }
   function renderBadges() {
     const isPostapoc = (_active === 'postapoc');
@@ -16141,8 +16193,11 @@ const Packages = (() => {
     }[st.state];
     const ok = await UI.confirm('Atlases', text, 'Rebuild runs on GitHub (a few minutes). It only rebuilds when the sprites changed since the last build.', 'Rebuild atlases');
     if (!ok) return;
-    try { await GitHubSync.requestAtlasRebuild(id, 'manual'); UI.toast(`🗜 Atlas rebuild requested for "${id}". Check again in a few minutes.`, { ms: 7000 }); }
-    catch(e) { UI.toast('⚠ Could not request the rebuild: ' + e.message, { ms: 8000 }); }
+    try {
+      await GitHubSync.requestAtlasRebuild(id, 'manual');
+      UI.toast(`🗜 Atlas rebuild requested for "${id}". Check again in a few minutes.`, { ms: 7000 });
+      _fillAtlasBadges([id]);   // force a re-check instead of showing the pre-request cache
+    } catch(e) { UI.toast('⚠ Could not request the rebuild: ' + e.message, { ms: 8000 }); }
   }
 
   async function openPublishConfirm(id) {
