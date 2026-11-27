@@ -13,8 +13,8 @@ const LIVE_RECORD_KEYS = ['baseCostTaps', 'biome', 'bonusDrop', 'bonusTrigger', 
   'destroyIncomeEnabled', 'destroySource', 'destroyTransformTo', 'destroyable', 'edgeFaces', 'effects', 'fallback', 'filterCategory', 'id', 'incomeCapacity',
   'incomeConstant', 'incomeGetPerTap', 'incomeIdle', 'incomePerTurn', 'incomeTransformTo', 'isLayered', 'occupiedOffsets', 'package', 'roadAllowed', 'spendConstant',
   'spriteName', 'tapIncomeEnabled', 'terrainTypeId', 'textId', 'type'];
-// ... plus the one new key of Roads V1.
-const KNOWN_RECORD_KEYS = new Set([...LIVE_RECORD_KEYS, 'allowedRoads']);
+// ... plus the one new key of Roads V1, plus Actions MVP's Bonus Drop-per-action list (journal D-47 п.2).
+const KNOWN_RECORD_KEYS = new Set([...LIVE_RECORD_KEYS, 'allowedRoads', 'actionBonusDrops']);
 
 /** The rules of the document, as a small checker over a parsed hex file. Returns the violations. */
 function checkFile(f: any): string[] {
