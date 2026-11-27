@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.40",
+  "version": "1.0.41",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -186,10 +186,15 @@
       "version": "1.0.40",
       "date": "2026-11-18",
       "note": "B5 version for Borders tiles"
+    },
+    {
+      "version": "1.0.41",
+      "date": "2026-11-27",
+      "note": "Fix Transform to for Shs_Forest_1,2,3,4"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 25802902,
+  "totalBytes": 25745267,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
