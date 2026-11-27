@@ -2871,7 +2871,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.27";
-const COMMIT  = "71508504";
+const COMMIT  = "401ea68b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -15196,6 +15196,7 @@ const Packages = (() => {
       out.dependencies = deps;
     }
     if (typeof d.autoUnlock === 'boolean') out.autoUnlock = d.autoUnlock;   // registry-level flag the game client reads
+    if (typeof d.fallbackPackage === 'string') out.fallbackPackage = d.fallbackPackage;   // keep an explicit clear ('') too
     return out;
   }
 
@@ -15225,9 +15226,10 @@ const Packages = (() => {
       description: loc.description !== undefined ? loc.description : (base.description || ''),
       dependencies: (loc.dependencies !== undefined ? loc.dependencies : (base.dependencies || [])).slice(),
       autoUnlock: loc.autoUnlock !== undefined ? loc.autoUnlock : base.autoUnlock === true,
+      fallbackPackage: loc.fallbackPackage !== undefined ? loc.fallbackPackage : (base.fallbackPackage || ''),
     };
   }
-  function getDetails(id) { const e = getEntry(id); return e ? _effective(e) : { description: '', dependencies: [], autoUnlock: false }; }
+  function getDetails(id) { const e = getEntry(id); return e ? _effective(e) : { description: '', dependencies: [], autoUnlock: false, fallbackPackage: '' }; }
   function getDependencies(id) { return getDetails(id).dependencies; }
   const _depId = s => { const p = parseDependency(s); return p ? p.id : null; };
 
@@ -15302,10 +15304,22 @@ const Packages = (() => {
 
   function _validate(id, d, list, serverOnly) {
     const errors = [], warnings = [];
-    const out = { ok: false, errors, warnings, description: undefined, dependencies: undefined, autoUnlock: undefined };
+    const out = { ok: false, errors, warnings, description: undefined, dependencies: undefined, autoUnlock: undefined, fallbackPackage: undefined };
     if (d && d.autoUnlock !== undefined) {
       if (typeof d.autoUnlock !== 'boolean') errors.push('Install by default must be true or false.');
       else out.autoUnlock = d.autoUnlock;
+    }
+    if (d && d.fallbackPackage !== undefined) {
+      const fb = (d.fallbackPackage || '').trim();
+      if (fb) {
+        if (!_ID_RE.test(fb)) errors.push(`Invalid fallback package id ${JSON.stringify(fb)}: use a lowercase package id.`);
+        else if (fb === id) errors.push('A package cannot be its own fallback.');
+        else if (fb === 'postapoc') errors.push('postapoc is already the built-in fallback; no need to declare it.');
+        else {
+          out.fallbackPackage = fb;
+          if (!(list || []).some(p => p && p.id === fb)) warnings.push(`"${fb}" is not an installed package; it is kept as the fallback.`);
+        }
+      } else out.fallbackPackage = '';
     }
     if (d && d.description !== undefined) {
       if (typeof d.description !== 'string') errors.push('The description must be text.');
@@ -15363,6 +15377,7 @@ const Packages = (() => {
     if (r.description !== undefined) next.description = r.description;
     if (r.dependencies !== undefined) next.dependencies = r.dependencies;
     if (r.autoUnlock !== undefined) next.autoUnlock = r.autoUnlock;
+    if (r.fallbackPackage !== undefined) next.fallbackPackage = r.fallbackPackage;
     _details[id] = next;
     _saveDetails();
     if (e.localOnly) _updateLocalRecord(id, { ...(next.description !== undefined ? { description: next.description } : {}), ...(next.dependencies !== undefined ? { dependencies: next.dependencies.slice() } : {}), ...(next.autoUnlock !== undefined ? { autoUnlock: next.autoUnlock } : {}) });
@@ -15446,6 +15461,16 @@ const Packages = (() => {
     root.appendChild(autoLabel);
     root.appendChild(T('div', 'When on, the game unlocks and downloads this package automatically at launch, like the base game. Takes effect for players after you publish.', { className: 'pkg-det-hint', style: 'font-size:11px;opacity:.7;margin:0 0 8px' }));
 
+    const fallbackLabel = T('label', 'Fallback package (used for art this package is missing, e.g. coastline/roads) ');
+    const fallbackOpts = _registry.filter(p => !p.isDefault && p.id !== id && typeof p.id === 'string');
+    const fallback = T('input', null, { type: 'text', id: 'pkg-det-fallback', value: d.fallbackPackage || '', placeholder: 'e.g. decameroon' });
+    fallback.setAttribute('list', 'pkg-det-fallback-list');
+    fallbackLabel.appendChild(fallback);
+    root.appendChild(fallbackLabel);
+    const fallbackList = T('datalist', null, { id: 'pkg-det-fallback-list' });
+    for (const p of fallbackOpts) fallbackList.appendChild(T('option', null, { value: p.id }));
+    root.appendChild(fallbackList);
+
     root.appendChild(T('label', 'Depends on (other packages; optional version, x.y.z or ^x.y.z)'));
     const parsed = d.dependencies.map(parseDependency).filter(Boolean);
     const known = _registry.filter(p => !p.isDefault && p.id !== id && typeof p.id === 'string');
@@ -15507,7 +15532,7 @@ const Packages = (() => {
           deps.push(range ? `${cb.value}@${range}` : cb.value);
         });
         extra.value.split(/[\s,]+/).filter(Boolean).forEach(s => deps.push(s));
-        const r = validateDetails(id, { description: desc.value, dependencies: deps, autoUnlock: autoCb.checked });
+        const r = validateDetails(id, { description: desc.value, dependencies: deps, autoUnlock: autoCb.checked, fallbackPackage: fallback.value.trim() });
         if (!r.ok) { err.textContent = r.errors.join('\n'); return; }
         // All or nothing: the preview goes first (it can fail on storage), then the details; when the details then fail the
         // previous preview is put back, so a failure never leaves half of the edit behind.
@@ -15516,7 +15541,7 @@ const Packages = (() => {
           if (pending) await SpriteStore.save(PREVIEW_NAME, pending, 'preview', id);
           else if (removed) await SpriteStore.remove(PREVIEW_NAME, id);
         } catch (e2) { err.textContent = `The preview could not be stored (${e2 && e2.message ? e2.message : e2}). Nothing was saved.`; return; }
-        if (!updateDetails(id, { description: desc.value, dependencies: deps, autoUnlock: autoCb.checked })) {
+        if (!updateDetails(id, { description: desc.value, dependencies: deps, autoUnlock: autoCb.checked, fallbackPackage: fallback.value.trim() })) {
           if (pending || removed) {
             try { if (prevPreview) await SpriteStore.save(PREVIEW_NAME, prevPreview, 'preview', id); else await removePreview(id); }
             catch (e3) { console.warn('[Packages] preview rollback failed:', e3 && e3.message); }
@@ -15594,7 +15619,7 @@ const Packages = (() => {
       const JSZip = await _loadJSZip();
       const zip = new JSZip();
       const version = (serverPkg && serverPkg.version) || entry.version || '1.0.0';
-      const { localOnly, serverClaimed, autoUnlock: _au, ...cleanEntry } = entry;   // autoUnlock is registry-only
+      const { localOnly, serverClaimed, autoUnlock: _au, fallbackPackage: _fb, ...cleanEntry } = entry;   // autoUnlock/fallbackPackage are registry-only
       const det = _mergedDetails(id, entry, serverPkg);   // local description/dependencies win
       const previewUrl = await getPreview(id);
       let previewBlob = null;
@@ -16483,6 +16508,9 @@ const Packages = (() => {
         // autoUnlock lives only in the registry: keep the live entry's value unless the owner set it here; write true only.
         const locAuto = (_loadDetails()[id] || {}).autoUnlock;
         if (typeof locAuto === 'boolean') { delete out.autoUnlock; if (locAuto) out.autoUnlock = true; }
+        // fallbackPackage lives only in the registry: keep the live entry's value unless the owner set it here; write non-empty only.
+        const locFallback = (_loadDetails()[id] || {}).fallbackPackage;
+        if (locFallback !== undefined) { delete out.fallbackPackage; if (typeof locFallback === 'string' && locFallback) out.fallbackPackage = locFallback; }
         return out;
       };
       if (regData.packages.some(p => p.id === id))
@@ -16493,7 +16521,7 @@ const Packages = (() => {
       if (entry.localOnly) _updateLocalRecord(id, { serverClaimed: true });   // the id is ours now; a retry after a failure must not call it taken
 
       UIprogress(92, `Updating ${id}/package.json…`);
-      const { localOnly: _lo, serverClaimed: _sc, autoUnlock: _au, ...cleanEntry } = entry;   // autoUnlock is registry-only
+      const { localOnly: _lo, serverClaimed: _sc, autoUnlock: _au, fallbackPackage: _fb, ...cleanEntry } = entry;   // autoUnlock/fallbackPackage are registry-only
       const pkgJson = JSON.stringify({
         ...(serverPkg || {}), ...cleanEntry,
         version: newVersion,
