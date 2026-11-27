@@ -2725,7 +2725,7 @@
           "amount": 2999
         }
       ],
-      "premiumPrice": 10,
+      "premiumPrice": 999,
       "additionalBuildCondition": false,
       "tilesTypeMode": "Type",
       "tilesTypeValue": "Rivers",
