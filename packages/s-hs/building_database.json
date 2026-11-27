@@ -2718,18 +2718,18 @@
       "availableTiles": [
         "Plains"
       ],
-      "minLevel": 1,
+      "minLevel": 3,
       "price": [
         {
           "type": "Gold",
-          "amount": 2999
+          "amount": 1000
         }
       ],
       "premiumPrice": 999,
       "additionalBuildCondition": false,
       "tilesTypeMode": "Type",
       "tilesTypeValue": "Rivers",
-      "radius": 2,
+      "radius": 0,
       "hexEarnsOnTap": false,
       "destroyableByTap": false,
       "incomeTransformToMode": "Parents",
