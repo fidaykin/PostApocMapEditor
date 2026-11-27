@@ -477,6 +477,18 @@ export async function reloadEditor(page: Page) {
  * It orders requests that the close handler issued SYNCHRONOUSLY; a request or write the handler makes after an
  * `await` is not covered (wait for that effect itself with `expect.poll`).
  */
+/**
+ * Dismisses every currently-visible sticky toast (click-to-dismiss, UI.toast's own mechanism — see
+ * MapEditorPro.html's dismiss handler on `.toast.sticky`). seedRoadsWorld/openEditor legitimately raise
+ * one ("Kept N local edit(s) that differ from the server...") whenever the fixture's local hexes differ
+ * from the fake server snapshot it just loaded from; the fixed toast-container can then float over a
+ * modal's own buttons and intercept clicks (ClickUp 1an60dzx8kh — a test-hygiene flake, not app logic).
+ * Call this right after seeding, before interacting with anything the toast might overlap.
+ */
+export async function dismissStickyToasts(page: Page) {
+  for (const el of await page.locator('.toast.sticky').all()) await el.click();
+}
+
 export async function quiesceAfterDialog(page: Page) {
   await page.locator('#dialog-modal.open').waitFor({ state: 'detached', timeout: 5000 }).catch(async () => {
     await page.locator('#dialog-modal.open').waitFor({ state: 'hidden', timeout: 5000 });

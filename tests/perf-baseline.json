@@ -1,6 +1,6 @@
 {
-  "render_25": "1491x808:6f0a7b8d",
-  "render_60": "1491x808:7c669f6f",
+  "render_25": "1491x808:d5a87329",
+  "render_60": "1491x808:ebf8ad0a",
   "render_100": "1491x808:cadd9548",
   "render_200": "1491x808:cf0bc3c5",
   "minimap": "220x220:8bd164eb",
@@ -9,15 +9,15 @@
   "generator_seed42": "202500:c6f8e07c",
   "satellite_synth": "202500:744f6a72",
   "_meta": {
-    "chrome": "154.0.8037.97",
+    "chrome": "158.0.8127.38",
     "viewport": {
       "width": 1400,
       "height": 900
     },
     "recorded": "pre-optimisation editor"
   },
-  "t_render_25": 96.59999996423721,
-  "t_render_100": 20.900000035762787,
-  "t_minimap": 1.699999988079071,
-  "t_byHexId_200k": 518.9000000357628
+  "t_render_25": 94.19999992847443,
+  "t_render_100": 20.299999952316284,
+  "t_minimap": 1.7999999523162842,
+  "t_byHexId_200k": 491.59999990463257
 }
