@@ -1,7 +1,7 @@
 {
   "id": "s-hs",
   "name": "S_HS",
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -51,10 +51,16 @@
       "version": "1.0.8",
       "date": "2026-11-27",
       "note": "added Bridges for River tiles"
+    },
+    {
+      "version": "1.0.9",
+      "date": "2026-11-27",
+      "note": "Fix Foundry_1 settings"
     }
   ],
   "manifestUrl": "packages/s-hs/manifest.json",
   "totalBytes": 25608974,
   "minAppVersion": "0.0.0",
-  "schemaVersion": 1
+  "schemaVersion": 1,
+  "fallbackPackage": "decameroon"
 }
