@@ -78,7 +78,7 @@ test('publish keeps description and preview, bumps from the server version, writ
   expect(pkg.description).toBe('My desc');
   expect(pkg.preview).toBe('pv.png');
   expect(pkg.version).toBe('1.2.4');
-  expect(gh.putPaths().at(-1)).toBe('packages/pp/package.json');
+  expect(gh.putPaths().filter(p => p !== 'packages/atlas-request.json').at(-1)).toBe('packages/pp/package.json');   // the atlas request is not data: it follows the commit marker
   expect(gh.putPaths()).toContain('packages/registry.json');
   expect(gh.json('packages/registry.json').packages.find((p: any) => p.id === 'pp').version).toBe('1.2.4');
 });

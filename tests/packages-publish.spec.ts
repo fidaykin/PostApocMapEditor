@@ -73,7 +73,7 @@ test('publish with a minor bump and a changelog: write order, version, changelog
   await page.fill('#pub-changelog', '  Added <b>tiles</b>  ');
   await page.getByRole('button', { name: 'Publish anyway' }).click();
   await waitForLastWrite(gh, PKG);
-  const order = gh.writeLog.map(w => w.path);
+  const order = gh.writeLog.map(w => w.path).filter(p => p !== 'packages/atlas-request.json');   // the atlas request follows the commit marker: it is not data
   expect(order.at(-1)).toBe(PKG);
   expect(order.indexOf('packages/pp/hex_database.json')).toBeLessThan(order.indexOf('packages/pp/sprites/hex/Have_1.png'));
   expect(order.indexOf('packages/pp/sprites/hex/Have_1.png')).toBeLessThan(order.indexOf('packages/registry.json'));

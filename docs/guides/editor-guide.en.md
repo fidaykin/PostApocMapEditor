@@ -10,7 +10,7 @@ Open `MapEditorPro.html` from a web server (for example `npx serve .` or the pub
 
 The editor is a single page. The row of tabs under the menu bar switches the section: MAP, HEX DB, BUILDINGS, SETTLEMENTS, KEYS, PACKAGES and MORE (Actions, Upgrades, Monsters, Quests, Common, Dev tools). `Tab` (when no text field is focused and no dialog is open) goes to the next section.
 
-Everything you need while editing a map is in the **left palette**; the minimap and the settlements are in the **right panel**. The toolbar row of the MAP tab has two groups only: **File** (Open, Save) and **View** (the `◎` distance-rings button with its ring interval, the Block address box, Rulers and Coastline). The right panel can be collapsed with the `»` button at its top. On windows narrower than 1920 px it starts collapsed as a thin rail and opens over the map as a drawer; the choice is remembered in this browser.
+Everything you need while editing a map is in the **left palette**; the minimap and the settlements are in the **right panel**. The toolbar row of the MAP tab has two groups only: **File** (Open, Save) and **View** (the `◎` distance-rings button with its ring interval, the Block address box and Rulers). The right panel can be collapsed with the `»` button at its top. On windows narrower than 1920 px it starts collapsed as a thin rail and opens over the map as a drawer; the choice is remembered in this browser.
 
 The left palette is four groups, top to bottom:
 
@@ -34,7 +34,7 @@ The status bar shows the tile under the cursor as `col,row`, its Unity coordinat
 - Mouse wheel: zoom around the cursor. Zoom goes from the whole map (the minimum depends on the map size) up to 200 %. Below 25 % simple sprites are drawn and below 10 % a flat overview, so a 450 by 450 map stays smooth.
 - Pan: hold the right or middle mouse button, or hold `Space` and drag with the left button. On a touch screen use one finger to pan and two to zoom.
 - `+` / `=` zoom in, `-` zoom out, `0` fits the whole map on the screen.
-- Overlays: `1` distance rings (the `◎` toolbar button does the same), `2` block rulers, `3` coastline preview.
+- Overlays: `1` distance rings (the `◎` toolbar button does the same), `2` block rulers.
 - **Minimap** (right panel): click or drag to move the view. In the left palette, **Bigger** enlarges it (340 px; remembered), and **Zones** and **Towns** draw the zone colours and the settlements on it. They follow the Layers visibility (section 7).
 - **Bookmarks** (left palette): Add saves the middle of the current view and the zoom, with an optional name. Click a bookmark to jump back; rename and delete are on its row. Bookmarks are stored in this browser only, never in the map file. A bookmark outside the current map is greyed out.
 
@@ -207,7 +207,7 @@ The list below follows the editor's own shortcut list (Help > Keyboard Shortcuts
 | `+` / `=` | Zoom in |
 | `-` | Zoom out |
 | `0` | Fit the whole map |
-| `1` / `2` / `3` | Distance rings, block rulers, coastline preview |
+| `1` / `2` | Distance rings, block rulers |
 | `Space` + drag | Pan (also right or middle mouse button) |
 | `Tab` | Next editor section |
 

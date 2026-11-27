@@ -7,7 +7,7 @@ import { freshEditorAuto } from './editor-helpers';
 // the File and View groups; the right panel holds the minimap and the settlements (plus the contextual inspectors).
 
 const TOOL_ROWS: [string, string, string[]][] = [
-  ['draw', 'Draw', ['paint', 'fill', 'rect', 'line', 'circle', 'polygon', 'eraser', 'scatter', 'replace', 'zone']],
+  ['draw', 'Draw', ['paint', 'fill', 'rect', 'line', 'circle', 'polygon', 'eraser', 'scatter', 'pattern', 'replace', 'zone']],
   ['select', 'Select', ['marquee', 'select', 'eye']],
   ['place', 'Place', ['object', 'erase-object', 'road', 'road-connect', 'erase-road', 'bridge', 'settlement', 'erase']],
 ];
@@ -17,8 +17,8 @@ const SECTION_GROUPS: [string, string, string[]][] = [
   ['check', 'Check & share', ['validator', 'export', 'design', 'help']],
 ];
 // tools whose result depends on the brush radius / that write symmetric copies
-const BRUSH_TOOLS = ['paint', 'eraser', 'scatter', 'line', 'circle', 'zone'];
-const SYM_TOOLS = ['paint', 'rect', 'line', 'circle', 'polygon', 'eraser', 'scatter'];
+const BRUSH_TOOLS = ['paint', 'eraser', 'scatter', 'pattern', 'line', 'circle', 'zone'];
+const SYM_TOOLS = ['paint', 'rect', 'line', 'circle', 'polygon', 'eraser', 'scatter', 'pattern'];
 
 const SPY = () => { (window as any).__toasts = []; if (!(UI as any).__spied) { (UI as any).__spied = true; const t = UI.toast; (UI as any).toast = (m: any, o: any) => { (window as any).__toasts.push(String(m)); return t.call(UI, m, o); }; } };
 const toasts = (page: Page): Promise<string[]> => page.evaluate(() => (window as any).__toasts.slice());
@@ -132,7 +132,7 @@ test.describe('tool options strip', () => {
       return { brush: b.dataset.relevant, brushOp: Number(getComputedStyle(b).opacity), brushTip: b.title,
                sym: s.dataset.relevant, symOp: Number(getComputedStyle(s).opacity), symTip: s.title };
     }, tool);
-    for (const t of ['paint', 'fill', 'rect', 'line', 'circle', 'polygon', 'eraser', 'scatter', 'replace', 'zone', 'marquee', 'select', 'eye', 'object', 'road', 'bridge', 'settlement']) {
+    for (const t of ['paint', 'fill', 'rect', 'line', 'circle', 'polygon', 'eraser', 'scatter', 'pattern', 'replace', 'zone', 'marquee', 'select', 'eye', 'object', 'road', 'bridge', 'settlement']) {
       const r = await st(t);
       const b = BRUSH_TOOLS.includes(t), s = SYM_TOOLS.includes(t);
       expect(r.brush, t).toBe(String(b));
