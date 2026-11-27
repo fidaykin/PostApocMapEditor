@@ -30,7 +30,8 @@
       "manifestUrl": "packages/hs/manifest.json",
       "totalBytes": 25748177,
       "minAppVersion": "0.0.0",
-      "schemaVersion": 1
+      "schemaVersion": 1,
+      "fallbackPackage": "decameroon"
     },
     {
       "id": "s-hs",
