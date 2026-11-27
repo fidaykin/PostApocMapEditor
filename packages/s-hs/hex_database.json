@@ -340,14 +340,14 @@
       "descriptionBuildId": "",
       "baseCostTaps": 4,
       "canDestroy": true,
-      "destroyTransformTo": "Hs_Decameroon_Plain_2",
+      "destroyTransformTo": "SHs_Decameroon_Plain_2",
       "destroySource": [],
       "canStored": false,
       "destroyIncomeEnabled": true,
       "destroyIncome": [
         {
           "type": "Lumber",
-          "amount": 5
+          "amount": 9
         }
       ],
       "canBuild": true,
@@ -405,7 +405,7 @@
       "descriptionBuildId": "",
       "baseCostTaps": 6,
       "canDestroy": true,
-      "destroyTransformTo": "Hs_Decameroon_Plain_2",
+      "destroyTransformTo": "SHs_Decameroon_Plain_2",
       "destroySource": [],
       "canStored": false,
       "destroyIncomeEnabled": true,
@@ -470,7 +470,7 @@
       "descriptionBuildId": "",
       "baseCostTaps": 20,
       "canDestroy": true,
-      "destroyTransformTo": "Hs_Decameroon_Plain_2",
+      "destroyTransformTo": "SHs_Decameroon_Plain_2",
       "destroySource": [],
       "canStored": false,
       "destroyIncomeEnabled": true,
@@ -535,7 +535,7 @@
       "descriptionBuildId": "",
       "baseCostTaps": 20,
       "canDestroy": true,
-      "destroyTransformTo": "Hs_Decameroon_Plain_2",
+      "destroyTransformTo": "SHs_Decameroon_Plain_2",
       "destroySource": [],
       "canStored": false,
       "destroyIncomeEnabled": true,
