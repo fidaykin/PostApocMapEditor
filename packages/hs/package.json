@@ -1,7 +1,7 @@
 {
   "id": "hs",
   "name": "HS",
-  "version": "1.0.41",
+  "version": "1.0.42",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -191,10 +191,15 @@
       "version": "1.0.41",
       "date": "2026-11-27",
       "note": "Fix Transform to for Shs_Forest_1,2,3,4"
+    },
+    {
+      "version": "1.0.42",
+      "date": "2026-11-27",
+      "note": "Forest settings"
     }
   ],
   "manifestUrl": "packages/hs/manifest.json",
-  "totalBytes": 25745267,
+  "totalBytes": 25748177,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
