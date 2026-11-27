@@ -1,7 +1,7 @@
 {
   "id": "s-hs",
   "name": "S_HS",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -31,10 +31,15 @@
       "version": "1.0.5",
       "date": "2026-11-27",
       "note": "Test Buildings Premium Price Settings"
+    },
+    {
+      "version": "1.0.6",
+      "date": "2026-11-27",
+      "note": "min Level check"
     }
   ],
   "manifestUrl": "packages/s-hs/manifest.json",
-  "totalBytes": 25606517,
+  "totalBytes": 25606518,
   "minAppVersion": "0.0.0",
   "schemaVersion": 1
 }
