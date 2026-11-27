@@ -2871,7 +2871,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.27";
-const COMMIT  = "65c9a933";
+const COMMIT  = "83ec8e1a";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -24553,6 +24553,7 @@ const ActionsDB = (() => {
       forcedTransformTo: '',
       radius: 0,
       additionalConditions: [],
+      minLevel: 0,
     };
   }
 
@@ -24571,6 +24572,7 @@ const ActionsDB = (() => {
     if (a.forcedTransformTo === undefined) a.forcedTransformTo = '';
     a.radius = Math.max(0, Math.round(a.radius) || 0);
     if (!Array.isArray(a.additionalConditions)) a.additionalConditions = [];
+    a.minLevel = Math.max(0, Math.round(a.minLevel) || 0);
     return a;
   }
 
@@ -24739,6 +24741,9 @@ const ActionsDB = (() => {
             <div class="hexdb-row"><span class="hexdb-label">Radius</span>
               <input class="hexdb-input" id="act-f-radius" type="number" step="1" min="0" value="${a.radius}" style="width:90px"
                 title="0 = the target tile only (D-47). MVP has no Radius = Max."></div>
+            <div class="hexdb-row"><span class="hexdb-label">Min Level</span>
+              <input class="hexdb-input" id="act-f-minLevel" type="number" step="1" min="0" value="${a.minLevel}" style="width:90px"
+                title="0 = no gate. Else the Main Settlement must reach this level for the action to appear (temporary MVP table, D-47 task 4, pending Settlements Editor spec)."></div>
             <div class="hexdb-row" style="align-items:flex-start"><span class="hexdb-label" style="padding-top:4px">Additional Actions Conditions</span>
               <div style="flex:1">${_tagsHTML('additionalConditions', a.additionalConditions, 'act-id-list',
                 'Hex/Building IDs forbidden inside the radius for this action to apply.')}</div></div>
@@ -24788,6 +24793,7 @@ const ActionsDB = (() => {
       a.premiumPrice       = Math.max(0, Math.round(parseFloat(g('act-f-premiumPrice')?.value) || 0));
       a.forcedTransformTo  = g('act-f-forcedTransformTo')?.value ?? '';
       a.radius             = Math.max(0, Math.round(parseFloat(g('act-f-radius')?.value) || 0));
+      a.minLevel           = Math.max(0, Math.round(parseFloat(g('act-f-minLevel')?.value) || 0));
       _autoSave();
       if (a.logic !== prevLogic) { _buildList(); _renderRecord(a); return; }
       const row = g('act-row-forcedTransformTo');
@@ -24795,7 +24801,7 @@ const ActionsDB = (() => {
       _refreshListRow();
     };
     right.querySelectorAll('#act-f-id,#act-f-textId,#act-f-idDescription,#act-f-logic,#act-f-spriteName,' +
-      '#act-f-premiumPrice,#act-f-forcedTransformTo,#act-f-radius').forEach(el => {
+      '#act-f-premiumPrice,#act-f-forcedTransformTo,#act-f-radius,#act-f-minLevel').forEach(el => {
       el.addEventListener('input', onSimple);
       el.addEventListener('change', onSimple);
     });
