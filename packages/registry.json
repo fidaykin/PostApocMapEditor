@@ -37,9 +37,9 @@
       "id": "s-hs",
       "name": "S_HS",
       "isDefault": false,
-      "version": "1.0.8",
+      "version": "1.0.9",
       "manifestUrl": "packages/s-hs/manifest.json",
-      "totalBytes": 25608974,
+      "totalBytes": 25609052,
       "minAppVersion": "0.0.0",
       "schemaVersion": 1,
       "fallbackPackage": "decameroon"
