@@ -95,6 +95,19 @@ test('republishing keeps an existing fallbackPackage untouched when the editor m
   expect(entry(gh, 'a').fallbackPackage).toBe('b');
 });
 
+test('clearing the field survives a reload of stored details (not silently reverted to the stale server value)', async ({ page }) => {
+  const gh = fake([{ id: 'a', name: 'Alpha', fallbackPackage: 'b' }, { id: 'b', name: 'Beta' }]);
+  await boot(page, gh);
+  await setFallback(page, '');
+  expect(await page.evaluate(() => Packages.getDetails('a').fallbackPackage)).toBe('');
+  // saving another package's details reloads the details store from localStorage (_reloadDetails);
+  // the clear on 'a' must not be lost by that round trip.
+  await page.evaluate(() => Packages.updateDetails('b', { description: 'unrelated change' }));
+  expect(await page.evaluate(() => Packages.getDetails('a').fallbackPackage)).toBe('');
+  await page.evaluate(() => Packages.publishPackage('a'));
+  expect('fallbackPackage' in entry(gh, 'a')).toBe(false);
+});
+
 test('fallbackPackage must be a lowercase package id', async ({ page }) => {
   await boot(page, fake([{ id: 'a', name: 'Alpha' }]));
   const r = await page.evaluate(() => [

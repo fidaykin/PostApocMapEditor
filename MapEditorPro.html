@@ -2871,7 +2871,7 @@ body.mode-common #map-io    { display: none; }
 
 <script>
 const VERSION = "2026.11.27";
-const COMMIT  = "3a885aa7";
+const COMMIT  = "401ea68b";
 
 // ════════════════════════════════════════════════════════════
 // MODULE STUBS — filled in by subsequent tasks
@@ -15196,7 +15196,7 @@ const Packages = (() => {
       out.dependencies = deps;
     }
     if (typeof d.autoUnlock === 'boolean') out.autoUnlock = d.autoUnlock;   // registry-level flag the game client reads
-    if (typeof d.fallbackPackage === 'string' && d.fallbackPackage) out.fallbackPackage = d.fallbackPackage;
+    if (typeof d.fallbackPackage === 'string') out.fallbackPackage = d.fallbackPackage;   // keep an explicit clear ('') too
     return out;
   }
 
