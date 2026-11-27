@@ -1065,8 +1065,13 @@
       "facilityBonusResources": [],
       "facilityBonusInfluenceType": "Add",
       "productionFacilities": [],
-      "canStore": false,
-      "stores": [],
+      "canStore": true,
+      "stores": [
+        {
+          "type": "Steel",
+          "amount": 2000
+        }
+      ],
       "storageCapacity": [],
       "storageUpgradeId": "",
       "bonusDrop": false,
