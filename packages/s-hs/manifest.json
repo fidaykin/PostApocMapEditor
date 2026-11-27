@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
   "id": "s-hs",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-11-27T13:45:20.469Z",
-  "totalBytes": 25606518,
+  "generatedAt": "2026-11-27T17:30:58.028Z",
+  "totalBytes": 25608974,
   "dependencies": [],
   "files": [
     {
       "path": "building_database.json",
-      "sha256": "341ab6cfc237ea7c4e3acc5e3afa83694e95c0b966192b1709ad378453fcf56b",
-      "size": 76269
+      "sha256": "c674eb14f662d0083e623d46788de0c57c08976cc774a4d6b5b8da1e74778c84",
+      "size": 78721
     },
     {
       "path": "hex_database.json",
-      "sha256": "3e18b6304a34c7c7d3647c53e0d7b7185ca6a2d119652108e7127d963346e66e",
-      "size": 85621
+      "sha256": "c79769006b1a500089303cb115dd00c94183bf1ea6fef28dda45da74d600a655",
+      "size": 85625
     },
     {
       "path": "sprites/buildings/HS_Abbey_S_1.png",
