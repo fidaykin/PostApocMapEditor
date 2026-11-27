@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "id": "s-hs",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "minAppVersion": "0.0.0",
-  "generatedAt": "2026-11-27T18:21:29.849Z",
+  "generatedAt": "2026-11-27T18:23:11.444Z",
   "totalBytes": 25608974,
   "dependencies": [],
   "files": [
