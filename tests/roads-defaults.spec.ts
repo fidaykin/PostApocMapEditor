@@ -1,5 +1,6 @@
 import { test, expect } from '@playwright/test';
 import { seedRoadsWorld } from './roads-fixtures';
+import { dismissStickyToasts } from './helpers';
 
 // Roads/Bridges V1, editor phase F1: defaults by tile type (common.roadDefaults). Defaults are applied only explicitly.
 async function selectHex(page: any, id: string) {
@@ -85,6 +86,7 @@ test.describe('apply type defaults (explicit only)', () => {
 test.describe('Road defaults modal', () => {
   test('edits persist in common.roadDefaults, survive a local snapshot round trip, are not written in mode off', async ({ page }) => {
     await seedRoadsWorld(page);
+    await dismissStickyToasts(page);
     await page.evaluate(() => App.setMode('hexdb'));
     await page.locator('#hexdb-road-defaults-btn').click();
     const modal = page.locator('#road-defaults-modal');
@@ -121,6 +123,7 @@ test.describe('Road defaults modal', () => {
 
   test('Cancel changes nothing', async ({ page }) => {
     await seedRoadsWorld(page);
+    await dismissStickyToasts(page);
     await page.evaluate(() => App.setMode('hexdb'));
     await page.locator('#hexdb-road-defaults-btn').click();
     await page.locator('#road-defaults-modal tr[data-group="Forests"] input[data-type-id="road"]').check();
