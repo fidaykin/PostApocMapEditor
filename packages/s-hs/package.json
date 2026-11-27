@@ -1,7 +1,7 @@
 {
   "id": "s-hs",
   "name": "S_HS",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "",
   "preview": "preview.png",
   "isDefault": false,
@@ -36,6 +36,11 @@
       "version": "1.0.6",
       "date": "2026-11-27",
       "note": "min Level check"
+    },
+    {
+      "version": "1.0.7",
+      "date": "2026-11-27",
+      "note": "Fixes for Forests Transform to"
     }
   ],
   "manifestUrl": "packages/s-hs/manifest.json",
