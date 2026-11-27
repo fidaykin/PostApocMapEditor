@@ -42,6 +42,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -84,6 +85,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -126,6 +128,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -168,6 +171,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -210,6 +214,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -252,6 +257,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -294,6 +300,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -336,6 +343,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -378,6 +386,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -420,6 +429,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -462,6 +472,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -504,6 +515,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -546,6 +558,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -588,6 +601,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -630,6 +644,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -672,6 +687,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -714,6 +730,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -756,6 +773,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -798,6 +816,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -840,6 +859,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -882,6 +902,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -924,6 +945,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -966,6 +988,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1008,6 +1031,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1050,6 +1074,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1092,6 +1117,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1134,6 +1160,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1176,6 +1203,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1218,6 +1246,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1260,6 +1289,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1302,6 +1332,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1344,6 +1375,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1386,6 +1418,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1428,6 +1461,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1470,6 +1504,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1512,6 +1547,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1554,6 +1590,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1596,6 +1633,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1638,6 +1676,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1680,6 +1719,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1722,6 +1762,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1764,6 +1805,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1806,6 +1848,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1848,6 +1891,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1890,6 +1934,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1932,6 +1977,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -1974,6 +2020,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2016,6 +2063,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2058,6 +2106,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2100,6 +2149,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2142,6 +2192,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2184,6 +2235,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2226,6 +2278,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2268,6 +2321,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2310,6 +2364,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2352,6 +2407,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2394,6 +2450,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2436,6 +2493,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2478,6 +2536,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     },
     {
@@ -2520,6 +2579,7 @@
       "bonusDrop": false,
       "bonusTrigger": "Destroy",
       "bonuses": [],
+      "actionBonusDrops": [],
       "effects": ""
     }
   ]

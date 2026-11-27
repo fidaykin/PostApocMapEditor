@@ -143,7 +143,7 @@ test('base sprites whose hash matches the base manifest are not uploaded again',
 
 test.describe('Task 4: Publish Common Data', () => {
   const payloads = (page: Page) => page.evaluate(() => ({
-    upg: UpgDB.getJson(), com: CommonDB.export(), loc: JSON.stringify(LocalizationKeys.getExportData(), null, 2),
+    upg: UpgDB.getJson(), act: ActionsDB.getJson(), com: CommonDB.export(), loc: JSON.stringify(LocalizationKeys.getExportData(), null, 2),
   }));
   const confirmBtn = (page: Page, name: string) => page.getByRole('button', { name, exact: true });
 
@@ -152,12 +152,14 @@ test.describe('Task 4: Publish Common Data', () => {
     await openEditor(page, { gh, pat: true });
     const p = await payloads(page);
     gh.write('upgrade_database.json', p.upg);                 // same as local
+    gh.write('actions.json', p.act);                          // same as local
     gh.write('localization.json', p.loc);                     // same as local
     gh.write('common_settings.json', '{"old":true}');         // differs
     await page.evaluate(() => { void GitHubSync.publishCommon(); });
     const details = page.locator('#dialog-details');
     await expect(details).toContainText('common_settings.json: changed');
     await expect(details).toContainText('upgrade_database.json: unchanged');
+    await expect(details).toContainText('actions.json: unchanged');
     await confirmBtn(page, 'Publish').click();
     await expect.poll(() => gh.putPaths()).toEqual(['common_settings.json']);
   });
@@ -172,11 +174,12 @@ test.describe('Task 4: Publish Common Data', () => {
     expect(gh.putPaths()).toEqual([]);
   });
 
-  test('all three unchanged: only Close, no write', async ({ page }) => {
+  test('all four unchanged: only Close, no write', async ({ page }) => {
     const gh = new FakeGitHub();
     await openEditor(page, { gh, pat: true });
     const p = await payloads(page);
-    gh.write('upgrade_database.json', p.upg); gh.write('common_settings.json', p.com); gh.write('localization.json', p.loc);
+    gh.write('upgrade_database.json', p.upg); gh.write('actions.json', p.act);
+    gh.write('common_settings.json', p.com); gh.write('localization.json', p.loc);
     await page.evaluate(() => { void GitHubSync.publishCommon(); });
     await expect(page.locator('#dialog-msg')).toContainText('Nothing differs');
     await confirmBtn(page, 'Close').click();
@@ -187,8 +190,9 @@ test.describe('Task 4: Publish Common Data', () => {
   test('a failing second write names the file and the one already written', async ({ page }) => {
     const gh = new FakeGitHub();
     await openEditor(page, { gh, pat: true });
+    const p = await payloads(page);
     gh.write('upgrade_database.json', '{"old":1}'); gh.write('common_settings.json', '{"old":2}');
-    gh.write('localization.json', (await payloads(page)).loc);
+    gh.write('actions.json', p.act); gh.write('localization.json', p.loc);
     gh.failPut = (p: string) => p === 'common_settings.json';
     await page.evaluate(() => { void GitHubSync.publishCommon(); });
     await confirmBtn(page, 'Publish').click();
